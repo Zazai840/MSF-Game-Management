@@ -52,6 +52,10 @@ _Avoid_: Final heat, medal race
 Recording, at the start line and before the whistle, which children are running in a race. Check-in is what creates a race.
 _Avoid_: Registration, sign-in, line-up
 
+**Relay team**:
+Four children who run one relay event together, known by their four wristband numbers; any one of the numbers finds the team. A relay team belongs to its event, not to a race, and is usually entered on the event's team list before the relays start.
+_Avoid_: Squad, relay entry, team registration
+
 **Deleted race**:
 A race removed from an event's results but kept so it can be restored, for example one created by mistake.
 _Avoid_: Cancelled race, deleted game, void race
