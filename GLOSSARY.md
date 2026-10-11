@@ -48,6 +48,10 @@ _Avoid_: Qualifier, preliminary
 The single deciding race of an event that has heats, run by the 6 qualifiers from the heats.
 _Avoid_: Final heat, medal race
 
+**Finals line-up**:
+The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete.
+_Avoid_: Finalists list, running heats sheet, start list
+
 **Check-in**:
 Recording, at the start line and before the whistle, which children are running in a race. Check-in is what creates a race.
 _Avoid_: Registration, sign-in, line-up
@@ -103,15 +107,19 @@ The volunteer in charge of the Running Zone on the day, who settles clashes, dis
 _Avoid_: Admin, race manager, supervisor
 
 **Lead**:
-A person trusted with everything beyond the jobs: settling a race's problems, the live leaderboard, setting up and clearing the day. Zone leads are leads, and so are scoring team members who need the results.
+A person trusted with everything beyond the jobs: the live leaderboard and making rulings on a race's problems. Zone leads are leads, and so are scoring team members.
 _Avoid_: Admin, organiser, superuser
+
+**Scoring team**:
+The people outside the Running Zone who keep the Olympics scoring workbook and check eligibility. They are leads who can make the same rulings as a zone lead, and only they set up, export and clear an Olympics day.
+_Avoid_: Scorers, results team, admin team
 
 **Day code**:
 The short code a volunteer types, with their first name, to join on one Olympics day. Each Olympics day has a new one.
 _Avoid_: PIN, password, access code
 
 **Lead code**:
-The secret a volunteer who has joined types to become a lead. Making a new lead code turns every other lead back into a volunteer.
+The secret a volunteer who has joined types to become a lead. Making a new lead code turns every other lead back into a volunteer, except the scoring team.
 _Avoid_: Admin password, lead PIN
 
 **Job**:
