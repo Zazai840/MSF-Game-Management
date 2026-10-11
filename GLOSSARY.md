@@ -56,6 +56,10 @@ _Avoid_: Registration, sign-in, line-up
 Four children who run one relay event together, known by their four wristband numbers; any one of the numbers finds the team. A relay team belongs to its event, not to a race, and is usually entered on the event's team list before the relays start.
 _Avoid_: Squad, relay entry, team registration
 
+**Fill-in**:
+The one member a relay team may take from outside its section when the group has only three: a Beaver of the other gender for Beavers, a same-gender Beaver for Cubs, a same-gender Cub for Scouts.
+_Avoid_: Substitute, reserve, guest runner
+
 **Deleted race**:
 A race removed from an event's results but kept so it can be restored, for example one created by mistake.
 _Avoid_: Cancelled race, deleted game, void race
