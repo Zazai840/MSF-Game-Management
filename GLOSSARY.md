@@ -84,6 +84,10 @@ _Avoid_: DNF, retired, dropped out
 A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and their comment.
 _Avoid_: Log entry, comment, history
 
+**Warning**:
+A note attached to a child in a race when their wristband number looks wrong for it: a number no section uses, a number from another section, or a child who already ran in this event. It never stops the child running; the zone lead checks it, corrects the number or disqualifies.
+_Avoid_: Error, alert, validation failure
+
 ### People
 
 **Wristband number**:
