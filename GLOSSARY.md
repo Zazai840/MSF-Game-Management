@@ -99,8 +99,20 @@ A person helping run races in the Running Zone, often an Explorer aged 16 to 18.
 _Avoid_: Official, marshal, operator
 
 **Zone lead**:
-The volunteer in charge of the Running Zone on the day, who settles clashes, disputes and exceptions. More than one person can act as zone lead.
+The volunteer in charge of the Running Zone on the day, who settles clashes, disputes and exceptions. More than one person can act as zone lead. Every zone lead is a lead.
 _Avoid_: Admin, race manager, supervisor
+
+**Lead**:
+A person trusted with everything beyond the jobs: settling a race's problems, the live leaderboard, setting up and clearing the day. Zone leads are leads, and so are scoring team members who need the results.
+_Avoid_: Admin, organiser, superuser
+
+**Day code**:
+The short code a volunteer types, with their first name, to join on one Olympics day. Each Olympics day has a new one.
+_Avoid_: PIN, password, access code
+
+**Lead code**:
+The secret a volunteer who has joined types to become a lead. Making a new lead code turns every other lead back into a volunteer.
+_Avoid_: Admin password, lead PIN
 
 **Job**:
 One of the three pieces of work on a race that any volunteer can take on: Start line, Finish order or Times.
