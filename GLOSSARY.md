@@ -64,6 +64,26 @@ _Avoid_: Results, placings, positions list
 Two different versions of the same part of a race (its runners, finishing order or times), saved by different people without seeing each other's. The zone lead decides which stands.
 _Avoid_: Conflict, duplicate, mismatch
 
+**Tie**:
+Two or more children (or relay teams) of the same event with exactly the same time from different races. Equal times within one race are not a tie: the finishing order separates them.
+_Avoid_: Dead heat, draw
+
+**Run-off**:
+A short extra run between tied children, held at the zone lead's call, whose order breaks the tie. It is not a race: the zone lead records its outcome against the tie.
+_Avoid_: Re-run, tie-break race, decider
+
+**Disqualification**:
+The zone lead's ruling, with a reason, that a child (or relay team) is out of an event's ranking because of something they did in a race, such as two false starts or obstruction. The child stays shown in the race.
+_Avoid_: DQ, ban, removal
+
+**Did not finish**:
+A child who started a race but did not cross the line, for example after a fall. They have no time and no place.
+_Avoid_: DNF, retired, dropped out
+
+**Audit note**:
+A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and their comment.
+_Avoid_: Log entry, comment, history
+
 ### People
 
 **Wristband number**:
