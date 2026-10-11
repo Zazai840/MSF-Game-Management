@@ -37,7 +37,7 @@ _Avoid_: Event type, race type
 ### Races
 
 **Race**:
-One run of one event: between 1 and 6 children who line up and run together. Heats and finals are both races.
+One run of one event: between 1 and 6 children or relay teams who line up and run together. Heats and finals are both races.
 _Avoid_: Run, round
 
 **Heat**:
@@ -49,7 +49,7 @@ The single deciding race of an event that has heats, run by the 6 qualifiers fro
 _Avoid_: Final heat, medal race
 
 **Check-in**:
-Recording, at the start line and before the whistle, which children are running in a race. Check-in is what creates a race.
+Recording, at the start line and before the whistle, which children or relay teams are running in a race. Check-in is what creates a race.
 _Avoid_: Registration, sign-in, line-up
 
 **Relay team**:
