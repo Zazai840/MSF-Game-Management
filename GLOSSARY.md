@@ -56,8 +56,28 @@ _Avoid_: Registration, sign-in, line-up
 A race removed from an event's results but kept so it can be restored, for example one created by mistake.
 _Avoid_: Cancelled race, deleted game, void race
 
+**Finishing order**:
+The order in which a race's children crossed the line, recorded as wristband numbers from 1st to last.
+_Avoid_: Results, placings, positions list
+
+**Clash**:
+Two different versions of the same part of a race (its runners, finishing order or times), saved by different people without seeing each other's. The zone lead decides which stands.
+_Avoid_: Conflict, duplicate, mismatch
+
 ### People
 
 **Wristband number**:
 The number on a child's wristband, which identifies them for the whole of one Olympics day and is reused on other days. Its range shows the section, except Beaver boys from Beaver girls.
 _Avoid_: Competitor number, attendee number, bib number
+
+**Volunteer**:
+A person helping run races in the Running Zone, often an Explorer aged 16 to 18.
+_Avoid_: Official, marshal, operator
+
+**Zone lead**:
+The volunteer in charge of the Running Zone on the day, who settles clashes, disputes and exceptions. More than one person can act as zone lead.
+_Avoid_: Admin, race manager, supervisor
+
+**Job**:
+One of the three pieces of work on a race that any volunteer can take on: Start line, Finish order or Times.
+_Avoid_: Role, station, duty
