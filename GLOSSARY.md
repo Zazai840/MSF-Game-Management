@@ -6,6 +6,14 @@ The running events of the MSF (Muslim Scout Fellowship) Olympics, where voluntee
 
 ### Competition
 
+**Olympics day**:
+One independent competition day with its own wristbands, events and results; nothing carries over between days. 2026 has three: South day 1, South day 2 and North.
+_Avoid_: Event day, session
+
+**Day export**:
+The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day.
+_Avoid_: Backup, archive, dump
+
 **Running Zone**:
 The area of an Olympics day where all running events take place.
 _Avoid_: Race section, running section
@@ -21,6 +29,10 @@ _Avoid_: Competition, discipline
 **Event code**:
 The scoring team's identifier for an event (R1, R2, ...).
 _Avoid_: Event ID, event number
+
+**Event format**:
+How an event decides its medals: either heats then a final (60m and relays), or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m).
+_Avoid_: Event type, race type
 
 ### Races
 
@@ -47,5 +59,5 @@ _Avoid_: Cancelled race, deleted game, void race
 ### People
 
 **Wristband number**:
-The number on a child's wristband, which identifies them for the whole of one Olympics day.
+The number on a child's wristband, which identifies them for the whole of one Olympics day and is reused on other days. Its range shows the section, except Beaver boys from Beaver girls.
 _Avoid_: Competitor number, attendee number, bib number
