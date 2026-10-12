@@ -57,6 +57,11 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       message text NOT NULL, comment text, touches jsonb NOT NULL
     );
     CREATE INDEX IF NOT EXISTS event_audit_order ON audit_notes(event_id,sequence_number DESC);
+    CREATE TABLE IF NOT EXISTS tie_settlements (
+      event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      tie_id text NOT NULL, settlement jsonb NOT NULL,
+      PRIMARY KEY(event_id,tie_id)
+    );
   `);
   if (resetTestDay) await pool.query('TRUNCATE phones, olympics_days CASCADE');
   return pool;

@@ -1,0 +1,8 @@
+.tie-outcomes {display:grid;gap:.6rem;margin:1rem 0;}
+.tie-outcomes [aria-pressed=true] {background:#fff1cf;border-color:#8a5d00;color:#513700;}
+.tie-open {background:#fff0ee;color:#831d18;border-color:#ae241e;margin:0 0 .8rem;}
+.tie-order {padding-left:1.8rem;}
+.tie-order li {padding:.5rem 0;}
+.tie-order li > div {display:flex;gap:.5rem;float:right;}
+.tie-order li {min-height:4rem;}
+.runner-actions form {margin:1rem 0;}
