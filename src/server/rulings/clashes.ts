@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
-import { raceParts,partLabel,type RacePartName,type PartValue } from '../../shared/race-clashes.js';
-import { raceLabel,type Runner,type FinishingOrder } from '../../shared/races.js';
+import { raceParts,partLabel } from '../../shared/race-clashes.js';
+import { raceLabel,type Runner } from '../../shared/races.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { leadRace,publishPart,samePart } from '../races/versions.js';
 import { rulingChange,writeAuditNote } from './records.js';

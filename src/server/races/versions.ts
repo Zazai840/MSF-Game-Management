@@ -30,7 +30,7 @@ function runnerFacts(runners:readonly Runner[]) {return runners.map(({id:_,...ru
 export function samePart(part:RacePartName,left:PartValue,leftRunners:Runner[],right:PartValue,rightRunners:Runner[]) {
   if(part==='runners') return canonical(runnerFacts(left as Runner[]||[]))===canonical(runnerFacts(right as Runner[]||[]));
   if(part==='finish') {
-    const facts=(value:PartValue,runners:Runner[])=>value===null?null:{order:(value as FinishingOrder).order.map(id=>runners.find(runner=>runner.id===id)?.wristband??id),didNotFinish:(value as FinishingOrder).didNotFinish.map(id=>runners.find(runner=>runner.id===id)?.wristband??id),runners:runnerFacts(runners)};
+    const facts=(value:PartValue,runners:Runner[])=>value===null?null:{order:(value as FinishingOrder).order.map(id=>runners.find(runner=>runner.id===id)?.wristband??id),didNotFinish:(value as FinishingOrder).didNotFinish.map(id=>runners.find(runner=>runner.id===id)?.wristband??id).sort((a,b)=>String(a).localeCompare(String(b))),runners:runnerFacts([...runners].sort((a,b)=>a.wristband-b.wristband))};
     return canonical(facts(left,leftRunners))===canonical(facts(right,rightRunners));
   }
   return canonical(left)===canonical(right);

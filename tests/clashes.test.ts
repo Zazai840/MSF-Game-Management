@@ -101,3 +101,16 @@ test('a retry matching another active candidate merges without making a duplicat
   expect(read.history.filter((save:any)=>save.part==='times').map((save:any)=>save.author)).toEqual([null,'Ahmed','Yusuf','Fatima']);
   expect(repeated.json().race.parts.times.clash).toBe(true);
 });
+test('a Times draft recorded before another phone adds a finisher is kept and shows a count mismatch',async()=>{
+  const {first,second,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[2003]});
+  const timed=await call(second,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]});
+  expect(timed.statusCode).toBe(200);expect(timed.json().status).toBe('saved');
+  expect(timed.json().race.recording).toMatchObject({readyForRanking:false,countMismatch:'Finish order has 3 finishers, times have 2 - check the recording'});
+});
+test('the same finishing order and Did not finish membership merge regardless of classification order',async()=>{
+  const {first,second,checkIn}=await start();const race=await checkIn([2001,2002,2003]);
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[2002,2003],didNotRun:[],added:[]});
+  const identical=await call(second,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[2003,2002],didNotRun:[],added:[]});
+  expect(identical.json().status).toBe('merged');expect(identical.json().race.parts.finish.clash).toBeUndefined();
+});

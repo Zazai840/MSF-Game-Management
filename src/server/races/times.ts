@@ -23,9 +23,12 @@ export function timesRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races - ask a lead');
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       const count=race.parts.runners.value?.length||0;
-      if(places.length<count || places.slice(count).some(time=>time!==null)) throw new Refusal(409,'The runner list has changed - open the race again');
-      const currentPlaces=places.slice(0,count);
-      const status=await savePart(client,phone,race,'times',Number(body!.baseVersion),{places:currentPlaces,outOfOrder:timesOutOfOrder(currentPlaces)});
+      // Another job may have changed the runner count after this phone opened.
+      // Keep every recorded time; a count disagreement remains visible for checking.
+      const numericCount=places.filter(time=>time!==null).length;
+      const currentPlaces=places.slice(0,Math.max(count,numericCount));
+      const accepted=race.parts.times.value?.acceptedByLead && JSON.stringify(race.parts.times.value.places)===JSON.stringify(currentPlaces);
+      const status=await savePart(client,phone,race,'times',Number(body!.baseVersion),{places:currentPlaces,outOfOrder:timesOutOfOrder(currentPlaces),...(accepted?{acceptedByLead:true}:{})});
       return {status,race:await readRace(client,phone.dayId,race.id)};
     });
   });
