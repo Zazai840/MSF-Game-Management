@@ -1,0 +1,37 @@
+{
+  "name": "msf-running-zone",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server/main.ts",
+    "local": "docker compose up --build",
+    "test": "node scripts/run-tests.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && node scripts/budget.mjs && tsc -p tsconfig.server.json",
+    "start": "node dist/server/server/main.js",
+    "test:e2e": "playwright test",
+    "verify": "npm test && npm run typecheck && npm run build"
+  },
+  "dependencies": {
+    "@fastify/middie": "^9.3.5",
+    "@fastify/static": "^8.2.0",
+    "fastify": "^5.6.0",
+    "pg": "^8.16.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}

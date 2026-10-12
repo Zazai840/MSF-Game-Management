@@ -1,0 +1,38 @@
+import { expect, test } from '@playwright/test';
+test('join an Olympics day, reload the phone and become lead', async ({page}, info) => {
+  const downloaded: string[] = [];
+  page.on('request', request => {if (request.url().endsWith('.js')) downloaded.push(request.url());});
+  await page.goto('/');
+  await page.getByLabel('Day code or owner password').fill('wrong-fixture');
+  await page.getByLabel('First name').fill(`Ahmed ${info.project.name}`);
+  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await expect(page.getByRole('alert')).toHaveText('Wrong day code - ask for the right one');
+  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
+  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Start line · 0 waiting'})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
+  await expect(page.getByText(`Ahmed ${info.project.name}`)).toBeVisible();
+  await page.getByRole('button',{name:'Times · 0 waiting'}).click();
+  await expect(page.getByText('No races waiting yet')).toBeVisible();
+  await page.getByRole('button',{name:'Home',exact:true}).click();
+  expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(false);
+  await page.screenshot({path:info.outputPath('volunteer.png'), fullPage:true});
+  await page.getByRole('button',{name:'Become lead',exact:true}).click();
+  await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
+  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Lead · 0 needing you'})).toBeVisible();
+  await page.getByRole('button',{name:'Lead · 0 needing you'}).click();
+  await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Day',exact:true})).toHaveCount(0);
+  expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(true);
+  await page.screenshot({path:info.outputPath('lead.png'), fullPage:true});
+});
+test('an old phone explains that another phone is needed', async ({browser}) => {
+  const context = await browser.newContext({userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 Version/14.1 Mobile/15E148 Safari/604.1'});
+  const page = await context.newPage();
+  await page.goto('/');
+  await expect(page.getByText("This phone's browser is too old, please use another phone")).toBeVisible();
+  await context.close();
+});

@@ -1,0 +1,20 @@
+:root {font-family:system-ui,sans-serif; color:#13251c; background:#f3f6f3; font-size:18px;}
+* {box-sizing:border-box;}
+body {margin:0;}
+main {max-width:48rem; margin:auto; padding:1rem;}
+h1 {font-size:1.75rem; line-height:1.2;}
+header {border-bottom:1px solid #b6c6b9; padding-bottom:1rem;}
+header p {margin-top:0;}
+nav {display:flex; flex-wrap:wrap; gap:.6rem;}
+button {font:inherit; border:2px solid #215d3c; border-radius:.6rem; color:white; background:#215d3c; padding:.85rem 1rem; min-height:48px; cursor:pointer;}
+button:disabled {opacity:.6; cursor:wait;}
+button:focus-visible, input:focus-visible {outline:3px solid #d78800; outline-offset:3px;}
+form, .jobs {display:grid; gap:1rem;}
+label {display:grid; gap:.4rem;}
+input {font:inherit; padding:.8rem; border:2px solid #718878; border-radius:.4rem; width:100%; min-width:0;}
+.jobs button {min-height:88px; text-align:left; font-size:1.3rem;}
+[role=alert] {padding:.8rem; border-left:4px solid #ae241e; background:#fff0ee; color:#831d18;}
+footer {margin-top:2rem; font-size:.85rem; display:flex; gap:.8rem; align-items:center; flex-wrap:wrap;}
+footer button {font-size:.85rem; background:transparent; color:#215d3c;}
+.code {font-size:2.5rem; font-weight:700; letter-spacing:.12em; margin-left:0;}
+@media(min-width:800px) {main {padding:2rem;} .jobs {grid-template-columns:repeat(3,1fr);} }
