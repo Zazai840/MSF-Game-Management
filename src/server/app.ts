@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
 import { accessRoutes } from './access/routes.js';
 import { dayRoutes } from './day/routes.js';
@@ -25,6 +26,7 @@ export async function createApp(settings: AppSettings) {
     return reply.code(500).send({message:'Something went wrong - please try again'});
   });
   accessRoutes(app, pool, settings.ownerPassword);
+  phoneManagementRoutes(app,pool);
   dayRoutes(app, pool);
   homeRoutes(app, pool);
   raceRoutes(app,pool);
