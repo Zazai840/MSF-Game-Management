@@ -65,8 +65,12 @@ A race removed from an event's results but kept so it can be restored, for examp
 _Avoid_: Cancelled race, deleted game, void race
 
 **Finishing order**:
-The order in which a race's children crossed the line, recorded as wristband numbers from 1st to last.
+The order in which a race's children crossed the line, recorded as wristband numbers from 1st to last. It gives each child who finished their place in the race.
 _Avoid_: Results, placings, positions list
+
+**Time**:
+How long a place in a race took, to a hundredth of a second, read from the photo finish in place order without knowing who held it. A child's time is the time of the place the finishing order gives them, so correcting either list re-pairs them.
+_Avoid_: Result, score, split
 
 **Clash**:
 Two different versions of the same part of a race (its runners, finishing order or times), saved by different people without seeing each other's. The zone lead decides which stands.
@@ -85,8 +89,12 @@ The zone lead's ruling, with a reason, that a child (or relay team) is out of an
 _Avoid_: DQ, ban, removal
 
 **Did not finish**:
-A child who started a race but did not cross the line, for example after a fall. They have no time and no place.
+A child who started a race but did not cross the line, for example after a fall. They stay in the race with no time and no place.
 _Avoid_: DNF, retired, dropped out
+
+**Didn't run**:
+A child who was checked in to a race but never started it. They are taken off that race, so they can still run in a later race of the event.
+_Avoid_: DNS, no-show, absent, scratched
 
 **Audit note**:
 A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and their comment.
