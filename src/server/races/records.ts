@@ -6,6 +6,9 @@ import { Refusal } from '../access/permissions.js';
 export type Database=pg.Pool|pg.PoolClient;
 export async function listRaces(db:Database,dayId:string) {
   const rows=(await db.query('SELECT id FROM races WHERE day_id=$1 AND NOT deleted ORDER BY checked_in_at,id',[dayId])).rows;
+  if('release' in db) {
+    const races:RaceRead[]=[];for(const row of rows) races.push(await readRace(db,dayId,row.id));return races;
+  }
   return Promise.all(rows.map(row=>readRace(db,dayId,row.id)));
 }
 export function requireStartLineEdit(race:RaceRead) {
