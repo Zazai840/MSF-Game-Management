@@ -15,7 +15,7 @@ test('join an Olympics day, reload the phone and become lead', async ({page}, in
   await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
   await expect(page.getByText(`Ahmed ${info.project.name}`)).toBeVisible();
   await page.getByRole('button',{name:/^Times · \d+ waiting$/}).click();
-  await expect(page.getByText('No races waiting yet')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Times',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Home',exact:true}).click();
   expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(false);
   await page.screenshot({path:info.outputPath('volunteer.png'), fullPage:true});
