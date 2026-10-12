@@ -1,0 +1,18 @@
+import { randomUUID } from 'node:crypto';
+import type pg from 'pg';
+import { sections, type DayEvent } from '../../shared/day.js';
+export async function seedEvents(client:pg.PoolClient, dayId:string) {
+  const programme = [
+    ...sections.map((section,index)=>({code:`R${index+1}`,name:'60m',section,format:'heats'})),
+    ...sections.map((section,index)=>({code:`R${index+7}`,name:'60m Hurdles',section,format:'timed'})),
+    ...sections.map((section,index)=>({code:`R${index+13}`,name:'200m',section,format:'timed'})),
+    {code:'R23',name:'400m',section:'Boy Scouts',format:'timed'},
+    {code:'R24',name:'400m',section:'Girl Scouts',format:'timed'}
+  ];
+  for (const [order,event] of programme.entries()) {
+    await client.query('INSERT INTO events(id,day_id,code,name,section,format,programme_order) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),dayId,event.code,event.name,event.section,event.format,order]);
+  }
+}
+export async function readEvents(db:pg.Pool | pg.PoolClient, enabledOnly=false):Promise<DayEvent[]> {
+  return (await db.query(`SELECT e.id,e.code,e.name,e.section,e.format,e.enabled FROM events e JOIN olympics_days d ON d.id=e.day_id WHERE d.active ${enabledOnly?'AND e.enabled':''} ORDER BY programme_order,e.code`)).rows;
+}
