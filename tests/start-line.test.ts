@@ -35,12 +35,20 @@ test.each([
   const response=await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners});
   expect(response.statusCode).toBe(400); expect(response.json().message).toBe(message);
 });
-test('Start line uses only the confirmed programme and enabled events',async()=>{
+test('Start line permits enabled events while programme confirmation remains a reminder',async()=>{
   const {owner,volunteer}=await start(false);
-  expect((await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001]})).json().message).toBe('Ask the scoring team to confirm the event list');
-  await call(owner,'/api/day/events/R4/enabled',{enabled:false});
+  const choices=(await call(volunteer,'/api/jobs/start-line')).json();
+  expect(choices.eventsConfirmed).toBe(false);
+  expect(choices.events.some((event:any)=>event.code==='R4')).toBe(true);
+  expect((await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001]})).statusCode).toBe(200);
   await call(owner,'/api/day/confirm-events',{});
-  const refused=await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001]});
+  await call(owner,'/api/day/events/R4/rename',{name:'60m sprint'});
+  const edited=(await call(volunteer,'/api/jobs/start-line')).json();
+  expect(edited.eventsConfirmed).toBe(false);
+  expect(edited.events.find((event:any)=>event.code==='R4').name).toBe('60m sprint');
+  expect((await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2002]})).statusCode).toBe(200);
+  await call(owner,'/api/day/events/R4/enabled',{enabled:false});
+  const refused=await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2003]});
   expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('This event is switched off');
 });
 test('a volunteer corrects the runner list before finishing order, keeping unchanged runner identities',async()=>{

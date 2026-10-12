@@ -1,8 +1,9 @@
 import { stageLocked } from '../../shared/stage-lock.js';
 import { ClashNotice } from './ClashNotice.js';
 import { hasClash } from '../../shared/race-clashes.js';
-import { useEffect,useState } from 'react';
-import { api,phoneStorage } from '../api.js';
+import { useState } from 'react';
+import { useRaceJob } from './useJobData.js';
+import { api } from '../api.js';
 import { raceLabel,type RaceRead,type TimesRead } from '../../shared/races.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 import { raceRecording } from '../../shared/recording.js';
@@ -11,7 +12,7 @@ type Draft={race:RaceRead;slots:Array<string|null>;index:number;step:'entry'|'ch
 const ordinal=(number:number)=>`${number}${number===1?'st':number===2?'nd':number===3?'rd':'th'}`;
 function fromRace(race:RaceRead):Draft {
   const recorded=race.parts.times.value?.places;
-  const slots=Array.from({length:race.parts.runners.value?.length||0},(_,index)=>{
+  const slots=Array.from({length:Math.max(race.parts.runners.value?.length||0,recorded?.length||0)},(_,index)=>{
     const time=recorded?.[index];
     return time===null?null:time!==undefined?digitsForTime(time):race.parts.finish.value && index>=race.parts.finish.value.order.length?null:'';
   });
@@ -24,28 +25,10 @@ function restore(key:string):Draft|null {
   return null;
 }
 export function Times({dayId}:{dayId:string}) {
-  const key=`msf:draft:${phoneStorage.token()}:${dayId}:times`;
-  const [draft,setDraft]=useState<Draft|null>(()=>restore(key));
-  const [data,setData]=useState<TimesRead|null>(null);
-  const [choosing,setChoosing]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  const [readError,setReadError]=useState('');
+  const {draft,setDraft,data,choosing,setChoosing,busy,setBusy,error,setError,readError,updated,refresh,open:openRace}=useRaceJob<TimesRead,Draft>(dayId,'times',restore,fromRace);
   const [message,setMessage]=useState('');
-  const [updated,setUpdated]=useState('');
-  useEffect(()=>{if(draft) localStorage.setItem(key,JSON.stringify(draft));else localStorage.removeItem(key);},[draft,key]);
-  async function refresh() {
-    try {const next=await api<TimesRead>('jobs/times');setData(next);setUpdated(new Date().toLocaleTimeString());setReadError('');setDraft(current=>current || (next.waiting[0]?fromRace(next.waiting[0]):null));}
-    catch(error) {setReadError(error instanceof Error?error.message:'Could not connect');}
-  }
-  useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[]);
   function change(next:Draft) {setDraft(next);setError('');setMessage('');}
-  async function open(race:RaceRead) {
-    setBusy(true);
-    try {change(fromRace(await api<RaceRead>(`races/${race.id}`)));setChoosing(false);}
-    catch(error) {setError(error instanceof Error?error.message:'Could not open race');}
-    finally {setBusy(false);}
-  }
+  async function open(race:RaceRead) {await openRace(race);setMessage('');}
   function edit(index:number) {if(draft) change({...draft,index,step:'entry',replace:true,warning:false});}
   function digit(value:string) {
     if(!draft) return;const slots=[...draft.slots];slots[draft.index]=draft.replace?value:(slots[draft.index]||'')+value;change({...draft,slots,replace:false});
@@ -87,7 +70,7 @@ export function Times({dayId}:{dayId:string}) {
     <button disabled={busy} onClick={()=>setChoosing(!choosing)}>Other race</button>
     {choosing || !draft ? <div><h2>Also waiting</h2>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-actions">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}{race.recording.countMismatch && <small> · Finishers and times don't agree</small>}</button>)}</div><h2>Recent races</h2><div className="job-actions">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>{draft && <button onClick={()=>setChoosing(false)}>Back to this race</button>}</div> : <fieldset className="stage-job-fields" disabled={locked}>
       {locked && <p role="status">Stage complete - ask a lead</p>}
-      <p className="race-header">{draft.race.event.name} {draft.race.event.section} ({draft.race.event.code}) · {raceLabel(draft.race)} · {draft.slots.length} runners · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
+      <p className="race-header">{draft.race.event.name} {draft.race.event.section} ({draft.race.event.code}) · {raceLabel(draft.race)} · {draft.race.parts.runners.value?.length||0} runners · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
       {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
       {draft.step==='entry' ? <><h2>{ordinal(draft.index+1)} place time?</h2><div className="place-slots" aria-label="Times by place">{draft.slots.map((slot,index)=><button disabled={busy || slot===null} className={index===draft.index?'current-place':''} key={index} aria-label={`${ordinal(index+1)} place${slot===null?' · No finisher':slot?` · ${formatTimeDigits(slot)}`:''}`} onClick={()=>edit(index)}>{ordinal(index+1)}<small>{slot===null?'No finisher':slot?formatTimeDigits(slot):'—'}</small></button>)}</div>
         <output className={draft.warning?'warning-number':''} aria-label="Place time">{formatTimeDigits(draft.slots[draft.index]||'')}</output><p className="time-example">Type digits only: 1234 → 12.34 · 13240 → 1:32.40</p>

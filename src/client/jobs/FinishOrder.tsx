@@ -1,8 +1,9 @@
 import { stageLocked } from '../../shared/stage-lock.js';
 import { ClashNotice } from './ClashNotice.js';
 import { hasClash } from '../../shared/race-clashes.js';
-import { useEffect,useState } from 'react';
-import { api,phoneStorage } from '../api.js';
+import { useState } from 'react';
+import { useRaceJob } from './useJobData.js';
+import { api } from '../api.js';
 import { raceLabel,type FinishOrderRead,type RaceRead,type Runner } from '../../shared/races.js';
 import { runnerListRefusal,wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import './jobs.css';
@@ -19,30 +20,10 @@ function restore(key:string):Draft|null {
   return null;
 }
 export function FinishOrder({dayId}:{dayId:string}) {
-  const key=`msf:draft:${phoneStorage.token()}:${dayId}:finish-order`;
-  const [draft,setDraft]=useState<Draft|null>(()=>restore(key));
-  const [data,setData]=useState<FinishOrderRead|null>(null);
-  const [choosing,setChoosing]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  const [readError,setReadError]=useState('');
+  const {draft,setDraft,data,choosing,setChoosing,busy,setBusy,error,setError,readError,updated,refresh,open:openRace}=useRaceJob<FinishOrderRead,Draft>(dayId,'finish-order',restore,fromRace);
   const [message,setMessage]=useState('');
-  const [updated,setUpdated]=useState('');
-  useEffect(()=>{if(draft) localStorage.setItem(key,JSON.stringify(draft));else localStorage.removeItem(key);},[draft,key]);
-  async function refresh() {
-    try {
-      const next=await api<FinishOrderRead>('jobs/finish-order');setData(next);setUpdated(new Date().toLocaleTimeString());setReadError('');
-      setDraft(current=>current || (next.waiting[0]?fromRace(next.waiting[0]):null));
-    } catch(error) {setReadError(error instanceof Error?error.message:'Could not connect');}
-  }
-  useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[]);
   function change(next:Draft) {setDraft(next);setError('');setMessage('');}
-  async function open(race:RaceRead) {
-    setBusy(true);
-    try {change(fromRace(await api<RaceRead>(`races/${race.id}`)));setChoosing(false);}
-    catch(error) {setError(error instanceof Error?error.message:'Could not open race');}
-    finally {setBusy(false);}
-  }
+  async function open(race:RaceRead) {await openRace(race);setMessage('');}
   function acceptNumber(warnings:WristbandWarning[]=[]) {
     if(!draft) return;
     const wristband=Number(draft.current);

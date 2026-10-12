@@ -2,7 +2,7 @@ import { expect,test } from 'vitest';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 const event={code:'R16',name:'200m',section:'Girl Cubs' as const,format:'timed' as const};
 const pending:ResultsRace={id:'pending',kind:'race',number:1,checkedInAt:'2026-10-12T10:00:00Z',deleted:false,runners:[{id:'runner',wristband:3045,warnings:[{kind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',kept:true}]}],finish:null,times:null};
-test('an unfinished race exposes its open eligibility warning and actionable runner without ranking them; wrong-section DQ settles it and lift reopens it',()=>{
+test('an unfinished race exposes its open eligibility warning and actionable runner without ranking them; wrong-section disqualification settles it and lifting the disqualification reopens it',()=>{
   const result=eventResults({event,races:[pending]});
   expect(result.needsYou).toMatchObject([{kind:'warning',raceId:'pending',entryId:'runner',at:'2026-10-12T10:00:00Z'}]);
   expect(result.leaderboard).toEqual([]);

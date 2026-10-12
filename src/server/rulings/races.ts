@@ -1,3 +1,4 @@
+import { createRace } from '../races/create.js';
 import type { Runner,FinishingOrder } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -77,10 +78,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
       const runners=race.parts.runners.value.map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
-      const counter=(await client.query('INSERT INTO race_counters(event_id,kind,last_number) VALUES($1,$2,1) ON CONFLICT(event_id,kind) DO UPDATE SET last_number=race_counters.last_number+1 RETURNING last_number',[race.event.id,race.kind])).rows[0];
-      const id=randomUUID();
-      await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,$4,$5,$6)',[id,current.dayId,race.event.id,race.kind,counter.last_number,JSON.stringify(runners.map(runner=>runner.wristband))]);
-      for(const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,$6)',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,part==='runners'?current.id:null,part==='runners'?new Date():null]);
+      const {id,number}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id});
       if(race.final) {
         const ids=new Map(race.final.entries.map(entry=>[entry.finalEntryId,runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.finalEntryId)]?.id||randomUUID()]));
         const entries=race.final.entries.map(entry=>({...entry,finalEntryId:ids.get(entry.finalEntryId)!,...(entry.runner?{runner:{...entry.runner,id:ids.get(entry.finalEntryId)!}}:{}),...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
@@ -88,7 +86,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,presence_confirmed,generation) VALUES($1,$2,$3,false,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
         await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[race.event.id]);
       }
-      await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)} as ${raceLabel({...race,number:counter.last_number})}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
+      await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)} as ${raceLabel({...race,number})}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
       return {status:'saved',newRaceId:id,...await readEventResults(client,current.dayId,race.event.code)};
     });
   });

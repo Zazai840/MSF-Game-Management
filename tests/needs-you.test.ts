@@ -19,7 +19,7 @@ async function start() {
   }
   return {owner,lead,volunteer,checkIn,queue,path,count};
 }
-test('lead queue, home and event counts include pending warnings and settle consistently by DQ/lift, correction and mark checked',async()=>{
+test('lead queue, home and event counts include pending warnings and settle consistently by disqualification and lifting the disqualification, correction and mark checked',async()=>{
   const {lead,volunteer,checkIn,queue,path,count}=await start();
   const race=await checkIn([3045]);await count(1);
   expect((await queue()).needsYou[0]).toMatchObject({kind:'warning',event:{code:'R4'},raceId:race.id,entryId:race.parts.runners.value[0].id});

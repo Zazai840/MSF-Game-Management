@@ -1,0 +1,38 @@
+import { expect,test,type Page } from './fixtures.js';
+async function join(page:Page,name:string) {
+  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(name);await page.getByRole('button',{name:'Join',exact:true}).click();
+}
+async function surplusRace(page:Page,code:string) {
+  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Review surplus',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2401,2402,2403,2404,2405,2406]}})).json()).race;
+  expect((await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1200,1300,1400,1500,1600,1700]}})).ok()).toBe(true);
+  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2401,2402,2403,2404,2405],didNotFinish:[],didNotRun:[2406],added:[]}})).ok()).toBe(true);
+  return {race,headers};
+}
+const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
+test('Times keeps surplus saved numeric places visible until the volunteer deliberately records No finisher',async({page},info)=>{
+  const code=`SV-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
+  await join(page,`Surplus timer ${info.project.name}`);await page.getByRole('button',{name:/^Times ·/}).click();await page.getByRole('button',{name:'Other race',exact:true}).click();await page.getByRole('button',{name:`Review surplus Girl Cubs (${code}) · Race ${race.number} · Finishers and times don't agree`,exact:true}).click();
+  await expect(page.getByRole('button',{name:'6th place · 17.00',exact:true})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByText('Saved',{exact:true})).toBeVisible();
+  const unchanged=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(unchanged.parts.times.value.places).toEqual([1200,1300,1400,1500,1600,1700]);
+  await page.getByRole('button',{name:'6th place · 17.00',exact:true}).click();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-volunteer.png'),fullPage:true});
+  await page.getByRole('button',{name:'No more finishers',exact:true}).click();await expect(page.getByText('6th place · No finisher',{exact:true})).toBeVisible();const correction=page.waitForResponse(response=>response.url().endsWith(`/api/races/${race.id}/times`) && response.request().method()==='POST');await page.getByRole('button',{name:'Save',exact:true}).click();expect((await correction).ok()).toBe(true);await expect(page.getByText('Saved',{exact:true})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);
+  const corrected=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
+  await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
+});
+test('a lead sees surplus numeric times and the mismatch before deliberately correcting the last place',async({page},info)=>{
+  const code=`SL-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
+  await join(page,`Surplus lead ${info.project.name}`);await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  const sheet=page.getByRole('dialog');await expect(sheet.getByLabel('Time for place 6',{exact:true})).toHaveValue('1700');await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet.getByRole('alert').filter({hasText:'The runner list has changed - open the race again'})).toBeVisible();await expect(sheet.getByLabel('Time for place 6',{exact:true})).toHaveValue('1700');
+  await sheet.getByLabel('No finisher',{exact:true}).nth(5).check();await expect(sheet.getByText(mismatch,{exact:true})).toHaveCount(0);await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
+  const corrected=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
+  await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
+});
+test('Start line shows enabled event choices alongside the programme confirmation reminder',async({page},info)=>{
+  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},code=`UC-${info.project.name.toUpperCase()}`;
+  await page.request.post('/api/day/events',{headers,data:{code,name:'Unconfirmed sprint',section:'Girl Cubs',format:'timed'}});
+  await join(page,`Unconfirmed start ${info.project.name}`);await page.getByRole('button',{name:/^Start line ·/}).click();await expect(page.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Unconfirmed sprint',exact:true}).click();await page.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();for(const digit of '2450') await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByRole('heading',{name:'Race 1 saved',exact:true})).toBeVisible();await page.getByRole('button',{name:'Delete this race',exact:true}).click();await page.getByRole('button',{name:'Delete permanently',exact:true}).click();
+});

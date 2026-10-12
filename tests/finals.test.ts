@@ -7,7 +7,7 @@ test('heats check sheet previews a short seeded final, distinct from the final c
  const open=eventResults({event,races:[heat]});expect(open.checkSheet).toMatchObject({stage:'heats',label:'Heats complete',creates:[{position:1,wristband:1023},{position:2,wristband:1088}]});
  const result=eventResults({event,races:[heat,final],completedStages:['heats']});expect(result.status).toBe('Heats complete - final to run');expect(result.checkSheet).toMatchObject({stage:'final',mustSettleFirst:[{kind:'incomplete',raceId:'final'}]});expect(result.inputRunning).toBeNull();expect(result.heatsCheckSheet?.completed).toBe(true);
 });
-test('final ranks finishing order without times, excludes DQ, and retains heat qualification and immutable absent seed',()=>{
+test('final ranks finishing order without times, excludes disqualified runners, and retains heat qualification and immutable absent seed',()=>{
  const race={...final,finish:{order:['f2','f1'],didNotFinish:[]},final:{...final.final!,presenceConfirmed:true,hasRun:true}};
  const result=eventResults({event,races:[heat,race],completedStages:['heats','final'],rulings:[{raceId:'final',entryId:'f2',disqualification:{reason:'Two false starts',comment:null}}]});
  expect(result.qualifiers.map(row=>row.wristband)).toEqual([1023,1088]);expect(result.finalResults?.leaderboard.map(row=>[row.wristband,row.position,row.time])).toEqual([[1023,1,null],[1088,null,null]]);expect(result.inputRunning).toEqual({eventCode:'R3',first:1023,second:null,third:null});expect(result.status).toBe('Complete');expect(result.checkSheet?.mustSettleFirst).toEqual([]);

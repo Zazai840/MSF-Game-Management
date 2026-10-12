@@ -1,8 +1,9 @@
 import { stageLocked } from '../../shared/stage-lock.js';
 import { ClashNotice } from './ClashNotice.js';
 import { hasClash } from '../../shared/race-clashes.js';
-import { useEffect,useState } from 'react';
-import { api,phoneStorage } from '../api.js';
+import { useState } from 'react';
+import { useJobData,useJobDraft } from './useJobData.js';
+import { api } from '../api.js';
 import { raceLabel,type RaceRead,type StartLineRead } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
@@ -18,22 +19,13 @@ function restore(key:string):Draft {
   return emptyDraft();
 }
 export function StartLine({dayId}:{dayId:string}) {
-  const key=`msf:draft:${phoneStorage.token()}:${dayId}:start-line`;
-  const [draft,setDraft]=useState<Draft>(()=>restore(key));
-  const [data,setData]=useState<StartLineRead|null>(null);
+  const [draft,setDraft]=useJobDraft(dayId,'start-line',restore);
+  const {data,readError,updated,refresh}=useJobData<StartLineRead>('jobs/start-line');
   const [saved,setSaved]=useState<RaceRead|null>(null);
   const [deleting,setDeleting]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  const [readError,setReadError]=useState('');
   const [message,setMessage]=useState('');
-  const [updated,setUpdated]=useState('');
-  useEffect(()=>{localStorage.setItem(key,JSON.stringify(draft));},[draft,key]);
-  async function refresh() {
-    try {setData(await api<StartLineRead>('jobs/start-line'));setUpdated(new Date().toLocaleTimeString());setReadError('');}
-    catch(error) {setReadError(error instanceof Error?error.message:'Could not connect');}
-  }
-  useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[]);
   function change(next:Draft) {setDraft(next);setError('');setMessage('');}
   function reset() {change(emptyDraft());setSaved(null);setDeleting(false);void refresh();}
   async function open(race:RaceRead) {
@@ -76,7 +68,7 @@ export function StartLine({dayId}:{dayId:string}) {
     setBusy(true);setError('');setMessage('');
     try {
       const response=draft.final?await api<{status:string;race:RaceRead}>(`races/${draft.raceId}/presence`,{baseVersion:draft.baseVersion,generation:draft.final.final!.generation,lineup:draft.final.final!.entries.map(entry=>entry.finalEntryId),absent:draft.absent||[]}):await api<{status:string;race:RaceRead}>(draft.raceId?`races/${draft.raceId}/runners`:'races/check-in',draft.raceId?{baseVersion:draft.baseVersion,runners:draft.runners,keptWarnings:draft.keptWarnings}:{eventCode:draft.eventCode,runners:draft.runners,requestId:draft.requestId,keptWarnings:draft.keptWarnings});
-      localStorage.removeItem(key);setDraft(emptyDraft());setSaved(response.race);setMessage(hasClash(response.race)?'':'Saved');void refresh();
+      setDraft(emptyDraft());setSaved(response.race);setMessage(hasClash(response.race)?'':'Saved');void refresh();
     } catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
   }
@@ -97,7 +89,7 @@ export function StartLine({dayId}:{dayId:string}) {
       {deleting ? <div className="job-actions"><p>Delete {raceLabel(saved)}?</p><button disabled={busy} onClick={()=>void remove(false)}>Move to Deleted races</button><button disabled={busy} onClick={()=>void remove(true)}>Delete permanently</button><button disabled={busy} onClick={()=>setDeleting(false)}>Keep this race</button></div> : <div className="job-actions"><button onClick={()=>void open(saved)}>{saved.kind==='final'?'Check attendance':'Edit runners'}</button>{saved.kind!=='final' && <button onClick={()=>setDeleting(true)}>Delete this race</button>}<button onClick={reset}>Check in another race</button></div>}
     </div> : draft.step==='pick' ? <div><h2>Which race is it?</h2>
       {data.waiting.length>0 && <><h3>Already at the start line</h3><div className="job-actions">{data.waiting.map(race=><button key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div></>}
-      {!data.eventsConfirmed ? <p>Ask the scoring team to confirm the event list</p> : <><h3>Check in a new race</h3><div className="job-actions">{[...new Set(data.events.map(event=>event.name))].map(name=><button key={name} onClick={()=>change({...draft,step:'section',family:name})}>{name}</button>)}</div></>}
+      {!data.eventsConfirmed && <p>Ask the scoring team to confirm the event list</p>}<h3>Check in a new race</h3><div className="job-actions">{[...new Set(data.events.map(event=>event.name))].map(name=><button key={name} onClick={()=>change({...draft,step:'section',family:name})}>{name}</button>)}</div>
     </div> : draft.step==='section' ? <div><h2>{draft.family}: which section?</h2><div className="job-actions">{data.events.filter(event=>event.name===draft.family).map(event=><button key={event.id} onClick={()=>change({...draft,step:'entry',eventCode:event.code})}>{event.section} · {event.code}</button>)}<button onClick={reset}>Choose another event</button></div></div> : <div>
       <p className="race-header">{event?.name} {event?.section} ({draft.eventCode}){draft.raceId?' · Correct runners':''}</p>
       {draft.step==='entry' ? <><h2>{draft.runners.length===6?'6 runners checked in':`Runner ${draft.runners.length+1}: wristband number?`}</h2>
