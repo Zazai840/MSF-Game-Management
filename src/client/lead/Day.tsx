@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
-import { api } from '../api.js';
+import { api,apiDownload } from '../api.js';
 import './day.css';
 import { Phones } from './Phones.js';
 
@@ -14,11 +14,24 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState('');
   const [error,setError] = useState('');
+  const [exportMessage,setExportMessage] = useState('');
+  const [exportError,setExportError] = useState('');
   async function save(path:string,body:unknown) {
     setBusy(true); setMessage(''); setError('');
     try { await api(path,body); setMessage('Saved'); await onChanged(); return true; }
     catch(error) { setMessage('Not saved - tap Save again'); setError(error instanceof Error?error.message:'Could not connect'); return false; }
     finally { setBusy(false); }
+  }
+  async function download() {
+    setBusy(true);setExportError('');setExportMessage('');
+    try {
+      const {blob,filename}=await apiDownload('day/export');
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+      setExportMessage('Day export downloaded');await onChanged();
+    } catch(error) {setExportError(error instanceof Error?error.message:'Could not connect');setExportMessage('Not downloaded — tap Download day export again');}
+    finally {setBusy(false);}
   }
   async function rename(event:FormEvent) {
     event.preventDefault();
@@ -32,6 +45,14 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   }
   return <div className="day-setup">
     <dl><dt>Day code</dt><dd className="code">{day.dayCode}</dd><dt>Lead code</dt><dd className="code">{day.leadCode}</dd></dl>
+    <section aria-label="Day export" className="day-export">
+      <h2>Day export</h2>
+      <p>Download all running results, finals and audit notes in one Excel workbook.</p>
+      <button disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
+      <p role="status">{exportMessage}</p>{exportError && <p role="alert">{exportError}</p>}
+      <p>{day.exportedAt?`Last export: ${new Date(day.exportedAt).toLocaleString()}`:'No day export downloaded yet'}</p>
+      {day.exportedAt && <p>{day.exportedRevision===day.revision?'Includes all changes so far':'Changes since the last export — download again before starting a new day'}</p>}
+    </section>
     <Phones onChanged={onChanged} />
     <h2>Events for today</h2>
     <p>{day.eventsConfirmed?'Event list confirmed':'Check the events, then confirm the list'}</p>

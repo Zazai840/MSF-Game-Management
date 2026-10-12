@@ -8,9 +8,9 @@ export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app,pool);
   action('GET','/api/events','Volunteer',async(_request,_reply,phone)=>({events:await readEvents(pool,true,phone.dayId)}));
   action('GET', '/api/day', 'Scoring team', async (_request,_reply,phone) => {
-    const day = (await pool.query('SELECT day_code,lead_code,events_confirmed,revision FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
+    const day = (await pool.query('SELECT day_code,lead_code,events_confirmed,revision,exported_at,exported_revision FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
     if(!day) throw new Refusal(401,'Please join the Olympics day');
-    return {dayCode: day.day_code, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), events:await readEvents(pool,false,phone.dayId)};
+    return {dayCode: day.day_code, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(pool,false,phone.dayId)};
   });
   action('POST','/api/day/confirm-events','Scoring team',async(_request,_reply,phone)=>{
     return changeDay(pool,phone,async()=>{},true);
