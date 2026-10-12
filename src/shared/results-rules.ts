@@ -1,3 +1,5 @@
+import { runnerWarningFlags } from './runner-rulings.js';
+import type { WristbandWarning } from './wristband-checks.js';
 import type { FinishingOrder,Runner } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
@@ -8,10 +10,10 @@ export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:n
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
 export interface ResultsRace extends RaceReference { deleted:boolean; clash?:boolean; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[] }
-export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'; message:string }
+export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
 export interface ResultEntry { raceId:string; entryId:string; wristband:number }
 export interface LeaderboardRow extends ResultEntry {
-  race:RaceReference; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'; disqualification:Disqualification|null; hasNote:boolean;
+  race:RaceReference; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }
 export type NotRankedReason='two versions, lead to check'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
@@ -29,10 +31,12 @@ export interface EventResults {
 export function eventResults(state:EventState):EventResults {
   const active=state.races.filter(race=>!race.deleted && race.kind!=='final');
   const band:ResultsBand=state.event.format==='heats'?{highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'}:{highlightCount:6,lineAfter:3,lineLabel:'Medal line'};
-  const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
+  const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
   const reference=(race:ResultsRace):RaceReference=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt});
   const appearances=new Map<number,Set<string>>();
   for(const race of active) for(const runner of race.runners) {
+    const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
+    if(ruling?.disqualification || ruling?.notCounted) continue;
     const races=appearances.get(runner.wristband)||new Set<string>();races.add(race.id);appearances.set(runner.wristband,races);
   }
   for(const race of active) {
@@ -46,13 +50,16 @@ export function eventResults(state:EventState):EventResults {
     if(!race.finish || !race.times) continue;
     for(const runner of race.runners) {
       const index=race.finish.order.indexOf(runner.id),isFinisher=index>=0;
-      const row:LeaderboardRow={raceId:race.id,entryId:runner.id,wristband:runner.wristband,race:reference(race),position:null,place:isFinisher?index+1:null,time:isFinisher?race.times.places[index]??null:null,status:isFinisher?'Finished':'Did not finish',disqualification:null,hasNote:false,highlighted:false,qualification:null,medalPlace:null,flags:[]};
-      row.disqualification=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id)?.disqualification??null;
+      const row:LeaderboardRow={raceId:race.id,entryId:runner.id,wristband:runner.wristband,race:reference(race),position:null,place:isFinisher?index+1:null,time:isFinisher?race.times.places[index]??null:null,status:isFinisher?'Finished':'Did not finish',disqualification:null,notCounted:false,hasNote:false,highlighted:false,qualification:null,medalPlace:null,flags:[]};
+      const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
+      row.disqualification=ruling?.disqualification??null;row.notCounted=ruling?.notCounted??false;
       row.hasNote=!!state.auditNotes?.some(note=>note.touches.some(touch=>touch.raceId===race.id && (!touch.entryId || touch.entryId===runner.id)));
-      row.flags=(runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message}));
-      if((appearances.get(runner.wristband)?.size||0)>1) row.flags.push({kind:'ran-twice',message:'Ran twice in this event'});
+      const repeated=!row.disqualification && !row.notCounted && (appearances.get(runner.wristband)?.size||0)>1;
+      row.flags=runnerWarningFlags(runner,ruling,repeated);
+      if(repeated) row.flags.push({kind:'ran-twice',message:'Ran twice in this event'});
       if(runner.addedAtFinish) row.flags.push({kind:'added-at-finish',message:'Added at the finish'});
       if(row.disqualification) {row.status='Disqualified';disqualified.push(row);}
+      else if(row.notCounted) {row.status='Not counted';notCounted.push(row);}
       else (isFinisher?finished:didNotFinish).push(row);
     }
   }
@@ -62,6 +69,7 @@ export function eventResults(state:EventState):EventResults {
     if(state.event.format==='heats' && index<6) row.qualification='Q';
     if(state.event.format==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
-  const leaderboard=[...finished,...didNotFinish,...disqualified];
+  const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
   return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties:[],notRankedYet,needsYou:active.filter(race=>race.clash).map(race=>({id:`clash:${race.id}`,kind:'clash' as const,raceId:race.id,message:'Two versions - zone lead to check'})),band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
+
 }

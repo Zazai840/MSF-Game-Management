@@ -46,7 +46,7 @@ test('kept warnings retain their own words, added runners are flagged and a numb
   const deleted=race('heat3',[2001],[1100]);deleted.deleted=true;
   const results=eventResults({event,races:[first,second,deleted]});
   expect(results.leaderboard.filter(row=>row.wristband===3045)).toHaveLength(2);
-  expect(results.leaderboard[0].flags).toEqual([{kind:'warning',message:'3045 belongs to Boy Scouts - this race is Girl Cubs'},{kind:'ran-twice',message:'Ran twice in this event'}]);
+  expect(results.leaderboard[0].flags).toEqual([{kind:'warning',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',warningKind:'wrong-section',checked:false},{kind:'ran-twice',message:'Ran twice in this event'}]);
   expect(results.leaderboard[1].flags).toEqual([{kind:'ran-twice',message:'Ran twice in this event'}]);
   expect(results.leaderboard[2].flags).toEqual([{kind:'added-at-finish',message:'Added at the finish'}]);
 });

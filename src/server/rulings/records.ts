@@ -13,7 +13,7 @@ export function rulingChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolC
   });
 }
 export async function readRulings(db:Database,dayId:string):Promise<RunnerRuling[]> {
-  return (await db.query('SELECT u.race_id AS "raceId",u.entry_id AS "entryId",u.disqualification FROM runner_rulings u JOIN races r ON r.id=u.race_id WHERE r.day_id=$1',[dayId])).rows;
+  return (await db.query('SELECT u.race_id AS "raceId",u.entry_id AS "entryId",u.disqualification,u.warning_checks AS "warningChecks",u.not_counted AS "notCounted" FROM runner_rulings u JOIN races r ON r.id=u.race_id WHERE r.day_id=$1',[dayId])).rows;
 }
 export async function readAuditNotes(db:Database,dayId:string):Promise<Array<AuditNote & {eventId:string|null}>> {
   const rows=(await db.query('SELECT id,event_id AS "eventId",action,actor_name AS actor,occurred_at,message,comment,touches FROM audit_notes WHERE day_id=$1 ORDER BY sequence_number DESC',[dayId])).rows;

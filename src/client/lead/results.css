@@ -34,3 +34,11 @@
 .audit-notes ol {list-style:none;padding:0;}
 .audit-notes li {border-top:1px solid #b6c6b9;padding:.7rem 0;overflow-wrap:anywhere;}
 .audit-notes time {font-variant-numeric:tabular-nums;}
+.result-flags .checked-warning {background:#ecefed;color:#526157;border-left-color:#829087;}
+.not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
+.not-counted-reason {display:block;font-weight:700;margin-top:.4rem;}
+.runner-action-choices {display:grid;gap:.6rem;}
+.runner-number-warning {background:#fff1cf;color:#674000;border-left:3px solid #bd7800;padding:.8rem;}
+.runner-number-warning button {margin:.3rem;}
+.count-choice {display:flex;align-items:center;gap:.6rem;}
+.count-choice input {width:auto;}
