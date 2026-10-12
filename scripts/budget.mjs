@@ -18,6 +18,8 @@ function visit(key) {
 visit(entry);
 let bytes = 0;
 for (const file of files) if (file.endsWith('.js')) bytes += gzipSync(await readFile(resolve(root,file))).length;
+// The app-shell worker is fetched on a volunteer's first visit as well.
+bytes += gzipSync(await readFile(resolve(root,'sw.js'))).length;
 // Inline bootstrap scripts arrive in the HTML on every first load too.
 const html = await readFile(resolve(root,'index.html'),'utf8');
 for (const script of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {

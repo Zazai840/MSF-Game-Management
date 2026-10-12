@@ -47,6 +47,8 @@ Playwright builds and starts a production app on port 4323 with a fresh, isolate
 
 The build measures all statically imported first-load JavaScript after gzip and fails above 100,000 bytes. The Lead screen is a dynamic import and is fetched only when an authorised phone opens it. No component library or CSS framework is used.
 
+Production builds install an app-shell service worker on HTTPS (or localhost). It caches only the volunteer HTML, JavaScript and CSS, so reopening is quick; race reads and saves always need the server. Lead is fetched only when opened and is not pre-cached. A new deploy shows **New version, tap to reload** and waits for that tap; unfinished job entries survive the reload. The browser checks for updates when the phone becomes visible or focused and once a minute while visible. Development does not install the worker. The first-load budget includes the worker and the old-browser bootstrap; older phones get a plain message before the application opens.
+
 ## Module boundaries
 
 - `createApp(settings)` opens Postgres and returns a Fastify instance for HTTP tests or the web server. Settings hold the database URL and owner password. `resetTestDay` is restricted to isolated test database names.
