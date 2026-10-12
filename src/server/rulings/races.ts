@@ -81,6 +81,13 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const id=randomUUID();
       await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,$4,$5,$6)',[id,current.dayId,race.event.id,race.kind,counter.last_number,JSON.stringify(runners.map(runner=>runner.wristband))]);
       for(const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,$6)',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,part==='runners'?current.id:null,part==='runners'?new Date():null]);
+      if(race.final) {
+        const ids=new Map(race.final.entries.map(entry=>[entry.finalEntryId,runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.finalEntryId)]?.id||randomUUID()]));
+        const entries=race.final.entries.map(entry=>({...entry,finalEntryId:ids.get(entry.finalEntryId)!,...(entry.runner?{runner:{...entry.runner,id:ids.get(entry.finalEntryId)!}}:{}),...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
+        const additionalEntries=(race.final.additionalEntries||[]).map(entry=>({...entry,runner:{...entry.runner,id:runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.runner.id)]?.id||randomUUID()}}));
+        await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,presence_confirmed,generation) VALUES($1,$2,$3,false,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
+        await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[race.event.id]);
+      }
       await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)} as ${raceLabel({...race,number:counter.last_number})}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
       return {status:'saved',newRaceId:id,...await readEventResults(client,current.dayId,race.event.code)};
     });

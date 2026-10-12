@@ -1,12 +1,13 @@
+import { publishFinalRunners } from './final-field.js';
 import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import type { FinishingOrder,RaceRead,Runner } from '../../shared/races.js';
+import type { FinishingOrder,Runner } from '../../shared/races.js';
 import { raceParts,type RacePartName,type PartValue,type PartSave,type LeadRaceRead } from '../../shared/race-clashes.js';
 import { Refusal } from '../access/permissions.js';
-import { readRace,type Database } from './records.js';
+import { readRace,type Database,type StoredRace } from './records.js';
 /** Capture every published value before another command can replace it. Called under the day lock. */
-export async function rememberRace(client:pg.PoolClient,race:RaceRead) {
+export async function rememberRace(client:pg.PoolClient,race:StoredRace) {
   const parts=(await client.query('SELECT p.*,f.name FROM race_parts p LEFT JOIN phones f ON f.id=p.saved_by WHERE p.race_id=$1 ORDER BY p.part',[race.id])).rows;
   const runners=parts.find(part=>part.part==='runners')?.value||[];
   for(const part of parts) {
@@ -15,7 +16,7 @@ export async function rememberRace(client:pg.PoolClient,race:RaceRead) {
     if(!saved.rowCount) await client.query('INSERT INTO race_part_saves(id,race_id,part,base_version,version,author_name,saved_at,value,runners,before_runners) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)',[randomUUID(),race.id,part.part,Math.max(0,part.version-1),part.version,part.name,part.saved_at||race.checkedInAt,JSON.stringify(part.value),JSON.stringify(runners)]);
   }
 }
-export async function partVersion<T extends PartValue>(client:pg.PoolClient,race:RaceRead,part:RacePartName,version:number):Promise<{value:T;runners:Runner[]}> {
+export async function partVersion<T extends PartValue>(client:pg.PoolClient,race:StoredRace,part:RacePartName,version:number):Promise<{value:T;runners:Runner[]}> {
   await rememberRace(client,race);
   const row=(await client.query('SELECT value,runners FROM race_part_history WHERE race_id=$1 AND part=$2 AND version=$3',[race.id,part,version])).rows[0];
   if(!row) throw new Refusal(400,'Open the race before saving this version');
@@ -41,7 +42,7 @@ async function recordSave(client:pg.PoolClient,phone:Phone,raceId:string,part:Ra
   await client.query('INSERT INTO race_part_saves(id,race_id,part,base_version,version,author_name,value,runners,active,before_runners) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[randomUUID(),raceId,part,baseVersion,version,phone.name,JSON.stringify(value),JSON.stringify(runners),active,JSON.stringify(runnersBefore)]);
 }
 /** Publish an intentional current correction, retaining an already open clash. Lead resolution retires its candidates explicitly first. */
-export async function publishPart(client:pg.PoolClient,phone:Phone,race:RaceRead,part:RacePartName,value:PartValue,runners:Runner[]=race.parts.runners.value||[],runnersBefore:Runner[]=race.parts.runners.value||[]) {
+export async function publishPart(client:pg.PoolClient,phone:Phone,race:StoredRace,part:RacePartName,value:PartValue,runners:Runner[]=race.parts.runners.value||[],runnersBefore:Runner[]=race.parts.runners.value||[]) {
   await rememberRace(client,race);
   const old=(await client.query('SELECT version FROM race_parts WHERE race_id=$1 AND part=$2',[race.id,part])).rows[0];
   const candidates=Number((await client.query('SELECT count(*) FROM race_part_saves WHERE race_id=$1 AND part=$2 AND active',[race.id,part])).rows[0].count);
@@ -50,8 +51,9 @@ export async function publishPart(client:pg.PoolClient,phone:Phone,race:RaceRead
   await client.query('UPDATE race_parts SET value=$1,version=$2,saved_at=clock_timestamp(),saved_by=$3 WHERE race_id=$4 AND part=$5',[JSON.stringify(value),version,phone.id,race.id,part]);
   await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,$2,$3,$4,$5)',[race.id,part,version,JSON.stringify(value),JSON.stringify(runners)]);
   await recordSave(client,phone,race.id,part,old.version,version,value,runners,true,runnersBefore);
+  if(part==='runners') await publishFinalRunners(client,race,value as Runner[]||[]);
 }
-export async function savePart(client:pg.PoolClient,phone:Phone,race:RaceRead,part:RacePartName,baseVersion:number,value:PartValue,options:{runners?:Runner[];runnersBefore?:Runner[];forceClash?:boolean;apply?:()=>Promise<void>}={}) {
+export async function savePart(client:pg.PoolClient,phone:Phone,race:StoredRace,part:RacePartName,baseVersion:number,value:PartValue,options:{runners?:Runner[];runnersBefore?:Runner[];forceClash?:boolean;apply?:()=>Promise<void>}={}) {
   await partVersion(client,race,part,baseVersion);
   const runners=options.runners||race.parts.runners.value||[];
   if(baseVersion===race.parts[part].version && !options.forceClash) {

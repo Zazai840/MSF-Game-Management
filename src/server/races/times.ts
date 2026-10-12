@@ -3,14 +3,14 @@ import { savePart } from './versions.js';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions,Refusal } from '../access/permissions.js';
-import { listRaces,raceChange,readRace,requireStageOpen } from './records.js';
+import { listRaces,raceChange,readRace,requireStageOpen,jobRace } from './records.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { timesWaiting } from '../../shared/recording.js';
 export function timesRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('GET','/api/jobs/times','Volunteer',async(_request,_reply,phone)=>{
     const races=(await listRaces(pool,phone.dayId)).filter(race=>race.kind!=='final');
-    return {completedStages:await readCompletedStages(pool,phone.dayId),waiting:timesWaiting(races),recent:races.filter(race=>race.parts.times.value!==null).slice(-10).reverse()};
+    return {completedStages:await readCompletedStages(pool,phone.dayId),waiting:timesWaiting(races),recent:races.filter(race=>race.parts.times.value!==null).slice(-10).reverse().map(jobRace)};
   });
   action('POST','/api/races/:id/times','Volunteer',async(request,_reply,phone)=>{
     const body=request.body as {baseVersion?:unknown;places?:unknown}|null;
@@ -31,7 +31,7 @@ export function timesRoutes(app:FastifyInstance,pool:pg.Pool) {
       const currentPlaces=places.slice(0,Math.max(count,numericCount));
       const accepted=race.parts.times.value?.acceptedByLead && JSON.stringify(race.parts.times.value.places)===JSON.stringify(currentPlaces);
       const status=await savePart(client,phone,race,'times',Number(body!.baseVersion),{places:currentPlaces,outOfOrder:timesOutOfOrder(currentPlaces),...(accepted?{acceptedByLead:true}:{})});
-      return {status,race:await readRace(client,phone.dayId,race.id)};
+      return {status,race:jobRace(await readRace(client,phone.dayId,race.id))};
     });
   });
 }

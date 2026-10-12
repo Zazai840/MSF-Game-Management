@@ -14,11 +14,11 @@ export async function wristbandRaces(db:Database,dayId:string,eventId:string):Pr
   return rows.map(row=>({id:row.id,deleted:row.deleted,wristbands:((row.value||[]) as Runner[]).map(runner=>runner.wristband)}));
 }
 /** Store only server-computed warnings; an unchanged entry keeps its original warning and choice. */
-export async function annotateRunners(db:Database,dayId:string,event:Pick<DayEvent,'id'|'section'>,runners:Runner[],kept:readonly number[],currentRaceId?:string,previous:readonly Runner[]=[]):Promise<Runner[]> {
+export async function annotateRunners(db:Database,dayId:string,event:Pick<DayEvent,'id'|'section'>,runners:Runner[],kept:readonly number[],currentRaceId?:string,previous:readonly Runner[]=[],skipAlreadyRan=false):Promise<Runner[]> {
   const races=await wristbandRaces(db,dayId,event.id);
   return runners.map(runner=>{
     const existing=previous.find(entry=>entry.id===runner.id);
-    const warnings=existing?(existing.warnings||[]):wristbandWarnings(runner.wristband,event.section,races,{currentRaceId});
+    const warnings=existing?(existing.warnings||[]):wristbandWarnings(runner.wristband,event.section,races,{currentRaceId,skipAlreadyRan});
     return {...runner,warnings:warnings.map(warning=>({...warning,kept:kept.includes(runner.wristband)||('kept' in warning && warning.kept===true)}))};
   });
 }

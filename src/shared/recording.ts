@@ -10,5 +10,6 @@ export function raceRecording(race:Pick<RaceRead,'kind'|'parts'>):RaceRecording 
     return {entryId:runner.id,wristband:runner.wristband,place:index<0?null:index+1,time:race.kind==='final' || index<0?null:times?.places[index]??null};
   })};
 }
-export const needsTimes=(race:RaceRead)=>race.kind!=='final' && !race.deleted && !race.stageComplete && (race.parts.times.value===null || race.recording.countMismatch!==null);
-export const timesWaiting=(races:RaceRead[])=>races.filter(needsTimes).sort((left,right)=>Number(!!right.recording.countMismatch)-Number(!!left.recording.countMismatch));
+type RecordingRace=Pick<RaceRead,'kind'|'deleted'|'stageComplete'|'parts'|'recording'>;
+export const needsTimes=(race:RecordingRace)=>race.kind!=='final' && !race.deleted && !race.stageComplete && (race.parts.times.value===null || race.recording.countMismatch!==null);
+export const timesWaiting=<T extends RecordingRace>(races:T[])=>races.filter(needsTimes).sort((left,right)=>Number(!!right.recording.countMismatch)-Number(!!left.recording.countMismatch));
