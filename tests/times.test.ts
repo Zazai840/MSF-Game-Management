@@ -50,7 +50,7 @@ test('count disagreement returns to the top of Times and fixing either list clea
   expect(trimmed.statusCode).toBe(200);expect(trimmed.json().race.parts.times.value.places).toEqual([1234,null]);
   expect((await call(volunteer,'/api/jobs/times')).json().waiting.map((item:any)=>item.id)).toEqual([oldest.id]);
 });
-test('all joined levels may keep out-of-order times, but the race stays unranked until corrected; stale drafts refuse',async()=>{
+test('all joined levels may keep out-of-order times, but the race stays unranked until corrected; stale drafts remain as a clash',async()=>{
   const {owner,lead,volunteer,checkIn}=await start();const race=await checkIn([2001,2002]);
   await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]});
   for(const [version,token] of [volunteer,lead,owner].entries()) {
@@ -59,9 +59,13 @@ test('all joined levels may keep out-of-order times, but the race stays unranked
     expect(saved.json().race.recording.readyForRanking).toBe(false);
     expect((await call(token,'/api/jobs/times')).json()).not.toHaveProperty('leadCode');
   }
-  expect((await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]})).statusCode).toBe(409);
+  expect((await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]})).json().status).toBe('clash');
   const fixed=await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:3,places:[1200,1300]});
-  expect(fixed.json().race.recording.readyForRanking).toBe(true);
+  expect(fixed.json().race.recording.readyForRanking).toBe(false);
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();
+  const chosen=read.clashes[0].candidates.at(-1);
+  await call(lead,`/api/lead/races/${race.id}/clashes/times`,{candidateId:chosen.id});
+  expect((await call(volunteer,`/api/races/${race.id}`)).json().recording.readyForRanking).toBe(true);
   expect((await call('no-phone',`/api/races/${race.id}/times`,{baseVersion:4,places:[1200,1300]})).statusCode).toBe(401);
 });
 test.each([

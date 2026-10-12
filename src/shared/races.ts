@@ -6,7 +6,7 @@ export interface FinishingOrder { order:string[]; didNotFinish:string[] }
 export interface FinishOrderRead { waiting:RaceRead[]; recent:RaceRead[] }
 export interface TimesRead { waiting:RaceRead[]; recent:RaceRead[] }
 export interface RaceRecording { countMismatch:string|null; readyForRanking:boolean; results:Array<{entryId:string;wristband:number;place:number|null;time:number|null}> }
-export interface RacePart<T> { version:number; value:T|null }
+export interface RacePart<T> { version:number; value:T|null; clash?:true }
 export interface RaceRead {
   id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; recording:RaceRecording;
   parts:{runners:RacePart<Runner[]>; finish:RacePart<FinishingOrder>; times:RacePart<RaceTimes>}
