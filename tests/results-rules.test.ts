@@ -50,3 +50,23 @@ test('kept warnings retain their own words, added runners are flagged and a numb
   expect(results.leaderboard[1].flags).toEqual([{kind:'ran-twice',message:'Ran twice in this event'}]);
   expect(results.leaderboard[2].flags).toEqual([{kind:'added-at-finish',message:'Added at the finish'}]);
 });
+
+test('disqualification moves runners over the qualifying line and lifting restores their places with a note tag',()=>{
+  const races=[race('heat1',[2001,2002,2003,2004,2005,2006],[1100,1200,1300,1400,1500,1600]),race('heat2',[2007,2008,2009],[1700,1800,1900])];
+  const rulings=[{raceId:'heat1',entryId:'heat1-2001',disqualification:{reason:'Obstruction' as const,comment:null}}];
+  const auditNotes=[{id:'note1',action:'disqualify',actor:'Aisha',at:'2026-10-12T14:32:00Z',message:'Aisha disqualified 2001 (Heat 1): Obstruction',comment:null,touches:[{raceId:'heat1',entryId:'heat1-2001'}]}];
+  const disqualified=eventResults({event,races,rulings,auditNotes});
+  expect(disqualified.qualifiers.map(row=>row.wristband)).toEqual([2002,2003,2004,2005,2006,2007]);
+  expect(disqualified.leaderboard.filter(row=>row.highlighted).map(row=>row.wristband)).toEqual([2002,2003,2004,2005,2006,2007,2008,2009]);
+  expect(disqualified.leaderboard[8]).toMatchObject({wristband:2001,status:'Disqualified',position:null,qualification:null,highlighted:false,disqualification:{reason:'Obstruction'},hasNote:true});
+  const lifted=eventResults({event,races,rulings:[],auditNotes});
+  expect(lifted.qualifiers.map(row=>row.wristband)).toEqual([2001,2002,2003,2004,2005,2006]);
+  expect(lifted.leaderboard[0]).toMatchObject({wristband:2001,position:1,status:'Finished',disqualification:null,hasNote:true});
+});
+test('a disqualification moves the next runner into a medal place and the seventh into the timed highlight band',()=>{
+  const races=[race('race1',[2001,2002,2003,2004,2005,2006],[1100,1200,1300,1400,1500,1600],'race'),race('race2',[2007],[1700],'race')];
+  const results=eventResults({event:{...event,format:'timed'},races,rulings:[{raceId:'race1',entryId:'race1-2002',disqualification:{reason:'Two false starts',comment:null}}]});
+  expect(results.medalPlaces.map(row=>[row.wristband,row.medalPlace])).toEqual([[2001,1],[2003,2],[2004,3]]);
+  expect(results.leaderboard.filter(row=>row.highlighted).map(row=>row.wristband)).toEqual([2001,2003,2004,2005,2006,2007]);
+  expect(results.leaderboard[6]).toMatchObject({wristband:2002,position:null,medalPlace:null,highlighted:false,status:'Disqualified'});
+});
