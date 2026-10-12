@@ -68,3 +68,30 @@ test('permissions, missing comments and newly blocking recordings are rechecked 
   expect((await call(lead,path,{stage:'invalid'})).statusCode).toBe(400);
   expect((await call(lead,'/api/lead/events/R16/reopen-stage',{stage:'event',comment:' '})).statusCode).toBe(400);
 });
+test.each(['tie','ran-twice','clash'] as const)('the server refuses completion while a %s remains',async kind=>{
+  const {lead,volunteer,race}=await start();
+  if(kind==='clash') await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[1000,1200]});
+  else {
+    const number=kind==='tie'?2003:2001;
+    const checked=(await call(volunteer,'/api/races/check-in',{eventCode:'R16',runners:[number],keptWarnings:[number]})).json().race;
+    await call(volunteer,`/api/races/${checked.id}/finish`,{baseVersion:0,runnersVersion:1,order:[number],didNotFinish:[],didNotRun:[],added:[]});
+    await call(volunteer,`/api/races/${checked.id}/times`,{baseVersion:0,places:[kind==='tie'?1000:1200]});
+  }
+  const preview=(await call(lead,'/api/lead/events/R16/results')).json();
+  expect(preview.results.checkSheet.mustSettleFirst.some((item:any)=>item.kind===kind)).toBe(true);
+  expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(409);
+  expect((await call(lead,'/api/lead/events/R16/results')).json().auditNotes).toEqual([]);
+});
+test('an open kept warning does not prevent completion, and leads can correct a locked race through rulings',async()=>{
+  const {lead,volunteer,race}=await start();
+  const changed=await call(lead,`/api/lead/races/${race.id}/runners/${race.parts.runners.value[1].id}/correct-number`,{expectedWristband:2002,wristband:1234,keepWarnings:true});
+  expect(changed.statusCode).toBe(200);
+  expect(changed.json().results.checkSheet.worthALook).toHaveLength(1);
+  expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
+  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1000,1200]});
+  expect(corrected.statusCode).toBe(200);expect(corrected.json().results.status).toBe('Complete');
+  expect((await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:2,places:[1000,1300]})).statusCode).toBe(409);
+  await call(lead,'/api/lead/events/R16/reopen-stage',{stage:'event',comment:'Compare the timer draft'});
+  const stale=await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:1,places:[1000,1300]});
+  expect(stale.json().status).toBe('clash');expect(stale.json().race.parts.times).toMatchObject({clash:true,value:{places:[1000,1200]}});
+});
