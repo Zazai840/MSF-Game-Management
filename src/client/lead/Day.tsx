@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
 import { api } from '../api.js';
 import './day.css';
+import { Phones } from './Phones.js';
 
 export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   const [editing,setEditing] = useState<string|null>(null);
@@ -31,6 +32,7 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   }
   return <div className="day-setup">
     <dl><dt>Day code</dt><dd className="code">{day.dayCode}</dd><dt>Lead code</dt><dd className="code">{day.leadCode}</dd></dl>
+    <Phones onChanged={onChanged} />
     <h2>Events for today</h2>
     <p>{day.eventsConfirmed?'Event list confirmed':'Check the events, then confirm the list'}</p>
     <button disabled={busy || day.eventsConfirmed} onClick={()=>void save('day/confirm-events',{})}>Confirm event list</button>
