@@ -11,18 +11,22 @@ export async function listRaces(db:Database,dayId:string) {
   }
   return Promise.all(rows.map(row=>readRace(db,dayId,row.id)));
 }
+export function requireStageOpen(race:RaceRead) {
+  if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+}
 export function requireStartLineEdit(race:RaceRead) {
+  requireStageOpen(race);
   if (race.deleted) throw new Refusal(409,'This race is in Deleted races - ask a lead');
   if (race.parts.finish.value!==null) throw new Refusal(409,'Finishing order already recorded - ask a lead');
 }
 export async function readRace(db:Database,dayId:string,id:string):Promise<RaceRead> {
   if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) throw new Refusal(404,'Race not found');
-  const row=(await db.query(`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled FROM races r JOIN events e ON e.id=r.event_id WHERE r.day_id=$1 AND r.id=$2`,[dayId,id])).rows[0];
+  const row=(await db.query(`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=r.event_id AND s.stage=CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END) AS stage_complete FROM races r JOIN events e ON e.id=r.event_id WHERE r.day_id=$1 AND r.id=$2`,[dayId,id])).rows[0];
   if (!row) throw new Refusal(404,'Race not found');
   const rows=(await db.query('SELECT part,version,value FROM race_parts WHERE race_id=$1',[id])).rows;
   const clashes=(await db.query('SELECT part FROM race_part_saves WHERE race_id=$1 AND active GROUP BY part HAVING count(*)>1',[id])).rows.map(row=>row.part);
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value,...(clashes.includes(row.part)?{clash:true}:{})}]));
-  const race={id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,parts:parts as RaceRead['parts']};
+  const race={id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,stageComplete:row.stage_complete,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {

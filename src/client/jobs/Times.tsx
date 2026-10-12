@@ -1,3 +1,4 @@
+import { stageLocked } from '../../shared/stage-lock.js';
 import { ClashNotice } from './ClashNotice.js';
 import { hasClash } from '../../shared/race-clashes.js';
 import { useEffect,useState } from 'react';
@@ -81,9 +82,11 @@ export function Times({dayId}:{dayId:string}) {
   const complete=draft?.slots.every(value=>value===null || parseTimeDigits(value)!==null);
   const mismatch=latest?raceRecording({...latest,parts:{...latest.parts,times:complete?{version:latest.parts.times.version,value:{places,outOfOrder:timesOutOfOrder(places)}}:latest.parts.times}}).countMismatch:null;
   const firstNoFinisher=draft?.slots.indexOf(null)??-1;
+  const locked=!!draft && stageLocked(draft.race,data.completedStages);
   return <section className="race-job"><h1>Times</h1><ClashNotice race={latest}/>{readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <button disabled={busy} onClick={()=>setChoosing(!choosing)}>Other race</button>
-    {choosing || !draft ? <div><h2>Also waiting</h2>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-actions">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}{race.recording.countMismatch && <small> · Finishers and times don't agree</small>}</button>)}</div><h2>Recent races</h2><div className="job-actions">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>{draft && <button onClick={()=>setChoosing(false)}>Back to this race</button>}</div> : <div>
+    {choosing || !draft ? <div><h2>Also waiting</h2>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-actions">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}{race.recording.countMismatch && <small> · Finishers and times don't agree</small>}</button>)}</div><h2>Recent races</h2><div className="job-actions">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>{draft && <button onClick={()=>setChoosing(false)}>Back to this race</button>}</div> : <fieldset className="stage-job-fields" disabled={locked}>
+      {locked && <p role="status">Stage complete - ask a lead</p>}
       <p className="race-header">{draft.race.event.name} {draft.race.event.section} ({draft.race.event.code}) · {raceLabel(draft.race)} · {draft.slots.length} runners · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
       {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
       {draft.step==='entry' ? <><h2>{ordinal(draft.index+1)} place time?</h2><div className="place-slots" aria-label="Times by place">{draft.slots.map((slot,index)=><button disabled={busy || slot===null} className={index===draft.index?'current-place':''} key={index} aria-label={`${ordinal(index+1)} place${slot===null?' · No finisher':slot?` · ${formatTimeDigits(slot)}`:''}`} onClick={()=>edit(index)}>{ordinal(index+1)}<small>{slot===null?'No finisher':slot?formatTimeDigits(slot):'—'}</small></button>)}</div>
@@ -93,7 +96,7 @@ export function Times({dayId}:{dayId:string}) {
         {timesOutOfOrder(places) && <p className="number-warning">Times out of order - kept for a lead to check</p>}
         <div className="job-actions">{firstNoFinisher>=0 && <button disabled={busy} onClick={undoNoFinisher}>{ordinal(firstNoFinisher+1)} did finish</button>}<button disabled={busy} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button></div>
       </>}
-    </div>}
+    </fieldset>}
     <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Times</button></footer>
   </section>;
 }

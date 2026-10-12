@@ -1,10 +1,11 @@
+import { readCompletedStages } from '../rulings/stages.js';
 import type { Runner } from '../../shared/races.js';
 import { rememberRace,partVersion,savePart } from './versions.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions, Refusal } from '../access/permissions.js';
-import { raceChange, readRace, requireStartLineEdit, listRaces } from './records.js';
+import { raceChange, readRace, requireStageOpen, requireStartLineEdit, listRaces } from './records.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { annotateRunners,keptWarningNumbers,wristbandRaces } from './warnings.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -31,7 +32,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     if (!day) throw new Refusal(401,'Please join the Olympics day');
     const events=(await pool.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND enabled ORDER BY programme_order,code',[phone.dayId])).rows;
     const races=await listRaces(pool,phone.dayId);
-    return {events:day.events_confirmed?events:[],eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>race.parts.finish.value===null),recent:races.slice(-10).reverse()};
+    return {completedStages:await readCompletedStages(pool,phone.dayId),events:day.events_confirmed?events:[],eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null),recent:races.slice(-10).reverse()};
   });
   action('GET','/api/races/:id','Volunteer',(request,_reply,phone)=>readRace(pool,phone.dayId,(request.params as {id:string}).id));
   // Each job uses this same Volunteer boundary for all three permission levels.
@@ -46,6 +47,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
       const existing=(await client.query('SELECT id,event_id,original_runners FROM races WHERE day_id=$1 AND request_id=$2',[phone.dayId,requestId])).rows[0];
       if (existing) {
         const race=await readRace(client,phone.dayId,existing.id);
+        requireStageOpen(race);
         if (race.event.code!==body.eventCode || JSON.stringify(existing.original_runners)!==JSON.stringify(runnersInput)) throw new Refusal(409,'This check-in was already saved - open the race to edit it');
         unchanged();
         return {status:'saved',race};
@@ -54,6 +56,8 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
       if (!day.events_confirmed) throw new Refusal(409,'Ask the scoring team to confirm the event list');
       const event=(await client.query('SELECT * FROM events WHERE day_id=$1 AND code=$2',[phone.dayId,body.eventCode])).rows[0];
       if (!event) throw new Refusal(404,'Event not found');
+      const completed=(await readCompletedStages(client,phone.dayId)).some(stage=>stage.eventId===event.id && stage.stage===(event.format==='heats'?'heats':'event'));
+      if(completed) throw new Refusal(409,'Stage complete - ask a lead');
       if (!event.enabled) throw new Refusal(409,'This event is switched off');
       const kind=event.format==='heats'?'heat':'race';
       const counter=(await client.query(`INSERT INTO race_counters(event_id,kind,last_number) VALUES($1,$2,1) ON CONFLICT(event_id,kind) DO UPDATE SET last_number=race_counters.last_number+1 RETURNING last_number`,[event.id,kind])).rows[0];
@@ -72,6 +76,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     if (!Number.isSafeInteger(baseVersion) || Number(baseVersion)<1) throw new Refusal(400,'Open the race before saving its runners');
     return raceChange(pool,phone,async client=>{
       const race=await readRace(client,phone.dayId,(request.params as {id:string}).id);
+      requireStageOpen(race);
       if(race.deleted || baseVersion===race.parts.runners.version) requireStartLineEdit(race);
       const previous=(await partVersion<Runner[]>(client,race,'runners',Number(baseVersion))).value || [];
       const runners=await annotateRunners(client,phone.dayId,race.event,numbers.map(wristband=>previous.find(runner=>runner.wristband===wristband)||{id:randomUUID(),wristband}),kept,race.id,previous);
@@ -84,6 +89,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     if (typeof permanent!=='boolean') throw new Refusal(400,'Choose Delete permanently or move to Deleted races');
     return raceChange(pool,phone,async client=>{
       const race=await readRace(client,phone.dayId,(request.params as {id:string}).id);
+      requireStageOpen(race);
       requireStartLineEdit(race);
       if (permanent) await client.query('DELETE FROM races WHERE id=$1',[race.id]);
       else await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['start-line',race.id]);

@@ -1,15 +1,16 @@
+import type { CompletedStage } from './stage-lock.js';
 import type { RaceTimes } from './time-entry.js';
 import type { DayEvent } from './day.js';
 import type { WristbandWarning } from './wristband-checks.js';
 export interface Runner { id:string; wristband:number; addedAtFinish?:boolean; warnings?:Array<WristbandWarning & {kept:boolean}> }
 export interface FinishingOrder { order:string[]; didNotFinish:string[] }
-export interface FinishOrderRead { waiting:RaceRead[]; recent:RaceRead[] }
-export interface TimesRead { waiting:RaceRead[]; recent:RaceRead[] }
+export interface FinishOrderRead { waiting:RaceRead[]; recent:RaceRead[]; completedStages:CompletedStage[] }
+export interface TimesRead { waiting:RaceRead[]; recent:RaceRead[]; completedStages:CompletedStage[] }
 export interface RaceRecording { countMismatch:string|null; readyForRanking:boolean; results:Array<{entryId:string;wristband:number;place:number|null;time:number|null}> }
 export interface RacePart<T> { version:number; value:T|null; clash?:true }
 export interface RaceRead {
-  id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; recording:RaceRecording;
+  id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; stageComplete?:boolean; recording:RaceRecording;
   parts:{runners:RacePart<Runner[]>; finish:RacePart<FinishingOrder>; times:RacePart<RaceTimes>}
 }
-export interface StartLineRead { events:DayEvent[]; eventsConfirmed:boolean; waiting:RaceRead[]; recent:RaceRead[] }
+export interface StartLineRead { events:DayEvent[]; eventsConfirmed:boolean; waiting:RaceRead[]; recent:RaceRead[]; completedStages:CompletedStage[] }
 export const raceLabel=(race:RaceRead)=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;

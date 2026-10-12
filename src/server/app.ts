@@ -1,3 +1,4 @@
+import { stageRoutes } from './rulings/stages.js';
 import { clashRoutes } from './rulings/clashes.js';
 import Fastify from 'fastify';
 import { phoneManagementRoutes } from './access/management.js';
@@ -39,5 +40,6 @@ export async function createApp(settings: AppSettings) {
   clashRoutes(app,pool);
   runnerRulingRoutes(app,pool);
   tieRoutes(app,pool);
+  stageRoutes(app,pool);
   return app;
 }

@@ -24,3 +24,5 @@
 .race-job .count-mismatch {border-left:4px solid #ab4200;background:#fff0dc;color:#733100;padding:1rem;font-weight:700;}
 .time-example {font-size:.9rem;}
 .time-review p {margin:.25rem 0;padding:.5rem;background:#e1ebe3;}
+
+.stage-job-fields {border:0;padding:0;margin:0;min-width:0;}

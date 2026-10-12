@@ -1,3 +1,4 @@
+import { readCompletedStages } from '../rulings/stages.js';
 import type { Runner } from '../../shared/races.js';
 import { partVersion,savePart,publishPart,sameRunnerSnapshot } from './versions.js';
 import { randomUUID } from 'node:crypto';
@@ -6,12 +7,12 @@ import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions,Refusal } from '../access/permissions.js';
-import { listRaces,raceChange,readRace } from './records.js';
+import { listRaces,raceChange,readRace,requireStageOpen } from './records.js';
 export function finishOrderRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('GET','/api/jobs/finish-order','Volunteer',async(_request,_reply,phone)=>{
     const races=await listRaces(pool,phone.dayId);
-    return {waiting:races.filter(race=>race.parts.finish.value===null),recent:races.filter(race=>race.parts.finish.value!==null).slice(-10).reverse()};
+    return {completedStages:await readCompletedStages(pool,phone.dayId),waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null),recent:races.filter(race=>race.parts.finish.value!==null).slice(-10).reverse()};
   });
   action('POST','/api/races/:id/finish','Volunteer',async(request,_reply,phone)=>{
     const body=request.body as {baseVersion?:unknown;runnersVersion?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown}|null;
@@ -24,6 +25,7 @@ export function finishOrderRoutes(app:FastifyInstance,pool:pg.Pool) {
     const kept=keptWarningNumbers(request.body,added);
     return raceChange(pool,phone,async client=>{
       const race=await readRace(client,phone.dayId,(request.params as {id:string}).id);
+      requireStageOpen(race);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races - ask a lead');
       const previous=(await partVersion<Runner[]>(client,race,'runners',Number(body!.runnersVersion))).value||[];
       const original=previous.map(runner=>runner.wristband);
