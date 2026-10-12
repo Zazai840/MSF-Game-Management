@@ -37,6 +37,6 @@ export function App() {
     {isLead ? <button onClick={()=>setScreen('lead')}>Lead · {home.needsYou || 0} needing you</button> : <button onClick={()=>setScreen('become-lead')}>Become lead</button>}
   </nav></header>
     {screen === 'home' ? <Home waiting={home.waiting} onJob={setScreen} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead phone={home.phone} /></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} />}
-    {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='lead' && <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>}
+    {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='Finish order' && screen!=='lead' && <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>}
   </main>;
 }

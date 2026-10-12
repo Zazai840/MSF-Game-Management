@@ -11,3 +11,9 @@
 .race-job output.warning-number,.runner-chips .warning-chip {border-color:#bd7800;background:#fff1cf;color:#674000;}
 .kept-warning {color:#674000;}
 .kept-warning p {font-size:1rem;line-height:1.3;background:#fff1cf;padding:.5rem;}
+.finish-numbers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}
+.finish-numbers button {font-size:2rem;min-height:88px;}
+.finish-review {padding-left:1.75rem;}
+.finish-review li {padding:.5rem 0;}
+.finish-review li>div {display:flex;gap:.5rem;}
+.finish-review small {font-size:1rem;}
