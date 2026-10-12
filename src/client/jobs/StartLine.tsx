@@ -1,3 +1,5 @@
+import { ClashNotice } from './ClashNotice.js';
+import { hasClash } from '../../shared/race-clashes.js';
 import { useEffect,useState } from 'react';
 import { api,phoneStorage } from '../api.js';
 import { raceLabel,type RaceRead,type StartLineRead } from '../../shared/races.js';
@@ -70,7 +72,7 @@ export function StartLine({dayId}:{dayId:string}) {
     setBusy(true);setError('');setMessage('');
     try {
       const response=await api<{status:string;race:RaceRead}>(draft.raceId?`races/${draft.raceId}/runners`:'races/check-in',draft.raceId?{baseVersion:draft.baseVersion,runners:draft.runners,keptWarnings:draft.keptWarnings}:{eventCode:draft.eventCode,runners:draft.runners,requestId:draft.requestId,keptWarnings:draft.keptWarnings});
-      localStorage.removeItem(key);setDraft(emptyDraft());setSaved(response.race);setMessage('Saved');void refresh();
+      localStorage.removeItem(key);setDraft(emptyDraft());setSaved(response.race);setMessage(hasClash(response.race)?'':'Saved');void refresh();
     } catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
   }
@@ -82,7 +84,7 @@ export function StartLine({dayId}:{dayId:string}) {
   }
   if(!data) return <section><h1>Start line</h1><p>{readError || 'Opening…'}</p><button onClick={()=>void refresh()}>Refresh Start line</button></section>;
   const event=data.events.find(event=>event.code===draft.eventCode);
-  return <section className="race-job"><h1>Start line</h1>
+  return <section className="race-job"><h1>Start line</h1><ClashNotice race={[...data.waiting,...data.recent].find(race=>race.id===(saved?.id||draft.raceId))||saved}/>
     {readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {saved ? <div><h2>{raceLabel(saved)} saved</h2><p>{saved.event.name} {saved.event.section} ({saved.event.code})</p><p>{saved.parts.runners.value?.map(runner=>runner.wristband).join(' · ')}</p>
       {deleting ? <div className="job-actions"><p>Delete {raceLabel(saved)}?</p><button disabled={busy} onClick={()=>void remove(false)}>Move to Deleted races</button><button disabled={busy} onClick={()=>void remove(true)}>Delete permanently</button><button disabled={busy} onClick={()=>setDeleting(false)}>Keep this race</button></div> : <div className="job-actions"><button onClick={()=>void open(saved)}>Edit runners</button><button onClick={()=>setDeleting(true)}>Delete this race</button><button onClick={reset}>Check in another race</button></div>}

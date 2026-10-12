@@ -13,6 +13,7 @@ export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:n
 export interface ResultsRace extends RaceReference { deleted:boolean; clash?:boolean; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[] }
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
+
 export interface ResultEntry { raceId:string; entryId:string; wristband:number }
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
@@ -73,5 +74,7 @@ export function eventResults(state:EventState):EventResults {
     if(state.event.format==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
   const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
-  return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties,notRankedYet,needsYou:[...ties.map(tie=>({id:`tie:${tie.id}`,kind:'tie' as const,message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`})),...active.filter(race=>race.clash).map(race=>({id:`clash:${race.id}`,kind:'clash' as const,raceId:race.id,message:'Two versions - zone lead to check'}))],band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
+  const needsYou:LeadItem[]=[...active.filter(race=>race.clash).map(race=>({id:`clash:${race.id}`,kind:'clash' as const,raceId:race.id,message:'Two versions - zone lead to check'})),...ties.map(tie=>({id:`tie:${tie.id}`,kind:'tie' as const,message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`}))];
+  return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties,notRankedYet,needsYou,band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
+
 }

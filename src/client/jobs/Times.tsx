@@ -1,3 +1,5 @@
+import { ClashNotice } from './ClashNotice.js';
+import { hasClash } from '../../shared/race-clashes.js';
 import { useEffect,useState } from 'react';
 import { api,phoneStorage } from '../api.js';
 import { raceLabel,type RaceRead,type TimesRead } from '../../shared/races.js';
@@ -69,7 +71,7 @@ export function Times({dayId}:{dayId:string}) {
     setBusy(true);setError('');setMessage('');
     try {
       const response=await api<{race:RaceRead}>(`races/${draft.race.id}/times`,{baseVersion:draft.race.parts.times.version,places:draft.slots.map(value=>value===null?null:parseTimeDigits(value))});
-      setDraft(fromRace(response.race));setMessage('Saved');void refresh();
+      setDraft(fromRace(response.race));setMessage(hasClash(response.race)?'':'Saved');void refresh();
     } catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
   }
@@ -79,7 +81,7 @@ export function Times({dayId}:{dayId:string}) {
   const complete=draft?.slots.every(value=>value===null || parseTimeDigits(value)!==null);
   const mismatch=latest?raceRecording({...latest,parts:{...latest.parts,times:complete?{version:latest.parts.times.version,value:{places,outOfOrder:timesOutOfOrder(places)}}:latest.parts.times}}).countMismatch:null;
   const firstNoFinisher=draft?.slots.indexOf(null)??-1;
-  return <section className="race-job"><h1>Times</h1>{readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+  return <section className="race-job"><h1>Times</h1><ClashNotice race={latest}/>{readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <button disabled={busy} onClick={()=>setChoosing(!choosing)}>Other race</button>
     {choosing || !draft ? <div><h2>Also waiting</h2>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-actions">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}{race.recording.countMismatch && <small> · Finishers and times don't agree</small>}</button>)}</div><h2>Recent races</h2><div className="job-actions">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>{draft && <button onClick={()=>setChoosing(false)}>Back to this race</button>}</div> : <div>
       <p className="race-header">{draft.race.event.name} {draft.race.event.section} ({draft.race.event.code}) · {raceLabel(draft.race)} · {draft.slots.length} runners · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
