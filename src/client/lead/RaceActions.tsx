@@ -1,6 +1,6 @@
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
 import { raceLabel,type RaceRead } from '../../shared/races.js';
@@ -49,6 +49,8 @@ function RaceRunnersEditor({race,busy,onSave,onClose}:{race:RaceRead;busy:boolea
   const [original]=useState(race);
   const [entries,setEntries]=useState(()=>((race.parts.runners.value||[]).map(runner=>({entryId:runner.id as string|undefined,number:String(runner.wristband)}))));
   const [step,setStep]=useState<'input'|'warnings'|'review'>('input');
+  const region=useRef<HTMLDivElement>(null);
+  useEffect(()=>{region.current?.querySelector<HTMLElement>('input,button,textarea')?.focus();},[step]);
   const [warnings,setWarnings]=useState<Array<{number:number;message:string}>>([]);
   const [checking,setChecking]=useState(false),[error,setError]=useState(''),[kept,setKept]=useState<number[]>([]);
   const [newDidNotFinish,setNewDidNotFinish]=useState(false),[comment,setComment]=useState('');
@@ -78,7 +80,7 @@ function RaceRunnersEditor({race,busy,onSave,onClose}:{race:RaceRead;busy:boolea
     }
     onSave({baseVersion:original.parts.runners.version,finishVersion:original.parts.finish.version,runners,keptWarnings:kept,comment,...(finish?{finish}:{})});
   }
-  return <div>{error && <p role="alert">{error}</p>}{step==='input'?<form onSubmit={event=>void check(event)}><p>Change a number in its existing row to keep that child’s place and time. Remove or add a row only when the runners themselves changed.</p>
+  return <div ref={region}>{error && <p role="alert">{error}</p>}{step==='input'?<form onSubmit={event=>void check(event)}><p>Change a number in its existing row to keep that child’s place and time. Remove or add a row only when the runners themselves changed.</p>
     {entries.map((entry,index)=><div className="lead-runner-input" key={entry.entryId||`new-${index}`}><label>Runner {index+1}<input aria-label={`Wristband for runner ${index+1}`} inputMode="numeric" pattern="[0-9]+" required value={entry.number} disabled={busy || checking} onChange={event=>setEntries(previous=>previous.map((old,at)=>at===index?{...old,number:event.target.value}:old))}/></label><button type="button" disabled={busy || checking} className="secondary" onClick={()=>setEntries(previous=>previous.filter((_old,at)=>at!==index))}>Remove runner {index+1}</button></div>)}
     <button type="button" disabled={busy || checking || entries.length>=6} onClick={()=>setEntries(previous=>[...previous,{entryId:undefined,number:''}])}>Add runner</button><button disabled={busy || checking}>{checking?'Checking…':'Review runner list'}</button>
     </form>:step==='warnings'?<div className="runner-number-warning">{warnings.map((warning,index)=><p key={index}>{warning.message}</p>)}<button disabled={busy} onClick={()=>setStep('input')}>Fix runners</button><button disabled={busy} onClick={()=>{setKept([...new Set(warnings.map(warning=>warning.number))]);setStep('review');}}>Keep warnings</button></div>:<><h4>{entries.length} runners. Is that right?</h4><p>{entries.map(entry=>entry.number).join(' · ')||'No runners'}</p>{warnings.map((warning,index)=><p className="runner-number-warning" key={index}>{warning.message} · Warning kept</p>)}{additions && original.parts.finish.value && <><p>Finish order must be recorded again for new runners, unless they did not finish.</p><label className="lead-checkbox"><input type="checkbox" checked={newDidNotFinish} disabled={busy} onChange={event=>setNewDidNotFinish(event.target.checked)}/>New runners did not finish</label></>}

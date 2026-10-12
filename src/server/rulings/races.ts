@@ -35,11 +35,16 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     });
   });
   action('GET','/api/lead/events/:code/deleted-races','Lead',async(request,_reply,phone)=>{
-    const {code}=request.params as {code:string};
-    const event=(await pool.query('SELECT id FROM events WHERE day_id=$1 AND code=$2',[phone.dayId,code])).rows[0];
-    if(!event) throw new Refusal(404,'Event not found');
-    const rows=(await pool.query('SELECT id FROM races WHERE day_id=$1 AND event_id=$2 AND deleted ORDER BY checked_in_at DESC,id',[phone.dayId,event.id])).rows;
-    return Promise.all(rows.map(row=>readRace(pool,phone.dayId,row.id)));
+    const {code}=request.params as {code:string},client=await pool.connect();
+    try {
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      const event=(await client.query('SELECT id FROM events WHERE day_id=$1 AND code=$2',[phone.dayId,code])).rows[0];
+      if(!event) throw new Refusal(404,'Event not found');
+      const rows=(await client.query('SELECT id FROM races WHERE day_id=$1 AND event_id=$2 AND deleted ORDER BY checked_in_at DESC,id',[phone.dayId,event.id])).rows;
+      const races=[];for(const row of rows) races.push(await readRace(client,phone.dayId,row.id));
+      await client.query('COMMIT');return races;
+    } catch(error) {await client.query('ROLLBACK');throw error;}
+    finally {client.release();}
   });
   action('POST','/api/lead/races/:id/delete','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false);
