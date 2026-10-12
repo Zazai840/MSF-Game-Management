@@ -1,0 +1,84 @@
+import { expect,test,type Page } from '@playwright/test';
+async function join(page:Page,name:string) {
+  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
+  await page.getByLabel('First name').fill(name);await page.getByRole('button',{name:'Join',exact:true}).click();
+}
+async function typeNumber(page:Page,number:number) {for(const digit of String(number)) await page.getByRole('button',{name:digit,exact:true}).click();}
+test('two phones check in and record Finish order with missing runner, trail, nonfinishers and correction',async({page,browser},info)=>{
+  const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;
+  const n=(number:number)=>number+offset;
+  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  await page.request.post('/api/day/events/R4/rename',{headers,data:{name:'60m'}});
+  await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await join(page,`Start finish ${info.project.name}`);
+  await page.getByRole('button',{name:/^Start line ·/}).click();await page.getByRole('button',{name:'60m',exact:true}).click();
+  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  for(const number of [n(2011),n(2012),n(2013),n(2014)]) {await typeNumber(page,number);await page.getByRole('button',{name:'Next',exact:true}).click();}
+  await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByRole('heading',{name:/Heat \d+ saved/})).toBeVisible();
+  const label=(await page.getByRole('heading',{name:/Heat \d+ saved/}).innerText()).replace(' saved','');
+  const context=await browser.newContext({...info.project.use});const finish=await context.newPage();
+  await join(finish,`Finish ${info.project.name}`);await finish.getByRole('button',{name:/^Finish order ·/}).click();
+  await expect(finish.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
+  await finish.screenshot({path:info.outputPath('finish-order-question.png'),fullPage:true});
+  await finish.getByRole('button',{name:String(n(2012)),exact:true}).click();
+  await finish.getByRole('button',{name:`1st: ${n(2012)}`,exact:true}).click();
+  await expect(finish.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:String(n(2011)),exact:true}).click();
+  await finish.getByRole('button',{name:'+ Runner not on the list',exact:true}).click();
+  await typeNumber(finish,n(2011));await finish.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(finish.getByRole('alert')).toHaveText(`${n(2011)} is already in this race`);
+  for(let index=0;index<4;index++) await finish.getByRole('button',{name:'Delete last digit',exact:true}).click();
+  await typeNumber(finish,0);await finish.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(finish.getByText('0 is not a known wristband number',{exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Fix number',exact:true}).click();await finish.getByRole('button',{name:'Delete last digit',exact:true}).click();
+  await typeNumber(finish,3045);
+  await finish.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(finish.getByText('3045 belongs to Boy Scouts - this race is Girl Cubs',{exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Keep',exact:true}).click();await finish.getByRole('button',{name:'3045',exact:true}).click();
+  await finish.getByRole('button',{name:String(n(2012)),exact:true}).click();await finish.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
+  await expect(finish.getByRole('heading',{name:`${n(2013)} has no place. What happened?`,exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Did not finish',exact:true}).click();await finish.getByRole('button',{name:"Didn't run",exact:true}).click();
+  await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
+  await expect(finish.getByRole('button',{name:'+ Runner not on the list',exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Move 3045 up',exact:true}).click();
+  await expect(finish.locator('.finish-review li').first()).toContainText('3045');
+  await finish.screenshot({path:info.outputPath('finish-order-review.png'),fullPage:true});
+  await finish.route('**/api/races/*/finish',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary connection problem'})}));
+  await finish.getByRole('button',{name:'Save',exact:true}).click();await expect(finish.getByText('Not saved - tap Save again',{exact:true})).toBeVisible();
+  await finish.reload();await finish.getByRole('button',{name:/^Finish order ·/}).click();
+  await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
+  await finish.unroute('**/api/races/*/finish');await finish.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(finish.getByText('Saved',{exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Other race',exact:true}).click();
+  await finish.getByRole('button',{name:`60m Girl Cubs (R4) · ${label}`,exact:true}).click();
+  await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
+  await expect(finish.locator('.finish-review li').first()).toContainText('3045');
+  await finish.getByRole('button',{name:`Move ${n(2011)} up`,exact:true}).click();await finish.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(finish.getByText('Saved',{exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Home',exact:true}).click();
+  await expect(finish.getByRole('button',{name:'Finish order · 0 waiting',exact:true})).toBeVisible();
+  await context.close();
+});
+
+test('Finish order preserves its draft versions while polling and reload expose a changed runner list',async({page},info)=>{
+  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const checked=await page.request.post('/api/races/check-in',{headers,data:{eventCode:'R4',runners:[2101,2102]}});
+  const race=(await checked.json()).race;
+  await join(page,`Draft finish ${info.project.name}`);await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await page.getByRole('button',{name:'2102',exact:true}).click();await page.getByRole('button',{name:'2101',exact:true}).click();
+  await page.getByRole('button',{name:'Check the order',exact:true}).click();
+  await page.request.post(`/api/races/${race.id}/runners`,{headers,data:{baseVersion:1,runners:[2101,2102,2103]}});
+  await page.getByRole('button',{name:'Refresh Finish order',exact:true}).click();
+  await page.reload();await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await expect(page.locator('.finish-review li').first()).toContainText('2102');
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByRole('alert')).toHaveText('This race has changed - open it again');
+  await expect(page.locator('.finish-review li')).toHaveCount(2);
+  await page.getByRole('button',{name:'Other race',exact:true}).click();
+  await page.getByRole('button',{name:`60m Girl Cubs (R4) · Heat ${race.number}`,exact:true}).click();
+  for(const number of [2101,2102,2103]) await page.getByRole('button',{name:String(number),exact:true}).click();
+  await page.getByRole('button',{name:'Check the order',exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByText('Saved',{exact:true})).toBeVisible();
+});

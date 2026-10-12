@@ -4,6 +4,7 @@ import { accessRoutes } from './access/routes.js';
 import { dayRoutes } from './day/routes.js';
 import { homeRoutes } from './home/routes.js';
 import { Refusal } from './access/permissions.js';
+import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
 export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean }
 export async function createApp(settings: AppSettings) {
@@ -23,5 +24,6 @@ export async function createApp(settings: AppSettings) {
   dayRoutes(app, pool);
   homeRoutes(app, pool);
   raceRoutes(app,pool);
+  finishOrderRoutes(app,pool);
   return app;
 }

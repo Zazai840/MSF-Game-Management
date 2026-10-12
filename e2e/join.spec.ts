@@ -10,11 +10,11 @@ test('join an Olympics day, reload the phone and become lead', async ({page}, in
   await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
   await page.getByRole('button',{name:'Join',exact:true}).click();
   await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Start line · 0 waiting'})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Start line · \d+ waiting$/})).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
   await expect(page.getByText(`Ahmed ${info.project.name}`)).toBeVisible();
-  await page.getByRole('button',{name:'Times · 0 waiting'}).click();
+  await page.getByRole('button',{name:/^Times · \d+ waiting$/}).click();
   await expect(page.getByText('No races waiting yet')).toBeVisible();
   await page.getByRole('button',{name:'Home',exact:true}).click();
   expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(false);
