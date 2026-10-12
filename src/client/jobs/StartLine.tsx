@@ -1,3 +1,4 @@
+import { stageLocked } from '../../shared/stage-lock.js';
 import { ClashNotice } from './ClashNotice.js';
 import { hasClash } from '../../shared/race-clashes.js';
 import { useEffect,useState } from 'react';
@@ -38,6 +39,7 @@ export function StartLine({dayId}:{dayId:string}) {
   async function open(race:RaceRead) {
     try {
       const latest=await api<RaceRead>(`races/${race.id}`);
+      if(latest.stageComplete) {setSaved(latest);return;}
       if(latest.parts.finish.value!==null) {setError('Finishing order already recorded - ask a lead');return;}
       const runners=latest.parts.runners.value||[];
       change({...emptyDraft(),step:'entry',eventCode:latest.event.code,runners:runners.map(runner=>runner.wristband),raceId:latest.id,baseVersion:latest.parts.runners.version,keptWarnings:runners.filter(runner=>runner.warnings?.some(warning=>warning.kept)).map(runner=>runner.wristband),warnings:Object.fromEntries(runners.filter(runner=>runner.warnings?.length).map(runner=>[runner.wristband,runner.warnings!]))});
@@ -84,8 +86,11 @@ export function StartLine({dayId}:{dayId:string}) {
   }
   if(!data) return <section><h1>Start line</h1><p>{readError || 'Opening…'}</p><button onClick={()=>void refresh()}>Refresh Start line</button></section>;
   const event=data.events.find(event=>event.code===draft.eventCode);
+  const locked=saved?stageLocked(saved,data.completedStages):data.completedStages.some(item=>item.eventCode===draft.eventCode && item.stage!=='final');
   return <section className="race-job"><h1>Start line</h1><ClashNotice race={[...data.waiting,...data.recent].find(race=>race.id===(saved?.id||draft.raceId))||saved}/>
     {readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+    {locked && <><p role="status">Stage complete - ask a lead</p><button onClick={reset}>Choose another race</button></>}
+    <fieldset className="stage-job-fields" disabled={locked}>
     {saved ? <div><h2>{raceLabel(saved)} saved</h2><p>{saved.event.name} {saved.event.section} ({saved.event.code})</p><p>{saved.parts.runners.value?.map(runner=>runner.wristband).join(' · ')}</p>
       {deleting ? <div className="job-actions"><p>Delete {raceLabel(saved)}?</p><button disabled={busy} onClick={()=>void remove(false)}>Move to Deleted races</button><button disabled={busy} onClick={()=>void remove(true)}>Delete permanently</button><button disabled={busy} onClick={()=>setDeleting(false)}>Keep this race</button></div> : <div className="job-actions"><button onClick={()=>void open(saved)}>Edit runners</button><button onClick={()=>setDeleting(true)}>Delete this race</button><button onClick={reset}>Check in another race</button></div>}
     </div> : draft.step==='pick' ? <div><h2>Which race is it?</h2>
@@ -102,6 +107,7 @@ export function StartLine({dayId}:{dayId:string}) {
         </>}
       </> : <><h2>{draft.runners.length} {draft.runners.length===1?'runner':'runners'}. Is that right?</h2><ol>{draft.runners.map(number=><li className={draft.warnings[number]?.length?'kept-warning':''} key={number}><strong>{number}</strong>{draft.warnings[number]?.map(warning=><p key={warning.kind}>{warning.message} · Warning kept</p>)}</li>)}</ol><div className="job-actions"><button disabled={busy} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button><button disabled={busy} onClick={()=>change({...draft,step:'entry'})}>Change runners</button></div></>}
     </div>}
+    </fieldset>
     <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Start line</button></footer>
   </section>;
 }

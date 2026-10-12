@@ -74,6 +74,10 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       message text NOT NULL, comment text, touches jsonb NOT NULL
     );
     CREATE INDEX IF NOT EXISTS event_audit_order ON audit_notes(event_id,sequence_number DESC);
+    CREATE TABLE IF NOT EXISTS event_stages (
+      event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE, stage text NOT NULL,
+      PRIMARY KEY(event_id,stage)
+    );
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       tie_id text NOT NULL, settlement jsonb NOT NULL,

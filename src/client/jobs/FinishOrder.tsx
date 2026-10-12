@@ -1,3 +1,4 @@
+import { stageLocked } from '../../shared/stage-lock.js';
 import { ClashNotice } from './ClashNotice.js';
 import { hasClash } from '../../shared/race-clashes.js';
 import { useEffect,useState } from 'react';
@@ -81,13 +82,15 @@ export function FinishOrder({dayId}:{dayId:string}) {
   function move(index:number,direction:number) {
     if(!draft) return;const order=[...draft.order];[order[index],order[index+direction]]=[order[index+direction],order[index]];change({...draft,order});
   }
+  const locked=!!draft && stageLocked(draft.race,data.completedStages);
   return <section className="race-job"><h1>Finish order</h1>
     <ClashNotice race={draft?[...data.waiting,...data.recent].find(race=>race.id===draft.race.id)||draft.race:null}/>
     {readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <button disabled={busy} onClick={()=>setChoosing(!choosing)}>Other race</button>
     {choosing || !draft ? <div><h2>Also waiting</h2>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-actions">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>
       <h2>Recent races</h2><div className="job-actions">{data.recent.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>{draft && <button onClick={()=>setChoosing(false)}>Back to this race</button>}
-    </div> : <div>
+    </div> : <fieldset className="stage-job-fields" disabled={locked}>
+      {locked && <p role="status">Stage complete - ask a lead</p>}
       <p className="race-header">{draft.race.event.name} {draft.race.event.section} ({draft.race.event.code}) · {raceLabel(draft.race)} · {draft.runners.length-draft.didNotRun.length} runners · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
       {step==='add' ? <><h2>Runner not on the list: wristband number?</h2><output className={draft.pendingWarnings.length?'warning-number':''} aria-label="Wristband number">{draft.current || '—'}</output>
         {draft.pendingWarnings.length>0 ? <div className="number-warning" role="alert">{draft.pendingWarnings.map(warning=><p key={warning.kind}>{warning.message}</p>)}<div className="job-actions"><button onClick={()=>change({...draft,pendingWarnings:[]})}>Fix number</button><button onClick={()=>acceptNumber(draft.pendingWarnings)}>Keep</button></div></div> : <><div className="number-keypad">{['1','2','3','4','5','6','7','8','9'].map(digit=><button disabled={busy} key={digit} onClick={()=>change({...draft,current:draft.current+digit})}>{digit}</button>)}<button disabled={busy} aria-label="Delete last digit" onClick={()=>change({...draft,current:draft.current.slice(0,-1)})}>⌫</button><button disabled={busy} onClick={()=>change({...draft,current:draft.current+'0'})}>0</button><button disabled={busy || !draft.current} onClick={()=>void addNumber()}>{busy?'Checking…':'Next'}</button></div><button disabled={busy} onClick={()=>change({...draft,step:'place',current:''})}>Back to order</button></>}
@@ -99,7 +102,7 @@ export function FinishOrder({dayId}:{dayId:string}) {
         {step==='no-place' ? <><h2>{unplaced[0]?.wristband} has no place. What happened?</h2><div className="job-actions"><button onClick={()=>change({...draft,didNotFinish:[...draft.didNotFinish,unplaced[0].wristband]})}>Did not finish</button><button onClick={()=>didntRun(unplaced[0].wristband)}>Didn't run</button></div></> : <><h2>{unplaced.length?`Who came ${ordinal(draft.order.length+1)}?`:'Everyone has a place'}</h2><div className="finish-numbers">{unplaced.map(runner=><button key={runner.id} onClick={()=>change({...draft,order:[...draft.order,runner.wristband]})}>{runner.wristband}</button>)}</div><div className="job-actions"><button onClick={()=>change({...draft,step:unplaced.length?'no-place':'check'})}>{unplaced.length?'Nobody else crossed the line':'Check the order'}</button></div></>}
         <div className="job-actions"><button onClick={()=>change({...draft,step:'add'})}>+ Runner not on the list</button></div>
       </>}
-    </div>}
+    </fieldset>}
     <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Finish order</button></footer>
   </section>;
 }
