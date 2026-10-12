@@ -2,7 +2,7 @@ import { resultRecords,finalRecords,type ResultRecord,type FinalRecord } from '.
 import { finalResults,type FinalField,type FinalResults } from './finals.js';
 import { timedCheckSheet,heatsCheckSheet,finalCheckSheet,type Stage,type StageCheckSheet,type InputRunning } from './stages.js';
 import { eventLeadItems } from './lead-items.js';
-import { runnerWarningFlags } from './runner-rulings.js';
+import { leaderboardRowFacts } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
 import type { FinishingOrder,Runner } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
@@ -61,14 +61,9 @@ export function eventResults(state:EventState):EventResults {
     if(reasons.length && !race.deleted && race.kind!=='final') notRankedYet.push({race:reference(race),reasons});
     for(const runner of race.runners) {
       const index=race.finish?.order.indexOf(runner.id)??-1,isFinisher=index>=0;
-      const row:LeaderboardRow={raceId:race.id,entryId:runner.id,wristband:runner.wristband,race:reference(race),position:null,place:isFinisher?index+1:null,time:isFinisher?race.times?.places[index]??null:null,status:reasons.length?'Pending':isFinisher?'Finished':'Did not finish',disqualification:null,notCounted:false,hasNote:false,highlighted:false,qualification:null,medalPlace:null,flags:[],...(reasons.length?{recordingPending:true as const}:{})};
       const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
-      row.disqualification=ruling?.disqualification??null;row.notCounted=ruling?.notCounted??false;
-      row.hasNote=!!state.auditNotes?.some(note=>note.touches.some(touch=>touch.raceId===race.id && (!touch.entryId || touch.entryId===runner.id)));
-      const repeated=!race.deleted && race.kind!=='final' && !row.disqualification && !row.notCounted && (appearances.get(runner.wristband)?.size||0)>1;
-      row.flags=runnerWarningFlags(runner,ruling,repeated);
-      if(repeated) row.flags.push({kind:'ran-twice',message:'Ran twice in this event'});
-      if(runner.addedAtFinish) row.flags.push({kind:'added-at-finish',message:'Added at the finish',...(ruling?.addedAtFinishChecked?{checked:true}:{})});
+      const repeated=!race.deleted && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && (appearances.get(runner.wristband)?.size||0)>1;
+      const row:LeaderboardRow={...leaderboardRowFacts(state,race,runner,ruling,repeated),place:isFinisher?index+1:null,time:isFinisher?race.times?.places[index]??null:null,status:reasons.length?'Pending':isFinisher?'Finished':'Did not finish',...(reasons.length?{recordingPending:true as const}:{})};
       publishedRows.push(row);
       if(race.deleted) continue;
       actionableRunners.push(row);

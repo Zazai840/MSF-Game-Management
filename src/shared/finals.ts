@@ -1,4 +1,4 @@
-import { runnerWarningFlags } from './runner-rulings.js';
+import { leaderboardRowFacts } from './leaderboard-row.js';
 import type { FinishingOrder,Runner } from './races.js';
 import type { EventState,LeaderboardRow,ResultsRace } from './results-rules.js';
 /** Immutable heat provenance. An absent qualifier remains here when a replacement is called up. */
@@ -13,7 +13,7 @@ export function finalRows(state:EventState,race:ResultsRace):LeaderboardRow[] {
   const rows=race.runners.map((runner:Runner):LeaderboardRow=>{
     const index=finish.order.indexOf(runner.id),ruling=state.rulings?.find(item=>item.raceId===race.id && item.entryId===runner.id);
     const disqualification=ruling?.disqualification??null,notCounted=ruling?.notCounted??false;
-    return {raceId:race.id,entryId:runner.id,wristband:runner.wristband,race:{id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt},position:null,place:index<0?null:index+1,time:null,status:disqualification?'Disqualified':notCounted?'Not counted':index<0?'Did not finish':'Finished',disqualification,notCounted,hasNote:!!state.auditNotes?.some(note=>note.touches.some(touch=>touch.raceId===race.id && (!touch.entryId||touch.entryId===runner.id))),highlighted:false,qualification:null,medalPlace:null,flags:[...runnerWarningFlags(runner,ruling,false),...(runner.addedAtFinish?[{kind:'added-at-finish' as const,message:'Added at the finish',...(ruling?.addedAtFinishChecked?{checked:true}:{})}]:[])]};
+    return {...leaderboardRowFacts(state,race,runner,ruling),place:index<0?null:index+1,time:null,status:disqualification?'Disqualified':notCounted?'Not counted':index<0?'Did not finish':'Finished'};
   });
   const eligible=rows.filter(row=>row.status==='Finished').sort((a,b)=>a.place!-b.place!);
   for(const [index,row] of eligible.entries()) {row.position=index+1;row.highlighted=index<3;if(index<3) row.medalPlace=(index+1) as 1|2|3;}

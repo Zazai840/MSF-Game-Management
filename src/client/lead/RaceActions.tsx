@@ -1,3 +1,4 @@
+import { raceRecording } from '../../shared/recording.js';
 import type { LeadRaceRead } from '../../shared/race-clashes.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
@@ -34,11 +35,13 @@ function RaceLifecycle({action,race,busy,onSave,onClose}:{action:'delete'|'resto
 }
 function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
   const [baseVersion]=useState(race.parts.times.version);
-  const [digits,setDigits]=useState<Array<string|null>>(()=>Array.from({length:race.parts.runners.value?.length||0},(_,index)=>{const time=race.parts.times.value?.places[index];return time===null?null:time===undefined?'':digitsForTime(time);}));
+  const [digits,setDigits]=useState<Array<string|null>>(()=>Array.from({length:Math.max(race.parts.runners.value?.length||0,race.parts.times.value?.places.length||0)},(_,index)=>{const time=race.parts.times.value?.places[index];return time===null?null:time===undefined?'':digitsForTime(time);}));
   const [accepted,setAccepted]=useState(false),[comment,setComment]=useState('');
   const places=digits.map(value=>value===null?null:parseTimeDigits(value)),outOfOrder=timesOutOfOrder(places),invalid=digits.some(value=>value!==null && parseTimeDigits(value)===null);
+  const mismatch=raceRecording({...race,parts:{...race.parts,times:invalid?race.parts.times:{version:baseVersion,value:{places,outOfOrder}}}}).countMismatch;
   function change(index:number,value:string|null) {setAccepted(false);setDigits(previous=>previous.map((old,at)=>at===index?value:old));}
   return <form onSubmit={event=>{event.preventDefault();onSave({baseVersion,places,acceptOutOfOrder:accepted,comment});}}>
+    {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
     <p>Read times in place order from the SprintTimer recording. The last two digits are hundredths.</p>
     {digits.map((value,index)=><div className="lead-time-input" key={index}><label>Place {index+1}<input aria-label={`Time for place ${index+1}`} inputMode="numeric" pattern="[0-9]+" required={value!==null} value={value??''} disabled={busy || value===null} onChange={event=>change(index,event.target.value)}/></label><output>{value===null?'No finisher':formatTimeDigits(value)}</output><label className="lead-checkbox"><input type="checkbox" checked={value===null} disabled={busy || digits.slice(0,index).includes(null)} onChange={event=>{setAccepted(false);setDigits(previous=>previous.map((old,at)=>event.target.checked && at>=index?null:at===index?'':old));}}/>No finisher</label></div>)}
     {outOfOrder && <div className="runner-number-warning"><p>Times are out of order. Check the recording or explicitly accept this set as the lead.</p><label className="lead-checkbox"><input type="checkbox" checked={accepted} disabled={busy} onChange={event=>setAccepted(event.target.checked)}/>Accept these out-of-order times</label></div>}

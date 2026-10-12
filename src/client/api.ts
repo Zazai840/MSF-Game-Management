@@ -14,7 +14,7 @@ function changed(newDay:boolean) {
   window.dispatchEvent(new CustomEvent('msf:session',{detail:{newDay}}));
 }
 export const phoneStorage = {
-  token,dayId,
+  token,dayId,session:sessionId,
   rememberDay:(id:string)=>localStorage.setItem(`${prefix}day`,id),
   join:(joinedToken:string)=>{
     erase();localStorage.setItem(`${prefix}token`,joinedToken);localStorage.setItem(`${prefix}session`,newSession());changed(false);
