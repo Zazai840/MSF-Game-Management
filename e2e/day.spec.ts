@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 test('the scoring team edits and confirms the Day programme',async({page},info)=>{
   await page.goto('/');
   await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);

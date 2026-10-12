@@ -1,4 +1,4 @@
-import { expect,test } from '@playwright/test';
+import { expect,test } from './fixtures.js';
 test('timed Event complete checks blockers, locks an old phone draft, and reopens with a retained comment',async({page,browser},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};const code=`T36${info.project.name.toUpperCase()}`;
   await page.request.post('/api/day/events',{headers,data:{code,name:`Stage event ${info.project.name}`,section:'Girl Cubs',format:'timed'}});

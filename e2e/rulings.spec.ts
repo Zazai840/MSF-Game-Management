@@ -1,4 +1,4 @@
-import { expect,test } from '@playwright/test';
+import { expect,test } from './fixtures.js';
 test('a lead disqualifies and lifts a runner, sees the ranking and audit notes change, and keeps a failed save',async({page},info)=>{
   // iOS 15.0–15.3 is supported but has no native dialog API.
   await page.addInitScript(()=>Object.defineProperty(HTMLDialogElement.prototype,'showModal',{value:undefined}));

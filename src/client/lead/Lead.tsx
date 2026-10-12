@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api.js';
+import { api,StaleRequest } from '../api.js';
 import type { Phone } from '../../shared/domain.js';
 import type { DayRead } from '../../shared/day.js';
 import { NeedsYou } from './NeedsYou.js';
 import type { DayLeadItem } from '../../shared/lead-results.js';
 import { Results } from './Results.js';
 import { Day } from './Day.js';
-export default function Lead({phone,initialCount,onCount,onChanged}:{phone:Phone;initialCount:number;onCount:(count:number)=>void;onChanged:()=>void}) {
-  const [tab,setTab] = useState<'Needs you'|'Results'|'Day'>(initialCount?'Needs you':'Results');
+export default function Lead({phone,initialDay=false,initialCount,onCount,onChanged}:{phone:Phone;initialDay?:boolean;initialCount:number;onCount:(count:number)=>void;onChanged:()=>void}) {
+  const [tab,setTab] = useState<'Needs you'|'Results'|'Day'>(initialDay&&phone.level==='Scoring team'?'Day':initialCount?'Needs you':'Results');
   const [target,setTarget]=useState<DayLeadItem|undefined>();
   const [day,setDay] = useState<DayRead|null>(null);
   const [error,setError] = useState('');
@@ -16,7 +16,7 @@ export default function Lead({phone,initialCount,onCount,onChanged}:{phone:Phone
     try {
       if (tab === 'Day') setDay(await api('day'));
       setUpdated(new Date().toLocaleTimeString()); setError('');
-    } catch (error) { setDay(null); setError(error instanceof Error ? error.message : 'Could not connect'); }
+    } catch (error) { if(error instanceof StaleRequest) return;setDay(null); setError(error instanceof Error ? error.message : 'Could not connect'); }
   }
   useEffect(()=>{if(tab!=='Day') return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[tab]);
   useEffect(()=>{if (phone.level!=='Scoring team' && tab==='Day') {setTab('Results');setDay(null);}},[phone.level]);

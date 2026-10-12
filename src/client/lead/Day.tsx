@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
-import { api,apiDownload } from '../api.js';
+import { api,apiDownload,startNewDay } from '../api.js';
 import './day.css';
 import { Phones } from './Phones.js';
 
@@ -16,6 +16,14 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   const [error,setError] = useState('');
   const [exportMessage,setExportMessage] = useState('');
   const [exportError,setExportError] = useState('');
+  const [confirmation,setConfirmation]=useState('');
+  const [resetError,setResetError]=useState('');
+  async function startNew(event:FormEvent) {
+    event.preventDefault();setBusy(true);setResetError('');
+    try {await startNewDay(confirmation);}
+    catch(error) {setResetError(error instanceof Error?error.message:'Could not connect - tap Start new day again');}
+    finally {setBusy(false);}
+  }
   async function save(path:string,body:unknown) {
     setBusy(true); setMessage(''); setError('');
     try { await api(path,body); setMessage('Saved'); await onChanged(); return true; }
@@ -77,5 +85,15 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
       <label>New event format<select aria-label="New event format" value={format} onChange={e=>setFormat(e.target.value)} required><option value="">Choose event format</option><option value="heats">Heats then final</option><option value="timed">Timed</option></select></label>
       <button disabled={busy}>{busy?'Saving…':'Add event'}</button>
     </form>
+    <section className="day-reset" aria-label="Start new day">
+      <h2>Start new day</h2>
+      <p>This clears today's races, rulings, audit notes and joined phones. You stay signed in as scoring team. Everyone else must join with the new day code.</p>
+      <p>Download a day export after the last change, then type NEW DAY.</p>
+      <form onSubmit={startNew}>
+        <label>Type NEW DAY to confirm<input value={confirmation} onChange={event=>setConfirmation(event.target.value)} autoComplete="off" /></label>
+        <button disabled={busy || confirmation!=='NEW DAY'}>Start new day</button>
+      </form>
+      {resetError && <p role="alert">{resetError}</p>}
+    </section>
   </div>;
 }

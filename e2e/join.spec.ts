@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 test('join an Olympics day, reload the phone and become lead', async ({page}, info) => {
   const downloaded: string[] = [];
   page.on('request', request => {if (request.url().endsWith('.js')) downloaded.push(request.url());});

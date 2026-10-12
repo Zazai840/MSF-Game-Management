@@ -1,4 +1,4 @@
-import { expect,test,type Page } from '@playwright/test';
+import { expect,test,type Page } from './fixtures.js';
 async function times(page:Page,code:string,first:string,second:string) {
   await page.getByRole('button',{name:/^Times ·/}).click();await page.getByRole('button',{name:'Other race',exact:true}).click();
   await page.getByRole('button',{name:new RegExp(`\\(${code}\\) · Race 1$`)}).click();

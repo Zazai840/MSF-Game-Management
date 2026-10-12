@@ -1,4 +1,4 @@
-import { expect,test } from '@playwright/test';
+import { expect,test } from './fixtures.js';
 test('lead checks an eligibility warning, corrects a number with Fix or Keep and chooses the counted repeated result',async({page},info)=>{
   const number=2601+['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};await page.request.post('/api/day/confirm-events',{headers,data:{}});

@@ -1,5 +1,6 @@
 import { exportRoutes } from './day/export.js';
 import { finalRoutes } from './rulings/finals.js';
+import { resetRoutes } from './day/reset.js';
 import { stageRoutes } from './rulings/stages.js';
 import { raceRulingRoutes } from './rulings/races.js';
 import { clashRoutes } from './rulings/clashes.js';
@@ -34,6 +35,7 @@ export async function createApp(settings: AppSettings) {
   accessRoutes(app, pool, settings.ownerPassword);
   phoneManagementRoutes(app,pool);
   dayRoutes(app, pool);
+  resetRoutes(app,pool);
   exportRoutes(app,pool);
   homeRoutes(app, pool);
   raceRoutes(app,pool);

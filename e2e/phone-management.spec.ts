@@ -1,4 +1,4 @@
-import { expect,test } from '@playwright/test';
+import { expect,test } from './fixtures.js';
 test('scoring team manages joined leads and removal drops an actual phone draft',async({page,browser,request},info)=>{
   await request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   const name=`Phones lead ${info.project.name}`;

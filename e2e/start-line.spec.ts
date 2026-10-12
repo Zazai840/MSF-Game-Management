@@ -1,4 +1,4 @@
-import { expect,test,type Page } from '@playwright/test';
+import { expect,test,type Page } from './fixtures.js';
 async function typeNumber(page:Page,number:number) {for(const digit of String(number)) await page.getByRole('button',{name:digit,exact:true}).click();}
 async function clearNumber(page:Page) {for(let index=0;index<4;index++) await page.getByRole('button',{name:'Delete last digit',exact:true}).click();}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
