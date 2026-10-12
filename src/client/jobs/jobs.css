@@ -17,3 +17,10 @@
 .finish-review li {padding:.5rem 0;}
 .finish-review li>div {display:flex;gap:.5rem;}
 .finish-review small {font-size:1rem;}
+.place-slots {display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;}
+.place-slots button {flex:1;min-width:75px;padding:.5rem;background:white;color:#215d3c;border:2px solid #718878;}
+.place-slots small {display:block;font-size:.85rem;}
+.place-slots .current-place {border:3px solid #215d3c;background:#e1ebe3;}
+.race-job .count-mismatch {border-left:4px solid #ab4200;background:#fff0dc;color:#733100;padding:1rem;font-weight:700;}
+.time-example {font-size:.9rem;}
+.time-review p {margin:.25rem 0;padding:.5rem;background:#e1ebe3;}

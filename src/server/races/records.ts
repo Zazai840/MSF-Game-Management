@@ -1,3 +1,4 @@
+import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import type { RaceRead } from '../../shared/races.js';
@@ -17,7 +18,8 @@ export async function readRace(db:Database,dayId:string,id:string):Promise<RaceR
   if (!row) throw new Refusal(404,'Race not found');
   const rows=(await db.query('SELECT part,version,value FROM race_parts WHERE race_id=$1',[id])).rows;
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value}]));
-  return {id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,parts:parts as RaceRead['parts']};
+  const race={id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,parts:parts as RaceRead['parts']};
+  return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {
   const client=await pool.connect();
