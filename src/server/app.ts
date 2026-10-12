@@ -5,6 +5,7 @@ import { accessRoutes } from './access/routes.js';
 import { dayRoutes } from './day/routes.js';
 import { homeRoutes } from './home/routes.js';
 import { Refusal } from './access/permissions.js';
+import { runnerRulingRoutes } from './rulings/runners.js';
 import { rulingRoutes } from './rulings/routes.js';
 import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
@@ -33,5 +34,6 @@ export async function createApp(settings: AppSettings) {
   timesRoutes(app,pool);
   resultsRoutes(app,pool);
   rulingRoutes(app,pool);
+  runnerRulingRoutes(app,pool);
   return app;
 }
