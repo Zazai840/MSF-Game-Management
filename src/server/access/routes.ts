@@ -2,6 +2,7 @@ import { randomInt, randomBytes, randomUUID, timingSafeEqual, createHash } from 
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions, Refusal, tokenHash } from './permissions.js';
+import { seedEvents } from '../day/events.js';
 const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string) {
   // Joining is the only public mutation; every other action declares its minimum level.
@@ -20,6 +21,7 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
         if (!matches(body.code, ownerPassword)) throw new Refusal(403, 'Wrong owner password');
         level = 'Scoring team';
         day = (await client.query('INSERT INTO olympics_days(id,day_code,lead_code) VALUES($1,$2,$3) RETURNING *', [randomUUID(), String(randomInt(10000)).padStart(4,'0'), Array.from({length:6}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[randomInt(32)]).join('')])).rows[0];
+        await seedEvents(client,day.id);
       } else if (!matches(body.code, day.day_code)) throw new Refusal(403, 'Wrong day code - ask for the right one');
       const existing = (await client.query('SELECT name FROM phones WHERE day_id=$1 AND lower(name)=lower($2) AND NOT removed', [day.id, name])).rows[0];
       if (existing) throw new Refusal(409, `Someone has joined as ${existing.name} - add your surname initial`);
