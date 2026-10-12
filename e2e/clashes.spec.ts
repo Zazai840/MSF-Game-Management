@@ -26,6 +26,9 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await expect(lead.getByText('two versions, lead to check',{exact:false})).toBeVisible();
   await lead.getByRole('button',{name:'Open Race 1',exact:true}).click();
   await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toBeVisible();
+  await expect(lead.getByRole('button',{name:'Refresh Results',exact:true})).toHaveCount(0);
+  await lead.getByRole('button',{name:'Refresh race',exact:true}).click();
+  await expect(lead.locator('.race-page footer')).toContainText('Updated at');
   await expect(lead.getByText(nameA,{exact:true})).toBeVisible();await expect(lead.getByText(nameB,{exact:true})).toBeVisible();
   await lead.getByRole('radio',{name:`Times by ${nameB}`,exact:true}).check();
   await lead.screenshot({path:info.outputPath('clash-versions.png'),fullPage:true});
@@ -34,5 +37,20 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await lead.getByRole('button',{name:'Back to event',exact:true}).click();
   await expect(lead.getByRole('button',{name:'Runner 2081 · Race 1',exact:true})).toContainText('12.10');
   await expect(lead.getByRole('list',{name:'Audit notes'})).toContainText(nameB);
+  await request.post(`/api/races/${race.id}/finish`,{headers:{authorization:`Bearer ${tokenA}`},data:{baseVersion:1,runnersVersion:1,order:[2081],didNotFinish:[],didNotRun:[2082],added:[]}});
+  await request.post(`/api/races/${race.id}/finish`,{headers:{authorization:`Bearer ${tokenB}`},data:{baseVersion:1,runnersVersion:1,order:[2082,2081],didNotFinish:[],didNotRun:[],added:[]}});
+  await lead.getByRole('button',{name:'Refresh Results',exact:true}).click();await lead.getByRole('button',{name:'Open Race 1',exact:true}).click();
+  await expect(lead.getByText("2082 · Didn't run",{exact:true})).toBeVisible();
+  await lead.getByRole('radio',{name:`Finishing order by ${nameB}`,exact:true}).check();
+  await lead.route('**/api/lead/races/*/clashes/finish',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary connection problem'})}));
+  await lead.getByRole('button',{name:'Use chosen Finishing order version',exact:true}).click();
+  await expect(lead.getByRole('alert')).toHaveText('Temporary connection problem');
+  await expect(lead.getByRole('radio',{name:`Finishing order by ${nameB}`,exact:true})).toBeChecked();
+  await lead.unroute('**/api/lead/races/*/clashes/finish');
+  await lead.getByRole('button',{name:'Use chosen Finishing order version',exact:true}).click();
+  await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toHaveCount(0);
+  await lead.getByRole('button',{name:'Back to event',exact:true}).click();
+  await expect(lead.getByRole('button',{name:'Runner 2082 · Race 1',exact:true})).toContainText('12.10');
+
   await context.close();
 });
