@@ -29,6 +29,7 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const tieSettlements=await readTieSettlements(db,dayId);
   const stages=await readCompletedStages(db,dayId);
   const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
+  if(!day) throw new Refusal(401,'Please join the Olympics day');
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
     const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings));
@@ -67,8 +68,10 @@ async function leadTimings(db:Database,dayId:string) {
   }
   return map;
 }
-export async function resultsSnapshot<T>(pool:pg.Pool,read:(client:pg.PoolClient)=>Promise<T>):Promise<T> {
+export async function resultsSnapshot<T>(pool:pg.Pool,dayId:string,read:(client:pg.PoolClient)=>Promise<T>):Promise<T> {
   const client=await pool.connect();
-  try {await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');const result=await read(client);await client.query('COMMIT');return result;}
+  try {await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    if(!(await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active',[dayId])).rowCount) throw new Refusal(401,'Please join the Olympics day');
+    const result=await read(client);await client.query('COMMIT');return result;}
   catch(error) {await client.query('ROLLBACK');throw error;}finally {client.release();}
 }

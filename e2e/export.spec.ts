@@ -1,4 +1,4 @@
-import { expect,test } from '@playwright/test';
+import { expect,test } from './fixtures.js';
 import readExcelFile from 'read-excel-file/node';
 test('Scoring downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(`Export ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Day',exact:true}).click();
