@@ -57,6 +57,6 @@ export function Results() {
       {detail.results.leaderboard.length>0 && <section><h3>Races</h3>{[...new Map(detail.results.leaderboard.map(row=>[row.raceId,row.race])).values()].map(race=><button key={race.id} onClick={()=>setSelectedRace(race.id)}>Open {label(race)}</button>)}</section>}
       {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{noteTime(note.at)}</time> {note.message}</li>)}</ol></section>}
     </>}</>}</> : !list?<p>Opening events…</p>:<>{!list.eventsConfirmed && <p>Event list awaiting confirmation by the scoring team</p>}{list.groups.map(group=><section key={group.name} className="results-group"><h2>{group.name}</h2><div className="results-events">{group.events.map(item=><button key={item.event.id} onClick={()=>open(item.event.code)}><strong>{item.event.code} · {item.event.section}</strong><small>{item.status}{item.raceCount>0?` · ${item.raceCount} ${item.raceCount===1?'race':'races'}`:''}{!item.event.enabled?' · Switched off':''}{item.latestNoteAt && <span className="latest-note">Latest note {noteTime(item.latestNoteAt)}</span>}</small></button>)}</div></section>)}</>}
-    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Results</button></footer>
+    {!selectedRace && <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Results</button></footer>}
   </div>;
 }

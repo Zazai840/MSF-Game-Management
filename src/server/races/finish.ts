@@ -1,5 +1,5 @@
 import type { Runner } from '../../shared/races.js';
-import { partVersion,savePart,publishPart,samePart } from './versions.js';
+import { partVersion,savePart,publishPart,sameRunnerSnapshot } from './versions.js';
 import { randomUUID } from 'node:crypto';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
@@ -35,9 +35,9 @@ export function finishOrderRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(classified.length!==all.length || new Set(classified).size!==classified.length || classified.some(number=>!all.includes(number)) || didNotRun.some(number=>!original.includes(number))) throw new Refusal(400,'Choose a place, Did not finish or Did not run for every runner');
       const runners=await annotateRunners(client,phone.dayId,race.event,[...previous.filter(runner=>!didNotRun.includes(runner.wristband)),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,race.id,previous);
       const idFor=(number:number)=>runners.find(runner=>runner.wristband===number)!.id;
-      const runnerChange=!samePart('runners',runners,runners,race.parts.runners.value,race.parts.runners.value||[]);
-      const runnerSnapshotChanged=!samePart('runners',previous,previous,race.parts.runners.value,race.parts.runners.value||[]);
-      const status=await savePart(client,phone,race,'finish',Number(body!.baseVersion),{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},{runners,forceClash:runnerSnapshotChanged,apply:async()=>{
+      const runnerChange=!sameRunnerSnapshot(runners,race.parts.runners.value||[]);
+      const runnerSnapshotChanged=!sameRunnerSnapshot(previous,race.parts.runners.value||[]);
+      const status=await savePart(client,phone,race,'finish',Number(body!.baseVersion),{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},{runners,runnersBefore:previous,forceClash:runnerSnapshotChanged,apply:async()=>{
         if(runnerChange) await publishPart(client,phone,race,'runners',runners,runners);
       }});
       return {status,race:await readRace(client,phone.dayId,race.id)};

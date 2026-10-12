@@ -84,6 +84,7 @@ test('choosing an old Finish candidate restores its exact pre-save runners and a
   const savedC=await call(third,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:2,order:[2001,2002,2004,2010,2009],didNotFinish:[],didNotRun:[2003],added:[2009]});expect(savedC.json().status).toBe('clash');
   const read=(await call(lead,`/api/lead/races/${race.id}`)).json();expect(read.clashes[0].candidates).toHaveLength(3);
   const chosen=read.clashes[0].candidates.find((candidate:any)=>candidate.author==='Yusuf');
+  expect(chosen.runnersBefore).toEqual(edited.parts.runners.value);
   const resolved=await call(lead,`/api/lead/races/${race.id}/clashes/finish`,{candidateId:chosen.id});expect(resolved.statusCode).toBe(200);
   const after=(await call(first,`/api/races/${race.id}`)).json();
   expect(after.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2002,2003,2004,2010,2008]);
@@ -113,4 +114,26 @@ test('the same finishing order and Did not finish membership merge regardless of
   await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[2002,2003],didNotRun:[],added:[]});
   const identical=await call(second,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[2003,2002],didNotRun:[],added:[]});
   expect(identical.json().status).toBe('merged');expect(identical.json().race.parts.finish.clash).toBeUndefined();
+});
+test('choosing a differently ordered Finish candidate with the same added number restores that candidate entry identity',async()=>{
+  const {first,second,lead,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[2003]});
+  await call(second,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2003,2001,2002],didNotFinish:[],didNotRun:[],added:[2003]});
+  await call(first,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300,1400]});
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();const chosen=read.clashes[0].candidates[1];
+  const resolved=await call(lead,`/api/lead/races/${race.id}/clashes/finish`,{candidateId:chosen.id});
+  expect(resolved.json().results.leaderboard.map((row:any)=>[row.wristband,row.time])).toEqual([[2003,1200],[2001,1300],[2002,1400]]);
+  const after=(await call(first,`/api/races/${race.id}`)).json();expect(after.parts.runners.value.find((runner:any)=>runner.wristband===2003).id).toBe(chosen.runners.find((runner:any)=>runner.wristband===2003).id);
+});
+test('stale runner drafts remain candidates after finish while current-base volunteer edits stay refused',async()=>{
+  const {first,second,lead,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2002,2003]});
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:2,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[]});
+  const current=await call(second,`/api/races/${race.id}/runners`,{baseVersion:2,runners:[2001]});expect(current.statusCode).toBe(409);expect(current.json().message).toBe('Finishing order already recorded - ask a lead');
+  const stale=await call(second,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2004]});expect(stale.json().status).toBe('clash');
+  expect(stale.json().race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2002,2003]);
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();const chosen=read.clashes[0].candidates[1];
+  expect((await call(first,`/api/lead/races/${race.id}/clashes/runners`,{candidateId:chosen.id})).statusCode).toBe(403);
+  expect((await call(lead,`/api/lead/races/${race.id}/clashes/runners`,{candidateId:chosen.id})).statusCode).toBe(200);
+  const resolved=(await call(first,`/api/races/${race.id}`)).json();expect(resolved.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2004]);expect(resolved.parts.finish.value).toBeNull();expect(resolved.recording.readyForRanking).toBe(false);
 });
