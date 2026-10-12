@@ -4,13 +4,15 @@ import type { FinishingOrder,Runner } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
 import { timesOutOfOrder } from './time-entry.js';
+import { eventTies,type TieSettlement } from './ties.js';
+import { formatTime } from './time-entry.js';
 export type Section = 'Boy Beavers' | 'Girl Beavers' | 'Boy Cubs' | 'Girl Cubs' | 'Boy Scouts' | 'Girl Scouts';
 export interface Event { code:string; name:string; section:Section; format:'heats'|'timed' }
 export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:number; checkedInAt:string }
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
 export interface ResultsRace extends RaceReference { deleted:boolean; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null }
-export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[] }
-export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
+export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[] }
+export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
 export interface ResultEntry { raceId:string; entryId:string; wristband:number }
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
@@ -19,7 +21,7 @@ export interface LeaderboardRow extends ResultEntry {
 export type NotRankedReason='checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
-export interface ResultTie { id:string; time:number; entries:ResultEntry[] }
+export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
 export interface LeadItem { id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'clash'|'tie'; raceId?:string; entryId?:string; message:string }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {
@@ -63,11 +65,12 @@ export function eventResults(state:EventState):EventResults {
     }
   }
   finished.sort((left,right)=>(left.time!-right.time!) || (left.raceId===right.raceId?left.place!-right.place!:left.race.number-right.race.number || left.race.checkedInAt.localeCompare(right.race.checkedInAt) || left.raceId.localeCompare(right.raceId)));
+  const ties=eventTies(finished,band.highlightCount,state.event.format,state.tieSettlements);
   for(const [index,row] of finished.entries()) {
     row.position=index+1;row.highlighted=index<band.highlightCount;
     if(state.event.format==='heats' && index<6) row.qualification='Q';
     if(state.event.format==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
   const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
-  return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties:[],notRankedYet,needsYou:[],band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
+  return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties,notRankedYet,needsYou:ties.map(tie=>({id:`tie:${tie.id}`,kind:'tie',message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`})),band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
 }
