@@ -22,7 +22,7 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await other.getByRole('button',{name:'Save',exact:true}).click();await expect(other.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();
   await expect(other.getByRole('button',{name:/Use chosen/})).toHaveCount(0);
   const lead=await context.newPage();await lead.goto('/');await lead.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await lead.reload();
-  await lead.getByRole('button',{name:/^Lead ·/}).click();await lead.getByRole('button',{name:new RegExp(`${code} · Girl Cubs`)}).click();
+  await lead.getByRole('button',{name:/^Lead ·/}).click();await lead.getByRole('button',{name:'Results',exact:true}).click();await lead.getByRole('button',{name:new RegExp(`${code} · Girl Cubs`)}).click();
   await expect(lead.getByText('two versions, lead to check',{exact:false})).toBeVisible();
   await lead.getByRole('button',{name:'Open Race 1',exact:true}).click();
   await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toBeVisible();
