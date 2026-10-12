@@ -9,7 +9,7 @@ export interface TimesRead { waiting:RaceRead[]; recent:RaceRead[]; completedSta
 export interface RaceRecording { countMismatch:string|null; readyForRanking:boolean; results:Array<{entryId:string;wristband:number;place:number|null;time:number|null}> }
 export interface RacePart<T> { version:number; value:T|null; clash?:true }
 export interface RaceRead {
-  id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; stageComplete?:boolean; recording:RaceRecording;
+  id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; stageComplete?:boolean; deleteReason?:string|null; recording:RaceRecording;
   parts:{runners:RacePart<Runner[]>; finish:RacePart<FinishingOrder>; times:RacePart<RaceTimes>}
 }
 export interface StartLineRead { events:DayEvent[]; eventsConfirmed:boolean; waiting:RaceRead[]; recent:RaceRead[]; completedStages:CompletedStage[] }

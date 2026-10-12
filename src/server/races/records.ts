@@ -26,7 +26,7 @@ export async function readRace(db:Database,dayId:string,id:string):Promise<RaceR
   const rows=(await db.query('SELECT part,version,value FROM race_parts WHERE race_id=$1',[id])).rows;
   const clashes=(await db.query('SELECT part FROM race_part_saves WHERE race_id=$1 AND active GROUP BY part HAVING count(*)>1',[id])).rows.map(row=>row.part);
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value,...(clashes.includes(row.part)?{clash:true}:{})}]));
-  const race={id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,stageComplete:row.stage_complete,parts:parts as RaceRead['parts']};
+  const race={id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {

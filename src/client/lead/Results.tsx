@@ -1,5 +1,6 @@
 import { StageSheet } from './StageSheet.js';
 import type { StageCheckSheet,StageItem } from '../../shared/stages.js';
+import { DeletedRaces } from './DeletedRaces.js';
 import { Fragment,useEffect,useState,useRef } from 'react';
 import { api } from '../api.js';
 import type { ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
@@ -47,7 +48,7 @@ export function Results() {
     else if(item.raceId) setSelectedRace(item.raceId);
   }
   return <div className="results-view">{error && <p role="alert">{error}</p>}
-    {code ? <><button onClick={()=>open(null)}>Back to events</button>{!detail?<p>Opening results…</p>:<>
+    {code ? <>{!selectedRace && <button onClick={()=>open(null)}>Back to events</button>}{!detail?<p>Opening results…</p>:<>
       {selectedRace?<RacePage key={selectedRace} raceId={selectedRace} onSaved={saved} onClose={()=>setSelectedRace(null)}/>:<>
       <h2>{detail.event.name} {detail.event.section} ({detail.event.code})</h2><p className="provisional-label">{detail.results.provisional?'Provisional':'Complete'} · {detail.results.raceCount} {detail.results.raceCount===1?'race':'races'}</p>
       {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.leaderboard} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}
@@ -62,6 +63,7 @@ export function Results() {
         </button>{detail.results.ties.filter(tie=>tie.entries.some(entry=>entry.raceId===row.raceId && entry.entryId===row.entryId)).map(tie=><button key={tie.id} className="tie-open" aria-label={`TIE at ${formatTime(tie.time)} for ${row.wristband}`} onClick={()=>{setSelected(null);setSelectedTie(tie);}}>TIE</button>)}</li>
         {row.position===detail.results.band.lineAfter && <li className="result-line" role="presentation">{detail.results.band.lineLabel}</li>}
       </Fragment>)}</ol>}
+      <DeletedRaces eventCode={detail.event.code} onOpen={setSelectedRace}/>
       {detail.results.notRankedYet.length>0 && <aside className="not-ranked"><h3>Not ranked yet</h3><ul>{detail.results.notRankedYet.map(item=><li key={item.race.id}><button onClick={()=>setSelectedRace(item.race.id)} aria-label={`Open ${label(item.race)}`}>{label(item.race)}</button> · {item.reasons.join(' · ')}</li>)}</ul></aside>}
       {detail.results.leaderboard.length>0 && <section><h3>Races</h3>{[...new Map(detail.results.leaderboard.map(row=>[row.raceId,row.race])).values()].map(race=><button key={race.id} onClick={()=>setSelectedRace(race.id)}>Open {label(race)}</button>)}</section>}
       {detail.results.checkSheet && <section className="stage-actions"><button onClick={()=>setSelectedStage(detail.results.checkSheet)}>{detail.results.checkSheet.completed?'Reopen event':detail.results.checkSheet.label}</button></section>}
