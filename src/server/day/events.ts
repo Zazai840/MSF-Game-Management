@@ -13,6 +13,6 @@ export async function seedEvents(client:pg.PoolClient, dayId:string) {
     await client.query('INSERT INTO events(id,day_id,code,name,section,format,programme_order) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),dayId,event.code,event.name,event.section,event.format,order]);
   }
 }
-export async function readEvents(db:pg.Pool | pg.PoolClient, enabledOnly=false):Promise<DayEvent[]> {
-  return (await db.query(`SELECT e.id,e.code,e.name,e.section,e.format,e.enabled FROM events e JOIN olympics_days d ON d.id=e.day_id WHERE d.active ${enabledOnly?'AND e.enabled':''} ORDER BY programme_order,e.code`)).rows;
+export async function readEvents(db:pg.Pool | pg.PoolClient, enabledOnly=false,dayId?:string):Promise<DayEvent[]> {
+  return (await db.query(`SELECT e.id,e.code,e.name,e.section,e.format,e.enabled FROM events e JOIN olympics_days d ON d.id=e.day_id WHERE ${dayId?'e.day_id=$1':'d.active'} ${enabledOnly?'AND e.enabled':''} ORDER BY programme_order,e.code`,dayId?[dayId]:[])).rows;
 }
