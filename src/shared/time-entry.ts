@@ -1,4 +1,4 @@
-export interface RaceTimes { places:Array<number|null>; outOfOrder:boolean }
+export interface RaceTimes { places:Array<number|null>; outOfOrder:boolean; acceptedByLead?:boolean }
 /** The last two digits are hundredths, the next two seconds, then minutes. */
 export function parseTimeDigits(digits:string):number|null {
   if(!/^\d+$/.test(digits)) return null;

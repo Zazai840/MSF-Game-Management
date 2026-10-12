@@ -45,7 +45,7 @@ export function eventResults(state:EventState):EventResults {
     const reasons:NotRankedReason[]=[];
     if(!race.finish) reasons.push(race.times?'awaiting finishing order':'checked in');
     if(race.finish && !race.times) reasons.push('awaiting times');
-    if(race.times && timesOutOfOrder(race.times.places)) reasons.push('times out of order');
+    if(race.times && timesOutOfOrder(race.times.places) && race.times.acceptedByLead!==true) reasons.push('times out of order');
     if(race.finish && race.times && race.finish.order.length!==race.times.places.filter(time=>time!==null).length) reasons.push("finishers and times don't agree");
     if(reasons.length) {notRankedYet.push({race:reference(race),reasons});continue;}
     if(!race.finish || !race.times) continue;
