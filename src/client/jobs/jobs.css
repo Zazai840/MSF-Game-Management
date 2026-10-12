@@ -1,0 +1,9 @@
+.race-job h2 {font-size:1.5rem;line-height:1.2;}
+.job-actions {display:grid;gap:.75rem;margin-top:1rem;}
+.number-keypad {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin:1rem 0;}
+.number-keypad button {min-height:64px;font-size:1.3rem;padding:.6rem;}
+.runner-chips {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
+.runner-chips button {background:white;color:#215d3c;padding:.5rem;}
+.race-job output {display:block;min-height:65px;font-size:2rem;letter-spacing:.08em;padding:.6rem;border:2px solid #718878;border-radius:.4rem;background:white;overflow-wrap:anywhere;}
+.race-header {background:#e1ebe3;padding:.75rem;border-radius:.4rem;}
+.race-job li {font-size:1.4rem;line-height:1.7;}

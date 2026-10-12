@@ -4,6 +4,7 @@ import { accessRoutes } from './access/routes.js';
 import { dayRoutes } from './day/routes.js';
 import { homeRoutes } from './home/routes.js';
 import { Refusal } from './access/permissions.js';
+import { raceRoutes } from './races/routes.js';
 export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean }
 export async function createApp(settings: AppSettings) {
   if (!settings.ownerPassword || !settings.databaseUrl) throw new Error('DATABASE_URL and OWNER_PASSWORD are required');
@@ -21,5 +22,6 @@ export async function createApp(settings: AppSettings) {
   accessRoutes(app, pool, settings.ownerPassword);
   dayRoutes(app, pool);
   homeRoutes(app, pool);
+  raceRoutes(app,pool);
   return app;
 }

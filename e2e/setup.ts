@@ -4,6 +4,7 @@ export default async function setup() {
   const response = await api.post('/api/join', {data:{code:'e2e-owner-fixture', name:'E2E Scoring'}});
   if (!response.ok()) throw new Error(await response.text());
   const {token} = await response.json();
+  process.env.E2E_SCORING_TOKEN=token;
   const day = await api.get('/api/day', {headers:{authorization:`Bearer ${token}`}});
   const {dayCode,leadCode} = await day.json();
   process.env.E2E_DAY_CODE = dayCode;

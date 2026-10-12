@@ -15,7 +15,7 @@ export function actions(app: FastifyInstance, pool: pg.Pool) {
     app.route({method, url, handler: async (request, reply) => {
       const token = request.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
       if (!token) throw new Refusal(401, 'Please join the Olympics day');
-      const result = await pool.query(`SELECT p.id, p.name, p.level FROM phones p JOIN olympics_days d ON d.id=p.day_id WHERE p.token_hash=$1 AND NOT p.removed AND d.active`, [tokenHash(token)]);
+      const result = await pool.query(`SELECT p.id, p.day_id AS "dayId", p.name, p.level FROM phones p JOIN olympics_days d ON d.id=p.day_id WHERE p.token_hash=$1 AND NOT p.removed AND d.active`, [tokenHash(token)]);
       const phone = result.rows[0] as Phone | undefined;
       if (!phone) throw new Refusal(401, 'Please join the Olympics day');
       requireLevel(phone, minimum);
