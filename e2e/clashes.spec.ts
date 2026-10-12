@@ -1,0 +1,38 @@
+import { expect,test,type Page } from '@playwright/test';
+async function times(page:Page,code:string,first:string,second:string) {
+  await page.getByRole('button',{name:/^Times ·/}).click();await page.getByRole('button',{name:'Other race',exact:true}).click();
+  await page.getByRole('button',{name:new RegExp(`\\(${code}\\) · Race 1$`)}).click();
+  for(const value of [first,second]) {for(const digit of value) await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();}
+  await expect(page.getByRole('heading',{name:'Check the times'})).toBeVisible();
+}
+test('two phone drafts retain different Times versions and a lead chooses one',async({page,browser,request},info)=>{
+  const code=`CL-${info.project.name.toUpperCase()}`;const scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  await request.post('/api/day/events',{headers:scoring,data:{code,name:'Clash sprint',section:'Girl Cubs',format:'timed'}});await request.post('/api/day/confirm-events',{headers:scoring,data:{}});
+  const race=(await (await request.post('/api/races/check-in',{headers:scoring,data:{eventCode:code,runners:[2081,2082]}})).json()).race;
+  await request.post(`/api/races/${race.id}/finish`,{headers:scoring,data:{baseVersion:0,runnersVersion:1,order:[2081,2082],didNotFinish:[],didNotRun:[],added:[]}});
+  const join=async(name:string)=>(await (await request.post('/api/join',{data:{code:process.env.E2E_DAY_CODE,name}})).json()).token;
+  const nameA=`Clash A ${info.project.name}`,nameB=`Clash B ${info.project.name}`;
+  const tokenA=await join(nameA),tokenB=await join(nameB);
+  await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),tokenA);await page.reload();
+  const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
+  await other.goto('/');await other.evaluate(token=>localStorage.setItem('msf:token',token),tokenB);await other.reload();
+  await times(page,code,'1200','1300');await times(other,code,'1210','1310');
+  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Saved');
+  await other.reload();await other.getByRole('button',{name:/^Times ·/}).click();await expect(other.getByRole('heading',{name:'Check the times'})).toBeVisible();
+  await other.getByRole('button',{name:'Save',exact:true}).click();await expect(other.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();
+  await expect(other.getByRole('button',{name:/Use chosen/})).toHaveCount(0);
+  const lead=await context.newPage();await lead.goto('/');await lead.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await lead.reload();
+  await lead.getByRole('button',{name:/^Lead ·/}).click();await lead.getByRole('button',{name:new RegExp(`${code} · Girl Cubs`)}).click();
+  await expect(lead.getByText('two versions, lead to check',{exact:false})).toBeVisible();
+  await lead.getByRole('button',{name:'Open Race 1',exact:true}).click();
+  await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toBeVisible();
+  await expect(lead.getByText(nameA,{exact:true})).toBeVisible();await expect(lead.getByText(nameB,{exact:true})).toBeVisible();
+  await lead.getByRole('radio',{name:`Times by ${nameB}`,exact:true}).check();
+  await lead.screenshot({path:info.outputPath('clash-versions.png'),fullPage:true});
+  await lead.getByRole('button',{name:'Use chosen Times version',exact:true}).click();
+  await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toHaveCount(0);
+  await lead.getByRole('button',{name:'Back to event',exact:true}).click();
+  await expect(lead.getByRole('button',{name:'Runner 2081 · Race 1',exact:true})).toContainText('12.10');
+  await expect(lead.getByRole('list',{name:'Audit notes'})).toContainText(nameB);
+  await context.close();
+});

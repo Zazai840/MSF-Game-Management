@@ -41,6 +41,10 @@ test('Times premarks nonfinishers and keeps the draft version across polling and
   await typeDigits(page,'1234');await page.getByRole('button',{name:'Next',exact:true}).click();await expect(page.getByRole('button',{name:'2nd did finish',exact:true})).toBeVisible();
   await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1300,null]}});
   await page.getByRole('button',{name:'Refresh Times',exact:true}).click();await page.reload();await page.getByRole('button',{name:/^Times ·/}).click();await expect(page.getByRole('button',{name:'1st place · 12.34',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByRole('alert')).toHaveText('These times have changed - open the race again');
+  const saving=page.waitForRequest(request=>request.url().endsWith(`/api/races/${race.id}/times`) && request.method()==='POST');
+  await page.getByRole('button',{name:'Save',exact:true}).click();expect((await saving).postDataJSON()).toMatchObject({baseVersion:0,places:[1234,null]});
+  await expect(page.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Other race',exact:true}).click();await page.getByRole('button',{name:`60m Girl Cubs (R4) · Heat ${race.number}`,exact:true}).click();await expect(page.getByRole('button',{name:'1st place · 13.00',exact:true})).toBeVisible();
+  const read=await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json();
+  await page.request.post(`/api/lead/races/${race.id}/clashes/times`,{headers,data:{candidateId:read.clashes[0].candidates[0].id}});
 });

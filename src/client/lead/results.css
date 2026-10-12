@@ -42,3 +42,9 @@
 .runner-number-warning button {margin:.3rem;}
 .count-choice {display:flex;align-items:center;gap:.6rem;}
 .count-choice input {width:auto;}
+
+.clash-versions fieldset {border:2px solid #b17821;border-radius:.6rem;padding:.7rem;margin:1rem 0;min-width:0;}
+.saved-version {padding:.7rem;margin:.6rem 0;background:white;border:1px solid #718878;border-radius:.4rem;overflow-wrap:anywhere;}
+.saved-version label {display:flex;align-items:center;gap:.7rem;}
+.saved-version input[type=radio] {width:24px;height:24px;min-height:24px;margin:0;flex:none;}
+.saved-version p {margin:.5rem 0;}

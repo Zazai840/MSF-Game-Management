@@ -1,3 +1,5 @@
+import { ClashNotice } from './ClashNotice.js';
+import { hasClash } from '../../shared/race-clashes.js';
 import { useEffect,useState } from 'react';
 import { api,phoneStorage } from '../api.js';
 import { raceLabel,type FinishOrderRead,type RaceRead,type Runner } from '../../shared/races.js';
@@ -69,7 +71,7 @@ export function FinishOrder({dayId}:{dayId:string}) {
     if(!draft) return;setBusy(true);setError('');setMessage('');
     try {
       const response=await api<{race:RaceRead}>(`races/${draft.race.id}/finish`,{baseVersion:draft.race.parts.finish.version,runnersVersion:draft.race.parts.runners.version,order:draft.order,didNotFinish:draft.didNotFinish,didNotRun:draft.didNotRun,added:draft.added,keptWarnings:draft.keptWarnings});
-      setDraft(fromRace(response.race));setMessage('Saved');void refresh();
+      setDraft(fromRace(response.race));setMessage(hasClash(response.race)?'':'Saved');void refresh();
     } catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
   }
@@ -80,6 +82,7 @@ export function FinishOrder({dayId}:{dayId:string}) {
     if(!draft) return;const order=[...draft.order];[order[index],order[index+direction]]=[order[index+direction],order[index]];change({...draft,order});
   }
   return <section className="race-job"><h1>Finish order</h1>
+    <ClashNotice race={draft?[...data.waiting,...data.recent].find(race=>race.id===draft.race.id)||draft.race:null}/>
     {readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <button disabled={busy} onClick={()=>setChoosing(!choosing)}>Other race</button>
     {choosing || !draft ? <div><h2>Also waiting</h2>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-actions">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>
