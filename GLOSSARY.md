@@ -100,6 +100,10 @@ _Avoid_: DNF, retired, dropped out
 A child who was checked in to a race but never started it. They are taken off that race, so they can still run in a later race of the event.
 _Avoid_: DNS, no-show, absent, scratched
 
+**No finisher**:
+A place at the bottom of a race's times that no child crossed the line for, as seen by the timer. It names no child: who did not finish or didn't run comes from the finishing order, and the race counts once both agree on how many finished.
+_Avoid_: Blank time, empty place, DNF time
+
 **Audit note**:
 A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and their comment.
 _Avoid_: Log entry, comment, history
