@@ -7,13 +7,13 @@ import { raceLabel,type RaceRead,type StartLineRead } from '../../shared/races.j
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import './jobs.css';
-type Draft={step:'pick'|'section'|'entry'|'check';family:string;eventCode:string;runners:number[];current:string;raceId?:string;baseVersion:number;requestId:string;keptWarnings:number[];warnings:Record<string,WristbandWarning[]>;pendingWarnings:WristbandWarning[]};
+type Draft={step:'pick'|'section'|'entry'|'check'|'presence'|'presence-check';final?:RaceRead;absent?:string[];family:string;eventCode:string;runners:number[];current:string;raceId?:string;baseVersion:number;requestId:string;keptWarnings:number[];warnings:Record<string,WristbandWarning[]>;pendingWarnings:WristbandWarning[]};
 function emptyDraft():Draft {
   const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
   return {step:'pick',family:'',eventCode:'',runners:[],current:'',baseVersion:0,requestId:Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join(''),keptWarnings:[],warnings:{},pendingWarnings:[]};
 }
 function restore(key:string):Draft {
-  try {const value=JSON.parse(localStorage.getItem(key)||'null');if(value && ['pick','section','entry','check'].includes(value.step) && Array.isArray(value.runners) && typeof value.current==='string' && typeof value.requestId==='string') return {...value,keptWarnings:value.keptWarnings||[],warnings:value.warnings||{},pendingWarnings:value.pendingWarnings||[]};}
+  try {const value=JSON.parse(localStorage.getItem(key)||'null');if(value && ['pick','section','entry','check','presence','presence-check'].includes(value.step) && Array.isArray(value.runners) && typeof value.current==='string' && typeof value.requestId==='string') return {...value,keptWarnings:value.keptWarnings||[],warnings:value.warnings||{},pendingWarnings:value.pendingWarnings||[]};}
   catch { /* A broken draft must not stop a phone joining the job. */ }
   return emptyDraft();
 }
@@ -40,6 +40,8 @@ export function StartLine({dayId}:{dayId:string}) {
     try {
       const latest=await api<RaceRead>(`races/${race.id}`);
       if(latest.stageComplete) {setSaved(latest);return;}
+      if(latest.final?.hasRun) {setError('The final has already run - ask a lead');return;}
+      if(latest.final) {change({...emptyDraft(),step:'presence',eventCode:latest.event.code,raceId:latest.id,baseVersion:latest.parts.runners.version,final:latest,absent:latest.final.entries.filter(entry=>entry.absent).map(entry=>entry.finalEntryId)});setSaved(null);return;}
       if(latest.parts.finish.value!==null) {setError('Finishing order already recorded - ask a lead');return;}
       const runners=latest.parts.runners.value||[];
       change({...emptyDraft(),step:'entry',eventCode:latest.event.code,runners:runners.map(runner=>runner.wristband),raceId:latest.id,baseVersion:latest.parts.runners.version,keptWarnings:runners.filter(runner=>runner.warnings?.some(warning=>warning.kept)).map(runner=>runner.wristband),warnings:Object.fromEntries(runners.filter(runner=>runner.warnings?.length).map(runner=>[runner.wristband,runner.warnings!]))});
@@ -73,7 +75,7 @@ export function StartLine({dayId}:{dayId:string}) {
   async function save() {
     setBusy(true);setError('');setMessage('');
     try {
-      const response=await api<{status:string;race:RaceRead}>(draft.raceId?`races/${draft.raceId}/runners`:'races/check-in',draft.raceId?{baseVersion:draft.baseVersion,runners:draft.runners,keptWarnings:draft.keptWarnings}:{eventCode:draft.eventCode,runners:draft.runners,requestId:draft.requestId,keptWarnings:draft.keptWarnings});
+      const response=draft.final?await api<{status:string;race:RaceRead}>(`races/${draft.raceId}/presence`,{baseVersion:draft.baseVersion,generation:draft.final.final!.generation,lineup:draft.final.final!.entries.map(entry=>entry.finalEntryId),absent:draft.absent||[]}):await api<{status:string;race:RaceRead}>(draft.raceId?`races/${draft.raceId}/runners`:'races/check-in',draft.raceId?{baseVersion:draft.baseVersion,runners:draft.runners,keptWarnings:draft.keptWarnings}:{eventCode:draft.eventCode,runners:draft.runners,requestId:draft.requestId,keptWarnings:draft.keptWarnings});
       localStorage.removeItem(key);setDraft(emptyDraft());setSaved(response.race);setMessage(hasClash(response.race)?'':'Saved');void refresh();
     } catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
@@ -86,13 +88,13 @@ export function StartLine({dayId}:{dayId:string}) {
   }
   if(!data) return <section><h1>Start line</h1><p>{readError || 'Opening…'}</p><button onClick={()=>void refresh()}>Refresh Start line</button></section>;
   const event=data.events.find(event=>event.code===draft.eventCode);
-  const locked=saved?stageLocked(saved,data.completedStages):data.completedStages.some(item=>item.eventCode===draft.eventCode && item.stage!=='final');
+  const locked=saved?stageLocked(saved,data.completedStages):draft.final?stageLocked(draft.final,data.completedStages)||!data.completedStages.some(item=>item.eventCode===draft.eventCode&&item.stage==='heats'):data.completedStages.some(item=>item.eventCode===draft.eventCode && item.stage!=='final');
   return <section className="race-job"><h1>Start line</h1><ClashNotice race={[...data.waiting,...data.recent].find(race=>race.id===(saved?.id||draft.raceId))||saved}/>
     {readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {locked && <><p role="status">Stage complete - ask a lead</p><button onClick={reset}>Choose another race</button></>}
     <fieldset className="stage-job-fields" disabled={locked}>
-    {saved ? <div><h2>{raceLabel(saved)} saved</h2><p>{saved.event.name} {saved.event.section} ({saved.event.code})</p><p>{saved.parts.runners.value?.map(runner=>runner.wristband).join(' · ')}</p>
-      {deleting ? <div className="job-actions"><p>Delete {raceLabel(saved)}?</p><button disabled={busy} onClick={()=>void remove(false)}>Move to Deleted races</button><button disabled={busy} onClick={()=>void remove(true)}>Delete permanently</button><button disabled={busy} onClick={()=>setDeleting(false)}>Keep this race</button></div> : <div className="job-actions"><button onClick={()=>void open(saved)}>Edit runners</button><button onClick={()=>setDeleting(true)}>Delete this race</button><button onClick={reset}>Check in another race</button></div>}
+    {draft.final && !saved ? <div className="final-attendance"><p>{draft.final.event.name} {draft.final.event.section} ({draft.eventCode}) · Final</p>{draft.step==='presence'?<><h2>Is everyone here?</h2><p>Tap anyone absent.</p><div className="job-actions">{draft.final.final!.entries.map(entry=><button disabled={busy} key={entry.finalEntryId} aria-pressed={(draft.absent||[]).includes(entry.finalEntryId)} onClick={()=>change({...draft,absent:(draft.absent||[]).includes(entry.finalEntryId)?draft.absent!.filter(id=>id!==entry.finalEntryId):[...(draft.absent||[]),entry.finalEntryId]})}>{entry.wristband} · {(draft.absent||[]).includes(entry.finalEntryId)?'Absent':'Here'}</button>)}</div><button disabled={busy} onClick={()=>change({...draft,step:'presence-check'})}>Check attendance</button></>:<><h2>Check attendance</h2><ol>{draft.final.final!.entries.map(entry=><li key={entry.finalEntryId}>{entry.wristband} · {(draft.absent||[]).includes(entry.finalEntryId)?'Absent':'Here'}</li>)}</ol><div className="job-actions"><button disabled={busy} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button><button disabled={busy} onClick={()=>change({...draft,step:'presence'})}>Change attendance</button></div></>}<button disabled={busy} onClick={reset}>Choose another race</button></div> : saved ? <div><h2>{raceLabel(saved)} saved</h2><p>{saved.event.name} {saved.event.section} ({saved.event.code})</p><p>{saved.parts.runners.value?.map(runner=>runner.wristband).join(' · ')}</p>
+      {deleting ? <div className="job-actions"><p>Delete {raceLabel(saved)}?</p><button disabled={busy} onClick={()=>void remove(false)}>Move to Deleted races</button><button disabled={busy} onClick={()=>void remove(true)}>Delete permanently</button><button disabled={busy} onClick={()=>setDeleting(false)}>Keep this race</button></div> : <div className="job-actions"><button onClick={()=>void open(saved)}>{saved.kind==='final'?'Check attendance':'Edit runners'}</button>{saved.kind!=='final' && <button onClick={()=>setDeleting(true)}>Delete this race</button>}<button onClick={reset}>Check in another race</button></div>}
     </div> : draft.step==='pick' ? <div><h2>Which race is it?</h2>
       {data.waiting.length>0 && <><h3>Already at the start line</h3><div className="job-actions">{data.waiting.map(race=><button key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div></>}
       {!data.eventsConfirmed ? <p>Ask the scoring team to confirm the event list</p> : <><h3>Check in a new race</h3><div className="job-actions">{[...new Set(data.events.map(event=>event.name))].map(name=><button key={name} onClick={()=>change({...draft,step:'section',family:name})}>{name}</button>)}</div></>}

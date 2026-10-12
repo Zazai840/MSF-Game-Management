@@ -1,4 +1,5 @@
-import { timedCheckSheet,type Stage,type StageCheckSheet,type InputRunning } from './stages.js';
+import { finalResults,type FinalField,type FinalResults } from './finals.js';
+import { timedCheckSheet,heatsCheckSheet,finalCheckSheet,type Stage,type StageCheckSheet,type InputRunning } from './stages.js';
 import { eventLeadItems } from './lead-items.js';
 import { runnerWarningFlags } from './runner-rulings.js';
 import type { WristbandWarning } from './wristband-checks.js';
@@ -11,7 +12,7 @@ export type Section = 'Boy Beavers' | 'Girl Beavers' | 'Boy Cubs' | 'Girl Cubs' 
 export interface Event { code:string; name:string; section:Section; format:'heats'|'timed' }
 export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:number; checkedInAt:string }
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
-export interface ResultsRace extends RaceReference { deleted:boolean; clash?:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|'clash'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null }
+export interface ResultsRace extends RaceReference { deleted:boolean; clash?:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|'clash'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[] }
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
 
@@ -29,8 +30,8 @@ export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabe
 export interface EventResults {
   leaderboard:LeaderboardRow[]; actionableRunners:LeaderboardRow[]; qualifiers:LeaderboardRow[]; medalPlaces:LeaderboardRow[];
   ties:ResultTie[]; notRankedYet:NotRankedRace[]; needsYou:LeadItem[]; band:ResultsBand;
-  checkSheet:StageCheckSheet|null; inputRunning:InputRunning|null;
-  status:'Not started'|'In progress - provisional'|'Complete'; raceCount:number; provisional:boolean;
+  checkSheet:StageCheckSheet|null; heatsCheckSheet:StageCheckSheet|null; finalResults:FinalResults|null; inputRunning:InputRunning|null;
+  status:'Not started'|'In progress - provisional'|'Heats complete - final to run'|'Complete'; raceCount:number; provisional:boolean;
 }
 /** One event's results are recomputed from facts. Callers never sort or assign positions. */
 export function eventResults(state:EventState):EventResults {
@@ -50,9 +51,10 @@ export function eventResults(state:EventState):EventResults {
     const reasons:NotRankedReason[]=[];
     if(race.clash) reasons.push('two versions, lead to check');
     if(!race.finish) reasons.push(race.times?'awaiting finishing order':'checked in');
-    if(race.finish && !race.times) reasons.push('awaiting times');
-    if(race.times && timesOutOfOrder(race.times.places) && race.times.acceptedByLead!==true) reasons.push('times out of order');
-    if(race.finish && race.times && race.finish.order.length!==race.times.places.filter(time=>time!==null).length) reasons.push("finishers and times don't agree");
+    if(race.kind==='final' && !race.final?.presenceConfirmed) reasons.push('checked in');
+    if(race.kind!=='final' && race.finish && !race.times) reasons.push('awaiting times');
+    if(race.kind!=='final' && race.times && timesOutOfOrder(race.times.places) && race.times.acceptedByLead!==true) reasons.push('times out of order');
+    if(race.kind!=='final' && race.finish && race.times && race.finish.order.length!==race.times.places.filter(time=>time!==null).length) reasons.push("finishers and times don't agree");
     if(reasons.length && race.kind!=='final') notRankedYet.push({race:reference(race),reasons});
     for(const runner of race.runners) {
       const index=race.finish?.order.indexOf(runner.id)??-1,isFinisher=index>=0;
@@ -79,10 +81,15 @@ export function eventResults(state:EventState):EventResults {
     if(state.event.format==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
   const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
+  const final=state.event.format==='heats'?finalResults(state,leaderboard):null;
+  if(final) for(const row of actionableRunners.filter(row=>row.raceId===final.raceId)) {
+    const ranked=final.leaderboard.find(other=>other.entryId===row.entryId);
+    if(ranked) {delete row.recordingPending;Object.assign(row,ranked);}
+  }
   const needsYou=eventLeadItems(state,actionableRunners,ties);
-  const checkSheet=state.event.format==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):null;
-  const complete=checkSheet?.completed??false;
+  const heatsSheet=state.event.format==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
+  const checkSheet=state.event.format==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):heatsSheet?.completed||final?.hasRun?finalCheckSheet(state,final,needsYou):heatsSheet;
+  const complete=checkSheet?.stage!=='heats' && (checkSheet?.completed??false);
   const inputRunning=complete?{eventCode:state.event.code,first:checkSheet!.creates[0].wristband,second:checkSheet!.creates[1].wristband,third:checkSheet!.creates[2].wristband}:null;
-  return {checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties,notRankedYet,needsYou,band,status:complete?'Complete':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
-
+  return {heatsCheckSheet:heatsSheet,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
 }

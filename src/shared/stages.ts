@@ -1,8 +1,9 @@
+import type { FinalResults } from './finals.js';
 import type { EventState,LeaderboardRow,NotRankedRace,ResultTie,LeadItem } from './results-rules.js';
 export type Stage='event'|'heats'|'final';
 export interface StageItem { id:string; kind:'tie'|'clash'|'ran-twice'|'incomplete'|'warning'; message:string; raceId?:string; entryId?:string; tieId?:string }
 export interface StagePlace { position:number; wristband:number|null; raceId?:string; entryId?:string }
-export interface StageCheckSheet { stage:Stage; label:string; completed:boolean; mustSettleFirst:StageItem[]; worthALook:StageItem[]; creates:StagePlace[] }
+export interface StageCheckSheet { stage:Stage; label:string; completed:boolean; mustSettleFirst:StageItem[]; worthALook:StageItem[]; creates:StagePlace[]; reopenWarning?:string }
 export interface InputRunning { eventCode:string; first:number|null; second:number|null; third:number|null }
 /** Completion decisions use the same eligible rows and open ties as the leaderboard. */
 export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],needsYou:readonly LeadItem[]):StageCheckSheet {
@@ -14,4 +15,16 @@ export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],
   const eligible=rows.filter(row=>row.position!==null);
   const creates=[1,2,3].map(position=>{const row=eligible[position-1];return {position,wristband:row?.wristband??null,...(row?{raceId:row.raceId,entryId:row.entryId}:{})};});
   return {stage:'event',label:'Event complete',completed:state.completedStages?.includes('event')??false,mustSettleFirst,worthALook,creates};
+}
+
+export function heatsCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
+  const sheet=timedCheckSheet(state,rows,ties,pending,needsYou);
+  return {...sheet,stage:'heats',label:'Heats complete',completed:state.completedStages?.includes('heats')??false,creates:rows.filter(row=>row.position!==null).slice(0,6).map(row=>({position:row.position!,wristband:row.wristband,raceId:row.raceId,entryId:row.entryId})),reopenWarning:final?.hasRun?'The final has already run. Its line-up, attendance and results will be preserved.':'The unrun final will be rebuilt from the corrected heat rankings when heats are completed again.'};
+}
+export function finalCheckSheet(state:EventState,final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
+  const race=state.races.find(race=>race.id===final?.raceId);
+  const mustSettleFirst:StageItem[]=[];
+  if(!race || !final?.presenceConfirmed || !race.finish || race.clash) mustSettleFirst.push({id:'final-recording',kind:race?.clash?'clash':'incomplete',raceId:race?.id,message:race?.clash?'Final: two versions, lead to check':!final?.presenceConfirmed?'Final: confirm who is here at the Start line':'Final: awaiting finishing order'});
+  const rows=final?.leaderboard.filter(row=>row.position!==null)||[];
+  return {stage:'final',label:'Final complete',completed:state.completedStages?.includes('final')??false,mustSettleFirst,worthALook:needsYou.filter(item=>item.kind==='warning'&&item.raceId===final?.raceId).map(item=>({id:item.id,kind:'warning',raceId:item.raceId,entryId:item.entryId,message:item.message})),creates:[1,2,3].map(position=>{const row=rows[position-1];return {position,wristband:row?.wristband??null,...(row?{raceId:row.raceId,entryId:row.entryId}:{})};})};
 }

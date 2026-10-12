@@ -1,3 +1,4 @@
+import { finalRoutes } from './rulings/finals.js';
 import { stageRoutes } from './rulings/stages.js';
 import { raceRulingRoutes } from './rulings/races.js';
 import { clashRoutes } from './rulings/clashes.js';
@@ -43,5 +44,6 @@ export async function createApp(settings: AppSettings) {
   raceRulingRoutes(app,pool);
   tieRoutes(app,pool);
   stageRoutes(app,pool);
+  finalRoutes(app,pool);
   return app;
 }

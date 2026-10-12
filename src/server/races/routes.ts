@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions, Refusal } from '../access/permissions.js';
-import { raceChange, readRace, requireStageOpen, requireStartLineEdit, listRaces } from './records.js';
+import { raceChange, readRace, requireStageOpen, requireStartLineEdit, listRaces,jobRace } from './records.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { annotateRunners,keptWarningNumbers,wristbandRaces } from './warnings.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -25,16 +25,18 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     if (body.raceId!==undefined && typeof body.raceId!=='string') throw new Refusal(400,'Choose a race');
     const event=(await pool.query('SELECT id,section FROM events WHERE day_id=$1 AND code=$2',[phone.dayId,body.eventCode])).rows[0];
     if (!event) throw new Refusal(404,'Event not found');
-    return {warnings:wristbandWarnings(body.wristband as number,event.section,await wristbandRaces(pool,phone.dayId,event.id),{currentRaceId:body.raceId})};
+    const race=typeof body.raceId==='string'?await readRace(pool,phone.dayId,body.raceId):null;
+    if(race && race.event.id!==event.id) throw new Refusal(400,'Choose this race event');
+    return {warnings:wristbandWarnings(body.wristband as number,event.section,await wristbandRaces(pool,phone.dayId,event.id),{currentRaceId:body.raceId,skipAlreadyRan:race?.kind==='final'})};
   });
   action('GET','/api/jobs/start-line','Volunteer',async(_request,_reply,phone)=>{
     const day=(await pool.query('SELECT events_confirmed FROM olympics_days WHERE id=$1 AND active',[phone.dayId])).rows[0];
     if (!day) throw new Refusal(401,'Please join the Olympics day');
     const events=(await pool.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND enabled ORDER BY programme_order,code',[phone.dayId])).rows;
     const races=await listRaces(pool,phone.dayId);
-    return {completedStages:await readCompletedStages(pool,phone.dayId),events:day.events_confirmed?events:[],eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null),recent:races.slice(-10).reverse()};
+    return {completedStages:await readCompletedStages(pool,phone.dayId),events:day.events_confirmed?events:[],eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null && (race.kind!=='final' || (race.final?.heatsComplete && !race.final.hasRun))).map(jobRace),recent:races.slice(-10).reverse().map(jobRace)};
   });
-  action('GET','/api/races/:id','Volunteer',(request,_reply,phone)=>readRace(pool,phone.dayId,(request.params as {id:string}).id));
+  action('GET','/api/races/:id','Volunteer',async(request,_reply,phone)=>jobRace(await readRace(pool,phone.dayId,(request.params as {id:string}).id)));
   // Each job uses this same Volunteer boundary for all three permission levels.
   action('POST','/api/races/check-in','Volunteer',async(request,_reply,phone)=>{
     const runnersInput=runnerNumbers(request.body);
@@ -50,7 +52,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
         requireStageOpen(race);
         if (race.event.code!==body.eventCode || JSON.stringify(existing.original_runners)!==JSON.stringify(runnersInput)) throw new Refusal(409,'This check-in was already saved - open the race to edit it');
         unchanged();
-        return {status:'saved',race};
+        return {status:'saved',race:jobRace(race)};
       }
       const day=(await client.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
       if (!day.events_confirmed) throw new Refusal(409,'Ask the scoring team to confirm the event list');
@@ -66,7 +68,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
       const runners=await annotateRunners(client,phone.dayId,event,runnersInput.map(wristband=>({id:randomUUID(),wristband})),kept,id);
       for (const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,$6)',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,part==='runners'?phone.id:null,part==='runners'?new Date():null]);
       const race=await readRace(client,phone.dayId,id);await rememberRace(client,race);
-      return {status:'saved',race};
+      return {status:'saved',race:jobRace(race)};
     });
   });
   action('POST','/api/races/:id/runners','Volunteer',async(request,_reply,phone)=>{
@@ -77,11 +79,11 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     return raceChange(pool,phone,async client=>{
       const race=await readRace(client,phone.dayId,(request.params as {id:string}).id);
       requireStageOpen(race);
-      if(race.deleted || baseVersion===race.parts.runners.version) requireStartLineEdit(race);
+      if(race.kind==='final' || race.deleted || baseVersion===race.parts.runners.version) requireStartLineEdit(race);
       const previous=(await partVersion<Runner[]>(client,race,'runners',Number(baseVersion))).value || [];
       const runners=await annotateRunners(client,phone.dayId,race.event,numbers.map(wristband=>previous.find(runner=>runner.wristband===wristband)||{id:randomUUID(),wristband}),kept,race.id,previous);
       const status=await savePart(client,phone,race,'runners',Number(baseVersion),runners);
-      return {status,race:await readRace(client,phone.dayId,race.id)};
+      return {status,race:jobRace(await readRace(client,phone.dayId,race.id))};
     });
   });
   action('POST','/api/races/:id/delete','Volunteer',async(request,_reply,phone)=>{

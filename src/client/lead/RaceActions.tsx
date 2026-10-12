@@ -1,12 +1,13 @@
+import type { LeadRaceRead } from '../../shared/race-clashes.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';
 import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
-import { raceLabel,type RaceRead } from '../../shared/races.js';
+import { raceLabel } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { digitsForTime,parseTimeDigits,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
-export interface RaceActionsProps {race:RaceRead;onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void;onRemoved:()=>void}
+export interface RaceActionsProps {race:LeadRaceRead['race'];onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void;onRemoved:()=>void}
 export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps) {
   const [action,setAction]=useState<'times'|'runners'|'delete'|'re-run'|'restore'|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -23,7 +24,7 @@ export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps)
     </ActionSheet>}
   </div>;
 }
-function RaceLifecycle({action,race,busy,onSave,onClose}:{action:'delete'|'restore'|'re-run';race:RaceRead;busy:boolean;onSave:(body:unknown,permanent?:boolean)=>void;onClose:()=>void}) {
+function RaceLifecycle({action,race,busy,onSave,onClose}:{action:'delete'|'restore'|'re-run';race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown,permanent?:boolean)=>void;onClose:()=>void}) {
   const [comment,setComment]=useState('');
   return <div>{action==='re-run'?<p>Call a re-run as a last resort. This record moves to Deleted races; a new {race.kind==='heat'?'heat':race.kind==='final'?'final':'race'} appears at the start line with the same runners.</p>:action==='restore'?<p>Restore {raceLabel(race)} and include its record in this event again?</p>:<p>{race.deleted?'Delete this record permanently?':'Move this race to Deleted races, or delete it permanently?'} Permanent deletion cannot be undone. Audit notes remain.</p>}
     <label>Comment (optional)<textarea maxLength={1000} disabled={busy} value={comment} onChange={event=>setComment(event.target.value)}/></label>
@@ -31,7 +32,7 @@ function RaceLifecycle({action,race,busy,onSave,onClose}:{action:'delete'|'resto
     <button className="secondary" disabled={busy} onClick={onClose}>Keep current record</button>
   </div>;
 }
-function RaceTimesEditor({race,busy,onSave,onClose}:{race:RaceRead;busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
+function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
   const [baseVersion]=useState(race.parts.times.version);
   const [digits,setDigits]=useState<Array<string|null>>(()=>Array.from({length:race.parts.runners.value?.length||0},(_,index)=>{const time=race.parts.times.value?.places[index];return time===null?null:time===undefined?'':digitsForTime(time);}));
   const [accepted,setAccepted]=useState(false),[comment,setComment]=useState('');
@@ -45,7 +46,7 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:RaceRead;busy:boolean;
     {invalid && <p>Enter a valid time for each place, or choose No finisher.</p>}<button disabled={busy || invalid}>{busy?'Saving…':'Save times'}</button><button type="button" className="secondary" disabled={busy} onClick={onClose}>Cancel correction</button>
   </form>;
 }
-function RaceRunnersEditor({race,busy,onSave,onClose}:{race:RaceRead;busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
+function RaceRunnersEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
   const [original]=useState(race);
   const [entries,setEntries]=useState(()=>((race.parts.runners.value||[]).map(runner=>({entryId:runner.id as string|undefined,number:String(runner.wristband)}))));
   const [step,setStep]=useState<'input'|'warnings'|'review'>('input');

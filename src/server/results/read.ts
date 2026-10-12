@@ -4,7 +4,7 @@ import type pg from 'pg';
 import { hasClash } from '../../shared/race-clashes.js';
 import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
 import { readAuditNotes,readRulings } from '../rulings/records.js';
-import type { Database } from '../races/records.js';
+import type { Database,StoredRace } from '../races/records.js';
 import { listRaces } from '../races/records.js';
 import type { EventState,ResultsRace } from '../../shared/results-rules.js';
 import { eventResults } from '../../shared/results-rules.js';
@@ -18,11 +18,11 @@ async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
   return (await db.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 ORDER BY programme_order,code',[dayId])).rows;
 }
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
-export function eventState(event:DayEvent,races:readonly RaceRead[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map()):EventState {
-  return {event,rulings,auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,clash:hasClash(race),leadTimes:timings.get(race.id),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
+export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map()):EventState {
+  return {event,rulings,auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,final:race.final,clash:hasClash(race),leadTimes:timings.get(race.id),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
 
 }
-export async function readResults(db:Database,dayId:string,providedRaces?:RaceRead[]):Promise<ResultsRead> {
+export async function readResults(db:Database,dayId:string,providedRaces?:StoredRace[]):Promise<ResultsRead> {
   const events=await eventsForDay(db,dayId),races=providedRaces||await listRaces(db,dayId);
   const timings=await leadTimings(db,dayId);
   const rulings=await readRulings(db,dayId),notes=await readAuditNotes(db,dayId);

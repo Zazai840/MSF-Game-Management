@@ -35,6 +35,11 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       delete_reason text, request_id text, original_runners jsonb,
       UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
     );
+    CREATE TABLE IF NOT EXISTS race_finals (
+      race_id uuid PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE, entries jsonb NOT NULL, presence_confirmed boolean NOT NULL DEFAULT false
+    );
+    ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS generation text NOT NULL DEFAULT '';
+    ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS additional_entries jsonb NOT NULL DEFAULT '[]';
     CREATE TABLE IF NOT EXISTS race_counters (
       event_id uuid NOT NULL REFERENCES events(id), kind text NOT NULL, last_number integer NOT NULL,
       PRIMARY KEY(event_id,kind)
