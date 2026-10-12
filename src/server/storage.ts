@@ -45,6 +45,20 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       value jsonb, saved_at timestamptz, saved_by uuid REFERENCES phones(id),
       PRIMARY KEY(race_id,part)
     );
+    CREATE TABLE IF NOT EXISTS race_part_history (
+      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
+      part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL,
+      value jsonb, runners jsonb NOT NULL, PRIMARY KEY(race_id,part,version)
+    );
+    CREATE TABLE IF NOT EXISTS race_part_saves (
+      id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
+      part text NOT NULL CHECK (part IN ('runners','finish','times')),
+      base_version integer NOT NULL, version integer NOT NULL,
+      author_name text, saved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+      value jsonb, runners jsonb NOT NULL, active boolean NOT NULL DEFAULT true
+    );
+    CREATE INDEX IF NOT EXISTS race_part_candidates ON race_part_saves(race_id,part) WHERE active;
     CREATE TABLE IF NOT EXISTS runner_rulings (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       entry_id text NOT NULL, disqualification jsonb,

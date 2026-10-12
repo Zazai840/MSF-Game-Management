@@ -1,3 +1,5 @@
+import type { Runner } from '../../shared/races.js';
+import { rememberRace,partVersion,savePart } from './versions.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
@@ -59,7 +61,8 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('INSERT INTO races(id,day_id,event_id,kind,number,request_id,original_runners) VALUES($1,$2,$3,$4,$5,$6,$7)',[id,phone.dayId,event.id,kind,counter.last_number,requestId,JSON.stringify(runnersInput)]);
       const runners=await annotateRunners(client,phone.dayId,event,runnersInput.map(wristband=>({id:randomUUID(),wristband})),kept,id);
       for (const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,$6)',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,part==='runners'?phone.id:null,part==='runners'?new Date():null]);
-      return {status:'saved',race:await readRace(client,phone.dayId,id)};
+      const race=await readRace(client,phone.dayId,id);await rememberRace(client,race);
+      return {status:'saved',race};
     });
   });
   action('POST','/api/races/:id/runners','Volunteer',async(request,_reply,phone)=>{
@@ -69,12 +72,11 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     if (!Number.isSafeInteger(baseVersion) || Number(baseVersion)<1) throw new Refusal(400,'Open the race before saving its runners');
     return raceChange(pool,phone,async client=>{
       const race=await readRace(client,phone.dayId,(request.params as {id:string}).id);
-      requireStartLineEdit(race);
-      if (baseVersion!==race.parts.runners.version) throw new Refusal(409,'This runner list has changed - open the race again');
-      const previous=race.parts.runners.value || [];
+      if(race.deleted || baseVersion===race.parts.runners.version) requireStartLineEdit(race);
+      const previous=(await partVersion<Runner[]>(client,race,'runners',Number(baseVersion))).value || [];
       const runners=await annotateRunners(client,phone.dayId,race.event,numbers.map(wristband=>previous.find(runner=>runner.wristband===wristband)||{id:randomUUID(),wristband}),kept,race.id,previous);
-      await client.query('UPDATE race_parts SET value=$1,version=version+1,saved_at=now(),saved_by=$2 WHERE race_id=$3 AND part=$4',[JSON.stringify(runners),phone.id,race.id,'runners']);
-      return {status:'saved',race:await readRace(client,phone.dayId,race.id)};
+      const status=await savePart(client,phone,race,'runners',Number(baseVersion),runners);
+      return {status,race:await readRace(client,phone.dayId,race.id)};
     });
   });
   action('POST','/api/races/:id/delete','Volunteer',async(request,_reply,phone)=>{

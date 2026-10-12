@@ -1,3 +1,4 @@
+import { hasClash } from '../../shared/race-clashes.js';
 import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
 import { readAuditNotes,readRulings } from '../rulings/records.js';
 import type { Database } from '../races/records.js';
@@ -13,7 +14,7 @@ async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
 }
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
 export function eventState(event:DayEvent,races:readonly RaceRead[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[]):EventState {
-  return {event,rulings,auditNotes,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
+  return {event,rulings,auditNotes,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,clash:hasClash(race),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
 }
 export async function readResults(db:Database,dayId:string):Promise<ResultsRead> {
   const events=await eventsForDay(db,dayId),races=await listRaces(db,dayId);
