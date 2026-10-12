@@ -1,5 +1,6 @@
 import type { DayEvent } from './day.js';
-export interface Runner { id:string; wristband:number }
+import type { WristbandWarning } from './wristband-checks.js';
+export interface Runner { id:string; wristband:number; warnings?:Array<WristbandWarning & {kept:boolean}> }
 export interface RacePart<T> { version:number; value:T|null }
 export interface RaceRead {
   id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean;

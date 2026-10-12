@@ -91,3 +91,28 @@ test('all three permission levels use the same job and concurrent check-ins rece
   const concurrent=await Promise.all([call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2004]}),call(lead.token,'/api/races/check-in',{eventCode:'R4',runners:[2005]})]);
   expect(concurrent.map(response=>response.json().race.number).sort()).toEqual([4,5]);
 });
+test('a volunteer keeps a warning without approval and it stays on that runner when the list is corrected',async()=>{
+  const {volunteer}=await start();
+  const response=await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[3045],keptWarnings:[3045]});
+  expect(response.statusCode).toBe(200);
+  const race=response.json().race;
+  expect(race.parts.runners.value[0]).toMatchObject({wristband:3045,warnings:[{kind:'wrong-section',kept:true,message:'3045 belongs to Boy Scouts - this race is Girl Cubs'}]});
+  const edited=await call(volunteer,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[3045,2001]});
+  expect(edited.statusCode).toBe(200);
+  expect(edited.json().race.parts.runners.value[0]).toEqual(race.parts.runners.value[0]);
+  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.runners.value[0]).toEqual(race.parts.runners.value[0]);
+});
+test('number checks warn about another race in this event, but ignore deleted races and other events',async()=>{
+  const {volunteer}=await start();
+  const first=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001]})).json().race;
+  const repeated=await call(volunteer,'/api/wristband-check',{eventCode:'R4',wristband:2001});
+  expect(repeated.statusCode).toBe(200);
+  expect(repeated.json().warnings).toEqual([{kind:'already-ran',message:'2001 already ran in this event'}]);
+  expect((await call(volunteer,'/api/wristband-check',{eventCode:'R4',wristband:2001,raceId:first.id})).json().warnings).toEqual([]);
+  expect((await call(volunteer,'/api/wristband-check',{eventCode:'R16',wristband:2001})).json().warnings).toEqual([]);
+  await call(volunteer,`/api/races/${first.id}/delete`,{permanent:false});
+  expect((await call(volunteer,'/api/wristband-check',{eventCode:'R4',wristband:2001})).json().warnings).toEqual([]);
+  const next=await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001]});
+  expect(next.statusCode).toBe(200);
+  expect(next.json().race.parts.runners.value[0].warnings).toEqual([]);
+});
