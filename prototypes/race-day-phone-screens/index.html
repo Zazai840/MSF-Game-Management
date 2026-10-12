@@ -1,0 +1,1503 @@
+<title>Running Zone Race Day</title>
+<!--
+  PROTOTYPE - throwaway. Answers "Race-day phone screens prototype" (issue 14 on the
+  Running Zone app v1 spec map). Not production code: no tests, in-memory data only.
+
+  Plan: three variants of the volunteer job screens (Start line, Finish order, Times),
+  switchable from the prototype bar (or ← / → keys, or #A #B #C in the URL).
+  The join screen, Become lead and the Lead area (Needs you / Results / Day) are built
+  once and shared by all variants, because their structure was already decided.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: a phone frame centred on desktop (wide for the Lead area), full screen on a phone.
+   Track-side legibility first: big targets, hyperlegible body type, condensed numerals like a race bib. */
+:root {
+  --bg: #EEF1F6;
+  --surface: #FFFFFF;
+  --surface-2: #F5F7FB;
+  --ink: #131A2C;
+  --muted: #586179;
+  --line: #D6DCE7;
+  --accent: #1D4ED8;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E2E9FC;
+  --warn: #9A5B00;
+  --warn-bg: #FFF0D2;
+  --warn-line: #F0B44C;
+  --bad: #B42318;
+  --bad-bg: #FDE6E3;
+  --ok: #17703F;
+  --ok-bg: #DCF2E4;
+  --hl: #E6EDFF;
+  --medal: #FFF4CF;
+  --grey-flag: #8A93A8;
+  --proto-bg: #11151F;
+  --proto-fg: #F4F6FA;
+  --proto-muted: #A8B0C2;
+  --frame: #1B2133;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-num: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C101A; --surface: #151B2A; --surface-2: #1B2234; --ink: #EDF0F7; --muted: #9CA5BA;
+    --line: #2B3349; --accent: #7397FF; --accent-ink: #0A0F1D; --accent-soft: #1D2A50;
+    --warn: #FFC266; --warn-bg: #36270B; --warn-line: #9C6B16; --bad: #FF8A80; --bad-bg: #3B1714;
+    --ok: #6BD69A; --ok-bg: #0F2E1C; --hl: #1A2442; --medal: #342F11; --grey-flag: #6E7790;
+    --proto-bg: #EEF1F6; --proto-fg: #11151F; --proto-muted: #4A5266; --frame: #2F3854;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C101A; --surface: #151B2A; --surface-2: #1B2234; --ink: #EDF0F7; --muted: #9CA5BA;
+  --line: #2B3349; --accent: #7397FF; --accent-ink: #0A0F1D; --accent-soft: #1D2A50;
+  --warn: #FFC266; --warn-bg: #36270B; --warn-line: #9C6B16; --bad: #FF8A80; --bad-bg: #3B1714;
+  --ok: #6BD69A; --ok-bg: #0F2E1C; --hl: #1A2442; --medal: #342F11; --grey-flag: #6E7790;
+  --proto-bg: #EEF1F6; --proto-fg: #11151F; --proto-muted: #4A5266; --frame: #2F3854;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.4; }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; }
+input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+
+/* ---------- stage ---------- */
+#root { height: 100%; }
+.stage { min-height: 100%; display: flex; gap: 28px; justify-content: center; align-items: flex-start; padding: 24px 16px 96px; }
+.phone { position: relative; width: 390px; height: min(844px, calc(100vh - 130px)); min-height: 560px; border: 10px solid var(--frame); border-radius: 40px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; flex: none; transition: width .2s; }
+.phone.wide { width: min(1040px, calc(100vw - 380px)); border-radius: 22px; }
+.side { width: 300px; flex: none; max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 14px; font-size: 14px; color: var(--muted); }
+.side h1 { font-family: var(--font-num); font-weight: 700; font-size: 30px; line-height: 1.05; color: var(--ink); margin: 0; text-wrap: balance; }
+.side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 6px 0 0; color: var(--ink); }
+.side p { margin: 0; }
+.side .jump { display: flex; flex-wrap: wrap; gap: 6px; }
+.side .jump button, .side .vbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+.side .vlist { display: flex; flex-direction: column; gap: 6px; }
+.side .vbtn { text-align: left; border-radius: 10px; padding: 8px 10px; }
+.side .vbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.side .vbtn b { color: var(--ink); }
+.side code { font-family: var(--font-num); font-size: 16px; color: var(--ink); background: var(--surface); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); }
+.statebox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 12px; max-height: 260px; overflow: auto; }
+.statebox div { white-space: nowrap; }
+
+.protobar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 4px; background: var(--proto-bg); color: var(--proto-fg); border-radius: 999px; padding: 6px; box-shadow: 0 8px 28px rgb(0 0 0 / .28); font-size: 14px; }
+.protobar button { background: transparent; border: 0; color: var(--proto-fg); border-radius: 999px; padding: 6px 12px; min-height: 36px; }
+.protobar button:hover { background: rgb(127 127 127 / .22); }
+.protobar .lbl { padding: 0 8px; white-space: nowrap; }
+.protobar .lbl small { color: var(--proto-muted); }
+.protobar .menu-btn { display: none; }
+
+@media (max-width: 760px) {
+  .stage { padding: 0; display: block; height: 100%; }
+  .side { display: none; }
+  .phone, .phone.wide { width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; padding-top: 44px; }
+  .protobar { top: 0; bottom: auto; left: 0; right: 0; transform: none; border-radius: 0; justify-content: space-between; padding: 4px 8px; box-shadow: none; font-size: 13px; height: 44px; }
+  .protobar .menu-btn { display: inline-block; }
+}
+.drawer.side { max-height: none; }
+.drawer { position: fixed; inset: 44px 0 0 0; z-index: 49; background: var(--bg); padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ---------- app chrome ---------- */
+.scr { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); min-height: 58px; }
+.topbar .title { flex: 1; min-width: 0; font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar .back { border: 0; background: var(--surface-2); border-radius: 12px; min-width: 44px; height: 44px; font-size: 22px; line-height: 1; }
+.leadbtn { position: relative; border: 1.5px solid var(--ink); background: var(--surface); border-radius: 12px; height: 44px; padding: 0 14px; font-weight: 700; }
+.leadbtn .count { position: absolute; top: -8px; right: -8px; background: var(--bad); color: #fff; border-radius: 999px; min-width: 22px; height: 22px; font-size: 13px; display: grid; place-items: center; padding: 0 5px; }
+.who { font-size: 13px; color: var(--muted); }
+.updated { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.updated button { border: 0; background: none; color: var(--accent); font-size: 13px; padding: 4px 0; }
+
+.btn { border: 0; border-radius: var(--r); min-height: 56px; padding: 0 18px; font-weight: 700; font-size: 18px; background: var(--surface-2); color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.warn { background: var(--warn-bg); color: var(--warn); border: 2px solid var(--warn-line); }
+.btn.danger { background: var(--bad-bg); color: var(--bad); }
+.btn.ghost { background: transparent; border: 1.5px dashed var(--line); color: var(--muted); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; gap: 10px; align-items: center; }
+.row > .btn { flex: 1; }
+.label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+.racehead { background: var(--surface); border-radius: var(--r); padding: 14px 16px; border: 2px solid var(--ink); display: flex; flex-direction: column; gap: 2px; }
+.racehead .ev { font-family: var(--font-num); font-weight: 700; font-size: 28px; line-height: 1.05; }
+.racehead .ev .code { color: var(--muted); font-weight: 600; }
+.racehead .meta { color: var(--muted); font-size: 15px; }
+.racehead.locked { border-color: var(--line); background: var(--surface-2); }
+.lock { background: var(--surface-2); border: 1.5px solid var(--line); border-radius: var(--r); padding: 14px; font-weight: 700; display: flex; gap: 10px; align-items: center; }
+.alert { border-radius: var(--r); padding: 12px 14px; font-weight: 700; }
+.alert.warn { background: var(--warn-bg); color: var(--warn); border: 1.5px solid var(--warn-line); }
+.alert.bad { background: var(--bad-bg); color: var(--bad); }
+.alert.ok { background: var(--ok-bg); color: var(--ok); }
+.list { display: flex; flex-direction: column; gap: 8px; }
+.listbtn { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px; min-height: 52px; }
+.listbtn .sub { color: var(--muted); font-size: 14px; }
+.listbtn .chev { color: var(--muted); font-size: 20px; }
+.pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 9px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+.pill.grey { background: var(--surface-2); color: var(--grey-flag); }
+.toast { position: absolute; left: 16px; right: 16px; bottom: 20px; z-index: 30; background: var(--ink); color: var(--surface); border-radius: 12px; padding: 14px 16px; font-weight: 700; text-align: center; box-shadow: 0 6px 20px rgb(0 0 0 / .25); }
+.toast.bad { background: var(--bad); color: #fff; }
+
+/* sheet */
+.sheet-bg { position: absolute; inset: 0; background: rgb(10 14 24 / .5); z-index: 20; display: flex; align-items: flex-end; }
+.sheet { background: var(--surface); width: 100%; border-radius: 22px 22px 0 0; padding: 18px 16px 22px; display: flex; flex-direction: column; gap: 12px; max-height: 88%; overflow-y: auto; }
+.sheet h3 { margin: 0; font-size: 20px; text-wrap: balance; }
+.sheet p { margin: 0; color: var(--muted); }
+.phone.wide .sheet-bg { align-items: center; justify-content: center; }
+.phone.wide .sheet { max-width: 520px; border-radius: 18px; }
+
+/* number keypad */
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keypad button { min-height: 58px; border: 0; border-radius: 12px; background: var(--surface); font-family: var(--font-num); font-weight: 600; font-size: 30px; box-shadow: inset 0 0 0 1px var(--line); }
+.keypad button.fn { font-family: var(--font-body); font-size: 16px; font-weight: 700; background: var(--surface-2); }
+.keypad button.go { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.display { font-family: var(--font-num); font-weight: 700; font-size: 52px; line-height: 1; text-align: center; padding: 10px; border-radius: var(--r); background: var(--surface); border: 2px solid var(--ink); min-height: 76px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.display.empty { color: var(--muted); font-size: 22px; font-family: var(--font-body); font-weight: 400; }
+.display.warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
+
+/* runner chips (start line) */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; background: var(--surface); border: 1.5px solid var(--line); padding: 6px 6px 6px 12px; }
+.chip .n { font-family: var(--font-num); font-weight: 700; font-size: 26px; }
+.chip.warn { border-color: var(--warn-line); background: var(--warn-bg); }
+.chip.absent .n { text-decoration: line-through; color: var(--muted); }
+.chip button { border: 0; background: var(--surface-2); border-radius: 8px; width: 34px; height: 34px; font-size: 18px; }
+.slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.slot { height: 10px; border-radius: 4px; background: var(--line); }
+.slot.on { background: var(--accent); }
+
+/* finish order */
+.numgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.bignum { min-height: 76px; border-radius: var(--r); border: 2px solid var(--ink); background: var(--surface); font-family: var(--font-num); font-weight: 700; font-size: 38px; }
+.bignum.huge { min-height: 104px; font-size: 52px; }
+.placed { display: flex; flex-direction: column; gap: 6px; }
+.prow { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 6px 10px; }
+.prow .pl { font-family: var(--font-num); font-weight: 700; font-size: 20px; width: 42px; color: var(--accent); }
+.prow .n { font-family: var(--font-num); font-weight: 700; font-size: 30px; flex: 1; }
+.prow .ic { border: 0; background: var(--surface-2); border-radius: 10px; width: 44px; height: 44px; font-size: 18px; }
+.prow.empty { border-style: dashed; color: var(--muted); min-height: 58px; }
+.prow.empty .n { font-family: var(--font-body); font-size: 15px; font-weight: 400; }
+
+/* times */
+.trow { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+.trow .pl { font-family: var(--font-num); font-weight: 700; font-size: 22px; color: var(--accent); }
+.trow input { width: 100%; border: 2px solid var(--line); border-radius: 10px; height: 52px; padding: 0 12px; font-family: var(--font-num); font-size: 28px; font-weight: 600; background: var(--surface-2); }
+.trow input::placeholder { font-family: var(--font-body); font-size: 15px; font-weight: 400; color: var(--muted); }
+.trow .fmt { font-family: var(--font-num); font-weight: 700; font-size: 26px; min-width: 76px; text-align: right; }
+.trow.nf { background: var(--surface-2); color: var(--muted); }
+.trow.nf .nfl { font-weight: 700; }
+.trow.warn { border-color: var(--warn-line); background: var(--warn-bg); }
+.trow.cur { border: 2px solid var(--accent); }
+.trow .tval { font-family: var(--font-num); font-weight: 700; font-size: 30px; }
+
+/* variant B: tabs + strip */
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabs button { border: 0; background: none; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 700; color: var(--muted); position: relative; }
+.tabs button .ico { font-size: 22px; line-height: 1; }
+.tabs button[aria-current="true"] { color: var(--accent); }
+.tabs button[aria-current="true"]::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; background: var(--accent); border-radius: 0 0 3px 3px; }
+.tabs .badge { position: absolute; top: 6px; right: calc(50% - 26px); background: var(--bad); color: #fff; border-radius: 999px; font-size: 11px; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; }
+.strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.strip button { flex: none; border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 12px; padding: 6px 12px; text-align: left; min-width: 116px; }
+.strip button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.strip button b { display: block; font-family: var(--font-num); font-size: 19px; }
+.strip button small { color: var(--muted); font-size: 12px; }
+.tlist { display: flex; flex-direction: column; gap: 6px; }
+.dock { background: var(--surface-2); border-top: 1px solid var(--line); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.dock .keypad button { min-height: 50px; font-size: 26px; }
+.dock .btn:not(.primary) { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.brow { display: flex; align-items: center; gap: 10px; border-radius: var(--r); border: 2px solid var(--ink); background: var(--surface); padding: 8px 10px; min-height: 66px; text-align: left; width: 100%; }
+.brow .badge-pl { width: 52px; height: 48px; border-radius: 10px; display: grid; place-items: center; font-family: var(--font-num); font-weight: 700; font-size: 22px; background: var(--surface-2); color: var(--muted); }
+.brow.on .badge-pl { background: var(--accent); color: var(--accent-ink); }
+.brow .n { font-family: var(--font-num); font-weight: 700; font-size: 34px; flex: 1; }
+.brow.on { border-color: var(--accent); }
+
+/* variant C: wizard */
+.q { font-family: var(--font-num); font-weight: 700; font-size: 40px; line-height: 1.05; margin: 0; text-wrap: balance; }
+.q small { display: block; font-family: var(--font-body); font-weight: 400; font-size: 16px; color: var(--muted); margin-top: 4px; }
+.trail { display: flex; flex-wrap: wrap; gap: 6px; }
+.trail button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 4px 10px; font-size: 14px; }
+.trail button b { font-family: var(--font-num); font-size: 20px; }
+.homeC { display: flex; flex-direction: column; gap: 12px; }
+.homeC .job { min-height: 112px; border-radius: 20px; border: 2px solid var(--ink); background: var(--surface); text-align: left; padding: 16px 18px; display: flex; flex-direction: column; justify-content: center; }
+.homeC .job b { font-family: var(--font-num); font-size: 36px; line-height: 1; }
+.homeC .job span { color: var(--muted); }
+
+/* variant A: tiles */
+.tiles { display: flex; flex-direction: column; gap: 12px; }
+.tile { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; border-radius: 18px; border: 0; background: var(--accent); color: var(--accent-ink); text-align: left; padding: 18px; min-height: 104px; }
+.tile b { font-size: 24px; }
+.tile span { opacity: .85; font-size: 15px; }
+.tile .cnt { grid-row: span 2; font-family: var(--font-num); font-weight: 700; font-size: 44px; line-height: 1; text-align: right; }
+.tile .cnt small { display: block; font-family: var(--font-body); font-size: 12px; font-weight: 400; }
+
+/* join */
+.join { padding: 28px 20px; display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; }
+.join .brand { font-family: var(--font-num); font-weight: 700; font-size: 44px; line-height: 1; }
+.join .brand span { display: block; font-size: 18px; color: var(--muted); font-family: var(--font-body); font-weight: 400; margin-top: 6px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field input { height: 58px; border-radius: var(--r); border: 2px solid var(--line); background: var(--surface); padding: 0 16px; font-size: 20px; }
+.field input.code { font-family: var(--font-num); font-size: 34px; letter-spacing: .3em; font-weight: 700; }
+.field .err { color: var(--bad); font-weight: 700; font-size: 15px; }
+.lane { height: 6px; background: repeating-linear-gradient(90deg, var(--line) 0 28px, transparent 28px 40px); border-radius: 3px; }
+
+/* lead area */
+.ltabs { display: flex; gap: 4px; padding: 8px 12px 0; background: var(--surface); border-bottom: 1px solid var(--line); overflow-x: auto; }
+.ltabs button { border: 0; background: none; padding: 10px 14px 12px; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; }
+.ltabs button[aria-current="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.ltabs .count { background: var(--bad); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 13px; margin-left: 6px; }
+.need { display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px 12px 0; overflow: hidden; }
+.need .stripe { align-self: stretch; margin: -12px 0; }
+.need .stripe.bad { background: var(--bad); }
+.need .stripe.warn { background: var(--warn-line); }
+.need .stripe.info { background: var(--accent); }
+.need b { display: block; }
+.need .sub { color: var(--muted); font-size: 14px; }
+.need time { color: var(--muted); font-size: 13px; font-family: var(--font-num); font-size: 16px; }
+.evgroup { display: flex; flex-direction: column; gap: 6px; }
+.evrow { display: grid; grid-template-columns: 46px 1fr auto; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 12px; }
+.evrow .code { font-family: var(--font-num); font-weight: 700; font-size: 20px; color: var(--muted); }
+.evrow .st { font-size: 14px; color: var(--muted); }
+.evrow .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; color: var(--muted); }
+.lbwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table.lb { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.lb th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.lb td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+table.lb td.flags { white-space: normal; }
+table.lb td .flagset { display: flex; flex-wrap: wrap; gap: 4px; }
+table.lb tr.hl td { background: var(--hl); }
+table.lb tr.medal td { background: var(--medal); }
+table.lb tr.line td { border-bottom: 3px solid var(--ink); }
+table.lb tr.hlline td { border-bottom: 2px dashed var(--muted); }
+table.lb tr.out td { color: var(--muted); }
+table.lb tr.out td.struck { text-decoration: line-through; }
+table.lb tr.tap { cursor: pointer; }
+table.lb tr.tap:hover td { filter: brightness(.97); }
+table.lb .big { font-family: var(--font-num); font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; }
+.legend { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.notranked { border: 1.5px dashed var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.notranked button { border: 0; background: none; padding: 4px 0; text-align: left; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; }
+.notes { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.notes div { border-left: 3px solid var(--line); padding-left: 10px; }
+.notes time { font-family: var(--font-num); font-weight: 700; font-size: 16px; margin-right: 6px; }
+.checks { display: flex; flex-direction: column; gap: 10px; }
+.checkgrp { border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.checkgrp.bad { background: var(--bad-bg); }
+.checkgrp.warn { background: var(--warn-bg); }
+.checkgrp.ok { background: var(--surface-2); }
+.checkgrp h4 { margin: 0; font-size: 15px; }
+.checkgrp.bad h4 { color: var(--bad); }
+.checkgrp.warn h4 { color: var(--warn); }
+.checkgrp ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.codebig { font-family: var(--font-num); font-weight: 700; font-size: 48px; letter-spacing: .12em; line-height: 1; }
+.phones { display: flex; flex-direction: column; gap: 6px; }
+.phones div { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); flex-wrap: wrap; }
+.phones div b { flex: 1; min-width: 80px; }
+.phones button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+.lgrid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 761px) { .phone.wide .lgrid.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.segs { display: flex; gap: 6px; flex-wrap: wrap; }
+.segs button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; font-weight: 700; text-align: left; }
+.segs button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.tinput { height: 48px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); padding: 0 12px; width: 100%; }
+</style>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+const { useState, useEffect, useRef } = React;
+const html = htm.bind(React.createElement);
+
+/* ======================================================================
+   Domain data (from MSF's scoring workbook template and the map's decisions)
+   ====================================================================== */
+const DAY_CODE = "4821";
+const LEAD_CODE = "K7P2QX";
+const OWNER_PASSWORD = "msf-owner";
+
+const SECTION_RANGES = {
+  "Boy Beavers": [1, 999], "Girl Beavers": [1, 999],
+  "Boy Cubs": [1000, 1999], "Girl Cubs": [2000, 2999],
+  "Boy Scouts": [3000, 3999], "Girl Scouts": [4000, 4999],
+};
+const SECTIONS = ["Boy Beavers", "Girl Beavers", "Boy Cubs", "Girl Cubs", "Boy Scouts", "Girl Scouts"];
+function sectionOf(n) {
+  if (n >= 1 && n <= 999) return "Beavers";
+  for (const s of ["Boy Cubs", "Girl Cubs", "Boy Scouts", "Girl Scouts"]) { const [a, b] = SECTION_RANGES[s]; if (n >= a && n <= b) return s; }
+  return null;
+}
+function mkEvents() {
+  const ev = []; let i = 1;
+  for (const name of ["60m", "60m Hurdles", "200m"]) for (const s of SECTIONS) ev.push({ code: "R" + i++, name, section: s });
+  ev.push({ code: "R23", name: "400m", section: "Boy Scouts" }, { code: "R24", name: "400m", section: "Girl Scouts" });
+  return ev.map(e => ({ ...e, format: e.name === "60m" ? "heats" : "timed", stage: "open", dq: {}, warnChecked: {}, ties: {}, notes: [], notCounted: {} }));
+}
+
+/* clock: the sample day starts at 10:50 and ticks in real seconds */
+const T0 = Date.now(); const START = 10 * 3600 + 50 * 60;
+function nowSecs() { return START + Math.floor((Date.now() - T0) / 1000); }
+function hhmm(s) { const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return `${h}:${String(m).padStart(2, "0")}`; }
+function hhmmss(s) { return hhmm(s) + ":" + String(s % 60).padStart(2, "0"); }
+const at = (h, m) => h * 3600 + m * 60;
+
+/* times are stored in hundredths; null = No finisher */
+function digitsToHund(d) { if (!d) return null; const n = d.replace(/^0+/, "") || "0"; const hh = +n.slice(-2); const ss = +(n.slice(-4, -2) || 0); const mm = +(n.slice(0, -4) || 0); return mm * 6000 + ss * 100 + hh; }
+function fmtHund(h) { if (h == null) return ""; const mm = Math.floor(h / 6000), ss = Math.floor(h / 100) % 60, hh = h % 100; return mm ? `${mm}:${String(ss).padStart(2, "0")}.${String(hh).padStart(2, "0")}` : `${ss}.${String(hh).padStart(2, "0")}`; }
+function fmtDigits(d) { return d ? fmtHund(digitsToHund(d)) : ""; }
+function hundToDigits(h) { if (h == null) return ""; const mm = Math.floor(h / 6000), ss = Math.floor(h / 100) % 60, hh = h % 100; return (mm ? String(mm) + String(ss).padStart(2, "0") : String(ss)) + String(hh).padStart(2, "0"); }
+const ord = n => n + (["th", "st", "nd", "rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : (n % 10 < 4 ? n % 10 : 0)] || "th");
+
+/* ---------------------------- sample day ---------------------------- */
+let RID = 1;
+function mkRace(event, kind, n, nums, t, extra = {}) {
+  return { id: RID++, event, kind, n, runners: nums.map(x => typeof x === "number" ? { num: x } : x), checkedInAt: t, order: null, unplaced: {}, removed: [], times: null, timesSavedAt: null, orderSavedAt: null, deleted: null, clash: null, outOfOrder: false, ...extra };
+}
+function seed() {
+  RID = 1;
+  const events = mkEvents();
+  const E = c => events.find(e => e.code === c);
+  const races = [];
+  // R4 60m Girl Cubs: three heats recorded, two waiting
+  races.push(mkRace("R4", "heat", 1, [2011, 2034, 2050, 2078, 2102, 2140], at(10, 12), { order: [2011, 2034, 2050, 2078, 2102, 2140], times: [962, 987, 1005, 1031, 1044, 1090], orderSavedAt: at(10, 14), timesSavedAt: at(10, 16) }));
+  races.push(mkRace("R4", "heat", 2, [2003, 2066, { num: 3045, warning: "wrong" }, 2119, 2121, 2155], at(10, 20), { order: [2066, 2003, 2119, 3045, 2155, 2121], times: [935, 958, 1002, 1020, 1077, 1112], orderSavedAt: at(10, 22), timesSavedAt: at(10, 24) }));
+  races.push(mkRace("R4", "heat", 3, [2008, 2045, 2093, 2130, { num: 2077, addedAtFinish: true }], at(10, 31), { order: [2045, 2093, 2008, 2130, 2077], times: [944, 987, 1013, 1056, 1140], orderSavedAt: at(10, 33), timesSavedAt: at(10, 35) }));
+  races.push(mkRace("R4", "heat", 4, [2015, 2027, 2061, 2088, 2111, 2149], at(10, 42)));
+  races.push(mkRace("R4", "heat", 5, [2004, 2039, 2072, 2124], at(10, 47)));
+  E("R4").notes.push({ t: at(10, 34), who: "Aisha", text: "disqualified 2140 (Heat 1): Two false starts" });
+  E("R4").dq["1:2140"] = "Two false starts";
+  // R3 60m Boy Cubs: heats complete, final waiting at the start line
+  races.push(mkRace("R3", "heat", 1, [1012, 1023, 1047, 1088, 1101, 1135], at(10, 2), { order: [1023, 1088, 1012, 1135, 1047, 1101], times: [901, 925, 948, 977, 990, 1024], orderSavedAt: at(10, 4), timesSavedAt: at(10, 6) }));
+  races.push(mkRace("R3", "heat", 2, [1005, 1031, 1066, 1092, 1110], at(10, 36), { order: [1066, 1005, 1110, 1031, 1092], times: [912, 939, 961, 1003, 1048], orderSavedAt: at(10, 37), timesSavedAt: at(10, 38) }));
+  races.push(mkRace("R3", "final", 1, [1023, 1066, 1088, 1005, 1012, 1110], at(10, 39), { atStart: true }));
+  E("R3").stage = "heats_complete";
+  E("R3").notes.push({ t: at(10, 39), who: "Aisha", text: "marked heats complete; final created with 1023, 1066, 1088, 1005, 1012, 1110" });
+  // R16 200m Girl Cubs (timed)
+  races.push(mkRace("R16", "race", 1, [2016, 2052, 2083, 2117, 2160, 2171], at(10, 5), { order: [2052, 2016, 2117, 2171, 2083, 2160], times: [3105, 3188, 3240, 3302, 3391, 3477], orderSavedAt: at(10, 8), timesSavedAt: at(10, 10) }));
+  races.push(mkRace("R16", "race", 2, [2021, 2048, 2069, 2104, 2133, 2158], at(10, 25), { order: [2048, 2104, 2021, 2158, 2069, 2133], times: [3150, 3201, 3266, 3340, 3412, null], orderSavedAt: at(10, 28), timesSavedAt: at(10, 29) }));
+  races.push(mkRace("R16", "race", 3, [2010, 2036, 2097, 2142], at(10, 38), { order: [2097, 2010, 2142, 2036], orderSavedAt: at(10, 41), clash: { part: "Finish order", a: { who: "Yusuf", order: [2097, 2010, 2142, 2036] }, b: { who: "Maryam", order: [2097, 2142, 2010, 2036] } } }));
+  // R13 200m Boy Beavers (timed): a time kept out of order, and one waiting for times
+  races.push(mkRace("R13", "race", 1, [12, 37, 58, 104, 233], at(10, 15), { order: [37, 104, 12, 233, 58], times: [3410, 3388, 3521, 3650, 3802], outOfOrder: true, orderSavedAt: at(10, 18), timesSavedAt: at(10, 19) }));
+  races.push(mkRace("R13", "race", 2, [5, 66, 141, 207, 318, 402], at(10, 44), { order: [141, 5, 402, 66, 318, 207], orderSavedAt: at(10, 46) }));
+  return {
+    events, races,
+    phones: [
+      { name: "Aisha", level: "scoring" }, { name: "Ahmed", level: "volunteer" }, { name: "Yusuf", level: "volunteer" },
+      { name: "Maryam", level: "lead" }, { name: "Bilal", level: "volunteer" },
+    ],
+    dayCode: DAY_CODE, leadCode: LEAD_CODE,
+  };
+}
+
+/* ---------------------------- race helpers ---------------------------- */
+const evOf = (st, r) => st.events.find(e => e.code === r.event);
+const live = st => st.races.filter(r => !r.deleted);
+function raceName(st, r) { const e = evOf(st, r); return `${e.name} ${e.section}`; }
+function raceLabel(r) { return r.kind === "final" ? "Final" : r.kind === "heat" ? `Heat ${r.n}` : `Race ${r.n}`; }
+function isLocked(st, r) { const e = evOf(st, r); if (e.stage === "complete") return true; if (e.stage === "heats_complete" && r.kind === "heat") return true; return false; }
+const nonNull = t => (t || []).filter(x => x != null).length;
+const mismatch = r => !!(r.order && r.times && r.order.length !== nonNull(r.times));
+function outOfOrder(times) { let last = -1; for (let i = 0; i < times.length; i++) { const t = times[i]; if (t == null) continue; if (t < last) return i; last = t; } return -1; }
+function fullyRecorded(r) { if (r.clash) return false; if (r.kind === "final") return !!r.order; return !!(r.order && r.times && !mismatch(r) && !r.outOfOrder); }
+function waitReason(r) {
+  if (r.clash) return "two versions, lead to check";
+  if (!r.order && !r.times) return "checked in";
+  if (r.kind !== "final" && r.order && !r.times) return "awaiting times";
+  if (!r.order) return "awaiting finish order";
+  if (mismatch(r)) return "finishers and times don't agree";
+  if (r.outOfOrder) return "times out of order";
+  return "";
+}
+function waitingFor(st, job) {
+  const rs = live(st).filter(r => !isLocked(st, r) && r.runners.length && !r.atStart);
+  if (job === "finish") return rs.filter(r => !r.order).sort((a, b) => a.checkedInAt - b.checkedInAt);
+  if (job === "times") {
+    const w = rs.filter(r => r.kind !== "final" && (!r.times || mismatch(r)));
+    return w.sort((a, b) => (mismatch(b) - mismatch(a)) || (a.checkedInAt - b.checkedInAt));
+  }
+  return [];
+}
+function recentFor(st, job) {
+  const key = job === "finish" ? "orderSavedAt" : "timesSavedAt";
+  return live(st).filter(r => r[key] && !(job === "times" && mismatch(r))).sort((a, b) => b[key] - a[key]).slice(0, 4);
+}
+/* wristband checks: the same everywhere a number is typed */
+function checkNumber(st, race, n, list) {
+  if (list.some(x => x.num === n)) return { refuse: `${n} is already in this race` };
+  if (list.length >= 6) return { refuse: "This race already has 6 runners. Put this child in the next race." };
+  const e = evOf(st, race);
+  const sec = sectionOf(n);
+  if (!sec) return { warning: "unknown", msg: `No section uses ${n}` };
+  const ok = sec === "Beavers" ? e.section.endsWith("Beavers") : sec === e.section;
+  if (!ok) return { warning: "wrong", msg: `${n} is a ${sec} number, not ${e.section}` };
+  const other = live(st).find(r => r.event === race.event && r.id !== race.id && r.runners.some(x => x.num === n));
+  if (other) return { warning: "ran", msg: `${n} already ran in this event (${raceLabel(other)})` };
+  return {};
+}
+const WARN_TEXT = { unknown: "Unknown number", wrong: "Wrong section", ran: "Already ran" };
+
+/* ---------------------------- ranking ---------------------------- */
+function rankEvent(st, code) {
+  const e = st.events.find(x => x.code === code);
+  const rs = live(st).filter(r => r.event === code);
+  const heats = rs.filter(r => r.kind !== "final");
+  const final = rs.find(r => r.kind === "final");
+  const recorded = heats.filter(fullyRecorded);
+  const notRanked = rs.filter(r => !fullyRecorded(r) && !(r.kind === "final" && !r.order));
+  const finalPending = final && !final.order ? final : null;
+  let entries = [], out = [];
+  for (const r of recorded) {
+    r.order.forEach((num, i) => {
+      const runner = r.runners.find(x => x.num === num) || { num };
+      const key = `${r.id}:${num}`;
+      const en = { key, num, time: r.times[i], race: r, place: i + 1, warning: runner.warning, warnKey: key, checked: !!e.warnChecked[key], addedAtFinish: runner.addedAtFinish };
+      if (e.dq[key]) out.push({ ...en, status: "dq", reason: e.dq[key] });
+      else if (e.notCounted[key]) out.push({ ...en, status: "nc" });
+      else entries.push(en);
+    });
+    Object.entries(r.unplaced).forEach(([num, how]) => { if (how === "dnf") out.push({ key: `${r.id}:${num}`, num: +num, time: null, race: r, status: "dnf" }); });
+  }
+  const hlN = e.format === "heats" ? 8 : 6;
+  entries.sort((a, b) => a.time - b.time || a.race.n - b.race.n);
+  // ties: equal times from different races, settled order applied
+  const groups = {};
+  entries.forEach(en => { (groups[en.time] = groups[en.time] || []).push(en); });
+  for (const [t, g] of Object.entries(groups)) {
+    if (g.length < 2 || new Set(g.map(x => x.race.id)).size < 2) continue;
+    const settled = e.ties[t];
+    g.forEach(x => { x.tie = settled ? "settled" : "open"; x.tieTime = +t; });
+    if (settled && settled.order) g.sort((a, b) => settled.order.indexOf(a.num) - settled.order.indexOf(b.num));
+  }
+  // rebuild order with settled ties
+  const sorted = []; const seen = new Set();
+  entries.forEach(en => { if (seen.has(en.time)) return; seen.add(en.time); sorted.push(...groups[en.time]); });
+  entries = sorted;
+  entries.forEach((en, i) => { en.pos = i + 1; en.highlighted = i < hlN; if (en.tie === "open" && !en.highlighted) en.tie = null; });
+  // a tie with any member in the highlighted places is flagged for every member
+  const openTieTimes = new Set(entries.filter(x => x.tie === "open" && x.highlighted).map(x => x.time));
+  entries.forEach(en => { if (en.tie === "open" && !openTieTimes.has(en.time)) en.tie = null; if (openTieTimes.has(en.time)) en.tie = "open"; });
+  // ran twice
+  const count = {}; entries.forEach(en => { count[en.num] = (count[en.num] || 0) + 1; });
+  entries.forEach(en => { if (count[en.num] > 1) en.ranTwice = true; });
+  // final
+  let finalRows = null;
+  if (final && final.order) finalRows = final.order.map((num, i) => { const key = `${final.id}:${num}`; return { key, num, pos: i + 1, race: final, status: e.dq[key] ? "dq" : null, reason: e.dq[key] }; });
+  return { e, entries, out, notRanked, hlN, final, finalPending, finalRows, heats, openTies: [...openTieTimes] };
+}
+function needsYou(st) {
+  const items = [];
+  for (const r of live(st)) {
+    const nm = `${raceName(st, r)} (${r.event}) · ${raceLabel(r)}`;
+    if (r.clash) items.push({ kind: "bad", title: `Two versions of the ${r.clash.part.toLowerCase()}`, sub: nm, t: r.orderSavedAt || r.checkedInAt, race: r.id, event: r.event });
+    if (r.outOfOrder) items.push({ kind: "bad", title: "Times out of order - check the recording", sub: nm, t: r.timesSavedAt, race: r.id, event: r.event });
+    if (mismatch(r)) items.push({ kind: "bad", title: `Finish order has ${r.order.length} finishers, times have ${nonNull(r.times)}`, sub: nm, t: r.timesSavedAt, race: r.id, event: r.event });
+    r.runners.forEach(x => {
+      const e = evOf(st, r); const key = `${r.id}:${x.num}`;
+      if (x.warning && !e.warnChecked[key] && !e.dq[key]) items.push({ kind: "warn", title: `${x.num}: ${WARN_TEXT[x.warning]}`, sub: nm, t: r.checkedInAt, race: r.id, event: r.event });
+      if (x.addedAtFinish && !x.seen) items.push({ kind: "info", title: `${x.num} added at the finish`, sub: nm, t: r.orderSavedAt || r.checkedInAt, race: r.id, event: r.event, seenKey: [r.id, x.num] });
+    });
+  }
+  for (const e of st.events) {
+    const rk = rankEvent(st, e.code);
+    rk.openTies.forEach(t => {
+      const who = rk.entries.filter(x => x.time === t).map(x => x.num).join(" and ");
+      items.push({ kind: "bad", title: `Tie in the highlighted places: ${who} (${fmtHund(t)})`, sub: `${e.name} ${e.section} (${e.code})`, t: nowSecs() - 300, event: e.code });
+    });
+    if (rk.entries.some(x => x.ranTwice && x.highlighted)) items.push({ kind: "bad", title: "A runner ran twice", sub: `${e.name} ${e.section} (${e.code})`, t: nowSecs() - 200, event: e.code });
+  }
+  return items.sort((a, b) => b.t - a.t);
+}
+function eventStatus(st, e) {
+  const rs = live(st).filter(r => r.event === e.code);
+  if (e.stage === "complete") return { text: "Complete", tone: "ok" };
+  if (e.stage === "heats_complete") return { text: "Heats complete - final to run", tone: "info" };
+  if (!rs.length) return { text: "Not started", tone: "grey" };
+  return { text: `In progress - provisional (${rs.length} race${rs.length > 1 ? "s" : ""})`, tone: "warn" };
+}
+
+/* ======================================================================
+   Shared pieces
+   ====================================================================== */
+function Keypad({ onDigit, onBack, extra, go, goLabel = "Add", goDisabled }) {
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+  return html`<div className="keypad">
+    ${keys.map(k => html`<button key=${k} onClick=${() => onDigit(k)}>${k}</button>`)}
+    ${extra || html`<button className="fn" onClick=${onBack} aria-label="Delete">⌫</button>`}
+    <button onClick=${() => onDigit("0")}>0</button>
+    ${go ? html`<button className="fn go" disabled=${goDisabled} onClick=${go}>${goLabel}</button>` : html`<button className="fn" onClick=${onBack} aria-label="Delete">⌫</button>`}
+  </div>`;
+}
+function Sheet({ children, onClose }) {
+  return html`<div className="sheet-bg" onClick=${e => { if (e.target === e.currentTarget && onClose) onClose(); }}><div className="sheet" role="dialog">${children}</div></div>`;
+}
+function RaceHead({ st, r, extra }) {
+  const locked = isLocked(st, r);
+  const n = r.runners.length;
+  return html`<div className=${"racehead" + (locked ? " locked" : "")}>
+    <div className="ev">${raceName(st, r)} <span className="code">(${r.event})</span></div>
+    <div className="ev" style=${{ fontSize: 22 }}>${raceLabel(r)}</div>
+    <div className="meta">${n} runner${n === 1 ? "" : "s"} · checked in <span className="num" style=${{ fontSize: 18 }}>${hhmm(r.checkedInAt)}</span>${extra ? " · " + extra : ""}</div>
+  </div>`;
+}
+function Locked() { return html`<div className="lock"><span aria-hidden="true">🔒</span> Stage complete - ask a lead</div>`; }
+function Updated({ onRefresh }) {
+  return html`<div className="updated"><span>Updated at <span className="num" style=${{ fontSize: 14 }}>${hhmmss(nowSecs())}</span></span><button onClick=${onRefresh}>Refresh</button></div>`;
+}
+function WarnSheet({ w, onFix, onKeep }) {
+  return html`<${Sheet}>
+    <div className="display warn">${w.num}</div>
+    <h3>${w.msg}</h3>
+    <p>Check the wristband. If the number is right, keep it and the child can run. A lead checks it later.</p>
+    <div className="row"><button className="btn block" onClick=${onFix}>Fix number</button><button className="btn warn block" onClick=${onKeep}>Keep</button></div>
+  <//>`;
+}
+function RaceLists({ st, job, current, onPick }) {
+  const waiting = waitingFor(st, job).filter(r => !current || r.id !== current.id);
+  const recent = recentFor(st, job).filter(r => !current || r.id !== current.id);
+  const item = (r, sub) => html`<button key=${r.id} className="listbtn" onClick=${() => onPick(r.id)}>
+    <span><b>${raceName(st, r)} (${r.event}) · ${raceLabel(r)}</b><br/><span className="sub">${sub}</span></span><span className="chev">›</span></button>`;
+  return html`<div className="list">
+    ${waiting.length ? html`<div className="label">Also waiting</div>` : null}
+    ${waiting.map(r => item(r, `${r.runners.length} runners · checked in ${hhmm(r.checkedInAt)}${mismatch(r) ? " · counts don't agree" : ""}`))}
+    ${recent.length ? html`<div className="label" style=${{ marginTop: 6 }}>Recent races</div>` : null}
+    ${recent.map(r => item(r, isLocked(st, r) ? "Stage complete - ask a lead" : `Saved at ${hhmm(job === "finish" ? r.orderSavedAt : r.timesSavedAt)} · tap to correct`))}
+  </div>`;
+}
+/* save with a short "Saving" beat, like a real server round-trip */
+function useSaver(toast) {
+  return (fn, msg = "Saved") => { toast("Saving…"); setTimeout(() => { fn(); toast(msg); }, 450); };
+}
+
+/* ---------- finish order logic shared by the three variants ---------- */
+function useFinishOrder(r) {
+  const [placed, setPlaced] = useState(r ? (r.order || []) : []);
+  const [extra, setExtra] = useState([]); // runners added at the finish in this session
+  useEffect(() => { setPlaced(r ? (r.order || []) : []); setExtra([]); }, [r && r.id]);
+  const all = r ? [...r.runners.map(x => x.num), ...extra.map(x => x.num)] : [];
+  const unplaced = all.filter(n => !placed.includes(n));
+  const tap = n => setPlaced(p => p.includes(n) ? p.filter(x => x !== n) : [...p, n]);
+  const move = (i, d) => setPlaced(p => { const a = [...p]; const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a; });
+  return { placed, setPlaced, unplaced, tap, move, all, extra, setExtra };
+}
+function saveFinish(st, r, fo, how) {
+  const race = st.races.find(x => x.id === r.id);
+  fo.extra.forEach(x => race.runners.push({ ...x, addedAtFinish: true }));
+  race.order = [...fo.placed];
+  race.unplaced = {};
+  for (const n of fo.unplaced) {
+    if (how[n] === "didnt") { race.runners = race.runners.filter(x => x.num !== n); race.removed.push(n); }
+    else race.unplaced[n] = "dnf";
+  }
+  race.orderSavedAt = nowSecs();
+  race.clash = null;
+}
+function AddRunnerSheet({ st, r, list, onAdd, onClose }) {
+  const [d, setD] = useState("");
+  const [w, setW] = useState(null);
+  const [refuse, setRefuse] = useState("");
+  const add = () => {
+    const n = +d; if (!n) return;
+    const c = checkNumber(st, r, n, list);
+    if (c.refuse) { setRefuse(c.refuse); return; }
+    if (c.warning) { setW({ num: n, ...c }); return; }
+    onAdd({ num: n });
+  };
+  if (w) return html`<${WarnSheet} w=${w} onFix=${() => { setW(null); setD(""); }} onKeep=${() => onAdd({ num: w.num, warning: w.warning })} />`;
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>Runner not on the list</h3>
+    <p>Type the wristband number. The zone lead is told.</p>
+    <div className=${"display" + (d ? "" : " empty")}>${d || "Wristband number"}</div>
+    ${refuse ? html`<div className="alert bad">${refuse}</div>` : null}
+    <${Keypad} onDigit=${k => { setRefuse(""); setD(x => (x + k).slice(0, 4)); }} onBack=${() => setD(x => x.slice(0, -1))} go=${add} goDisabled=${!d} />
+    <button className="btn block" onClick=${onClose}>Cancel</button>
+  <//>`;
+}
+function UnplacedSheet({ unplaced, onDone, onClose }) {
+  const [how, setHow] = useState({});
+  const done = unplaced.every(n => how[n]);
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>${unplaced.length === 1 ? "1 runner has" : unplaced.length + " runners have"} no place</h3>
+    <p>For each one, what happened?</p>
+    ${unplaced.map(n => html`<div key=${n} className="card" style=${{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="num" style=${{ fontSize: 32, fontWeight: 700 }}>${n}</div>
+      <div className="segs">
+        <button aria-pressed=${how[n] === "dnf"} onClick=${() => setHow(h => ({ ...h, [n]: "dnf" }))}>Did not finish<br/><small style=${{ fontWeight: 400, color: "var(--muted)" }}>Started, didn't cross the line</small></button>
+        <button aria-pressed=${how[n] === "didnt"} onClick=${() => setHow(h => ({ ...h, [n]: "didnt" }))}>Didn't run<br/><small style=${{ fontWeight: 400, color: "var(--muted)" }}>Taken off this race, can run later</small></button>
+      </div></div>`)}
+    <button className="btn primary block" disabled=${!done} onClick=${() => onDone(how)}>Save finish order</button>
+    <button className="btn block" onClick=${onClose}>Back</button>
+  <//>`;
+}
+
+/* ---------- times logic shared by the three variants ---------- */
+function initTimes(r) {
+  const n = r.runners.length;
+  const boxes = Array.from({ length: n }, (_, i) => r.times && i < r.times.length ? (r.times[i] == null ? { nf: true, d: "" } : { d: hundToDigits(r.times[i]) }) : { d: "" });
+  if (!r.times && r.order) for (let i = r.order.length; i < n; i++) boxes[i] = { nf: true, d: "", pre: true };
+  return boxes;
+}
+function useTimes(r) {
+  const [boxes, setBoxes] = useState(r ? initTimes(r) : []);
+  const [kept, setKept] = useState(r && r.outOfOrder ? true : false);
+  useEffect(() => { if (r) { setBoxes(initTimes(r)); setKept(!!r.outOfOrder); } }, [r && r.id]);
+  const vals = boxes.map(b => b.nf ? null : digitsToHund(b.d));
+  const ooo = outOfOrder(vals);
+  const setDigits = (i, d) => setBoxes(bs => bs.map((b, j) => j === i ? { d: d.replace(/\D/g, "").slice(0, 6) } : b));
+  const markNF = () => setBoxes(bs => { const a = [...bs]; for (let i = a.length - 1; i >= 0; i--) if (!a[i].nf) { a[i] = { nf: true, d: "" }; break; } return a; });
+  const unmarkNF = () => setBoxes(bs => { const a = [...bs]; for (let i = 0; i < a.length; i++) if (a[i].nf) { a[i] = { d: "" }; break; } return a; });
+  const filled = boxes.every(b => b.nf || b.d);
+  const finishers = boxes.filter(b => !b.nf).length;
+  return { boxes, setBoxes, vals, ooo, setDigits, markNF, unmarkNF, filled, finishers, kept, setKept };
+}
+function saveTimes(st, r, tm) {
+  const race = st.races.find(x => x.id === r.id);
+  race.times = tm.vals;
+  race.outOfOrder = tm.ooo >= 0;
+  race.timesSavedAt = nowSecs();
+}
+function OooWarn({ tm, i }) {
+  return html`<div className="alert warn" style=${{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <span>${ord(i + 1)} (${fmtHund(tm.vals[i])}) is faster than ${ord(i)}. Check the timer.</span>
+    <div className="row"><button className="btn block" onClick=${() => tm.setDigits(i, "")}>Fix time</button><button className="btn warn block" onClick=${() => tm.setKept(true)}>Keep</button></div>
+  </div>`;
+}
+function MismatchNote({ st, r, tm }) {
+  if (!r.order) return null;
+  if (tm.finishers === r.order.length) return null;
+  return html`<div className="alert bad">Finish order has ${r.order.length} finishers, times have ${tm.finishers} - check the recording</div>`;
+}
+
+/* ---------- start line logic shared by the three variants ---------- */
+function useStartLine(st, r) {
+  const [list, setList] = useState(r ? r.runners.map(x => ({ ...x })) : []);
+  const [d, setD] = useState("");
+  const [w, setW] = useState(null);
+  const [refuse, setRefuse] = useState("");
+  useEffect(() => { setList(r ? r.runners.map(x => ({ ...x })) : []); setD(""); setW(null); setRefuse(""); }, [r && r.id]);
+  const add = (digits) => {
+    const n = +(digits ?? d); if (!n || !r) return;
+    const c = checkNumber(st, r, n, list);
+    if (c.refuse) { setRefuse(c.refuse); return; }
+    if (c.warning) { setW({ num: n, ...c }); return; }
+    setList(l => [...l, { num: n }]); setD(""); setRefuse("");
+  };
+  const keep = () => { setList(l => [...l, { num: w.num, warning: w.warning }]); setW(null); setD(""); };
+  const fix = () => { setW(null); };
+  const remove = n => setList(l => l.filter(x => x.num !== n));
+  const toggleAbsent = n => setList(l => l.map(x => x.num === n ? { ...x, absent: !x.absent } : x));
+  return { list, d, setD, add, w, keep, fix, refuse, setRefuse, remove, toggleAbsent };
+}
+function saveRunners(st, r, sl) {
+  const race = st.races.find(x => x.id === r.id);
+  race.runners = sl.list.filter(x => !x.absent).map(x => ({ num: x.num, warning: x.warning }));
+  race.absent = sl.list.filter(x => x.absent).map(x => x.num);
+  race.atStart = false;
+}
+function newRace(st, code) {
+  const e = st.events.find(x => x.code === code);
+  const n = st.races.filter(r => r.event === code && r.kind !== "final").length + 1;
+  const r = mkRace(code, e.format === "heats" ? "heat" : "race", n, [], nowSecs(), { atStart: true });
+  st.races.push(r);
+  return r.id;
+}
+function canEditRunners(r) { return !r.order; }
+function DeleteSheet({ onPerm, onSoft, onClose }) {
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>Delete this race?</h3>
+    <p>Move it to Deleted races if a lead might want it back. Delete permanently if it was made by mistake.</p>
+    <button className="btn block" onClick=${onSoft}>Move to Deleted races</button>
+    <button className="btn danger block" onClick=${onPerm}>Delete permanently</button>
+    <button className="btn block" onClick=${onClose}>Cancel</button>
+  <//>`;
+}
+function startLineRaces(st) {
+  // still being checked in first, then races checked in whose runners can change until the finish order is saved
+  return live(st).filter(r => !isLocked(st, r) && !r.order).sort((a, b) => (!!b.atStart - !!a.atStart) || (a.checkedInAt - b.checkedInAt));
+}
+function eventsByName(st) {
+  const g = []; st.events.forEach(e => { let x = g.find(y => y.name === e.name); if (!x) g.push(x = { name: e.name, evs: [] }); x.evs.push(e); }); return g;
+}
+
+/* ======================================================================
+   VARIANT A - Job tiles + list screens, the phone's own number keyboard
+   ====================================================================== */
+function A_App(p) {
+  const { st, nav, go } = p;
+  const job = nav.job;
+  if (!job) return html`<${A_Home} ...${p} />`;
+  const title = { start: "Start line", finish: "Finish order", times: "Times" }[job];
+  return html`<div className="scr">
+    <div className="topbar"><button className="back" aria-label="Back" onClick=${() => go({ job: null, race: null })}>‹</button><div className="title">${title}</div><${LeadBtn} ...${p} /></div>
+    ${job === "start" ? html`<${A_Start} ...${p} />` : job === "finish" ? html`<${A_Finish} ...${p} />` : html`<${A_Times} ...${p} />`}
+  </div>`;
+}
+function LeadBtn({ st, me, go, openLead, openBecome }) {
+  if (me.level === "volunteer") return null;
+  const c = needsYou(st).length;
+  return html`<button className="leadbtn" onClick=${openLead}>Lead${c ? html`<span className="count">${c}</span>` : null}</button>`;
+}
+function A_Home(p) {
+  const { st, me, go, openBecome } = p;
+  const wf = waitingFor(st, "finish").length, wt = waitingFor(st, "times").length, ws = startLineRaces(st).filter(r => r.atStart).length;
+  return html`<div className="scr">
+    <div className="topbar"><div className="title">Running Zone<div className="who">Joined as ${me.name}${me.level !== "volunteer" ? " · Lead" : ""}</div></div><${LeadBtn} ...${p} /></div>
+    <div className="scroll">
+      <div className="label">Pick a job</div>
+      <div className="tiles">
+        <button className="tile" onClick=${() => go({ job: "start" })}><b>Start line</b><span className="cnt">${ws}<small>at start</small></span><span>Check runners in before the whistle</span></button>
+        <button className="tile" onClick=${() => go({ job: "finish" })}><b>Finish order</b><span className="cnt">${wf}<small>waiting</small></span><span>Tap numbers in the order they finished</span></button>
+        <button className="tile" onClick=${() => go({ job: "times" })}><b>Times</b><span className="cnt">${wt}<small>waiting</small></span><span>Type times from the timer, 1st down</span></button>
+      </div>
+      <p className="who">You can switch job at any time.</p>
+      ${me.level === "volunteer" ? html`<button className="btn ghost block" onClick=${openBecome}>Become lead</button>` : null}
+    </div>
+  </div>`;
+}
+function A_Start(p) {
+  const { st, nav, go, mutate, save, toast } = p;
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : null;
+  const sl = useStartLine(st, r);
+  const [del, setDel] = useState(false);
+  if (!r) {
+    const at = startLineRaces(st);
+    return html`<div className="scroll">
+      ${[["Being checked in", at.filter(x => x.atStart)], ["Checked in · runners can still change", at.filter(x => !x.atStart)]].map(([lbl, xs]) => xs.length ? html`<div key=${lbl} className="list"><div className="label">${lbl}</div>
+        ${xs.map(x => html`<button key=${x.id} className="listbtn" onClick=${() => go({ race: x.id })}><span><b>${raceName(st, x)} (${x.event}) · ${raceLabel(x)}</b><br/><span className="sub">${x.kind === "final" && x.atStart ? "Pre-filled · mark anyone absent" : x.runners.length + " checked in · " + hhmm(x.checkedInAt)}</span></span><span className="chev">›</span></button>`)}</div>` : null)}
+      <div className="label" style=${{ marginTop: 6 }}>Start a new race</div>
+      ${eventsByName(st).map(g => html`<div key=${g.name} className="list">
+        <div style=${{ fontWeight: 700 }}>${g.name}</div>
+        ${g.evs.filter(e => e.stage === "open").map(e => html`<button key=${e.code} className="listbtn" onClick=${() => { let id; mutate(s => { id = newRace(s, e.code); }); setTimeout(() => go({ race: id }), 0); }}><span>${e.section} <span className="sub">(${e.code})</span></span><span className="chev">+</span></button>`)}
+      </div>`)}
+    </div>`;
+  }
+  const isFinal = r.kind === "final";
+  if (isLocked(st, r)) return html`<div className="scroll"><${RaceHead} st=${st} r=${r} /><${Locked} /></div>`;
+  return html`<div className="scr"><div className="scroll">
+    <${RaceHead} st=${st} r=${{ ...r, runners: sl.list.filter(x => !x.absent) }} />
+    ${isFinal ? html`<div className="alert ok">Final pre-filled with the 6 qualifiers. Tap anyone who isn't here.</div>` : html`
+      <div className="slots">${[0, 1, 2, 3, 4, 5].map(i => html`<div key=${i} className=${"slot" + (i < sl.list.length ? " on" : "")}></div>`)}</div>
+      <form className="row" onSubmit=${e => { e.preventDefault(); sl.add(); }}>
+        <input id="a-wrist" className="tinput num" style=${{ height: 58, fontSize: 30, flex: 1 }} inputMode="numeric" pattern="[0-9]*" placeholder="Wristband number" value=${sl.d} onChange=${e => { sl.setRefuse(""); sl.setD(e.target.value.replace(/\D/g, "").slice(0, 4)); }} disabled=${sl.list.length >= 6} />
+        <button className="btn primary" type="submit" disabled=${!sl.d}>Add</button>
+      </form>
+      ${sl.refuse ? html`<div className="alert bad">${sl.refuse}</div>` : null}
+      ${sl.list.length >= 6 ? html`<div className="alert ok">6 runners: this race is full.</div>` : null}`}
+    <div className="chips">${sl.list.map(x => html`<span key=${x.num} className=${"chip" + (x.warning ? " warn" : "") + (x.absent ? " absent" : "")}>
+      <span className="n">${x.num}</span>${x.warning ? html`<span className="pill warn">${WARN_TEXT[x.warning]}</span>` : null}
+      ${isFinal ? html`<button aria-label="Mark absent" onClick=${() => sl.toggleAbsent(x.num)}>${x.absent ? "↺" : "✕"}</button>` : html`<button aria-label=${"Remove " + x.num} onClick=${() => sl.remove(x.num)}>✕</button>`}</span>`)}</div>
+    <button className="btn primary block" disabled=${!sl.list.length} onClick=${() => save(() => mutate(s => saveRunners(s, r, sl)), "Saved - race is ready at the finish")}>Save runners</button>
+    ${!isFinal ? html`<button className="btn block" onClick=${() => setDel(true)}>Delete race</button>` : null}
+    <p className="who">Runners can be changed until the finish order is saved.</p>
+  </div>
+  ${sl.w ? html`<${WarnSheet} w=${sl.w} onFix=${sl.fix} onKeep=${sl.keep} />` : null}
+  ${del ? html`<${DeleteSheet} onClose=${() => setDel(false)} onSoft=${() => { mutate(s => { s.races.find(x => x.id === r.id).deleted = "soft"; }); go({ race: null }); toast("Moved to Deleted races"); }} onPerm=${() => { mutate(s => { s.races = s.races.filter(x => x.id !== r.id); }); go({ race: null }); toast("Race deleted"); }} />` : null}
+  </div>`;
+}
+function A_Finish(p) {
+  const { st, nav, go, mutate, save, refresh } = p;
+  const w = waitingFor(st, "finish");
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : w[0];
+  const fo = useFinishOrder(r);
+  const [sheet, setSheet] = useState(null);
+  if (!r) return html`<div className="scroll"><div className="alert ok">No races waiting for a finish order.</div><${RaceLists} st=${st} job="finish" onPick=${id => go({ race: id })} /></div>`;
+  const locked = isLocked(st, r);
+  const doSave = how => { setSheet(null); save(() => { mutate(s => saveFinish(s, r, fo, how)); go({ race: null }); }, "Saved finish order"); };
+  return html`<div className="scr"><div className="scroll">
+    <${Updated} onRefresh=${refresh} />
+    <${RaceHead} st=${st} r=${r} />
+    ${locked ? html`<${Locked} />` : html`
+    <div className="label">Finishing order</div>
+    <div className="placed">
+      ${fo.placed.map((n, i) => html`<div key=${n} className="prow"><span className="pl">${ord(i + 1)}</span><span className="n">${n}</span>
+        <button className="ic" aria-label="Move up" onClick=${() => fo.move(i, -1)} disabled=${i === 0}>▲</button>
+        <button className="ic" aria-label="Move down" onClick=${() => fo.move(i, 1)} disabled=${i === fo.placed.length - 1}>▼</button>
+        <button className="ic" aria-label=${"Take out " + n} onClick=${() => fo.tap(n)}>✕</button></div>`)}
+      ${fo.unplaced.length ? html`<div className="prow empty"><span className="pl">${ord(fo.placed.length + 1)}</span><span className="n">Tap who came ${ord(fo.placed.length + 1)}</span></div>` : null}
+    </div>
+    ${fo.unplaced.length ? html`<div className="numgrid">${fo.unplaced.map(n => html`<button key=${n} className="bignum" onClick=${() => fo.tap(n)}>${n}</button>`)}</div>` : null}
+    <button className="btn ghost block" onClick=${() => setSheet("add")}>+ Runner not on the list</button>
+    <button className="btn primary block" disabled=${!fo.placed.length && !fo.unplaced.length} onClick=${() => fo.unplaced.length ? setSheet("unplaced") : doSave({})}>Save</button>`}
+    <${RaceLists} st=${st} job="finish" current=${r} onPick=${id => go({ race: id })} />
+  </div>
+  ${sheet === "add" ? html`<${AddRunnerSheet} st=${st} r=${r} list=${fo.all.map(n => ({ num: n }))} onClose=${() => setSheet(null)} onAdd=${x => { fo.setExtra(e => [...e, x]); setSheet(null); }} />` : null}
+  ${sheet === "unplaced" ? html`<${UnplacedSheet} unplaced=${fo.unplaced} onClose=${() => setSheet(null)} onDone=${doSave} />` : null}
+  </div>`;
+}
+function A_Times(p) {
+  const { st, nav, go, mutate, save, refresh } = p;
+  const w = waitingFor(st, "times");
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : w[0];
+  const tm = useTimes(r);
+  if (!r) return html`<div className="scroll"><div className="alert ok">No races waiting for times.</div><${RaceLists} st=${st} job="times" onPick=${id => go({ race: id })} /></div>`;
+  const locked = isLocked(st, r);
+  const firstNF = tm.boxes.findIndex(b => b.nf);
+  return html`<div className="scr"><div className="scroll">
+    <${Updated} onRefresh=${refresh} />
+    ${mismatch(r) && !nav.race ? html`<div className="alert bad">Finish order has ${r.order.length} finishers, times have ${nonNull(r.times)} - check the recording</div>` : null}
+    <${RaceHead} st=${st} r=${r} />
+    ${locked ? html`<${Locked} />` : html`
+    <div className="label">Times by place · one box per runner checked in</div>
+    <div className="tlist">
+      ${tm.boxes.map((b, i) => b.nf ? html`<div key=${i} className="trow nf"><span className="pl">${ord(i + 1)}</span><span className="nfl">No finisher</span>
+          ${i === firstNF ? html`<button className="btn" style=${{ minHeight: 40, fontSize: 14 }} onClick=${tm.unmarkNF}>Undo</button>` : html`<span></span>`}</div>`
+        : html`<div key=${i} className=${"trow" + (tm.ooo === i && !tm.kept ? " warn" : "")}>
+          <span className="pl">${ord(i + 1)}</span>
+          <input id=${"a-time-" + i} inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 1234 → 12.34" value=${b.d} onChange=${e => { tm.setKept(false); tm.setDigits(i, e.target.value); }} aria-label=${ord(i + 1) + " place time"} />
+          <span className="fmt">${fmtDigits(b.d)}</span></div>`)}
+    </div>
+    ${tm.ooo >= 0 && !tm.kept ? html`<${OooWarn} tm=${tm} i=${tm.ooo} />` : null}
+    <button className="btn block" onClick=${tm.markNF} disabled=${tm.boxes.every(b => b.nf)}>No finisher (bottom place)</button>
+    <${MismatchNote} st=${st} r=${r} tm=${tm} />
+    <button className="btn primary block" disabled=${!tm.filled || (tm.ooo >= 0 && !tm.kept)} onClick=${() => save(() => { mutate(s => saveTimes(s, r, tm)); go({ race: null }); }, "Saved times")}>Save times</button>`}
+    <${RaceLists} st=${st} job="times" current=${r} onPick=${id => go({ race: id })} />
+  </div></div>`;
+}
+
+/* ======================================================================
+   VARIANT B - Bottom tab bar, race strip, docked on-screen keypad
+   ====================================================================== */
+function B_App(p) {
+  const { st, nav, go, me, openLead, openBecome } = p;
+  const job = nav.job || "finish";
+  const c = me.level !== "volunteer" ? needsYou(st).length : 0;
+  const tabs = [["start", "Start", "⚑", startLineRaces(st).filter(r => r.atStart).length], ["finish", "Finish", "⇣", waitingFor(st, "finish").length], ["times", "Times", "⏱", waitingFor(st, "times").length]];
+  return html`<div className="scr">
+    ${job === "more" ? html`<${B_More} ...${p} />` : job === "start" ? html`<${B_Start} ...${p} />` : job === "finish" ? html`<${B_Finish} ...${p} />` : html`<${B_Times} ...${p} />`}
+    <nav className="tabs">
+      ${tabs.map(([k, l, ico, n]) => html`<button key=${k} aria-current=${job === k} onClick=${() => go({ job: k, race: null })}><span className="ico" aria-hidden="true">${ico}</span>${l}${n ? html`<span className="badge" style=${{ background: "var(--accent)" }}>${n}</span>` : null}</button>`)}
+      ${me.level !== "volunteer" ? html`<button onClick=${openLead}><span className="ico" aria-hidden="true">★</span>Lead${c ? html`<span className="badge">${c}</span>` : null}</button>`
+        : html`<button aria-current=${job === "more"} onClick=${() => go({ job: "more" })}><span className="ico" aria-hidden="true">☰</span>More</button>`}
+    </nav>
+  </div>`;
+}
+function B_More(p) {
+  const { me, openBecome } = p;
+  return html`<div className="scroll"><h2 style=${{ margin: 0 }}>You</h2><div className="card">Joined as <b>${me.name}</b> · Volunteer</div><button className="btn block" onClick=${openBecome}>Become lead</button></div>`;
+}
+function B_Strip({ st, races, current, onPick, label }) {
+  return html`<div className="strip" aria-label=${label}>${races.map(r => html`<button key=${r.id} aria-pressed=${current && r.id === current.id} onClick=${() => onPick(r.id)}>
+    <b>${r.event} · ${raceLabel(r)}</b><small>${r.atStart ? "checking in · " : ""}${evOf(st, r).name} ${evOf(st, r).section.replace("Boy ", "B ").replace("Girl ", "G ")} · ${hhmm(r.checkedInAt)}${mismatch(r) ? " · ⚠" : ""}</small></button>`)}
+  </div>`;
+}
+function B_Head({ title, sub, right }) {
+  return html`<div className="topbar"><div className="title">${title}${sub ? html`<div className="who">${sub}</div>` : null}</div>${right}</div>`;
+}
+function B_Start(p) {
+  const { st, nav, go, mutate, save, toast } = p;
+  const at = startLineRaces(st);
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : null;
+  const sl = useStartLine(st, r);
+  const [pick, setPick] = useState(false);
+  const newBtn = html`<button className="leadbtn" onClick=${() => setPick(true)}>+ New race</button>`;
+  return html`<div className="scr">
+    <${B_Head} title="Start line" sub=${at.filter(r => r.atStart).length + " being checked in"} right=${newBtn} />
+    ${at.length ? html`<${B_Strip} st=${st} races=${at} current=${r} onPick=${id => go({ race: id })} label="Races at the start line" />` : null}
+    ${!r ? html`<div className="scroll"><div className="card">Pick a race above, or tap <b>+ New race</b> and choose the event.</div></div>`
+    : isLocked(st, r) ? html`<div className="scroll"><${RaceHead} st=${st} r=${r} /><${Locked} /></div>`
+    : html`<div className="scroll">
+      <${RaceHead} st=${st} r=${{ ...r, runners: sl.list.filter(x => !x.absent) }} />
+      <div className="list">${sl.list.map((x, i) => html`<div key=${x.num} className=${"prow" + (x.warning ? " warn" : "")} style=${x.warning ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)" } : null}>
+        <span className="pl">${i + 1}</span><span className="n" style=${x.absent ? { textDecoration: "line-through", color: "var(--muted)" } : null}>${x.num}</span>
+        ${x.warning ? html`<span className="pill warn">${WARN_TEXT[x.warning]}</span>` : null}
+        ${r.kind === "final" ? html`<button className="ic" onClick=${() => sl.toggleAbsent(x.num)}>${x.absent ? "↺" : "Absent"}</button>` : html`<button className="ic" aria-label=${"Remove " + x.num} onClick=${() => sl.remove(x.num)}>✕</button>`}</div>`)}
+        ${r.kind !== "final" && sl.list.length < 6 ? html`<div className="prow empty"><span className="pl">${sl.list.length + 1}</span><span className="n">${6 - sl.list.length} place${6 - sl.list.length === 1 ? "" : "s"} left</span></div>` : null}
+      </div>
+      ${sl.refuse ? html`<div className="alert bad">${sl.refuse}</div>` : null}
+      <div className="row"><button className="btn danger" onClick=${() => { mutate(s => { s.races.find(x => x.id === r.id).deleted = "soft"; }); go({ race: null }); toast("Moved to Deleted races"); }}>Delete</button>
+      <button className="btn primary" disabled=${!sl.list.length} onClick=${() => save(() => { mutate(s => saveRunners(s, r, sl)); }, "Saved - race is ready at the finish")}>Save runners</button></div>
+    </div>
+    ${r.kind !== "final" ? html`<div className="dock">
+      <div className=${"display" + (sl.d ? "" : " empty")} style=${{ minHeight: 58, fontSize: 40 }}>${sl.d || "Type a wristband number"}</div>
+      <${Keypad} onDigit=${k => { sl.setRefuse(""); sl.setD(x => (x + k).slice(0, 4)); }} onBack=${() => sl.setD(x => x.slice(0, -1))} go=${() => sl.add()} goDisabled=${!sl.d || sl.list.length >= 6} />
+    </div>` : null}`}
+    ${sl.w ? html`<${WarnSheet} w=${sl.w} onFix=${sl.fix} onKeep=${sl.keep} />` : null}
+    ${pick ? html`<${Sheet} onClose=${() => setPick(false)}><h3>New race: which event?</h3>
+      ${eventsByName(st).map(g => html`<div key=${g.name}><div className="label" style=${{ margin: "4px 0" }}>${g.name}</div><div className="segs">${g.evs.filter(e => e.stage === "open").map(e => html`<button key=${e.code} onClick=${() => { let id; mutate(s => { id = newRace(s, e.code); }); setPick(false); setTimeout(() => go({ race: id }), 0); }}>${e.section} <span className="who">${e.code}</span></button>`)}</div></div>`)}
+    <//>` : null}
+  </div>`;
+}
+function B_Finish(p) {
+  const { st, nav, go, mutate, save, refresh } = p;
+  const w = waitingFor(st, "finish");
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : w[0];
+  const fo = useFinishOrder(r);
+  const [sheet, setSheet] = useState(null);
+  const recent = recentFor(st, "finish");
+  const stripRaces = [...w, ...recent.filter(x => !w.includes(x))];
+  const doSave = how => { setSheet(null); save(() => { mutate(s => saveFinish(s, r, fo, how)); go({ race: null }); }, "Saved finish order"); };
+  // one list: placed rows first (in order, with arrows), then unplaced rows
+  return html`<div className="scr">
+    <${B_Head} title="Finish order" sub=${w.length + " waiting"} right=${html`<button className="leadbtn" onClick=${refresh} aria-label="Refresh">↻</button>`} />
+    <${B_Strip} st=${st} races=${stripRaces} current=${r} onPick=${id => go({ race: id })} label="Races waiting, then recent" />
+    ${!r ? html`<div className="scroll"><div className="alert ok">No races waiting for a finish order.</div></div>` : html`
+    <div className="scroll">
+      <${RaceHead} st=${st} r=${r} />
+      ${isLocked(st, r) ? html`<${Locked} />` : html`
+      <p className="who" style=${{ margin: 0 }}>Tap each number in the order they finished. Tap again to undo.</p>
+      ${fo.placed.map((n, i) => html`<div key=${"p" + n} className="row">
+        <button className="brow on" onClick=${() => fo.tap(n)}><span className="badge-pl">${ord(i + 1)}</span><span className="n">${n}</span></button>
+        <div style=${{ display: "flex", flexDirection: "column", gap: 4 }}><button className="ic prow" style=${{ padding: 0, justifyContent: "center", width: 44, height: 31 }} aria-label="Move up" onClick=${() => fo.move(i, -1)}>▲</button><button className="ic prow" style=${{ padding: 0, justifyContent: "center", width: 44, height: 31 }} aria-label="Move down" onClick=${() => fo.move(i, 1)}>▼</button></div></div>`)}
+      ${fo.unplaced.map(n => html`<button key=${"u" + n} className="brow" onClick=${() => fo.tap(n)}><span className="badge-pl">-</span><span className="n">${n}</span><span className="who">tap for ${ord(fo.placed.length + 1)}</span></button>`)}
+      <button className="btn ghost block" onClick=${() => setSheet("add")}>+ Runner not on the list</button>`}
+    </div>
+    ${!isLocked(st, r) ? html`<div className="dock"><button className="btn primary block" disabled=${!fo.placed.length && !fo.unplaced.length} onClick=${() => fo.unplaced.length ? setSheet("unplaced") : doSave({})}>Save · ${fo.placed.length} placed${fo.unplaced.length ? ", " + fo.unplaced.length + " not placed" : ""}</button></div>` : null}`}
+    ${sheet === "add" ? html`<${AddRunnerSheet} st=${st} r=${r} list=${fo.all.map(n => ({ num: n }))} onClose=${() => setSheet(null)} onAdd=${x => { fo.setExtra(e => [...e, x]); setSheet(null); }} />` : null}
+    ${sheet === "unplaced" ? html`<${UnplacedSheet} unplaced=${fo.unplaced} onClose=${() => setSheet(null)} onDone=${doSave} />` : null}
+  </div>`;
+}
+function B_Times(p) {
+  const { st, nav, go, mutate, save, refresh } = p;
+  const w = waitingFor(st, "times");
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : w[0];
+  const tm = useTimes(r);
+  const [cur, setCurRaw] = useState(0);
+  const [fresh, setFresh] = useState(true);
+  const setCur = i => { setCurRaw(i); setFresh(true); };
+  useEffect(() => { setCur(0); }, [r && r.id]);
+  const recent = recentFor(st, "times");
+  const stripRaces = [...w, ...recent.filter(x => !w.includes(x))];
+  const box = tm.boxes[cur];
+  const type = k => { if (!box || box.nf) return; tm.setKept(false); tm.setDigits(cur, fresh ? k : box.d + k); setFresh(false); };
+  const next = () => { const i = tm.boxes.findIndex((b, j) => j > cur && !b.nf); setCur(i >= 0 ? i : cur); };
+  return html`<div className="scr">
+    <${B_Head} title="Times" sub=${w.length + " waiting"} right=${html`<button className="leadbtn" onClick=${refresh} aria-label="Refresh">↻</button>`} />
+    <${B_Strip} st=${st} races=${stripRaces} current=${r} onPick=${id => go({ race: id })} label="Races waiting, then recent" />
+    ${!r ? html`<div className="scroll"><div className="alert ok">No races waiting for times.</div></div>` : isLocked(st, r) ? html`<div className="scroll"><${RaceHead} st=${st} r=${r} /><${Locked} /></div>` : html`
+    <div className="scroll">
+      ${mismatch(r) ? html`<div className="alert bad">Finish order has ${r.order.length} finishers, times have ${nonNull(r.times)} - check the recording</div>` : null}
+      <div className="who"><b style=${{ color: "var(--ink)" }}>${raceName(st, r)} (${r.event}) · ${raceLabel(r)}</b> · ${r.runners.length} runners · checked in ${hhmm(r.checkedInAt)}</div>
+      <div className="tlist">${tm.boxes.map((b, i) => html`<button key=${i} className=${"trow" + (b.nf ? " nf" : "") + (i === cur && !b.nf ? " cur" : "") + (tm.ooo === i && !tm.kept ? " warn" : "")} style=${{ textAlign: "left" }} onClick=${() => !b.nf && setCur(i)}>
+        <span className="pl">${ord(i + 1)}</span>
+        ${b.nf ? html`<span className="nfl">No finisher</span>` : html`<span className="tval">${fmtDigits(b.d) || html`<span className="who" style=${{ fontFamily: "var(--font-body)", fontSize: 15 }}>${i === cur ? "e.g. 1234 → 12.34" : ""}</span>`}</span>`}<span></span></button>`)}</div>
+      <${MismatchNote} st=${st} r=${r} tm=${tm} />
+    </div>
+    <div className="dock">
+      ${tm.ooo >= 0 && !tm.kept ? html`<${OooWarn} tm=${tm} i=${tm.ooo} />` : null}
+      <${Keypad} onDigit=${type} onBack=${() => { if (box && !box.nf) { tm.setDigits(cur, box.d.slice(0, -1)); setFresh(false); } }} go=${next} goLabel="Next ↓" />
+      <div className="row">
+        <button className="btn" onClick=${tm.markNF} style=${{ fontSize: 15 }}>No finisher</button>
+        <button className="btn" onClick=${tm.unmarkNF} style=${{ fontSize: 15, flex: .6 }} disabled=${!tm.boxes.some(b => b.nf)}>Undo</button>
+        <button className="btn primary" disabled=${!tm.filled || (tm.ooo >= 0 && !tm.kept)} onClick=${() => save(() => { mutate(s => saveTimes(s, r, tm)); go({ race: null }); }, "Saved times")}>Save</button>
+      </div>
+    </div>`}
+  </div>`;
+}
+
+/* ======================================================================
+   VARIANT C - One question at a time (wizard)
+   ====================================================================== */
+function C_App(p) {
+  const { st, nav, go, me, openBecome } = p;
+  const job = nav.job;
+  if (!job) return html`<div className="scr">
+    <div className="topbar"><div className="title">Hi ${me.name}</div><${LeadBtn} ...${p} /></div>
+    <div className="scroll">
+      <h2 className="q">What are you doing?</h2>
+      <div className="homeC">
+        <button className="job" onClick=${() => go({ job: "start" })}><b>Start line</b><span>Writing down who is running</span></button>
+        <button className="job" onClick=${() => go({ job: "finish" })}><b>Finish order</b><span>Writing down who came 1st, 2nd, 3rd · ${waitingFor(st, "finish").length} waiting</span></button>
+        <button className="job" onClick=${() => go({ job: "times" })}><b>Times</b><span>Copying times off the timer · ${waitingFor(st, "times").length} waiting</span></button>
+      </div>
+      ${me.level === "volunteer" ? html`<button className="btn ghost block" onClick=${openBecome}>Become lead</button>` : null}
+    </div></div>`;
+  const back = html`<button className="back" aria-label="Back to jobs" onClick=${() => go({ job: null, race: null })}>‹</button>`;
+  const title = { start: "Start line", finish: "Finish order", times: "Times" }[job];
+  return html`<div className="scr"><div className="topbar">${back}<div className="title">${title}</div><${LeadBtn} ...${p} /></div>
+    ${job === "start" ? html`<${C_Start} ...${p} />` : job === "finish" ? html`<${C_Finish} ...${p} />` : html`<${C_Times} ...${p} />`}</div>`;
+}
+function C_Start(p) {
+  const { st, nav, go, mutate, save } = p;
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : null;
+  const sl = useStartLine(st, r);
+  const [evName, setEvName] = useState(null);
+  const [step, setStep] = useState("type");
+  useEffect(() => setStep("type"), [r && r.id]);
+  if (!r) {
+    const at = startLineRaces(st);
+    if (!evName) return html`<div className="scroll">
+      <h2 className="q">Which race is it?<small>Pick the event, then the section.</small></h2>
+      ${at.length ? html`<div className="label">Already at the start line</div><div className="list">${at.map(x => html`<button key=${x.id} className="listbtn" onClick=${() => go({ race: x.id })}><span><b>${raceName(st, x)} · ${raceLabel(x)}</b></span><span className="chev">›</span></button>`)}</div><div className="label">Or a new race</div>` : null}
+      <div className="numgrid" style=${{ gridTemplateColumns: "1fr 1fr" }}>${eventsByName(st).map(g => html`<button key=${g.name} className="bignum" style=${{ fontSize: 30 }} onClick=${() => setEvName(g.name)}>${g.name}</button>`)}</div>
+    </div>`;
+    const g = eventsByName(st).find(x => x.name === evName);
+    return html`<div className="scroll"><h2 className="q">${evName}: which section?</h2>
+      <div className="list">${g.evs.filter(e => e.stage === "open").map(e => html`<button key=${e.code} className="bignum" style=${{ fontSize: 28, minHeight: 64 }} onClick=${() => { let id; mutate(s => { id = newRace(s, e.code); }); setEvName(null); setTimeout(() => go({ race: id }), 0); }}>${e.section}</button>`)}</div>
+      <button className="btn block" onClick=${() => setEvName(null)}>Back</button></div>`;
+  }
+  if (isLocked(st, r)) return html`<div className="scroll"><${RaceHead} st=${st} r=${r} /><${Locked} /></div>`;
+  if (r.kind === "final") return html`<div className="scroll">
+    <h2 className="q">Is everyone here?<small>${raceName(st, r)} · Final. Tap anyone who isn't.</small></h2>
+    <div className="numgrid">${sl.list.map(x => html`<button key=${x.num} className="bignum" style=${x.absent ? { textDecoration: "line-through", opacity: .45 } : null} onClick=${() => sl.toggleAbsent(x.num)}>${x.num}</button>`)}</div>
+    <button className="btn primary block" onClick=${() => save(() => { mutate(s => saveRunners(s, r, sl)); go({ race: null }); }, "Saved - final is ready at the finish")}>Everyone else is here</button></div>`;
+  const n = sl.list.length;
+  if (step === "check") return html`<div className="scroll">
+    <h2 className="q">${n} runner${n === 1 ? "" : "s"}. Is that right?<small>${raceName(st, r)} · ${raceLabel(r)}</small></h2>
+    <div className="placed">${sl.list.map((x, i) => html`<div key=${x.num} className="prow" style=${x.warning ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)" } : null}><span className="pl">${i + 1}</span><span className="n">${x.num}</span>${x.warning ? html`<span className="pill warn">${WARN_TEXT[x.warning]}</span>` : null}<button className="ic" aria-label=${"Remove " + x.num} onClick=${() => sl.remove(x.num)}>✕</button></div>`)}</div>
+    <button className="btn primary block" disabled=${!n} onClick=${() => save(() => { mutate(s => saveRunners(s, r, sl)); go({ race: null }); }, "Saved - race is ready at the finish")}>Yes, save</button>
+    <button className="btn block" onClick=${() => setStep("type")}>Add someone</button></div>`;
+  return html`<div className="scr"><div className="scroll">
+    <h2 className="q">${n === 6 ? "Race is full" : `Runner ${n + 1}: wristband number?`}<small>${raceName(st, r)} · ${raceLabel(r)} · ${n} of 6</small></h2>
+    ${n ? html`<div className="trail">${sl.list.map(x => html`<button key=${x.num} onClick=${() => sl.remove(x.num)} aria-label=${"Remove " + x.num}><b>${x.num}</b> ✕</button>`)}</div>` : null}
+    <div className=${"display" + (sl.d ? "" : " empty")}>${sl.d || (n === 6 ? "6 of 6" : "Type the number")}</div>
+    ${sl.refuse ? html`<div className="alert bad">${sl.refuse}</div>` : null}
+    ${n < 6 ? html`<${Keypad} onDigit=${k => { sl.setRefuse(""); sl.setD(x => (x + k).slice(0, 4)); }} onBack=${() => sl.setD(x => x.slice(0, -1))} go=${() => sl.add()} goLabel="Next" goDisabled=${!sl.d} />` : null}
+    <button className="btn primary block" disabled=${!n} onClick=${() => setStep("check")}>That's everyone</button>
+  </div>${sl.w ? html`<${WarnSheet} w=${sl.w} onFix=${sl.fix} onKeep=${sl.keep} />` : null}</div>`;
+}
+function C_Finish(p) {
+  const { st, nav, go, mutate, save } = p;
+  const w = waitingFor(st, "finish");
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : w[0];
+  const fo = useFinishOrder(r);
+  const [step, setStep] = useState("ask");
+  const [how, setHow] = useState({});
+  const [qi, setQi] = useState(0);
+  const [add, setAdd] = useState(false);
+  const [pickOther, setPickOther] = useState(false);
+  useEffect(() => { setStep(r && r.order ? "review" : "ask"); setHow({}); setQi(0); }, [r && r.id]);
+  if (!r) return html`<div className="scroll"><h2 className="q">Nothing waiting<small>New races appear here when the start line saves them.</small></h2><${RaceLists} st=${st} job="finish" onPick=${id => go({ race: id })} /></div>`;
+  if (pickOther) return html`<div className="scroll"><h2 className="q">Which race?</h2><${RaceLists} st=${st} job="finish" current=${r} onPick=${id => { setPickOther(false); go({ race: id }); }} /><button className="btn block" onClick=${() => setPickOther(false)}>Back</button></div>`;
+  const head = html`<div className="who" style=${{ display: "flex", justifyContent: "space-between", gap: 8 }}><span><b style=${{ color: "var(--ink)" }}>${raceName(st, r)} (${r.event}) · ${raceLabel(r)}</b><br/>${r.runners.length} runners · checked in ${hhmm(r.checkedInAt)}</span><button className="btn" style=${{ minHeight: 40, fontSize: 14 }} onClick=${() => setPickOther(true)}>Other race</button></div>`;
+  if (isLocked(st, r)) return html`<div className="scroll">${head}<${Locked} /></div>`;
+  const doSave = () => save(() => { mutate(s => saveFinish(s, r, fo, how)); go({ race: null }); }, "Saved finish order");
+  if (step === "ask") {
+    const k = fo.placed.length + 1;
+    return html`<div className="scr"><div className="scroll">${head}
+      <h2 className="q">${fo.unplaced.length ? `Who came ${ord(k)}?` : "Everyone has a place"}</h2>
+      ${fo.placed.length ? html`<div className="trail">${fo.placed.map((n, i) => html`<button key=${n} onClick=${() => fo.setPlaced(fo.placed.slice(0, i))} aria-label=${"Go back to " + ord(i + 1)}>${ord(i + 1)} <b>${n}</b></button>`)}</div>` : null}
+      <div className="numgrid" style=${{ gridTemplateColumns: fo.unplaced.length > 4 ? "1fr 1fr" : "1fr" }}>${fo.unplaced.map(n => html`<button key=${n} className="bignum huge" onClick=${() => fo.tap(n)}>${n}</button>`)}</div>
+      <button className="btn ghost block" onClick=${() => setAdd(true)}>+ Runner not on the list</button>
+      ${fo.unplaced.length && fo.placed.length ? html`<button className="btn block" onClick=${() => { setQi(0); setStep("unplaced"); }}>Nobody else crossed the line</button>` : null}
+      ${!fo.unplaced.length ? html`<button className="btn primary block" onClick=${() => setStep("review")}>Next</button>` : null}
+    </div>${add ? html`<${AddRunnerSheet} st=${st} r=${r} list=${fo.all.map(n => ({ num: n }))} onClose=${() => setAdd(false)} onAdd=${x => { fo.setExtra(e => [...e, x]); setAdd(false); }} />` : null}</div>`;
+  }
+  if (step === "unplaced") {
+    const n = fo.unplaced[qi];
+    if (n == null) { setTimeout(() => setStep("review")); return null; }
+    return html`<div className="scroll">${head}
+      <h2 className="q">${n} has no place. What happened?</h2>
+      <button className="btn block" style=${{ minHeight: 80 }} onClick=${() => { setHow(h => ({ ...h, [n]: "dnf" })); setQi(qi + 1); }}>Did not finish<br/><small style=${{ fontWeight: 400 }}>Started but didn't cross the line</small></button>
+      <button className="btn block" style=${{ minHeight: 80 }} onClick=${() => { setHow(h => ({ ...h, [n]: "didnt" })); setQi(qi + 1); }}>Didn't run<br/><small style=${{ fontWeight: 400 }}>Never started; can run in a later race</small></button>
+      <button className="btn ghost block" onClick=${() => setStep("ask")}>Back - they did finish</button></div>`;
+  }
+  return html`<div className="scroll">${head}
+    <h2 className="q">Check the order</h2>
+    <div className="placed">${fo.placed.map((n, i) => html`<div key=${n} className="prow"><span className="pl">${ord(i + 1)}</span><span className="n">${n}</span>
+      <button className="ic" aria-label="Move up" onClick=${() => fo.move(i, -1)}>▲</button><button className="ic" aria-label="Move down" onClick=${() => fo.move(i, 1)}>▼</button></div>`)}
+      ${fo.unplaced.map(n => html`<div key=${n} className="prow empty"><span className="pl">-</span><span className="n"><b className="num" style=${{ fontSize: 24 }}>${n}</b> · ${how[n] === "didnt" ? "Didn't run" : "Did not finish"}</span></div>`)}</div>
+    <button className="btn primary block" onClick=${doSave}>Save finish order</button>
+    <button className="btn block" onClick=${() => { fo.setPlaced([]); setHow({}); setStep("ask"); }}>Start again</button></div>`;
+}
+function C_Times(p) {
+  const { st, nav, go, mutate, save } = p;
+  const w = waitingFor(st, "times");
+  const r = nav.race ? st.races.find(x => x.id === nav.race) : w[0];
+  const tm = useTimes(r);
+  const [i, setIRaw] = useState(0);
+  const [fresh, setFresh] = useState(true);
+  const setI = j => { setIRaw(j); setFresh(true); };
+  const [review, setReview] = useState(false);
+  const [pickOther, setPickOther] = useState(false);
+  useEffect(() => { setI(0); setReview(!!(r && r.times)); }, [r && r.id]);
+  if (!r) return html`<div className="scroll"><h2 className="q">Nothing waiting<small>Races appear here once the start line saves them.</small></h2><${RaceLists} st=${st} job="times" onPick=${id => go({ race: id })} /></div>`;
+  if (pickOther) return html`<div className="scroll"><h2 className="q">Which race?</h2><${RaceLists} st=${st} job="times" current=${r} onPick=${id => { setPickOther(false); go({ race: id }); }} /><button className="btn block" onClick=${() => setPickOther(false)}>Back</button></div>`;
+  const head = html`<div className="who" style=${{ display: "flex", justifyContent: "space-between", gap: 8 }}><span><b style=${{ color: "var(--ink)" }}>${raceName(st, r)} (${r.event}) · ${raceLabel(r)}</b><br/>${r.runners.length} runners · checked in ${hhmm(r.checkedInAt)}</span><button className="btn" style=${{ minHeight: 40, fontSize: 14 }} onClick=${() => setPickOther(true)}>Other race</button></div>`;
+  if (isLocked(st, r)) return html`<div className="scroll">${head}<${Locked} /></div>`;
+  const firstNF = tm.boxes.findIndex(b => b.nf);
+  const lastTimed = firstNF < 0 ? tm.boxes.length - 1 : firstNF - 1;
+  const b = tm.boxes[i];
+  const mm = mismatch(r) && !review ? html`<div className="alert bad">Finish order has ${r.order.length} finishers, times have ${nonNull(r.times)} - check the recording</div>` : null;
+  if (!review && b && !b.nf) {
+    const isOoo = tm.ooo === i && !tm.kept;
+    const nextStep = () => { if (i < lastTimed) setI(i + 1); else setReview(true); };
+    return html`<div className="scroll">${head}${mm}
+      <h2 className="q">${ord(i + 1)} place time?<small>Digits only, e.g. 1234 → 12.34</small></h2>
+      <div className=${"display" + (b.d ? "" : " empty") + (isOoo ? " warn" : "")}>${fmtDigits(b.d) || "Type the time"}</div>
+      ${isOoo ? html`<${OooWarn} tm=${tm} i=${i} />` : null}
+      <${Keypad} onDigit=${k => { tm.setKept(false); tm.setDigits(i, fresh ? k : b.d + k); setFresh(false); }} onBack=${() => { tm.setDigits(i, b.d.slice(0, -1)); setFresh(false); }} go=${nextStep} goLabel="Next" goDisabled=${!b.d || isOoo} />
+      <div className="row">
+        ${i > 0 ? html`<button className="btn" onClick=${() => setI(i - 1)}>Back</button>` : null}
+        <button className="btn" onClick=${() => { tm.setBoxes(bs => bs.map((x, j) => j >= i ? { nf: true, d: "" } : x)); setReview(true); }}>No more finishers</button>
+      </div></div>`;
+  }
+  return html`<div className="scroll">${head}
+    <h2 className="q">Check the times</h2>
+    <div className="tlist">${tm.boxes.map((x, j) => html`<button key=${j} className=${"trow" + (x.nf ? " nf" : "") + (tm.ooo === j && !tm.kept ? " warn" : "")} style=${{ textAlign: "left" }} onClick=${() => { if (!x.nf) { setI(j); setReview(false); } }}>
+      <span className="pl">${ord(j + 1)}</span>${x.nf ? html`<span className="nfl">No finisher</span>` : html`<span className="tval">${fmtDigits(x.d) || "-"}</span>`}<span className="who">${x.nf ? "" : "edit"}</span></button>`)}</div>
+    ${tm.ooo >= 0 && !tm.kept ? html`<${OooWarn} tm=${tm} i=${tm.ooo} />` : null}
+    <${MismatchNote} st=${st} r=${r} tm=${tm} />
+    ${firstNF >= 0 ? html`<button className="btn block" onClick=${() => { tm.unmarkNF(); setI(firstNF); setReview(false); }}>${ord(firstNF + 1)} did finish</button>` : null}
+    <button className="btn primary block" disabled=${!tm.filled || (tm.ooo >= 0 && !tm.kept)} onClick=${() => save(() => { mutate(s => saveTimes(s, r, tm)); go({ race: null }); }, "Saved times")}>Save times</button></div>`;
+}
+
+/* ======================================================================
+   Join, Become lead
+   ====================================================================== */
+function Join({ st, onJoin }) {
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [err, setErr] = useState({});
+  const submit = e => {
+    e.preventDefault();
+    const er = {};
+    if (code !== st.dayCode) er.code = "That day code doesn't work. Check the sign in the zone.";
+    const nm = name.trim();
+    if (!nm) er.name = "Type your first name.";
+    else if (st.phones.some(p => p.name.toLowerCase() === nm.toLowerCase())) er.name = `Someone has joined as ${st.phones.find(p => p.name.toLowerCase() === nm.toLowerCase()).name} - add your surname initial`;
+    setErr(er);
+    if (!Object.keys(er).length) onJoin(nm);
+  };
+  return html`<form className="join" onSubmit=${submit}>
+    <div className="brand">Running Zone<span>MSF Olympics · South day 1 · Lee Valley</span></div>
+    <div className="lane"></div>
+    <div className="field"><label className="label" htmlFor="join-code">Day code</label>
+      <input id="join-code" className="code" inputMode="numeric" pattern="[0-9]*" maxLength="4" placeholder="0000" value=${code} onChange=${e => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+      ${err.code ? html`<span className="err">${err.code}</span>` : html`<span className="who">4 digits, read out or on the sign in the zone</span>`}</div>
+    <div className="field"><label className="label" htmlFor="join-name">Your first name</label>
+      <input id="join-name" autoComplete="given-name" value=${name} onChange=${e => setName(e.target.value)} placeholder="e.g. Sara" />
+      ${err.name ? html`<span className="err">${err.name}</span>` : null}</div>
+    <button className="btn primary block" type="submit">Join</button>
+    <p className="who" style=${{ margin: 0 }}>Children are only ever shown by wristband number.</p>
+  </form>`;
+}
+function BecomeLead({ st, onDone, onClose }) {
+  const [c, setC] = useState("");
+  const [err, setErr] = useState("");
+  const go = () => {
+    if (c.toUpperCase() === st.leadCode) onDone("lead");
+    else if (c === OWNER_PASSWORD) onDone("scoring");
+    else setErr("That lead code doesn't work. Ask the zone lead for today's code.");
+  };
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>Become lead</h3>
+    <p>Type the lead code. Leads see the live leaderboard and make rulings.</p>
+    <div className="field"><input id="lead-code" className="code" autoCapitalize="characters" maxLength="12" placeholder="LEAD CODE" value=${c} onChange=${e => { setErr(""); setC(e.target.value); }} />
+      ${err ? html`<span className="err">${err}</span>` : null}</div>
+    <button className="btn primary block" onClick=${go} disabled=${!c}>Become lead</button>
+    <button className="btn block" onClick=${onClose}>Cancel</button>
+  <//>`;
+}
+
+/* ======================================================================
+   Lead area (shared by all variants)
+   ====================================================================== */
+function Lead(p) {
+  const { st, me, close, mutate, toast } = p;
+  const items = needsYou(st);
+  const [tab, setTab] = useState(items.length ? "needs" : "results");
+  const [ev, setEv] = useState(null);
+  const [race, setRace] = useState(null);
+  const openItem = it => { setTab("results"); setEv(it.event); if (it.race) setRace(it.race); if (it.seenKey) mutate(s => { const r = s.races.find(x => x.id === it.seenKey[0]); const x = r.runners.find(y => y.num === it.seenKey[1]); x.seen = true; }); };
+  return html`<div className="scr">
+    <div className="topbar"><button className="back" aria-label="Back to jobs" onClick=${close}>‹</button><div className="title">Lead<div className="who">${me.name} · ${me.level === "scoring" ? "Scoring team" : "Lead"}</div></div></div>
+    <nav className="ltabs">
+      <button aria-current=${tab === "needs"} onClick=${() => setTab("needs")}>Needs you${items.length ? html`<span className="count">${items.length}</span>` : null}</button>
+      <button aria-current=${tab === "results"} onClick=${() => { setTab("results"); setEv(null); }}>Results</button>
+      ${me.level === "scoring" ? html`<button aria-current=${tab === "day"} onClick=${() => setTab("day")}>Day</button>` : null}
+    </nav>
+    ${tab === "needs" ? html`<div className="scroll">
+        ${items.length ? null : html`<div className="alert ok">Nothing needs you right now.</div>`}
+        <div className="list">${items.map((it, i) => html`<button key=${i} className="need" onClick=${() => openItem(it)}><span className=${"stripe " + it.kind}></span><span><b>${it.title}</b><span className="sub">${it.sub}</span></span><time>${hhmm(it.t)}</time></button>`)}</div>
+      </div>`
+    : tab === "day" ? html`<${DayTab} ...${p} />`
+    : ev ? html`<${Leaderboard} ...${p} code=${ev} back=${() => setEv(null)} openRace=${setRace} />`
+    : html`<${EventList} st=${st} open=${setEv} />`}
+    ${race ? html`<${RaceSheet} ...${p} id=${race} onClose=${() => setRace(null)} />` : null}
+  </div>`;
+}
+function EventList({ st, open }) {
+  const items = needsYou(st);
+  return html`<div className="scroll">
+    ${eventsByName(st).map(g => html`<div key=${g.name} className="evgroup">
+      <div className="label">${g.name} · ${g.evs[0].format === "heats" ? "heats then final" : "timed"}</div>
+      ${g.evs.map(e => { const s = eventStatus(st, e); const n = items.filter(x => x.event === e.code).length; const last = e.notes[e.notes.length - 1];
+        return html`<button key=${e.code} className="evrow" onClick=${() => open(e.code)}><span className="code">${e.code}</span><span><b>${e.section}</b><br/><span className=${"pill " + s.tone}>${s.text}</span></span>
+          <span className="right">${n ? html`<span className="pill bad">${n} to check</span>` : null}${last ? html`<span>Note ${hhmm(last.t)}</span>` : null}</span></button>`; })}
+    </div>`)}
+  </div>`;
+}
+function Flags({ en, e, final }) {
+  const f = [];
+  if (final) { if (en.pos <= 3 && en.status !== "dq") f.push(html`<span className="pill ok">${ord(en.pos)}</span>`); }
+  else if (!en.status) {
+    if (e.format === "heats" && en.pos <= 6) f.push(html`<span className="pill info">Q</span>`);
+    if (e.format === "timed" && en.pos <= 3) f.push(html`<span className="pill ok">${ord(en.pos)}</span>`);
+    if (en.tie === "open") f.push(html`<span className="pill bad">TIE</span>`);
+    if (en.tie === "settled") f.push(html`<span className="pill grey">tie settled</span>`);
+    if (en.ranTwice) f.push(html`<span className="pill bad">ran twice</span>`);
+  }
+  if (en.warning) f.push(html`<span className=${"pill " + (en.checked ? "grey" : "warn")}>${WARN_TEXT[en.warning]}${en.checked ? " · checked" : ""}</span>`);
+  if (en.status === "dq") f.push(html`<span className="pill bad">Disqualified: ${en.reason}</span>`);
+  if (en.status === "dnf") f.push(html`<span className="pill grey">Did not finish</span>`);
+  if (en.status === "nc") f.push(html`<span className="pill grey">not counted</span>`);
+  if (e.notes.some(n => n.text.includes(String(en.num)))) f.push(html`<span className="pill grey">note</span>`);
+  return html`<div className="flagset">${f}</div>`;
+}
+function Leaderboard(p) {
+  const { st, code, back, mutate, me, toast, openRace } = p;
+  const rk = rankEvent(st, code);
+  const { e } = rk;
+  const [row, setRow] = useState(null);
+  const [tie, setTie] = useState(null);
+  const [complete, setComplete] = useState(null);
+  const note = (s, text, comment) => s.events.find(x => x.code === code).notes.push({ t: nowSecs(), who: me.name, text: text + (comment ? ": " + comment : "") });
+  const hlLine = rk.hlN, qLine = e.format === "heats" ? 6 : 3;
+  const stageBtn = e.stage === "open" ? (e.format === "heats" ? "Heats complete" : "Event complete") : e.stage === "heats_complete" ? (rk.final && rk.final.order ? "Final complete" : null) : null;
+  return html`<div className="scroll">
+    <div className="row" style=${{ justifyContent: "space-between", flexWrap: "wrap" }}>
+      <button className="btn" style=${{ minHeight: 40, fontSize: 15, flex: "none" }} onClick=${back}>‹ All events</button>
+      <span className=${"pill " + eventStatus(st, e).tone}>${eventStatus(st, e).text}</span>
+    </div>
+    <div><div className="racehead" style=${{ borderWidth: 0, padding: 0, background: "none" }}><div className="ev">${e.name} ${e.section} <span className="code">(${e.code})</span></div>
+      <div className="meta">${e.format === "heats" ? "Heats: top 8 highlighted, top 6 to the final" : "Timed: top 6 highlighted, fastest 3 win"}${e.stage === "open" ? " · provisional" : ""}</div></div></div>
+    <div className="lgrid two">
+    <div style=${{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+    ${rk.finalRows ? html`<div className="label">Final · finishing positions</div><div className="lbwrap"><table className="lb"><thead><tr><th>Pos</th><th>Number</th><th>Flags</th></tr></thead><tbody>
+      ${rk.finalRows.map(en => html`<tr key=${en.key} className=${(en.pos <= 3 ? "medal" : "") + (en.pos === 3 ? " line" : "")}><td className="big">${en.pos}</td><td className="big">${en.num}</td><td className="flags"><${Flags} en=${en} e=${e} final=${true} /></td></tr>`)}
+      </tbody></table></div><div className="label">Heats</div>` : null}
+    ${rk.finalPending ? html`<div className="alert ok">Final at the start line: ${rk.finalPending.runners.map(x => x.num).join(", ")}</div>` : null}
+    <div className="lbwrap"><table className="lb">
+      <thead><tr><th>Pos</th><th>Number</th><th>Time</th><th>Race</th><th>Flags</th></tr></thead>
+      <tbody>
+      ${rk.entries.map((en, i) => html`<tr key=${en.key} className=${["tap", en.highlighted ? (e.format === "timed" && en.pos <= 3 ? "medal" : "hl") : "", en.pos === qLine ? "line" : en.pos === hlLine ? "hlline" : ""].join(" ")} onClick=${() => en.tie === "open" ? setTie(en.time) : setRow(en)}>
+        <td className="big">${en.pos}</td><td className="big">${en.num}</td><td className="big">${fmtHund(en.time)}</td><td>${raceLabel(en.race)}</td><td className="flags"><${Flags} en=${en} e=${e} /></td></tr>`)}
+      ${rk.out.map(en => html`<tr key=${en.key} className="out tap" onClick=${() => setRow(en)}><td>-</td><td className="big struck">${en.num}</td><td className="big">${en.time != null ? fmtHund(en.time) : ""}</td><td>${raceLabel(en.race)}</td><td className="flags"><${Flags} en=${en} e=${e} /></td></tr>`)}
+      ${!rk.entries.length && !rk.out.length ? html`<tr><td colSpan="5" className="who">No fully recorded races yet.</td></tr>` : null}
+      </tbody></table></div>
+    <div className="legend"><span><i style=${{ background: "var(--hl)" }}></i>Highlighted places</span>${e.format === "timed" ? html`<span><i style=${{ background: "var(--medal)" }}></i>Medal places</span>` : null}<span>━ ${e.format === "heats" ? "qualifying line (6)" : "medal line (3)"}</span><span>┅ top ${hlLine}</span><span>Tap a row for actions</span></div>
+    ${rk.notRanked.length ? html`<div className="notranked"><div className="label">Not ranked yet</div>${rk.notRanked.map(r => html`<button key=${r.id} onClick=${() => openRace(r.id)}><span><b>${raceLabel(r)}</b> · checked in ${hhmm(r.checkedInAt)}</span><span className=${"pill " + (["checked in", "awaiting times", "awaiting finish order"].includes(waitReason(r)) ? "grey" : "bad")}>${waitReason(r)}</span></button>`)}</div>` : null}
+    </div>
+    <div style=${{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+    ${stageBtn ? html`<button className="btn primary block" onClick=${() => setComplete(stageBtn)}>${stageBtn}…</button>` : null}
+    ${e.stage !== "open" ? html`<button className="btn block" onClick=${() => { mutate(s => { const x = s.events.find(y => y.code === code); x.stage = "open"; s.races = s.races.filter(r => !(r.event === code && r.kind === "final" && !r.order)); note(s, "reopened the heats", "Late result from Heat 2 (prototype comment)"); }); toast("Stage reopened"); }}>Reopen (comment needed)</button>` : null}
+    ${rk.entries.length > 6 && e.format === "heats" && e.stage === "heats_complete" ? html`<button className="btn block" onClick=${() => toast("Prototype: suggests 7th, then 8th")}>Call up next-ranked runner</button>` : null}
+    <div className="label">Audit notes</div>
+    <div className="notes">${e.notes.length ? [...e.notes].reverse().map((n, i) => html`<div key=${i}><time>${hhmm(n.t)}</time>${n.who} ${n.text}</div>`) : html`<span className="who">No lead actions on this event yet.</span>`}</div>
+    </div></div>
+    ${row ? html`<${RowSheet} ...${p} en=${row} e=${e} note=${note} onClose=${() => setRow(null)} />` : null}
+    ${tie != null ? html`<${TieSheet} ...${p} time=${tie} rk=${rk} note=${note} onClose=${() => setTie(null)} />` : null}
+    ${complete ? html`<${CompleteSheet} ...${p} rk=${rk} label=${complete} note=${note} onClose=${() => setComplete(null)} />` : null}
+  </div>`;
+}
+function RowSheet({ en, e, note, mutate, onClose, toast, code }) {
+  const [dq, setDq] = useState(false);
+  const act = (fn, msg) => { mutate(fn); toast(msg); onClose(); };
+  if (dq) return html`<${Sheet} onClose=${onClose}><h3>Disqualify ${en.num}?</h3><p>${raceLabel(en.race)}. Pick the reason.</p>
+    <div className="segs">${["Two false starts", "Obstruction", "Out of lane", "Wrong section or age", "Other"].map(rs => html`<button key=${rs} onClick=${() => act(s => { s.events.find(x => x.code === code).dq[en.key] = rs; note(s, `disqualified ${en.num} (${raceLabel(en.race)})`, rs); }, "Disqualified - ranking updated")}>${rs}</button>`)}</div>
+    <button className="btn block" onClick=${onClose}>Cancel</button><//>`;
+  return html`<${Sheet} onClose=${onClose}>
+    <h3><span className="num" style=${{ fontSize: 32 }}>${en.num}</span> · ${raceLabel(en.race)}${en.time != null ? " · " + fmtHund(en.time) : ""}</h3>
+    ${en.warning ? html`<div className="alert warn">${WARN_TEXT[en.warning]}${en.checked ? " (checked)" : ""}</div>` : null}
+    ${en.warning && !en.checked && !en.ranTwice ? html`<button className="btn block" onClick=${() => act(s => { s.events.find(x => x.code === code).warnChecked[en.key] = true; note(s, `marked ${en.num}'s warning checked`); }, "Marked checked")}>Mark warning checked</button>` : null}
+    ${en.ranTwice ? html`<button className="btn block" onClick=${() => act(s => { const ev = s.events.find(x => x.code === code); Object.keys(ev.notCounted); note(s, `chose which result counts for ${en.num}`); }, "Prototype: the other result is struck through")}>Choose which result counts</button>` : null}
+    <button className="btn block" onClick=${() => toast("Prototype: opens the keypad with the same checks")}>Correct number</button>
+    ${en.status === "dq" ? html`<button className="btn block" onClick=${() => act(s => { delete s.events.find(x => x.code === code).dq[en.key]; note(s, `lifted ${en.num}'s disqualification`, "Video showed no obstruction (prototype comment)"); }, "Disqualification lifted")}>Lift disqualification (comment needed)</button>`
+      : en.status ? null : html`<button className="btn danger block" onClick=${() => setDq(true)}>Disqualify</button>`}
+    <button className="btn block" onClick=${onClose}>Close</button>
+  <//>`;
+}
+function TieSheet({ time, rk, note, mutate, onClose, toast, code }) {
+  const tied = rk.entries.filter(x => x.time === time);
+  const [order, setOrder] = useState(tied.map(x => x.num));
+  const [how, setHow] = useState(null);
+  const move = (i, d) => setOrder(o => { const a = [...o]; const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a; });
+  const done = () => { mutate(s => { s.events.find(x => x.code === code).ties[time] = { how, order: how === "none" ? null : order }; note(s, how === "none" ? `settled the tie at ${fmtHund(time)} (${order.join(", ")}): no run-off needed` : how === "runoff" ? `recorded a run-off for the tie at ${fmtHund(time)}: ${order.join(" then ")}` : `decided the tie at ${fmtHund(time)} without a run-off: ${order.join(" then ")}`, how === "decided" ? "Runner had left (prototype comment)" : ""); }); toast("Tie settled"); onClose(); };
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>Tie at ${fmtHund(time)}</h3>
+    <p>${tied.map(x => `${x.num} (${raceLabel(x.race)})`).join(" and ")} are level in the highlighted places.</p>
+    <div className="segs" style=${{ flexDirection: "column" }}>
+      <button aria-pressed=${how === "none"} onClick=${() => setHow("none")}>No run-off needed<br/><small style=${{ fontWeight: 400 }}>The tie stands</small></button>
+      <button aria-pressed=${how === "runoff"} onClick=${() => setHow("runoff")}>Run-off held<br/><small style=${{ fontWeight: 400 }}>Put them in the run-off's order</small></button>
+      <button aria-pressed=${how === "decided"} onClick=${() => setHow("decided")}>Decided without a run-off<br/><small style=${{ fontWeight: 400 }}>Comment needed</small></button>
+    </div>
+    ${how && how !== "none" ? html`<div className="placed">${order.map((n, i) => html`<div key=${n} className="prow"><span className="pl">${ord(i + 1)}</span><span className="n">${n}</span><button className="ic" onClick=${() => move(i, -1)}>▲</button><button className="ic" onClick=${() => move(i, 1)}>▼</button></div>`)}</div>` : null}
+    <button className="btn primary block" disabled=${!how} onClick=${done}>Settle tie</button>
+    <button className="btn block" onClick=${onClose}>Cancel</button>
+  <//>`;
+}
+function CompleteSheet({ st, rk, label, note, mutate, onClose, toast, code }) {
+  const { e } = rk;
+  const must = [];
+  rk.openTies.forEach(t => must.push(`Tie at ${fmtHund(t)}: ${rk.entries.filter(x => x.time === t).map(x => x.num).join(" and ")}`));
+  live(st).filter(r => r.event === code && r.clash).forEach(r => must.push(`${raceLabel(r)}: two versions of the ${r.clash.part.toLowerCase()}`));
+  if (rk.entries.some(x => x.ranTwice && x.highlighted)) must.push("A runner ran twice in the highlighted places");
+  rk.notRanked.filter(r => !r.clash).forEach(r => must.push(`${raceLabel(r)} not fully recorded (${waitReason(r)}) - finish it or delete it`));
+  const look = rk.entries.filter(x => x.warning && !x.checked).map(x => `${x.num} (${raceLabel(x.race)}): ${WARN_TEXT[x.warning]}`);
+  const creates = label === "Heats complete" ? `Finals line-up: ${rk.entries.slice(0, 6).map((x, i) => `${i + 1}. ${x.num}`).join("  ")}`
+    : label === "Event complete" ? `Medal places: ${rk.entries.slice(0, 3).map((x, i) => `${ord(i + 1)} ${x.num}`).join(", ")}`
+    : `Final positions: ${(rk.finalRows || []).slice(0, 3).map(x => `${ord(x.pos)} ${x.num}`).join(", ")}`;
+  const confirm = () => {
+    mutate(s => {
+      const ev = s.events.find(x => x.code === code);
+      if (label === "Heats complete") { ev.stage = "heats_complete"; const r = mkRace(code, "final", 1, rk.entries.slice(0, 6).map(x => x.num), nowSecs(), { atStart: true }); s.races.push(r); note(s, `marked heats complete; final created with ${rk.entries.slice(0, 6).map(x => x.num).join(", ")}`); }
+      else { ev.stage = "complete"; note(s, `marked ${label.toLowerCase()}`); }
+    });
+    toast(label === "Heats complete" ? "Final is at the start line" : "Marked complete"); onClose();
+  };
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>${label}: ${e.name} ${e.section}</h3>
+    <div className="checks">
+      <div className=${"checkgrp " + (must.length ? "bad" : "ok")}><h4>Must settle first${must.length ? ` (${must.length})` : " - nothing"}</h4>${must.length ? html`<ul>${must.map((m, i) => html`<li key=${i}>${m}</li>`)}</ul>` : null}</div>
+      <div className=${"checkgrp " + (look.length ? "warn" : "ok")}><h4>Worth a look${look.length ? ` (${look.length})` : " - nothing"}</h4>${look.length ? html`<ul>${look.map((m, i) => html`<li key=${i}>${m}</li>`)}</ul>` : null}</div>
+      <div className="checkgrp ok"><h4>What this creates</h4><div className="num" style=${{ fontSize: 18 }}>${creates}</div></div>
+    </div>
+    <button className="btn primary block" disabled=${must.length > 0} onClick=${confirm}>Confirm</button>
+    <button className="btn block" onClick=${onClose}>Cancel</button>
+  <//>`;
+}
+function RaceSheet({ st, id, onClose, mutate, toast, me }) {
+  const r = st.races.find(x => x.id === id);
+  if (!r) return null;
+  const e = evOf(st, r);
+  const note = (s, text) => s.events.find(x => x.code === r.event).notes.push({ t: nowSecs(), who: me.name, text });
+  const act = (fn, msg) => { mutate(fn); toast(msg); onClose(); };
+  return html`<${Sheet} onClose=${onClose}>
+    <h3>${raceName(st, r)} (${r.event}) · ${raceLabel(r)}</h3>
+    <p>Checked in ${hhmm(r.checkedInAt)} · ${r.runners.length} runners</p>
+    ${r.clash ? html`<div className="alert bad">Two versions of the ${r.clash.part.toLowerCase()}. Pick the one that stands.</div>
+      ${[r.clash.a, r.clash.b].map((v, i) => html`<button key=${i} className="listbtn" onClick=${() => act(s => { const x = s.races.find(y => y.id === id); x.order = v.order; x.clash = null; note(s, `picked ${v.who}'s finish order for ${raceLabel(r)}`); }, "Version picked")}><span><b>${v.who}'s version</b><br/><span className="num" style=${{ fontSize: 20 }}>${v.order.join(" · ")}</span></span><span className="chev">Pick</span></button>`)}` : null}
+    <div className="lbwrap"><table className="lb"><thead><tr><th>Place</th><th>Number</th><th>Time</th></tr></thead><tbody>
+      ${Array.from({ length: Math.max(r.order ? r.order.length : 0, r.times ? r.times.length : 0) }, (_, i) => html`<tr key=${i} className=${r.outOfOrder && r.times && i > 0 && r.times[i] != null && r.times[i] < r.times[i - 1] ? "hl" : ""}><td>${ord(i + 1)}</td><td className="big">${r.order && r.order[i] != null ? r.order[i] : "-"}</td><td className="big">${r.times ? (r.times[i] == null ? "No finisher" : fmtHund(r.times[i])) : "-"}</td></tr>`)}
+      ${Object.keys(r.unplaced).map(n => html`<tr key=${n} className="out"><td>-</td><td className="big">${n}</td><td>Did not finish</td></tr>`)}
+    </tbody></table></div>
+    ${r.outOfOrder ? html`<div className="alert warn">Times out of order - check the SprintTimer recording.</div>
+      <button className="btn block" onClick=${() => act(s => { const x = s.races.find(y => y.id === id); x.times = [...x.times].sort((a, b) => (a ?? 1e9) - (b ?? 1e9)); x.outOfOrder = false; note(s, `corrected times for ${raceLabel(r)} from the recording`); }, "Times corrected")}>Correct times from the recording</button>` : null}
+    ${mismatch(r) ? html`<div className="alert bad">Finish order has ${r.order.length} finishers, times have ${nonNull(r.times)}</div>
+      <button className="btn block" onClick=${() => act(s => { const x = s.races.find(y => y.id === id); x.times = x.times.map((t, i) => t == null && i < x.order.length ? 3500 : t); note(s, `corrected times for ${raceLabel(r)} from the recording`); }, "Prototype: typed the missing time")}>Correct times from the recording</button>` : null}
+    ${(r.outOfOrder || mismatch(r)) ? html`<button className="btn danger block" onClick=${() => act(s => { const x = s.races.find(y => y.id === id); x.deleted = "re-run"; const n = mkRace(x.event, x.kind, s.races.filter(y => y.event === x.event && y.kind !== "final").length + 1, x.runners.map(y => y.num), nowSecs(), { atStart: true }); s.races.push(n); note(s, `called a re-run of ${raceLabel(r)}; new ${raceLabel(n)} at the start line`); }, "Re-run: new race at the start line")}>Re-run the race</button>` : null}
+    ${r.runners.some(x => x.addedAtFinish) ? html`<p>${r.runners.filter(x => x.addedAtFinish).map(x => x.num).join(", ")} added at the finish.</p>` : null}
+    <div className="row"><button className="btn" onClick=${() => act(s => { s.races.find(y => y.id === id).deleted = "soft"; note(s, `moved ${raceLabel(r)} to Deleted races`); }, "Moved to Deleted races")}>Delete</button><button className="btn" onClick=${onClose}>Close</button></div>
+  <//>`;
+}
+function DayTab({ st, me, mutate, toast }) {
+  const [word, setWord] = useState("");
+  const [exported, setExported] = useState(false);
+  const code = () => Math.random().toString(36).slice(2, 8).toUpperCase().replace(/[O0I1]/g, "7");
+  return html`<div className="scroll"><div className="lgrid two">
+    <div style=${{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+      <div className="card" style=${{ display: "flex", flexDirection: "column", gap: 6 }}><div className="label">Day code</div><div className="codebig">${st.dayCode}</div><button className="btn" onClick=${() => { mutate(s => { s.dayCode = String(1000 + Math.floor(Math.random() * 9000)); }); toast("New day code: joined phones stay in"); }}>Make new day code</button></div>
+      <div className="card" style=${{ display: "flex", flexDirection: "column", gap: 6 }}><div className="label">Lead code</div><div className="codebig">${st.leadCode}</div><button className="btn" onClick=${() => { mutate(s => { s.leadCode = code(); s.phones.forEach(p => { if (p.level === "lead" && p.name !== me.name) p.level = "volunteer"; }); }); toast("New lead code: other leads are volunteers again"); }}>Make new lead code</button></div>
+      <div className="card" style=${{ display: "flex", flexDirection: "column", gap: 6 }}><div className="label">Event list</div><p style=${{ margin: 0 }}>${st.events.length} running events confirmed for today (R1-R18, R23, R24). Relays stay on paper.</p></div>
+    </div>
+    <div style=${{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+      <div className="label">Joined phones (${st.phones.length})</div>
+      <div className="phones">${st.phones.map(p => html`<div key=${p.name}><b>${p.name}</b><span className=${"pill " + (p.level === "scoring" ? "info" : p.level === "lead" ? "ok" : "grey")}>${p.level === "scoring" ? "Scoring team" : p.level === "lead" ? "Lead" : "Volunteer"}</span>
+        ${p.level === "lead" ? html`<button onClick=${() => mutate(s => { s.phones.find(x => x.name === p.name).level = "scoring"; })}>Make scoring team</button>` : null}
+        ${p.level === "scoring" && p.name !== me.name ? html`<button onClick=${() => mutate(s => { s.phones.find(x => x.name === p.name).level = "lead"; })}>Remove from scoring team</button>` : null}
+        ${p.name !== me.name ? html`<button onClick=${() => { mutate(s => { s.phones = s.phones.filter(x => x.name !== p.name); }); toast(p.name + "'s phone removed"); }}>Remove</button>` : null}</div>`)}</div>
+      <button className="btn primary block" onClick=${() => { setExported(true); toast("Prototype: downloads the 4-sheet day export"); }}>Download day export</button>
+      <div className="card" style=${{ display: "flex", flexDirection: "column", gap: 8, borderColor: "var(--bad)" }}>
+        <div className="label" style=${{ color: "var(--bad)" }}>Start new day</div>
+        <p style=${{ margin: 0 }}>Clears every race, name and code. ${exported ? "Day export downloaded." : "Download the day export first."} Type <b>CLEAR</b> to confirm.</p>
+        <input id="clear-word" className="tinput" value=${word} onChange=${e => setWord(e.target.value)} placeholder="CLEAR" />
+        <button className="btn danger block" disabled=${!exported || word !== "CLEAR"} onClick=${() => toast("Prototype: would clear the day and make new codes")}>Start new day</button>
+      </div>
+    </div></div></div>`;
+}
+
+/* ======================================================================
+   Prototype shell: variant switcher, jump menu, state panel
+   ====================================================================== */
+const VARIANTS = [
+  { k: "A", name: "Job tiles, lists", desc: "Home screen of three big job tiles. Each job is one scrolling page: placed list with arrows above number buttons; one time box per place using the phone's own number keyboard." },
+  { k: "B", name: "Bottom tabs, keypad", desc: "No home screen: jobs are tabs along the bottom, races are a swipeable strip along the top. A big on-screen keypad stays docked at the bottom, like a calculator." },
+  { k: "C", name: "One question at a time", desc: "Each screen asks one thing: \"Who came 2nd?\", \"3rd place time?\". A check screen at the end before Save. Slowest, but hardest to get wrong." },
+];
+function readVariant() { const h = (location.hash || "").replace("#", "").toUpperCase(); return VARIANTS.some(v => v.k === h) ? h : "A"; }
+function App() {
+  const [st, setSt] = useState(seed);
+  const [variant, setVariant] = useState(readVariant);
+  const [me, setMe] = useState({ name: "Maryam", level: "lead" });
+  const [screen, setScreen] = useState("jobs"); // join | jobs | lead
+  const [nav, setNav] = useState({ job: null, race: null });
+  const [toastMsg, setToastMsg] = useState(null);
+  const [become, setBecome] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [, setTick] = useState(0);
+  const tRef = useRef();
+  useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 5000); return () => clearInterval(t); }, []);
+  const mutate = fn => setSt(s => { const c = structuredClone(s); fn(c); return c; });
+  const toast = m => { setToastMsg(m); clearTimeout(tRef.current); tRef.current = setTimeout(() => setToastMsg(null), 1800); };
+  const save = useSaver(toast);
+  const go = patch => setNav(n => ({ ...n, race: patch.job !== undefined && patch.race === undefined ? null : n.race, ...patch }));
+  const switchTo = k => { setVariant(k); setNav({ job: null, race: null }); try { history.replaceState(null, "", "#" + k); } catch (e) { } };
+  const cycle = d => { const i = VARIANTS.findIndex(v => v.k === variant); switchTo(VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length].k); };
+  useEffect(() => {
+    const h = e => { const t = e.target; if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return; if (e.key === "ArrowLeft") cycle(-1); if (e.key === "ArrowRight") cycle(1); };
+    window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
+  });
+  const jump = (what) => {
+    setDrawer(false); setNav({ job: null, race: null });
+    if (what === "join") { setScreen("join"); }
+    if (what === "volunteer") { setMe({ name: "Ahmed", level: "volunteer" }); setScreen("jobs"); }
+    if (what === "lead") { setMe({ name: "Maryam", level: "lead" }); setScreen("jobs"); }
+    if (what === "leadarea") { setMe({ name: "Maryam", level: "lead" }); setScreen("lead"); }
+    if (what === "scoring") { setMe({ name: "Aisha", level: "scoring" }); setScreen("lead"); }
+    if (what === "reset") { setSt(seed()); setScreen("jobs"); toast("Sample data reset"); }
+  };
+  const props = { st, me, nav, go, mutate, save, toast, refresh: () => toast("Up to date"), openLead: () => setScreen("lead"), openBecome: () => setBecome(true) };
+  const V = { A: A_App, B: B_App, C: C_App }[variant];
+  const v = VARIANTS.find(x => x.k === variant);
+  const wide = screen === "lead";
+  const side = html`<${SidePanel} st=${st} v=${v} variant=${variant} switchTo=${switchTo} jump=${jump} me=${me} />`;
+  return html`<div className="stage">
+    <div className=${"phone" + (wide ? " wide" : "")}>
+      ${screen === "join" ? html`<div className="scr"><${Join} st=${st} onJoin=${name => { mutate(s => { s.phones.push({ name, level: "volunteer" }); }); setMe({ name, level: "volunteer" }); setScreen("jobs"); toast("Joined as " + name); }} /></div>`
+      : screen === "lead" ? html`<${Lead} ...${props} close=${() => setScreen("jobs")} />`
+      : html`<${V} ...${props} />`}
+      ${become ? html`<${BecomeLead} st=${st} onClose=${() => setBecome(false)} onDone=${lvl => { setBecome(false); setMe(m => ({ ...m, level: lvl })); mutate(s => { const p = s.phones.find(x => x.name === me.name); if (p) p.level = lvl; }); toast(lvl === "scoring" ? "You're on the scoring team" : "You're a lead"); }} />` : null}
+      ${toastMsg ? html`<div className="toast" role="status">${toastMsg}</div>` : null}
+    </div>
+    <aside className="side">${side}</aside>
+    <div className="protobar" role="toolbar" aria-label="Prototype variant switcher">
+      <button onClick=${() => cycle(-1)} aria-label="Previous variant">←</button>
+      <span className="lbl"><b>${v.k}</b> <small>${v.name}</small></span>
+      <button onClick=${() => cycle(1)} aria-label="Next variant">→</button>
+      <button className="menu-btn" onClick=${() => setDrawer(d => !d)}>${drawer ? "Close" : "Menu"}</button>
+    </div>
+    ${drawer ? html`<div className="drawer side" style=${{ display: "flex", width: "auto" }}>${side}</div>` : null}
+  </div>`;
+}
+function SidePanel({ st, v, variant, switchTo, jump, me }) {
+  const rs = live(st);
+  return html`
+    <div><div className="label">Prototype · throwaway</div><h1>Race-day phone screens</h1></div>
+    <p>Three ways the volunteer jobs could look. The join screen and the Lead area are the same in all three. Sample data: South day 1, about ${hhmm(START)}.</p>
+    <h2>Variants</h2>
+    <div className="vlist">${VARIANTS.map(x => html`<button key=${x.k} className="vbtn" aria-pressed=${x.k === variant} onClick=${() => switchTo(x.k)}><b>${x.k} · ${x.name}</b><br/>${x.desc}</button>`)}</div>
+    <h2>Jump to</h2>
+    <div className="jump">
+      <button onClick=${() => jump("join")}>Join screen</button>
+      <button onClick=${() => jump("volunteer")}>Volunteer (Ahmed)</button>
+      <button onClick=${() => jump("lead")}>Zone lead jobs (Maryam)</button>
+      <button onClick=${() => jump("leadarea")}>Lead area</button>
+      <button onClick=${() => jump("scoring")}>Scoring team (Aisha)</button>
+      <button onClick=${() => jump("reset")}>Reset sample data</button>
+    </div>
+    <h2>Codes</h2>
+    <p>Day code <code>${st.dayCode}</code> · lead code <code>${st.leadCode}</code> · owner password <code>${OWNER_PASSWORD}</code>. Try joining as "Ahmed" to see the name refusal.</p>
+    <h2>Things to try</h2>
+    <p>Finish order: save with someone unplaced. Times: type 1010 then 990 for an out-of-order warning; mark No finisher. Start line: type 3045 in a Cubs race (wrong section), 7777 (unknown) or the same number twice. Lead: settle the 60m Girl Cubs tie, then Heats complete.</p>
+    <h2>Live data · ${me.name} (${me.level})</h2>
+    <div className="statebox">${rs.map(r => html`<div key=${r.id}><b>${r.event} ${raceLabel(r)}</b> · ${r.runners.length} in · order ${r.order ? "✓" : "-"} · times ${r.times ? nonNull(r.times) + "/" + r.times.length : "-"}${r.clash ? " · clash" : ""}${r.outOfOrder ? " · out of order" : ""}${mismatch(r) ? " · counts differ" : ""}${isLocked(st, r) ? " · locked" : ""}</div>`)}</div>
+  `;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+</script>
