@@ -20,6 +20,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     CREATE UNIQUE INDEX IF NOT EXISTS joined_name ON phones(day_id, lower(name)) WHERE NOT removed;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS events_confirmed boolean NOT NULL DEFAULT false;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
+    ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_at timestamptz;
+    ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_revision bigint;
     CREATE TABLE IF NOT EXISTS events (
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id),
       code text NOT NULL, name text NOT NULL,

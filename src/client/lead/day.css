@@ -4,3 +4,6 @@
 .day-actions {display:flex;flex-wrap:wrap;gap:.6rem;}
 .day-setup select {font:inherit;width:100%;padding:.8rem;min-height:48px;border:2px solid #718878;border-radius:.4rem;background:white;}
 .day-setup select:focus-visible {outline:3px solid #d78800;outline-offset:3px;}
+
+.day-export {padding:1rem;background:white;border:1px solid #b6c6b9;border-radius:.6rem;margin:1rem 0;}
+.day-export h2 {margin-top:0;}
