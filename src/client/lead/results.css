@@ -54,3 +54,8 @@
 .lead-time-input output {display:block;font-size:1.25rem;font-weight:700;}
 .runner-actions .lead-checkbox {display:flex;align-items:center;gap:.6rem;margin:.6rem 0;}
 .runner-actions .lead-checkbox input {width:auto;flex-shrink:0;}
+
+.needs-you ol {list-style:none;padding:0;}
+.needs-you li {margin:.7rem 0;}
+.needs-you li button {display:block;width:100%;text-align:left;overflow-wrap:anywhere;}
+.needs-you small {display:block;margin-top:.4rem;}

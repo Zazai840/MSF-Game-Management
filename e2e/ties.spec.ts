@@ -13,7 +13,7 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
   await page.getByLabel('First name').fill(`Tie lead ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();
   await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
-  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();
+  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Results',exact:true}).click();
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();

@@ -6,5 +6,5 @@ export function isOpenEligibilityWarning(flag:ResultFlag):boolean {
   return flag.kind==='warning' && flag.warningKind!=='already-ran' && !flag.checked;
 }
 export function runnerWarningFlags(runner:Runner,ruling:RunnerRuling|undefined,repeated:boolean):ResultFlag[] {
-  return (runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message,warningKind:warning.kind,checked:warning.kind==='already-ran'?!repeated:!!ruling?.warningChecks?.some(check=>check.kind===warning.kind && check.message===warning.message)}));
+  return (runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message,warningKind:warning.kind,checked:warning.kind==='already-ran'?!repeated:ruling?.disqualification?.reason==='Wrong section or age' || !!ruling?.warningChecks?.some(check=>check.kind===warning.kind && check.message===warning.message)}));
 }

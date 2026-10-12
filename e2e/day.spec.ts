@@ -10,7 +10,7 @@ test('the scoring team edits and confirms the Day programme',async({page},info)=
   await expect(page.getByRole('alert')).toHaveText('Wrong lead code');
   await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');
   await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-  await page.getByRole('button',{name:'Lead · 0 needing you'}).click();
+  await page.getByRole('button',{name:/^Lead ·/}).click();
   await page.getByRole('button',{name:'Day',exact:true}).click();
   await expect(page.getByText(process.env.E2E_DAY_CODE!,{exact:true})).toBeVisible();
   await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
@@ -32,7 +32,7 @@ test('the scoring team edits and confirms the Day programme',async({page},info)=
   await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('day-programme.png'),fullPage:true});
   await page.reload();
-  await page.getByRole('button',{name:'Lead · 0 needing you'}).click();
+  await page.getByRole('button',{name:/^Lead ·/}).click();
   await page.getByRole('button',{name:'Day',exact:true}).click();
   await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();
 });

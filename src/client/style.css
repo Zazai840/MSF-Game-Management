@@ -20,3 +20,5 @@ footer button {font-size:.85rem; background:transparent; color:#215d3c;}
 .app-update {max-width:48rem; margin:1rem auto 0; padding:0 1rem;}
 .app-update button {width:100%; background:#fff4d9; border-color:#8a5d00; color:#513700;}
 @media(min-width:800px) {main {padding:2rem;} .jobs {grid-template-columns:repeat(3,1fr);} }
+
+.lead-count {display:inline-block;min-width:1.6em;border-radius:1em;padding:.1em .4em;background:#b4232c;color:white;font-weight:700;}

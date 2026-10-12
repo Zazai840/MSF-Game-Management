@@ -22,8 +22,8 @@ test('join an Olympics day, reload the phone and become lead', async ({page}, in
   await page.getByRole('button',{name:'Become lead',exact:true}).click();
   await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
   await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Lead · 0 needing you'})).toBeVisible();
-  await page.getByRole('button',{name:'Lead · 0 needing you'}).click();
+  await expect(page.getByRole('button',{name:/^Lead ·/})).toBeVisible();
+  await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Day',exact:true})).toHaveCount(0);
   expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(true);

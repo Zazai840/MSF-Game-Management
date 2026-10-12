@@ -1,3 +1,5 @@
+import { RunnerActions } from './RunnerActions.js';
+import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions } from './RaceActions.js';
 import { useEffect,useRef,useState } from 'react';
 import type { LeadRaceRead } from '../../shared/race-clashes.js';
@@ -6,8 +8,10 @@ import { raceLabel } from '../../shared/races.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { api } from '../api.js';
 import { ClashVersions } from './ClashVersions.js';
-export function RacePage({raceId,onSaved,onClose}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
+export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
+  const [selectedEntry,setSelectedEntry]=useState<string|null>(null);
+  const selectedRow=actionableRunners.find(row=>row.raceId===raceId && row.entryId===selectedEntry);
   const [updated,setUpdated]=useState('');
   const request=useRef(0);
   async function refresh() {
@@ -20,8 +24,9 @@ export function RacePage({raceId,onSaved,onClose}:{raceId:string;onSaved:(next:E
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {new Date(read.race.checkedInAt).toLocaleTimeString()}</p>
     <ClashVersions read={read} onSaved={onSaved} onChanged={refresh}/>
     <RaceActions race={read.race} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
+    {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
     <h4>Current record</h4><p>Runners: {read.race.parts.runners.value?.map(runner=>runner.wristband).join(' · ')||'None'}</p>
-    <ol>{read.race.recording.results.map(row=><li key={row.entryId}>{row.wristband} · {row.place===null?'No place':`Place ${row.place}`} · {row.time===null?'No time':formatTime(row.time)}</li>)}</ol>
+    <ol>{read.race.recording.results.map(row=><li key={row.entryId}>{actionableRunners.some(entry=>entry.raceId===raceId && entry.entryId===row.entryId)?<button aria-label={`Runner ${row.wristband}`} onClick={()=>setSelectedEntry(row.entryId)}>{row.wristband}</button>:row.wristband} · {row.place===null?'No place':`Place ${row.place}`} · {row.time===null?'No time':formatTime(row.time)}</li>)}</ol>
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={save.id}>{save.author||'Not recorded'} · {save.part==='finish'?'Finishing order':save.part==='runners'?'Runners':'Times'} · <time dateTime={save.at}>{new Date(save.at).toLocaleString()}</time></li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh race</button></footer></section>;
 }
