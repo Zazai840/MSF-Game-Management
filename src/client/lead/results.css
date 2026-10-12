@@ -12,10 +12,25 @@
 .result-number,.result-time {font-size:1.3rem;font-variant-numeric:tabular-nums;}
 .result-detail {grid-column:2 / -1;font-size:.9rem;}
 .result-flags {list-style:none;padding:0;margin:.5rem 0 0;}
-.result-flags li {background:#fff1cf;color:#674000;padding:.5rem;border-left:3px solid #bd7800;margin-top:.4rem;overflow-wrap:anywhere;}
 .result-line {border-top:3px solid #215d3c;color:#215d3c;padding:.4rem 0;font-size:.85rem;font-weight:700;}
 .not-ranked {background:#e9ece8;border-left:4px solid #718878;padding:.8rem;margin-top:1.25rem;}
 .not-ranked h3 {margin:.2rem 0 .7rem;}
 .not-ranked ul {padding-left:1.2rem;margin:0;}
 .not-ranked li {margin:.5rem 0;}
 @media(min-width:700px) {.results-events {grid-template-columns:repeat(2,minmax(0,1fr));}.leaderboard-row {grid-template-columns:4rem minmax(0,1fr) 6rem;}.result-number,.result-time {font-size:1.4rem;}}
+.result-open {width:100%;text-align:left;color:inherit;cursor:pointer;}
+.result-open:hover {outline:2px solid #215d3c;}
+.result-flags > span {display:block;background:#fff1cf;color:#674000;padding:.5rem;border-left:3px solid #bd7800;margin-top:.4rem;overflow-wrap:anywhere;}
+.disqualified .result-number,.disqualified .result-time {text-decoration:line-through;}
+.disqualification-reason {display:block;margin-top:.4rem;font-weight:700;}
+.note-tag {display:inline-block;background:#e1ebe3;color:#215d3c;font-size:.8rem;padding:.15rem .4rem;margin:.4rem 0 0 .4rem;border-radius:.2rem;}
+.runner-actions {border:2px solid #215d3c;border-radius:.4rem;background:white;color:inherit;padding:1rem;width:calc(100% - 2rem);max-width:34rem;max-height:85vh;overflow:auto;margin:auto;}
+.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:#15271dcc;display:flex;align-items:center;justify-content:center;padding:1rem;}
+.runner-actions h3 {margin-top:0;}
+.runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
+.runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
+.latest-note {display:block;margin-top:.3rem;}
+.audit-notes {margin-top:1.5rem;}
+.audit-notes ol {list-style:none;padding:0;}
+.audit-notes li {border-top:1px solid #b6c6b9;padding:.7rem 0;overflow-wrap:anywhere;}
+.audit-notes time {font-variant-numeric:tabular-nums;}

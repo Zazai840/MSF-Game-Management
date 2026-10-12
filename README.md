@@ -30,6 +30,8 @@ Times opens on the oldest waiting race and can be recorded before Finish order. 
 
 The Lead area's Results tab groups the programme by event name. Open an event for its provisional leaderboard: heats highlight eight and mark six Q; timed events highlight six and mark the first three medal places. Only fully recorded races with matching finisher counts and ordered times rank. Did not finish rows sit at the bottom, warnings retain their wording in amber, and a wristband used in two active races appears in both with Ran twice. Not ranked yet explains incomplete races. Results refresh every five seconds while visible and offer manual refresh.
 
+Leads can tap a runner in Results to disqualify them, choosing a reason, or lift a disqualification. Other and lifting require a comment. The ranking updates immediately; the child remains visible at the bottom with the reason. A note tag marks touched rows, the event list shows the latest note time, and Audit notes below the leaderboard retain the joined name, time, action and comment, newest first.
+
 ## Check changes
 
 ```sh
@@ -68,3 +70,6 @@ Production builds install an app-shell service worker on HTTPS (or localhost). I
 - `RaceRead.recording`, derived by `src/shared/recording.ts`, contains the count disagreement message, `readyForRanking`, and each entry's current place and time. Places in `FinishingOrder` point to stable entries; `RaceTimes` points to places, so correcting either part re-pairs automatically. Out-of-order times and mismatched counts are saved but keep a race unranked. Old trailing No finisher capacity has no effect on readiness.
 
 - `GET /api/lead/results` returns `ResultsRead` (confirmation and ordered event-name groups with event summaries). `GET /api/lead/events/:code/results` returns `EventResultsRead` (event and the pure rules output). Both require Lead and read a consistent database snapshot scoped to the phone's Olympics day. `src/server/results/read.ts` is the storage adapter into `EventState`; later rulings can recompute results through this same adapter inside their transaction. Results display ships with the dynamically loaded Lead bundle.
+
+- Lead rulings use `rulingChange(pool, phone, callback, minimumLevel)` in `src/server/rulings/records.ts`: the authenticated day lock rechecks current membership and level, commits the change and export revision together. `writeAuditNote` accepts an event ID (or null for a day note), snapshot prose and stable touched entry IDs. `readRulings` / `readAuditNotes` load facts; `rulingDetails` validates optional or required comments. Audit actor names and prose survive phone removal.
+- `POST /api/lead/races/:raceId/runners/:entryId/disqualify` accepts `reason` and optional `comment`; Other requires it. `POST .../lift-disqualification` requires `comment`. Both require Lead, retain stable runner identities, append an audit note and return recomputed `EventResultsRead`. Disqualifications are independent of job versions and work for any stored race kind. `EventState.rulings` and `auditNotes` drive exclusion and note tags in the pure results rules.

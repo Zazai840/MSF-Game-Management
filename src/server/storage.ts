@@ -45,6 +45,18 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       value jsonb, saved_at timestamptz, saved_by uuid REFERENCES phones(id),
       PRIMARY KEY(race_id,part)
     );
+    CREATE TABLE IF NOT EXISTS runner_rulings (
+      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
+      entry_id text NOT NULL, disqualification jsonb,
+      PRIMARY KEY(race_id,entry_id)
+    );
+    CREATE TABLE IF NOT EXISTS audit_notes (
+      id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+      day_id uuid NOT NULL REFERENCES olympics_days(id), event_id uuid REFERENCES events(id),
+      action text NOT NULL, actor_name text NOT NULL, occurred_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+      message text NOT NULL, comment text, touches jsonb NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS event_audit_order ON audit_notes(event_id,sequence_number DESC);
   `);
   if (resetTestDay) await pool.query('TRUNCATE phones, olympics_days CASCADE');
   return pool;
