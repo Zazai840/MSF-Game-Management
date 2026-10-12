@@ -82,7 +82,11 @@ _Avoid_: Dead heat, draw
 
 **Run-off**:
 A short extra run between tied children, held at the zone lead's call, whose order breaks the tie. It is not a race: the zone lead records its outcome against the tie.
-_Avoid_: Re-run, tie-break race, decider
+_Avoid_: Tie-break race, decider
+
+**Re-run**:
+Running a whole race again with the same children because its record can't be trusted or recovered, called by the zone lead as a last resort. The first race becomes a deleted race and the re-run is a new race of the same event. It is not a run-off.
+_Avoid_: Rerace, restart, repeat race
 
 **Disqualification**:
 The zone lead's ruling, with a reason, that a child (or relay team) is out of an event's ranking because of something they did in a race, such as two false starts or obstruction. The child stays shown in the race.
