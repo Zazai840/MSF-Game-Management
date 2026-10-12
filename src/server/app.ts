@@ -1,3 +1,4 @@
+import { clashRoutes } from './rulings/clashes.js';
 import Fastify from 'fastify';
 import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
@@ -35,6 +36,7 @@ export async function createApp(settings: AppSettings) {
   timesRoutes(app,pool);
   resultsRoutes(app,pool);
   rulingRoutes(app,pool);
+  clashRoutes(app,pool);
   runnerRulingRoutes(app,pool);
   tieRoutes(app,pool);
   return app;

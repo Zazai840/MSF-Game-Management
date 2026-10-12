@@ -46,7 +46,7 @@ test('Finish order adds a missing runner with kept warnings, retains Did not fin
   expect((await call(volunteer,'/api/wristband-check',{eventCode:'R4',wristband:2002})).json().warnings).toMatchObject([{kind:'already-ran'}]);
   const later=await checkIn([2003]);expect(later.parts.runners.value[0].warnings).toEqual([]);
 });
-test('all joined levels can correct Finish order while stale drafts cannot overwrite either part',async()=>{
+test('all joined levels can correct Finish order while stale drafts are kept for a lead instead of overwriting either part',async()=>{
   const {owner,lead,volunteer,checkIn}=await start();
   const race=await checkIn([2001,2002]);
   for(const [version,token] of [volunteer,lead,owner].entries()) {
@@ -56,10 +56,10 @@ test('all joined levels can correct Finish order while stale drafts cannot overw
     expect((await call(token,'/api/jobs/finish-order')).json()).not.toHaveProperty('leadCode');
   }
   const old=await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]});
-  expect(old.statusCode).toBe(409);
+  expect(old.statusCode).toBe(200);expect(old.json().status).toBe('clash');
   const waiting=await checkIn([2003]);
   await call(volunteer,`/api/races/${waiting.id}/runners`,{baseVersion:1,runners:[2003,2004]});
-  expect((await call(volunteer,`/api/races/${waiting.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2003],didNotFinish:[],didNotRun:[],added:[]})).statusCode).toBe(409);
+  expect((await call(volunteer,`/api/races/${waiting.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2003],didNotFinish:[],didNotRun:[],added:[]})).json().status).toBe('clash');
   expect((await call('not-joined','/api/jobs/finish-order')).statusCode).toBe(401);
   expect((await call('not-joined',`/api/races/${race.id}/finish`,{})).statusCode).toBe(401);
 });

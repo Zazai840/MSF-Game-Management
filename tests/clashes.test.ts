@@ -1,0 +1,139 @@
+import { afterEach,expect,test } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { createApp } from '../src/server/app.js';
+let app:FastifyInstance;
+const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
+afterEach(async()=>{await app?.close();});
+async function start() {
+  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'clash-owner',resetTestDay:true});
+  const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'clash-owner',name:'Aisha'}})).json();
+  const day=(await call(owner.token,'/api/day')).json();await call(owner.token,'/api/day/confirm-events',{});
+  const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json().token as string;
+  const first=await join('Ahmed'),second=await join('Yusuf'),third=await join('Fatima'),lead=await join('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const checkIn=async(runners=[2001,2002])=>(await call(first,'/api/races/check-in',{eventCode:'R4',runners})).json().race;
+  return {first,second,third,lead,checkIn};
+}
+test('Times current-base corrections publish, stale-identical saves merge, and stale-different saves retain all candidates',async()=>{
+  const {first,second,third,lead,checkIn}=await start();const race=await checkIn();
+  const a=await call(first,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]});expect(a.json().status).toBe('saved');
+  const identical=await call(second,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]});expect(identical.json().status).toBe('merged');
+  expect(identical.json().race.parts.times.version).toBe(1);
+  const corrected=await call(first,`/api/races/${race.id}/times`,{baseVersion:1,places:[1210,1310]});expect(corrected.json().status).toBe('saved');expect(corrected.json().race.parts.times.version).toBe(2);
+  const b=await call(second,`/api/races/${race.id}/times`,{baseVersion:0,places:[1220,1320]});expect(b.json().status).toBe('clash');
+  const c=await call(third,`/api/races/${race.id}/times`,{baseVersion:0,places:[1230,1330]});expect(c.json().status).toBe('clash');
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();
+  expect(read.clashes[0].candidates.map((candidate:any)=>[candidate.author,candidate.value.places])).toEqual([['Ahmed',[1210,1310]],['Yusuf',[1220,1320]],['Fatima',[1230,1330]]]);
+  expect(read.history).toHaveLength(8); // Initial three parts, four distinct Times saves and one identical save.
+  expect(read.history.filter((save:any)=>save.part==='times').map((save:any)=>save.author)).toEqual([null,'Ahmed','Yusuf','Ahmed','Yusuf','Fatima']);
+  expect((await call(first,`/api/races/${race.id}`)).json().parts.times).toMatchObject({version:2,value:{places:[1210,1310]},clash:true});
+  expect((await call(first,`/api/races/${race.id}`)).json()).not.toHaveProperty('history');
+});
+test('runner versions correct sequentially, merge identical additions by content, and retain three different lists',async()=>{
+  const {first,second,third,lead,checkIn}=await start();const race=await checkIn();
+  expect((await call(first,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2003]})).json().status).toBe('saved');
+  const identical=await call(second,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2003]});expect(identical.json().status).toBe('merged');
+  expect(identical.json().race.parts.runners.version).toBe(2);
+  expect((await call(first,`/api/races/${race.id}/runners`,{baseVersion:2,runners:[2001,2004]})).json().status).toBe('saved');
+  expect((await call(second,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2005]})).json().status).toBe('clash');
+  expect((await call(third,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2006]})).json().status).toBe('clash');
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();
+  expect(read.clashes[0].candidates.map((candidate:any)=>[candidate.author,candidate.value.map((runner:any)=>runner.wristband)])).toEqual([['Ahmed',[2001,2004]],['Yusuf',[2001,2005]],['Fatima',[2001,2006]]]);
+  expect(read.clashes[0].candidates.every((candidate:any)=>candidate.value[0].id===race.parts.runners.value[0].id)).toBe(true);
+});
+test('Finish order corrects its own current version and keeps three simultaneous versions without losing original entry IDs',async()=>{
+  const {first,second,third,lead,checkIn}=await start();const race=await checkIn([2001,2002,2003]);
+  const payload=(baseVersion:number,order:number[])=>({baseVersion,runnersVersion:1,order,didNotFinish:[],didNotRun:[],added:[]});
+  expect((await call(first,`/api/races/${race.id}/finish`,payload(0,[2001,2002,2003]))).json().status).toBe('saved');
+  expect((await call(second,`/api/races/${race.id}/finish`,payload(0,[2001,2002,2003]))).json().status).toBe('merged');
+  const corrected=await call(first,`/api/races/${race.id}/finish`,payload(1,[2002,2001,2003]));expect(corrected.json().status).toBe('saved');expect(corrected.json().race.parts.finish.version).toBe(2);
+  expect((await call(second,`/api/races/${race.id}/finish`,payload(0,[2003,2001,2002]))).json().status).toBe('clash');
+  expect((await call(third,`/api/races/${race.id}/finish`,payload(0,[2001,2003,2002]))).json().status).toBe('clash');
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();
+  expect(read.clashes[0].candidates.map((candidate:any)=>candidate.author)).toEqual(['Ahmed','Yusuf','Fatima']);
+  expect(read.clashes[0].candidates[1].value.order).toEqual([race.parts.runners.value[2].id,race.parts.runners.value[0].id,race.parts.runners.value[1].id]);
+  expect(read.race.parts.runners.version).toBe(1);expect(read.race.parts.times.version).toBe(0);
+});
+test('a clashing race stays out of ranking until a lead chooses a version and writes an audit note',async()=>{
+  const {first,second,lead,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]});
+  await call(first,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]});
+  await call(second,`/api/races/${race.id}/times`,{baseVersion:0,places:[1210,1310]});
+  const before=(await call(lead,'/api/lead/events/R4/results')).json();
+  expect(before.results.leaderboard).toEqual([]);
+  expect(before.results.notRankedYet[0].reasons).toContain('two versions, lead to check');
+  expect(before.results.needsYou).toContainEqual(expect.objectContaining({kind:'clash',raceId:race.id}));
+  expect((await call(first,`/api/races/${race.id}`)).json().recording.readyForRanking).toBe(false);
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();const chosen=read.clashes[0].candidates[1];
+  expect((await call(first,`/api/lead/races/${race.id}`)).statusCode).toBe(403);
+  expect((await call(first,`/api/lead/races/${race.id}/clashes/times`,{candidateId:chosen.id})).statusCode).toBe(403);
+  const resolved=await call(lead,`/api/lead/races/${race.id}/clashes/times`,{candidateId:chosen.id});expect(resolved.statusCode).toBe(200);
+  expect(resolved.json().results.leaderboard.map((row:any)=>[row.wristband,row.time])).toEqual([[2001,1210],[2002,1310]]);
+  expect(resolved.json().auditNotes[0]).toMatchObject({action:'Chose Times version',actor:'Maryam',touches:[{raceId:race.id}]});
+  expect(resolved.json().auditNotes[0].message).toContain('Yusuf');
+  const after=(await call(lead,`/api/lead/races/${race.id}`)).json();expect(after.clashes).toEqual([]);
+  expect(after.history.some((save:any)=>save.id===chosen.id)).toBe(true);
+  expect(after.race.recording.readyForRanking).toBe(true);
+});
+test('choosing an old Finish candidate restores its exact pre-save runners and additions, not the other candidate side effects',async()=>{
+  const {first,second,third,lead,checkIn}=await start();const race=await checkIn([2001,2002,2003,2004,2005]);
+  const edited=(await call(first,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2002,2003,2004,2010]})).json().race;
+  const savedA=await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:2,order:[2001,2003,2004,2010,2006,2007],didNotFinish:[],didNotRun:[2002],added:[2006,2007]});expect(savedA.json().status).toBe('saved');
+  const timed=(await call(first,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300,1400,1500,1600,1700]})).json().race.parts.times;
+  const savedB=await call(second,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:2,order:[2002,2001,2003,2004,2010,2008],didNotFinish:[],didNotRun:[],added:[2008]});expect(savedB.statusCode).toBe(200);expect(savedB.json().status).toBe('clash');
+  expect(savedB.json().race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2003,2004,2010,2006,2007]);
+  const savedC=await call(third,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:2,order:[2001,2002,2004,2010,2009],didNotFinish:[],didNotRun:[2003],added:[2009]});expect(savedC.json().status).toBe('clash');
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();expect(read.clashes[0].candidates).toHaveLength(3);
+  const chosen=read.clashes[0].candidates.find((candidate:any)=>candidate.author==='Yusuf');
+  expect(chosen.runnersBefore).toEqual(edited.parts.runners.value);
+  const resolved=await call(lead,`/api/lead/races/${race.id}/clashes/finish`,{candidateId:chosen.id});expect(resolved.statusCode).toBe(200);
+  const after=(await call(first,`/api/races/${race.id}`)).json();
+  expect(after.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2002,2003,2004,2010,2008]);
+  expect(after.parts.runners.value.find((runner:any)=>runner.wristband===2002).id).toBe(edited.parts.runners.value[1].id);
+  expect(after.parts.runners.value.find((runner:any)=>runner.wristband===2008).id).toBe(chosen.runners.find((runner:any)=>runner.wristband===2008).id);
+  expect(after.parts.times).toEqual(timed);
+  expect(resolved.json().results.leaderboard.map((row:any)=>[row.wristband,row.time])).toEqual([[2002,1200],[2001,1300],[2003,1400],[2004,1500],[2010,1600],[2008,1700]]);
+});
+test('a retry matching another active candidate merges without making a duplicate candidate or losing its author',async()=>{
+  const {first,second,third,lead,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]});
+  await call(second,`/api/races/${race.id}/times`,{baseVersion:0,places:[1210,1310]});
+  const repeated=await call(third,`/api/races/${race.id}/times`,{baseVersion:0,places:[1210,1310]});expect(repeated.json().status).toBe('merged');
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();expect(read.clashes[0].candidates).toHaveLength(2);
+  expect(read.history.filter((save:any)=>save.part==='times').map((save:any)=>save.author)).toEqual([null,'Ahmed','Yusuf','Fatima']);
+  expect(repeated.json().race.parts.times.clash).toBe(true);
+});
+test('a Times draft recorded before another phone adds a finisher is kept and shows a count mismatch',async()=>{
+  const {first,second,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[2003]});
+  const timed=await call(second,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]});
+  expect(timed.statusCode).toBe(200);expect(timed.json().status).toBe('saved');
+  expect(timed.json().race.recording).toMatchObject({readyForRanking:false,countMismatch:'Finish order has 3 finishers, times have 2 - check the recording'});
+});
+test('the same finishing order and Did not finish membership merge regardless of classification order',async()=>{
+  const {first,second,checkIn}=await start();const race=await checkIn([2001,2002,2003]);
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[2002,2003],didNotRun:[],added:[]});
+  const identical=await call(second,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[2003,2002],didNotRun:[],added:[]});
+  expect(identical.json().status).toBe('merged');expect(identical.json().race.parts.finish.clash).toBeUndefined();
+});
+test('choosing a differently ordered Finish candidate with the same added number restores that candidate entry identity',async()=>{
+  const {first,second,lead,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[2003]});
+  await call(second,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2003,2001,2002],didNotFinish:[],didNotRun:[],added:[2003]});
+  await call(first,`/api/races/${race.id}/times`,{baseVersion:0,places:[1200,1300,1400]});
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();const chosen=read.clashes[0].candidates[1];
+  const resolved=await call(lead,`/api/lead/races/${race.id}/clashes/finish`,{candidateId:chosen.id});
+  expect(resolved.json().results.leaderboard.map((row:any)=>[row.wristband,row.time])).toEqual([[2003,1200],[2001,1300],[2002,1400]]);
+  const after=(await call(first,`/api/races/${race.id}`)).json();expect(after.parts.runners.value.find((runner:any)=>runner.wristband===2003).id).toBe(chosen.runners.find((runner:any)=>runner.wristband===2003).id);
+});
+test('stale runner drafts remain candidates after finish while current-base volunteer edits stay refused',async()=>{
+  const {first,second,lead,checkIn}=await start();const race=await checkIn();
+  await call(first,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2002,2003]});
+  await call(first,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:2,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[]});
+  const current=await call(second,`/api/races/${race.id}/runners`,{baseVersion:2,runners:[2001]});expect(current.statusCode).toBe(409);expect(current.json().message).toBe('Finishing order already recorded - ask a lead');
+  const stale=await call(second,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2004]});expect(stale.json().status).toBe('clash');
+  expect(stale.json().race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2002,2003]);
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();const chosen=read.clashes[0].candidates[1];
+  expect((await call(first,`/api/lead/races/${race.id}/clashes/runners`,{candidateId:chosen.id})).statusCode).toBe(403);
+  expect((await call(lead,`/api/lead/races/${race.id}/clashes/runners`,{candidateId:chosen.id})).statusCode).toBe(200);
+  const resolved=(await call(first,`/api/races/${race.id}`)).json();expect(resolved.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2004]);expect(resolved.parts.finish.value).toBeNull();expect(resolved.recording.readyForRanking).toBe(false);
+});

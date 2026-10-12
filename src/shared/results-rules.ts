@@ -10,15 +10,16 @@ export type Section = 'Boy Beavers' | 'Girl Beavers' | 'Boy Cubs' | 'Girl Cubs' 
 export interface Event { code:string; name:string; section:Section; format:'heats'|'timed' }
 export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:number; checkedInAt:string }
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
-export interface ResultsRace extends RaceReference { deleted:boolean; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null }
+export interface ResultsRace extends RaceReference { deleted:boolean; clash?:boolean; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[] }
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
+
 export interface ResultEntry { raceId:string; entryId:string; wristband:number }
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }
-export type NotRankedReason='checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
+export type NotRankedReason='two versions, lead to check'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
 export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
@@ -43,6 +44,7 @@ export function eventResults(state:EventState):EventResults {
   }
   for(const race of active) {
     const reasons:NotRankedReason[]=[];
+    if(race.clash) reasons.push('two versions, lead to check');
     if(!race.finish) reasons.push(race.times?'awaiting finishing order':'checked in');
     if(race.finish && !race.times) reasons.push('awaiting times');
     if(race.times && timesOutOfOrder(race.times.places)) reasons.push('times out of order');
@@ -72,5 +74,7 @@ export function eventResults(state:EventState):EventResults {
     if(state.event.format==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
   const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
-  return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties,notRankedYet,needsYou:ties.map(tie=>({id:`tie:${tie.id}`,kind:'tie',message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`})),band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
+  const needsYou:LeadItem[]=[...active.filter(race=>race.clash).map(race=>({id:`clash:${race.id}`,kind:'clash' as const,raceId:race.id,message:'Two versions - zone lead to check'})),...ties.map(tie=>({id:`tie:${tie.id}`,kind:'tie' as const,message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`}))];
+  return {leaderboard,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):[],ties,notRankedYet,needsYou,band,status:active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:true};
+
 }
