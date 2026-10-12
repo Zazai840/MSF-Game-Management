@@ -7,3 +7,7 @@
 .race-job output {display:block;min-height:65px;font-size:2rem;letter-spacing:.08em;padding:.6rem;border:2px solid #718878;border-radius:.4rem;background:white;overflow-wrap:anywhere;}
 .race-header {background:#e1ebe3;padding:.75rem;border-radius:.4rem;}
 .race-job li {font-size:1.4rem;line-height:1.7;}
+.race-job .number-warning {padding:1rem;margin-top:1rem;border-left:4px solid #bd7800;background:#fff1cf;color:#674000;}
+.race-job output.warning-number,.runner-chips .warning-chip {border-color:#bd7800;background:#fff1cf;color:#674000;}
+.kept-warning {color:#674000;}
+.kept-warning p {font-size:1rem;line-height:1.3;background:#fff1cf;padding:.5rem;}
