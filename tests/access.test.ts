@@ -1,10 +1,10 @@
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { createApp } from '../src/server/app.js';
 import type { FastifyInstance } from 'fastify';
 let app: FastifyInstance;
 const join = (code: string, name: string) => app.inject({method:'POST', url:'/api/join', payload:{code,name}});
 const auth = (token: string) => ({authorization:`Bearer ${token}`});
-afterEach(async () => { await app?.close(); });
+afterEach(async () => { vi.restoreAllMocks(); await app?.close(); });
 async function start() {
   app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL || `postgresql://${process.env.USER}@localhost:5432/${process.env.TEST_DATABASE_NAME || 'msf_spec22_23_test'}`, ownerPassword: 'test-owner-fixture', resetTestDay: true});
 }
@@ -69,4 +69,47 @@ test('malformed join requests are refused as a plain request error', async () =>
   const response = await app.inject({method:'POST', url:'/api/join', headers:{'content-type':'application/json'}, payload:'{"code":'});
   expect(response.statusCode).toBe(400);
   expect(response.json().message).toBe('Check what you entered and try again');
+});
+
+
+test('failed owner and day codes back off by IP without delaying valid joins or counting validation errors', async () => {
+  await start();
+  const remoteAddress='192.0.2.1';
+  const attempt=(code:unknown,name:unknown='Ahmed',ip=remoteAddress)=>app.inject({method:'POST',url:'/api/join',remoteAddress:ip,payload:{code,name}});
+  for(let i=0;i<8;i++) expect((await attempt(null)).statusCode).toBe(400);
+  for(let i=0;i<5;i++) expect((await attempt('wrong')).statusCode).toBe(403);
+  const throttled=attempt('wrong');
+  const owner=await attempt('test-owner-fixture','Scoring');
+  expect(owner.statusCode).toBe(200);
+  expect((await attempt('wrong','Ahmed','192.0.2.2')).statusCode).toBe(403);
+  const refusal=await throttled;
+  expect(refusal.statusCode).toBe(429);
+  expect(refusal.headers['retry-after']).toBe('1');
+  const day=(await app.inject({url:'/api/day',headers:auth(owner.json().token)})).json();
+  expect((await attempt(day.dayCode)).statusCode).toBe(200);
+  expect((await attempt(day.dayCode)).statusCode).toBe(409);
+  const expired=Date.now()+15*60_000;
+  vi.spyOn(Date,'now').mockReturnValue(expired);
+  const wrongDay=await attempt('wrong');
+  expect(wrongDay.statusCode).toBe(403);
+  expect(wrongDay.json().message).toBe('Wrong day code - ask for the right one');
+});
+
+test('failed lead codes aggregate across phones sharing an IP and across IPs used by one phone', async () => {
+  await start();
+  const owner=(await join('test-owner-fixture','Scoring')).json();
+  const day=(await app.inject({url:'/api/day',headers:auth(owner.token)})).json();
+  const first=(await join(day.dayCode,'Ahmed')).json(),second=(await join(day.dayCode,'Aisha')).json();
+  const attempt=(token:string,code:unknown,remoteAddress:string)=>app.inject({method:'POST',url:'/api/become-lead',remoteAddress,headers:auth(token),payload:{code}});
+  for(let i=0;i<8;i++) expect((await attempt(first.token,null,'192.0.2.1')).statusCode).toBe(400);
+  for(let i=0;i<5;i++) expect((await attempt(first.token,'wrong','192.0.2.1')).statusCode).toBe(403);
+  const sameIp=attempt(second.token,'wrong','192.0.2.1');
+  const samePhone=attempt(first.token,'wrong','192.0.2.2');
+  expect((await attempt(first.token,day.leadCode,'192.0.2.2')).json()).toMatchObject({level:'Lead'});
+  expect((await attempt(second.token,'test-owner-fixture','192.0.2.1')).json()).toMatchObject({level:'Scoring team'});
+  expect((await attempt(second.token,'wrong','192.0.2.3')).statusCode).toBe(403);
+  for(const response of await Promise.all([sameIp,samePhone])) {
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('1');
+  }
 });

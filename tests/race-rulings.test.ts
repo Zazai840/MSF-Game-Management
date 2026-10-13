@@ -45,7 +45,7 @@ test('lead deletion, restoration and permanent deletion work after Finish and pr
   expect((await read()).auditNotes.map((note:any)=>note.action)).toEqual(['delete-race-permanently','restore-race','delete-race','correct-times']);
 });
 test('a re-run deletes the old record with its reason and creates a new numbered prefilled race without already-ran warnings',async()=>{
-  const {lead,volunteer,race,read}=await start();
+  const {owner,lead,volunteer,race,read}=await start();
   await call(volunteer,'/api/races/check-in',{eventCode:'R10',runners:[2001],keptWarnings:[2001]});
   const rerun=await call(lead,`/api/lead/races/${race.id}/re-run`,{comment:'Recording lost'});expect(rerun.statusCode).toBe(200);
   const newId=rerun.json().newRaceId;expect(newId).not.toBe(race.id);
@@ -57,6 +57,15 @@ test('a re-run deletes the old record with its reason and creates a new numbered
   expect((await call(volunteer,'/api/jobs/start-line')).json().waiting.map((item:any)=>item.id)).toContain(newId);
   expect((await call(lead,`/api/lead/races/${race.id}`)).json().race).toMatchObject({deleted:true,deleteReason:'re-run'});
   expect((await read()).auditNotes[0]).toMatchObject({action:'re-run',actor:'Aisha',comment:'Recording lost',touches:[{raceId:race.id},{raceId:newId}]});
+  const before=await read();
+  const revision=(await call(owner,'/api/day')).json().revision;
+  const restored=await call(lead,`/api/lead/races/${race.id}/restore`,{});
+  expect(restored.statusCode).toBe(409);
+  expect(restored.json().message).toBe('This race was replaced by a re-run and cannot be restored');
+  expect(await read()).toEqual(before);
+  expect((await call(owner,'/api/day')).json().revision).toBe(revision);
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race).toMatchObject({deleted:true,deleteReason:'re-run'});
+
 });
 test('lead runner correction preserves replacement identities and time pairing, removes dangling Finish IDs, and invalidates unclassified additions',async()=>{
   const {lead,volunteer,race}=await start();

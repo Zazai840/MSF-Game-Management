@@ -70,8 +70,13 @@ async function leadTimings(db:Database,dayId:string) {
 }
 export async function resultsSnapshot<T>(pool:pg.Pool,dayId:string,read:(client:pg.PoolClient)=>Promise<T>):Promise<T> {
   const client=await pool.connect();
+  let failure:Error|boolean|undefined;
   try {await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     if(!(await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active',[dayId])).rowCount) throw new Refusal(401,'Please join the Olympics day');
     const result=await read(client);await client.query('COMMIT');return result;}
-  catch(error) {await client.query('ROLLBACK');throw error;}finally {client.release();}
+  catch(error) {
+    failure=error instanceof Error?error:true;
+    try {await client.query('ROLLBACK');} catch { /* Preserve the original transaction error. */ }
+    throw error;
+  } finally {client.release(failure);}
 }
