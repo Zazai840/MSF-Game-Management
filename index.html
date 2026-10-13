@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MSF Running Zone</title>
+</head>
+<body>
+  <div id="root"></div>
+  <!-- This bootstrap uses old-browser syntax so the message survives unsupported app JavaScript. -->
+  <script>
+    (function () {
+      var ios = navigator.userAgent.match(/(?:CPU (?:iPhone )?OS|iPhone OS) (\d+)_/);
+      var android = navigator.userAgent.match(/Android (\d+)/);
+      var chromium = navigator.userAgent.match(/(?:Chrome|Chromium|Edg)\/(\d+)/);
+      var safari = navigator.userAgent.match(/Version\/(\d+).*Safari/);
+      var supported = window.fetch && window.Promise && window.URL && ('noModule' in document.createElement('script'));
+      try { supported = supported && window.localStorage; } catch (error) { supported = false; }
+      // ES2020 application syntax must never hide the plain fallback message.
+      if (!supported || (ios && Number(ios[1]) < 15) || (android && Number(android[1]) < 9) ||
+          (!ios && chromium && Number(chromium[1]) < 80) || (!ios && !chromium && safari && Number(safari[1]) < 14) || /Edge\//.test(navigator.userAgent)) {
+        var root = document.getElementById('root');
+        root.setAttribute('data-unsupported', 'true');
+        root.textContent = "This phone's browser is too old, please use another phone";
+      }
+    }());
+  </script>
+  <script type="module" src="/src/client/main.tsx"></script>
+</body>
+</html>

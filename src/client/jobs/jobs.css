@@ -1,0 +1,31 @@
+.race-job h2 {font-size:1.5rem;line-height:1.2;}
+.job-actions {display:grid;gap:.75rem;margin-top:1rem;}
+.number-keypad {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin:1rem 0;}
+.number-keypad button {min-height:64px;font-size:1.3rem;padding:.6rem;}
+.runner-chips {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
+.runner-chips button {background:white;color:#215d3c;padding:.5rem;}
+.race-job output {display:block;min-height:65px;font-size:2rem;letter-spacing:.08em;padding:.6rem;border:2px solid #718878;border-radius:.4rem;background:white;overflow-wrap:anywhere;}
+.race-header {background:#e1ebe3;padding:.75rem;border-radius:.4rem;}
+.race-job li {font-size:1.4rem;line-height:1.7;}
+.race-job .number-warning {padding:1rem;margin-top:1rem;border-left:4px solid #bd7800;background:#fff1cf;color:#674000;}
+.race-job output.warning-number,.runner-chips .warning-chip {border-color:#bd7800;background:#fff1cf;color:#674000;}
+.kept-warning {color:#674000;}
+.kept-warning p {font-size:1rem;line-height:1.3;background:#fff1cf;padding:.5rem;}
+.finish-numbers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}
+.finish-numbers button {font-size:2rem;min-height:88px;}
+.finish-review {padding-left:1.75rem;}
+.finish-review li {padding:.5rem 0;}
+.finish-review li>div {display:flex;gap:.5rem;}
+.finish-review small {font-size:1rem;}
+.place-slots {display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;}
+.place-slots button {flex:1;min-width:75px;padding:.5rem;background:white;color:#215d3c;border:2px solid #718878;}
+.place-slots small {display:block;font-size:.85rem;}
+.place-slots .current-place {border:3px solid #215d3c;background:#e1ebe3;}
+.race-job .count-mismatch {border-left:4px solid #ab4200;background:#fff0dc;color:#733100;padding:1rem;font-weight:700;}
+.time-example {font-size:.9rem;}
+.time-review p {margin:.25rem 0;padding:.5rem;background:#e1ebe3;}
+
+.stage-job-fields {border:0;padding:0;margin:0;min-width:0;}
+
+.final-attendance>button {display:block;margin-top:.75rem;}
+.final-attendance button[aria-pressed=true] {background:#fff1cf;color:#674000;border:2px solid #bd7800;}
