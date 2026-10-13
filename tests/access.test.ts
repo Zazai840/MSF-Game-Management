@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { createApp } from '../src/server/app.js';
 import type { FastifyInstance } from 'fastify';
+import pg from 'pg';
+import * as rulings from '../src/server/rulings/records.js';
 let app: FastifyInstance;
 const join = (code: string, name: string) => app.inject({method:'POST', url:'/api/join', payload:{code,name}});
 const auth = (token: string) => ({authorization:`Bearer ${token}`});
@@ -72,24 +74,34 @@ test('malformed join requests are refused as a plain request error', async () =>
 });
 
 
-test('failed owner and day codes back off by IP without delaying valid joins or counting validation errors', async () => {
+test('failed owner and day codes block all joins from an IP without counting validation errors', async () => {
   await start();
+  let now=Date.now();
+  vi.spyOn(Date,'now').mockImplementation(()=>now);
   const remoteAddress='192.0.2.1';
   const attempt=(code:unknown,name:unknown='Ahmed',ip=remoteAddress)=>app.inject({method:'POST',url:'/api/join',remoteAddress:ip,payload:{code,name}});
   for(let i=0;i<8;i++) expect((await attempt(null)).statusCode).toBe(400);
   for(let i=0;i<5;i++) expect((await attempt('wrong')).statusCode).toBe(403);
-  const throttled=attempt('wrong');
-  const owner=await attempt('test-owner-fixture','Scoring');
-  expect(owner.statusCode).toBe(200);
-  expect((await attempt('wrong','Ahmed','192.0.2.2')).statusCode).toBe(403);
-  const refusal=await throttled;
+  const refusal=await attempt('wrong');
   expect(refusal.statusCode).toBe(429);
   expect(refusal.headers['retry-after']).toBe('1');
+  const codeChecks=vi.spyOn(pg.Pool.prototype,'connect');
+  const blocked=await Promise.all([attempt('wrong'),attempt('wrong'),attempt('test-owner-fixture','Scoring')]);
+  for(const response of blocked) {
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('1');
+  }
+  expect(codeChecks).not.toHaveBeenCalled();
+  codeChecks.mockRestore();
+  expect((await attempt('wrong','Ahmed','192.0.2.2')).statusCode).toBe(403);
+  const owner=await attempt('test-owner-fixture','Scoring','192.0.2.2');
+  expect(owner.statusCode).toBe(200);
   const day=(await app.inject({url:'/api/day',headers:auth(owner.json().token)})).json();
+  expect((await attempt(day.dayCode)).statusCode).toBe(429);
+  now+=1000;
   expect((await attempt(day.dayCode)).statusCode).toBe(200);
   expect((await attempt(day.dayCode)).statusCode).toBe(409);
-  const expired=Date.now()+15*60_000;
-  vi.spyOn(Date,'now').mockReturnValue(expired);
+  now+=15*60_000;
   const wrongDay=await attempt('wrong');
   expect(wrongDay.statusCode).toBe(403);
   expect(wrongDay.json().message).toBe('Wrong day code - ask for the right one');
@@ -97,19 +109,29 @@ test('failed owner and day codes back off by IP without delaying valid joins or 
 
 test('failed lead codes aggregate across phones sharing an IP and across IPs used by one phone', async () => {
   await start();
+  let now=Date.now();
+  vi.spyOn(Date,'now').mockImplementation(()=>now);
   const owner=(await join('test-owner-fixture','Scoring')).json();
   const day=(await app.inject({url:'/api/day',headers:auth(owner.token)})).json();
   const first=(await join(day.dayCode,'Ahmed')).json(),second=(await join(day.dayCode,'Aisha')).json();
   const attempt=(token:string,code:unknown,remoteAddress:string)=>app.inject({method:'POST',url:'/api/become-lead',remoteAddress,headers:auth(token),payload:{code}});
   for(let i=0;i<8;i++) expect((await attempt(first.token,null,'192.0.2.1')).statusCode).toBe(400);
   for(let i=0;i<5;i++) expect((await attempt(first.token,'wrong','192.0.2.1')).statusCode).toBe(403);
-  const sameIp=attempt(second.token,'wrong','192.0.2.1');
-  const samePhone=attempt(first.token,'wrong','192.0.2.2');
-  expect((await attempt(first.token,day.leadCode,'192.0.2.2')).json()).toMatchObject({level:'Lead'});
-  expect((await attempt(second.token,'test-owner-fixture','192.0.2.1')).json()).toMatchObject({level:'Scoring team'});
-  expect((await attempt(second.token,'wrong','192.0.2.3')).statusCode).toBe(403);
-  for(const response of await Promise.all([sameIp,samePhone])) {
+  const sameIp=await attempt(second.token,'wrong','192.0.2.1');
+  const samePhone=await attempt(first.token,'wrong','192.0.2.2');
+  const codeChecks=vi.spyOn(rulings,'rulingChange');
+  const blocked=await Promise.all([
+    attempt(first.token,'wrong','192.0.2.3'),attempt(second.token,'wrong','192.0.2.1'),
+    attempt(first.token,day.leadCode,'192.0.2.2'),attempt(second.token,'test-owner-fixture','192.0.2.1')
+  ]);
+  for(const response of [sameIp,samePhone,...blocked]) {
     expect(response.statusCode).toBe(429);
     expect(response.headers['retry-after']).toBe('1');
   }
+  expect(codeChecks).not.toHaveBeenCalled();
+  codeChecks.mockRestore();
+  expect((await attempt(second.token,'wrong','192.0.2.3')).statusCode).toBe(403);
+  now+=1000;
+  expect((await attempt(first.token,day.leadCode,'192.0.2.2')).json()).toMatchObject({level:'Lead'});
+  expect((await attempt(second.token,'test-owner-fixture','192.0.2.1')).json()).toMatchObject({level:'Scoring team'});
 });
