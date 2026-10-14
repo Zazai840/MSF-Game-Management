@@ -1,7 +1,7 @@
-import { expect,test,type Page } from './fixtures.js';
+import { expect,joinDay,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
-  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(name);await page.getByRole('button',{name:'Join',exact:true}).click();
+  await page.goto('/');await joinDay(page,name);
   if(lead) {await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();}
 }
 async function enter(page:Page,value:number) {for(const digit of String(value)) await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();}
