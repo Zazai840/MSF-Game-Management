@@ -100,6 +100,9 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const home:TrailStep={label:'Home',onSelect:onHome};
   if(!data) return <section className="race-job"><Trail steps={[home,{label:'Check in runners'}]}/><h1>Check in runners</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh Start line</button></section>;
   const alerts=<>{readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}</>;
+  const notSaved='Not saved - tap Save again';
+  /** A failed save shows beside Save, in one amber box with the reason. */
+  const failedSave=message===notSaved && <div className="warning-box save-failed"><p role="status">{notSaved}</p>{error && <p role="alert">{error}</p>}</div>;
   if(saved) {
     const locked=stageLocked(saved,data.completedStages);
     const race=[...data.waiting,...data.recent].find(race=>race.id===saved.id)||saved;
@@ -128,7 +131,7 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const pendingNumber=Number(draft.current);
   return <section className="race-job"><Trail steps={trail}/>
     {draft.step!=='pick' && draft.step!=='section' && <ClashNotice race={[...data.waiting,...data.recent].find(race=>race.id===draft.raceId)}/>}
-    {alerts}{message && <p role="status" className={message==='Saved'?'calm-note':'warning-box'}>{message}</p>}
+    {!failedSave && <>{alerts}{message && <p role="status" className="calm-note">{message}</p>}</>}
     {locked && <p role="status" className="warning-box">Stage complete - ask a lead</p>}
     <fieldset className="stage-job-fields" disabled={locked}>
     {draft.step==='pick' ? <div>
@@ -138,7 +141,7 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       {!data.eventsConfirmed && <p>Ask the scoring team to confirm the event list</p>}<h3>Check in a new race</h3><div className="job-choices">{[...new Set(data.events.map(event=>event.name))].map(name=><button key={name} onClick={()=>change({...draft,step:'section',family:name})}>{name}</button>)}</div>
     </div> : draft.step==='section' ? <div><h1>{draft.family}: which section?</h1><div className="job-choices">{data.events.filter(event=>event.name===draft.family).map(event=><button key={event.id} onClick={()=>chooseEvent(event.code)}>{event.section} · {event.code}</button>)}</div></div>
     : draft.final ? <div className="final-attendance">{raceLine}{draft.step==='presence'?<><h1>Is everyone here?</h1><p>Tap anyone absent.</p><div className="job-choices">{draft.final.final!.entries.map(entry=><button disabled={busy} key={entry.finalEntryId} aria-pressed={(draft.absent||[]).includes(entry.finalEntryId)} onClick={()=>change({...draft,absent:(draft.absent||[]).includes(entry.finalEntryId)?draft.absent!.filter(id=>id!==entry.finalEntryId):[...(draft.absent||[]),entry.finalEntryId]})}>{entry.wristband} · {(draft.absent||[]).includes(entry.finalEntryId)?'Absent':'Here'}</button>)}</div><ActionBar><button disabled={busy||locked} onClick={()=>goTo('presence-check')}>Check attendance</button></ActionBar></>
-      :<><h1>Check attendance</h1><ol className="runner-rows" aria-label="Attendance">{draft.final.final!.entries.map((entry,index)=><li key={entry.finalEntryId}><span className="row-label">Runner {index+1}</span><strong>{entry.wristband}</strong><span className="row-note">{(draft.absent||[]).includes(entry.finalEntryId)?'Absent':'Here'}</span></li>)}</ol><ActionBar stacked><button disabled={busy||locked} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button><button className="button-secondary" disabled={busy||locked} onClick={()=>goTo('presence')}>Change attendance</button></ActionBar></>}</div>
+      :<><h1>Check attendance</h1><ol className="runner-rows" aria-label="Attendance">{draft.final.final!.entries.map((entry,index)=><li key={entry.finalEntryId}><span className="row-label">Runner {index+1}</span><strong>{entry.wristband}</strong><span className="row-note">{(draft.absent||[]).includes(entry.finalEntryId)?'Absent':'Here'}</span></li>)}</ol>{failedSave}<ActionBar stacked><button disabled={busy||locked} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button><button className="button-secondary" disabled={busy||locked} onClick={()=>goTo('presence')}>Change attendance</button></ActionBar></>}</div>
     : draft.step==='entry' ? <div className="check-in-entry">
       <div className="job-heading">{raceLine}<h1>Runner {draft.runners.length+1}: wristband number?</h1></div>
       {draft.runners.length>0 && <div className="runner-chips">{draft.runners.map(number=><button disabled={busy || held} className="chip" key={number} aria-label={`Remove runner ${number}`} onClick={()=>removeRunner(number)}>{draft.warnings[number]?.length?<span className="kept-dot" aria-hidden="true"/>:null}{number}<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>)}</div>}
@@ -152,6 +155,7 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     </div> : <div className="check-in-check">
       <div className="job-heading">{raceLine}<h1>Check the runners</h1><p className="job-sub">{runnersText(draft.runners.length)} lined up</p></div>
       <ol className="runner-rows" aria-label="Runners">{draft.runners.map((number,index)=><li key={number}><span className="row-label">Runner {index+1}</span><strong>{number}</strong>{draft.warnings[number]?.length?<small className="kept-pill">Kept - lead will check</small>:null}</li>)}</ol>
+      {failedSave}
       <ActionBar stacked><button disabled={busy||locked} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button><button className="button-secondary" disabled={busy||locked} onClick={()=>goTo('entry')}>Add another runner</button></ActionBar>
     </div>}
     </fieldset>
