@@ -1,17 +1,17 @@
-import { expect,joinDay,test } from './fixtures.js';
+import { jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
   const code=`NY-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
-  const count=async()=>{const n=(await queue()).length;await expect(page.getByRole('button',{name:`Lead · ${n} needing you`,exact:true})).toBeVisible({timeout:10000});};
+  const count=async()=>{const n=(await queue()).length;await expect(page.getByRole('button',{name:n?`Dashboard ${n} to check`:'Dashboard',exact:true})).toBeVisible({timeout:10000});};
   const initialCount=(await queue()).length;
-  await page.goto('/');await joinDay(page,`Queue lead ${info.project.name}`);await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await count();
-  await page.getByRole('button',{name:/^Lead ·/}).click();await expect(page.getByRole('heading',{name:initialCount?'Needs you':'Results',exact:true})).toBeVisible();await page.getByRole('button',{name:'Home',exact:true}).click();
+  await page.goto('/');await joinDay(page,`Queue lead ${info.project.name}`);await becomeLead(page);await count();
+  await dashboardButton(page).click();await expect(page.getByRole('heading',{name:initialCount?'Needs you':'Results',exact:true})).toBeVisible();await page.getByRole('button',{name:'Home',exact:true}).click();
   await page.request.post('/api/day/events',{headers,data:{code,name:'Needs you sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const checkIn=async(runners:number[])=>(await(await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners,keptWarnings:runners}})).json()).race;
   const first=await checkIn([3045,2001]),second=await checkIn([2001]);
   await page.request.post(`/api/races/${first.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[3045,2001,2002],didNotFinish:[],didNotRun:[],added:[2002]}});
   await count();
-  await page.getByRole('button',{name:/^Times ·/}).click();await count();await page.getByRole('button',{name:/^Lead ·/}).click();
+  await jobButton(page,'Times').click();await count();await dashboardButton(page).click();
   await expect(page.getByRole('heading',{name:'Needs you',exact:true})).toBeVisible();
   const warning=page.getByRole('button',{name:new RegExp(`${code}.*3045.*belongs`)});await warning.click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('heading',{name:'Runner 3045',exact:true})).toBeVisible();
@@ -33,7 +33,7 @@ test('queue items open their race or tie directly and clear after the lead settl
   const races:any[]=[];
   async function recorded(numbers:number[],places:number[]) {const race=(await(await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:numbers}})).json()).race;races.push(race);await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:numbers,didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places}});return race;}
   await recorded([2001,2002],[1700,1600]);const clash=await recorded([2003],[1400]);await page.request.post(`/api/races/${clash.id}/times`,{headers,data:{baseVersion:0,places:[1500]}});await recorded([2004],[2000]);await recorded([2005],[2000]);
-  await page.goto('/');await joinDay(page,`Race queue lead ${info.project.name}`);await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();
+  await page.goto('/');await joinDay(page,`Race queue lead ${info.project.name}`);await becomeLead(page);await dashboardButton(page).click();
   await expect(page.getByRole('list',{name:'Items needing you'})).toBeVisible();await expect(page.getByRole('button',{name:new RegExp(`${code}.*Times out of order`)})).toBeVisible();
   await page.screenshot({path:info.outputPath('needs-you-races.png'),fullPage:true});
   await page.getByRole('button',{name:new RegExp(`${code}.*Times out of order`)}).click();await expect(page.getByRole('button',{name:'Correct times',exact:true})).toBeVisible();await page.getByRole('button',{name:'Correct times',exact:true}).click();const sheet=page.getByRole('dialog');await sheet.getByLabel('Accept these out-of-order times',{exact:true}).check();await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);

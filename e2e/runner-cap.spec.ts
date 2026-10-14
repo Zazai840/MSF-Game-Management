@@ -1,12 +1,12 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
   await page.goto('/');await joinDay(page,name);
-  if(lead) {await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();}
+  if(lead) {await becomeLead(page);}
 }
 async function enter(page:Page,value:number) {for(const digit of String(value)) await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();}
 async function openResults(page:Page,code:string,name:string) {
-  await join(page,name,true);await page.getByRole('button',{name:/^Lead ·/,exact:true}).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await join(page,name,true);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
 
 test('a phone checks in 8 runners and carries them through finishing order, times and Results',async({page,browser},info)=>{
@@ -14,17 +14,17 @@ test('a phone checks in 8 runners and carries them through finishing order, time
   const code=`E8-${info.project.name.slice(0,3).toUpperCase()}`,name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
   expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await join(phone,`Eight phone ${info.project.name}`);
-  await phone.getByRole('button',{name:/^Start line ·/}).click();await phone.getByRole('button',{name,exact:true}).click();await phone.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();
+  await jobButton(phone,'Start line').click();await phone.getByRole('button',{name,exact:true}).click();await phone.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();
   for(const number of numbers) await enter(phone,number);
   await expect(phone.getByRole('heading',{name:'Runner 9: wristband number?',exact:true})).toBeVisible();
   await phone.screenshot({path:info.outputPath('start-line-eight.png'),fullPage:true});
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();await expect(phone.getByRole('heading',{name:'8 runners. Is that right?',exact:true})).toBeVisible();
   await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('heading',{name:'Heat 1 saved',exact:true})).toBeVisible();
-  await phone.getByRole('button',{name:'Home',exact:true}).click();await phone.getByRole('button',{name:/^Finish order ·/}).click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
+  await phone.getByRole('button',{name:'Home',exact:true}).click();await jobButton(phone,'Finish order').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
   for(const number of numbers) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.screenshot({path:info.outputPath('finish-order-eight.png'),fullPage:true});
   await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');
-  await phone.getByRole('button',{name:'Home',exact:true}).click();await phone.getByRole('button',{name:/^Times ·/}).click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
+  await phone.getByRole('button',{name:'Home',exact:true}).click();await jobButton(phone,'Times').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
   for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{name:/place time\?$/})).toBeVisible();await enter(phone,1200+index*15);}
   await expect(phone.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();await expect(phone.getByRole('button',{name:'8th place · 13.05',exact:true})).toBeVisible();
   await phone.screenshot({path:info.outputPath('times-eight.png'),fullPage:true});
@@ -54,12 +54,12 @@ test('a lead adds a 7th runner to a final and the final is recorded end to end',
   await sheet.getByRole('button',{name:'Review runner list',exact:true}).click();await expect(sheet.getByRole('heading',{name:'7 runners. Is that right?',exact:true})).toBeVisible();
   await sheet.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
   const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await join(phone,`Seven phone ${info.project.name}`);
-  await phone.getByRole('button',{name:/^Start line ·/}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Final 1`)}).click();
+  await jobButton(phone,'Start line').click();await phone.getByRole('button',{name:new RegExp(`${code}.*Final 1`)}).click();
   await expect(phone.getByRole('heading',{name:'Is everyone here?',exact:true})).toBeVisible();await expect(phone.getByRole('button',{name:/ · Here$/})).toHaveCount(7);
   await phone.screenshot({path:info.outputPath('final-attendance-seven.png'),fullPage:true});
   await phone.getByRole('button',{name:'Check attendance',exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');
   const order=[1806,1801,1807,1802,1803,1804,1805];
-  await phone.getByRole('button',{name:'Home',exact:true}).click();await phone.getByRole('button',{name:/^Finish order ·/}).click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Final 1`)}).click();
+  await phone.getByRole('button',{name:'Home',exact:true}).click();await jobButton(phone,'Finish order').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Final 1`)}).click();
   for(const number of order) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.screenshot({path:info.outputPath('final-finish-seven.png'),fullPage:true});
   await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');

@@ -1,4 +1,4 @@
-import { expect,joinDay,test } from './fixtures.js';
+import { dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;
@@ -11,8 +11,7 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   };
   await createRace(2701,1000);await createRace(2702,1000);
   await page.goto('/');await joinDay(page,`Tie lead ${info.project.name}`);
-  await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
-  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Results',exact:true}).click();
+  await becomeLead(page);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();

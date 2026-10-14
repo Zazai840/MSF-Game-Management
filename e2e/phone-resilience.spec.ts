@@ -1,4 +1,4 @@
-import { expect,joinDay,test } from './fixtures.js';
+import { jobButton,expect,joinDay,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -44,7 +44,7 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
   await joinDay(page,`Update ${info.project.name}`);
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await page.getByRole('button',{name:'2',exact:true}).click();
@@ -64,7 +64,7 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
     expect(navigations).toBe(0);
     await page.screenshot({path:info.outputPath('new-version-prompt.png'),fullPage:true});
     await Promise.all([page.waitForEvent('load'),reload.click()]);
-    await page.getByRole('button',{name:/^Start line ·/}).click();
+    await jobButton(page,'Start line').click();
     await expect(page.getByLabel('Wristband number')).toHaveText('21');
     expect(navigations).toBe(1);
   } finally {await writeFile(workerPath,previous);}
@@ -80,31 +80,31 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   await page.goto('/');
   await joinDay(page,`Recovery ${info.project.name}`);
 
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   for(const digit of '25') await page.getByRole('button',{name:digit,exact:true}).click();
   await page.reload();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await expect(page.getByLabel('Wristband number')).toHaveText('25');
 
   await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await jobButton(page,'Finish order').click();
   await page.getByRole('button',{name:'Other race',exact:true}).click();
   await page.getByRole('button',{name:raceName,exact:true}).click();
   await page.getByRole('button',{name:'2402',exact:true}).click();
   await page.reload();
-  await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await jobButton(page,'Finish order').click();
   await expect(page.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'1st: 2402',exact:true})).toBeVisible();
 
   await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Times ·/}).click();
+  await jobButton(page,'Times').click();
   await page.getByRole('button',{name:'Other race',exact:true}).click();
   await page.getByRole('button',{name:raceName,exact:true}).click();
   for(const digit of '123') await page.getByRole('button',{name:digit,exact:true}).click();
   await page.reload();
-  await page.getByRole('button',{name:/^Times ·/}).click();
+  await jobButton(page,'Times').click();
   await expect(page.getByLabel('Place time')).toHaveText('1.23');
   await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
 

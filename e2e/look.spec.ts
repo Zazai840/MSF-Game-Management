@@ -1,4 +1,4 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
 
@@ -95,7 +95,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await joinAs(page,`Look lead ${info.project.name}`);
   await expect(page.getByRole('heading',{level:1})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:'Become lead',exact:true}).click();
+  await page.getByRole('button',{name:"I'm a zone lead",exact:true}).click();
   expect(await lookProblems(page)).toEqual([]);
   // A faked refusal shows the error style without adding to the server's wrong-code backoff.
   await page.route('**/api/become-lead',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Wrong lead code - ask a zone lead'})}),{times:1});
@@ -106,9 +106,10 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await page.screenshot({path:info.outputPath('become-lead-error.png'),fullPage:true});
   await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
   await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-  await expect(page.getByRole('button',{name:/^Lead ·/})).toBeVisible();
-  await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await expect(dashboardButton(page)).toBeVisible();
+  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await jobButton(page,'Start line').click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:'60m',exact:true}).click();
@@ -120,10 +121,10 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('start-line-entry.png'),fullPage:true});
   await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Times ·/}).click();
+  await jobButton(page,'Times').click();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Lead ·/}).click();
+  await dashboardButton(page).click();
   await page.getByRole('button',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);

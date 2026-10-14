@@ -8,13 +8,13 @@ import { api } from '../api.js';
 import { raceLabel,replacedByRerun } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { digitsForTime,parseTimeDigits,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
-export interface RaceActionsProps {race:LeadRaceRead['race'];onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void;onRemoved:()=>void}
+export interface RaceActionsProps {race:LeadRaceRead['race'];onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void|Promise<void>;onRemoved:()=>void}
 export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps) {
   const [action,setAction]=useState<'times'|'runners'|'delete'|'re-run'|'restore'|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   async function command(command:string,body:unknown,removed=false) {
     if(busy) return;setBusy(true);setError('');
-    try {onSaved(await api<EventResultsRead>(`lead/races/${race.id}/${command}`,body));setAction(null);if(removed) onRemoved();else onRefresh();}
+    try {onSaved(await api<EventResultsRead>(`lead/races/${race.id}/${command}`,body));if(removed) {setAction(null);onRemoved();} else {await onRefresh();setAction(null);}}
     catch(error) {setError(error instanceof Error?error.message:'Not saved - try again');}
     finally {setBusy(false);}
   }
