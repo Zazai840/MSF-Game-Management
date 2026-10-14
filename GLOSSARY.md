@@ -37,7 +37,7 @@ _Avoid_: Event type, race type
 ### Races
 
 **Race**:
-One run of one event: between 1 and 6 children or relay teams who line up and run together. Heats and finals are both races.
+One run of one event: one or more children or relay teams who line up and run together, with no upper limit. Heats and finals are both races.
 _Avoid_: Run, round
 
 **Heat**:
@@ -135,7 +135,7 @@ The people outside the Running Zone who keep the Olympics scoring workbook and c
 _Avoid_: Scorers, results team, admin team
 
 **Day code**:
-The short code a volunteer types, with their first name, to join on one Olympics day. Each Olympics day has a new one.
+The short code a volunteer types, with their full name, to join on one Olympics day. Each Olympics day has a new one.
 _Avoid_: PIN, password, access code
 
 **Lead code**:
