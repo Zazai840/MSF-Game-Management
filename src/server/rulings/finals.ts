@@ -52,7 +52,7 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       const previous=(await partVersion<Runner[]>(client,race,'runners',Number(body.baseVersion))).value||[];
       const additionalEntries=(race.final.additionalEntries||[]).map(entry=>({...entry,absent:absent.includes(entry.runner.id)}));
       const runners=[...entries.filter(entry=>lineup.includes(entry.finalEntryId)&&!entry.absent).map(entry=>previous.find(runner=>runner.id===entry.finalEntryId)||entry.runner||{id:entry.finalEntryId,wristband:entry.heatWristband}),...additionalEntries.filter(entry=>lineup.includes(entry.runner.id)&&!entry.absent).map(entry=>previous.find(runner=>runner.id===entry.runner.id)||entry.runner)];
-      if(runners.length>6 || new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
+      if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
       const status=await savePart(client,phone,race,'runners',Number(body.baseVersion),runners,{runners});
       await client.query('UPDATE race_finals SET presence_confirmed=true WHERE race_id=$1',[race.id]);
       return {status,race:jobRace(await readRace(client,phone.dayId,race.id))};

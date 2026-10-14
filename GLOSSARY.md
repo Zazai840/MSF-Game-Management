@@ -45,11 +45,11 @@ A race within an event that has a final, formed at the start line from whoever i
 _Avoid_: Qualifier, preliminary
 
 **Final**:
-The single deciding race of an event that has heats, run by the 6 qualifiers from the heats.
+The single deciding race of an event that has heats. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place).
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
-The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete.
+The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete. Runners a lead adds to the final afterwards are not part of the line-up.
 _Avoid_: Finalists list, running heats sheet, start list
 
 **Check-in**:

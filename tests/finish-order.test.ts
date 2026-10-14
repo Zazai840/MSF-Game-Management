@@ -66,10 +66,9 @@ test('all joined levels can correct Finish order while stale drafts are kept for
 test.each([
   [{order:[2001,2001],didNotFinish:[],didNotRun:[],added:[]},'Choose a place, Did not finish or Did not run for every runner'],
   [{order:[2001],didNotFinish:[],didNotRun:[],added:[]},'Choose a place, Did not finish or Did not run for every runner'],
-  [{order:[2001,2002,2003,2004,2005,2006,2007],didNotFinish:[],didNotRun:[],added:[2003,2004,2005,2006,2007]},'Races hold up to 6 runners'],
   [{order:[2001,2002],didNotFinish:[],didNotRun:[],added:[2001]},'2001 is already in this race'],
   [{order:['2001',2002],didNotFinish:[],didNotRun:[],added:[]},'Choose a wristband number for every runner'],
-])('Finish order refuses malformed or incomplete answers and shared runner limits: %j',async(body,message)=>{
+])('Finish order refuses malformed or incomplete answers and repeated runners: %j',async(body,message)=>{
   const {volunteer,checkIn}=await start();const race=await checkIn([2001,2002]);
   const response=await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,...body});
   expect(response.statusCode).toBe(400);expect(response.json().message).toBe(message);

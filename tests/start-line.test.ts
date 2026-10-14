@@ -26,7 +26,6 @@ test('a volunteer checks in a heat and a timed race with automatic numbers and w
 });
 test.each([
   [[2001,2001],'2001 is already in this race'],
-  [[1,2,3,4,5,6,7],'Races hold up to 6 runners'],
   [[],'Enter at least one wristband number'],
   [[-1],'Enter a whole wristband number'],
   [['2001'],'Enter a whole wristband number']

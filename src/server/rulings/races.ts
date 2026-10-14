@@ -19,7 +19,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/lead/races/:id/times','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),places=value.places;
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0) throw new Refusal(400,'Open the race before correcting its times');
-    if(!Array.isArray(places) || places.length>6 || places.some(time=>time!==null && (!Number.isSafeInteger(time) || time<0))) throw new Refusal(400,'Enter whole hundredths or No finisher for every place');
+    if(!Array.isArray(places) || places.some(time=>time!==null && (!Number.isSafeInteger(time) || time<0))) throw new Refusal(400,'Enter whole hundredths or No finisher for every place');
     const empty=places.indexOf(null);if(empty>=0 && places.slice(empty).some(time=>time!==null)) throw new Refusal(400,'No finisher belongs only at the bottom of the times');
     if(value.acceptOutOfOrder!==undefined && typeof value.acceptOutOfOrder!=='boolean') throw new Refusal(400,'Choose whether to accept these times');
     return rulingChange(pool,phone,async(client,current)=>{
