@@ -1,4 +1,4 @@
-import { savedRaceLabel,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
   await page.goto('/');await joinDay(page,name);
 }
@@ -24,7 +24,7 @@ test('Times keeps surplus saved numeric places visible until the volunteer delib
 });
 test('a lead sees surplus numeric times and the mismatch before deliberately correcting the last place',async({page},info)=>{
   const code=`SL-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
-  await join(page,`Surplus lead ${info.project.name}`);await becomeLead(page);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  await join(page,`Surplus lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByLabel('Time for place 6',{exact:true})).toHaveValue('1700');await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet.getByRole('alert').filter({hasText:'The runner list has changed - open the race again'})).toBeVisible();await expect(sheet.getByLabel('Time for place 6',{exact:true})).toHaveValue('1700');
   await sheet.getByLabel('No finisher',{exact:true}).nth(5).check();await expect(sheet.getByText(mismatch,{exact:true})).toHaveCount(0);await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);

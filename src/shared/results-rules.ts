@@ -26,7 +26,19 @@ export type NotRankedReason='two versions, lead to check'|'checked in'|'awaiting
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
 export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
-export interface LeadItem { id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'clash'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string }
+/** One version of a race part saved while another was also active: who saved it and when. */
+export interface ClashSaver { name:string|null; at:string }
+/**
+ * A lead queue item. `message` is v1's terse line; the optional facts beside it let the
+ * To check list explain the item in plain English (see src/shared/to-check.ts).
+ */
+export interface LeadItem {
+  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'clash'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
+  wristband?:number; warningKinds?:WristbandWarning['kind'][];
+  wrongTime?:{ place:number; time:number; earlierPlace:number; earlierTime:number };
+  tie?:{ time:number; wristbands:number[] };
+  clash?:Array<{ part:'runners'|'finish'|'times'; savers:ClashSaver[] }>;
+}
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {
   allResults:ResultRecord[]; finalRecords:FinalRecord[]; leaderboard:LeaderboardRow[]; actionableRunners:LeaderboardRow[]; qualifiers:LeaderboardRow[]; medalPlaces:LeaderboardRow[];

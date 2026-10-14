@@ -1,4 +1,4 @@
-import { trailBack,goHome,jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { openDashboard,trailBack,goHome,jobButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('timed Event complete checks blockers, locks an old phone draft, and reopens with a retained comment',async({page,browser},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};const code=`T36${info.project.name.toUpperCase()}`;
   await page.request.post('/api/day/events',{headers,data:{code,name:`Stage event ${info.project.name}`,section:'Girl Cubs',format:'timed'}});
@@ -14,7 +14,7 @@ test('timed Event complete checks blockers, locks an old phone draft, and reopen
   const before=await job.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([key])=>key.includes(':draft:'))));
   await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2603]}});
   await page.goto('/');await joinDay(page,`Stage lead ${info.project.name}`);
-  await becomeLead(page);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();
+  await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();await blocked.getByRole('button',{name:'Race 2: checked in',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Race 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await page.getByRole('button',{name:'Back to event',exact:true}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(sheet.getByRole('heading',{name:'Must settle first',exact:true})).toBeVisible();await expect(sheet).toContainText('Nothing to settle');await expect(sheet).toContainText('2601');await expect(sheet).toContainText('2602');
