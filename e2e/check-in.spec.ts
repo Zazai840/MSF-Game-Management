@@ -1,11 +1,11 @@
-import { expect,joinDay,savedRaceLabel,steps,test,type Page } from './fixtures.js';
+import { expect,jobButton,joinDay,savedRaceLabel,steps,test,type Page } from './fixtures.js';
 const scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function openGirlCubs(page:Page,name:string) {
   await page.request.post('/api/day/events/R4/rename',{headers:scoring,data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers:scoring,data:{}});
   await page.goto('/');
   await joinDay(page,name);
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
 }
@@ -106,7 +106,7 @@ test('the trail goes back to earlier steps without losing typed entries and shor
   await steps(page).getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   await steps(page).getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'Carry on with 60m Girl Cubs · 2 runners',exact:true}).click();
   await expect(page.getByRole('button',{name:'Remove runner 2012',exact:true})).toBeVisible();
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
@@ -141,6 +141,6 @@ test('a confirmed save shows the thank-you screen with the race, the next race a
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
   await page.getByRole('main').getByRole('button',{name:'Home',exact:true}).click();
-  await expect(page.getByRole('button',{name:/^Start line ·/})).toBeVisible();
+  await expect(jobButton(page,'Start line')).toBeVisible();
   await deleteRaces(page,2021);
 });

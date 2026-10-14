@@ -1,4 +1,4 @@
-import { expect,joinDay,test } from './fixtures.js';
+import { jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('join an Olympics day, reload the phone and become lead', async ({page}, info) => {
   const downloaded: string[] = [];
   page.on('request', request => {if (request.url().endsWith('.js')) downloaded.push(request.url());});
@@ -7,21 +7,19 @@ test('join an Olympics day, reload the phone and become lead', async ({page}, in
   await expect(page.getByRole('alert')).toHaveText('Wrong day code - ask for the right one');
   await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
   await page.getByRole('button',{name:'Join',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
-  await expect(page.getByRole('button',{name:/^Start line · \d+ waiting$/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(jobButton(page,'Start line')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
   await expect(page.getByText(`Ahmed ${info.project.name}`)).toBeVisible();
-  await page.getByRole('button',{name:/^Times · \d+ waiting$/}).click();
+  await jobButton(page,'Times').click();
   await expect(page.getByRole('heading',{name:'Times',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Home',exact:true}).click();
   expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(false);
   await page.screenshot({path:info.outputPath('volunteer.png'), fullPage:true});
-  await page.getByRole('button',{name:'Become lead',exact:true}).click();
-  await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
-  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-  await expect(page.getByRole('button',{name:/^Lead ·/})).toBeVisible();
-  await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Results',exact:true}).click();
+  await becomeLead(page);
+  await expect(dashboardButton(page)).toBeVisible();
+  await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Day',exact:true})).toHaveCount(0);
   expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(true);

@@ -1,4 +1,4 @@
-import { expect,test } from './fixtures.js';
+import { jobButton,dashboardButton,expect,test } from './fixtures.js';
 test('scoring team manages joined leads and removal drops an actual phone draft',async({page,browser,request},info)=>{
   await request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   const name=`Phones lead ${info.project.name}`;
@@ -6,7 +6,7 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   const volunteer=await joined.json();
   await request.post('/api/become-lead',{headers:{authorization:`Bearer ${volunteer.token}`},data:{code:process.env.E2E_LEAD_CODE}});
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await page.reload();
-  await page.getByRole('button',{name:/Lead ·/}).click();await page.getByRole('button',{name:'Day',exact:true}).click();
+  await dashboardButton(page).click();await page.getByRole('button',{name:'Day',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Joined phones'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Make new day code',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Make new lead code',exact:true})).toBeVisible();
@@ -15,7 +15,7 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   await row.getByRole('button',{name:'Remove from scoring team',exact:true}).click();await expect(row.getByText('Lead',{exact:true})).toBeVisible();
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
   await other.goto('/');await other.evaluate(token=>localStorage.setItem('msf:token',token),volunteer.token);await other.reload();
-  await other.getByRole('button',{name:/Start line/}).click();
+  await jobButton(other,'Start line').click();
   await other.getByRole('button',{name:'60m',exact:true}).click();
   await other.getByRole('button',{name:'Boy Beavers · R1',exact:true}).click();
   await other.getByLabel('Wristband number',{exact:true}).fill('1');

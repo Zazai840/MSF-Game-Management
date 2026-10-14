@@ -1,11 +1,11 @@
-import { expect,joinDay,savedRaceLabel,test,type Page } from './fixtures.js';
+import { savedRaceLabel,jobButton,expect,joinDay,test,type Page } from './fixtures.js';
 async function typeNumber(page:Page,number:number) {await page.getByLabel('Wristband number',{exact:true}).fill(String(number));}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
   await page.request.post('/api/day/events/R4/rename',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
   await joinDay(page,`Start ${info.project.name}`);
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
@@ -21,7 +21,7 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toHaveCount(0);
   await expect(page.getByText('2006',{exact:true})).toBeVisible();
   await page.reload();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await expect(page.getByText('6 runners lined up',{exact:true})).toBeVisible();
   await page.unroute('**/api/races/check-in');
   await page.getByRole('button',{name:'Save',exact:true}).click();
@@ -44,7 +44,7 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   const earlierRace=(await earlier.json()).race;
   await page.goto('/');
   await joinDay(page,`Warnings ${info.project.name}`);
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,0);await page.getByRole('button',{name:'Next',exact:true}).click();
