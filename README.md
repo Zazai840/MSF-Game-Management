@@ -1,6 +1,6 @@
 # Running Zone
 
-The MSF Olympics Running Zone app. Children are identified only by wristband number; joined helpers use their own first names.
+The MSF Olympics Running Zone app. Children are identified only by wristband number; joined helpers use their own full names.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ Start the app and persistent Postgres database with one command:
 docker compose up --build
 ```
 
-Open http://localhost:3000. When no Olympics day exists, join with the owner password and your first name. This starts the day as a scoring team member. Open Lead → Day to read the day code for volunteers and the lead code. Later joins use the day code and an unused first name. The phone stays joined through reloads.
+Open http://localhost:3000. When no Olympics day exists, join with the owner password and your full name. This starts the day as a scoring team member. Open Lead → Day to read the day code for volunteers and the lead code. Later joins use the day code and an unused full name. The phone stays joined through reloads.
 
 `docker compose down` stops the app and keeps the day's data. `APP_PORT` and `DATABASE_PORT` in `.env` can change the default host ports (3000 and 5433). Rebuilding does not clear the day. The database password must match the value used to initialise the persistent database volume.
 
@@ -49,7 +49,7 @@ The default test database connection is local Postgres on port 5432 using your o
 
 Playwright builds and starts a production app on port 4323 with a fresh, isolated database and runs at iPhone, Android and desktop viewport sizes. Override `E2E_PORT` for concurrent browser runs; optional `E2E_DATABASE_URL` / `E2E_DATABASE_NAME` select a dedicated test database. Browser databases are retained after the run for inspection. Phone sizes use Chromium; real Safari and Samsung Internet checks belong to the rehearsal. Screenshots and failed traces appear in ignored `test-results/`.
 
-The build measures all statically imported first-load JavaScript after gzip and fails above 100,000 bytes. The Lead screen is a dynamic import and is fetched only when an authorised phone opens it. No component library or CSS framework is used.
+The build measures the volunteer first load (all statically imported JavaScript and CSS, the self-hosted Nunito font files and the service worker) after gzip, prints the total and fails above 1,500,000 bytes (the aim is about 1 MB). The Lead screen is a dynamic import and is fetched only when an authorised phone opens it. No component library or CSS framework is used; colour tokens and shared styles live in `src/client/theme.css`.
 
 Production builds install an app-shell service worker on HTTPS (or localhost). It caches only the volunteer HTML, JavaScript and CSS, so reopening is quick; race reads and saves always need the server. Lead is fetched only when opened and is not pre-cached. A new deploy shows **New version, tap to reload** and waits for that tap; unfinished job entries survive the reload. The browser checks for updates when the phone becomes visible or focused and once a minute while visible. Development does not install the worker. The first-load budget includes the worker and the old-browser bootstrap; older phones get a plain message before the application opens.
 
