@@ -1,0 +1,52 @@
+/* Shared job flow pieces: breadcrumb trail, phone number entry with its keyboard bar, saved confirmation. Tokens from theme.css. */
+
+/* Breadcrumb trail: one line, white bar under the header, aligned with the content column. */
+.trail {
+  display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-height:var(--tap); overflow:hidden; white-space:nowrap;
+  padding:0 max(16px, calc((100% - 48rem) / 2 + 16px));
+  background:var(--surface); border-bottom:1px solid var(--divider);
+  font-size:var(--text-small); font-weight:700; color:var(--text);
+}
+.trail-step {display:inline-flex; align-items:center; gap:6px; flex:none;}
+/* Steps keep their full width so overflow can be measured; only a lone current step may shorten. */
+.trail-step-alone {flex:0 1 auto; min-width:0; overflow:hidden;}
+.trail-step-alone > span {overflow:hidden; text-overflow:ellipsis;}
+.trail button {
+  min-height:var(--tap); min-width:var(--tap); padding:0; border:0; border-radius:var(--radius-small); background:none;
+  color:var(--navy); font-size:var(--text-small); font-weight:700; text-decoration:underline; text-underline-offset:3px;
+}
+.trail-separator,.trail-more {color:var(--faint); flex:none;}
+@media(min-width:800px) {
+  .trail {padding:0 max(24px, calc((100% - 48rem) / 2 + 24px));}
+  .action-bar {padding-left:24px; padding-right:24px;}
+  .action-bar-inner {max-width:calc(48rem - 48px);}
+}
+
+/* Phone number entry */
+.number-entry {display:grid; gap:12px;}
+.number-input {height:60px; padding:0 16px; font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.02em;}
+.number-input::placeholder {color:var(--muted); font-weight:600; font-size:20px;}
+.number-input:focus-visible {outline:none; box-shadow:inset 0 0 0 1.5px var(--navy);}
+.number-input-held {border-color:var(--amber-line); background:var(--amber-fill); color:var(--amber-text);}
+
+/* Bottom bar riding above the keyboard; the spacer keeps the page's end clear of it. */
+.action-bar {position:fixed; left:0; right:0; z-index:10; background:var(--ground); border-top:1px solid var(--divider); padding:10px 16px calc(10px + env(safe-area-inset-bottom));}
+.action-bar-inner {max-width:calc(48rem - 32px); margin:0 auto; display:flex; gap:10px;}
+.action-bar-inner > * {flex:1; min-width:0;}
+.action-bar-inner > .button-secondary {font-size:16px;}
+.action-bar-stacked .action-bar-inner {flex-direction:column;}
+body main {padding-bottom:calc(20px + var(--action-bar-height, 0px));}
+@media(min-width:800px) {body main {padding-bottom:calc(28px + var(--action-bar-height, 0px));}}
+
+/* Saved confirmation */
+.saved {flex:1; display:flex; flex-direction:column;}
+.saved-body {flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:16px 8px; text-align:center;}
+.saved-body h1 {margin:0;}
+.saved-body p {margin:0; color:var(--muted); font-size:16px; font-weight:600;}
+.saved-tick {width:84px; height:84px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center;}
+.saved-actions {display:grid; gap:10px; padding-top:12px;}
+.saved-actions > button:first-child {min-height:54px; font-size:18px;}
+.saved-actions > .button-secondary {min-height:48px; font-size:16px;}
+.saved-more {display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:6px;}
+.saved-more button {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+.saved-more p {flex-basis:100%; text-align:center; margin:0;}

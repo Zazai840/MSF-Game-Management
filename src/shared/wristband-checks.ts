@@ -11,6 +11,14 @@ export function sectionForWristband(number:number):WristbandSection|null {
   if (number<4000) return 'Boy Scouts';
   return 'Girl Scouts';
 }
+const ranges:Record<WristbandSection,[string,string]>={'Beavers':['Beaver','1 to 999'],'Boy Cubs':['Boy Cubs','1000 to 1999'],'Girl Cubs':['Girl Cubs','2000 to 2999'],'Boy Scouts':['Boy Scouts','3000 to 3999'],'Girl Scouts':['Girl Scouts','4000 to 4999']};
+/** The volunteer's wording for a warning: same rules, plain words, and the range that would have been right. */
+export function plainWristbandWarning(warning:Pick<WristbandWarning,'kind'>,number:number,section:Section):string {
+  if (warning.kind==='unknown-number') return `${number} is not a wristband number. Wristbands are 1 to 4999.`;
+  if (warning.kind==='already-ran') return `${number} already ran in another race of this event.`;
+  const [name,range]=ranges[section==='Boy Beavers' || section==='Girl Beavers'?'Beavers':section];
+  return `${number} is not a ${section} number. ${name} wristbands are ${range}.`;
+}
 /** Races belong to the same event; the caller supplies that event's state. */
 export function wristbandWarnings(number:number,section:Section,races:readonly WristbandRace[]=[],options:{currentRaceId?:string;skipAlreadyRan?:boolean}={}):WristbandWarning[] {
   const warnings:WristbandWarning[]=[];

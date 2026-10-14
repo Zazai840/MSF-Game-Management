@@ -1,4 +1,4 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { enterWristband,expect,joinDay,savedRaceLabel,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
   await page.goto('/');await joinDay(page,name);
 }
@@ -9,9 +9,9 @@ test('three phones record a race, keep a time warning and repair a count mismatc
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events/R4/rename',{headers,data:{name:'60m'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await join(page,`Start times ${info.project.name}`);await page.getByRole('button',{name:/^Start line ·/}).click();await page.getByRole('button',{name:'60m',exact:true}).click();await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  for(const number of numbers) {await typeDigits(page,String(number));await page.getByRole('button',{name:'Next',exact:true}).click();}
+  for(const number of numbers) await enterWristband(page,number);
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
-  const label=(await page.getByRole('heading',{name:/Heat \d+ saved/}).innerText()).replace(' saved','');
+  const label=await savedRaceLabel(page);
   const timerContext=await browser.newContext({...info.project.use});const timer=await timerContext.newPage();
   await join(timer,`Timer ${info.project.name}`);await timer.getByRole('button',{name:/^Times ·/}).click();await timer.getByRole('button',{name:'Other race',exact:true}).click();await timer.getByRole('button',{name:`60m Girl Cubs (R4) · ${label}`,exact:true}).click();
   await expect(timer.getByRole('heading',{name:'1st place time?',exact:true})).toBeVisible();await typeDigits(timer,'1234');await expect(timer.getByLabel('Place time')).toHaveText('12.34');

@@ -1,4 +1,4 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { expect,goHome,joinDay,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
 
@@ -113,13 +113,13 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  for(const digit of '2091') await page.getByRole('button',{name:digit,exact:true}).click();
-  const wristband=page.getByLabel('Wristband number');
-  await expect(wristband).toHaveText('2091');
+  const wristband=page.getByLabel('Wristband number',{exact:true});
+  await wristband.fill('2091');
+  await expect(wristband).toHaveValue('2091');
   expect(await wristband.evaluate(element=>getComputedStyle(element).fontVariantNumeric)).toBe('tabular-nums');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('start-line-entry.png'),fullPage:true});
-  await page.getByRole('button',{name:'Home',exact:true}).click();
+  await goHome(page);
   await page.getByRole('button',{name:/^Times ·/}).click();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:'Home',exact:true}).click();

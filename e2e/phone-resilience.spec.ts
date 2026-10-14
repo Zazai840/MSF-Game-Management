@@ -1,4 +1,4 @@
-import { expect,joinDay,test } from './fixtures.js';
+import { expect,goHome,joinDay,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -47,8 +47,7 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
   await page.getByRole('button',{name:/^Start line ·/}).click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  await page.getByRole('button',{name:'2',exact:true}).click();
-  await page.getByRole('button',{name:'1',exact:true}).click();
+  await page.getByLabel('Wristband number',{exact:true}).fill('21');
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   const workerPath=resolve('dist/web/sw.js');
   const previous=await readFile(workerPath,'utf8');
@@ -60,12 +59,12 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
     await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
     const reload=page.getByRole('button',{name:'New version, tap to reload',exact:true});
     await expect(reload).toBeVisible({timeout:10000});
-    await expect(page.getByLabel('Wristband number')).toHaveText('21');
+    await expect(page.getByLabel('Wristband number')).toHaveValue('21');
     expect(navigations).toBe(0);
     await page.screenshot({path:info.outputPath('new-version-prompt.png'),fullPage:true});
     await Promise.all([page.waitForEvent('load'),reload.click()]);
     await page.getByRole('button',{name:/^Start line ·/}).click();
-    await expect(page.getByLabel('Wristband number')).toHaveText('21');
+    await expect(page.getByLabel('Wristband number')).toHaveValue('21');
     expect(navigations).toBe(1);
   } finally {await writeFile(workerPath,previous);}
 });
@@ -83,12 +82,12 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   await page.getByRole('button',{name:/^Start line ·/}).click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  for(const digit of '25') await page.getByRole('button',{name:digit,exact:true}).click();
+  await page.getByLabel('Wristband number',{exact:true}).fill('25');
   await page.reload();
   await page.getByRole('button',{name:/^Start line ·/}).click();
-  await expect(page.getByLabel('Wristband number')).toHaveText('25');
+  await expect(page.getByLabel('Wristband number')).toHaveValue('25');
 
-  await page.getByRole('button',{name:'Home',exact:true}).click();
+  await goHome(page);
   await page.getByRole('button',{name:/^Finish order ·/}).click();
   await page.getByRole('button',{name:'Other race',exact:true}).click();
   await page.getByRole('button',{name:raceName,exact:true}).click();
