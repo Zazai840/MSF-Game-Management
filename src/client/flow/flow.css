@@ -8,9 +8,9 @@
   font-size:var(--text-small); font-weight:700; color:var(--text);
 }
 .trail-step {display:inline-flex; align-items:center; gap:6px; flex:none;}
-/* Steps keep their full width so overflow can be measured; only the current step may shorten, once no more steps can drop. */
-.trail-step-shrink {flex:0 1 auto; min-width:0; overflow:hidden;}
-.trail-step-shrink > span {overflow:hidden; text-overflow:ellipsis;}
+/* Steps keep their full width so overflow can be measured; only a lone current step may shorten. */
+.trail-step-alone {flex:0 1 auto; min-width:0; overflow:hidden;}
+.trail-step-alone > span {overflow:hidden; text-overflow:ellipsis;}
 .trail button {
   min-height:var(--tap); min-width:var(--tap); padding:0; border:0; border-radius:var(--radius-small); background:none;
   color:var(--navy); font-size:var(--text-small); font-weight:700; text-decoration:underline; text-underline-offset:3px;

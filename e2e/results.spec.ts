@@ -1,4 +1,4 @@
-import { savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {await page.goto('/');await joinDay(page,name);}
 async function digits(page:Page,value:number) {for(const digit of String(value)) await page.getByRole('button',{name:digit,exact:true}).click();}
 test('a lead sees a phone-recorded race appear within one Results poll',async({page,browser},info)=>{
@@ -6,7 +6,7 @@ test('a lead sees a phone-recorded race appear within one Results poll',async({p
   const number=2401+offset;
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events/R4/rename',{headers,data:{name:'60m'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  await join(page,`Results lead ${info.project.name}`);await becomeLead(page);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();
+  await join(page,`Results lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:/^R4 · Girl Cubs/}).click();
   const context=await browser.newContext({...info.project.use,viewport:{width:390,height:844},isMobile:true,hasTouch:true});const phone=await context.newPage();
   await join(phone,`Results phone ${info.project.name}`);await jobButton(phone,'Start line').click();await phone.getByRole('button',{name:'60m',exact:true}).click();await phone.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();await enterWristband(phone,number);await enterWristband(phone,3045);await phone.getByRole('button',{name:'Keep',exact:true}).click();await phone.getByRole('button',{name:"That's everyone",exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();

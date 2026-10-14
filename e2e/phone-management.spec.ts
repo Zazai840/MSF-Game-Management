@@ -1,4 +1,4 @@
-import { jobButton,dashboardButton,expect,test } from './fixtures.js';
+import { openDashboard,jobButton,expect,test } from './fixtures.js';
 test('scoring team manages joined leads and removal drops an actual phone draft',async({page,browser,request},info)=>{
   await request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   const name=`Phones lead ${info.project.name}`;
@@ -6,7 +6,7 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   const volunteer=await joined.json();
   await request.post('/api/become-lead',{headers:{authorization:`Bearer ${volunteer.token}`},data:{code:process.env.E2E_LEAD_CODE}});
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await page.reload();
-  await dashboardButton(page).click();await page.getByRole('button',{name:'Day',exact:true}).click();
+  await openDashboard(page,'Day setup');
   await expect(page.getByRole('heading',{name:'Joined phones'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Make new day code',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Make new lead code',exact:true})).toBeVisible();

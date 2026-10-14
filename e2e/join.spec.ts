@@ -1,4 +1,4 @@
-import { jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { trailBack,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('join an Olympics day, reload the phone and become lead', async ({page}, info) => {
   const downloaded: string[] = [];
   page.on('request', request => {if (request.url().endsWith('.js')) downloaded.push(request.url());});
@@ -19,9 +19,9 @@ test('join an Olympics day, reload the phone and become lead', async ({page}, in
   await page.screenshot({path:info.outputPath('volunteer.png'), fullPage:true});
   await becomeLead(page);
   await expect(dashboardButton(page)).toBeVisible();
-  await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();
+  await openDashboard(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Day',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/^Day setup/})).toHaveCount(0);await trailBack(page,'Dashboard');await expect(dashboardMenuButton(page,'Day setup')).toHaveCount(0);
   expect(downloaded.some(url => /\/Lead-[^/]+\.js/.test(url))).toBe(true);
   await page.screenshot({path:info.outputPath('lead.png'), fullPage:true});
 });

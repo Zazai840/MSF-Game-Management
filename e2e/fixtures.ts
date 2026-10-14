@@ -72,6 +72,21 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
 export function dashboardButton(page:Page) {
   return page.getByRole('button',{name:/^Dashboard( \d+ to check)?$/});
 }
+const dashboardTitles={'To check':'To check',Results:'Results','Day setup':'Day setup'} as const;
+/** One of the Dashboard's three menu buttons, whatever its explanation or badge says. */
+export function dashboardMenuButton(page:Page,section:keyof typeof dashboardTitles) {
+  return page.getByRole('button',{name:new RegExp(`^${dashboardTitles[section]} `)});
+}
+/** From Home: opens the Dashboard and, when named, one of its three screens. */
+export async function openDashboard(page:Page,section?:keyof typeof dashboardTitles) {
+  await dashboardButton(page).click();
+  await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();
+  if(section) await dashboardMenuButton(page,section).click();
+}
+/** A To check item, found by any text on it (event code, wristband, title); tapping it opens the race. */
+export function toCheckItem(page:Page,text:RegExp) {
+  return page.getByRole('list',{name:'To check'}).getByRole('button',{name:text});
+}
 const jobTitles={'Start line':'Check in runners','Finish order':'Record the finishing order',Times:'Enter times'} as const;
 /** The Home button for a job, by its internal name (Start line, Finish order, Times). */
 export function jobButton(page:Page,job:keyof typeof jobTitles) {

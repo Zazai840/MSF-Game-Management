@@ -1,4 +1,4 @@
-import { savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,pickRace,test,type Page } from './fixtures.js';
+import { openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,pickRace,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
   await page.goto('/');await joinDay(page,name);
@@ -6,7 +6,7 @@ async function join(page:Page,name:string,lead=false) {
 }
 async function enter(page:Page,value:number) {for(const digit of String(value)) await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();}
 async function openResults(page:Page,code:string,name:string) {
-  await join(page,name,true);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await join(page,name,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
 
 test('a phone checks in 8 runners and carries them through finishing order, times and Results',async({page,browser},info)=>{

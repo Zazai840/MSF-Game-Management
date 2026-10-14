@@ -1,6 +1,8 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { toCheckWording } from '../src/shared/to-check.js';
+import type { DayLeadItem } from '../src/shared/lead-results.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`},...(body===undefined?{}:{payload:body as object})});
 afterEach(async()=>{await app?.close();});
@@ -80,4 +82,23 @@ test('an unrelated runner addition does not make an older eligibility warning ne
   expect(items.map((item:any)=>[item.kind,item.raceId])).toEqual([['added-at-finish',older.id],['warning',newer.id],['warning',older.id]]);
   const repeated=(await queue()).needsYou;expect(repeated.map((item:any)=>item.at)).toEqual(items.map((item:any)=>item.at));
   const result=(await call(lead,'/api/lead/events/R4/results')).json();expect(result.results.needsYou.filter((item:any)=>item.kind==='warning').map((item:any)=>item.raceId)).toEqual([newer.id,older.id]);
+});
+test('the lead queue carries the facts To check needs to explain each item in plain English',async()=>{
+  const {owner,volunteer,checkIn,queue}=await start();
+  const day=(await call(owner,'/api/day')).json();const second=(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Maryam'}})).json().token as string;
+  await checkIn([3045]);
+  const added=await checkIn([2001]);await call(volunteer,`/api/races/${added.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[2002]});
+  await checkIn([2001]);
+  const times=await checkIn([2004,2005,2007]);await call(volunteer,`/api/races/${times.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2004,2005,2007],didNotFinish:[],didNotRun:[],added:[]});await call(volunteer,`/api/races/${times.id}/times`,{baseVersion:0,places:[1600,1305,1290]});
+  const clash=await checkIn([2006]);await call(volunteer,`/api/races/${clash.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2006],didNotFinish:[],didNotRun:[],added:[]});await call(volunteer,`/api/races/${clash.id}/times`,{baseVersion:0,places:[1400]});await call(second,`/api/races/${clash.id}/times`,{baseVersion:0,places:[1500]});
+  for(const number of [2010,2011]) {const race=await checkIn([number]);await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[number],didNotFinish:[],didNotRun:[],added:[]});await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[2000]});}
+  const items=(await queue()).needsYou as DayLeadItem[];
+  const explained=(kind:DayLeadItem['kind'])=>items.filter(item=>item.kind===kind).map(item=>toCheckWording(item).explanation);
+  expect(explained('clash')).toEqual(['Saved by Ahmed and Maryam less than a minute apart. Choose which one stands.']);
+  expect(items.find(item=>item.kind==='clash')!.clash).toMatchObject([{part:'times'}]);
+  expect(explained('times-out-of-order')).toEqual(['2nd place (13.05) is faster than 1st (16.00). The timer kept it as typed.']);
+  expect(explained('warning')).toEqual(['3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.']);
+  expect(explained('added-at-finish')).toEqual(['2002 crossed the line but was not checked in at the start. Check they ran in this race.']);
+  expect(explained('ran-twice')).toEqual(Array(2).fill('2001 has a result in more than one race of this event. Choose which result counts.'));
+  expect(explained('tie')).toEqual(['2010 and 2011 both have 20.00. Decide whether a run-off is needed.']);
 });
