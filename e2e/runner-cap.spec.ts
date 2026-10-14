@@ -1,4 +1,4 @@
-import { savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,pickRace,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
   await page.goto('/');await joinDay(page,name);
@@ -20,11 +20,11 @@ test('a phone checks in 8 runners and carries them through finishing order, time
   await phone.screenshot({path:info.outputPath('start-line-eight.png'),fullPage:true});
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();await expect(phone.getByText('8 runners lined up',{exact:true})).toBeVisible();
   await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe('Heat 1');await expect(phone.getByTestId('saved-race')).toContainText('8 runners');
-  await goHome(phone);await jobButton(phone,'Finish order').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
+  await goHome(phone);await jobButton(phone,'Finish order').click();await pickRace(phone,'Finishing order',new RegExp(`${code}.*Heat 1`));
   for(const number of numbers) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.screenshot({path:info.outputPath('finish-order-eight.png'),fullPage:true});
-  await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');
-  await phone.getByRole('button',{name:'Home',exact:true}).click();await jobButton(phone,'Times').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
+  await phone.getByRole('button',{name:'Check the order',exact:true}).click();await expect(phone.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem')).toHaveCount(8);await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe('Heat 1');
+  await goHome(phone);await jobButton(phone,'Times').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
   for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{name:/place time\?$/})).toBeVisible();await enter(phone,1200+index*15);}
   await expect(phone.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();await expect(phone.getByRole('button',{name:'8th place · 13.05',exact:true})).toBeVisible();
   await phone.screenshot({path:info.outputPath('times-eight.png'),fullPage:true});
@@ -59,10 +59,10 @@ test('a lead adds a 7th runner to a final and the final is recorded end to end',
   await phone.screenshot({path:info.outputPath('final-attendance-seven.png'),fullPage:true});
   await phone.getByRole('button',{name:'Check attendance',exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe('Final 1');
   const order=[1806,1801,1807,1802,1803,1804,1805];
-  await goHome(phone);await jobButton(phone,'Finish order').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Final 1`)}).click();
+  await goHome(phone);await jobButton(phone,'Finish order').click();await pickRace(phone,'Finishing order',new RegExp(`${code}.*Final 1`));
   for(const number of order) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.screenshot({path:info.outputPath('final-finish-seven.png'),fullPage:true});
-  await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');
+  await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe('Final 1');
   await page.getByRole('button',{name:'Back to event',exact:true}).click();await page.getByRole('button',{name:'Refresh Results',exact:true}).click();
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.locator('.leaderboard-row')).toHaveCount(7);await expect(final.locator('.leaderboard-row').first()).toContainText('1806');
   await page.getByRole('button',{name:'Final complete',exact:true}).click();const complete=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(complete).toContainText('1st: 1806');await complete.getByRole('button',{name:'Confirm',exact:true}).click();

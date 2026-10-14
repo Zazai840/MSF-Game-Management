@@ -11,7 +11,8 @@ export function TrailArea({children}:{children:ReactNode}) {
 }
 /**
  * The breadcrumb trail: `Home › Check in runners › 60m › Girl Cubs › Runners (2) › Check`.
- * It stays on one line, so on a narrow screen it drops steps from the left and starts with `…`.
+ * It stays on one line, so on a narrow screen it drops steps from the left and starts with `…`,
+ * always keeping the step before the current one; a current step that still does not fit ends in `…`.
  */
 export function Trail({steps}:{steps:TrailStep[]}) {
   const host=useContext(Host);
@@ -20,9 +21,11 @@ export function Trail({steps}:{steps:TrailStep[]}) {
   const [width,setWidth]=useState(0);
   const key=steps.map(step=>step.label).join('\u0000');
   useLayoutEffect(()=>setHidden(0),[key,width]);
+  // Always keep one step to go back to: past that, the current step shortens with an ellipsis instead.
+  const mostHidden=Math.max(0,steps.length-2);
   useLayoutEffect(()=>{
     const element=nav.current;
-    if(element && element.scrollWidth>element.clientWidth+1 && hidden<steps.length-1) setHidden(hidden+1);
+    if(element && element.scrollWidth>element.clientWidth+1 && hidden<mostHidden) setHidden(hidden+1);
   });
   useLayoutEffect(()=>{
     const element=nav.current;if(!element) return;
@@ -34,7 +37,7 @@ export function Trail({steps}:{steps:TrailStep[]}) {
     {hidden>0 && <><span className="trail-more" aria-hidden="true">…</span><span className="trail-separator" aria-hidden="true">›</span></>}
     {shown.map((step,index)=>{
       const last=index===shown.length-1;
-      return <span className={shown.length===1?'trail-step trail-step-alone':'trail-step'} key={hidden+index}>
+      return <span className={last && hidden>=mostHidden?'trail-step trail-step-shrink':'trail-step'} key={hidden+index}>
         {last||!step.onSelect?<span aria-current={last?'step':undefined}>{step.label}</span>:<button type="button" onClick={step.onSelect}>{step.label}</button>}
         {!last && <span className="trail-separator" aria-hidden="true">›</span>}
       </span>;

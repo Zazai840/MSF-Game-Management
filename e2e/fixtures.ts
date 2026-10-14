@@ -1,4 +1,4 @@
-import { test as base,expect,type Page } from '@playwright/test';
+import { test as base,expect,type Locator,type Page } from '@playwright/test';
 // A real reset changes both codes. The original scoring phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
 export const test=base.extend<{freshDayCodes:void}>({
@@ -46,6 +46,17 @@ export async function trailBack(page:Page,label:string) {
   }
   throw new Error(`No ${label} step on the trail`);
 }
+/**
+ * Opens a race from a job's race picker (v1's Other race list), reached through the trail's job step,
+ * for example pickRace(page,'Finishing order',/R4.*Heat 2$/). Waits for the job to settle first,
+ * because a job opens the first waiting race by itself.
+ */
+export async function pickRace(page:Page,jobStep:string,race:string|RegExp) {
+  await expect(page.getByText('Opening…',{exact:true})).toHaveCount(0);
+  await expect(steps(page).getByRole('button').first()).toBeVisible();
+  await trailBack(page,jobStep);
+  await page.getByRole('main').getByRole('button',typeof race==='string'?{name:race,exact:true}:{name:race}).first().click();
+}
 /** The race named on the saved confirmation, for example "Heat 2". */
 export async function savedRaceLabel(page:Page) {
   await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
@@ -66,5 +77,39 @@ const jobTitles={'Start line':'Check in runners','Finish order':'Record the fini
 export function jobButton(page:Page,job:keyof typeof jobTitles) {
   return page.getByRole('button',{name:new RegExp(`^${jobTitles[job]}`)});
 }
+/**
+ * Starts dragging from `from` the way a person would: a real finger on the phone projects
+ * (touch events through the browser's touch emulation), the mouse on desktop.
+ * Move with `over` / `toPoint`, then `drop`.
+ */
+export async function startDrag(page:Page,from:Locator) {
+  const touch=!!test.info().project.use.hasTouch;
+  const box=(await from.boundingBox())!;
+  let x=box.x+box.width/2,y=box.y+box.height/2;
+  const cdp=touch?await page.context().newCDPSession(page):null;
+  const finger=(type:'touchStart'|'touchMove'|'touchEnd',px=x,py=y)=>cdp!.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x:px,y:py}]});
+  if(touch) await finger('touchStart');else {await page.mouse.move(x,y);await page.mouse.down();}
+  async function toPoint(targetX:number,targetY:number,moves=12) {
+    for(let index=1;index<=moves;index++) {
+      const px=x+(targetX-x)*index/moves,py=y+(targetY-y)*index/moves;
+      if(touch) await finger('touchMove',px,py);else await page.mouse.move(px,py);
+    }
+    x=targetX;y=targetY;
+  }
+  return {
+    toPoint,
+    /** Moves so the dragged point sits on the middle of `target` (same column as the start). */
+    async over(target:Locator) {const to=(await target.boundingBox())!;await toPoint(x,to.y+to.height/2);},
+    async drop() {
+      if(touch) {await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
+      // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
+      await page.waitForTimeout(100);
+    },
+  };
+}
+/** Drags `from` onto `to` and lets go. */
+export async function dragTo(page:Page,from:Locator,to:Locator) {
+  const drag=await startDrag(page,from);await drag.over(to);await drag.drop();
+}
 export { expect };
-export type { Page };
+export type { Locator,Page };
