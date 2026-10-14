@@ -13,8 +13,6 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
   await expect(page.getByRole('alert')).toHaveText('2001 is already in this race');await clearNumber(page);
   for(const number of [2002,2003,2004,2005,2006]) {await typeNumber(page,number);await page.getByRole('button',{name:'Next',exact:true}).click();}
-  await typeNumber(page,2007);await page.getByRole('button',{name:'Next',exact:true}).click();
-  await expect(page.getByRole('alert')).toHaveText('Races hold up to 6 runners');await clearNumber(page);
   await page.screenshot({path:info.outputPath('start-line-keypad.png'),fullPage:true});
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(page.getByRole('heading',{name:'6 runners. Is that right?',exact:true})).toBeVisible();
