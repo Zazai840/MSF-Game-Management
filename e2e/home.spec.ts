@@ -64,6 +64,6 @@ test("a volunteer taps I'm a zone lead, gives the lead code and then sees the Da
   await homeCounts(page,{start:0,finish:0,times:0,needsYou:0});
   await expect(page.getByRole('button',{name:'Dashboard',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Dashboard',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();
 });
 

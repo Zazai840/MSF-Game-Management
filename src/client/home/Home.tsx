@@ -12,14 +12,19 @@ export const racesReady=(count:number)=>`${count} ${count===1?'race':'races'} re
 
 export function Home({waiting,onJob}:{waiting:WaitingCounts;onJob:(job:Job)=>void}) {
   return <section className="home"><h1>What's your job for this race?</h1><div className="jobs">
-    {jobs.map(({job,title,explanation,counted,icon})=><button key={job} className="job-button" onClick={()=>onJob(job)}>
-      <span className="job-icon" aria-hidden="true">{icon}</span>
-      <span className="job-text"><span className="job-title">{title}</span><span className="job-explanation">{explanation}</span>
-        {counted && waiting[job]>0 && <span className="badge">{racesReady(waiting[job])}</span>}</span>
-      <svg className="job-chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-    </button>)}
+    {jobs.map(({job,title,explanation,counted,icon})=><JobButton key={job} icon={icon} title={title} explanation={explanation} badge={counted && waiting[job]>0?<span className="badge">{racesReady(waiting[job])}</span>:null} onClick={()=>onJob(job)}/>)}
   </div></section>;
 }
+
+/** A big menu button: icon tile, title, one line of explanation, optional badge, chevron. Home jobs and the Dashboard menu share it. */
+export function JobButton({icon,title,explanation,badge,onClick}:{icon:ReactNode;title:string;explanation:string;badge?:ReactNode;onClick:()=>void}) {
+  return <button className="job-button" onClick={onClick}>
+    <span className="job-icon" aria-hidden="true">{icon}</span>
+    <span className="job-text"><span className="job-title">{title}</span><span className="job-explanation">{explanation}</span>{badge}</span>
+    <svg className="job-chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+  </button>;
+}
+export const jobIcon=icon;
 
 /** The lead's way into the lead area, or a volunteer's way to give the lead code. */
 export function LeadEntry({isLead,toCheck,onDashboard,onBecomeLead}:{isLead:boolean;toCheck:number;onDashboard:()=>void;onBecomeLead:()=>void}) {

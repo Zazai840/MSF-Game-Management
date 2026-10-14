@@ -11,7 +11,7 @@ const Lead = lazy(()=>import('./lead/Lead.js'));
 interface HomeRead { phone:Phone; waiting:WaitingCounts; needsYou?:number }
 type Screen = 'home'|'become-lead'|'lead'|JobName;
 /** Jobs whose own breadcrumb trail replaces the Home and lead buttons. */
-const trailJobs:readonly Screen[]=['Start line'];
+const trailJobs:readonly Screen[]=['Start line','lead'];
 export function App() {
   const [joined,setJoined] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
@@ -56,7 +56,7 @@ export function App() {
   return <><AppHeader name={home.phone.name} /><TrailArea>{!trailJobs.includes(screen) && <nav className={screen==='home'?'app-nav app-nav-home':'app-nav'} aria-label="Running Zone">{screen!=='home' && <button className="button-secondary" onClick={goHome}>Home</button>}
     {screen!=='become-lead' && <LeadEntry isLead={isLead} toCheck={home.needsYou||0} onDashboard={()=>setScreen('lead')} onBecomeLead={()=>setScreen('become-lead')} />}
   </nav>}<main>
-    {screen === 'home' ? <Home waiting={home.waiting} onJob={setScreen} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead key={home.phone.dayId} phone={home.phone} initialDay={openDay} initialCount={home.needsYou||0} onCount={updateCount} onChanged={()=>void refresh()}/></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} onHome={goHome} />}
+    {screen === 'home' ? <Home waiting={home.waiting} onJob={setScreen} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead key={home.phone.dayId} phone={home.phone} initialDay={openDay} toCheck={home.needsYou||0} onCount={updateCount} onChanged={()=>void refresh()} onHome={goHome}/></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} onHome={goHome} />}
     {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='Finish order' && screen!=='Times' && screen!=='lead' && <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer>}
   </main></TrailArea></>;
 }

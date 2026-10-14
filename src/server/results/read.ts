@@ -6,7 +6,8 @@ import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
 import { readAuditNotes,readRulings } from '../rulings/records.js';
 import type { Database,StoredRace } from '../races/records.js';
 import { listRaces } from '../races/records.js';
-import type { EventState,ResultsRace } from '../../shared/results-rules.js';
+import type { EventState,ResultsRace,ClashSaver,LeadItem } from '../../shared/results-rules.js';
+import type { RacePartName } from '../../shared/race-clashes.js';
 import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
 import type { DayEvent } from '../../shared/day.js';
@@ -28,12 +29,13 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const rulings=await readRulings(db,dayId),notes=await readAuditNotes(db,dayId);
   const tieSettlements=await readTieSettlements(db,dayId);
   const stages=await readCompletedStages(db,dayId);
+  const savers=await clashSavers(db,dayId);
   const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
   if(!day) throw new Refusal(401,'Please join the Olympics day');
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
     const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings));
-    needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId);return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{})};}));
+    needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId),clash=item.kind==='clash'?savers.get(item.raceId!):undefined;return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{}),...(clash?{clash}:{})};}));
     const rows=groups.get(event.name)||[];rows.push({event,needsYou:results.needsYou.length,status:results.status,raceCount:results.raceCount,provisional:results.provisional,latestNoteAt:notes.find(note=>note.eventId===event.id)?.at??null});groups.set(event.name,rows);
   }
   return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),eventsConfirmed:day.events_confirmed,groups:[...groups].map(([name,events])=>({name,events}))};
@@ -47,6 +49,22 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId)))};
 }
 
+/** Who saved each still-active version of a clashing race part, oldest first, so To check can name them. */
+async function clashSavers(db:Database,dayId:string) {
+  const rows=(await db.query(`SELECT s.race_id,s.part,s.author_name,s.saved_at FROM race_part_saves s JOIN races r ON r.id=s.race_id
+    WHERE r.day_id=$1 AND s.active ORDER BY s.saved_at,s.sequence_number`,[dayId])).rows;
+  const parts=new Map<string,Map<RacePartName,ClashSaver[]>>();
+  for(const row of rows) {
+    const race=parts.get(row.race_id)||new Map<RacePartName,ClashSaver[]>();parts.set(row.race_id,race);
+    const saves=race.get(row.part)||[];saves.push({name:row.author_name,at:row.saved_at.toISOString()});race.set(row.part,saves);
+  }
+  const clashes=new Map<string,NonNullable<LeadItem['clash']>>();
+  for(const [raceId,race] of parts) {
+    const clashing=[...race].filter(([,saves])=>saves.length>1).map(([part,savers])=>({part,savers}));
+    if(clashing.length) clashes.set(raceId,clashing);
+  }
+  return clashes;
+}
 /** Reuse persisted part/candidate times; queue ordering never depends on poll time. */
 async function leadTimings(db:Database,dayId:string) {
   const rows=(await db.query(`SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1
