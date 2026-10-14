@@ -1,4 +1,4 @@
-import { expect,test } from './fixtures.js';
+import { expect,joinDay,test } from './fixtures.js';
 test('timed Event complete checks blockers, locks an old phone draft, and reopens with a retained comment',async({page,browser},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};const code=`T36${info.project.name.toUpperCase()}`;
   await page.request.post('/api/day/events',{headers,data:{code,name:`Stage event ${info.project.name}`,section:'Girl Cubs',format:'timed'}});
@@ -7,13 +7,13 @@ test('timed Event complete checks blockers, locks an old phone draft, and reopen
   await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2601,2602],didNotFinish:[],didNotRun:[],added:[]}});
   await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1000,1100]}});
   const phone=await browser.newContext({viewport:info.project.use.viewport});const job=await phone.newPage();
-  await job.goto('/');await job.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await job.getByLabel('First name').fill(`Stage timer ${info.project.name}`);await job.getByRole('button',{name:'Join',exact:true}).click();
+  await job.goto('/');await joinDay(job,`Stage timer ${info.project.name}`);
   await job.getByRole('button',{name:/^Start line ·/}).click();await job.getByRole('button',{name:`Stage event ${info.project.name}`,exact:true}).click();await job.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();await job.getByRole('button',{name:'2',exact:true}).click();
   await job.getByRole('button',{name:'Home',exact:true}).click();await job.getByRole('button',{name:/^Finish order ·/}).click();await job.getByRole('button',{name:'Other race',exact:true}).click();await job.getByRole('button',{name:new RegExp(`${code}.*Race 1`)}).click();await job.getByRole('button',{name:'Change order',exact:true}).click();await job.getByRole('button',{name:'2601',exact:true}).click();
   await job.getByRole('button',{name:'Home',exact:true}).click();await job.getByRole('button',{name:/^Times ·/}).click();await job.getByRole('button',{name:'Other race',exact:true}).click();await job.getByRole('button',{name:new RegExp(`${code}.*Race 1`)}).click();await job.getByRole('button',{name:'1st place · 10.00',exact:true}).click();await job.getByRole('button',{name:'2',exact:true}).click();
   const before=await job.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([key])=>key.includes(':draft:'))));
   await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2603]}});
-  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(`Stage lead ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();
+  await page.goto('/');await joinDay(page,`Stage lead ${info.project.name}`);
   await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();await page.getByRole('button',{name:'Results',exact:true}).click();
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();await blocked.getByRole('button',{name:'Race 2: checked in',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Race 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await page.getByRole('button',{name:'Back to event',exact:true}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();

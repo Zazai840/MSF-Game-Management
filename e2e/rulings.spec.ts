@@ -1,4 +1,4 @@
-import { expect,test } from './fixtures.js';
+import { expect,joinDay,test } from './fixtures.js';
 test('a lead disqualifies and lifts a runner, sees the ranking and audit notes change, and keeps a failed save',async({page},info)=>{
   // iOS 15.0–15.3 is supported but has no native dialog API.
   await page.addInitScript(()=>Object.defineProperty(HTMLDialogElement.prototype,'showModal',{value:undefined}));
@@ -9,7 +9,7 @@ test('a lead disqualifies and lifts a runner, sees the ranking and audit notes c
   const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:'R16',runners:numbers}})).json()).race;
   await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:numbers,didNotFinish:[],didNotRun:[],added:[]}});
   await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1100,1200,1300,1400]}});
-  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(`Aisha ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();
+  await page.goto('/');await joinDay(page,`Aisha ${info.project.name}`);
   await page.getByRole('button',{name:'Become lead',exact:true}).click();await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/,exact:true}).click();await page.getByRole('button',{name:'Results',exact:true}).click();
   await page.getByRole('button',{name:/^R16 · Girl Cubs/}).click();
   const runner=page.getByRole('button',{name:`Runner ${numbers[0]} · Race ${race.number}`,exact:true});

@@ -1,11 +1,9 @@
-import { expect, test } from './fixtures.js';
+import { expect,joinDay,test } from './fixtures.js';
 test('join an Olympics day, reload the phone and become lead', async ({page}, info) => {
   const downloaded: string[] = [];
   page.on('request', request => {if (request.url().endsWith('.js')) downloaded.push(request.url());});
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill('wrong-fixture');
-  await page.getByLabel('First name').fill(`Ahmed ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await joinDay(page,`Ahmed ${info.project.name}`,'wrong-fixture');
   await expect(page.getByRole('alert')).toHaveText('Wrong day code - ask for the right one');
   await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
   await page.getByRole('button',{name:'Join',exact:true}).click();

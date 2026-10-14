@@ -1,4 +1,4 @@
-import { expect,test } from './fixtures.js';
+import { expect,joinDay,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -43,9 +43,7 @@ test('old phones see the browser message before the application opens',async({br
 test('a deployed version waits for a tap and preserves an unfinished Start line entry',async({page},info)=>{
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
-  await page.getByLabel('First name').fill(`Update ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await joinDay(page,`Update ${info.project.name}`);
   await page.getByRole('button',{name:/^Start line ·/}).click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
@@ -80,9 +78,7 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   const {race}=await checked.json();
   const raceName=`60m Girl Cubs (R4) · Heat ${race.number}`;
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
-  await page.getByLabel('First name').fill(`Recovery ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await joinDay(page,`Recovery ${info.project.name}`);
 
   await page.getByRole('button',{name:/^Start line ·/}).click();
   await page.getByRole('button',{name:'60m',exact:true}).click();

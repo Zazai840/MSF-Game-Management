@@ -1,0 +1,122 @@
+/*
+ * Running Zone v2 look (spec 43 "Look"). The single home of the MSF colour
+ * tokens, type scale and shared building blocks. Screen stylesheets use these
+ * tokens and classes; they never hard-code a colour.
+ *
+ * Shared classes:
+ *   button (navy primary), .button-secondary (navy outline), .button-small,
+ *   .button-danger (MSF red outline: Start a new day only), .button-quiet
+ *   .badge (navy count), .badge-attention (MSF red: "N to check")
+ *   .chip (wristband pill), .card (white surface), .warning-box (amber),
+ *   .calm-note (neutral note), .done (green: completed events only),
+ *   .tabular (wristbands, times)
+ */
+
+/* Nunito, self-hosted (SIL Open Font License, see fonts/OFL.txt). One variable
+   file per subset covers weights 500-800; the browser only fetches a subset when
+   the page uses one of its characters. */
+@font-face {
+  font-family:'Nunito'; font-style:normal; font-weight:500 800; font-display:swap;
+  src:url(./fonts/nunito-latin-wght-normal.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family:'Nunito'; font-style:normal; font-weight:500 800; font-display:swap;
+  src:url(./fonts/nunito-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+:root {
+  /* Brand */
+  --navy:#1b2a51;          /* header, primary buttons, headings, selected state */
+  --red:#ac3036;           /* attention only: count badges, avatar, Start a new day */
+  --on-dark-muted:#c5cde2; /* secondary text on navy */
+  /* Surfaces */
+  --ground:#f3f5f9;        /* page background */
+  --surface:#ffffff;       /* cards, rows, inputs */
+  --tint:#e8ecf5;          /* icon tiles, chips, calm notes */
+  /* Text */
+  --text:#18213b;
+  --muted:#4a5470;
+  --faint:#8a93ab;         /* decoration only (chevrons, separators), never text */
+  /* Lines */
+  --line:#d6dbe6;          /* card and row borders */
+  --line-strong:#c3cad9;   /* quiet button borders */
+  --chip-line:#c9d1e3;
+  --divider:#dfe3ec;
+  /* Amber: every warning and wrong time */
+  --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;
+  /* Green: completed events only */
+  --green-fill:#e3f1e8; --green-line:#2f6b47; --green-text:#2f6b47; --green-title:#1f4d33;
+  /* Not started */
+  --idle-fill:#e9ecf2; --idle-line:#c3cad9; --idle-text:#3a4360;
+  --focus:#d78800;
+
+  /* Type scale (px values keep the spec's minimums exact) */
+  --text-body:17px;        /* body text, never below --text-small */
+  --text-small:15px;       /* explanation lines, labels, footers */
+  --text-badge:13px;       /* badges and pills only */
+  --text-h1:26px; --text-h2:22px; --text-h3:19px;
+  /* Size and touch */
+  --tap:44px;              /* every tap target */
+  --tap-primary:52px;      /* primary buttons */
+  --radius:12px; --radius-small:10px; --radius-card:16px; --radius-box:14px;
+
+  font-family:Nunito,system-ui,sans-serif; font-weight:500; font-size:var(--text-body); line-height:1.4;
+  color:var(--text); background:var(--ground);
+  -webkit-text-size-adjust:100%;
+}
+* {box-sizing:border-box;}
+body {margin:0; min-height:100vh; background:var(--ground); font-family:Nunito,system-ui,sans-serif;}
+h1,h2,h3 {color:var(--navy); font-weight:800; line-height:1.2; margin:0 0 .5rem;}
+h1 {font-size:var(--text-h1);}
+h2 {font-size:var(--text-h2);}
+h3 {font-size:var(--text-h3);}
+p {margin:.75rem 0;}
+small {font-size:var(--text-small);}
+a {color:var(--navy); font-weight:700;}
+output,input,time,.tabular,.code {font-variant-numeric:tabular-nums;}
+
+/* Buttons: primary is the default; variants are opt-in classes. */
+button {
+  font:inherit; font-size:17px; font-weight:800; line-height:1.2;
+  min-height:var(--tap-primary); padding:.75rem 1rem; border-radius:var(--radius);
+  border:1.5px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+button:disabled {opacity:.55; cursor:not-allowed;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible {outline:3px solid var(--focus); outline-offset:3px;}
+.button-secondary {background:var(--surface); color:var(--navy);}
+.button-small {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); font-size:15px;}
+.button-quiet {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+.button-danger {background:var(--surface); color:var(--red); border-color:var(--red);}
+[aria-pressed=true] {background:var(--navy); color:#fff; border-color:var(--navy);}
+
+/* Forms */
+form {display:grid; gap:1rem;}
+label {display:grid; gap:6px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+input,select,textarea {
+  font:inherit; font-size:18px; font-weight:700; color:var(--text);
+  min-height:var(--tap-primary); padding:.7rem 14px; width:100%; min-width:0;
+  background:var(--surface); border:2px solid var(--navy); border-radius:var(--radius-box);
+}
+input[type=checkbox],input[type=radio] {min-height:0; width:24px; height:24px; accent-color:var(--navy);}
+
+/* Badges */
+.badge {display:inline-block; padding:3px 10px; border-radius:999px; background:var(--navy); color:#fff; font-size:var(--text-badge); font-weight:800; line-height:1.3;}
+.badge-attention {background:var(--red);}
+
+/* Wristband chip */
+.chip {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); border:1.5px solid var(--chip-line); color:var(--navy); font-size:17px; font-weight:800; font-variant-numeric:tabular-nums;}
+
+/* Surfaces */
+.card {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); padding:16px;}
+.calm-note {padding:10px 14px; border-radius:var(--radius); background:var(--tint); color:var(--navy); font-size:var(--text-small); font-weight:700;}
+.done {background:var(--green-fill); border-color:var(--green-line); color:var(--green-text);}
+
+/* Amber: every warning, error and wrong time, so red keeps one meaning. */
+.warning-box,[role=alert] {
+  background:var(--amber-fill); border:1.5px solid var(--amber-line); border-radius:var(--radius-box);
+  color:var(--amber-text); padding:12px 14px; font-weight:700;
+}
+.warning-box button {min-height:var(--tap); border-radius:var(--radius-small); font-size:16px;}

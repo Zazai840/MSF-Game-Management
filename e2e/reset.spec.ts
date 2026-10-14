@@ -1,4 +1,4 @@
-import { expect,test,type Page } from './fixtures.js';
+import { expect,joinDay,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function scoring(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
@@ -17,7 +17,7 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
   const oldHome=await (await page.request.get('/api/home',{headers:headers()})).json();
   const otherContext=await browser.newContext({baseURL});await otherContext.addInitScript(olderCrypto);const other=await otherContext.newPage();
   try {
-    await other.goto('/');await other.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await other.getByLabel('First name').fill(`Reset helper ${info.project.name}`);await other.getByRole('button',{name:'Join',exact:true}).click();
+    await other.goto('/');await joinDay(other,`Reset helper ${info.project.name}`);
     await other.getByRole('button',{name:/^Start line ·/}).click();await other.getByRole('button',{name:'60m',exact:true}).click();await other.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();await other.getByRole('button',{name:'2',exact:true}).click();await other.getByRole('button',{name:'1',exact:true}).click();await expect(other.getByLabel('Wristband number')).toHaveText('21');
     await scoring(page);await exportDay(page);
     await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start new day',exact:true}).click();await committed;
@@ -27,7 +27,7 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('fresh-day-codes.png')});
     const home=await (await page.request.get('/api/home',{headers:headers()})).json();expect(home.phone.id).toBe(oldHome.phone.id);expect(home.phone.level).toBe('Scoring team');expect(home.phone.dayId).not.toBe(oldHome.phone.dayId);
     await expect(other.getByLabel('Day code or owner password')).toBeVisible({timeout:10000});expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual([]);
-    await other.getByLabel('Day code or owner password').fill(fresh.dayCode);await other.getByLabel('First name').fill(`Reset helper ${info.project.name}`);await other.getByRole('button',{name:'Join',exact:true}).click();await other.getByRole('button',{name:/^Start line · 0 waiting$/}).click();await expect(other.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();await expect(other.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();
+    await joinDay(other,`Reset helper ${info.project.name}`,fresh.dayCode);await other.getByRole('button',{name:/^Start line · 0 waiting$/}).click();await expect(other.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();await expect(other.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
     await page.getByRole('button',{name:'Home',exact:true}).click();await page.getByRole('button',{name:/^Lead ·/}).click();await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   } finally {await otherContext.close().catch(()=>{});}
@@ -68,7 +68,7 @@ test('a lost reset reply recovers the fresh Day through Home and discards an old
   await expect(page.getByText(fresh.dayCode,{exact:true})).toBeVisible();await expect(page.getByLabel('Day code or owner password')).toHaveCount(0);
 });
 test('an actual old removed-phone 401 cannot sign out a newly rejoined phone',async({page},info)=>{
-  await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(`Delayed ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
+  await page.goto('/');await joinDay(page,`Delayed ${info.project.name}`);await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
   const oldToken=await page.evaluate(()=>localStorage.getItem('msf:token'));const phone=await (await page.request.get('/api/me',{headers:{authorization:`Bearer ${oldToken}`}})).json();
   await page.request.post(`/api/day/phones/${phone.id}/remove`,{headers:headers(),data:{}});
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
@@ -76,7 +76,7 @@ test('an actual old removed-phone 401 cannot sign out a newly rejoined phone',as
   await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;const response=await route.fetch();expect(response.status()).toBe(401);seen();await held;await route.fulfill({response});delivered();});
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
   await page.getByRole('button',{name:/^Times ·/}).click();await expect(page.getByLabel('Day code or owner password')).toBeVisible();
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(`Delayed ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
+  await joinDay(page,`Delayed ${info.project.name}`);await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
   const freshToken=await page.evaluate(()=>localStorage.getItem('msf:token'));expect(freshToken).not.toBe(oldToken);
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);
@@ -85,8 +85,8 @@ test('a stale successful public join cannot replace a newer joined phone in shar
   await page.goto('/');let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});
   await page.route('**/api/join',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);seen();await held;await route.fulfill({response});delivered();});
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(`Old join ${info.project.name}`);await page.getByRole('button',{name:'Join',exact:true}).click();await captured;
-  const newer=await context.newPage();await newer.goto('/');await newer.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await newer.getByLabel('First name').fill(`New join ${info.project.name}`);await newer.getByRole('button',{name:'Join',exact:true}).click();await expect(newer.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
+  await joinDay(page,`Old join ${info.project.name}`);await captured;
+  const newer=await context.newPage();await newer.goto('/');await joinDay(newer,`New join ${info.project.name}`);await expect(newer.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
   const freshToken=await newer.evaluate(()=>localStorage.getItem('msf:token'));await expect(page.getByRole('heading',{name:'What are you doing?'})).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByText(`New join ${info.project.name}`,{exact:true})).toBeVisible();await newer.close();

@@ -15,7 +15,7 @@ export function Join({onJoined}:{onJoined:()=>void}) {
   return <section><h1>Join the Running Zone</h1><p>Ask for the day code. Starting the first Olympics day? Use the owner password.</p>
     <form onSubmit={submit}>
       <label>Day code or owner password<input type="password" value={code} onChange={event=>setCode(event.target.value)} autoComplete="off" required /></label>
-      <label>First name<input value={name} onChange={event=>setName(event.target.value)} autoComplete="given-name" maxLength={80} required /></label>
+      <label>Full name<input value={name} onChange={event=>setName(event.target.value)} autoComplete="name" maxLength={80} required /></label>
       {error && <p role="alert">{error}</p>}<button disabled={busy}>{busy ? 'Joining…':'Join'}</button>
     </form></section>;
 }
