@@ -1,4 +1,4 @@
-import { test as base,expect } from '@playwright/test';
+import { test as base,expect,type Page } from '@playwright/test';
 // A real reset changes both codes. The original scoring phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
 export const test=base.extend<{freshDayCodes:void}>({
@@ -10,5 +10,11 @@ export const test=base.extend<{freshDayCodes:void}>({
     await use();
   },{auto:true}]
 });
+/** Fills the Join form already on screen and taps Join. Names must be unique per day. */
+export async function joinDay(page:Page,name:string,code=process.env.E2E_DAY_CODE!) {
+  await page.getByLabel('Day code or owner password').fill(code);
+  await page.getByLabel('Full name').fill(name);
+  await page.getByRole('button',{name:'Join',exact:true}).click();
+}
 export { expect };
-export type { Page } from '@playwright/test';
+export type { Page };

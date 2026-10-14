@@ -1,5 +1,5 @@
-import { expect,test,type Page } from './fixtures.js';
-async function join(page:Page,name:string) {await page.goto('/');await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);await page.getByLabel('First name').fill(name);await page.getByRole('button',{name:'Join',exact:true}).click();}
+import { expect,joinDay,test,type Page } from './fixtures.js';
+async function join(page:Page,name:string) {await page.goto('/');await joinDay(page,name);}
 async function digits(page:Page,value:number) {for(const digit of String(value)) await page.getByRole('button',{name:digit,exact:true}).click();}
 test('a lead sees a phone-recorded race appear within one Results poll',async({page,browser},info)=>{
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;

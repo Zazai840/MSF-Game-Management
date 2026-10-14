@@ -17,7 +17,7 @@ test('wrong owner password is refused without starting an Olympics day', async (
   expect(refused.json().message).toBe('Wrong owner password');
   expect((await join('test-owner-fixture', 'Ahmed')).statusCode).toBe(200);
 });
-test('day code joins a volunteer and wrong codes and used first names are refused plainly', async () => {
+test('day code joins a volunteer and wrong codes and used full names are refused plainly', async () => {
   await start();
   const owner = (await join('test-owner-fixture', 'Aisha')).json();
   const day = (await app.inject({url:'/api/day', headers:auth(owner.token)})).json();
@@ -28,7 +28,10 @@ test('day code joins a volunteer and wrong codes and used first names are refuse
   expect(volunteer.phone).toMatchObject({name:'Ahmed', level:'Volunteer'});
   const duplicate = await join(day.dayCode, ' ahmed ');
   expect(duplicate.statusCode).toBe(409);
-  expect(duplicate.json().message).toBe('Someone has joined as Ahmed - add your surname initial');
+  expect(duplicate.json().message).toBe('Someone has joined as Ahmed - use your full name so the zone lead can tell you apart');
+  const missing = await join(day.dayCode, '  ');
+  expect(missing.statusCode).toBe(400);
+  expect(missing.json().message).toBe('Enter your full name (up to 80 characters)');
 });
 test('permission ladder refuses volunteer lead reads and ordinary lead Day reads but shares jobs', async () => {
   await start();

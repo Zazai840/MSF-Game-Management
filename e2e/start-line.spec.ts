@@ -1,13 +1,11 @@
-import { expect,test,type Page } from './fixtures.js';
+import { expect,joinDay,test,type Page } from './fixtures.js';
 async function typeNumber(page:Page,number:number) {for(const digit of String(number)) await page.getByRole('button',{name:digit,exact:true}).click();}
 async function clearNumber(page:Page) {for(let index=0;index<4;index++) await page.getByRole('button',{name:'Delete last digit',exact:true}).click();}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
   await page.request.post('/api/day/events/R4/rename',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
-  await page.getByLabel('First name').fill(`Start ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await joinDay(page,`Start ${info.project.name}`);
   await page.getByRole('button',{name:/^Start line ·/}).click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
@@ -45,9 +43,7 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   const earlier=await page.request.post('/api/races/check-in',{headers:scoringHeaders,data:{eventCode:'R4',runners:[2008]}});
   const earlierRace=(await earlier.json()).race;
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
-  await page.getByLabel('First name').fill(`Warnings ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await joinDay(page,`Warnings ${info.project.name}`);
   await page.getByRole('button',{name:/^Start line ·/}).click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
