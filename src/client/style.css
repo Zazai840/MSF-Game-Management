@@ -21,7 +21,7 @@ footer {margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; align-i
 footer button {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
 
 .code {font-size:32px; font-weight:800; letter-spacing:3px; color:var(--navy); margin-left:0;}
-.app-update {max-width:48rem; margin:1rem auto 0; padding:0 1rem;}
+.app-update {width:100%; max-width:48rem; margin:16px auto 0; padding:0 16px;}
 .app-update button {width:100%; background:var(--amber-fill); border-color:var(--amber-line); color:var(--amber-text);}
 .lead-count {display:inline-block; min-width:1.6em; border-radius:999px; padding:1px 8px; background:var(--red); color:#fff; font-size:15px; font-weight:800; text-align:center;}
 @media(min-width:800px) {main {padding:28px 24px;} .app-nav {padding:16px 24px 0;} .jobs {grid-template-columns:repeat(3,1fr);} }
