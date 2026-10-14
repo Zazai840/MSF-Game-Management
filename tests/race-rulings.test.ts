@@ -67,6 +67,17 @@ test('a re-run deletes the old record with its reason and creates a new numbered
   expect((await call(lead,`/api/lead/races/${race.id}`)).json().race).toMatchObject({deleted:true,deleteReason:'re-run'});
 
 });
+test('a race replaced by a re-run names its replacing race from the audit note, or says a re-run when that race is gone',async()=>{
+  const {lead,race}=await start();
+  const newId=(await call(lead,`/api/lead/races/${race.id}/re-run`,{})).json().newRaceId;
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race.replacedBy).toBe('Race 2');
+  expect((await call(lead,'/api/lead/events/R10/deleted-races')).json()).toMatchObject([{id:race.id,replacedBy:'Race 2'}]);
+  const ordinary=(await call(lead,'/api/races/check-in',{eventCode:'R10',runners:[2003]})).json().race;
+  await call(lead,`/api/lead/races/${ordinary.id}/delete`,{permanent:false});
+  expect((await call(lead,`/api/lead/races/${ordinary.id}`)).json().race.replacedBy).toBeUndefined();
+  expect((await call(lead,`/api/lead/races/${newId}/delete`,{permanent:true})).statusCode).toBe(200);
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race).toMatchObject({deleted:true,deleteReason:'re-run',replacedBy:null});
+});
 test('lead runner correction preserves replacement identities and time pairing, removes dangling Finish IDs, and invalidates unclassified additions',async()=>{
   const {lead,volunteer,race}=await start();
   const first=race.parts.runners.value[0],second=race.parts.runners.value[1];
