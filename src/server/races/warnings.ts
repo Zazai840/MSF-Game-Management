@@ -6,7 +6,7 @@ import { Refusal } from '../access/permissions.js';
 export function keptWarningNumbers(body:unknown,numbers:readonly number[]):number[] {
   const kept=(body as {keptWarnings?:unknown}|null)?.keptWarnings;
   if (kept===undefined) return [];
-  if (!Array.isArray(kept) || kept.length>6 || kept.some(number=>!numbers.includes(number))) throw new Refusal(400,'Choose Keep for a wristband number in this race');
+  if (!Array.isArray(kept) || kept.some(number=>!numbers.includes(number))) throw new Refusal(400,'Choose Keep for a wristband number in this race');
   return kept;
 }
 export async function wristbandRaces(db:Database,dayId:string,eventId:string):Promise<WristbandRace[]> {
