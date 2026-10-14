@@ -18,7 +18,7 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   await jobButton(other,'Start line').click();
   await other.getByRole('button',{name:'60m',exact:true}).click();
   await other.getByRole('button',{name:'Boy Beavers · R1',exact:true}).click();
-  await other.getByRole('button',{name:'1',exact:true}).click();
+  await other.getByLabel('Wristband number',{exact:true}).fill('1');
   await expect.poll(()=>other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')&&key!=='msf:token').length)).toBeGreaterThan(0);
   await page.screenshot({path:info.outputPath('joined-phones.png'),fullPage:true});
   await row.getByRole('button',{name:'Remove',exact:true}).click();

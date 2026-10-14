@@ -1,4 +1,4 @@
-import { jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { savedRaceLabel,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
   await page.goto('/');await joinDay(page,name);
 }
@@ -34,5 +34,5 @@ test('a lead sees surplus numeric times and the mismatch before deliberately cor
 test('Start line shows enabled event choices alongside the programme confirmation reminder',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},code=`UC-${info.project.name.toUpperCase()}`;
   await page.request.post('/api/day/events',{headers,data:{code,name:'Unconfirmed sprint',section:'Girl Cubs',format:'timed'}});
-  await join(page,`Unconfirmed start ${info.project.name}`);await jobButton(page,'Start line').click();await expect(page.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Unconfirmed sprint',exact:true}).click();await page.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();for(const digit of '2450') await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByRole('heading',{name:'Race 1 saved',exact:true})).toBeVisible();await page.getByRole('button',{name:'Delete this race',exact:true}).click();await page.getByRole('button',{name:'Delete permanently',exact:true}).click();
+  await join(page,`Unconfirmed start ${info.project.name}`);await jobButton(page,'Start line').click();await expect(page.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Unconfirmed sprint',exact:true}).click();await page.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();await enterWristband(page,2450);await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(page)).toBe('Race 1');await page.getByRole('button',{name:'Delete this race',exact:true}).click();await page.getByRole('button',{name:'Delete permanently',exact:true}).click();
 });

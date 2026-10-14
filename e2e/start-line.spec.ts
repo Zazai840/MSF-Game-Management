@@ -1,6 +1,5 @@
-import { jobButton,expect,joinDay,test,type Page } from './fixtures.js';
-async function typeNumber(page:Page,number:number) {for(const digit of String(number)) await page.getByRole('button',{name:digit,exact:true}).click();}
-async function clearNumber(page:Page) {for(let index=0;index<4;index++) await page.getByRole('button',{name:'Delete last digit',exact:true}).click();}
+import { savedRaceLabel,jobButton,expect,joinDay,test,type Page } from './fixtures.js';
+async function typeNumber(page:Page,number:number) {await page.getByLabel('Wristband number',{exact:true}).fill(String(number));}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
   await page.request.post('/api/day/events/R4/rename',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
@@ -11,27 +10,28 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
-  await expect(page.getByRole('alert')).toHaveText('2001 is already in this race');await clearNumber(page);
+  await expect(page.getByRole('alert')).toContainText('2001 is already in this race');await page.getByRole('button',{name:'Fix number',exact:true}).click();
   for(const number of [2002,2003,2004,2005,2006]) {await typeNumber(page,number);await page.getByRole('button',{name:'Next',exact:true}).click();}
-  await page.screenshot({path:info.outputPath('start-line-keypad.png'),fullPage:true});
+  await page.screenshot({path:info.outputPath('start-line-entry.png'),fullPage:true});
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(page.getByRole('heading',{name:'6 runners. Is that right?',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Check the runners',exact:true})).toBeVisible();await expect(page.getByText('6 runners lined up',{exact:true})).toBeVisible();
   await page.route('**/api/races/check-in',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary connection problem'})}));
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByText('Not saved - tap Save again',{exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toHaveCount(0);
   await expect(page.getByText('2006',{exact:true})).toBeVisible();
   await page.reload();
   await jobButton(page,'Start line').click();
-  await expect(page.getByRole('heading',{name:'6 runners. Is that right?',exact:true})).toBeVisible();
+  await expect(page.getByText('6 runners lined up',{exact:true})).toBeVisible();
   await page.unroute('**/api/races/check-in');
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:/Heat \d+ saved/})).toBeVisible();
+  await savedRaceLabel(page);
   await page.getByRole('button',{name:'Edit runners',exact:true}).click();
   await page.getByRole('button',{name:'Remove runner 2006',exact:true}).click();
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(page.getByRole('heading',{name:'5 runners. Is that right?',exact:true})).toBeVisible();
+  await expect(page.getByText('5 runners lined up',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:/Heat \d+ saved/})).toBeVisible();
+  await expect(page.getByTestId('saved-race')).toContainText('5 runners');
   await page.getByRole('button',{name:'Delete this race',exact:true}).click();
   await page.getByRole('button',{name:'Delete permanently',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
@@ -48,20 +48,21 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,0);await page.getByRole('button',{name:'Next',exact:true}).click();
-  await expect(page.getByText('0 is not a known wristband number',{exact:true})).toBeVisible();
+  await expect(page.getByText('0 is not a wristband number. Wristbands are 1 to 4999.',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Fix number',exact:true}).click();
-  await page.getByRole('button',{name:'Delete last digit',exact:true}).click();
+  await expect(page.getByLabel('Wristband number',{exact:true})).toHaveValue('');
   await typeNumber(page,2009);await page.getByRole('button',{name:'Next',exact:true}).click();
   await typeNumber(page,3045);await page.getByRole('button',{name:'Next',exact:true}).click();
-  await expect(page.getByText('3045 belongs to Boy Scouts - this race is Girl Cubs',{exact:true})).toBeVisible();
+  await expect(page.getByText('3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('wristband-warning.png'),fullPage:true});
   await page.getByRole('button',{name:'Keep',exact:true}).click();
   await typeNumber(page,2008);await page.getByRole('button',{name:'Next',exact:true}).click();
-  await expect(page.getByText('2008 already ran in this event',{exact:true})).toBeVisible();
+  await expect(page.getByText('2008 already ran in another race of this event.',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Keep',exact:true}).click();
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:/Heat \d+ saved/})).toBeVisible();
+  await savedRaceLabel(page);
+  await expect(page.getByTestId('saved-race')).toContainText('3 runners');
   await page.getByRole('button',{name:'Delete this race',exact:true}).click();
   await page.getByRole('button',{name:'Delete permanently',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
