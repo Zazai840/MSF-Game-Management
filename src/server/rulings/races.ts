@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions,Refusal } from '../access/permissions.js';
-import { readRace } from '../races/records.js';
+import { readRace,withReplacement } from '../races/records.js';
 import { publishPart } from '../races/versions.js';
 import { readEventResults } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
@@ -42,7 +42,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const event=(await client.query('SELECT id FROM events WHERE day_id=$1 AND code=$2',[phone.dayId,code])).rows[0];
       if(!event) throw new Refusal(404,'Event not found');
       const rows=(await client.query('SELECT id FROM races WHERE day_id=$1 AND event_id=$2 AND deleted ORDER BY checked_in_at DESC,id',[phone.dayId,event.id])).rows;
-      const races=[];for(const row of rows) races.push(await readRace(client,phone.dayId,row.id));
+      const races=[];for(const row of rows) races.push(await withReplacement(client,phone.dayId,await readRace(client,phone.dayId,row.id)));
       await client.query('COMMIT');return races;
     } catch(error) {await client.query('ROLLBACK');throw error;}
     finally {client.release();}

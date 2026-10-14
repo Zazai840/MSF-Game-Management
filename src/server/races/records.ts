@@ -2,7 +2,7 @@ import type { FinalField } from '../../shared/finals.js';
 import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import type { RaceRead } from '../../shared/races.js';
+import { raceLabel,type RaceRead } from '../../shared/races.js';
 import { Refusal } from '../access/permissions.js';
 export type StoredRace=Omit<RaceRead,'final'> & {final?:FinalField};
 /** Jobs receive attendance only; heat ranking and provenance stay within Lead reads. */
@@ -47,6 +47,12 @@ export async function readRace(db:Database,dayId:string,id:string):Promise<Store
   const clashes=(await db.query('SELECT part FROM race_part_saves WHERE race_id=$1 AND active GROUP BY part HAVING count(*)>1',[id])).rows.map(row=>row.part);
   const finalRow=row.kind==='final'?(await db.query(`${finalRowsQuery} WHERE f.race_id=$1`,[id])).rows[0]:undefined;
   return storedRace(row,rows,clashes,finalRow);
+}
+/** Lead reads of a race replaced by a re-run name the replacing race from the re-run's audit note, or null once that race is gone. */
+export async function withReplacement<T extends StoredRace>(db:Database,dayId:string,race:T):Promise<T> {
+  if(!race.deleted || race.deleteReason!=='re-run') return race;
+  const row=(await db.query(`SELECT r.kind,r.number FROM audit_notes n LEFT JOIN races r ON r.day_id=n.day_id AND r.id::text=n.touches->1->>'raceId' WHERE n.day_id=$1 AND n.action='re-run' AND n.touches->0->>'raceId'=$2 ORDER BY n.sequence_number DESC LIMIT 1`,[dayId,race.id])).rows[0];
+  return {...race,replacedBy:row?.kind?raceLabel(row):null};
 }
 function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],clashes:string[],finalRow?:pg.QueryResultRow):StoredRace {
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value,...(clashes.includes(row.part)?{clash:true}:{})}]));

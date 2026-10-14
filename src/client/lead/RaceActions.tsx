@@ -5,7 +5,7 @@ import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';
 import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
-import { raceLabel } from '../../shared/races.js';
+import { raceLabel,replacedByRerun } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { digitsForTime,parseTimeDigits,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 export interface RaceActionsProps {race:LeadRaceRead['race'];onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void;onRemoved:()=>void}
@@ -19,7 +19,8 @@ export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps)
     finally {setBusy(false);}
   }
   function open(next:typeof action) {setAction(next);setError('');}
-  return <div className="race-action-choices">{race.parts.times.value?.acceptedByLead && <p>Out-of-order times accepted by a lead</p>}{race.deleted?<><p>Deleted race{race.deleteReason==='re-run'?' · Re-run called':''}</p><button onClick={()=>open('restore')}>Restore race</button><button onClick={()=>open('delete')}>Delete permanently</button></>:<>{race.kind!=='final' && <button onClick={()=>open('times')}>Correct times</button>}<button onClick={()=>open('runners')}>Correct runner list</button><button onClick={()=>open('re-run')}>Re-run race</button><button onClick={()=>open('delete')}>Delete race</button></>}
+  const replaced=replacedByRerun(race);
+  return <div className="race-action-choices">{race.parts.times.value?.acceptedByLead && <p>Out-of-order times accepted by a lead</p>}{race.deleted?<>{replaced?<p>{raceLabel(race)} · {replaced}</p>:<><p>Deleted race</p><button onClick={()=>open('restore')}>Restore race</button></>}<button onClick={()=>open('delete')}>Delete permanently</button></>:<>{race.kind!=='final' && <button onClick={()=>open('times')}>Correct times</button>}<button onClick={()=>open('runners')}>Correct runner list</button><button onClick={()=>open('re-run')}>Re-run race</button><button onClick={()=>open('delete')}>Delete race</button></>}
     {action && <ActionSheet title={`${action==='times'?'Correct times':action==='runners'?'Correct runner list':action==='restore'?'Restore race':action==='re-run'?'Re-run race':'Delete race'} · ${raceLabel(race)}`} busy={busy} onClose={()=>setAction(null)}><h3>{raceLabel(race)}</h3>{error && <p role="alert">{error}</p>}
       {action==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body)} onClose={()=>setAction(null)}/>:action==='runners'?<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body)} onClose={()=>setAction(null)}/>:<RaceLifecycle action={action} race={race} busy={busy} onSave={(body,permanent)=>void command(action==='delete'?'delete':action,body,!!permanent)} onClose={()=>setAction(null)}/>}
     </ActionSheet>}

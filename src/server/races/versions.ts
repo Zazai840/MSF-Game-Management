@@ -5,7 +5,7 @@ import type { Phone } from '../../shared/domain.js';
 import type { FinishingOrder,Runner } from '../../shared/races.js';
 import { raceParts,type RacePartName,type PartValue,type PartSave,type LeadRaceRead } from '../../shared/race-clashes.js';
 import { Refusal } from '../access/permissions.js';
-import { readRace,type Database,type StoredRace } from './records.js';
+import { readRace,withReplacement,type Database,type StoredRace } from './records.js';
 /** Capture every published value before another command can replace it. Called under the day lock. */
 export async function rememberRace(client:pg.PoolClient,race:StoredRace) {
   const parts=(await client.query('SELECT p.*,f.name FROM race_parts p LEFT JOIN phones f ON f.id=p.saved_by WHERE p.race_id=$1 ORDER BY p.part',[race.id])).rows;
@@ -66,7 +66,7 @@ export async function savePart(client:pg.PoolClient,phone:Phone,race:StoredRace,
   return identical?'merged' as const:'clash' as const;
 }
 export async function leadRace(db:Database,dayId:string,id:string):Promise<LeadRaceRead> {
-  const race=await readRace(db,dayId,id);
+  const race=await withReplacement(db,dayId,await readRace(db,dayId,id));
   const rows=(await db.query('SELECT id,part,base_version AS "baseVersion",version,author_name AS author,saved_at,value,runners,before_runners AS "runnersBefore",active FROM race_part_saves WHERE race_id=$1 ORDER BY sequence_number',[race.id])).rows;
   const history:PartSave[]=rows.map(({saved_at,...save})=>({...save,at:saved_at.toISOString()}));
   return {race,history,clashes:raceParts.filter(part=>race.parts[part].clash).map(part=>({part,candidates:history.filter(save=>save.part===part && save.active)}))};
