@@ -1,4 +1,4 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { jobButton,expect,joinDay,test,type Page } from './fixtures.js';
 async function typeNumber(page:Page,number:number) {for(const digit of String(number)) await page.getByRole('button',{name:digit,exact:true}).click();}
 async function clearNumber(page:Page) {for(let index=0;index<4;index++) await page.getByRole('button',{name:'Delete last digit',exact:true}).click();}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
@@ -6,7 +6,7 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
   await joinDay(page,`Start ${info.project.name}`);
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
@@ -21,7 +21,7 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await expect(page.getByText('Not saved - tap Save again',{exact:true})).toBeVisible();
   await expect(page.getByText('2006',{exact:true})).toBeVisible();
   await page.reload();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await expect(page.getByRole('heading',{name:'6 runners. Is that right?',exact:true})).toBeVisible();
   await page.unroute('**/api/races/check-in');
   await page.getByRole('button',{name:'Save',exact:true}).click();
@@ -44,7 +44,7 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   const earlierRace=(await earlier.json()).race;
   await page.goto('/');
   await joinDay(page,`Warnings ${info.project.name}`);
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,0);await page.getByRole('button',{name:'Next',exact:true}).click();

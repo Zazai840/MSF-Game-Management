@@ -1,4 +1,4 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { jobButton,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
   await page.goto('/');await joinDay(page,name);
 }
@@ -10,14 +10,14 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await page.request.post('/api/day/events/R4/rename',{headers,data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await join(page,`Start finish ${info.project.name}`);
-  await page.getByRole('button',{name:/^Start line ·/}).click();await page.getByRole('button',{name:'60m',exact:true}).click();
+  await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   for(const number of [n(2011),n(2012),n(2013),n(2014)]) {await typeNumber(page,number);await page.getByRole('button',{name:'Next',exact:true}).click();}
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('heading',{name:/Heat \d+ saved/})).toBeVisible();
   const label=(await page.getByRole('heading',{name:/Heat \d+ saved/}).innerText()).replace(' saved','');
   const context=await browser.newContext({...info.project.use});const finish=await context.newPage();
-  await join(finish,`Finish ${info.project.name}`);await finish.getByRole('button',{name:/^Finish order ·/}).click();
+  await join(finish,`Finish ${info.project.name}`);await jobButton(finish,'Finish order').click();
   await expect(finish.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
   await finish.screenshot({path:info.outputPath('finish-order-question.png'),fullPage:true});
   await finish.getByRole('button',{name:String(n(2012)),exact:true}).click();
@@ -45,7 +45,7 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await finish.screenshot({path:info.outputPath('finish-order-review.png'),fullPage:true});
   await finish.route('**/api/races/*/finish',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary connection problem'})}));
   await finish.getByRole('button',{name:'Save',exact:true}).click();await expect(finish.getByText('Not saved - tap Save again',{exact:true})).toBeVisible();
-  await finish.reload();await finish.getByRole('button',{name:/^Finish order ·/}).click();
+  await finish.reload();await jobButton(finish,'Finish order').click();
   await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
   await finish.unroute('**/api/races/*/finish');await finish.getByRole('button',{name:'Save',exact:true}).click();
   await expect(finish.getByText('Saved',{exact:true})).toBeVisible();
@@ -56,7 +56,7 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await finish.getByRole('button',{name:`Move ${n(2011)} up`,exact:true}).click();await finish.getByRole('button',{name:'Save',exact:true}).click();
   await expect(finish.getByText('Saved',{exact:true})).toBeVisible();
   await finish.getByRole('button',{name:'Home',exact:true}).click();
-  await expect(finish.getByRole('button',{name:'Finish order · 0 waiting',exact:true})).toBeVisible();
+  await expect(jobButton(finish,'Finish order')).toBeVisible();await expect(jobButton(finish,'Finish order')).not.toContainText('ready');
   await context.close();
 });
 
@@ -65,12 +65,12 @@ test('Finish order preserves its draft versions while polling and reload expose 
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const checked=await page.request.post('/api/races/check-in',{headers,data:{eventCode:'R4',runners:[2101,2102]}});
   const race=(await checked.json()).race;
-  await join(page,`Draft finish ${info.project.name}`);await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await join(page,`Draft finish ${info.project.name}`);await jobButton(page,'Finish order').click();
   await page.getByRole('button',{name:'2102',exact:true}).click();await page.getByRole('button',{name:'2101',exact:true}).click();
   await page.getByRole('button',{name:'Check the order',exact:true}).click();
   await page.request.post(`/api/races/${race.id}/runners`,{headers,data:{baseVersion:1,runners:[2101,2102,2103]}});
   await page.getByRole('button',{name:'Refresh Finish order',exact:true}).click();
-  await page.reload();await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await page.reload();await jobButton(page,'Finish order').click();
   await expect(page.locator('.finish-review li').first()).toContainText('2102');
   await expect(page.locator('.finish-review li')).toHaveCount(2);
   const saving=page.waitForRequest(request=>request.url().endsWith(`/api/races/${race.id}/finish`) && request.method()==='POST');
