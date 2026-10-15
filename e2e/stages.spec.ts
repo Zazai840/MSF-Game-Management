@@ -1,4 +1,6 @@
-import { backToEvent,openDashboard,trailBack,goHome,jobButton,becomeLead,expect,joinDay,pickRace,test } from './fixtures.js';
+import { backToEvent,openDashboard,trailBack,goHome,jobButton,becomeLead,expect,joinDay,pickRace,test,type Locator } from './fixtures.js';
+/** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
+const sheetSectionBorder=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const style=getComputedStyle(section);return style.borderLeftStyle==='none'?'none':`${style.borderLeftStyle} ${style.borderLeftColor}`;});
 test('timed Event complete checks blockers, locks an old phone draft, and reopens with a retained comment',async({page,browser},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};const code=`T36${info.project.name.toUpperCase()}`;
   await page.request.post('/api/day/events',{headers,data:{code,name:`Stage event ${info.project.name}`,section:'Girl Cubs',format:'timed'}});
@@ -16,8 +18,11 @@ test('timed Event complete checks blockers, locks an old phone draft, and reopen
   await page.goto('/');await joinDay(page,`Stage lead ${info.project.name}`);
   await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
-  const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();await blocked.getByRole('button',{name:'Race 2: checked in',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Race 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await backToEvent(page);await page.getByRole('button',{name:'Event complete',exact:true}).click();
-  const sheet=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(sheet.getByRole('heading',{name:'Must settle first',exact:true})).toBeVisible();await expect(sheet).toContainText('Nothing to settle');await expect(sheet).toContainText('2601');await expect(sheet).toContainText('2602');
+  const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();
+  // Amber marks only a list that holds something to settle or look at.
+  await expect.poll(()=>sheetSectionBorder(blocked,'Must settle first')).toBe('solid rgb(183, 121, 31)');
+  await blocked.getByRole('button',{name:'Race 2: checked in',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Race 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await backToEvent(page);await page.getByRole('button',{name:'Event complete',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(sheet.getByRole('heading',{name:'Must settle first',exact:true})).toBeVisible();await expect(sheet).toContainText('Nothing to settle');await expect.poll(()=>sheetSectionBorder(sheet,'Must settle first')).toBe('none');await expect(sheet).toContainText('No open warnings');await expect.poll(()=>sheetSectionBorder(sheet,'Worth a look')).toBe('none');await expect(sheet).toContainText('2601');await expect(sheet).toContainText('2602');
   await page.screenshot({path:info.outputPath('event-complete-sheet.png'),fullPage:true});await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(`${code}`);await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('2601');
   await page.screenshot({path:info.outputPath('completed-event.png'),fullPage:true});
