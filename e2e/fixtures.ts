@@ -53,9 +53,9 @@ export async function backToEvent(page:Page) {
   await expect(steps(page)).not.toHaveText(before);
 }
 /**
- * Opens a race from a job's race picker (v1's Other race list), reached through the trail's job step,
- * for example pickRace(page,'Finishing order',/R4.*Heat 2$/). Waits for the job to settle first,
- * because a job opens the first waiting race by itself.
+ * Opens a race from a job's race picker, reached through the trail's job step when a race is already open,
+ * for example pickRace(page,'Finishing order',/R4.*Heat 2$/) or pickRace(page,'Times','60m Girl Cubs (R4) · Heat 2').
+ * Waits for the job to finish opening first.
  */
 export async function pickRace(page:Page,jobStep:string,race:string|RegExp) {
   await expect(page.getByText('Opening…',{exact:true})).toHaveCount(0);
@@ -94,7 +94,7 @@ export function toCheckItem(page:Page,text:RegExp) {
   return page.getByRole('list',{name:'To check'}).getByRole('button',{name:text});
 }
 const jobTitles={'Start line':'Check in runners','Finish order':'Record the finishing order',Times:'Enter times'} as const;
-/** The Home button for a job, by its internal name (Start line, Finish order, Times). */
+/** The Home button for a job, named as in the code (Start line, Finish order, Times); the button itself shows the job's title. */
 export function jobButton(page:Page,job:keyof typeof jobTitles) {
   return page.getByRole('button',{name:new RegExp(`^${jobTitles[job]}`)});
 }
@@ -133,15 +133,6 @@ export async function startDrag(page:Page,from:Locator) {
 /** Drags `from` onto `to` and lets go. */
 export async function dragTo(page:Page,from:Locator,to:Locator) {
   const drag=await startDrag(page,from);await drag.over(to);await drag.drop();
-}
-/**
- * On the Times job: opens the race picker from the trail when a race is already open,
- * then picks the race by its button name, for example "60m Girl Cubs (R4) · Heat 2".
- */
-export async function pickTimesRace(page:Page,name:string|RegExp) {
-  await timesOpened(page);
-  if(!await page.getByRole('heading',{name:'Which race is it?',exact:true}).isVisible()) await trailBack(page,'Times');
-  await page.getByRole('button',{name,exact:typeof name==='string'}).click();
 }
 /** Waits until the Times job has loaded: the race picker, a place to type, or the check screen. */
 export async function timesOpened(page:Page) {

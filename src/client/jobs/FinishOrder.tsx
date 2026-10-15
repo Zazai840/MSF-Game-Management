@@ -4,7 +4,7 @@ import { hasClash } from '../../shared/race-clashes.js';
 import { useState } from 'react';
 import { useRaceJob } from './useJobData.js';
 import { api } from '../api.js';
-import { raceLabel,type FinishOrderRead,type RaceRead,type Runner } from '../../shared/races.js';
+import { raceLine,raceName,racePickerLabel,raceSummary,type FinishOrderRead,type RaceRead,type Runner } from '../../shared/races.js';
 import { plainWristbandWarning,runnerListRefusal,wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
@@ -31,8 +31,6 @@ function changed(draft:Draft) {
   const fresh=fromRace(draft.race),pick=(value:Draft)=>JSON.stringify([value.order,value.didNotFinish,value.didNotRun,value.added]);
   return pick(draft)!==pick(fresh);
 }
-const raceName=(race:RaceRead)=>`${race.event.name} ${race.event.section} ${raceLabel(race)}`;
-const pickerLabel=(race:RaceRead)=>`${race.event.name} ${race.event.section} (${race.event.code}) · ${raceLabel(race)}`;
 export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const {draft,setDraft,data,choosing,setChoosing,busy,setBusy,error,setError,readError,updated,refresh,open:openRace}=useRaceJob<FinishOrderRead,Draft>(dayId,'finish-order',restore,fromRace);
   const [message,setMessage]=useState('');
@@ -88,7 +86,7 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   if(saved) {
     const first=fromRace(saved).order[0];
     const race=latest(saved);
-    return <section className="race-job"><Saved race={`${saved.event.name} ${saved.event.section} · ${raceLabel(saved)} · ${first===undefined?'No finishers':`1st: ${first}`}`} nextLabel="Next race" onNext={()=>void nextRace()} onHome={onHome}>
+    return <section className="race-job"><Saved race={raceSummary(saved,first===undefined?'No finishers':`1st: ${first}`)} nextLabel="Next race" onNext={()=>void nextRace()} onHome={onHome}>
       {hasClash(race) && <ClashNotice race={race}/>}{error && <p role="alert">{error}</p>}
     </Saved></section>;
   }
@@ -101,8 +99,8 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       <h1>Which race is it?</h1>
       {draft && <button className="button-secondary carry-on" disabled={busy} onClick={()=>setChoosing(false)}>Carry on with {raceName(draft.race)}</button>}
       <h3>Waiting for a finishing order</h3>
-      {data.waiting.length===0?<p className="job-hint">No races waiting</p>:<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{pickerLabel(race)}</button>)}</div>}
-      {data.recent.length>0 && <><h3>Recent races</h3><div className="job-choices">{data.recent.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{pickerLabel(race)}</button>)}</div></>}
+      {data.waiting.length===0?<p className="job-hint">No races waiting</p>:<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div>}
+      {data.recent.length>0 && <><h3>Recent races</h3><div className="job-choices">{data.recent.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div></>}
       <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Finish order</button></footer>
     </section>;
   }
@@ -110,10 +108,11 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const step=draft.step==='no-place' && unplaced.length===0?'check':draft.step;
   const locked=stageLocked(draft.race,data.completedStages);
   const toPlaces=()=>change({...draft,step:'place',current:'',pendingWarnings:[],refused:undefined});
-  const raceStep:TrailStep={label:raceName(draft.race),onSelect:toPlaces};
+  /** Tapping the race name opens the race picker, as on check-in and Times. */
+  const raceStep:TrailStep={label:raceName(draft.race),onSelect:jobStep.onSelect};
   const trail:TrailStep[]=step==='add'?[home,jobStep,raceStep,{label:'Runner not on the list'}]:step==='check'?[home,jobStep,raceStep,{label:'Check'}]:[home,jobStep,{label:raceStep.label}];
   const runnerCount=draft.runners.length-draft.didNotRun.length;
-  const raceLine=<p className="race-line">{[draft.race.event.name,draft.race.event.section,raceLabel(draft.race),`${runnerCount} ${runnerCount===1?'runner':'runners'}`].join(' · ')}</p>;
+  const raceHeading=<p className="race-line">{raceLine(draft.race,runnerCount)}</p>;
   const held=draft.pendingWarnings.length>0 || !!draft.refused;
   const addRunner=<button className="button-secondary" disabled={busy} onClick={()=>change({...draft,step:'add'})}>+ Runner not on the list</button>;
   return <section className="race-job"><Trail steps={trail}/>
@@ -122,7 +121,7 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     {locked && <p role="status" className="warning-box">Stage complete - ask a lead</p>}
     <fieldset className="stage-job-fields" disabled={locked}>
     {step==='add' ? <div className="check-in-entry">
-      <div className="job-heading">{raceLine}<h1>Runner not on the list: wristband number?</h1></div>
+      <div className="job-heading">{raceHeading}<h1>Runner not on the list: wristband number?</h1></div>
       <NumberEntry label="Wristband number" placeholder="e.g. 205" value={draft.current} held={held} busy={busy} onChange={current=>change({...draft,current})} onNext={()=>void addNumber()}
         extraAction={<button className="button-secondary" disabled={busy} onClick={toPlaces}>Back to order</button>}/>
       {held && <div className="warning-box" role="alert">
@@ -130,7 +129,7 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
         <div className="warning-actions"><button onClick={()=>change({...draft,current:'',pendingWarnings:[],refused:undefined})}>Fix number</button>{!draft.refused && <button className="button-secondary" onClick={()=>acceptNumber(draft.pendingWarnings)}>Keep</button>}</div>
       </div>}
     </div> : step==='check' ? <div className="finish-check">
-      <div className="job-heading">{raceLine}<h1>Check the order</h1><p className="job-sub">Wrong place? Drag the handle on the right to move a runner.</p></div>
+      <div className="job-heading">{raceHeading}<h1>Check the order</h1><p className="job-sub">Wrong place? Drag the handle on the right to move a runner.</p></div>
       <SortableList label="Finishing order" items={draft.order} itemKey={number=>number} itemName={String} disabled={busy||locked} onReorder={order=>change({...draft,order})}
         renderItem={(number,place)=><><span className="row-place">{ordinal(place)}</span><span className="row-runner"><strong>{number}</strong>{draft.added.includes(number) || draft.runners.find(runner=>runner.wristband===number)?.addedAtFinish?<small className="row-note">Added at the finish</small>:null}</span></>}/>
       {draft.didNotFinish.length+draft.didNotRun.length>0 && <ul className="finish-others" aria-label="No place">
@@ -143,10 +142,10 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       <ActionBar stacked><button disabled={busy} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button>{addRunner}</ActionBar>
     </div> : <div className="finish-place">
       {draft.order.length>0 && <div className="runner-chips" aria-label="Places so far">{draft.order.map((number,index)=><button className="chip" key={number} onClick={()=>change({...draft,step:'place',order:draft.order.slice(0,index)})}>{ordinal(index+1)}: {number}</button>)}</div>}
-      {step==='no-place' ? <><div className="job-heading">{raceLine}<h1>{unplaced[0]?.wristband} has no place. What happened?</h1></div>
+      {step==='no-place' ? <><div className="job-heading">{raceHeading}<h1>{unplaced[0]?.wristband} has no place. What happened?</h1></div>
         <div className="job-choices"><button onClick={()=>change({...draft,didNotFinish:[...draft.didNotFinish,unplaced[0].wristband]})}>Did not finish</button><button onClick={()=>didntRun(unplaced[0].wristband)}>Didn't run</button></div>
         <ActionBar>{addRunner}</ActionBar></>
-      : <><div className="job-heading">{raceLine}<h1>{unplaced.length?`Who came ${ordinal(draft.order.length+1)}?`:'Everyone has a place'}</h1>{unplaced.length>0 && <p className="job-sub">Tap runners in the order they crossed the line.</p>}</div>
+      : <><div className="job-heading">{raceHeading}<h1>{unplaced.length?`Who came ${ordinal(draft.order.length+1)}?`:'Everyone has a place'}</h1>{unplaced.length>0 && <p className="job-sub">Tap runners in the order they crossed the line.</p>}</div>
         <div className="finish-numbers">{unplaced.map(runner=><button key={runner.id} onClick={()=>change({...draft,order:[...draft.order,runner.wristband]})}>{runner.wristband}</button>)}</div>
         <ActionBar stacked><button onClick={()=>change({...draft,step:unplaced.length?'no-place':'check'})}>{unplaced.length?'Nobody else crossed the line':'Check the order'}</button>{addRunner}</ActionBar></>}
     </div>}

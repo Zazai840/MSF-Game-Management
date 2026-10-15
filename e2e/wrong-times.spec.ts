@@ -1,4 +1,4 @@
-import { enterTime,expect,jobButton,joinDay,pickTimesRace,steps,test,type Page } from './fixtures.js';
+import { enterTime,expect,jobButton,joinDay,pickRace,steps,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 const amber='rgb(255, 244, 220)';
 /** A race of 4 Girl Cubs with its finishing order saved, waiting for times. */
@@ -19,7 +19,7 @@ const savedTimes=async(page:Page,id:string)=>(await (await page.request.get(`/ap
 test('wrong times show in amber with a reason, Keep as it is keeps them for a lead, and a retyped place clears them',async({page},info)=>{
   const code=`TW-${info.project.name.slice(0,3).toUpperCase()}`,race=await raceWaitingForTimes(page,code);
   await page.goto('/');await joinDay(page,`Wrong times ${info.project.name}`);
-  await jobButton(page,'Times').click();await pickTimesRace(page,`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
+  await jobButton(page,'Times').click();await pickRace(page,'Times',`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
   // The trail names the job, the race and the place being typed.
   await expect(steps(page).locator('[aria-current=step]')).toHaveText('1st place');
   await expect(steps(page)).toContainText(`Times wrong Girl Cubs Race ${race.number}`);
@@ -86,7 +86,7 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
 test('tapping a place chip while typing retypes it, and Next race follows the saved confirmation',async({page},info)=>{
   const code=`TC-${info.project.name.slice(0,3).toUpperCase()}`,race=await raceWaitingForTimes(page,code);
   await page.goto('/');await joinDay(page,`Chip retype ${info.project.name}`);
-  await jobButton(page,'Times').click();await pickTimesRace(page,`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
+  await jobButton(page,'Times').click();await pickRace(page,'Times',`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
   await enterTime(page,'1100');await enterTime(page,'1200');
   await page.getByRole('button',{name:'1st place · 11.00',exact:true}).click();
   await expect(page.getByRole('heading',{name:'1st place time?',exact:true})).toBeVisible();

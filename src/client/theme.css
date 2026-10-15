@@ -8,8 +8,7 @@
  *   .button-danger (MSF red outline: Start a new day only), .button-quiet
  *   .badge (navy count), .badge-attention (MSF red: "N to check")
  *   .chip (wristband pill), .card (white surface), .warning-box (amber),
- *   .calm-note (neutral note), .done (green: completed events only),
- *   .tabular (wristbands, times)
+ *   .calm-note (neutral note), .done (green: completed events only)
  */
 
 /* Nunito, self-hosted (SIL Open Font License, see fonts/OFL.txt). One variable
@@ -75,7 +74,7 @@ h3 {font-size:var(--text-h3);}
 p {margin:.75rem 0;}
 small {font-size:var(--text-small);}
 a {color:var(--navy); font-weight:700;}
-output,input,time,.tabular,.code {font-variant-numeric:tabular-nums;}
+input,time,.code {font-variant-numeric:tabular-nums;}
 
 /* Buttons: primary is the default; variants are opt-in classes. */
 button {

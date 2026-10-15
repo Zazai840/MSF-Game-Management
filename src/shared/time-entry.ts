@@ -7,7 +7,7 @@ export function parseTimeDigits(digits:string):number|null {
   return Number.isSafeInteger(hundredths)?hundredths:null;
 }
 export function formatTimeDigits(digits:string):string {
-  if(!digits) return '—';
+  if(!digits) return '-';
   const padded=digits.padStart(4,'0');
   const seconds=String(Number(padded.slice(-4,-2)));
   const minutes=Number(padded.slice(0,-4));

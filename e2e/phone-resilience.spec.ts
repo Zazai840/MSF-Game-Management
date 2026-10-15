@@ -1,4 +1,4 @@
-import { goHome,jobButton,expect,joinDay,pickRace,test,pickTimesRace } from './fixtures.js';
+import { goHome,jobButton,expect,joinDay,pickRace,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -98,7 +98,7 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
 
   await goHome(page);
   await jobButton(page,'Times').click();
-  await pickTimesRace(page,raceName);
+  await pickRace(page,'Times',raceName);
   await page.getByLabel('Place time').fill('123');
   await page.reload();
   await jobButton(page,'Times').click();

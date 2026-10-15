@@ -1,4 +1,4 @@
-import { pickTimesRace,enterTime,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { pickRace,enterTime,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {await page.goto('/');await joinDay(page,name);}
 test('a lead sees a phone-recorded race appear within one Results poll',async({page,browser},info)=>{
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;
@@ -12,7 +12,7 @@ test('a lead sees a phone-recorded race appear within one Results poll',async({p
   const label=await savedRaceLabel(phone);
   await expect(page.getByText(`${label} · checked in`,{exact:true})).toBeVisible({timeout:6500});
   await goHome(phone);await jobButton(phone,'Finish order').click();await phone.getByRole('button',{name:String(number),exact:true}).click();await phone.getByRole('button',{name:'3045',exact:true}).click();await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe(label);
-  await goHome(phone);await jobButton(phone,'Times').click();await pickTimesRace(phone,`60m Girl Cubs (R4) · ${label}`);await enterTime(phone,1234);await enterTime(phone,1334);await phone.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(phone);
+  await goHome(phone);await jobButton(phone,'Times').click();await pickRace(phone,'Times',`60m Girl Cubs (R4) · ${label}`);await enterTime(phone,1234);await enterTime(phone,1334);await phone.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(phone);
   const row=page.getByRole('listitem').filter({has:page.getByText(String(number),{exact:true})});
   await expect(row).toContainText('12.34',{timeout:6500});await expect(row).toContainText('Q');
   await expect(page.getByText('3045 belongs to Boy Scouts - this race is Girl Cubs',{exact:true}).first()).toBeVisible();

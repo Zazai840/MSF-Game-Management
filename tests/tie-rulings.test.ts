@@ -32,7 +32,7 @@ test('a lead settles No run-off needed, with a durable audit note and an atomic 
   expect(result.results.ties).toEqual([]);
   expect(result.results.leaderboard.map((row:any)=>[row.wristband,row.time,row.position])).toEqual([[2001,1000,1],[2002,1000,2]]);
   expect(result.auditNotes).toMatchObject([{actor:'Aisha',action:'settle-tie',comment:'Both runners qualify',touches:tie.entries.map(({raceId,entryId}:any)=>({raceId,entryId}))}]);
-  expect(result.auditNotes[0].message).toBe('Aisha settled the tie at 10.00 (2001, 2002): No run-off needed — Both runners qualify');
+  expect(result.auditNotes[0].message).toBe('Aisha settled the tie at 10.00 (2001, 2002): No run-off needed - Both runners qualify');
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
   await app.close();app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'ties-owner'});
   const reopened=(await call(lead,'/api/lead/events/R4/results')).json();

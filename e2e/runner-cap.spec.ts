@@ -1,4 +1,4 @@
-import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,pickRace,test,type Page,pickTimesRace,enterTime } from './fixtures.js';
+import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,pickRace,test,type Page,enterTime } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
   await page.goto('/');await joinDay(page,name);
@@ -23,7 +23,7 @@ test('a phone checks in 8 runners and carries them through finishing order, time
   for(const number of numbers) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.screenshot({path:info.outputPath('finish-order-eight.png'),fullPage:true});
   await phone.getByRole('button',{name:'Check the order',exact:true}).click();await expect(phone.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem')).toHaveCount(8);await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe('Heat 1');
-  await goHome(phone);await jobButton(phone,'Times').click();await pickTimesRace(phone,new RegExp(`${code}.*Heat 1`));
+  await goHome(phone);await jobButton(phone,'Times').click();await pickRace(phone,'Times',new RegExp(`${code}.*Heat 1`));
   for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
   await expect(phone.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();await expect(phone.getByRole('button',{name:'8th place · 13.05',exact:true})).toBeVisible();
   await expect(phone.getByText('8 times · 8 finishers',{exact:true})).toBeVisible();

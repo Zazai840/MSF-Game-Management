@@ -29,7 +29,7 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const rulings=await readRulings(db,dayId),notes=await readAuditNotes(db,dayId);
   const tieSettlements=await readTieSettlements(db,dayId);
   const stages=await readCompletedStages(db,dayId);
-  const savers=await clashSavers(db,dayId);
+  const savers=await clashSavers(db,races);
   const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
   if(!day) throw new Refusal(401,'Please join the Olympics day');
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
@@ -49,10 +49,14 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId)))};
 }
 
-/** Who saved each still-active version of a clashing race part, oldest first, so To check can name them. */
-async function clashSavers(db:Database,dayId:string) {
-  const rows=(await db.query(`SELECT s.race_id,s.part,s.author_name,s.saved_at FROM race_part_saves s JOIN races r ON r.id=s.race_id
-    WHERE r.day_id=$1 AND s.active ORDER BY s.saved_at,s.sequence_number`,[dayId])).rows;
+/**
+ * Who saved each still-active version of a clashing race part, oldest first, so To check can name them.
+ * Only races with an active clash are read, so a results poll on a calm day costs no query at all.
+ */
+async function clashSavers(db:Database,races:readonly StoredRace[]) {
+  const clashIds=races.filter(hasClash).map(race=>race.id);
+  if(!clashIds.length) return new Map<string,NonNullable<LeadItem['clash']>>();
+  const rows=(await db.query('SELECT race_id,part,author_name,saved_at FROM race_part_saves WHERE race_id=ANY($1::uuid[]) AND active ORDER BY saved_at,sequence_number',[clashIds])).rows;
   const parts=new Map<string,Map<RacePartName,ClashSaver[]>>();
   for(const row of rows) {
     const race=parts.get(row.race_id)||new Map<RacePartName,ClashSaver[]>();parts.set(row.race_id,race);

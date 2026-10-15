@@ -6,32 +6,30 @@
 /* Legend */
 .results-legend {display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 4px; padding:0; list-style:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .results-legend li {display:inline-flex; align-items:center; gap:6px;}
-.results-swatch {width:14px; height:14px; border-radius:4px; border:1.5px solid;}
+.results-swatch {width:14px; height:14px; border-radius:4px; border:1.5px solid var(--state-line); background:var(--state-fill);}
+/* State colours, shared by event cards, legend swatches and an event's status pill. */
+.event-card-done,.event-status-done {--state-fill:var(--green-fill); --state-line:var(--green-line); --state-text:var(--green-text);}
+.event-card-running,.event-status-running {--state-fill:var(--surface); --state-line:var(--navy); --state-text:var(--navy);}
+.event-card-not-started,.event-status-not-started {--state-fill:var(--idle-fill); --state-line:var(--idle-line); --state-text:var(--idle-text);}
 /* Event cards */
 .results-group {margin:18px 0 0;}
 .results-group h2 {margin:0 0 10px;}
 .results-events {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
 .event-card {
   display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:4px; min-height:0; padding:12px;
-  text-align:left; border-radius:var(--radius); border:1.5px solid; color:var(--text); font-weight:700; overflow-wrap:anywhere;
+  text-align:left; border-radius:var(--radius); border:1.5px solid var(--state-line); background:var(--state-fill); color:var(--text); font-weight:700; overflow-wrap:anywhere;
 }
-.event-card-done {background:var(--green-fill); border-color:var(--green-line);}
-.event-card-running {background:var(--surface); border-color:var(--navy);}
-.event-card-not-started {background:var(--idle-fill); border-color:var(--idle-line);}
 .event-card-title {display:flex; align-items:flex-start; justify-content:space-between; gap:6px; font-size:var(--text-small); font-weight:800; color:var(--navy);}
 .event-card-title svg {flex:none; margin-top:1px;}
 .event-card-done .event-card-title {color:var(--green-title);}
-.event-card-not-started .event-card-title {color:var(--idle-text);}
+.event-card-not-started .event-card-title {color:var(--state-text);}
 .event-card-status,.event-card-note {font-size:var(--text-small); font-weight:700; color:var(--muted); line-height:1.3;}
-.event-card-done .event-card-status {color:var(--green-text);}
+.event-card-done .event-card-status {color:var(--state-text);}
 .event-card-note {font-weight:600;}
 /* One event */
 .results-event-head h1 {margin:0 0 8px;}
 .results-event-meta {display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:0 0 14px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
-.event-status {display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:4px 12px; border-radius:999px; border:1.5px solid; font-weight:800;}
-.event-status-done {background:var(--green-fill); border-color:var(--green-line); color:var(--green-text);}
-.event-status-running {background:var(--surface); border-color:var(--navy); color:var(--navy);}
-.event-status-not-started {background:var(--idle-fill); border-color:var(--idle-line); color:var(--idle-text);}
+.event-status {display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:4px 12px; border-radius:999px; border:1.5px solid var(--state-line); background:var(--state-fill); font-weight:800; color:var(--state-text);}
 .results-event-code {font-variant-numeric:tabular-nums;}
 .results-band {margin:0 0 4px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 /* Leaderboard */

@@ -1,8 +1,11 @@
-.stage-blockers {border-left:4px solid var(--amber-line);padding-left:.8rem;}
-.stage-warnings {border-left:4px solid var(--amber-line);padding-left:.8rem;}
+/* Amber marks only a list that holds something to settle or look at; "Nothing to settle" stays plain. */
+.stage-attention {border-left:4px solid var(--amber-line);padding-left:.8rem;}
 .stage-blockers ul,.stage-warnings ul {list-style:none;padding:0;}
 .stage-blockers li,.stage-warnings li {margin-bottom:.5rem;}
 .input-running {width:100%;border-collapse:collapse;margin:1rem 0;}
 .input-running th,.input-running td {padding:.5rem;border:1px solid var(--line);text-align:left;}
 .stage-actions {margin:1.25rem 0;}
 .input-running th,.input-running td {overflow-wrap:anywhere;}
+/* Each place already says its ordinal ("1st: 2601"), so the list shows no numbers of its own. */
+.stage-creates {list-style:none;padding:0;}
+.stage-creates li {margin-bottom:.25rem;}

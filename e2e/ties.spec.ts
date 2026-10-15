@@ -45,7 +45,7 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const ranked=page.getByRole('list',{name:'Provisional leaderboard'}).getByRole('listitem').filter({has:page.locator('.result-open')});
   await expect(ranked.nth(1)).toContainText('2702');await expect(ranked.nth(1)).toContainText('10.00');
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('without a run-off: 2702 then 2701 — Runner had already left');
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('without a run-off: 2702 then 2701 - Runner had already left');
   await page.screenshot({path:info.outputPath('settled-tie.png'),fullPage:true});
 });
 test('a tie between two heats runs end to end: leaderboard highlight, To check, the tie sheet with drag handles and the day export',async({page},info)=>{

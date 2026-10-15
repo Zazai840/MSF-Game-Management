@@ -1,6 +1,6 @@
-import { backToEvent,pickTimesRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
+import { backToEvent,pickRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
 async function times(page:Page,code:string,first:string,second:string) {
-  await jobButton(page,'Times').click();await pickTimesRace(page,new RegExp(`\\(${code}\\) · Race 1$`));
+  await jobButton(page,'Times').click();await pickRace(page,'Times',new RegExp(`\\(${code}\\) · Race 1$`));
   for(const value of [first,second]) await enterTime(page,value);
   await expect(page.getByRole('heading',{name:'Check the times'})).toBeVisible();
 }

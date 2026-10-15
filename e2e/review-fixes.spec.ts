@@ -1,4 +1,4 @@
-import { pickTimesRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { pickRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
   await page.goto('/');await joinDay(page,name);
 }
@@ -13,7 +13,7 @@ async function surplusRace(page:Page,code:string) {
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
 test('Times keeps surplus saved numeric places visible until the volunteer deliberately records No finisher',async({page},info)=>{
   const code=`SV-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
-  await join(page,`Surplus timer ${info.project.name}`);await jobButton(page,'Times').click();await pickTimesRace(page,`Review surplus Girl Cubs (${code}) · Race ${race.number} · Finishers and times don't agree`);
+  await join(page,`Surplus timer ${info.project.name}`);await jobButton(page,'Times').click();await pickRace(page,'Times',`Review surplus Girl Cubs (${code}) · Race ${race.number} · Finishers and times don't agree`);
   await expect(page.getByRole('button',{name:'6th place · 17.00',exact:true})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(page);await expect(page.getByText(mismatch,{exact:true})).toBeVisible();await page.getByRole('button',{name:'Change times',exact:true}).click();
   const unchanged=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(unchanged.parts.times.value.places).toEqual([1200,1300,1400,1500,1600,1700]);
@@ -26,8 +26,10 @@ test('a lead sees surplus numeric times and the mismatch before deliberately cor
   const code=`SL-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
   await join(page,`Surplus lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet.getByRole('alert').filter({hasText:'The runner list has changed - open the race again'})).toBeVisible();await expect(sheet.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();
-  await sheet.getByLabel('No finisher',{exact:true}).nth(5).check();await expect(sheet.getByText(mismatch,{exact:true})).toHaveCount(0);await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
+  const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.';
+  await expect(sheet.getByText(leftover,{exact:true})).toBeVisible();await expect(sheet.getByRole('button',{name:'Save times',exact:true})).toBeDisabled();
+  await sheet.getByLabel('No finisher',{exact:true}).nth(5).check();await expect(sheet.getByText(mismatch,{exact:true})).toHaveCount(0);await expect(sheet.getByText(leftover,{exact:true})).toHaveCount(0);
+  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await sheet.getByRole('button',{name:'Save times',exact:true}).click();expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600]);await expect(sheet).toHaveCount(0);
   const corrected=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

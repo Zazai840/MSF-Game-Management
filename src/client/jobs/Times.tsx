@@ -3,7 +3,7 @@ import { ClashNotice } from './ClashNotice.js';
 import { useState } from 'react';
 import { useRaceJob } from './useJobData.js';
 import { api } from '../api.js';
-import { raceLabel,type RaceRead,type TimesRead } from '../../shared/races.js';
+import { raceLine,raceName,racePickerLabel,raceSummary,type RaceRead,type TimesRead } from '../../shared/races.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 import { raceRecording } from '../../shared/recording.js';
 import { ordinal } from '../../shared/ordinal.js';
@@ -42,7 +42,6 @@ function restore(key:string):Draft|null {
   catch { /* A broken draft must not stop opening the job. */ }
   return null;
 }
-const raceName=(race:RaceRead)=>`${race.event.name} ${race.event.section} ${raceLabel(race)}`;
 const timesText=(count:number)=>`${count} ${count===1?'time':'times'}`;
 export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const {draft,setDraft,data,choosing,setChoosing,busy,setBusy,error,setError,readError,updated,refresh,open:openRace}=useRaceJob<TimesRead,Draft>(dayId,'times',restore,fromRace);
@@ -97,7 +96,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const latestOf=(race:RaceRead)=>[...data.waiting,...data.recent].find(item=>item.id===race.id)||race;
   if(saved) {
     const latest=latestOf(saved);
-    return <section className="race-job"><Saved race={`${saved.event.name} ${saved.event.section} · ${raceLabel(saved)} · ${timesText(saved.parts.times.value?.places.filter(time=>time!==null).length||0)}`} nextLabel="Next race" onNext={nextRace} onHome={onHome}>
+    return <section className="race-job"><Saved race={raceSummary(saved,timesText(saved.parts.times.value?.places.filter(time=>time!==null).length||0))} nextLabel="Next race" onNext={nextRace} onHome={onHome}>
       <ClashNotice race={latest}/>{latest.recording.countMismatch && <p className="warning-box">{latest.recording.countMismatch}</p>}
       <button disabled={busy} onClick={()=>setSaved(null)}>Change times</button>
     </Saved></section>;
@@ -106,8 +105,8 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   if(choosing || !draft) return <section className="race-job"><Trail steps={[home,{label:'Times'}]}/>{alerts}
     <h1>Which race is it?</h1>
     {draft && <button className="button-secondary carry-on" disabled={busy} onClick={()=>setChoosing(false)}>Carry on with {raceName(draft.race)}</button>}
-    <h3>Waiting for times</h3>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}{race.recording.countMismatch && <small className="choice-note"> · Finishers and times don't agree</small>}</button>)}</div>
-    <h3>Recent races</h3><div className="job-choices">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div>
+    <h3>Waiting for times</h3>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}{race.recording.countMismatch && <small className="choice-note"> · Finishers and times don't agree</small>}</button>)}</div>
+    <h3>Recent races</h3><div className="job-choices">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div>
     <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Times</button></footer>
   </section>;
   const latest=latestOf(draft.race);
@@ -124,7 +123,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const trail:TrailStep[]=draft.step==='entry'?[home,timesStep,raceStep,...(draft.fromCheck?[checkStep]:[]),{label:`${ordinal(draft.index+1)} place`}]
     :[home,timesStep,raceStep,...(lastTimed>=0?[{label:`${ordinal(lastTimed+1)} place`,onSelect:()=>edit(lastTimed)}]:[]),{label:'Check'}];
   const runners=draft.race.parts.runners.value?.length||0;
-  const raceLine=<p className="race-line">{[draft.race.event.name,draft.race.event.section,raceLabel(draft.race),`${runners} ${runners===1?'runner':'runners'}`].join(' · ')} · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>;
+  const raceHeading=<p className="race-line">{raceLine(draft.race,runners)} · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>;
   const notSaved='Not saved - tap Save again';
   const failedSave=message===notSaved && <div className="warning-box save-failed"><p role="status">{notSaved}</p>{error && <p role="alert">{error}</p>}</div>;
   const timeLabel=(index:number,slot:string|null)=>`${ordinal(index+1)} place · ${slot===null?'No finisher':slot?formatTimeDigits(slot):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
@@ -134,7 +133,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
     <fieldset className="stage-job-fields" disabled={locked}>
     {draft.step==='entry' ? <div className="times-entry">
-      <div className="job-heading">{raceLine}<h1>{ordinal(draft.index+1)} place time?</h1></div>
+      <div className="job-heading">{raceHeading}<h1>{ordinal(draft.index+1)} place time?</h1></div>
       <div className="place-chips" role="group" aria-label="Times by place">{draft.slots.map((slot,index)=><button type="button" disabled={busy || slot===null || draft.warning} key={index}
         className={[index===draft.index?'current-place':'',wrong.get(index)?'time-wrong':''].join(' ').trim() || undefined} aria-label={timeLabel(index,slot)} onClick={()=>edit(index,draft.fromCheck)}>
         <span className="chip-place">{ordinal(index+1)}</span><span className="chip-time">{slot===null?'No finisher':slot?formatTimeDigits(slot):'-'}</span><WrongTimeReason wrong={wrong.get(index)}/></button>)}</div>
@@ -147,7 +146,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       </div>}
       <p className="job-hint">Type digits only: 1234 shows as 12.34, 13240 as 1:32.40. Tap a place to retype it.</p>
     </div> : <div className="times-check">
-      <div className="job-heading">{raceLine}<div className="times-check-title"><h1>Check the times</h1><TimeCount times={places.filter(time=>time!==null).length} finishers={latest.parts.finish.value?.order.length??null} mismatch={mismatch}/></div></div>
+      <div className="job-heading">{raceHeading}<div className="times-check-title"><h1>Check the times</h1><TimeCount times={places.filter(time=>time!==null).length} finishers={latest.parts.finish.value?.order.length??null} mismatch={mismatch}/></div></div>
       {draft.slots.length===0 && <p>No runners remain in this race. Save the empty times record.</p>}
       {unkept.length>0 ? <div className="warning-box" role="alert"><p>{wrongTimesBanner(unkept)} Tap it to retype, or keep it if the timer really shows that.</p><button className="keep-as-is" disabled={busy} onClick={()=>change({...draft,keptWrong:[...wrong.keys()]})}>Keep as it is</button></div>
         : wrong.size>0 && <p className="calm-note">Kept as typed. A zone lead will check it.</p>}
