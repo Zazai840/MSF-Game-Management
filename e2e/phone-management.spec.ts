@@ -7,11 +7,12 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   await request.post('/api/become-lead',{headers:{authorization:`Bearer ${volunteer.token}`},data:{code:process.env.E2E_LEAD_CODE}});
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await page.reload();
   await openDashboard(page,'Day setup');
-  await expect(page.getByRole('heading',{name:'Joined phones'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Make new day code',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Make new lead code',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Make a new day code',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Make a new lead code',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:/^Phones \d+ people joined today$/}).click();
+  await expect(page.getByRole('heading',{level:1,name:'Phones',exact:true})).toBeVisible();
   const row=page.getByRole('article',{name:`Phone ${name}`,exact:true});
-  await row.getByRole('button',{name:'Make scoring team',exact:true}).click();await expect(row).toContainText('Scoring team');
+  await row.getByRole('button',{name:'Make scoring team',exact:true}).click();await expect(row).toContainText('Scoring team');await expect(page.locator('.dashboard-saved')).toHaveText('Saved');
   await row.getByRole('button',{name:'Remove from scoring team',exact:true}).click();await expect(row.getByText('Lead',{exact:true})).toBeVisible();
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
   await other.goto('/');await other.evaluate(token=>localStorage.setItem('msf:token',token),volunteer.token);await other.reload();
@@ -22,9 +23,9 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   await expect.poll(()=>other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')&&key!=='msf:token').length)).toBeGreaterThan(0);
   await page.screenshot({path:info.outputPath('joined-phones.png'),fullPage:true});
   await row.getByRole('button',{name:'Remove',exact:true}).click();
-  await expect(row).toHaveCount(0);
+  await expect(row).toHaveCount(0);await expect(page.locator('.dashboard-saved')).toHaveText('Saved');
   await expect(other.getByLabel('Day code or owner password')).toBeVisible({timeout:10000});
   expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual([]);
-  await expect(page.getByRole('region',{name:'Managing phones and leads'}).getByRole('status')).toHaveText(`Removed ${name}`);
+  await expect(page.getByRole('heading',{level:1,name:'Phones',exact:true})).toBeVisible();
   await context.close();
 });
