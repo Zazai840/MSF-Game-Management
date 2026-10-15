@@ -1,4 +1,4 @@
-import { jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { timesOpened,goHome,jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
   const code=`NY-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
@@ -11,7 +11,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   const first=await checkIn([3045,2001]),second=await checkIn([2001]);
   await page.request.post(`/api/races/${first.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[3045,2001,2002],didNotFinish:[],didNotRun:[],added:[2002]}});
   await count();
-  await jobButton(page,'Times').click();await count();await dashboardButton(page).click();
+  await jobButton(page,'Times').click();await timesOpened(page);await goHome(page);await count();await dashboardButton(page).click();
   await expect(page.getByRole('heading',{name:'Needs you',exact:true})).toBeVisible();
   const warning=page.getByRole('button',{name:new RegExp(`${code}.*3045.*belongs`)});await warning.click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('heading',{name:'Runner 3045',exact:true})).toBeVisible();

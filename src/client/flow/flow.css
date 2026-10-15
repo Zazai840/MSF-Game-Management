@@ -10,7 +10,7 @@
 .trail-step {display:inline-flex; align-items:center; gap:6px; flex:none;}
 /* Steps keep their full width so overflow can be measured; only a lone current step may shorten. */
 .trail-step-alone {flex:0 1 auto; min-width:0; overflow:hidden;}
-.trail-step-alone > span {overflow:hidden; text-overflow:ellipsis;}
+.trail-step-alone > span,.trail-step-alone > button {overflow:hidden; text-overflow:ellipsis; min-width:0;}
 .trail button {
   min-height:var(--tap); min-width:var(--tap); padding:0; border:0; border-radius:var(--radius-small); background:none;
   color:var(--navy); font-size:var(--text-small); font-weight:700; text-decoration:underline; text-underline-offset:3px;
@@ -50,3 +50,11 @@ body main {padding-bottom:calc(20px + var(--action-bar-height, 0px));}
 .saved-more {display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:6px;}
 .saved-more button {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
 .saved-more p {flex-basis:100%; text-align:center; margin:0;}
+
+/* Wrong-time highlighting (Times screens and the lead's race page): amber fill, amber border, short reason. */
+.time-wrong,button.time-wrong {background:var(--amber-fill); border:2px solid var(--amber-line); color:var(--text);}
+.wrong-time-reason {display:block; font-size:13px; font-weight:800; line-height:1.25; color:var(--amber-text);}
+.wrong-time-icon {flex:none; color:var(--amber-line);}
+.time-count {display:inline-flex; align-items:center; gap:4px; margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums;}
+.time-count-agree {color:var(--green-text);}
+.time-count-mismatch {color:var(--amber-text);}

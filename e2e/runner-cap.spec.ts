@@ -1,10 +1,9 @@
-import { savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { enterTime,pickTimesRace,savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
   await page.goto('/');await joinDay(page,name);
   if(lead) {await becomeLead(page);}
 }
-async function enter(page:Page,value:number) {for(const digit of String(value)) await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();}
 async function openResults(page:Page,code:string,name:string) {
   await join(page,name,true);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
@@ -24,11 +23,12 @@ test('a phone checks in 8 runners and carries them through finishing order, time
   for(const number of numbers) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.screenshot({path:info.outputPath('finish-order-eight.png'),fullPage:true});
   await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');
-  await phone.getByRole('button',{name:'Home',exact:true}).click();await jobButton(phone,'Times').click();await phone.getByRole('button',{name:'Other race',exact:true}).click();await phone.getByRole('button',{name:new RegExp(`${code}.*Heat 1`)}).click();
-  for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{name:/place time\?$/})).toBeVisible();await enter(phone,1200+index*15);}
+  await goHome(phone);await jobButton(phone,'Times').click();await pickTimesRace(phone,new RegExp(`${code}.*Heat 1`));
+  for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
   await expect(phone.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();await expect(phone.getByRole('button',{name:'8th place · 13.05',exact:true})).toBeVisible();
+  await expect(phone.getByText('8 times · 8 finishers',{exact:true})).toBeVisible();
   await phone.screenshot({path:info.outputPath('times-eight.png'),fullPage:true});
-  await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByRole('status')).toContainText('Saved');
+  await phone.getByRole('button',{name:'Save',exact:true}).click();await expect(phone.getByTestId('saved-race')).toContainText('8 times');
   await openResults(page,code,`Eight lead ${info.project.name}`);
   const board=page.getByRole('list',{name:'Provisional leaderboard'});
   await expect(board.locator('.leaderboard-row')).toHaveCount(8);await expect(board.locator('.leaderboard-row.highlighted')).toHaveCount(8);await expect(board.locator('.result-mark')).toHaveCount(6);

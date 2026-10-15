@@ -11,7 +11,7 @@ const Lead = lazy(()=>import('./lead/Lead.js'));
 interface HomeRead { phone:Phone; waiting:WaitingCounts; needsYou?:number }
 type Screen = 'home'|'become-lead'|'lead'|JobName;
 /** Jobs whose own breadcrumb trail replaces the Home and lead buttons. */
-const trailJobs:readonly Screen[]=['Start line'];
+const trailJobs:readonly Screen[]=['Start line','Times'];
 export function App() {
   const [joined,setJoined] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);

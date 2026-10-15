@@ -1,4 +1,4 @@
-import { goHome,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
+import { timesOpened,goHome,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
 
@@ -122,8 +122,9 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await page.screenshot({path:info.outputPath('start-line-entry.png'),fullPage:true});
   await goHome(page);
   await jobButton(page,'Times').click();
+  await timesOpened(page);
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:'Home',exact:true}).click();
+  await goHome(page);
   await dashboardButton(page).click();
   await page.getByRole('button',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();

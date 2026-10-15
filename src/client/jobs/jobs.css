@@ -44,13 +44,34 @@
 .finish-review li>div {display:flex;gap:.5rem;}
 .finish-review li>div button {min-width:var(--tap-primary);background:var(--surface);color:var(--navy);}
 .finish-review small {font-size:var(--text-small);}
-.place-slots {display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;}
-.place-slots button {flex:1;min-width:76px;padding:.5rem;background:var(--surface);color:var(--navy);border-color:var(--line);font-variant-numeric:tabular-nums;}
-.place-slots small {display:block;font-size:var(--text-small);color:var(--text);}
-.place-slots .current-place {border:2px solid var(--navy);background:var(--tint);}
 .race-job .count-mismatch {background:var(--amber-fill);border:1.5px solid var(--amber-line);border-radius:var(--radius-box);color:var(--amber-text);padding:12px 14px;font-weight:700;}
-.time-example {font-size:var(--text-small);color:var(--muted);}
-.time-review p {margin:.25rem 0;padding:10px 14px;background:var(--tint);border-radius:var(--radius-small);}
+
+/* Enter times: place chips while typing, rows on the check screen. Wrong-time amber comes from flow.css. */
+.place-chips {display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:0 0 14px;}
+.place-chips button {display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;min-height:var(--tap-primary);padding:6px 10px;border-radius:var(--radius);background:var(--surface);color:var(--navy);border:1.5px solid var(--line);text-align:left;font-variant-numeric:tabular-nums;}
+.place-chips .chip-place {font-size:var(--text-small);font-weight:800;color:var(--navy);}
+.place-chips .chip-time {font-size:17px;font-weight:800;color:var(--text);}
+.place-chips .current-place {border:2px solid var(--navy);background:var(--tint);}
+.place-chips .time-wrong,.place-chips .current-place.time-wrong {background:var(--amber-fill);border:2px solid var(--amber-line);box-shadow:inset 0 0 0 1px var(--amber-line);}
+.place-chips button:disabled {opacity:1;color:var(--muted);}
+.place-chips button:disabled .chip-time {color:var(--muted);font-size:var(--text-small);}
+.time-shows {margin:0;font-size:var(--text-small);font-weight:700;color:var(--muted);}
+.time-shows strong {color:var(--text);font-variant-numeric:tabular-nums;}
+.times-entry .warning-box {margin-top:12px;}
+.times-check-title {display:flex;align-items:flex-end;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.times-check .warning-box,.times-check .calm-note {margin:0 0 12px;}
+.times-check .warning-box p {margin:0 0 10px;}
+.keep-as-is {width:100%;background:var(--surface);color:var(--amber-text);border:1.5px solid var(--amber-line);}
+.time-rows {list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+.race-job .time-rows li {font-size:inherit;line-height:1.25;}
+.time-row {width:100%;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px;border-radius:var(--radius);background:var(--surface);color:var(--text);border:1.5px solid var(--line);text-align:left;font-weight:800;}
+.time-place {width:46px;flex:none;font-size:16px;font-weight:800;color:var(--navy);}
+.time-value {flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;}
+.time-value strong {font-size:22px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;}
+.time-edit {flex:none;color:var(--faint);}
+.time-row-none {background:var(--tint);border-color:var(--tint);color:var(--muted);}
+.time-row-none .time-value {font-size:var(--text-small);font-weight:700;color:var(--muted);}
+.choice-note {font-weight:700;}
 
 .stage-job-fields {border:0;padding:0;margin:0;min-width:0;}
 
