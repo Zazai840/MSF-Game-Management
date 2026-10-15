@@ -22,7 +22,7 @@ test('three phones record a race, keep a time warning and repair a count mismatc
   const finishContext=await browser.newContext({...info.project.use});const finish=await finishContext.newPage();
   await join(finish,`Finish times ${info.project.name}`);await jobButton(finish,'Finish order').click();
   for(const number of [numbers[1],numbers[0]]) await finish.getByRole('button',{name:String(number),exact:true}).click();
-  await finish.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();await finish.getByRole('button',{name:'Did not finish',exact:true}).click();await finish.getByRole('button',{name:'Save',exact:true}).click();await expect(finish.getByText('Saved',{exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();await finish.getByRole('button',{name:'Did not finish',exact:true}).click();await finish.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(finish);
   await timer.getByRole('button',{name:'Refresh Times',exact:true}).click();await expect(timer.getByText('Finish order has 2 finishers, times have 1 - check the recording',{exact:true})).toBeVisible();
   await timer.getByRole('button',{name:'2nd did finish',exact:true}).click();await typeDigits(timer,'1200');await timer.getByRole('button',{name:'Next',exact:true}).click();
   await expect(timer.getByRole('button',{name:'Fix time',exact:true})).toBeVisible();await timer.getByRole('button',{name:'Fix time',exact:true}).click();await typeDigits(timer,'1200');await timer.getByRole('button',{name:'Next',exact:true}).click();await timer.getByRole('button',{name:'Keep',exact:true}).click();

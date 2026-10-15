@@ -39,11 +39,6 @@
 .kept-warning p {font-size:var(--text-small);font-weight:700;line-height:1.3;background:var(--amber-fill);border:1px solid var(--amber-line);border-radius:var(--radius-small);padding:6px 10px;margin:.25rem 0;}
 .finish-numbers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 .finish-numbers button {font-size:30px;min-height:88px;background:var(--surface);color:var(--text);border-color:var(--line);font-variant-numeric:tabular-nums;}
-.finish-review {padding-left:1.75rem;}
-.finish-review li {padding:.5rem 0;}
-.finish-review li>div {display:flex;gap:.5rem;}
-.finish-review li>div button {min-width:var(--tap-primary);background:var(--surface);color:var(--navy);}
-.finish-review small {font-size:var(--text-small);}
 .place-slots {display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;}
 .place-slots button {flex:1;min-width:76px;padding:.5rem;background:var(--surface);color:var(--navy);border-color:var(--line);font-variant-numeric:tabular-nums;}
 .place-slots small {display:block;font-size:var(--text-small);color:var(--text);}
@@ -60,3 +55,16 @@
 .save-failed p {margin:0;}
 .save-failed [role=alert] {background:none;border:0;padding:0;margin-top:4px;font-weight:600;}
 .race-job > [role=alert],.race-job > .calm-note,.race-job > .warning-box {margin:0 0 14px;}
+/* Record the finishing order */
+.finish-place .runner-chips {margin:0 0 14px;}
+.row-place {width:46px; flex:none; font-size:16px; font-weight:800; color:var(--navy);}
+.row-runner {display:flex; flex-direction:column; gap:2px; min-width:0;}
+.row-runner strong {font-size:22px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;}
+.row-runner .row-note {font-size:13px; font-weight:700; color:var(--muted);}
+.finish-others {list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.race-job .finish-others li {display:flex; align-items:center; gap:12px; min-height:44px; padding:0 14px; border-radius:var(--radius); background:var(--tint); font-size:var(--text-small); line-height:1.2;}
+.finish-others strong {font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text);}
+.finish-others span {font-weight:700; color:var(--muted);}
+.finish-check .kept-warning {margin-top:10px;}
+.change-order {margin-top:14px;}
+.race-job .sortable-row {font-size:var(--text-body); line-height:1.2;}
