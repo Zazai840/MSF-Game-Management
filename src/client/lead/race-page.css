@@ -30,7 +30,6 @@
 .lead-remove {flex:none; width:52px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--surface); color:var(--navy); border-color:var(--line-strong);}
 /* Add runner and Review stay in reach at the foot of the sheet, however long the list. */
 .sheet-actions {position:sticky; bottom:0; z-index:1; display:grid; grid-template-columns:auto 1fr; gap:10px; margin:0 -1rem; padding:12px 1rem; background:var(--surface); border-top:1px solid var(--divider);}
-.race-back {align-self:flex-start; margin-bottom:12px;}
 .race-page {display:flex; flex-direction:column;}
 .race-page h3 {margin:0 0 4px;}
 .race-page > p:not([role]) {margin:0 0 8px; color:var(--muted); font-size:var(--text-small); font-weight:600;}

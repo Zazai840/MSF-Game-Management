@@ -9,17 +9,28 @@ import { RacePage } from './RacePage.js';
 import { RunnerActions } from './RunnerActions.js';
 import { TieSheet } from './TieSheet.js';
 import { formatTime } from '../../shared/time-entry.js';
+import { eventState } from '../../shared/event-state.js';
+import { raceLabel } from '../../shared/races.js';
+import { Trail,type TrailStep } from '../flow/Trail.js';
 import { ordinal } from '../../shared/ordinal.js';
 import './results.css';
 const noteTime=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
 const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
-export function Results({target,onChanged}:{target?:DayLeadItem;onChanged?:()=>void}={}) {
+const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
+/**
+ * Results: the event cards (coloured Done / Running / Not started), then one event's leaderboard, rulings and audit notes,
+ * then one race. It extends the Dashboard trail it is given (`Home › Dashboard`, plus `To check` when opened from an item)
+ * with its own steps, so the trail is the way back. No to-check count shows anywhere here.
+ */
+export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:TrailStep[];onChanged?:()=>void}={}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
   const [code,setCode]=useState<string|null>(target?.event.code||null);
   const [list,setList]=useState<ResultsRead|null>(null);
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [selectedRace,setSelectedRace]=useState<string|null>(target?.entryId?null:target?.raceId||null);
+  const [eventName,setEventName]=useState(target?`${target.event.name} ${target.event.section}`:'');
+  const [raceName,setRaceName]=useState(target?.race?raceLabel(target.race):'Race');
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
   const [updated,setUpdated]=useState('');
   const [error,setError]=useState('');
@@ -36,7 +47,12 @@ export function Results({target,onChanged}:{target?:DayLeadItem;onChanged?:()=>v
     void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
     return()=>{request.current++;clearInterval(timer);};
   },[code]);
-  function open(code:string|null) {request.current++;setDetail(null);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setSelectedRace(null);setCode(code);setError('');}
+  function open(code:string|null,name='') {request.current++;setDetail(null);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setSelectedRace(null);setCode(code);setEventName(name);setError('');window.scrollTo(0,0);}
+  function openRace(id:string|null) {setRaceName('Race');setSelectedRace(id);window.scrollTo(0,0);}
+  const steps:TrailStep[]=[...trail];
+  if(!target) steps.push({label:'Results',onSelect:code?()=>open(null):undefined});
+  if(code) steps.push({label:detail?`${detail.event.name} ${detail.event.section}`:eventName||code,onSelect:selectedRace?()=>openRace(null):undefined});
+  if(code && selectedRace) steps.push({label:raceName});
 
   const selectedTie=detail?.results.ties.find(tie=>tie.id===selectedTieId);
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
@@ -46,33 +62,46 @@ export function Results({target,onChanged}:{target?:DayLeadItem;onChanged?:()=>v
     const tie=detail?.results.ties.find(tie=>tie.id===item.tieId);
     if(tie) setSelectedTieId(tie.id);
     else if(item.entryId && detail?.results.actionableRunners.some(row=>row.raceId===item.raceId && row.entryId===item.entryId)) setSelected({raceId:item.raceId!,entryId:item.entryId});
-    else if(item.raceId) setSelectedRace(item.raceId);
+    else if(item.raceId) openRace(item.raceId);
   }
-  return <div className="results-view">{error && <p role="alert">{error}</p>}
-    {code ? <>{!selectedRace && <button onClick={()=>open(null)}>Back to events</button>}{!detail?<p>Opening results…</p>:<>
-      {selectedRace?<RacePage key={selectedRace} raceId={selectedRace} actionableRunners={detail.results.actionableRunners} onSaved={saved} onClose={()=>setSelectedRace(null)}/>:<>
-      <h2>{detail.event.name} {detail.event.section} ({detail.event.code})</h2><p className="provisional-label">{detail.results.status==='Heats complete - final to run'?detail.results.status:detail.results.provisional?'Provisional':'Complete'} · {detail.results.raceCount} {detail.results.raceCount===1?'race':'races'}</p>
+  const state=detail?eventState({status:detail.results.status,raceCount:detail.results.raceCount,format:detail.event.format}):null;
+  return <div className="results-view"><Trail steps={steps}/>{error && <p role="alert">{error}</p>}
+    {code ? <>{!detail?<p className="results-opening">Opening results…</p>:<>
+      {selectedRace?<RacePage key={selectedRace} raceId={selectedRace} actionableRunners={detail.results.actionableRunners} onSaved={saved} onClose={()=>openRace(null)} onRace={race=>setRaceName(raceLabel(race))}/>:<>
+      <header className="results-event-head"><h1>{detail.event.name} {detail.event.section}</h1>
+        <p className="results-event-meta"><span className={`event-status event-status-${state!.state}`}>{state!.state==='done' && tick}{state!.line}</span><span className="results-event-code">{detail.event.code}{!detail.event.enabled?' · Switched off':''}</span></p></header>
       {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.actionableRunners} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}
       {selectedStage && <StageSheet code={detail.event.code} sheet={selectedStage} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}
       {selectedTie && <TieSheet key={selectedTie.id} code={detail.event.code} tie={selectedTie} onSaved={saved} onClose={()=>setSelectedTieId(null)}/>}
-      <p>Top {detail.results.band.highlightCount} highlighted · {detail.event.format==='heats'?'Q: fastest 6':'Medal places: 1st, 2nd, 3rd'}</p>
-      {detail.results.leaderboard.length===0?<p>No runners ranked yet</p>:<ol className="leaderboard" aria-label={detail.results.provisional?'Provisional leaderboard':'Official leaderboard'}>{detail.results.leaderboard.map(row=><Fragment key={`${row.raceId}:${row.entryId}`}>
+      <p className="results-band">Top {detail.results.band.highlightCount} highlighted · {detail.event.format==='heats'?'Q: fastest 6':'Medal places: 1st, 2nd, 3rd'}</p>
+      {detail.results.leaderboard.length===0?<p className="results-empty">No runners ranked yet</p>:<ol className="leaderboard" aria-label={detail.results.provisional?'Provisional leaderboard':'Official leaderboard'}>{detail.results.leaderboard.map(row=><Fragment key={`${row.raceId}:${row.entryId}`}>
         <li><button type="button" aria-label={`Runner ${row.wristband} · ${label(row.race)}`} onClick={()=>{setSelectedTieId(null);setSelected({raceId:row.raceId,entryId:row.entryId});}} className={`leaderboard-row result-open ${row.disqualification?'disqualified':''} ${row.notCounted?'not-counted':''} ${row.highlighted?'highlighted':''} ${row.status==='Did not finish'?'did-not-finish':''}`}>
           <span className="result-position"><strong>{row.position??'—'}</strong>{row.qualification && <span className="result-mark">Q</span>}{row.medalPlace && <span className="result-mark">{ordinal(row.medalPlace)}</span>}</span>
           <strong className="result-number">{row.wristband}</strong><span className="result-time">{row.time===null?'—':formatTime(row.time)}</span>
-          <span className="result-detail">{label(row.race)}{row.place!==null?` · ${ordinal(row.place)} in race`:row.status==='Did not finish'?' · Did not finish':''}{row.disqualification && <span className="disqualification-reason">Disqualified: {row.disqualification.reason}{row.disqualification.comment?` — ${row.disqualification.comment}`:''}</span>}{row.notCounted && <span className="not-counted-reason">Not counted</span>}{row.hasNote && <span className="note-tag">note</span>}{row.flags.length>0 && <span className="result-flags">{row.flags.filter(flag=>flag.kind!=='tie').map((flag,index)=><span className={flag.checked || flag.kind==='tie-settled'?'checked-warning':''} key={`${flag.kind}:${index}`}>{flag.message}</span>)}</span>}</span>
+          <span className="result-detail">{label(row.race)}{row.place!==null?` · ${ordinal(row.place)} in race`:row.status==='Did not finish'?' · Did not finish':''}{row.hasNote && <span className="note-tag">note</span>}{row.disqualification && <span className="disqualification-reason">Disqualified: {row.disqualification.reason}{row.disqualification.comment?` - ${row.disqualification.comment}`:''}</span>}{row.notCounted && <span className="not-counted-reason">Not counted</span>}{row.flags.length>0 && <span className="result-flags">{row.flags.filter(flag=>flag.kind!=='tie').map((flag,index)=><span className={flag.checked || flag.kind==='tie-settled'?'checked-warning':''} key={`${flag.kind}:${index}`}>{flag.message}</span>)}</span>}</span>
         </button>{detail.results.ties.filter(tie=>tie.entries.some(entry=>entry.raceId===row.raceId && entry.entryId===row.entryId)).map(tie=><button key={tie.id} className="tie-open" aria-label={`TIE at ${formatTime(tie.time)} for ${row.wristband}`} onClick={()=>{setSelected(null);setSelectedTieId(tie.id);}}>TIE</button>)}</li>
         {row.position===Math.min(detail.results.band.lineAfter,detail.results.leaderboard.filter(row=>row.position!==null).length) && <li className="result-line" role="presentation">{detail.results.band.lineLabel}</li>}
       </Fragment>)}</ol>}
-      {detail.results.finalResults && <FinalPanel code={detail.event.code} final={detail.results.finalResults} onSaved={saved} onSelect={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onRace={()=>setSelectedRace(detail.results.finalResults!.raceId)}/>}
-      <DeletedRaces eventCode={detail.event.code} onOpen={setSelectedRace}/>
-      {detail.results.notRankedYet.length>0 && <aside className="not-ranked"><h3>Not ranked yet</h3><ul>{detail.results.notRankedYet.map(item=><li key={item.race.id}><button onClick={()=>setSelectedRace(item.race.id)} aria-label={`Open ${label(item.race)}`}>{label(item.race)}</button> · {item.reasons.join(' · ')}</li>)}</ul></aside>}
-      {detail.results.leaderboard.length>0 && <section><h3>Races</h3>{[...new Map(detail.results.leaderboard.map(row=>[row.raceId,row.race])).values()].map(race=><button key={race.id} onClick={()=>setSelectedRace(race.id)}>Open {label(race)}</button>)}</section>}
-      {detail.results.checkSheet && <section className="stage-actions"><button onClick={()=>setSelectedStage(detail.results.checkSheet)}>{detail.results.checkSheet.completed?(detail.results.checkSheet.stage==='final'?'Reopen final':detail.results.checkSheet.stage==='heats'?'Reopen heats':'Reopen event'):detail.results.checkSheet.label}</button></section>}
-      {detail.results.heatsCheckSheet && detail.results.checkSheet?.stage!=='heats' && <button onClick={()=>setSelectedStage(detail.results.heatsCheckSheet)}>{detail.results.heatsCheckSheet.completed?'Reopen heats':'Heats complete'}</button>}
-      {detail.results.inputRunning && <section><h3>Input - Running</h3><table className="input-running" aria-label="Input - Running"><thead><tr><th>Event code</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody><tr><td>{detail.results.inputRunning.eventCode}</td><td>{detail.results.inputRunning.first??'—'}</td><td>{detail.results.inputRunning.second??'—'}</td><td>{detail.results.inputRunning.third??'—'}</td></tr></tbody></table></section>}
-      {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{noteTime(note.at)}</time> {note.message}</li>)}</ol></section>}
-    </>}</>}</> : !list?<p>Opening events…</p>:<>{!list.eventsConfirmed && <p>Event list awaiting confirmation by the scoring team</p>}{list.groups.map(group=><section key={group.name} className="results-group"><h2>{group.name}</h2><div className="results-events">{group.events.map(item=><button key={item.event.id} onClick={()=>open(item.event.code)}><strong>{item.event.code} · {item.event.section}</strong><small>{item.needsYou} needing you · {item.status}{item.raceCount>0?` · ${item.raceCount} ${item.raceCount===1?'race':'races'}`:''}{!item.event.enabled?' · Switched off':''}{item.latestNoteAt && <span className="latest-note">Latest note {noteTime(item.latestNoteAt)}</span>}</small></button>)}</div></section>)}</>}
-    {!selectedRace && <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Results</button></footer>}
+      {detail.results.finalResults && <FinalPanel code={detail.event.code} final={detail.results.finalResults} onSaved={saved} onSelect={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onRace={()=>openRace(detail.results.finalResults!.raceId)}/>}
+      {detail.results.notRankedYet.length>0 && <aside className="not-ranked"><h3>Not ranked yet</h3><ul>{detail.results.notRankedYet.map(item=><li key={item.race.id}><button className="button-small button-secondary" onClick={()=>openRace(item.race.id)} aria-label={`Open ${label(item.race)}`}>{label(item.race)}</button> · {item.reasons.join(' · ')}</li>)}</ul></aside>}
+      {detail.results.leaderboard.length>0 && <section className="results-races"><h3>Races</h3><div className="results-race-buttons">{[...new Map(detail.results.leaderboard.map(row=>[row.raceId,row.race])).values()].map(race=><button key={race.id} className="button-small button-secondary" onClick={()=>openRace(race.id)}>Open {label(race)}</button>)}</div></section>}
+      {(detail.results.checkSheet || detail.results.heatsCheckSheet) && <section className="stage-actions">
+        {detail.results.checkSheet && <button onClick={()=>setSelectedStage(detail.results.checkSheet)}>{detail.results.checkSheet.completed?(detail.results.checkSheet.stage==='final'?'Reopen final':detail.results.checkSheet.stage==='heats'?'Reopen heats':'Reopen event'):detail.results.checkSheet.label}</button>}
+        {detail.results.heatsCheckSheet && detail.results.checkSheet?.stage!=='heats' && <button className="button-secondary" onClick={()=>setSelectedStage(detail.results.heatsCheckSheet)}>{detail.results.heatsCheckSheet.completed?'Reopen heats':'Heats complete'}</button>}
+      </section>}
+      {detail.results.inputRunning && <section className="input-running-section"><h3>Input - Running</h3><table className="input-running" aria-label="Input - Running"><thead><tr><th>Event code</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody><tr><td>{detail.results.inputRunning.eventCode}</td><td>{detail.results.inputRunning.first??'—'}</td><td>{detail.results.inputRunning.second??'—'}</td><td>{detail.results.inputRunning.third??'—'}</td></tr></tbody></table></section>}
+      <DeletedRaces eventCode={detail.event.code} onOpen={openRace}/>
+      {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{noteTime(note.at)}</time><span>{note.message}</span></li>)}</ol></section>}
+    </>}</>}</> : !list?<><h1>Results</h1><p className="results-opening">Opening events…</p></>:<><h1>Results</h1>
+      <ul className="results-legend" aria-label="Card colours">{(['done','running','not-started'] as const).map(state=><li key={state}><span className={`results-swatch event-card-${state}`} aria-hidden="true"/>{state==='done'?'Done':state==='running'?'Running':'Not started'}</li>)}</ul>
+      {!list.eventsConfirmed && <p className="calm-note">Event list awaiting confirmation by the scoring team</p>}
+      {list.groups.map((group,index)=><section key={group.name} className="results-group" aria-labelledby={`results-group-${index}`}><h2 id={`results-group-${index}`}>{group.name}</h2><div className="results-events">{group.events.map(item=>{
+        const card=eventState({status:item.status,raceCount:item.raceCount,format:item.event.format});
+        return <button key={item.event.id} className={`event-card event-card-${card.state}`} onClick={()=>open(item.event.code,`${item.event.name} ${item.event.section}`)}>
+          <span className="event-card-title"><span>{item.event.code} · {item.event.section}</span>{card.state==='done' && tick}</span>
+          <span className="event-card-status">{card.line}{!item.event.enabled?' · Switched off':''}</span>
+          {item.latestNoteAt && <span className="event-card-note">Latest note {noteTime(item.latestNoteAt)}</span>}
+        </button>;})}</div></section>)}</>}
+    {!selectedRace && <footer className="results-footer">Updated at {updated || '…'} <button className="button-quiet" onClick={()=>void refresh()}>Refresh Results</button></footer>}
   </div>;
 }

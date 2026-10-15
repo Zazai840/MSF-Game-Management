@@ -10,7 +10,8 @@ import type { WrongTime } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { ClashVersions } from './ClashVersions.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
-export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
+/** A lead's page for one race. It has no back button: the trail above it leads back to the event. */
+export function RacePage({raceId,onSaved,onClose,onRace,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;onRace?:(race:LeadRaceRead['race'])=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
   const [selectedEntry,setSelectedEntry]=useState<string|null>(null);
   const selectedRow=actionableRunners.find(row=>row.raceId===raceId && row.entryId===selectedEntry);
@@ -18,11 +19,11 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
   const request=useRef(0);
   async function refresh() {
     const generation=++request.current;
-    try {const next=await api<LeadRaceRead>(`lead/races/${raceId}`);if(generation===request.current) {setRead(next);setUpdated(new Date().toLocaleTimeString());setError('');}}
+    try {const next=await api<LeadRaceRead>(`lead/races/${raceId}`);if(generation===request.current) {setRead(next);onRace?.(next.race);setUpdated(new Date().toLocaleTimeString());setError('');}}
     catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not open the race');}
   }
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>{request.current++;clearInterval(timer);};},[raceId]);
-  return <section className="race-page"><button className="button-quiet race-back" onClick={onClose}>Back to event</button>{error && <p role="alert">{error}</p>}{!read?<p>Opening race…</p>:<>
+  return <section className="race-page">{error && <p role="alert">{error}</p>}{!read?<p>Opening race…</p>:<>
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {new Date(read.race.checkedInAt).toLocaleTimeString()}</p>
     <ClashVersions read={read} onSaved={onSaved} onChanged={refresh}/>
     <RaceActions race={read.race} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
