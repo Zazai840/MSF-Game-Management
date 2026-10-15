@@ -46,6 +46,12 @@ export async function trailBack(page:Page,label:string) {
   }
   throw new Error(`No ${label} step on the trail`);
 }
+/** On a lead's race page in Results: back along the trail to its event, the step just before the race. */
+export async function backToEvent(page:Page) {
+  const before=await steps(page).innerText();
+  await steps(page).getByRole('button').last().click();
+  await expect(steps(page)).not.toHaveText(before);
+}
 /** The race named on the saved confirmation, for example "Heat 2". */
 export async function savedRaceLabel(page:Page) {
   await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();

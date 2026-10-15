@@ -1,4 +1,4 @@
-import { openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
+import { backToEvent,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
 async function times(page:Page,code:string,first:string,second:string) {
   await jobButton(page,'Times').click();await page.getByRole('button',{name:'Other race',exact:true}).click();
   await page.getByRole('button',{name:new RegExp(`\\(${code}\\) · Race 1$`)}).click();
@@ -34,7 +34,7 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await lead.screenshot({path:info.outputPath('clash-versions.png'),fullPage:true});
   await lead.getByRole('button',{name:'Use chosen Times version',exact:true}).click();
   await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toHaveCount(0);
-  await lead.getByRole('button',{name:'Back to event',exact:true}).click();
+  await backToEvent(lead);
   await expect(lead.getByRole('button',{name:'Runner 2081 · Race 1',exact:true})).toContainText('12.10');
   await expect(lead.getByRole('list',{name:'Audit notes'})).toContainText(nameB);
   await request.post(`/api/races/${race.id}/finish`,{headers:{authorization:`Bearer ${tokenA}`},data:{baseVersion:1,runnersVersion:1,order:[2081],didNotFinish:[],didNotRun:[2082],added:[]}});
@@ -49,7 +49,7 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await lead.unroute('**/api/lead/races/*/clashes/finish');
   await lead.getByRole('button',{name:'Use chosen Finishing order version',exact:true}).click();
   await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toHaveCount(0);
-  await lead.getByRole('button',{name:'Back to event',exact:true}).click();
+  await backToEvent(lead);
   await expect(lead.getByRole('button',{name:'Runner 2082 · Race 1',exact:true})).toContainText('12.10');
 
   await context.close();

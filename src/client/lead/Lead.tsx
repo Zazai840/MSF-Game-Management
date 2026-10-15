@@ -3,7 +3,6 @@ import { api,StaleRequest } from '../api.js';
 import type { Phone } from '../../shared/domain.js';
 import type { DayRead } from '../../shared/day.js';
 import type { DayLeadItem } from '../../shared/lead-results.js';
-import { raceLabel } from '../../shared/races.js';
 import { JobButton,jobIcon } from '../home/Home.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
 import { ToCheck } from './ToCheck.js';
@@ -42,15 +41,16 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
   function open(next:Section) {setTarget(undefined);setSection(next);window.scrollTo(0,0);}
   function changed() {setSaved(Date.now());onChanged();}
   const steps:TrailStep[]=[{label:'Home',onSelect:onHome},{label:'Dashboard',onSelect:()=>open('Dashboard')}];
-  if(target) steps.push({label:'To check',onSelect:()=>open('To check')},{label:`${target.event.name} ${target.event.section}${target.race?` ${raceLabel(target.race)}`:''}`});
-  else if(section!=='Dashboard') steps.push({label:section});
-  return <section className="dashboard"><Trail steps={steps}/>
+  // Results extends the trail with its own steps (the event, then the race), so it draws the trail itself.
+  if(target) steps.push({label:'To check',onSelect:()=>open('To check')});
+  else if(section!=='Dashboard' && section!=='Results') steps.push({label:section});
+  return <section className="dashboard">{section!=='Results' && <Trail steps={steps}/>}
     {section==='Dashboard'?<div className="home"><h1>Dashboard</h1><div className="jobs">
       {menu.filter(item=>scoring || !item.scoringOnly).map(item=><JobButton key={item.section} icon={item.icon} title={item.section} explanation={item.explanation} onClick={()=>open(item.section)}
         badge={item.section==='To check' && toCheck>0?<span className="badge badge-attention">{toCheck} to check</span>:null}/>)}
     </div></div>
     :section==='To check'?<ToCheck onCount={onCount} onOpen={item=>{setTarget(item);setSection('Results');window.scrollTo(0,0);}}/>
-    :section==='Results'?<>{!target && <h1>Results</h1>}<Results key={target?.id||'events'} target={target} onChanged={changed}/></>
+    :section==='Results'?<Results key={target?.id||'events'} target={target} trail={steps} onChanged={changed}/>
     :<><h1>Day setup</h1>{error && <p role="alert">{error}</p>}{scoring && day && <Day day={day} onChanged={refresh} />}
       <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh lead</button></footer></>}
     {saved>0 && <p className="dashboard-saved" role="status" key={saved}>
