@@ -12,9 +12,9 @@ import { formatTime } from '../../shared/time-entry.js';
 import { eventState } from '../../shared/event-state.js';
 import { raceLabel } from '../../shared/races.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
+import { ordinal } from '../../shared/ordinal.js';
 import './results.css';
 const noteTime=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
-const ordinal=(number:number)=>`${number}${number===1?'st':number===2?'nd':number===3?'rd':'th'}`;
 const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**

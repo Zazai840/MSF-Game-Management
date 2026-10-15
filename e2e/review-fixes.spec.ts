@@ -1,4 +1,4 @@
-import { openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { pickTimesRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
   await page.goto('/');await joinDay(page,name);
 }
@@ -13,12 +13,12 @@ async function surplusRace(page:Page,code:string) {
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
 test('Times keeps surplus saved numeric places visible until the volunteer deliberately records No finisher',async({page},info)=>{
   const code=`SV-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
-  await join(page,`Surplus timer ${info.project.name}`);await jobButton(page,'Times').click();await page.getByRole('button',{name:'Other race',exact:true}).click();await page.getByRole('button',{name:`Review surplus Girl Cubs (${code}) · Race ${race.number} · Finishers and times don't agree`,exact:true}).click();
+  await join(page,`Surplus timer ${info.project.name}`);await jobButton(page,'Times').click();await pickTimesRace(page,`Review surplus Girl Cubs (${code}) · Race ${race.number} · Finishers and times don't agree`);
   await expect(page.getByRole('button',{name:'6th place · 17.00',exact:true})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByText('Saved',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(page);await expect(page.getByText(mismatch,{exact:true})).toBeVisible();await page.getByRole('button',{name:'Change times',exact:true}).click();
   const unchanged=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(unchanged.parts.times.value.places).toEqual([1200,1300,1400,1500,1600,1700]);
   await page.getByRole('button',{name:'6th place · 17.00',exact:true}).click();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-volunteer.png'),fullPage:true});
-  await page.getByRole('button',{name:'No more finishers',exact:true}).click();await expect(page.getByText('6th place · No finisher',{exact:true})).toBeVisible();const correction=page.waitForResponse(response=>response.url().endsWith(`/api/races/${race.id}/times`) && response.request().method()==='POST');await page.getByRole('button',{name:'Save',exact:true}).click();expect((await correction).ok()).toBe(true);await expect(page.getByText('Saved',{exact:true})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'No more finishers',exact:true}).click();await expect(page.getByRole('list',{name:'Times',exact:true}).getByRole('listitem').nth(5)).toHaveText('6thNo finisher');const correction=page.waitForResponse(response=>response.url().endsWith(`/api/races/${race.id}/times`) && response.request().method()==='POST');await page.getByRole('button',{name:'Save',exact:true}).click();expect((await correction).ok()).toBe(true);await savedRaceLabel(page);await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);
   const corrected=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

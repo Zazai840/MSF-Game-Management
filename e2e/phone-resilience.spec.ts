@@ -1,4 +1,4 @@
-import { goHome,jobButton,expect,joinDay,test } from './fixtures.js';
+import { goHome,jobButton,expect,joinDay,pickRace,test,pickTimesRace } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -89,22 +89,21 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
 
   await goHome(page);
   await jobButton(page,'Finish order').click();
-  await page.getByRole('button',{name:'Other race',exact:true}).click();
-  await page.getByRole('button',{name:raceName,exact:true}).click();
+  await pickRace(page,'Finishing order',raceName);
   await page.getByRole('button',{name:'2402',exact:true}).click();
   await page.reload();
   await jobButton(page,'Finish order').click();
   await expect(page.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'1st: 2402',exact:true})).toBeVisible();
 
-  await page.getByRole('button',{name:'Home',exact:true}).click();
+  await goHome(page);
   await jobButton(page,'Times').click();
-  await page.getByRole('button',{name:'Other race',exact:true}).click();
-  await page.getByRole('button',{name:raceName,exact:true}).click();
-  for(const digit of '123') await page.getByRole('button',{name:digit,exact:true}).click();
+  await pickTimesRace(page,raceName);
+  await page.getByLabel('Place time').fill('123');
   await page.reload();
   await jobButton(page,'Times').click();
-  await expect(page.getByLabel('Place time')).toHaveText('1.23');
+  await expect(page.getByLabel('Place time')).toHaveValue('123');
+  await expect(page.getByText('Shows as 1.23',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
 
   // Simulate the server revoking this joined phone at the HTTP boundary.

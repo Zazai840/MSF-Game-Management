@@ -1,4 +1,4 @@
-import { openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { openDashboard,dashboardMenuButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 import readExcelFile from 'read-excel-file/node';
 test('Scoring downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
  await page.goto('/');await joinDay(page,`Export ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');await openDashboard(page,'Day setup');
