@@ -70,7 +70,7 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       const runners=[...(race.parts.runners.value||[]),{id:entry.finalEntryId,wristband:next.wristband}];
       await client.query('UPDATE race_finals SET entries=$1 WHERE race_id=$2',[JSON.stringify([...final.entries,entry]),race.id]);
       await publishPart(client,current,race,'runners',runners,runners);
-      await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${next.wristband} (heat rank ${next.position}) for absent ${final.vacancy.heatWristband}${comment?` — ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
+      await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${next.wristband} (heat rank ${next.position}) for absent ${final.vacancy.heatWristband}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
     });
   });

@@ -38,7 +38,7 @@ export function tieRoutes(app:FastifyInstance,pool:pg.Pool) {
       const message=outcome==='no-run-off'?`${current.name} settled the tie at ${formatTime(tie.time)} (${numbers.join(', ')}): No run-off needed`:
         outcome==='run-off'?`${current.name} recorded a run-off at ${formatTime(tie.time)}: ${numbers.join(' then ')}`:
         `${current.name} decided the tie at ${formatTime(tie.time)} without a run-off: ${numbers.join(' then ')}`;
-      await writeAuditNote(client,current,detail.event.id,{action:'settle-tie',message:`${message}${comment?` — ${comment}`:''}`,comment,touches:order});
+      await writeAuditNote(client,current,detail.event.id,{action:'settle-tie',message:`${message}${comment?` - ${comment}`:''}`,comment,touches:order});
       return {status:'saved',...await readEventResults(client,current.dayId,code)};
     });
   });

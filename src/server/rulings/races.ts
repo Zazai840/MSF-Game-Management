@@ -133,7 +133,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       await publishPart(client,current,race,'runners',runners,runners);
       if(JSON.stringify(finish)!==JSON.stringify(race.parts.finish.value)) await publishPart(client,current,race,'finish',finish,runners);
       for(const entryId of changed) await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[race.id,entryId,'[]']);
-      await writeAuditNote(client,current,race.event.id,{action:'correct-runners',comment,message:`${current.name} corrected the runners for ${raceLabel(race)}: ${numbers.join(', ')||'none'}${finish===null && race.parts.finish.value?'; Finish order must be recorded again':''}${comment?` — ${comment}`:''}`,touches:[{raceId:race.id}]});
+      await writeAuditNote(client,current,race.event.id,{action:'correct-runners',comment,message:`${current.name} corrected the runners for ${raceLabel(race)}: ${numbers.join(', ')||'none'}${finish===null && race.parts.finish.value?'; Finish order must be recorded again':''}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });

@@ -18,7 +18,7 @@ export function resultRecords(state:EventState,rows:readonly LeaderboardRow[],re
   if(reasons.get(row.raceId)?.length) statuses.push(...reasons.get(row.raceId)!);
   if(race.times?.acceptedByLead) statuses.push('Times accepted by lead');
   const warning=row.flags.filter(flag=>flag.kind!=='tie-settled').map(flag=>`${flag.checked?'Checked: ':''}${flag.message}`).join('; ');
-  const note=(state.auditNotes||[]).filter(note=>note.touches.some(touch=>touch.raceId===row.raceId && (!touch.entryId||touch.entryId===row.entryId))).slice().reverse().map(note=>`${note.at} ${note.actor}: ${note.message}${note.comment && !note.message.includes(note.comment)?` — ${note.comment}`:''}`).join('\n');
+  const note=(state.auditNotes||[]).filter(note=>note.touches.some(touch=>touch.raceId===row.raceId && (!touch.entryId||touch.entryId===row.entryId))).slice().reverse().map(note=>`${note.at} ${note.actor}: ${note.message}${note.comment && !note.message.includes(note.comment)?` - ${note.comment}`:''}`).join('\n');
   return {...row,deleted:race.deleted,statuses,warning,note};
  });
 }
