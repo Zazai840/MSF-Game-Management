@@ -135,3 +135,17 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await expect(page.getByRole('heading',{level:1,name:/zone lead|Nothing to check/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });
+
+test('Day setup, Phones and Events meet the touch, text size and contrast rules',async({page})=>{
+  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
+  await page.goto('/');await openDashboard(page,'Day setup');
+  await expect(page.getByRole('button',{name:/^Phones \d+ (person|people) joined today$/})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.getByRole('button',{name:/^Phones /}).click();
+  await expect(page.getByRole('article',{name:'Phone E2E Scoring',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await trailBack(page,'Day setup');
+  await page.getByRole('button',{name:/^Events /}).click();
+  await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+});
