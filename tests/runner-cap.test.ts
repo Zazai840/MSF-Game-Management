@@ -49,6 +49,33 @@ test('a lead rules on 8 times and keeps warnings for more than 6 numbers in the 
   expect(stranger.statusCode).toBe(400);expect(stranger.json().message).toBe('Choose Keep for a wristband number in this race');
 });
 
+test('a lead times correction refuses more places than the race has runners and still checks each value',async()=>{
+  const {volunteer,lead}=await start();
+  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight})).json().race;
+  for(const places of [[...eightTimes,1320],[...eightTimes,null]]) {
+    const refused=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places});
+    expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('This race has 8 runners - enter no more places than that');
+  }
+  const invalid=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places:[...eightTimes.slice(0,7),-1]});
+  expect(invalid.statusCode).toBe(400);expect(invalid.json().message).toBe('Enter whole hundredths or No finisher for every place');
+  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.times.value).toBeNull();
+});
+
+test('a lead trims leftover times beyond the runners after a runner is removed',async()=>{
+  const {volunteer,lead}=await start();
+  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight})).json().race;
+  expect((await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:eightTimes})).statusCode).toBe(200);
+  let read=(await call(volunteer,`/api/races/${race.id}`)).json();
+  const seven=read.parts.runners.value.slice(0,7).map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}));
+  expect((await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version,finishVersion:read.parts.finish.version,runners:seven})).statusCode).toBe(200);
+  read=(await call(volunteer,`/api/races/${race.id}`)).json();expect(read.parts.times.value.places).toEqual(eightTimes);
+  const leftover=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:eightTimes});
+  expect(leftover.statusCode).toBe(409);expect(leftover.json().message).toBe('This race has 7 runners - enter no more places than that');
+  const trimmed=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:eightTimes.slice(0,7)});
+  expect(trimmed.statusCode).toBe(200);
+  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.times.value.places).toEqual(eightTimes.slice(0,7));
+});
+
 /** Heats of 8 and 6: the fastest 6 overall in seed order are 1023,1066,1088,1005,1012,1110; 1135 is 7th. */
 async function finalWithHeats() {
   const tokens=await start();const {volunteer,lead}=tokens;

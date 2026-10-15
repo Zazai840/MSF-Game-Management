@@ -28,8 +28,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
       const count=race.parts.runners.value?.length||0;
-      if(places.length<count || places.slice(count).some(time=>time!==null)) throw new Refusal(409,'The runner list has changed - open the race again');
-      const currentPlaces=places.slice(0,count),outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
+      if(places.length>count) throw new Refusal(409,`This race has ${count} ${count===1?'runner':'runners'} - enter no more places than that`);
+      if(places.length<count) throw new Refusal(409,'The runner list has changed - open the race again');
+      const currentPlaces=places,outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
       await publishPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});
       await writeAuditNote(client,current,race.event.id,{action:acceptedByLead?'accept-times':'correct-times',comment,message:`${current.name} ${acceptedByLead?'accepted out-of-order times':'corrected the times'} for ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};

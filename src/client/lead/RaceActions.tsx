@@ -68,6 +68,8 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const places=digits.map(value=>value===null?null:parseTimeDigits(value)),outOfOrder=timesOutOfOrder(places),invalid=digits.some(value=>value!==null && parseTimeDigits(value)===null);
   const mismatch=raceRecording({...race,parts:{...race.parts,times:invalid?race.parts.times:{version:baseVersion,value:{places,outOfOrder}}}}).countMismatch;
   const wrong=wrongTimesByPlace(places);
+  /** Times left beyond the runners (say, after a runner was removed) must be cleared with No finisher; only the runners' places are saved. */
+  const runnerCount=race.parts.runners.value?.length||0,leftover=places.slice(runnerCount).some(time=>time!==null);
   function change(index:number,value:string|null) {setAccepted(false);setDigits(previous=>previous.map((old,at)=>at===index?value:old));}
   /** Done on one place moves on to the next place still needing a time, as typing times in order would. */
   function done(index:number) {const next=digits.findIndex((value,at)=>at>index && value==='');setEditing(next>=0?next:null);}
@@ -76,7 +78,7 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
     if(checked && editing!==null && editing>=index) setEditing(null);
   }
   const rowLabel=(index:number,value:string)=>`${ordinal(index+1)} place · ${value?formatTimeDigits(value):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
-  return <form className="sheet-stack" onSubmit={event=>{event.preventDefault();onSave({baseVersion,places,acceptOutOfOrder:accepted,comment});}}>
+  return <form className="sheet-stack" onSubmit={event=>{event.preventDefault();onSave({baseVersion,places:places.slice(0,runnerCount),acceptOutOfOrder:accepted,comment});}}>
     {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
     <p className="sheet-hint">Read times in place order from the SprintTimer recording. Tap a place to retype its time.</p>
     <ol ref={rows} className="time-rows" aria-label="Times">{digits.map((value,index)=><li key={index} className="lead-time-place">
@@ -92,7 +94,8 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
     </li>)}</ol>
     {outOfOrder && <div className="warning-box"><p>Times are out of order. Check the recording or explicitly accept this set as the lead.</p><label className="lead-checkbox"><input type="checkbox" checked={accepted} disabled={busy} onChange={event=>setAccepted(event.target.checked)}/>Accept these out-of-order times</label></div>}
     <label>Comment (optional)<textarea maxLength={1000} disabled={busy} value={comment} onChange={event=>setComment(event.target.value)}/></label>
-    {invalid && <p className="sheet-hint">Enter a valid time for each place, or choose No finisher.</p>}<button disabled={busy || invalid}>{busy?'Saving…':'Save times'}</button><button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Cancel correction</button>
+    {invalid && <p className="sheet-hint">Enter a valid time for each place, or choose No finisher.</p>}
+    {leftover && <p className="sheet-hint">This race has {runnerCount} {runnerCount===1?'runner':'runners'}. Choose No finisher for every place after {ordinal(runnerCount)} to save.</p>}<button disabled={busy || invalid || leftover}>{busy?'Saving…':'Save times'}</button><button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Cancel correction</button>
   </form>;
 }
 /**
