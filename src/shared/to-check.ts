@@ -3,8 +3,8 @@ import type { ClashSaver } from './results-rules.js';
 import { plainWristbandWarning } from './wristband-checks.js';
 import { formatTime } from './time-entry.js';
 import { raceLabel } from './races.js';
+import { ordinal } from './ordinal.js';
 export interface ToCheckWording { race:string; title:string; explanation:string }
-const ordinal=(n:number)=>`${n}${n%100>=11 && n%100<=13?'th':n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th'}`;
 const counted=['Two','Three','Four','Five'];
 const listed=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names[names.length-1]}`;
 const partWords={runners:'runner lists',finish:'finishing orders',times:'sets of times'} as const;

@@ -1,8 +1,7 @@
-import { openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
+import { pickTimesRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
 async function times(page:Page,code:string,first:string,second:string) {
-  await jobButton(page,'Times').click();await page.getByRole('button',{name:'Other race',exact:true}).click();
-  await page.getByRole('button',{name:new RegExp(`\\(${code}\\) · Race 1$`)}).click();
-  for(const value of [first,second]) {for(const digit of value) await page.getByRole('button',{name:digit,exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();}
+  await jobButton(page,'Times').click();await pickTimesRace(page,new RegExp(`\\(${code}\\) · Race 1$`));
+  for(const value of [first,second]) await enterTime(page,value);
   await expect(page.getByRole('heading',{name:'Check the times'})).toBeVisible();
 }
 test('two phone drafts retain different Times versions and a lead chooses one',async({page,browser,request},info)=>{
@@ -17,7 +16,7 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
   await other.goto('/');await other.evaluate(token=>localStorage.setItem('msf:token',token),tokenB);await other.reload();
   await times(page,code,'1200','1300');await times(other,code,'1210','1310');
-  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Saved');
+  await page.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(page);
   await other.reload();await jobButton(other,'Times').click();await expect(other.getByRole('heading',{name:'Check the times'})).toBeVisible();
   await other.getByRole('button',{name:'Save',exact:true}).click();await expect(other.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();
   await expect(other.getByRole('button',{name:/Use chosen/})).toHaveCount(0);

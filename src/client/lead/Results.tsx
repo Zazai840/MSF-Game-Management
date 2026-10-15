@@ -9,9 +9,9 @@ import { RacePage } from './RacePage.js';
 import { RunnerActions } from './RunnerActions.js';
 import { TieSheet } from './TieSheet.js';
 import { formatTime } from '../../shared/time-entry.js';
+import { ordinal } from '../../shared/ordinal.js';
 import './results.css';
 const noteTime=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
-const ordinal=(number:number)=>`${number}${number===1?'st':number===2?'nd':number===3?'rd':'th'}`;
 const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
 export function Results({target,onChanged}:{target?:DayLeadItem;onChanged?:()=>void}={}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);

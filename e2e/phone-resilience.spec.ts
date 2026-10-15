@@ -1,4 +1,4 @@
-import { goHome,jobButton,expect,joinDay,pickRace,test } from './fixtures.js';
+import { goHome,jobButton,expect,joinDay,pickRace,test,pickTimesRace } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -98,12 +98,12 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
 
   await goHome(page);
   await jobButton(page,'Times').click();
-  await page.getByRole('button',{name:'Other race',exact:true}).click();
-  await page.getByRole('button',{name:raceName,exact:true}).click();
-  for(const digit of '123') await page.getByRole('button',{name:digit,exact:true}).click();
+  await pickTimesRace(page,raceName);
+  await page.getByLabel('Place time').fill('123');
   await page.reload();
   await jobButton(page,'Times').click();
-  await expect(page.getByLabel('Place time')).toHaveText('1.23');
+  await expect(page.getByLabel('Place time')).toHaveValue('123');
+  await expect(page.getByText('Shows as 1.23',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
 
   // Simulate the server revoking this joined phone at the HTTP boundary.

@@ -126,5 +126,23 @@ export async function startDrag(page:Page,from:Locator) {
 export async function dragTo(page:Page,from:Locator,to:Locator) {
   const drag=await startDrag(page,from);await drag.over(to);await drag.drop();
 }
+/**
+ * On the Times job: opens the race picker from the trail when a race is already open,
+ * then picks the race by its button name, for example "60m Girl Cubs (R4) · Heat 2".
+ */
+export async function pickTimesRace(page:Page,name:string|RegExp) {
+  await timesOpened(page);
+  if(!await page.getByRole('heading',{name:'Which race is it?',exact:true}).isVisible()) await trailBack(page,'Times');
+  await page.getByRole('button',{name,exact:typeof name==='string'}).click();
+}
+/** Waits until the Times job has loaded: the race picker, a place to type, or the check screen. */
+export async function timesOpened(page:Page) {
+  await expect(page.getByRole('heading',{name:/^Which race is it\?$|place time\?$|^Check the times$/})).toBeVisible();
+}
+/** Types one place's time (digits only, as a timer would) into the phone number input and taps Next. */
+export async function enterTime(page:Page,digits:number|string) {
+  await page.getByLabel('Place time',{exact:true}).fill(String(digits));
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+}
 export { expect };
 export type { Locator,Page };

@@ -9,13 +9,15 @@ export const digitsOnly=(value:string)=>value.replace(/\D/g,'');
  * Enter, the keyboard's Next/Go key and the Next button all call onNext.
  * While `held` (a warning is waiting for Fix or Keep) the keyboard closes; when released it opens again.
  */
-export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,nextLabel='Next',placeholder,display,extraAction}:{
+export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,nextLabel='Next',placeholder,display,extraAction,selectKey}:{
   label:string; value:string; onChange:(digits:string)=>void; onNext:()=>void;
   held?:boolean; busy?:boolean; nextLabel?:string; placeholder?:string;
   /** Shown under the input as you type, for example "Shows as 12.95". */
   display?:ReactNode;
   /** A button beside Next in the bar above the keyboard, for example That's everyone. */
   extraAction?:ReactNode;
+  /** Changing this selects whatever is in the input, so the first digit typed replaces it (retyping a time). */
+  selectKey?:string|number;
 }) {
   const input=useRef<HTMLInputElement>(null);
   const wasHeld=useRef(held);
@@ -26,6 +28,7 @@ export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,n
   },[held]);
   // Opening the step puts the cursor straight in the input (mount only).
   useEffect(()=>{if(!wasHeld.current) input.current?.focus({preventScroll:true});},[]);
+  useLayoutEffect(()=>{if(selectKey!==undefined && !held) input.current?.select();},[selectKey]);
   const ready=!held && !busy && value!=='';
   function next() {input.current?.focus();if(ready) onNext();}
   return <div className="number-entry">
