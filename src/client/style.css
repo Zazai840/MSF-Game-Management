@@ -4,7 +4,7 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 
 /* Navy header bar: Running Zone, the day's name where known, the joined person. */
 .app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;}
-.app-header-title {display:flex; flex-direction:column; min-width:0;}
+.app-header-title {flex:none; display:flex; flex-direction:column; min-width:0;}
 .app-header-title strong {font-size:19px; font-weight:800; white-space:nowrap;}
 .app-header-title span {font-size:13px; font-weight:600; color:var(--on-dark-muted);}
 .app-header-person {display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}

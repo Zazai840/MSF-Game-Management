@@ -1,8 +1,8 @@
-import { enterWristband,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
+import { trailBack,openDashboard,dashboardMenuButton,enterWristband,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function scoring(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
-  await page.goto('/');await dashboardButton(page).click();await page.getByRole('button',{name:'Day',exact:true}).click();
+  await page.goto('/');await openDashboard(page,'Day setup');
   await expect(page.getByRole('heading',{name:'Events for today'})).toBeVisible();
 }
 async function exportDay(page:Page) {
@@ -29,7 +29,7 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
     await expect(other.getByLabel('Day code or owner password')).toBeVisible({timeout:10000});expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual([]);
     await joinDay(other,`Reset helper ${info.project.name}`,fresh.dayCode);await jobButton(other,'Start line').click();await expect(other.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();await expect(other.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
-    await page.getByRole('button',{name:'Home',exact:true}).click();await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+    await trailBack(page,'Home');await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
   } finally {await otherContext.close().catch(()=>{});}
 });
 for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${oldResponse} response cannot repaint or eject the retained scoring phone after reset`,async({page})=>{

@@ -1,11 +1,11 @@
-import { enterTime,pickTimesRace,savedRaceLabel,goHome,enterWristband,jobButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { dashboardButton,pickTimesRace,enterTime,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
   await page.goto('/');await joinDay(page,name);
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {
-  await join(page,name,true);await dashboardButton(page).click();await page.getByRole('button',{name:'Results',exact:true}).click();await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await join(page,name,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
 
 test('a phone checks in 8 runners and carries them through finishing order, times and Results',async({page,browser},info)=>{

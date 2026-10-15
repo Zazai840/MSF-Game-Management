@@ -55,10 +55,6 @@
 .runner-actions .lead-checkbox {display:flex;align-items:center;gap:.6rem;margin:.6rem 0;}
 .runner-actions .lead-checkbox input {width:auto;flex-shrink:0;}
 
-.needs-you ol {list-style:none;padding:0;}
-.needs-you li {margin:.7rem 0;}
-.needs-you li button {display:block;width:100%;text-align:left;overflow-wrap:anywhere;}
-.needs-you small {display:block;margin-top:.4rem;}
 .final-panel {border-top:2px solid var(--line-strong);margin-top:1.5rem;padding-top:.5rem;}
 .final-lineup {list-style:none;padding:0;line-height:1.7;}
 .final-panel .leaderboard-row {grid-template-columns:3rem 1fr;}
