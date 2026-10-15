@@ -12,9 +12,9 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
   // Joining is the only public mutation; every other action declares its minimum level.
   app.post('/api/join', async (request,reply) => joinFailures([request.ip],reply,async()=>{
     const body = request.body as {code?: unknown; name?: unknown} | null;
-    if (typeof body?.code !== 'string' || typeof body.name !== 'string') throw new Refusal(400, 'Enter the code and your first name');
+    if (typeof body?.code !== 'string' || typeof body.name !== 'string') throw new Refusal(400, 'Enter the code and your full name');
     const name = body.name.trim().replace(/\s+/g, ' ');
-    if (!name || name.length > 80) throw new Refusal(400, 'Enter your first name (up to 80 characters)');
+    if (!name || name.length > 80) throw new Refusal(400, 'Enter your full name (up to 80 characters)');
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -30,7 +30,7 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
         await seedEvents(client,day.id);
       } else if (!matches(body.code, day.day_code)) throw new WrongAccessCode('Wrong day code - ask for the right one');
       const existing = (await client.query('SELECT name FROM phones WHERE day_id=$1 AND lower(name)=lower($2) AND NOT removed', [day.id, name])).rows[0];
-      if (existing) throw new Refusal(409, `Someone has joined as ${existing.name} - add your surname initial`);
+      if (existing) throw new Refusal(409, `Someone has joined as ${existing.name} - use your full name so the zone lead can tell you apart`);
       const token = randomBytes(32).toString('base64url');
       const phone = (await client.query('INSERT INTO phones(id,day_id,name,level,token_hash) VALUES($1,$2,$3,$4,$5) RETURNING id,name,level', [randomUUID(), day.id, name, level, tokenHash(token)])).rows[0];
       await client.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1',[day.id]);

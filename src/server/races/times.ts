@@ -16,7 +16,7 @@ export function timesRoutes(app:FastifyInstance,pool:pg.Pool) {
     const body=request.body as {baseVersion?:unknown;places?:unknown}|null;
     if(!Number.isSafeInteger(body?.baseVersion) || Number(body?.baseVersion)<0) throw new Refusal(400,'Open the race before saving its times');
     const places=body?.places;
-    if(!Array.isArray(places) || places.length>6 || places.some(time=>time!==null && (!Number.isSafeInteger(time) || time<0))) throw new Refusal(400,'Enter whole hundredths or No finisher for every place');
+    if(!Array.isArray(places) || places.some(time=>time!==null && (!Number.isSafeInteger(time) || time<0))) throw new Refusal(400,'Enter whole hundredths or No finisher for every place');
     const firstEmpty=places.indexOf(null);
     if(firstEmpty>=0 && places.slice(firstEmpty).some(time=>time!==null)) throw new Refusal(400,'No finisher belongs only at the bottom of the times');
     return raceChange(pool,phone,async client=>{

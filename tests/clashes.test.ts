@@ -74,6 +74,16 @@ test('a clashing race stays out of ranking until a lead chooses a version and wr
   expect(after.history.some((save:any)=>save.id===chosen.id)).toBe(true);
   expect(after.race.recording.readyForRanking).toBe(true);
 });
+test('To check names who saved each clashing version, only for races that still clash',async()=>{
+  const {first,second,lead,checkIn}=await start();
+  const clashing=await checkIn(),calm=await checkIn([2003,2004]),deleted=await checkIn([2005,2006]);
+  await call(first,`/api/races/${clashing.id}/times`,{baseVersion:0,places:[1200,1300]});await call(second,`/api/races/${clashing.id}/times`,{baseVersion:0,places:[1210,1310]});
+  await call(first,`/api/races/${calm.id}/times`,{baseVersion:0,places:[1200,1300]});await call(second,`/api/races/${calm.id}/times`,{baseVersion:1,places:[1210,1310]});
+  await call(first,`/api/races/${deleted.id}/times`,{baseVersion:0,places:[1200,1300]});await call(second,`/api/races/${deleted.id}/times`,{baseVersion:0,places:[1210,1310]});
+  expect((await call(lead,`/api/lead/races/${deleted.id}/delete`,{permanent:false})).statusCode).toBe(200);
+  const items=(await call(lead,'/api/lead/results')).json().needsYou.filter((item:any)=>item.kind==='clash');
+  expect(items.map((item:any)=>[item.raceId,item.clash.map((clash:any)=>[clash.part,clash.savers.map((saver:any)=>saver.name)])])).toEqual([[clashing.id,[['times',['Ahmed','Yusuf']]]]]);
+});
 test('choosing an old Finish candidate restores its exact pre-save runners and additions, not the other candidate side effects',async()=>{
   const {first,second,third,lead,checkIn}=await start();const race=await checkIn([2001,2002,2003,2004,2005]);
   const edited=(await call(first,`/api/races/${race.id}/runners`,{baseVersion:1,runners:[2001,2002,2003,2004,2010]})).json().race;

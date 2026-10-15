@@ -1,19 +1,49 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
 import { api,apiDownload,startNewDay } from '../api.js';
 import './day.css';
-import { Phones } from './Phones.js';
 
-export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
-  const [editing,setEditing] = useState<string|null>(null);
-  const [name,setName] = useState('');
-  const [newCode,setNewCode] = useState('');
-  const [newName,setNewName] = useState('');
-  const [section,setSection] = useState('');
-  const [format,setFormat] = useState('');
+const chevron=<svg className="day-row-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
+/** "13:40": the day export's time in 24-hour form, as the scoring team reads it on the day. */
+function clock(at:string) {const time=new Date(at);return `${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}`;}
+/** When the day export was last downloaded, and whether anything changed after it. */
+export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>) {
+  if(!day.exportedAt) return 'Not downloaded yet.';
+  return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
+}
+/** Runs one lead action: a short "Saved" on success, v1's "Not saved" wording and the server's reason on failure. */
+function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
+  const [busy,setBusy]=useState(false);
+  const [failed,setFailed]=useState<{where:string;message:string}|null>(null);
+  async function run(where:string,path:string,body:unknown) {
+    setBusy(true);setFailed(null);
+    try {await api(path,body);onSaved();await onChanged();return true;}
+    catch(error) {setFailed({where,message:error instanceof Error?error.message:'Could not connect'});return false;}
+    finally {setBusy(false);}
+  }
+  const failure=(where:string,again:string)=>failed?.where===where && <><p className="day-not-saved">Not saved - tap {again} again</p><p role="alert">{failed.message}</p></>;
+  return {busy,run,failure};
+}
+
+function CodeCard({label,code,explanation,action,note,busy,onMake,failure}:{label:string;code:string;explanation:string;action:string;note:string;busy:boolean;onMake:()=>void;failure:ReactNode}) {
+  return <section className="day-card" aria-label={label}>
+    <span className="day-label" aria-hidden="true">{label}</span>
+    <span className="code">{code}</span>
+    <p className="day-text">{explanation}</p>
+    <button className="button-secondary button-small" disabled={busy} onClick={onMake}>{action}</button>
+    <p className="day-note">{note}</p>
+    {failure}
+  </section>;
+}
+
+/**
+ * Day setup (v1's Day tab): the day and lead codes, rows opening Phones and Events, the day export and
+ * Start a new day. Start a new day keeps v1's typed confirmation; the server still refuses it until the
+ * latest changes are in a day export.
+ */
+export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(screen:'Phones'|'Events')=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+  const {busy:saving,run,failure}=useAction(onChanged,onSaved);
   const [busy,setBusy] = useState(false);
-  const [message,setMessage] = useState('');
-  const [error,setError] = useState('');
   const [exportMessage,setExportMessage] = useState('');
   const [exportError,setExportError] = useState('');
   const [confirmation,setConfirmation]=useState('');
@@ -21,14 +51,8 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   async function startNew(event:FormEvent) {
     event.preventDefault();setBusy(true);setResetError('');
     try {await startNewDay(confirmation);}
-    catch(error) {setResetError(error instanceof Error?error.message:'Could not connect - tap Start new day again');}
+    catch(error) {setResetError(error instanceof Error?error.message:'Could not connect - tap Start a new day again');}
     finally {setBusy(false);}
-  }
-  async function save(path:string,body:unknown) {
-    setBusy(true); setMessage(''); setError('');
-    try { await api(path,body); setMessage('Saved'); await onChanged(); return true; }
-    catch(error) { setMessage('Not saved - tap Save again'); setError(error instanceof Error?error.message:'Could not connect'); return false; }
-    finally { setBusy(false); }
   }
   async function download() {
     setBusy(true);setExportError('');setExportMessage('');
@@ -38,62 +62,90 @@ export function Day({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
       link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();
       window.setTimeout(()=>URL.revokeObjectURL(url),1000);
       setExportMessage('Day export downloaded');await onChanged();
-    } catch(error) {setExportError(error instanceof Error?error.message:'Could not connect');setExportMessage('Not downloaded — tap Download day export again');}
+    } catch(error) {setExportError(error instanceof Error?error.message:'Could not connect');setExportMessage('Not downloaded - tap Download day export again');}
     finally {setBusy(false);}
   }
+  const events=day.events.length;
+  return <div className="day-setup">
+    <CodeCard label="Day code" code={day.dayCode} explanation="Volunteers type this to join today." action="Make a new day code"
+      note="The old code stops working for anyone new. People already in stay in." busy={saving}
+      onMake={()=>void run('day','day/day-code',{})} failure={failure('day','Make a new day code')}/>
+    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard." action="Make a new lead code"
+      note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access." busy={saving}
+      onMake={()=>void run('lead','day/lead-code',{})} failure={failure('lead','Make a new lead code')}/>
+    <div className="day-rows">
+      <button className="day-row" onClick={()=>onOpen('Phones')}>
+        <span className="day-row-text"><span className="day-row-title">Phones</span>
+          <span className="day-row-sub">{phones===null?'Joined phones':`${phones} ${phones===1?'person':'people'} joined today`}</span></span>{chevron}
+      </button>
+      <button className="day-row" onClick={()=>onOpen('Events')}>
+        <span className="day-row-text"><span className="day-row-title">Events</span>
+          <span className="day-row-sub">{events} {events===1?'event':'events'} · {day.eventsConfirmed?'checked and confirmed':'not confirmed yet'}</span></span>{chevron}
+      </button>
+    </div>
+    <section className="day-card" aria-label="Day export">
+      <span className="day-card-title">Day export</span>
+      <p className="day-text">Excel file of today's results for the scoring workbook. <span>{exportStatus(day)}</span></p>
+      <button disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
+      {exportMessage && <p className="day-note" role="status">{exportMessage}</p>}{exportError && <p role="alert">{exportError}</p>}
+    </section>
+    <section className="day-reset" aria-label="Start a new day">
+      <form onSubmit={startNew}>
+        <label>Type NEW DAY to confirm<input value={confirmation} onChange={event=>setConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" /></label>
+        <button className="button-danger" disabled={busy || confirmation!=='NEW DAY'}>Start a new day</button>
+      </form>
+      <p className="day-note">Clears today's races. Download the day export first.</p>
+      {resetError && <p role="alert">{resetError}</p>}
+    </section>
+  </div>;
+}
+
+/** v1's event list for the day: rename, switch off or on, confirm the list and add an event. */
+export function Events({day,onChanged,onSaved}:{day:DayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+  const {busy,run,failure}=useAction(onChanged,onSaved);
+  const [editing,setEditing] = useState<string|null>(null);
+  const [name,setName] = useState('');
+  const [newCode,setNewCode] = useState('');
+  const [newName,setNewName] = useState('');
+  const [section,setSection] = useState('');
+  const [format,setFormat] = useState('');
   async function rename(event:FormEvent) {
     event.preventDefault();
-    if (editing && await save(`day/events/${encodeURIComponent(editing)}/rename`,{name})) setEditing(null);
+    if (editing && await run('list',`day/events/${encodeURIComponent(editing)}/rename`,{name})) setEditing(null);
   }
   async function add(event:FormEvent) {
     event.preventDefault();
-    if (await save('day/events',{code:newCode,name:newName,section,format})) {
+    if (await run('add','day/events',{code:newCode,name:newName,section,format})) {
       setNewCode(''); setNewName(''); setSection(''); setFormat('');
     }
   }
   return <div className="day-setup">
-    <dl><dt>Day code</dt><dd className="code">{day.dayCode}</dd><dt>Lead code</dt><dd className="code">{day.leadCode}</dd></dl>
-    <section aria-label="Day export" className="day-export">
-      <h2>Day export</h2>
-      <p>Download all running results, finals and audit notes in one Excel workbook.</p>
-      <button disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
-      <p role="status">{exportMessage}</p>{exportError && <p role="alert">{exportError}</p>}
-      <p>{day.exportedAt?`Last export: ${new Date(day.exportedAt).toLocaleString()}`:'No day export downloaded yet'}</p>
-      {day.exportedAt && <p>{day.exportedRevision===day.revision?'Includes all changes so far':'Changes since the last export — download again before starting a new day'}</p>}
+    <section className="day-card" aria-label="Event list">
+      <p className="day-text">{day.eventsConfirmed?'Event list confirmed':'Check the events, then confirm the list'}</p>
+      {!day.eventsConfirmed && <button disabled={busy} onClick={()=>void run('list','day/confirm-events',{})}>Confirm event list</button>}
+      {failure('list','Save')}
     </section>
-    <Phones onChanged={onChanged} />
-    <h2>Events for today</h2>
-    <p>{day.eventsConfirmed?'Event list confirmed':'Check the events, then confirm the list'}</p>
-    <button disabled={busy || day.eventsConfirmed} onClick={()=>void save('day/confirm-events',{})}>Confirm event list</button>
-    <p role="status">{message}</p>{error && <p role="alert">{error}</p>}
-    <div className="day-events">{day.events.map(event=><article key={event.id} aria-label={`${event.code} · ${event.section}`}>
+    <div className="day-events">{day.events.map(event=><article key={event.id} className={event.enabled?'day-card':'day-card day-card-off'} aria-label={`${event.code} · ${event.section}`}>
       <h3>{event.code} · {event.name}</h3>
-      <p>{event.section} · {event.format==='heats'?'Heats then final':'Timed'}{!event.enabled && ' · Switched off'}</p>
+      <p className="day-text">{event.section} · {event.format==='heats'?'Heats then final':'Timed'}{!event.enabled && ' · Switched off'}</p>
       {editing===event.code ? <form onSubmit={rename}>
         <label>New name for {event.code}<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} required /></label>
-        <div className="day-actions"><button disabled={busy}>Save name for {event.code}</button><button type="button" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
+        <div className="day-actions"><button className="button-small" disabled={busy}>Save name for {event.code}</button><button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
       </form> : <div className="day-actions">
-        <button disabled={busy} onClick={()=>{setName(event.name);setEditing(event.code);}}>Rename {event.code}</button>
-        <button disabled={busy} onClick={()=>void save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled})}>{event.enabled?'Switch off':'Switch on'} {event.code}</button>
+        <button className="button-secondary button-small" disabled={busy} onClick={()=>{setName(event.name);setEditing(event.code);}}>Rename {event.code}</button>
+        <button className="button-secondary button-small" disabled={busy} onClick={()=>void run('list',`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled})}>{event.enabled?'Switch off':'Switch on'} {event.code}</button>
       </div>}
     </article>)}</div>
-    <h2>Add an event</h2>
-    <form onSubmit={add}>
-      <label>New event code<input value={newCode} onChange={e=>setNewCode(e.target.value)} maxLength={12} autoCapitalize="characters" required /></label>
-      <label>New event name<input value={newName} onChange={e=>setNewName(e.target.value)} maxLength={100} required /></label>
-      <label>New event section<select aria-label="New event section" value={section} onChange={e=>setSection(e.target.value)} required><option value="">Choose section</option>{sections.map(value=><option key={value}>{value}</option>)}</select></label>
-      <label>New event format<select aria-label="New event format" value={format} onChange={e=>setFormat(e.target.value)} required><option value="">Choose event format</option><option value="heats">Heats then final</option><option value="timed">Timed</option></select></label>
-      <button disabled={busy}>{busy?'Saving…':'Add event'}</button>
-    </form>
-    <section className="day-reset" aria-label="Start new day">
-      <h2>Start new day</h2>
-      <p>This clears today's races, rulings, audit notes and joined phones. You stay signed in as scoring team. Everyone else must join with the new day code.</p>
-      <p>Download a day export after the last change, then type NEW DAY.</p>
-      <form onSubmit={startNew}>
-        <label>Type NEW DAY to confirm<input value={confirmation} onChange={event=>setConfirmation(event.target.value)} autoComplete="off" /></label>
-        <button disabled={busy || confirmation!=='NEW DAY'}>Start new day</button>
+    <section className="day-card" aria-label="Add an event">
+      <span className="day-card-title">Add an event</span>
+      <form onSubmit={add}>
+        <label>New event code<input value={newCode} onChange={e=>setNewCode(e.target.value)} maxLength={12} autoCapitalize="characters" required /></label>
+        <label>New event name<input value={newName} onChange={e=>setNewName(e.target.value)} maxLength={100} required /></label>
+        <label>New event section<select aria-label="New event section" value={section} onChange={e=>setSection(e.target.value)} required><option value="">Choose section</option>{sections.map(value=><option key={value}>{value}</option>)}</select></label>
+        <label>New event format<select aria-label="New event format" value={format} onChange={e=>setFormat(e.target.value)} required><option value="">Choose event format</option><option value="heats">Heats then final</option><option value="timed">Timed</option></select></label>
+        <button disabled={busy}>{busy?'Saving…':'Add event'}</button>
       </form>
-      {resetError && <p role="alert">{resetError}</p>}
+      {failure('add','Add event')}
     </section>
   </div>;
 }

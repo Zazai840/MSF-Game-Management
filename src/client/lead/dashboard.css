@@ -1,0 +1,29 @@
+/* Dashboard: the menu reuses the Home job buttons (style.css); To check items and the short Saved note live here. Tokens from theme.css. */
+.dashboard {flex:1; display:flex; flex-direction:column;}
+.to-check {flex:1; display:flex; flex-direction:column;}
+.to-check h1 {margin-bottom:12px;}
+.to-check-none {color:var(--muted); font-weight:600;}
+.to-check ol {list-style:none; margin:0; padding:0; display:grid; gap:12px;}
+.to-check-item {
+  display:flex; flex-direction:column; align-items:stretch; gap:6px; width:100%; padding:14px; text-align:left;
+  background:var(--surface); color:var(--text); border:1.5px solid var(--line); border-radius:var(--radius-box); font-weight:600;
+}
+.to-check-race {display:flex; align-items:center; gap:8px; font-size:var(--text-badge); font-weight:800; color:var(--muted); min-width:0;}
+.to-check-race > span:nth-child(2) {flex:1; min-width:0; overflow-wrap:anywhere;}
+.to-check-race time {flex:none; font-variant-numeric:tabular-nums;}
+.to-check-dot {flex:none; width:10px; height:10px; border-radius:50%; background:var(--red);}
+.to-check-title {font-size:17px; font-weight:800; color:var(--navy);}
+.to-check-explanation {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
+.to-check-open {
+  align-self:flex-start; margin-top:4px; min-height:var(--tap); padding:0 14px; display:inline-flex; align-items:center;
+  border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800;
+}
+/* A short "Saved" after a lead action, floating above the page so it shows wherever the lead has scrolled. */
+.dashboard-saved {
+  position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:20; margin:0;
+  display:inline-flex; align-items:center; gap:8px; min-height:var(--tap); padding:0 18px; border-radius:999px;
+  background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800; box-shadow:0 8px 20px rgba(27,42,81,.25);
+  animation:dashboard-saved 3s ease forwards; pointer-events:none;
+}
+@keyframes dashboard-saved {0% {opacity:0; transform:translate(-50%,8px);} 8%,85% {opacity:1; transform:translate(-50%,0);} 100% {opacity:0;}}
+@media (prefers-reduced-motion:reduce) {.dashboard-saved {animation:none;}}

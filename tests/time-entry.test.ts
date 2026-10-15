@@ -5,6 +5,9 @@ test.each([
 ])('digits %s fill from the right without a range refusal', (digits,hundredths,display)=>{
   expect(parseTimeDigits(digits)).toBe(hundredths);expect(formatTimeDigits(digits)).toBe(display);
 });
+test('no digits yet shows a plain dash',()=>{
+  expect(formatTimeDigits('')).toBe('-');
+});
 test('stored hundredths format as seconds or minutes, and malformed digits are refused',()=>{
   expect(formatTime(1234)).toBe('12.34');expect(formatTime(9240)).toBe('1:32.40');expect(formatTime(6000)).toBe('1:00.00');
   for(const input of ['', '12.34','-1','abc','9'.repeat(30)]) expect(parseTimeDigits(input)).toBeNull();

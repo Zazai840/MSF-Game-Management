@@ -27,7 +27,7 @@ test('a lead completes a timed event with durable official podium and audit, the
   const reopened=await call(lead,'/api/lead/events/R16/reopen-stage',{stage:'event',comment:'Late correction'});
   expect(reopened.statusCode).toBe(200);
   expect(reopened.json().results).toMatchObject({status:'In progress - provisional',provisional:true,inputRunning:null});
-  expect(reopened.json().auditNotes[0]).toMatchObject({action:'reopen-stage',comment:'Late correction',message:'Aisha reopened Event complete — Late correction'});
+  expect(reopened.json().auditNotes[0]).toMatchObject({action:'reopen-stage',comment:'Late correction',message:'Aisha reopened Event complete - Late correction'});
 });
 test('completion refuses every job mutation and new race, while reopen restores saving without rebasing versions',async()=>{
   const {lead,volunteer,race}=await start();

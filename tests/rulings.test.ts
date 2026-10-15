@@ -24,7 +24,7 @@ test('a lead disqualifies and lifts one stable runner, with immediate re-ranking
   const disqualified=saved.json();
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
   expect(disqualified.results.leaderboard).toMatchObject([{wristband:2002,position:1},{wristband:2001,position:null,status:'Disqualified',disqualification:{reason:'Obstruction',comment:'Blocked the inside lane'},hasNote:true}]);
-  expect(disqualified.auditNotes).toMatchObject([{actor:'Aisha',action:'disqualify',message:'Aisha disqualified 2001 (Heat 1): Obstruction — Blocked the inside lane',comment:'Blocked the inside lane',touches:[{raceId:race.id,entryId:race.parts.runners.value[0].id}]}]);
+  expect(disqualified.auditNotes).toMatchObject([{actor:'Aisha',action:'disqualify',message:'Aisha disqualified 2001 (Heat 1): Obstruction - Blocked the inside lane',comment:'Blocked the inside lane',touches:[{raceId:race.id,entryId:race.parts.runners.value[0].id}]}]);
   expect(disqualified.auditNotes[0].at).toMatch(/^\d{4}-\d\d-\d\dT/);
   const list=(await call(lead,'/api/lead/results')).json();
   expect(list.groups[0].events[3].latestNoteAt).toBe(disqualified.auditNotes[0].at);

@@ -26,7 +26,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
       else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
       if(sheet.stage==='heats') await seedFinal(client,current,detail.event,detail.results.qualifiers);
       const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);
-      await writeAuditNote(client,current,detail.event.id,{action:command,message:`${current.name} ${reopening?'reopened':'marked'} ${sheet.label}${comment?` — ${comment}`:''}`,comment,touches});
+      await writeAuditNote(client,current,detail.event.id,{action:command,message:`${current.name} ${reopening?'reopened':'marked'} ${sheet.label}${comment?` - ${comment}`:''}`,comment,touches});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
     });
   });

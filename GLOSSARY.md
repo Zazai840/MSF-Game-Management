@@ -37,7 +37,7 @@ _Avoid_: Event type, race type
 ### Races
 
 **Race**:
-One run of one event: between 1 and 6 children or relay teams who line up and run together. Heats and finals are both races.
+One run of one event: one or more children or relay teams who line up and run together, with no upper limit. Heats and finals are both races.
 _Avoid_: Run, round
 
 **Heat**:
@@ -45,12 +45,20 @@ A race within an event that has a final, formed at the start line from whoever i
 _Avoid_: Qualifier, preliminary
 
 **Final**:
-The single deciding race of an event that has heats, run by the 6 qualifiers from the heats.
+The single deciding race of an event that has heats. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place).
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
-The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete.
+The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete. Runners a lead adds to the final afterwards are not part of the line-up.
 _Avoid_: Finalists list, running heats sheet, start list
+
+**Absent finalist**:
+A child in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. Before a final the start line asks "Is everyone here?" and the volunteer taps anyone absent.
+_Avoid_: Didn't run, no-show, scratched
+
+**Call-up**:
+A lead bringing the next-ranked heat runner (7th, then 8th) into a final in place of an absent finalist. Without a call-up the final runs short.
+_Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
 Recording, at the start line and before the whistle, which children or relay teams are running in a race. Check-in is what creates a race.
@@ -97,12 +105,16 @@ A child who started a race but did not cross the line, for example after a fall.
 _Avoid_: DNF, retired, dropped out
 
 **Didn't run**:
-A child who was checked in to a race but never started it. They are taken off that race, so they can still run in a later race of the event.
+A child who was checked in to a race but never started it. They are taken off that race, so they can still run in a later race of the event. A finalist missing before a final starts is an absent finalist instead.
 _Avoid_: DNS, no-show, absent, scratched
 
 **No finisher**:
 A place at the bottom of a race's times that no child crossed the line for, as seen by the timer. It names no child: who did not finish or didn't run comes from the finishing order, and the race counts once both agree on how many finished.
 _Avoid_: Blank time, empty place, DNF time
+
+**Wrong time**:
+A time that looks wrong for its race: a later place faster than an earlier one, or a count of times that disagrees with the number of finishers. It is shown in amber wherever times appear; a volunteer can retype a place or keep its time as typed, and a kept out-of-order time goes to To check for a lead.
+_Avoid_: Error, invalid time, bad time
 
 **Audit note**:
 A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and their comment.
@@ -130,12 +142,20 @@ _Avoid_: Admin, race manager, supervisor
 A person trusted with everything beyond the jobs: the live leaderboard and making rulings on a race's problems. Zone leads are leads, and so are scoring team members.
 _Avoid_: Admin, organiser, superuser
 
+**Dashboard**:
+A lead's own screen, opened from Home, with three ways in: To check, Results and Day setup (Day setup for the scoring team only).
+_Avoid_: Lead area, admin panel, control panel
+
+**To check**:
+The list of race problems that need a lead to decide, such as a clash, a tie, a warning or a kept wrong time, each opening its race. Its count shows as "N to check" on the Dashboard button.
+_Avoid_: Needs you, inbox, alerts
+
 **Scoring team**:
 The people outside the Running Zone who keep the Olympics scoring workbook and check eligibility. They are leads who can make the same rulings as a zone lead, and only they set up, export and clear an Olympics day.
 _Avoid_: Scorers, results team, admin team
 
 **Day code**:
-The short code a volunteer types, with their first name, to join on one Olympics day. Each Olympics day has a new one.
+The short code a volunteer types, with their full name, to join on one Olympics day. Each Olympics day has a new one.
 _Avoid_: PIN, password, access code
 
 **Lead code**:

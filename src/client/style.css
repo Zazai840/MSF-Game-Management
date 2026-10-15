@@ -1,24 +1,41 @@
-:root {font-family:system-ui,sans-serif; color:#13251c; background:#f3f6f3; font-size:18px;}
-* {box-sizing:border-box;}
-body {margin:0;}
-main {max-width:48rem; margin:auto; padding:1rem;}
-h1 {font-size:1.75rem; line-height:1.2;}
-header {border-bottom:1px solid #b6c6b9; padding-bottom:1rem;}
-header p {margin-top:0;}
-nav {display:flex; flex-wrap:wrap; gap:.6rem;}
-button {font:inherit; border:2px solid #215d3c; border-radius:.6rem; color:white; background:#215d3c; padding:.85rem 1rem; min-height:48px; cursor:pointer;}
-button:disabled {opacity:.6; cursor:wait;}
-button:focus-visible, input:focus-visible {outline:3px solid #d78800; outline-offset:3px;}
-form, .jobs {display:grid; gap:1rem;}
-label {display:grid; gap:.4rem;}
-input {font:inherit; padding:.8rem; border:2px solid #718878; border-radius:.4rem; width:100%; min-width:0;}
-.jobs button {min-height:88px; text-align:left; font-size:1.3rem;}
-[role=alert] {padding:.8rem; border-left:4px solid #ae241e; background:#fff0ee; color:#831d18;}
-footer {margin-top:2rem; font-size:.85rem; display:flex; gap:.8rem; align-items:center; flex-wrap:wrap;}
-footer button {font-size:.85rem; background:transparent; color:#215d3c;}
-.code {font-size:2.5rem; font-weight:700; letter-spacing:.12em; margin-left:0;}
-.app-update {max-width:48rem; margin:1rem auto 0; padding:0 1rem;}
-.app-update button {width:100%; background:#fff4d9; border-color:#8a5d00; color:#513700;}
-@media(min-width:800px) {main {padding:2rem;} .jobs {grid-template-columns:repeat(3,1fr);} }
+/* App shell layout. Colours, type and shared pieces live in theme.css. */
+#root {min-height:100vh; display:flex; flex-direction:column;}
+main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; display:flex; flex-direction:column;}
 
-.lead-count {display:inline-block;min-width:1.6em;border-radius:1em;padding:.1em .4em;background:#b4232c;color:white;font-weight:700;}
+/* Navy header bar: Running Zone, the day's name where known, the joined person. */
+.app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.app-header-title {flex:none; display:flex; flex-direction:column; min-width:0;}
+.app-header-title strong {font-size:19px; font-weight:800; white-space:nowrap;}
+.app-header-title span {font-size:13px; font-weight:600; color:var(--on-dark-muted);}
+.app-header-person {display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}
+.app-header-person > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.avatar {flex:none; width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;}
+
+.app-nav {width:100%; max-width:48rem; margin:0 auto; padding:16px 16px 0; display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px;}
+.app-nav button {min-height:var(--tap); padding:0 16px; font-size:16px;}
+
+.app-nav-home {justify-content:flex-end;}
+.lead-entry {display:inline-flex; align-items:center; gap:10px;}
+.lead-entry .badge {padding:3px 9px;}
+
+/* Home job buttons (also the look of the Dashboard menu): icon tile, title, one line of explanation, optional badge, chevron. */
+.home h1 {margin-bottom:4px;}
+.jobs {display:grid; gap:14px; margin-top:14px;}
+.job-button {display:flex; align-items:center; gap:14px; width:100%; padding:18px 16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--line); border-radius:var(--radius-card);}
+.job-icon {flex:none; width:44px; height:44px; border-radius:var(--radius); background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center;}
+.job-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.job-title {font-size:19px; font-weight:800; color:var(--navy);}
+.job-explanation {font-size:var(--text-small); font-weight:500; color:var(--muted); line-height:1.35;}
+.job-text .badge {align-self:flex-start; margin-top:6px;}
+.job-chevron {flex:none; color:var(--faint);}
+
+footer {margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:var(--text-small); font-weight:600; color:var(--muted);}
+footer button {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+
+.code {font-size:32px; font-weight:800; letter-spacing:3px; color:var(--navy); margin-left:0;}
+.app-update {width:100%; max-width:48rem; margin:16px auto 0; padding:0 16px;}
+.app-update button {width:100%; background:var(--amber-fill); border-color:var(--amber-line); color:var(--amber-text);}
+@media(min-width:800px) {main {padding:28px 24px;} .app-nav {padding:16px 24px 0;} }
+nav {display:flex; flex-wrap:wrap; gap:10px;}
+.app-header {order:-1;}
+nav + h1 {margin-top:20px;}

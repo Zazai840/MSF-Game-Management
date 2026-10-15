@@ -1,10 +1,39 @@
-.day-events,.joined-phones {display:grid;gap:1rem;margin-top:1rem;}
-.day-events article,.joined-phones article {padding:1rem;background:white;border:1px solid #b6c6b9;border-radius:.6rem;overflow-wrap:anywhere;}
-.day-events h3,.joined-phones h3 {margin:0;font-size:1.15rem;}
-.day-actions {display:flex;flex-wrap:wrap;gap:.6rem;}
-.day-setup select {font:inherit;width:100%;padding:.8rem;min-height:48px;border:2px solid #718878;border-radius:.4rem;background:white;}
-.day-setup select:focus-visible {outline:3px solid #d78800;outline-offset:3px;}
+/* Day setup, Phones and Events (scoring team). Tokens and button classes from theme.css. */
+.day-setup {display:flex; flex-direction:column; gap:12px; margin-top:4px;}
+.day-setup p {margin:0;}
+.day-card {display:flex; flex-direction:column; gap:8px; padding:14px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-box); overflow-wrap:anywhere;}
+.day-card h3 {margin:0; font-size:17px;}
+.day-card-title {font-size:17px; font-weight:800; color:var(--navy);}
+.day-card-off {background:var(--idle-fill); border-color:var(--idle-line);}
+.day-card-off h3 {color:var(--idle-text);}
+.day-label {font-size:var(--text-badge); font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+.day-card .code {line-height:1.15;}
+.day-text {font-size:var(--text-small); font-weight:600; color:var(--text); line-height:1.35;}
+.day-note {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
+.day-intro {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
+.day-not-saved {font-size:var(--text-small); font-weight:800; color:var(--amber-text);}
+.day-card .button-small {align-self:flex-start;}
+.day-actions {display:flex; flex-wrap:wrap; gap:10px;}
+.day-events {display:grid; gap:12px;}
 
-.day-export {padding:1rem;background:white;border:1px solid #b6c6b9;border-radius:.6rem;margin:1rem 0;}
-.day-export h2 {margin-top:0;}
-.day-reset {border-top:2px solid #718878;margin-top:2rem;padding-top:1rem;}
+/* Phones and Events as rows that open their screens. */
+.day-rows {display:flex; flex-direction:column; padding:4px 14px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-box);}
+.day-row {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:52px; padding:6px 0; text-align:left;
+  background:none; border:0; border-radius:0; color:var(--text);
+}
+.day-row + .day-row {border-top:1px solid var(--divider);}
+.day-row-text {display:flex; flex-direction:column; min-width:0;}
+.day-row-title {font-size:16px; font-weight:800; color:var(--navy);}
+.day-row-sub {font-size:var(--text-small); font-weight:600; color:var(--muted);}
+.day-row-chevron {flex:none; color:var(--faint);}
+
+.day-setup select {font:inherit; font-size:18px; font-weight:700; width:100%; min-height:var(--tap-primary); padding:.7rem 14px; border:2px solid var(--navy); border-radius:var(--radius-box); background:var(--surface); color:var(--text);}
+
+/* Start a new day: typed confirmation, the red outline button, then its one-line caption. */
+.day-reset {display:flex; flex-direction:column; gap:8px; margin-top:12px;}
+.day-reset form {gap:10px;}
+.day-reset .button-danger {min-height:50px; font-size:16px;}
+.day-reset .day-note {text-align:center;}
+.day-audit summary {min-height:var(--tap); display:flex; align-items:center; font-size:var(--text-small); font-weight:800; color:var(--navy); cursor:pointer;}
+.day-audit ol {margin:0; padding-left:1.2rem; font-size:var(--text-small); font-weight:600; color:var(--muted);}

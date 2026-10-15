@@ -1,4 +1,4 @@
-import { expect,test } from './fixtures.js';
+import { goHome,jobButton,expect,joinDay,pickRace,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -43,14 +43,11 @@ test('old phones see the browser message before the application opens',async({br
 test('a deployed version waits for a tap and preserves an unfinished Start line entry',async({page},info)=>{
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
-  await page.getByLabel('First name').fill(`Update ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await joinDay(page,`Update ${info.project.name}`);
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  await page.getByRole('button',{name:'2',exact:true}).click();
-  await page.getByRole('button',{name:'1',exact:true}).click();
+  await page.getByLabel('Wristband number',{exact:true}).fill('21');
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   const workerPath=resolve('dist/web/sw.js');
   const previous=await readFile(workerPath,'utf8');
@@ -62,12 +59,12 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
     await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
     const reload=page.getByRole('button',{name:'New version, tap to reload',exact:true});
     await expect(reload).toBeVisible({timeout:10000});
-    await expect(page.getByLabel('Wristband number')).toHaveText('21');
+    await expect(page.getByLabel('Wristband number')).toHaveValue('21');
     expect(navigations).toBe(0);
     await page.screenshot({path:info.outputPath('new-version-prompt.png'),fullPage:true});
     await Promise.all([page.waitForEvent('load'),reload.click()]);
-    await page.getByRole('button',{name:/^Start line ·/}).click();
-    await expect(page.getByLabel('Wristband number')).toHaveText('21');
+    await jobButton(page,'Start line').click();
+    await expect(page.getByLabel('Wristband number')).toHaveValue('21');
     expect(navigations).toBe(1);
   } finally {await writeFile(workerPath,previous);}
 });
@@ -80,36 +77,33 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   const {race}=await checked.json();
   const raceName=`60m Girl Cubs (R4) · Heat ${race.number}`;
   await page.goto('/');
-  await page.getByLabel('Day code or owner password').fill(process.env.E2E_DAY_CODE!);
-  await page.getByLabel('First name').fill(`Recovery ${info.project.name}`);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+  await joinDay(page,`Recovery ${info.project.name}`);
 
-  await page.getByRole('button',{name:/^Start line ·/}).click();
+  await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  for(const digit of '25') await page.getByRole('button',{name:digit,exact:true}).click();
+  await page.getByLabel('Wristband number',{exact:true}).fill('25');
   await page.reload();
-  await page.getByRole('button',{name:/^Start line ·/}).click();
-  await expect(page.getByLabel('Wristband number')).toHaveText('25');
+  await jobButton(page,'Start line').click();
+  await expect(page.getByLabel('Wristband number')).toHaveValue('25');
 
-  await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Finish order ·/}).click();
-  await page.getByRole('button',{name:'Other race',exact:true}).click();
-  await page.getByRole('button',{name:raceName,exact:true}).click();
+  await goHome(page);
+  await jobButton(page,'Finish order').click();
+  await pickRace(page,'Finishing order',raceName);
   await page.getByRole('button',{name:'2402',exact:true}).click();
   await page.reload();
-  await page.getByRole('button',{name:/^Finish order ·/}).click();
+  await jobButton(page,'Finish order').click();
   await expect(page.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'1st: 2402',exact:true})).toBeVisible();
 
-  await page.getByRole('button',{name:'Home',exact:true}).click();
-  await page.getByRole('button',{name:/^Times ·/}).click();
-  await page.getByRole('button',{name:'Other race',exact:true}).click();
-  await page.getByRole('button',{name:raceName,exact:true}).click();
-  for(const digit of '123') await page.getByRole('button',{name:digit,exact:true}).click();
+  await goHome(page);
+  await jobButton(page,'Times').click();
+  await pickRace(page,'Times',raceName);
+  await page.getByLabel('Place time').fill('123');
   await page.reload();
-  await page.getByRole('button',{name:/^Times ·/}).click();
-  await expect(page.getByLabel('Place time')).toHaveText('1.23');
+  await jobButton(page,'Times').click();
+  await expect(page.getByLabel('Place time')).toHaveValue('123');
+  await expect(page.getByText('Shows as 1.23',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
 
   // Simulate the server revoking this joined phone at the HTTP boundary.
