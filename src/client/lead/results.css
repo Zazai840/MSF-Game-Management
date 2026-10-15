@@ -24,8 +24,9 @@
 .disqualified .result-number,.disqualified .result-time {text-decoration:line-through;}
 .disqualification-reason {display:block;margin-top:.4rem;font-weight:700;}
 .note-tag {display:inline-block;background:var(--tint);color:var(--navy);font-size:var(--text-small);padding:.15rem .4rem;margin:.4rem 0 0 .4rem;border-radius:.2rem;}
-.runner-actions {border:2px solid var(--navy);border-radius:var(--radius);background:var(--surface);color:inherit;padding:1rem;width:calc(100% - 2rem);max-width:34rem;max-height:85vh;overflow:auto;margin:auto;}
-.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem;}
+.runner-actions {border:2px solid var(--navy);border-radius:var(--radius);background:var(--surface);color:inherit;padding:1rem;width:100%;max-width:34rem;max-height:min(85vh,100%);overflow:auto;margin:auto;}
+/* While a phone number entry is open in a sheet, the sheet sits above its bar and the keyboard (both 0 otherwise). */
+.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem .5rem calc(1rem + var(--action-bar-height, 0px) + var(--keyboard-inset, 0px));}
 .runner-actions h3 {margin-top:0;}
 .runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
@@ -50,10 +51,6 @@
 .saved-version p {margin:.5rem 0;}
 .race-action-choices {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
 .race-action-choices>p {width:100%;}
-.lead-time-input,.lead-runner-input {border-bottom:1px solid var(--line);padding:.6rem 0;margin-bottom:.6rem;}
-.lead-time-input output {display:block;font-size:1.25rem;font-weight:700;}
-.runner-actions .lead-checkbox {display:flex;align-items:center;gap:.6rem;margin:.6rem 0;}
-.runner-actions .lead-checkbox input {width:auto;flex-shrink:0;}
 
 .final-panel {border-top:2px solid var(--line-strong);margin-top:1.5rem;padding-top:.5rem;}
 .final-lineup {list-style:none;padding:0;line-height:1.7;}

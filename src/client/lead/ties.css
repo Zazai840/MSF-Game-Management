@@ -1,8 +1,7 @@
 .tie-outcomes {display:grid;gap:.6rem;margin:1rem 0;}
-.tie-outcomes [aria-pressed=true] {background:var(--amber-fill);border-color:var(--amber-line);color:var(--amber-text);}
+.tie-outcomes button {background:var(--surface);color:var(--navy);}
+.tie-outcomes [aria-pressed=true] {background:var(--navy);color:#fff;}
+.runner-actions .tie-form {gap:.75rem;}
+.tie-form p,.tie-form .sortable-list {margin:0;}
 .tie-open {background:var(--amber-fill);color:var(--amber-text);border-color:var(--amber-line);margin:0 0 .8rem;}
-.tie-order {padding-left:1.8rem;}
-.tie-order li {padding:.5rem 0;}
-.tie-order li > div {display:flex;gap:.5rem;float:right;}
-.tie-order li {min-height:4rem;}
 .runner-actions form {margin:1rem 0;}

@@ -15,6 +15,11 @@ function useKeyboardInset() {
 export function ActionBar({children,stacked=false}:{children:ReactNode;stacked?:boolean}) {
   const inset=useKeyboardInset();
   const bar=useRef<HTMLDivElement>(null);
+  // A sheet holding the bar (the lead's corrections) keeps itself above the bar and the keyboard.
+  useLayoutEffect(()=>{
+    const root=document.documentElement;root.style.setProperty('--keyboard-inset',`${inset}px`);
+    return ()=>{root.style.removeProperty('--keyboard-inset');};
+  },[inset]);
   // The page keeps room at its end for the bar, so the last row never hides behind it.
   useLayoutEffect(()=>{
     const element=bar.current;if(!element) return;

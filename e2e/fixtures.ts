@@ -99,6 +99,8 @@ export function jobButton(page:Page,job:keyof typeof jobTitles) {
  */
 export async function startDrag(page:Page,from:Locator) {
   const touch=!!test.info().project.use.hasTouch;
+  // A person scrolls the handle into sight before putting a finger on it.
+  await from.scrollIntoViewIfNeeded();
   const box=(await from.boundingBox())!;
   let x=box.x+box.width/2,y=box.y+box.height/2;
   const cdp=touch?await page.context().newCDPSession(page):null;
