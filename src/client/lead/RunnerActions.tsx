@@ -31,15 +31,15 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
       {row.flags.some(isOpenEligibilityWarning) && <><button disabled={saving} onClick={()=>void command('mark-warning-checked',{})}>Mark checked</button>{!row.disqualification && <button disabled={saving} onClick={()=>{setReason('Wrong section or age');setAction('disqualify');}}>Disqualify for wrong section or age</button>}</>}
       <button disabled={saving} onClick={()=>setAction('correct')}>Correct number</button>
       {!row.disqualification && choices.length>1 && <button disabled={saving} onClick={()=>setAction('count')}>Choose which result counts</button>}
-      <button disabled={saving} className="secondary" onClick={onClose}>Close actions</button>
+      <button disabled={saving} className="button-secondary" onClick={onClose}>Close actions</button>
     </div>:action==='correct'?<RunnerNumber row={row} eventCode={eventCode} onSaved={onSaved} onClose={onClose} onBusyChange={setSaving}/>:action==='count'?<form onSubmit={event=>{event.preventDefault();const target=choices.find(other=>`${other.raceId}:${other.entryId}`===counted);if(target) void command('count-result',{},target);}}>
       <p>Choose the result that counts for {row.wristband}. Other results stay visible as not counted.</p>
       {choices.map(other=><label className="count-choice" key={`${other.raceId}:${other.entryId}`}><input type="radio" name="counted-result" value={`${other.raceId}:${other.entryId}`} checked={counted===`${other.raceId}:${other.entryId}`} onChange={event=>setCounted(event.target.value)} disabled={saving} aria-label={`Count ${other.race.kind==='heat'?'Heat':'Race'} ${other.race.number}`}/>{other.race.kind==='heat'?'Heat':'Race'} {other.race.number} · {other.recordingPending?'Not recorded yet':other.time===null?'Did not finish':formatTime(other.time)}{other.notCounted?' · Not counted':''}</label>)}
-      <button disabled={saving}>{saving?'Saving…':'Save counted result'}</button><button type="button" className="secondary" onClick={onClose} disabled={saving}>Cancel</button>
+      <button disabled={saving}>{saving?'Saving…':'Save counted result'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
     </form>:<form onSubmit={save}>
       {action==='disqualify' && <><label htmlFor={reasonId}>Reason</label><select id={reasonId} value={reason} onChange={event=>setReason(event.target.value)} required disabled={saving}><option value="">Choose a reason</option>{disqualificationReasons.map(reason=><option key={reason}>{reason}</option>)}</select></>}
       <label htmlFor={commentId}>{action==='lift'||reason==='Other'?'Comment':'Comment (optional)'}</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} required={action==='lift'||reason==='Other'} maxLength={1000} disabled={saving}/>
-      <button disabled={saving}>{saving?'Saving…':action==='lift'?'Save lift':'Save disqualification'}</button><button type="button" className="secondary" onClick={onClose} disabled={saving}>Cancel</button>
+      <button disabled={saving}>{saving?'Saving…':action==='lift'?'Save lift':'Save disqualification'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
     </form>}
   </ActionSheet>;
 }

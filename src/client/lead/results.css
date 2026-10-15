@@ -69,8 +69,9 @@
 .disqualified .result-number,.disqualified .result-time {text-decoration:line-through;}
 .disqualification-reason {display:block; margin-top:4px; font-weight:800; color:var(--text);}
 .note-tag {display:inline-block; vertical-align:1px; margin-left:8px; padding:1px 8px; border-radius:999px; background:var(--tint); border:1px solid var(--chip-line); color:var(--navy); font-size:var(--text-badge); font-weight:800;}
-.runner-actions {border:2px solid var(--navy);border-radius:var(--radius);background:var(--surface);color:inherit;padding:1rem;width:calc(100% - 2rem);max-width:34rem;max-height:85vh;overflow:auto;margin:auto;}
-.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem;}
+.runner-actions {border:2px solid var(--navy);border-radius:var(--radius);background:var(--surface);color:inherit;padding:1rem;width:100%;max-width:34rem;max-height:min(85vh,100%);overflow:auto;margin:auto;}
+/* While a phone number entry is open in a sheet, the sheet sits above its bar and the keyboard (both 0 otherwise). */
+.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem .5rem calc(1rem + var(--action-bar-height, 0px) + var(--keyboard-inset, 0px));}
 .runner-actions h3 {margin-top:0;}
 .runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
@@ -86,8 +87,6 @@
 .not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
 .not-counted-reason {display:block;font-weight:800;margin-top:4px;color:var(--text);}
 .runner-action-choices {display:grid;gap:.6rem;}
-.runner-number-warning {background:var(--amber-fill);color:var(--amber-text);border-left:3px solid var(--amber-line);padding:.8rem;}
-.runner-number-warning button {margin:.3rem;}
 .count-choice {display:flex;align-items:center;gap:.6rem;}
 .count-choice input {width:auto;}
 
@@ -98,10 +97,6 @@
 .saved-version p {margin:.5rem 0;}
 .race-action-choices {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
 .race-action-choices>p {width:100%;}
-.lead-time-input,.lead-runner-input {border-bottom:1px solid var(--line);padding:.6rem 0;margin-bottom:.6rem;}
-.lead-time-input output {display:block;font-size:1.25rem;font-weight:700;}
-.runner-actions .lead-checkbox {display:flex;align-items:center;gap:.6rem;margin:.6rem 0;}
-.runner-actions .lead-checkbox input {width:auto;flex-shrink:0;}
 
 /* Final */
 .final-panel {margin-top:18px; padding:14px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-box);}

@@ -23,6 +23,6 @@ export function StageSheet({code,sheet,onSaved,onClose,onOpen}:{code:string;shee
       <section><h4>What this creates</h4><p>{sheet.stage==='heats'?'Finals line-up':sheet.stage==='final'?'Final positions':'Medal places'}</p><ol>{sheet.creates.map(place=><li key={place.position}>{place.position===1?'1st':place.position===2?'2nd':place.position===3?'3rd':`${place.position}th`}: {place.wristband??'—'}</li>)}</ol></section></>}
     <form onSubmit={event=>void save(event)}>{reopening && <><p>This unlocks the stage for corrections.</p>{sheet.reopenWarning && <p role="status">{sheet.reopenWarning}</p>}<label htmlFor={id}>Comment</label><textarea id={id} required maxLength={1000} value={comment} disabled={busy} onChange={event=>setComment(event.target.value)}/></>}
       <button disabled={busy||(!reopening&&sheet.mustSettleFirst.length>0)}>{busy?'Saving…':reopening?'Reopen':'Confirm'}</button>
-    </form><button className="secondary" disabled={busy} onClick={onClose}>Close check sheet</button>
+    </form><button className="button-secondary" disabled={busy} onClick={onClose}>Close check sheet</button>
   </ActionSheet>;
 }

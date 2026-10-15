@@ -3,7 +3,10 @@ import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
 import type { ResultTie } from '../../shared/results-rules.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
-import type { TieOutcome } from '../../shared/ties.js';
+import { keepsSameRaceOrder,tieEntryKey,type TieOutcome } from '../../shared/ties.js';
+import { ordinal } from '../../shared/ordinal.js';
+import { SortableList } from '../flow/SortableList.js';
+import '../jobs/jobs.css';
 import { formatTime } from '../../shared/time-entry.js';
 import './ties.css';
 export function TieSheet({code,tie,onSaved,onClose}:{code:string;tie:ResultTie;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
@@ -13,10 +16,6 @@ export function TieSheet({code,tie,onSaved,onClose}:{code:string;tie:ResultTie;o
   const [comment,setComment]=useState('');
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
-  const canMove=(index:number,direction:number)=>!!order[index+direction] && order[index].raceId!==order[index+direction].raceId;
-  function move(index:number,direction:number) {
-    setOrder(previous=>{const next=[...previous];[next[index],next[index+direction]]=[next[index+direction],next[index]];return next;});
-  }
   async function save(event:FormEvent) {
     event.preventDefault();if(!outcome || saving) return;setSaving(true);setError('');
     try {
@@ -32,11 +31,13 @@ export function TieSheet({code,tie,onSaved,onClose}:{code:string;tie:ResultTie;o
       <button disabled={saving} aria-pressed={outcome==='decided'} onClick={()=>setOutcome('decided')}>Decided without a run-off</button>
     </div>
     {error && <p role="alert">{error}</p>}
-    {outcome && <form onSubmit={event=>void save(event)}>
-      {outcome!=='no-run-off' && <><p>Put the tied runners in the decided order. Their original times stay at {formatTime(tie.time)}.</p>{new Set(order.map(entry=>entry.raceId)).size<order.length && <p>Runners from the same race stay in their finishing order.</p>}<ol aria-label="Tie order" className="tie-order">{order.map((entry,index)=><li key={`${entry.raceId}:${entry.entryId}`}><strong>{entry.wristband}</strong><div><button type="button" disabled={saving||!canMove(index,-1)} aria-label={`Move ${entry.wristband} up`} onClick={()=>move(index,-1)}>↑</button><button type="button" disabled={saving||!canMove(index,1)} aria-label={`Move ${entry.wristband} down`} onClick={()=>move(index,1)}>↓</button></div></li>)}</ol></>}
+    {outcome && <form className="tie-form" onSubmit={event=>void save(event)}>
+      {outcome!=='no-run-off' && <><p>Put the tied runners in the decided order: drag the handle on the right to move a runner. Their original times stay at {formatTime(tie.time)}.</p>{new Set(order.map(entry=>entry.raceId)).size<order.length && <p>Runners from the same race stay in their finishing order.</p>}<SortableList label="Tie order" items={order} itemKey={tieEntryKey} itemName={entry=>String(entry.wristband)} disabled={saving}
+        isAllowed={next=>keepsSameRaceOrder(next,tie.entries)} onReorder={setOrder}
+        renderItem={(entry,place)=><><span className="row-place">{ordinal(place)}</span><span className="row-runner"><strong>{entry.wristband}</strong></span></>}/></>}
       <label htmlFor={commentId}>{outcome==='decided'?'Comment':'Comment (optional)'}</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} maxLength={1000} required={outcome==='decided'} disabled={saving}/>
       <button disabled={saving}>{saving?'Saving…':'Save tie'}</button>
     </form>}
-    <button type="button" className="secondary" disabled={saving} onClick={onClose}>Close tie</button>
+    <button type="button" className="button-secondary" disabled={saving} onClick={onClose}>Close tie</button>
   </ActionSheet>;
 }

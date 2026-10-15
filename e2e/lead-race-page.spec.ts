@@ -1,0 +1,103 @@
+import { becomeLead,expect,joinDay,openDashboard,test,type Page } from './fixtures.js';
+const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+const amber='rgb(255, 244, 220)';
+const created:string[]=[];
+test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers,data:{permanent:true}});});
+/** A timed event with one race of these runners, finished in that order with these times. */
+async function recordedRace(page:Page,code:string,runners:number[],places:Array<number|null>) {
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners}})).json()).race;
+  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
+  expect((await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places}})).ok()).toBe(true);
+  created.push(race.id);
+  return race as {id:string;number:number};
+}
+async function openRace(page:Page,code:string,name:string,number:number) {
+  await page.goto('/');await joinDay(page,name);await becomeLead(page);await openDashboard(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.getByRole('button',{name:`Open Race ${number}`,exact:true}).click();
+}
+const saved=(page:Page)=>page.getByRole('status').filter({hasText:'Saved'});
+const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
+
+test('the race page highlights a wrong time in amber with its reason, and the times editor retypes it on the phone number pad',async({page},info)=>{
+  const code=`LW-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[2101,2102,2103],[1200,1100,1250]);
+  await openRace(page,code,`Wrong time lead ${info.project.name}`,race.number);
+  const record=page.getByRole('list',{name:'Current record',exact:true});
+  const second=record.getByRole('listitem').filter({hasText:'2102'});
+  await expect(second).toContainText('Faster than 1st place');
+  expect(await background(second)).toBe(amber);
+  await expect(record.getByRole('listitem').filter({hasText:'2103'})).not.toContainText('Faster');
+  await expect(page.getByText('3 times · 3 finishers',{exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath('race-page-wrong-time.png'),fullPage:true});
+
+  await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  const sheet=page.getByRole('dialog');
+  const wrongRow=sheet.getByRole('button',{name:'2nd place · 11.00 · Faster than 1st place',exact:true});
+  expect(await background(wrongRow)).toBe(amber);
+  await page.screenshot({path:info.outputPath('times-editor-wrong.png'),fullPage:true});
+  await wrongRow.click();
+  const input=sheet.getByLabel('2nd place time',{exact:true});
+  await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
+  await expect(input).toBeFocused();
+  await input.pressSequentially('12.2-0');await expect(input).toHaveValue('1220');
+  await expect(sheet.getByText('Shows as 12.20',{exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath('times-editor-typing.png'),fullPage:false});
+  await input.press('Enter');
+  await expect(sheet.getByRole('button',{name:'2nd place · 12.20',exact:true})).toBeVisible();
+  await expect(sheet.getByLabel('Accept these out-of-order times',{exact:true})).toHaveCount(0);
+  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await expect(saved(page)).toBeVisible();
+  await expect(second).toContainText('12.20');await expect(second).not.toContainText('Faster');
+  expect(await background(second)).not.toBe(amber);
+});
+
+test('a lead corrects a number on the phone number pad: digits only, Enter checks, a warning closes the keyboard and Fix clears it',async({page},info)=>{
+  const code=`LN-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[2111,2112],[1300,1400]);
+  await openRace(page,code,`Number lead ${info.project.name}`,race.number);
+  await page.getByRole('button',{name:'Runner 2112',exact:true}).click();
+  await page.getByRole('button',{name:'Correct number',exact:true}).click();
+  const sheet=page.getByRole('dialog'),input=sheet.getByLabel('New wristband number',{exact:true});
+  await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');await expect(input).toBeFocused();
+  await input.pressSequentially('40-45');await expect(input).toHaveValue('4045');
+  await page.screenshot({path:info.outputPath('correct-number-typing.png'),fullPage:false});
+  await input.press('Enter');
+  await expect(sheet.getByText('4045 belongs to Girl Scouts - this race is Girl Cubs',{exact:true})).toBeVisible();
+  await expect(input).not.toBeFocused();
+  await page.screenshot({path:info.outputPath('correct-number-warning.png'),fullPage:false});
+  await sheet.getByRole('button',{name:'Fix number',exact:true}).click();
+  await expect(input).toHaveValue('');await expect(input).toBeFocused();
+  await input.fill('2115');await sheet.getByRole('button',{name:'Check number',exact:true}).click();
+  await expect(sheet.getByText('Change 2112 to',{exact:false})).toBeVisible();
+  await sheet.getByRole('button',{name:'Save correction',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await expect(saved(page)).toBeVisible();
+  await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
+});
+
+test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{
+  const code=`LR-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[2121,2122,2123,2124,2125,2126],[1300,1310,1320,1330,1340,1350]);
+  await openRace(page,code,`Runner list lead ${info.project.name}`,race.number);
+  await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
+  const sheet=page.getByRole('dialog');
+  await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeInViewport();
+  await page.screenshot({path:info.outputPath('runner-list-editor.png'),fullPage:false});
+  // Retyping a number keeps the child's row (and so their place and time).
+  await sheet.getByRole('button',{name:'Runner 2 · 2122',exact:true}).click();
+  const second=sheet.getByLabel('Wristband for runner 2',{exact:true});
+  await expect(second).toHaveAttribute('inputmode','numeric');await expect(second).toBeFocused();
+  await second.pressSequentially('21-27');await expect(second).toHaveValue('2127');await second.press('Enter');
+  await expect(sheet.getByRole('button',{name:'Runner 2 · 2127',exact:true})).toBeVisible();
+  await sheet.getByRole('button',{name:'Add runner',exact:true}).click();
+  const seventh=sheet.getByLabel('Wristband for runner 7',{exact:true});await expect(seventh).toBeFocused();
+  await seventh.fill('2128');
+  await page.screenshot({path:info.outputPath('runner-list-adding.png'),fullPage:false});
+  await sheet.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Runner 7 · 2128',exact:true})).toBeVisible();
+  await sheet.getByRole('button',{name:'Review runner list',exact:true}).click();
+  await expect(sheet.getByRole('heading',{name:'7 runners. Is that right?',exact:true})).toBeVisible();
+  await sheet.getByLabel('New runners did not finish',{exact:true}).check();
+  await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await expect(saved(page)).toBeVisible();
+  await expect(page.getByText('2127 · Place 2 · 13.10',{exact:true})).toBeVisible();
+});
