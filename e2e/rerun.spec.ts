@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import { openDashboard,steps,jobButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { goHome,backToEvent,openDashboard,steps,jobButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('a heat replaced by a re-run says which heat replaced it, offers no Restore, and both heats reach check-in and the day export',async({page},info)=>{
   const code=`RR-${info.project.name.toUpperCase()}`,name=`Re-run heats ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
@@ -13,10 +13,10 @@ test('a heat replaced by a re-run says which heat replaced it, offers no Restore
   await expect(page.getByRole('button',{name:'Restore race',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Delete permanently',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('rerun-race-page.png'),fullPage:true});
-  await page.getByRole('button',{name:'Back to event',exact:true}).click();
+  await backToEvent(page);
   await expect(page.getByRole('button',{name:'Open deleted Heat 1 · Replaced by Heat 2 (re-run)',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('rerun-deleted-list.png'),fullPage:true});
-  await page.getByRole('button',{name:'Home',exact:true}).click();await jobButton(page,'Start line').click();await page.getByRole('button',{name:`${name} Girl Cubs (${code}) · Heat 2`,exact:true}).click();
+  await goHome(page);await jobButton(page,'Start line').click();await page.getByRole('button',{name:`${name} Girl Cubs (${code}) · Heat 2`,exact:true}).click();
   for(const wristband of [2011,2012,2013]) await expect(page.getByRole('button',{name:`Remove runner ${wristband}`,exact:true})).toBeVisible();
   await expect(page.getByText(`${name} · Girl Cubs · Heat 2`,{exact:true})).toBeVisible();
   await expect(steps(page).locator('[aria-current=step]')).toHaveText('Runners (3)');

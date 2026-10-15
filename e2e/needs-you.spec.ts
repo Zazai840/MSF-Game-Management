@@ -30,7 +30,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   await sheet.getByRole('button',{name:'Mark addition checked',exact:true}).click();await expect(sheet).toHaveCount(0);await menuCount();
   await dashboardMenuButton(page,'To check').click();await toCheckItem(page,new RegExp(`${code}.*2001 has a result in more than one race`)).first().click();await sheet.getByRole('button',{name:'Choose which result counts',exact:true}).click();
   await expect(sheet.getByLabel('Count Race 2',{exact:true})).toBeVisible();await expect(sheet.getByText('Race 2 · Not recorded yet',{exact:true})).toBeVisible();await sheet.getByLabel('Count Race 2',{exact:true}).check();await page.screenshot({path:info.outputPath('pending-duplicate-choice.png'),fullPage:true});await sheet.getByRole('button',{name:'Save counted result',exact:true}).click();await expect(sheet).toHaveCount(0);await menuCount();
-  await dashboardMenuButton(page,'Results').click();await expect(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('0 needing you');
+  await dashboardMenuButton(page,'Results').click();await expect(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).not.toContainText(/to check|needing you/i);
   await trailBack(page,'Dashboard');await dashboardMenuButton(page,'To check').click();await expect(page.getByRole('heading',{level:1,name:/zone lead|Nothing to check/})).toBeVisible();await expect(toCheckItem(page,new RegExp(`${code}.*more than one race`))).toHaveCount(0);await page.screenshot({path:info.outputPath('needs-you-cleared.png'),fullPage:true});
   for(const race of [first,second]) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

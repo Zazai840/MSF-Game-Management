@@ -46,6 +46,12 @@ export async function trailBack(page:Page,label:string) {
   }
   throw new Error(`No ${label} step on the trail`);
 }
+/** On a lead's race page in Results: back along the trail to its event, the step just before the race. */
+export async function backToEvent(page:Page) {
+  const before=await steps(page).innerText();
+  await steps(page).getByRole('button').last().click();
+  await expect(steps(page)).not.toHaveText(before);
+}
 /**
  * Opens a race from a job's race picker (v1's Other race list), reached through the trail's job step,
  * for example pickRace(page,'Finishing order',/R4.*Heat 2$/). Waits for the job to settle first,
