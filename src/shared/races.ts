@@ -17,5 +17,15 @@ export interface RaceRead {
 }
 export interface StartLineRead { events:DayEvent[]; eventsConfirmed:boolean; waiting:RaceRead[]; recent:RaceRead[]; completedStages:CompletedStage[] }
 export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
+type NamedRace=Pick<RaceRead,'kind'|'number'|'event'>;
+export const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
+/** "60m Girl Cubs Heat 2": the race in a trail step or a Carry on button. */
+export const raceName=(race:NamedRace)=>`${race.event.name} ${race.event.section} ${raceLabel(race)}`;
+/** "60m Girl Cubs (R4) · Heat 2": a race picker choice. */
+export const racePickerLabel=(race:NamedRace)=>`${race.event.name} ${race.event.section} (${race.event.code}) · ${raceLabel(race)}`;
+/** "60m Girl Cubs · Heat 2 · 1st: 2012": the saved confirmation. */
+export const raceSummary=(race:NamedRace,detail:string)=>`${race.event.name} ${race.event.section} · ${raceLabel(race)} · ${detail}`;
+/** "60m · Girl Cubs · Heat 2 · 4 runners": the line above a job's question. */
+export const raceLine=(race:NamedRace,runners:number)=>[race.event.name,race.event.section,raceLabel(race),runnersText(runners)].join(' · ');
 /** How a lead sees a race deleted by a re-run: it can never be restored, so it names its replacement instead. */
 export const replacedByRerun=(race:Pick<RaceRead,'deleted'|'deleteReason'|'replacedBy'>)=>race.deleted && race.deleteReason==='re-run'?(race.replacedBy?`Replaced by ${race.replacedBy} (re-run)`:'Replaced by a re-run'):null;

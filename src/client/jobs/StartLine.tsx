@@ -4,7 +4,7 @@ import { hasClash } from '../../shared/race-clashes.js';
 import { useState } from 'react';
 import { useJobData,useJobDraft } from './useJobData.js';
 import { api } from '../api.js';
-import { raceLabel,type RaceRead,type StartLineRead } from '../../shared/races.js';
+import { raceLabel,racePickerLabel,raceSummary,runnersText,type RaceRead,type StartLineRead } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { plainWristbandWarning,wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
@@ -27,7 +27,6 @@ function restore(key:string):Draft {
   catch { /* A broken draft must not stop a phone joining the job. */ }
   return emptyDraft();
 }
-const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
 export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const [draft,setDraft]=useJobDraft(dayId,'start-line',restore);
   const {data,readError,updated,refresh}=useJobData<StartLineRead>('jobs/start-line');
@@ -106,7 +105,7 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   if(saved) {
     const locked=stageLocked(saved,data.completedStages);
     const race=[...data.waiting,...data.recent].find(race=>race.id===saved.id)||saved;
-    return <section className="race-job"><Saved race={`${saved.event.name} ${saved.event.section} · ${raceLabel(saved)} · ${runnersText(saved.parts.runners.value?.length||0)}`} nextLabel="Check in the next race" onNext={reset} onHome={onHome}>
+    return <section className="race-job"><Saved race={raceSummary(saved,runnersText(saved.parts.runners.value?.length||0))} nextLabel="Check in the next race" onNext={reset} onHome={onHome}>
       {hasClash(race) && <ClashNotice race={race}/>}
       {alerts}{message && <p role="status">{message}</p>}{locked && <p role="status">Stage complete - ask a lead</p>}
       {deleting ? <><p>Delete {raceLabel(saved)}?</p><button disabled={busy||locked} onClick={()=>void remove(false)}>Move to Deleted races</button><button disabled={busy||locked} onClick={()=>void remove(true)}>Delete permanently</button><button disabled={busy} onClick={()=>setDeleting(false)}>Keep this race</button></>
@@ -137,7 +136,7 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     {draft.step==='pick' ? <div>
       <h1>Which race is it?</h1>
       {draft.eventCode && (draft.runners.length>0 || draft.current || draft.final) && <button className="button-secondary carry-on" onClick={()=>goTo(draft.final?'presence':'entry')}>Carry on with {family} {raceName}{draft.runners.length?` · ${runnersText(draft.runners.length)}`:''}</button>}
-      {data.waiting.length>0 && <><h3>Already at the start line</h3><div className="job-choices">{data.waiting.map(race=><button key={race.id} onClick={()=>void open(race)}>{race.event.name} {race.event.section} ({race.event.code}) · {raceLabel(race)}</button>)}</div></>}
+      {data.waiting.length>0 && <><h3>Already at the start line</h3><div className="job-choices">{data.waiting.map(race=><button key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div></>}
       {!data.eventsConfirmed && <p>Ask the scoring team to confirm the event list</p>}<h3>Check in a new race</h3><div className="job-choices">{[...new Set(data.events.map(event=>event.name))].map(name=><button key={name} onClick={()=>change({...draft,step:'section',family:name})}>{name}</button>)}</div>
     </div> : draft.step==='section' ? <div><h1>{draft.family}: which section?</h1><div className="job-choices">{data.events.filter(event=>event.name===draft.family).map(event=><button key={event.id} onClick={()=>chooseEvent(event.code)}>{event.section} · {event.code}</button>)}</div></div>
     : draft.final ? <div className="final-attendance">{raceLine}{draft.step==='presence'?<><h1>Is everyone here?</h1><p>Tap anyone absent.</p><div className="job-choices">{draft.final.final!.entries.map(entry=><button disabled={busy} key={entry.finalEntryId} aria-pressed={(draft.absent||[]).includes(entry.finalEntryId)} onClick={()=>change({...draft,absent:(draft.absent||[]).includes(entry.finalEntryId)?draft.absent!.filter(id=>id!==entry.finalEntryId):[...(draft.absent||[]),entry.finalEntryId]})}>{entry.wristband} · {(draft.absent||[]).includes(entry.finalEntryId)?'Absent':'Here'}</button>)}</div><ActionBar><button disabled={busy||locked} onClick={()=>goTo('presence-check')}>Check attendance</button></ActionBar></>
