@@ -41,7 +41,7 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
         setDay(read);setPhones(joined.phones.length);
       } else if (daySetup.includes(section)) setDay(await api('day'));
       setUpdated(new Date().toLocaleTimeString()); setError('');
-    } catch (error) { if(error instanceof StaleRequest) return;setDay(null); setError(error instanceof Error ? error.message : 'Could not connect'); }
+    } catch (error) { if(error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect'); }
   }
   useEffect(()=>{if(!daySetup.includes(section)) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   useEffect(()=>{if (!scoring && daySetup.includes(section)) {setSection('Dashboard');setDay(null);}},[scoring]);

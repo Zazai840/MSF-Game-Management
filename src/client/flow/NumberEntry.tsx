@@ -35,7 +35,7 @@ export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,n
     <label>{label}<input ref={input} className={held?'number-input number-input-held':'number-input'} type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" spellCheck={false}
       placeholder={placeholder} value={value} readOnly={busy || held}
       onChange={event=>onChange(digitsOnly(event.target.value))}
-      onKeyDown={event=>{if(event.key==='Enter') {event.preventDefault();next();}}}/></label>
+      onKeyDown={event=>{if(event.key==='Enter' && !event.nativeEvent.isComposing) {event.preventDefault();next();}}}/></label>
     {display}
     <ActionBar>{extraAction}
       {/* Keep focus in the input on tap, so the keyboard stays open between entries. */}
