@@ -1,4 +1,4 @@
-/** Hard refusals shared by Start line's keypad and the server. Warnings come separately. */
+/** Hard refusals shared by Start line's wristband entry and the server. Warnings come separately. */
 export function runnerListRefusal(value:unknown):string|null {
   if (!Array.isArray(value) || value.length===0) return 'Enter at least one wristband number';
   const seen=new Set<number>();

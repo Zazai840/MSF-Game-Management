@@ -3,7 +3,7 @@ import type { FinalResults } from '../../shared/finals.js';
 import type { LeaderboardRow } from '../../shared/results-rules.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { api } from '../api.js';
-const ordinal=(number:number)=>`${number}${number===1?'st':number===2?'nd':number===3?'rd':'th'}`;
+import { ordinal } from '../../shared/ordinal.js';
 export function FinalPanel({code,final,onSaved,onSelect,onRace}:{code:string;final:FinalResults;onSaved:(next:EventResultsRead)=>void;onSelect:(row:LeaderboardRow)=>void;onRace:()=>void}) {
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  async function callUp() {if(!final.nextCallUp) return;setBusy(true);setError('');try {onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/call-up`,{expectedHeatEntryId:final.nextCallUp.entryId}));}catch(error){setError(error instanceof Error?error.message:'Could not save - try again');}finally{setBusy(false);}}
