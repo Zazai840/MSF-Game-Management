@@ -110,7 +110,8 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const step=draft.step==='no-place' && unplaced.length===0?'check':draft.step;
   const locked=stageLocked(draft.race,data.completedStages);
   const toPlaces=()=>change({...draft,step:'place',current:'',pendingWarnings:[],refused:undefined});
-  const raceStep:TrailStep={label:raceName(draft.race),onSelect:toPlaces};
+  /** Tapping the race name opens the race picker, as on check-in and Times. */
+  const raceStep:TrailStep={label:raceName(draft.race),onSelect:jobStep.onSelect};
   const trail:TrailStep[]=step==='add'?[home,jobStep,raceStep,{label:'Runner not on the list'}]:step==='check'?[home,jobStep,raceStep,{label:'Check'}]:[home,jobStep,{label:raceStep.label}];
   const runnerCount=draft.runners.length-draft.didNotRun.length;
   const raceLine=<p className="race-line">{[draft.race.event.name,draft.race.event.section,raceLabel(draft.race),`${runnerCount} ${runnerCount===1?'runner':'runners'}`].join(' · ')}</p>;

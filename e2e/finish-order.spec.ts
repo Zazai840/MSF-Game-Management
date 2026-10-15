@@ -66,6 +66,11 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
   await expect(finish.getByText('Wrong place? Drag the handle on the right to move a runner.',{exact:true})).toBeVisible();
   await expect(current(finish)).toHaveText('Check');
+  // Tapping the race name opens the race picker, as on check-in and Times; carrying on keeps the order.
+  await steps(finish).getByRole('button',{name:`60m Girl Cubs ${label}`,exact:true}).click();
+  await expect(finish.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
+  await finish.getByRole('button',{name:`Carry on with 60m Girl Cubs ${label}`,exact:true}).click();
+  await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
   await expect(finish.getByRole('button',{name:'+ Runner not on the list',exact:true})).toBeVisible();
   await expect(orderRows(finish)).toHaveText([`1st${n(2011)}`,'2nd3045Added at the finish',`3rd${n(2012)}`]);
   await dragTo(finish,handle(finish,3045),orderRows(finish).first());
