@@ -81,7 +81,7 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   }
   const home:TrailStep={label:'Home',onSelect:onHome};
   const jobStep:TrailStep={label:'Finishing order',onSelect:()=>{setChoosing(true);setError('');setMessage('');}};
-  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Finishing order'}]}/><h1>Record the finishing order</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh Finish order</button></section>;
+  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Finishing order'}]}/><h1>Record the finishing order</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
   const latest=(race:RaceRead)=>[...data.waiting,...data.recent].find(item=>item.id===race.id)||race;
   if(saved) {
     const first=fromRace(saved).order[0];
@@ -101,7 +101,7 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       <h3>Waiting for a finishing order</h3>
       {data.waiting.length===0?<p className="job-hint">No races waiting</p>:<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div>}
       {data.recent.length>0 && <><h3>Recent races</h3><div className="job-choices">{data.recent.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div></>}
-      <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Finish order</button></footer>
+      <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>
     </section>;
   }
   const unplaced=draft.runners.filter(runner=>![...draft.order,...draft.didNotFinish,...draft.didNotRun].includes(runner.wristband));
@@ -150,6 +150,6 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
         <ActionBar stacked><button onClick={()=>change({...draft,step:unplaced.length?'no-place':'check'})}>{unplaced.length?'Nobody else crossed the line':'Check the order'}</button>{addRunner}</ActionBar></>}
     </div>}
     </fieldset>
-    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Finish order</button></footer>
+    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>
   </section>;
 }

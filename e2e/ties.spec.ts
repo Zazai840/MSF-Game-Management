@@ -21,7 +21,7 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
-  await createRace(2703,800);await page.getByRole('button',{name:'Refresh Results',exact:true}).click();
+  await createRace(2703,800);await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
   await page.getByRole('button',{name:'Decided without a run-off',exact:true}).click();
   await page.getByRole('button',{name:'Save tie',exact:true}).click();

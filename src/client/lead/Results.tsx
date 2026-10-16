@@ -14,7 +14,8 @@ import { raceLabel } from '../../shared/races.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
 import { ordinal } from '../../shared/ordinal.js';
 import './results.css';
-const noteTime=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
+import { clock } from '../../shared/clock.js';
+const noteTime=(at:string)=>clock(at);
 const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**
@@ -40,7 +41,7 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
     try {
       if(code) {const next=await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`);if(generation!==request.current) return;setDetail(next);}
       else {const next=await api<ResultsRead>('lead/results');if(generation!==request.current) return;setList(next);}
-      setUpdated(new Date().toLocaleTimeString());setError('');
+      setUpdated(clock());setError('');
     } catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
   useEffect(()=>{
@@ -56,7 +57,7 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
 
   const selectedTie=detail?.results.ties.find(tie=>tie.id===selectedTieId);
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
-  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(new Date().toLocaleTimeString());onChanged?.();}
+  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(clock());onChanged?.();}
   function openStageItem(item:StageItem) {
     setSelectedStage(null);
     const tie=detail?.results.ties.find(tie=>tie.id===item.tieId);
@@ -102,6 +103,6 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
           <span className="event-card-status">{card.line}{!item.event.enabled?' · Switched off':''}</span>
           {item.latestNoteAt && <span className="event-card-note">Latest note {noteTime(item.latestNoteAt)}</span>}
         </button>;})}</div></section>)}</>}
-    {!selectedRace && <footer className="results-footer">Updated at {updated || '…'} <button className="button-quiet" onClick={()=>void refresh()}>Refresh Results</button></footer>}
+    {!selectedRace && <footer className="results-footer">Updated at {updated || '…'} <button className="button-quiet" onClick={()=>void refresh()}>Refresh</button></footer>}
   </div>;
 }

@@ -1,6 +1,7 @@
 import { useEffect,useState } from 'react';
 import type { PhonesRead } from '../../shared/phones.js';
 import { api } from '../api.js';
+import { clock } from '../../shared/clock.js';
 /** v1's joined phones: who joined today, and the scoring team's way to promote, demote or remove a phone. */
 export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const [data,setData]=useState<PhonesRead|null>(null);
@@ -30,6 +31,6 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
         <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{})}>Remove</button>
       </div>}
     </article>)}</div>
-    {!!data?.auditNotes.length && <details className="day-card day-audit"><summary>Phone and access audit notes</summary><ol>{data.auditNotes.map(note=><li key={note.id}>{note.message} · {note.actor} · <time dateTime={note.at}>{new Date(note.at).toLocaleString()}</time></li>)}</ol></details>}
+    {!!data?.auditNotes.length && <details className="day-card day-audit"><summary>Phone and access audit notes</summary><ol>{data.auditNotes.map(note=><li key={note.id}>{note.message} · {note.actor} · <time dateTime={note.at}>{clock(note.at)}</time></li>)}</ol></details>}
   </section>;
 }

@@ -7,6 +7,7 @@ import { Home, LeadEntry } from './home/Home.js';
 import { Job } from './jobs/Job.js';
 import { AppHeader } from './shell/AppHeader.js';
 import { TrailArea } from './flow/Trail.js';
+import { clock } from '../shared/clock.js';
 const Lead = lazy(()=>import('./lead/Lead.js'));
 interface HomeRead { phone:Phone; waiting:WaitingCounts; needsYou?:number }
 type Screen = 'home'|'become-lead'|'lead'|JobName;
@@ -27,7 +28,7 @@ export function App() {
       const data = await api<HomeRead>('home');if(generation!==request.current) return;
       const previous=phoneStorage.dayId();
       if(previous && previous!==data.phone.dayId) {phoneStorage.newDay(data.phone.dayId);return;}
-      phoneStorage.rememberDay(data.phone.dayId);setHome(data);setUpdated(new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}));setError('');
+      phoneStorage.rememberDay(data.phone.dayId);setHome(data);setUpdated(clock());setError('');
     }
     catch (error) { if(generation!==request.current || error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect - tap Refresh'); }
   }

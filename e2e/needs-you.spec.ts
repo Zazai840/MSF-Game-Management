@@ -1,4 +1,4 @@
-import { timesOpened,goHome,trailBack,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { lookProblems,timesOpened,goHome,trailBack,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
   const code=`NY-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
@@ -43,7 +43,7 @@ test('queue items open their race or tie directly and clear after the lead settl
   await page.goto('/');await joinDay(page,`Race queue lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'To check');
   const wrongTime=toCheckItem(page,new RegExp(`${code}.*A time looks wrong`)),versions=toCheckItem(page,new RegExp(`${code}.*Two different sets of times were saved`)),tie=toCheckItem(page,new RegExp(`${code}.*Runners tied on time`));
   await expect(page.getByRole('list',{name:'To check'})).toBeVisible();await expect(wrongTime).toBeVisible();
-  await page.screenshot({path:info.outputPath('needs-you-races.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('needs-you-races.png'),fullPage:true});
   await wrongTime.click();await expect(page.getByRole('button',{name:'Correct times',exact:true})).toBeVisible();await page.getByRole('button',{name:'Correct times',exact:true}).click();const sheet=page.getByRole('dialog');await sheet.getByLabel('Accept these out-of-order times',{exact:true}).check();await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
   await trailBack(page,'To check');await expect(versions).toBeVisible();await expect(wrongTime).toHaveCount(0);await versions.click();await page.getByRole('radio').last().check();await page.getByRole('button',{name:'Use chosen Times version',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Saved'})).toBeVisible();
   await trailBack(page,'To check');await expect(tie).toBeVisible();await expect(versions).toHaveCount(0);await tie.click();await expect(sheet.getByRole('heading',{name:'Tie at 20.00',exact:true})).toBeVisible();await sheet.getByRole('button',{name:'No run-off needed',exact:true}).click();await sheet.getByRole('button',{name:'Save tie',exact:true}).click();await expect(sheet).toHaveCount(0);

@@ -1,12 +1,12 @@
 /* Day setup, Phones and Events (scoring team). Tokens and button classes from theme.css. */
 .day-setup {display:flex; flex-direction:column; gap:12px; margin-top:4px;}
 .day-setup p {margin:0;}
-.day-card {display:flex; flex-direction:column; gap:8px; padding:14px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-box); overflow-wrap:anywhere;}
+.day-card {display:flex; flex-direction:column; gap:8px; padding:16px; background:var(--surface); border-radius:var(--radius-box); overflow-wrap:anywhere;}
 .day-card h3 {margin:0; font-size:17px;}
 .day-card-title {font-size:17px; font-weight:800; color:var(--navy);}
-.day-card-off {background:var(--idle-fill); border-color:var(--idle-line);}
+.day-card-off {background:var(--idle-fill);}
 .day-card-off h3 {color:var(--idle-text);}
-.day-label {font-size:var(--text-badge); font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+.day-label {font-size:var(--text-small); font-weight:800; color:var(--muted);}
 .day-card .code {line-height:1.15;}
 .day-text {font-size:var(--text-small); font-weight:600; color:var(--text); line-height:1.35;}
 .day-note {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
@@ -17,12 +17,11 @@
 .day-events {display:grid; gap:12px;}
 
 /* Phones and Events as rows that open their screens. */
-.day-rows {display:flex; flex-direction:column; padding:4px 14px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-box);}
+.day-rows {display:flex; flex-direction:column; gap:4px;}
 .day-row {
   display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:52px; padding:6px 0; text-align:left;
-  background:none; border:0; border-radius:0; color:var(--text);
+  padding:8px 16px; background:var(--surface); border:0; border-radius:var(--radius-box); color:var(--text);
 }
-.day-row + .day-row {border-top:1px solid var(--divider);}
 .day-row-text {display:flex; flex-direction:column; min-width:0;}
 .day-row-title {font-size:16px; font-weight:800; color:var(--navy);}
 .day-row-sub {font-size:var(--text-small); font-weight:600; color:var(--muted);}

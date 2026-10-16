@@ -11,6 +11,7 @@ import { Day,Events } from './Day.js';
 import { Phones } from './Phones.js';
 import type { PhonesRead } from '../../shared/phones.js';
 import './dashboard.css';
+import { clock } from '../../shared/clock.js';
 type Section='Dashboard'|'To check'|'Results'|'Day setup'|'Phones'|'Events';
 /** Day setup and the two screens its rows open; only the scoring team sees them. */
 const daySetup:Section[]=['Day setup','Phones','Events'];
@@ -40,7 +41,7 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
         const [read,joined]=await Promise.all([api<DayRead>('day'),api<PhonesRead>('day/phones')]);
         setDay(read);setPhones(joined.phones.length);
       } else if (daySetup.includes(section)) setDay(await api('day'));
-      setUpdated(new Date().toLocaleTimeString()); setError('');
+      setUpdated(clock()); setError('');
     } catch (error) { if(error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect'); }
   }
   useEffect(()=>{if(!daySetup.includes(section)) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);

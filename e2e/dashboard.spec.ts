@@ -1,4 +1,4 @@
-import { steps,trailBack,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { lookProblems,steps,trailBack,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
@@ -46,7 +46,7 @@ test('the Dashboard always opens on three buttons, with the To check badge and a
     await expect(dashboardMenuButton(page,'Results')).not.toContainText(/to check|\d/);
     expect(await buttonLook(dashboardMenuButton(page,'To check'))).toEqual(homeLook);
     expect(await buttonLook(dashboardMenuButton(page,'Results'))).toEqual(homeLook);
-    await page.screenshot({path:info.outputPath('dashboard-menu.png'),fullPage:true});
+    expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('dashboard-menu.png'),fullPage:true});
 
     await dashboardMenuButton(page,'Results').click();
     await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
@@ -96,7 +96,7 @@ test('To check explains each problem in plain English, opens the race and confir
     await expect(versions).toContainText(`Saved by Yusuf ${info.project.name} and Maryam ${info.project.name} less than a minute apart. Choose which one stands.`);
     await expect(versions).toContainText('Open race');
     await expect(page.getByText('Times out of order',{exact:true})).toHaveCount(0);
-    await versions.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('to-check.png'),fullPage:true});
+    await versions.scrollIntoViewIfNeeded();expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('to-check.png'),fullPage:true});
 
     await time.click();
     await expect(steps(page)).toContainText('Race 1');

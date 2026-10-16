@@ -1,4 +1,4 @@
-import { expect,jobButton,joinDay,savedRaceLabel,steps,test,type Page } from './fixtures.js';
+import { lookProblems,expect,jobButton,joinDay,savedRaceLabel,steps,test,type Page } from './fixtures.js';
 const scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function openGirlCubs(page:Page,name:string) {
   await page.request.post('/api/day/events/R4/rename',{headers:scoring,data:{name:'60m'}});
@@ -131,7 +131,7 @@ test('a confirmed save shows the thank-you screen with the race, the next race a
   await expect(page.getByRole('main').getByRole('button',{name:'Home',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Edit runners',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Delete this race',exact:true})).toBeVisible();
-  await page.screenshot({path:info.outputPath('check-in-saved.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('check-in-saved.png'),fullPage:true});
   await page.getByRole('button',{name:'Check in the next race',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   await page.getByRole('button',{name:`60m Girl Cubs (R4) · ${label}`,exact:true}).click();

@@ -1,4 +1,4 @@
-import { steps,trailBack,openDashboard,expect,test,type Page } from './fixtures.js';
+import { lookProblems,steps,trailBack,openDashboard,expect,test,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
@@ -42,7 +42,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   await expect(section(page,'Start a new day')).toContainText("Clears today's races. Download the day export first.");
   await expect(page.getByLabel('Type NEW DAY to confirm')).toBeVisible();
   await expect(start).toBeDisabled();
-  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('day-setup.png'),fullPage:true});
+  await page.evaluate(()=>window.scrollTo(0,0));expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-setup.png'),fullPage:true});
 });
 
 test('the day export says when it was last downloaded and whether changes came after',async({page},info)=>{
@@ -54,7 +54,7 @@ test('the day export says when it was last downloaded and whether changes came a
   await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Day setup sprint',section:'Girl Cubs',format:'timed'}});
   await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
-  await page.screenshot({path:info.outputPath('day-export.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-export.png'),fullPage:true});
 });
 
 test('Phones and Events open their screens with a trail back, and lead actions there say Saved',async({page},info)=>{
@@ -64,7 +64,7 @@ test('Phones and Events open their screens with a trail back, and lead actions t
   await expect(steps(page)).toHaveText(/^(Home\s*›\s*Dashboard|…)\s*›\s*Day setup\s*›\s*Phones$/);
   await expect(page.getByRole('article',{name:'Phone E2E Scoring',exact:true})).toContainText('(you)');
   await expect(page.getByRole('button',{name:'Back',exact:true})).toHaveCount(0);
-  await page.screenshot({path:info.outputPath('phones.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('phones.png'),fullPage:true});
   await trailBack(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
 
@@ -80,7 +80,7 @@ test('Phones and Events open their screens with a trail back, and lead actions t
   await expect(savedNote(page)).toHaveText('Saved');
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   await expect(page.getByRole('article',{name:`${code} · Girl Cubs`})).toContainText('Saved sprint');
-  await page.screenshot({path:info.outputPath('events.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('events.png'),fullPage:true});
   await trailBack(page,'Day setup');
 
   const before=process.env.E2E_DAY_CODE!;

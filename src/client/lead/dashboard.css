@@ -6,7 +6,7 @@
 .to-check ol {list-style:none; margin:0; padding:0; display:grid; gap:12px;}
 .to-check-item {
   display:flex; flex-direction:column; align-items:stretch; gap:6px; width:100%; padding:14px; text-align:left;
-  background:var(--surface); color:var(--text); border:1.5px solid var(--line); border-radius:var(--radius-box); font-weight:600;
+  background:var(--surface); color:var(--text); border-color:var(--surface); border-radius:var(--radius-box); font-weight:600;
 }
 .to-check-race {display:flex; align-items:center; gap:8px; font-size:var(--text-badge); font-weight:800; color:var(--muted); min-width:0;}
 .to-check-race > span:nth-child(2) {flex:1; min-width:0; overflow-wrap:anywhere;}

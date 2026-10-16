@@ -63,7 +63,7 @@ test('a lead adds a 7th runner to a final and the final is recorded end to end',
   for(const number of order) await phone.getByRole('button',{name:String(number),exact:true}).click();
   await phone.getByRole('button',{name:'Check the order',exact:true}).click();await phone.screenshot({path:info.outputPath('final-finish-seven.png'),fullPage:true});
   await phone.getByRole('button',{name:'Save',exact:true}).click();expect(await savedRaceLabel(phone)).toBe('Final 1');
-  await backToEvent(page);await page.getByRole('button',{name:'Refresh Results',exact:true}).click();
+  await backToEvent(page);await page.getByRole('button',{name:'Refresh',exact:true}).click();
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.locator('.leaderboard-row')).toHaveCount(7);await expect(final.locator('.leaderboard-row').first()).toContainText('1806');
   await page.getByRole('button',{name:'Final complete',exact:true}).click();const complete=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(complete).toContainText('1st: 1806');await complete.getByRole('button',{name:'Confirm',exact:true}).click();
   await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('1806');
