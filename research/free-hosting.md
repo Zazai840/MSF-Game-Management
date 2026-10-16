@@ -51,9 +51,10 @@ So in `pg` 8, `?sslmode=require` means **full certificate verification**. This i
   - One free instance per organization: 512 MB RAM, 0.1 vCPU, 2 GB SSD.
   - Regions: Frankfurt or Washington, D.C. only.
   - Sleep: scales to zero after 1 hour without traffic, and this cannot be changed. Waking from deep sleep takes 1 to 5 s. The docs also say HTTP/2 requests cannot wake a sleeping service (scale to zero page).
+  - Bandwidth: "We provide 100GB of outbound bandwidth per month for free" ([Koyeb pricing FAQ](https://www.koyeb.com/docs/faqs/pricing)), 20 times Render's 5 GB.
 - **Card:** Required. The pricing FAQ says "We require a credit card to prevent fraud and abuse" and places a $29 pre-authorization hold, which is then cancelled ([Koyeb pricing FAQ](https://www.koyeb.com/docs/faqs/pricing)). It also says "You will never be charged when using the free web Service".
 - **Free Postgres:** 5 hours of compute per month and 1 GB ([Koyeb databases](https://www.koyeb.com/docs/databases)). One 8-hour event day uses more than that, so Koyeb Postgres is ruled out.
-- **Fits 30 phones?** Probably. Fastify on 0.1 vCPU at 6 requests/s should cope, but I did not load-test it **(unconfirmed)**. The current pricing page no longer lists the free web instance, only a free Postgres ([Koyeb pricing](https://www.koyeb.com/pricing)), though the docs and FAQ still describe it.
+- **Fits 30 phones?** Probably, with plenty of bandwidth headroom. Fastify on 0.1 vCPU at 6 requests/s should cope, but I did not load-test it **(unconfirmed)**. The current pricing page no longer lists the free web instance, only a free Postgres ([Koyeb pricing](https://www.koyeb.com/pricing)), though the docs and FAQ still describe it.
 
 ### Google Cloud Run
 
@@ -120,7 +121,7 @@ So in `pg` 8, `?sslmode=require` means **full certificate verification**. This i
   - "No credit card required", and the plan is "permanent (not a trial)". The page mentions no inactivity deletion, and says the limits never delete data.
 - **Connections:** A 0.25 CU compute allows 104 direct connections (97 usable). The `-pooler` endpoint is PgBouncer in transaction mode and accepts up to 10,000 clients ([Neon connection pooling](https://neon.com/docs/connect/connection-pooling)).
 - **SSL:** Required ("Neon rejects connections that do not use SSL/TLS"). The certificate chains to Let's Encrypt, so `pg` works from `?sslmode=require` alone ([Neon secure connections](https://neon.com/docs/connect/connect-securely)).
-- **Fits?** Yes, easily. An event day at 0.25 CU is about 2 CU-hours (inferred). The pg pool's 10 connections are well under the limit. Use the direct (non-pooler) URL. The transaction-mode pooler would also work with this code (inferred, see the pooler section above). Wake-up time after scale to zero is **(unconfirmed)**, but polling keeps the compute awake all day.
+- **Fits?** Yes, easily. An event day at 0.25 CU is about 2 CU-hours (inferred). The pg pool's 10 connections are well under the limit. Use the direct (non-pooler) URL. The transaction-mode pooler would also work with this code (inferred, see the pooler section above). Wake-up time after scale to zero is **(unconfirmed)**, but polling keeps the compute awake all day. The 5 GB/month egress (database to app) depends on query result sizes, which I did not measure, so measure it at the rehearsal too.
 
 ### Supabase (Free)
 
@@ -158,7 +159,7 @@ So in `pg` 8, `?sslmode=require` means **full certificate verification**. This i
 | App host | Runs the server as is | Card needed | Auto-deploy from `main` | Sleeps when idle | Fits one 8 h event day |
 |---|---|---|---|---|---|
 | Render free | Yes (Dockerfile) | Not confirmed | Yes, on by default | 15 min, about 1 min to wake | Yes; 5 GB/month bandwidth is the limit |
-| Koyeb free | Yes | Yes ($29 hold, no charge) | Yes | 1 h, 1 to 5 s to wake | Probably (0.1 vCPU) |
+| Koyeb free | Yes | Yes ($29 hold, no charge) | Yes | 1 h, 1 to 5 s to wake | Probably (0.1 vCPU); 100 GB/month bandwidth |
 | Cloud Run | Yes (container) | Billing account with payment method | Yes (Cloud Build trigger) | Scales to zero | Yes; 1 GB/month egress is the limit |
 | Northflank sandbox | Yes | Yes | Yes | Never | Probably (size not confirmed) |
 | Vercel Hobby | As one function, not a server | No | Yes | Paused between requests | Yes, but 1M invocations/month is about 5 days |
@@ -179,12 +180,12 @@ So in `pg` 8, `?sslmode=require` means **full certificate verification**. This i
 1. **Render free web service + Neon Free.**
    - Why: no card needed for Neon, and none mentioned for Render. Deploys the existing `Dockerfile` with auto-deploy on by default. Free `onrender.com` HTTPS. Neon never expires or deletes data between events, and `DATABASE_URL=...?sslmode=require` works with `pg` unchanged.
    - Caveats: a cold start of about a minute on the first request after 15 minutes idle, so open it before the event. 5 GB/month bandwidth with suspension on overage, so measure the poll response size and consider adding compression. Single instance that "may be restarted at any time".
-2. **Google Cloud Run + Neon Free.**
-   - Why: the most generous compute and request limits, scale to zero, fast scaling, `run.app` HTTPS, and Cloud Build deploys from `main`.
-   - Caveats: needs a billing account with a payment method and has no hard spending cap, so overages would be charged. Only 1 GB/month of egress from North America is free. More setup than Render.
-3. **Koyeb free instance + Neon Free.**
-   - Why: always on during the event once awake (1 h idle timeout), quick 1 to 5 s wake-up, auto-deploy from Git.
+2. **Koyeb free instance + Neon Free.**
+   - Why: always on during the event once awake (1 h idle timeout), quick 1 to 5 s wake-up, auto-deploy from Git, and 100 GB/month bandwidth, far more headroom than Render. If entering a card is acceptable, this is the safer pick on limits.
    - Caveats: a card and a $29 pre-authorization hold. Only 0.1 vCPU, only the Frankfurt or Washington regions. The free instance is missing from the current pricing page, so check it still exists at signup.
+3. **Google Cloud Run + Neon Free.**
+   - Why: the most generous compute and request limits, scale to zero, fast scaling, `run.app` HTTPS, and Cloud Build deploys from `main`.
+   - Caveats: needs a billing account with a payment method and has no hard spending cap, so overages would be charged. Only 1 GB/month of egress from North America is free, which allows only about 6 KB per response for one event day (inferred). More setup than Render.
 
 Runners-up: **Northflank** (always on, but a card is required and the free sizes are unconfirmed). **Vercel Hobby** (no card, but the per-month invocation cap fits only about 5 event days, Hobby is non-commercial only, and the server runs as a function). For the database, **Supabase** or **Aiven** work on load, but both go idle between events and need manual restore or checking, and likely need a CA file for `pg`.
 
