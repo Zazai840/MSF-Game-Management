@@ -13,7 +13,7 @@ test('a phone checks in 8 runners and carries them through finishing order, time
   const code=`E8-${info.project.name.slice(0,3).toUpperCase()}`,name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
   expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await join(phone,`Eight phone ${info.project.name}`);
-  await jobButton(phone,'Start line').click();await phone.getByRole('button',{name,exact:true}).click();await phone.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();
+  await jobButton(phone,'Start line').click();await phone.getByRole('button',{name:`${name} Girl Cubs · ${code}`,exact:true}).click();
   for(const number of numbers) await enterWristband(phone,number);
   await expect(phone.getByRole('heading',{name:'Runner 9: wristband number?',exact:true})).toBeVisible();
   await phone.screenshot({path:info.outputPath('start-line-eight.png'),fullPage:true});

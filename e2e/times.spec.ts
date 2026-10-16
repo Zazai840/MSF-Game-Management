@@ -7,7 +7,7 @@ test('three phones record a race, keep a time warning and repair a count mismatc
   const numbers=[2201+offset,2202+offset,2203+offset];
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events/R4/rename',{headers,data:{name:'60m'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  await join(page,`Start times ${info.project.name}`);await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await join(page,`Start times ${info.project.name}`);await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   for(const number of numbers) await enterWristband(page,number);
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
   const label=await savedRaceLabel(page);

@@ -11,7 +11,7 @@ test('timed Event complete checks blockers, locks an old phone draft, and reopen
   await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1000,1100]}});
   const phone=await browser.newContext({viewport:info.project.use.viewport});const job=await phone.newPage();
   await job.goto('/');await joinDay(job,`Stage timer ${info.project.name}`);
-  await jobButton(job,'Start line').click();await job.getByRole('button',{name:`Stage event ${info.project.name}`,exact:true}).click();await job.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();await job.getByLabel('Wristband number',{exact:true}).fill('2');
+  await jobButton(job,'Start line').click();await job.getByRole('button',{name:`Stage event ${info.project.name} Girl Cubs · ${code}`,exact:true}).click();await job.getByLabel('Wristband number',{exact:true}).fill('2');
   await trailBack(job,'Check in runners');await goHome(job);await jobButton(job,'Finish order').click();await pickRace(job,'Finishing order',new RegExp(`${code}.*Race 1`));await job.getByRole('button',{name:'Change order',exact:true}).click();await job.getByRole('button',{name:'2601',exact:true}).click();
   await goHome(job);await jobButton(job,'Times').click();await pickRace(job,'Times',new RegExp(`${code}.*Race 1`));await job.getByRole('button',{name:'1st place · 10.00',exact:true}).click();await job.getByLabel('Place time',{exact:true}).pressSequentially('2');await expect(job.getByLabel('Place time',{exact:true})).toHaveValue('2');
   const before=await job.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([key])=>key.includes(':draft:'))));

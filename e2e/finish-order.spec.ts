@@ -23,8 +23,7 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await page.request.post('/api/day/events/R4/rename',{headers,data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await join(page,`Start finish ${info.project.name}`);
-  await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   for(const number of [n(2011),n(2012),n(2013),n(2014)]) await enterWristband(page,number);
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
   const label=await savedRaceLabel(page);

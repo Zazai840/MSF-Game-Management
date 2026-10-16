@@ -18,7 +18,7 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
   const otherContext=await browser.newContext({baseURL});await otherContext.addInitScript(olderCrypto);const other=await otherContext.newPage();
   try {
     await other.goto('/');await joinDay(other,`Reset helper ${info.project.name}`);
-    await jobButton(other,'Start line').click();await other.getByRole('button',{name:'60m',exact:true}).click();await other.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();await other.getByLabel('Wristband number',{exact:true}).fill('21');await expect(other.getByLabel('Wristband number')).toHaveValue('21');
+    await jobButton(other,'Start line').click();await other.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();await other.getByLabel('Wristband number',{exact:true}).fill('21');await expect(other.getByLabel('Wristband number')).toHaveValue('21');
     await scoring(page);await exportDay(page);
     await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
     await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Events \d+ events · not confirmed yet$/})).toBeVisible();
@@ -92,7 +92,7 @@ test('a stale successful public join cannot replace a newer joined phone in shar
   expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByText(`New join ${info.project.name}`,{exact:true})).toBeVisible();await newer.close();
 });
 test('an old successful job save cannot restore an old draft after Home discovers a reset',async({page})=>{
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});await scoring(page);await page.getByRole('button',{name:'Home',exact:true}).click();await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});await scoring(page);await page.getByRole('button',{name:'Home',exact:true}).click();await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   await enterWristband(page,2001);await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});

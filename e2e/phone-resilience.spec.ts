@@ -45,8 +45,7 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
   await page.goto('/');
   await joinDay(page,`Update ${info.project.name}`);
   await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   await page.getByLabel('Wristband number',{exact:true}).fill('21');
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   const workerPath=resolve('dist/web/sw.js');
@@ -80,8 +79,7 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   await joinDay(page,`Recovery ${info.project.name}`);
 
   await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   await page.getByLabel('Wristband number',{exact:true}).fill('25');
   await page.reload();
   await jobButton(page,'Start line').click();

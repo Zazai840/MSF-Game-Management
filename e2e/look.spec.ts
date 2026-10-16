@@ -76,8 +76,8 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await jobButton(page,'Start line').click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.screenshot({path:info.outputPath('start-line-pick.png'),fullPage:true});
+  await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   const wristband=page.getByLabel('Wristband number',{exact:true});
   await wristband.fill('2091');
   await expect(wristband).toHaveValue('2091');

@@ -6,8 +6,7 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await page.goto('/');
   await joinDay(page,`Start ${info.project.name}`);
   await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
   await typeNumber(page,2001);await page.getByRole('button',{name:'Next',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('2001 is already in this race');await page.getByRole('button',{name:'Fix number',exact:true}).click();
@@ -45,8 +44,7 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   await page.goto('/');
   await joinDay(page,`Warnings ${info.project.name}`);
   await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.getByRole('button',{name:'60m Girl Cubs · R4',exact:true}).click();
   await typeNumber(page,0);await page.getByRole('button',{name:'Next',exact:true}).click();
   await expect(page.getByText('0 is not a wristband number. Wristbands are 1 to 4999.',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Fix number',exact:true}).click();
