@@ -96,8 +96,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-results.png'),fullPage:true});
   await trailBack(page,'Dashboard');
-  await dashboardMenuButton(page,'To check').click();
-  await expect(page.getByRole('heading',{level:1,name:/zone lead|Nothing to check/})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });
 

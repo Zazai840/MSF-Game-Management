@@ -1,7 +1,8 @@
 /* Dashboard: the menu reuses the Home job buttons (style.css); To check items and the short Saved note live here. Tokens from theme.css. */
 .dashboard {flex:1; display:flex; flex-direction:column;}
-.to-check {flex:1; display:flex; flex-direction:column;}
-.to-check h1 {margin-bottom:12px;}
+.to-check,.dashboard > .home {flex:1; display:flex; flex-direction:column;}
+.to-check {margin-top:28px;}
+.to-check h2 {margin-bottom:12px;}
 .to-check-none {color:var(--muted); font-weight:600;}
 .to-check ol {list-style:none; margin:0; padding:0; display:grid; gap:12px;}
 .to-check-item {

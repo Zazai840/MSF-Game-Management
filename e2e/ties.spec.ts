@@ -72,7 +72,6 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
     }
     await page.screenshot({path:info.outputPath('tie-leaderboard.png'),fullPage:true});
     await trailBack(page,'Dashboard');
-    await page.getByRole('button',{name:/^To check /}).click();
     const item=page.getByRole('list',{name:'To check'}).getByRole('button',{name:new RegExp(code)}).filter({hasText:'Runners tied on time'});
     await expect(item).toHaveCount(1);await expect(item).toContainText('10.00');
     await item.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('tie-to-check.png'),fullPage:true});

@@ -78,12 +78,12 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
 export function dashboardButton(page:Page) {
   return page.getByRole('button',{name:/^Dashboard( \d+ to check)?$/});
 }
-const dashboardTitles={'To check':'To check',Results:'Results','Day setup':'Day setup'} as const;
-/** One of the Dashboard's three menu buttons, whatever its explanation or badge says. */
+const dashboardTitles={Results:'Results','Day setup':'Day setup'} as const;
+/** One of the Dashboard's buttons, Results or Day setup, whatever its explanation says. To check is on the Dashboard itself. */
 export function dashboardMenuButton(page:Page,section:keyof typeof dashboardTitles) {
   return page.getByRole('button',{name:new RegExp(`^${dashboardTitles[section]} `)});
 }
-/** From Home: opens the Dashboard and, when named, one of its three screens. */
+/** From Home: opens the Dashboard, which shows To check, and, when named, Results or Day setup. */
 export async function openDashboard(page:Page,section?:keyof typeof dashboardTitles) {
   await dashboardButton(page).click();
   await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();
