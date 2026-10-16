@@ -67,7 +67,7 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
   await page.screenshot({path:info.outputPath('times-check-kept.png'),fullPage:true});
   // Saving kept times is v1's Keep: they reach a lead as out of order.
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Saved',exact:true,level:1})).toBeVisible();
   await expect(page.getByTestId('saved-race')).toHaveText(`Times wrong Girl Cubs · Race ${race.number} · 4 times`);
   await page.screenshot({path:info.outputPath('times-saved.png'),fullPage:true});
   expect(await savedTimes(page,race.id)).toMatchObject({places:[1244,1281,1250,1290],outOfOrder:true});
@@ -79,7 +79,7 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
   await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.getByText('Kept as typed. A zone lead will check it.',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'3rd place · 12.85',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Saved',exact:true,level:1})).toBeVisible();
   expect(await savedTimes(page,race.id)).toMatchObject({places:[1244,1281,1285,1290],outOfOrder:false});
 });
 
@@ -102,7 +102,7 @@ test('tapping a place chip while typing retypes it, and Next race follows the sa
   // Two times for four finishers: the count disagreement shows plainly, with no tick.
   await expect(page.getByText('2 times · 4 finishers',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Saved',exact:true,level:1})).toBeVisible();
   await expect(page.getByText('Finish order has 4 finishers, times have 2 - check the recording',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Next race',exact:true}).click();
   await expect(page.getByRole('heading',{name:/place time\?$|^Check the times$|^Which race is it\?$/})).toBeVisible();

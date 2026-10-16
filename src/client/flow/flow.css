@@ -43,6 +43,8 @@ body main {padding-bottom:calc(20px + var(--action-bar-height, 0px));}
 .saved-body {flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:16px 8px; text-align:center;}
 .saved-body h1 {margin:0;}
 .saved-body p {margin:0; color:var(--muted); font-size:16px; font-weight:600;}
+/* The race just saved is what the volunteer checks, so it reads large in full ink. */
+.saved-body .saved-race {color:var(--text); font-size:var(--text-h3); font-weight:800;}
 .saved-tick {width:84px; height:84px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center;}
 .saved-actions {display:grid; gap:10px; padding-top:12px;}
 .saved-actions > button:first-child {min-height:54px; font-size:18px;}

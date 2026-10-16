@@ -17,7 +17,7 @@ test('a volunteer checks in a race, keeps a failed save and corrects the saved r
   await page.route('**/api/races/check-in',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary connection problem'})}));
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByText('Not saved - tap Save again',{exact:true})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Saved',exact:true,level:1})).toHaveCount(0);
   await expect(page.getByText('2006',{exact:true})).toBeVisible();
   await page.reload();
   await jobButton(page,'Start line').click();

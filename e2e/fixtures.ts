@@ -65,7 +65,7 @@ export async function pickRace(page:Page,jobStep:string,race:string|RegExp) {
 }
 /** The race named on the saved confirmation, for example "Heat 2". */
 export async function savedRaceLabel(page:Page) {
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Saved',exact:true,level:1})).toBeVisible();
   return (await page.getByTestId('saved-race').innerText()).match(/(Heat|Race|Final) \d+/)![0];
 }
 /** From Home: taps I'm a zone lead and gives the lead code (or the owner password). */

@@ -115,7 +115,7 @@ test('the trail goes back to earlier steps without losing typed entries and shor
   await page.screenshot({path:info.outputPath('trail-narrow.png'),fullPage:true});
 });
 
-test('a confirmed save shows the thank-you screen with the race, the next race and Home',async({page},info)=>{
+test('a confirmed save shows the Saved screen with the race, the next race and Home',async({page},info)=>{
   await openGirlCubs(page,`Saved ${info.project.name}`);
   const input=page.getByLabel('Wristband number',{exact:true});
   for(const number of ['2021','2022']) {await input.fill(number);await input.press('Enter');}
@@ -136,7 +136,7 @@ test('a confirmed save shows the thank-you screen with the race, the next race a
   await expect(page.getByRole('button',{name:'Remove runner 2021',exact:true})).toBeVisible();
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Saved',exact:true,level:1})).toBeVisible();
   await page.getByRole('main').getByRole('button',{name:'Home',exact:true}).click();
   await expect(jobButton(page,'Start line')).toBeVisible();
   await deleteRaces(page,2021);
