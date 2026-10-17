@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { createApp } from './app.js';
-const app = await createApp({databaseUrl:process.env.DATABASE_URL || '', ownerPassword:process.env.OWNER_PASSWORD || '', resetTestDay:process.env.RESET_TEST_DAY === '1', trustedProxyHops:Number(process.env.TRUSTED_PROXY_HOPS || 0), testBuild:process.env.TEST_BUILD === '1' ? {commit:process.env.RAILWAY_GIT_COMMIT_SHA} : undefined});
+const app = await createApp({databaseUrl:process.env.DATABASE_URL || '', ownerPassword:process.env.OWNER_PASSWORD || '', resetTestDay:process.env.RESET_TEST_DAY === '1', trustedProxyHops:Number(process.env.TRUSTED_PROXY_HOPS || 0), logTo:process.env.NODE_ENV === 'production' ? process.stdout : undefined, testBuild:process.env.TEST_BUILD === '1' ? {commit:process.env.RAILWAY_GIT_COMMIT_SHA} : undefined});
 if (process.env.NODE_ENV === 'production') {
   const {default:staticFiles} = await import('@fastify/static');
   await app.register(staticFiles, {root:resolve('dist/web'), wildcard:false});
