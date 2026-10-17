@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { createApp } from './app.js';
-const app = await createApp({databaseUrl:process.env.DATABASE_URL || '', ownerPassword:process.env.OWNER_PASSWORD || '', resetTestDay:process.env.RESET_TEST_DAY === '1'});
+const app = await createApp({databaseUrl:process.env.DATABASE_URL || '', ownerPassword:process.env.OWNER_PASSWORD || '', resetTestDay:process.env.RESET_TEST_DAY === '1', trustedProxyHops:Number(process.env.TRUSTED_PROXY_HOPS || 0)});
 app.get('/api/health', () => ({ok:true}));
 if (process.env.NODE_ENV === 'production') {
   const {default:staticFiles} = await import('@fastify/static');
