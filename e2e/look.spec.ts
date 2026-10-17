@@ -1,42 +1,6 @@
-import { timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
+import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
-
-/** Every rule of the v2 look that can be measured on the screen currently shown. */
-async function lookProblems(page:Page) {
-  await page.evaluate(()=>document.fonts.ready);
-  return page.evaluate(()=>{
-    const problems:string[]=[];
-    const visible=(element:Element)=>{const box=element.getBoundingClientRect();const style=getComputedStyle(element);return box.width>0&&box.height>0&&style.visibility!=='hidden'&&style.display!=='none';};
-    const describe=(element:Element)=>`${element.tagName.toLowerCase()} "${(element.textContent||element.getAttribute('aria-label')||'').trim().slice(0,40)}"`;
-    const rgb=(value:string)=>value.match(/[\d.]+/g)!.map(Number);
-    const luminance=(value:string)=>{const [r,g,b]=rgb(value).slice(0,3).map(channel=>{const c=channel/255;return c<=0.03928?c/12.92:((c+0.055)/1.055)**2.4;});return 0.2126*r+0.7152*g+0.0722*b;};
-    const background=(element:Element|null):string=>{
-      for(let current=element;current;current=current.parentElement) {const value=getComputedStyle(current).backgroundColor;if(rgb(value)[3]!==0) return value;}
-      return 'rgb(255, 255, 255)';
-    };
-    for(const target of document.querySelectorAll('button,a[href],input:not([type=hidden]),select,textarea,summary')) {
-      if(!visible(target)) continue;
-      const box=(target.matches('input[type=radio],input[type=checkbox]')&&target.closest('label')?target.closest('label')!:target).getBoundingClientRect();
-      if(box.height<43.5||box.width<43.5) problems.push(`tap target ${describe(target)} is ${Math.round(box.width)}x${Math.round(box.height)}`);
-    }
-    for(const heading of document.querySelectorAll('h1,h2')) {
-      const size=parseFloat(getComputedStyle(heading).fontSize);
-      if(visible(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);
-    }
-    const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
-    for(let node=walker.nextNode();node;node=walker.nextNode()) {
-      const element=node.parentElement!;
-      if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled,script,style')) continue;
-      const style=getComputedStyle(element);
-      if(element.closest('p,li,label,dd,dt,td,th,button,output,a')&&!element.closest('small,.badge,h1,h2,h3')&&parseFloat(style.fontSize)<15) problems.push(`text ${describe(element)} is ${style.fontSize}`);
-      const [a,b]=[luminance(style.color),luminance(background(element))].sort((x,y)=>y-x);
-      const ratio=(a+0.05)/(b+0.05);
-      if(ratio<4.5) problems.push(`text ${describe(element)} contrast ${ratio.toFixed(2)}`);
-    }
-    return problems;
-  });
-}
 
 async function joinAs(page:Page,name:string) {await page.goto('/');await joinDay(page,name);}
 

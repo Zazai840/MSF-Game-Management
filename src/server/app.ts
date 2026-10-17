@@ -18,7 +18,9 @@ import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
-export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean }
+/** testBuild marks a public test deployment; its commit is shown to testers and carried into bug reports. */
+export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; testBuild?: {commit?: string} }
+const bugReportUrl = 'https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml';
 export async function createApp(settings: AppSettings) {
   if (!settings.ownerPassword || !settings.databaseUrl) throw new Error('DATABASE_URL and OWNER_PASSWORD are required');
   const app = Fastify({logger: false});
@@ -32,6 +34,8 @@ export async function createApp(settings: AppSettings) {
     app.log.error(error);
     return reply.code(500).send({message:'Something went wrong - please try again'});
   });
+  const testBuild = settings.testBuild && {commit:settings.testBuild.commit || 'unknown', reportUrl:bugReportUrl};
+  app.get('/api/health', () => testBuild ? {ok:true, testBuild} : {ok:true});
   accessRoutes(app, pool, settings.ownerPassword);
   phoneManagementRoutes(app,pool);
   dayRoutes(app, pool);

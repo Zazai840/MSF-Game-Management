@@ -1,13 +1,37 @@
+import { useEffect,useState } from 'react';
 export function initials(name:string) {
   const words=name.trim().split(/\s+/).filter(Boolean);
   if(!words.length) return '';
   const first=[...words[0]][0]||'',last=words.length>1?[...words[words.length-1]][0]||'':'';
   return (first+last).toLocaleUpperCase();
 }
-/** The navy bar on every screen. The day has no name in v1's data, so dayName is shown only when known. */
-export function AppHeader({name,dayName}:{name?:string;dayName?:string}) {
+interface TestBuild { commit:string; reportUrl:string }
+let testBuildRead:Promise<TestBuild|undefined>|undefined;
+/** The health read says whether this deployment is a test build; it is read once per page load. */
+function useTestBuild() {
+  const [testBuild,setTestBuild]=useState<TestBuild>();
+  useEffect(()=>{
+    let live=true;
+    testBuildRead??=fetch('/api/health').then(response=>response.json()).then((body:{testBuild?:TestBuild})=>body.testBuild).catch(()=>{testBuildRead=undefined;return undefined;});
+    void testBuildRead.then(value=>{if(live) setTestBuild(value);});
+    return ()=>{live=false;};
+  },[]);
+  return testBuild;
+}
+function reportLink({reportUrl,commit}:TestBuild,screen:string) {
+  const url=new URL(reportUrl);
+  url.searchParams.set('commit',commit);url.searchParams.set('screen',screen);
+  return url.href;
+}
+/**
+ * The navy bar on every screen. The day has no name in v1's data, so dayName is shown only when known.
+ * On a test build it also shows the commit and a Report a bug link that names the current screen.
+ */
+export function AppHeader({name,dayName,screen}:{name?:string;dayName?:string;screen:string}) {
+  const testBuild=useTestBuild();
   return <header className="app-header">
     <div className="app-header-title"><strong>Running Zone</strong>{dayName && <span>{dayName}</span>}</div>
     {name && <div className="app-header-person"><span>{name}</span><span className="avatar" aria-hidden="true">{initials(name)}</span></div>}
+    {testBuild && <div className="app-header-test"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
   </header>;
 }
