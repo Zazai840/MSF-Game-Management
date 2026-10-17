@@ -51,6 +51,8 @@ Set these variables on the app service. Never write their values in GitHub, the 
 
 Railway sets `RAILWAY_GIT_COMMIT_SHA` itself; the test build marker reads it.
 
+`TRUSTED_PROXY_HOPS` is safe only when every request passes through the proxy, so leave it unset wherever phones can reach the server directly.
+
 Every push to `main` builds and deploys a new version. Railway switches traffic only after the new version answers `/api/health`, so a failing build or health check keeps the previous version running. Look at the deployment's build and runtime logs in the Railway dashboard.
 
 To clear the Olympics day between test sessions, use the normal Start new day flow on Dashboard → Day setup: download the day export, then type **NEW DAY**. Redeploying never clears the day; the data lives in the Postgres service.

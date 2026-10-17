@@ -165,3 +165,9 @@ _Avoid_: Admin password, lead PIN
 **Job**:
 One of the three pieces of work on a race that any volunteer can take on: Start line, Finish order or Times.
 _Avoid_: Role, station, duty
+
+### Testing
+
+**Test build**:
+A public deployment of the app for testers to try before an Olympics day. Its header shows the commit it was built from and a Report a bug link; its data may be cleared at any time.
+_Avoid_: Staging, demo, beta

@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 let app: FastifyInstance;
 afterEach(async () => { await app?.close(); });
 async function health(extra: Partial<AppSettings>) {
-  app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL || `postgresql://${process.env.USER}@localhost:5432/${process.env.TEST_DATABASE_NAME || 'msf_spec22_23_test'}`, ownerPassword: 'test-owner-fixture', ...extra});
+  app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL!, ownerPassword: 'test-owner-fixture', ...extra});
   const response = await app.inject({url:'/api/health'});
   expect(response.statusCode).toBe(200);
   return response.json();

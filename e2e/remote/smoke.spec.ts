@@ -13,8 +13,12 @@ async function phone(browser:Browser,use:object) {
   await page.goto('/');
   return page;
 }
-async function expectMarker(page:Page) {
-  await expect(page.getByRole('banner').getByText(/^Test build · [0-9a-f]{7}$/)).toBeVisible();
+/** The header shows the deployed commit (never `unknown`) and the Report a bug link. */
+async function expectDeployedCommitShown(page:Page) {
+  const marker=page.getByRole('banner').getByText(/^Test build · /);
+  await expect(marker).toBeVisible();
+  expect(await marker.innerText(),'The test build shows commit unknown: RAILWAY_GIT_COMMIT_SHA is not set on the deployment').not.toBe('Test build · unknown');
+  await expect(marker).toHaveText(/^Test build · [0-9a-f]{7}$/);
   await expect(page.getByRole('banner').getByRole('link',{name:'Report a bug',exact:true})).toBeVisible();
 }
 
@@ -23,7 +27,7 @@ test('five phones share the test build: one race end to end, a mistyped code, th
   const use={...info.project.use};
   // Owner: a fresh server takes the owner password and starts the day; once a day exists, its day code plus the owner password as lead code.
   const owner=await phone(browser,use);
-  await expectMarker(owner);
+  await expectDeployedCommitShown(owner);
   await joinDay(owner,`Smoke Owner ${run}`,givenDayCode||ownerPassword!);
   await expect(jobButton(owner,'Start line'),'If a day already exists, set REMOTE_DAY_CODE to its day code from Day setup').toBeVisible();
   if(givenDayCode) await becomeLead(owner,ownerPassword!);
@@ -40,7 +44,7 @@ test('five phones share the test build: one race end to end, a mistyped code, th
   for(const [index,page] of [starter,finisher,timer,mistyped].entries()) {
     await joinDay(page,`Smoke Volunteer ${index+1} ${run}`,dayCode);
     await expect(jobButton(page,'Start line')).toBeVisible();
-    await expectMarker(page);
+    await expectDeployedCommitShown(page);
   }
 
   // Wristbands nobody has used in R4 yet, so the race raises no warnings on a day testers have already used.

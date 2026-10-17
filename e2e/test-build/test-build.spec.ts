@@ -1,18 +1,19 @@
 import { readFileSync } from 'node:fs';
-import { expect,jobButton,joinDay,lookProblems,steps,test,type Page } from '../fixtures.js';
+import { becomeLead,dashboardMenuButton,expect,jobButton,joinDay,lookProblems,openDashboard,steps,test,type Page } from '../fixtures.js';
 
 // Runs only under playwright.test-build.config.ts, which starts the server as a test build of this commit.
-const commit='0123456789abcdef0123456789abcdef01234567';
+const commit=process.env.E2E_TEST_BUILD_COMMIT!;
 
 /** The marker and the Report a bug link in the header, checked against the screen they report and the look rules. */
-async function expectMarker(page:Page,screen:string) {
+async function expectHeaderReports(page:Page,screen:string) {
   const header=page.getByRole('banner');
-  await expect(header.getByText('Test build · 0123456',{exact:true})).toBeVisible();
+  await expect(header.getByText(`Test build · ${commit.slice(0,7)}`,{exact:true})).toBeVisible();
   const link=header.getByRole('link',{name:'Report a bug',exact:true});
   await expect(link).toHaveAttribute('target','_blank');
-  const url=new URL((await link.getAttribute('href'))!);
-  expect(url.origin+url.pathname).toBe('https://github.com/Zazai840/MSF-Game-Management/issues/new');
-  expect(Object.fromEntries(url.searchParams)).toEqual({template:'tester-bug.yml',commit,screen});
+  const expected=new URL('https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml');
+  expected.searchParams.set('commit',commit);expected.searchParams.set('screen',screen);
+  // Inside the Dashboard the header learns the screen just after it shows, so wait for the link to catch up.
+  await expect(link).toHaveAttribute('href',expected.href);
   expect(await lookProblems(page)).toEqual([]);
   // Nothing in the header overlaps, and nothing pushes the page wider than the phone.
   const overlaps=await header.evaluate(element=>{
@@ -29,15 +30,26 @@ async function expectMarker(page:Page,screen:string) {
 
 test('a test build shows its commit and a Report a bug link on Join, Home and inside a job',async({page},info)=>{
   await page.goto('/');
-  await expectMarker(page,'Join');
+  await expectHeaderReports(page,'Join');
   await joinDay(page,`Tester Marker ${info.project.name} With A Long Full Name`);
   await expect(jobButton(page,'Start line')).toBeVisible();
-  await expectMarker(page,'Home');
+  await expectHeaderReports(page,'Home');
   await page.screenshot({path:info.outputPath('home.png')});
   await jobButton(page,'Start line').click();
   await expect(steps(page)).toBeVisible();
-  await expectMarker(page,'Start line');
+  await expectHeaderReports(page,'Start line');
   await page.screenshot({path:info.outputPath('job.png')});
+});
+
+test('inside the Dashboard the Report a bug link names the Dashboard screen shown',async({page},info)=>{
+  await page.goto('/');
+  await joinDay(page,`Tester Lead ${info.project.name}`);
+  await becomeLead(page);
+  await openDashboard(page);
+  await expectHeaderReports(page,'Dashboard');
+  await dashboardMenuButton(page,'Results').click();
+  await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
+  await expectHeaderReports(page,'Results');
 });
 
 test('the Report a bug link fills fields the tester bug form has',async()=>{
