@@ -7,8 +7,8 @@ let app: FastifyInstance;
 const join = (code: string, name: string) => app.inject({method:'POST', url:'/api/join', payload:{code,name}});
 const auth = (token: string) => ({authorization:`Bearer ${token}`});
 afterEach(async () => { vi.restoreAllMocks(); await app?.close(); });
-async function start() {
-  app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL || `postgresql://${process.env.USER}@localhost:5432/${process.env.TEST_DATABASE_NAME || 'msf_spec22_23_test'}`, ownerPassword: 'test-owner-fixture', resetTestDay: true});
+async function start(trustedProxyHops?: number) {
+  app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL || `postgresql://${process.env.USER}@localhost:5432/${process.env.TEST_DATABASE_NAME || 'msf_spec22_23_test'}`, ownerPassword: 'test-owner-fixture', resetTestDay: true, trustedProxyHops});
 }
 test('wrong owner password is refused without starting an Olympics day', async () => {
   await start();
@@ -137,4 +137,44 @@ test('failed lead codes aggregate across phones sharing an IP and across IPs use
   now+=1000;
   expect((await attempt(first.token,day.leadCode,'192.0.2.2')).json()).toMatchObject({level:'Lead'});
   expect((await attempt(second.token,'test-owner-fixture','192.0.2.1')).json()).toMatchObject({level:'Scoring team'});
+});
+
+// Behind one proxy every phone connects from the proxy's address; only the forwarded address tells them apart.
+const proxy='10.0.0.1';
+const viaProxy=(forwardedFor:string)=>({remoteAddress:proxy,headers:{'x-forwarded-for':forwardedFor}});
+test('behind a trusted proxy hop wrong day codes slow only the phone that mistyped', async () => {
+  await start(1);
+  const attempt=(forwardedFor:string)=>app.inject({method:'POST',url:'/api/join',...viaProxy(forwardedFor),payload:{code:'wrong',name:'Ahmed'}});
+  for(let i=0;i<5;i++) expect((await attempt('198.51.100.1')).statusCode).toBe(403);
+  expect((await attempt('198.51.100.1')).statusCode).toBe(429);
+  expect((await attempt('203.0.113.9, 198.51.100.1')).statusCode).toBe(429);
+  expect((await attempt('198.51.100.2')).statusCode).toBe(403);
+});
+test('without proxy trust forwarded addresses are ignored and cannot dodge wrong day code backoff', async () => {
+  await start();
+  const attempt=(forwardedFor:string)=>app.inject({method:'POST',url:'/api/join',...viaProxy(forwardedFor),payload:{code:'wrong',name:'Ahmed'}});
+  for(let i=0;i<5;i++) expect((await attempt('198.51.100.1')).statusCode).toBe(403);
+  expect((await attempt('198.51.100.2')).statusCode).toBe(429);
+});
+async function twoPhonesBehindProxy() {
+  const owner=(await join('test-owner-fixture','Scoring')).json();
+  const day=(await app.inject({url:'/api/day',headers:auth(owner.token)})).json();
+  const first=(await join(day.dayCode,'Ahmed')).json(),second=(await join(day.dayCode,'Aisha')).json();
+  const attempt=(token:string,forwardedFor:string)=>{
+    const {remoteAddress,headers}=viaProxy(forwardedFor);
+    return app.inject({method:'POST',url:'/api/become-lead',remoteAddress,headers:{...headers,...auth(token)},payload:{code:'wrong'}});
+  };
+  for(let i=0;i<5;i++) expect((await attempt(first.token,'198.51.100.1')).statusCode).toBe(403);
+  return (forwardedFor:string)=>attempt(second.token,forwardedFor);
+}
+test('behind a trusted proxy hop wrong lead codes slow only the phone that mistyped', async () => {
+  await start(1);
+  const secondPhone=await twoPhonesBehindProxy();
+  expect((await secondPhone('198.51.100.1')).statusCode).toBe(429);
+  expect((await secondPhone('198.51.100.2')).statusCode).toBe(403);
+});
+test('without proxy trust forwarded addresses are ignored and cannot dodge wrong lead code backoff', async () => {
+  await start();
+  const secondPhone=await twoPhonesBehindProxy();
+  expect((await secondPhone('198.51.100.2')).statusCode).toBe(429);
 });

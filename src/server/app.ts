@@ -19,11 +19,13 @@ import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
 /** testBuild marks a public test deployment; its commit is shown to testers and carried into bug reports. */
-export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; testBuild?: {commit?: string} }
+export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number; testBuild?: {commit?: string} }
 const bugReportUrl = 'https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml';
 export async function createApp(settings: AppSettings) {
   if (!settings.ownerPassword || !settings.databaseUrl) throw new Error('DATABASE_URL and OWNER_PASSWORD are required');
-  const app = Fastify({logger: false});
+  const hops = settings.trustedProxyHops || 0;
+  // Trust only the nearest proxy hops, never all: a phone can prepend its own forwarded address. Fastify 5.12 ignores a bare hop count, so it is spelled as a function.
+  const app = Fastify({logger: false, trustProxy: hops > 0 && ((_address: string, hop: number) => hop < hops)});
   const pool = await openDatabase(settings.databaseUrl, settings.resetTestDay);
   app.addHook('onClose', async () => { await pool.end(); });
   app.setErrorHandler((error, _request, reply) => {
