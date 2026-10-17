@@ -34,6 +34,27 @@ Leads can tap a runner in Results to disqualify them, choosing a reason, or lift
 
 Scoring team members can download the whole Olympics day from Dashboard → Day setup → Download day export, including incomplete and deleted races. The workbook has Input - Running (completed events, winners in J/M/P with formula columns blank), Finals (original seeds, absences, call-ups and final positions), All results, and Audit notes. Times are numeric seconds to two decimal places; audit times are UTC. Day setup shows the last export time and whether later changes need another download.
 
+## Test build on Railway
+
+The public test build runs `main` on Railway's free plan as two services in one project: the app service, built from this repo's `Dockerfile`, and a Railway PostgreSQL service. The app is served at the HTTPS domain Railway generates (ending `.up.railway.app`). `railway.json` sets the Dockerfile build, the `/api/health` health check and restart on failure. Railway supplies `PORT`; the image already listens on all interfaces.
+
+Set these variables on the app service. Never write their values in GitHub, the repo or an issue.
+
+| Variable | What it holds |
+| --- | --- |
+| `DATABASE_URL` | A reference to the Postgres service's connection URL (`${{Postgres.DATABASE_URL}}`), never a typed password |
+| `OWNER_PASSWORD` | The owner password, 24 or more random characters, kept in the owner's password manager |
+| `TRUSTED_PROXY_HOPS` | The number of proxies in front of the server (Railway: 1, confirmed from the request logs) |
+| <!-- merger: test-build variable name from #63 --> `TEST_BUILD` | Marks the deployment as a test build so phones show the build's commit and a bug-report link; set to `1` |
+
+Railway sets `RAILWAY_GIT_COMMIT_SHA` itself; the test build marker reads it.
+
+Every push to `main` builds and deploys a new version. Railway switches traffic only after the new version answers `/api/health`, so a failing build or health check keeps the previous version running. Look at the deployment's build and runtime logs in the Railway dashboard.
+
+To clear the Olympics day between test sessions, use the normal Start new day flow on Dashboard → Day setup: download the day export, then type **NEW DAY**. Redeploying never clears the day; the data lives in the Postgres service.
+
+To onboard testers, join first with the owner password, then send testers the Railway domain and the day code from Day setup (and the lead code only to testers who should try Lead). They join with the day code and their own full name. Testers report bugs with the **Report a bug** link in the app header, which opens a GitHub issue with the commit and screen filled in.
+
 ## Check changes
 
 ```sh
