@@ -18,10 +18,11 @@ import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
-export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean }
+// logTo turns on request logging (JSON lines); codes and the owner password only travel in bodies, which Fastify never logs
+export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; logTo?: NodeJS.WritableStream }
 export async function createApp(settings: AppSettings) {
   if (!settings.ownerPassword || !settings.databaseUrl) throw new Error('DATABASE_URL and OWNER_PASSWORD are required');
-  const app = Fastify({logger: false});
+  const app = Fastify({logger: settings.logTo ? {stream:settings.logTo, redact:['req.headers.authorization']} : false});
   const pool = await openDatabase(settings.databaseUrl, settings.resetTestDay);
   app.addHook('onClose', async () => { await pool.end(); });
   app.setErrorHandler((error, _request, reply) => {
