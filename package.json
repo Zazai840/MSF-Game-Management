@@ -13,7 +13,8 @@
     "build": "vite build && node scripts/budget.mjs && tsc -p tsconfig.server.json",
     "start": "node dist/server/server/main.js",
     "test:e2e": "playwright test && playwright test -c playwright.test-build.config.ts",
-    "verify": "npm test && npm run typecheck && npm run build"
+    "verify": "npm test && npm run typecheck && npm run build",
+    "test:remote": "playwright test -c playwright.remote.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

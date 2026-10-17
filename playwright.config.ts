@@ -6,7 +6,7 @@ const databaseUrl = new URL(process.env.PG_ADMIN_URL || `postgresql://${process.
 databaseUrl.pathname = `/${databaseName}`;
 process.env.E2E_BASE_URL = baseURL;
 export default defineConfig({
-  testDir:'e2e', testIgnore:'test-build/**', fullyParallel:false, workers:1,
+  testDir:'e2e', testIgnore:['test-build/**','remote/**'], fullyParallel:false, workers:1,
   globalSetup:'./e2e/setup.ts',
   use:{baseURL, trace:'retain-on-failure'},
   projects:[

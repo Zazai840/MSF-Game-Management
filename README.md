@@ -57,6 +57,23 @@ To clear the Olympics day between test sessions, use the normal Start new day fl
 
 To onboard testers, join first with the owner password, then send testers the Railway domain and the day code from Day setup (and the lead code only to testers who should try Lead). They join with the day code and their own full name. Testers report bugs with the **Report a bug** link in the app header, which opens a GitHub issue with the commit and screen filled in.
 
+### Smoke check against the deployed build
+
+`npm run test:remote` checks that the deployed build works for 5 testers: it joins the owner and 4 volunteers, runs one 60m Girl Cubs (R4) race through check-in, finishing order and times, shows a mistyped day code on one phone does not block another, checks the Test build marker, downloads the day export, and makes 70 saves across the 5 phones with no refusal or server error. It uses `playwright.remote.config.ts` (no local server, no test database) and skips unless `REMOTE_BASE_URL` and `REMOTE_OWNER_PASSWORD` are set. It never clears the day: it adds 5 phones named `Smoke ...` and one R4 race to it, so clear the day afterwards if testers should start fresh.
+
+```sh
+REMOTE_BASE_URL=https://YOUR-DOMAIN.up.railway.app REMOTE_OWNER_PASSWORD='...' REMOTE_DAY_CODE=... npm run test:remote
+```
+
+Leave out `REMOTE_DAY_CODE` only when no day exists yet; the owner password then starts the day. Each run uses one of the 5 wrong codes allowed per address in 15 minutes, so wait 15 minutes after 4 runs.
+
+### Guide for testers
+
+- **The link:** open the Railway domain the owner sends you (it ends `.up.railway.app`) on your phone.
+- **Joining:** the owner shares the day code with you directly. Type it with your own full name and tap Join. Only testers trying Lead get the lead code.
+- **Reporting a bug:** tap **Report a bug** in the header on the screen where it happened. It opens a GitHub issue with the build's commit and the screen already filled in; say what happened and what you expected.
+- **Data may be cleared:** this is a test build. The owner clears the day between test sessions, so anything you enter can disappear.
+
 ## Check changes
 
 ```sh
