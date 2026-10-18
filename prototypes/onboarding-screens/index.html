@@ -10,6 +10,7 @@
     A  Name tiles   - big tile per profile, Create and Lead as separate screens
     B  One question - one field per screen, button docked at the bottom
     C  One page     - pick a row and Continue; Create and Lead open in place
+    D  Chosen mix   - A's one-tap sign-in, B's docked button, C's one page (the owner's pick)
   Built once and shared: the Olympics password screen, the owner path, the taken-name
   refusal, Waiting for a lead, and the lead's To check item (shown on a second phone).
   Colours, type and sizes copy src/client/theme.css (the v2 look).
@@ -49,6 +50,7 @@ body {margin:0; background:var(--desk); font-family:var(--font); font-weight:500
 .phone h1 {font-size:28px;} .phone h2 {font-size:22px;}
 .phone p {margin:0;}
 .screen {flex:1; overflow-y:auto; padding:22px 16px; display:flex; flex-direction:column; gap:16px;}
+.screen > * {flex-shrink:0;}
 .lede {color:var(--muted); font-size:17px;}
 .small {font-size:15px; color:var(--muted);}
 
@@ -77,6 +79,7 @@ input {font:inherit; font-size:20px; font-weight:700; color:var(--text); min-hei
 .card {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); padding:16px; display:flex; flex-direction:column; gap:12px;}
 .grow {flex:1;}
 .dock {margin-top:auto; display:flex; flex-direction:column; gap:10px;}
+.dock-sticky {position:sticky; bottom:-22px; padding-block:12px 22px; margin-bottom:-22px; background:var(--ground);}
 
 /* Variant A: name tiles */
 .tiles {display:grid; grid-template-columns:1fr 1fr; gap:12px;}
@@ -145,6 +148,7 @@ const VARIANTS = [
   {k:'A', name:'Name tiles', desc:'A big tile per profile. Create profile and Lead are their own screens.'},
   {k:'B', name:'One question', desc:'One field per screen, the button docked at the bottom like the job screens.'},
   {k:'C', name:'One page', desc:'Pick your name and Continue. Create profile and Lead open in place.'},
+  {k:'D', name:'Chosen mix', desc:"Tap your name to sign in. Create profile and Lead open in place, with the button docked at the bottom."},
 ];
 const OLYMPICS_PASSWORD = 'running2026', OWNER_PASSWORD = 'owner', LEAD_CODE = '4821';
 const ELSEWHERE = ['Sam Patel', 'Aisha Khan']; // profiles that live on other phones
@@ -166,7 +170,7 @@ function fresh() {
     open: '',           // variant C open section
   };
 }
-function readVariant() { const h = location.hash.slice(1); return VARIANTS.some(v => v.k === h) ? h : 'A'; }
+function readVariant() { const h = location.hash.slice(1); return VARIANTS.some(v => v.k === h) ? h : 'D'; }
 let st = fresh();
 if (st.profiles.length) st.passwordOk = false; // open on the password screen, profiles already on the phone
 st.screen = 'password';
@@ -218,7 +222,7 @@ const header = () => { const p = st.signedIn && mine(st.signedIn);
   return `<header class="app-header"><strong>Running Zone</strong>${p ? `<div class="app-header-person"><span>${esc(p.name)}</span><span class="avatar" aria-hidden="true">${initials(p.name)}</span></div>` : ''}</header>`; };
 const alertBox = () => st.error ? `<p class="alert" role="alert">${esc(st.error)}</p>` : '';
 const takenBox = () => st.taken ? `<div class="alert" role="alert"><span>${esc(st.taken)} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.</span><button data-act="thatsme">That's me</button></div>` : '';
-const docked = () => st.variant === 'B';
+const docked = () => st.variant === 'B' || st.variant === 'D';
 
 function passwordScreen() {
   return `<div class="screen"><span class="step"${docked() ? '' : ' hidden'}>Olympics 2026</span><h1>Welcome to the Running Zone</h1>
@@ -303,9 +307,24 @@ const C = {
   lead: () => { st.open = 'lead'; return C.profiles(); },
 };
 
+/* ---------- variant D: the chosen mix ---------- */
+const D = {
+  profiles: () => { const form = st.open === 'create' ? 'd-create' : st.open === 'lead' ? 'd-lead' : '';
+    return `<div class="screen"><h1>Who's using this phone?</h1>
+    ${st.profiles.length ? `<p class="lede">Tap your name.</p><div class="rows">${st.profiles.map(p => `<button class="row" data-signin="${esc(p.name)}"><span class="avatar" aria-hidden="true">${initials(p.name)}</span><span class="row-text"><span class="row-name">${esc(p.name)}</span>${tag(p)}</span><span class="chev" aria-hidden="true">›</span></button>`).join('')}</div>` : ''}
+    <details ${st.open === 'create' ? 'open' : ''} data-open="create"><summary>New here? Create profile</summary>
+      <form id="d-create" data-form="create"><label>Full name<input id="f-create" name="name" autocomplete="name" maxlength="80" required></label>${st.open === 'create' ? alertBox() + takenBox() : ''}</form></details>
+    <details ${st.open === 'lead' ? 'open' : ''} data-open="lead"><summary>Lead today? Sign in</summary>
+      <form id="d-lead" data-form="lead"><label>Full name<input id="f-lead-name" name="name" autocomplete="name" maxlength="80" required></label>
+      <label>Today's lead code<input id="f-lead-code" name="code" inputmode="numeric" autocomplete="off" required></label>${st.open === 'lead' ? alertBox() + takenBox() : ''}</form></details>
+    ${form ? `<div class="dock dock-sticky"><button form="${form}">${form === 'd-create' ? 'Create profile' : 'Sign in as lead'}</button></div>` : ''}</div>`; },
+  create: () => { st.open = 'create'; return D.profiles(); },
+  lead: () => { st.open = 'lead'; return D.profiles(); },
+};
+
 /* ---------- render ---------- */
 function screenHtml() {
-  const V = {A, B, C}[st.variant];
+  const V = {A, B, C, D}[st.variant];
   if (!st.passwordOk && !['password','owner'].includes(st.screen)) st.screen = 'password';
   switch (st.screen) {
     case 'password': return passwordScreen();
@@ -319,7 +338,7 @@ function screenHtml() {
 const SCREENS = [['password','Olympics password'],['owner','Owner password: full name'],['profiles','Profile screen'],['create','Create profile'],['lead','Lead sign-in'],['taken','Taken name refusal'],['waiting','Waiting for a lead'],['home','Signed in (Home)']];
 function jump(k) {
   st.passwordOk = k !== 'password' && k !== 'owner' ? true : st.passwordOk;
-  if (k === 'taken') { st.passwordOk = true; go('create'); st.taken = 'Sam Patel'; if (st.variant === 'C') st.open = 'create'; return render(); }
+  if (k === 'taken') { st.passwordOk = true; go('create'); st.taken = 'Sam Patel'; if (st.variant === 'C' || st.variant === 'D') st.open = 'create'; return render(); }
   if (k === 'waiting') { st.passwordOk = true; st.pending = 'Sam Patel'; return go('waiting'); }
   if (k === 'home') { st.passwordOk = true; return signIn(st.profiles[0].name); }
   if (k === 'lead') st.draft = {};
@@ -328,7 +347,11 @@ function jump(k) {
 }
 function render() {
   const v = VARIANTS.find(x => x.k === st.variant);
+  // Keep what was typed when the same screen redraws (a refusal), like a real form would.
+  const kept = render.screen === st.screen ? [...document.querySelectorAll('#phone input:not([type=password])')].map(i => [i.id, i.value]) : [];
+  render.screen = st.screen;
   document.getElementById('phone').innerHTML = header() + screenHtml();
+  kept.forEach(([id, value]) => { const i = document.getElementById(id); if (i) i.value = value; });
   const lw = document.getElementById('lead-wrap'); lw.hidden = !st.pending;
   document.getElementById('lead-phone').innerHTML = st.pending ? leadPhone() : '';
   document.getElementById('bar-label').textContent = `${v.k} · ${v.name}`;
@@ -384,7 +407,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.target.closest('input, textarea, [contenteditable]')) return;
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const i = VARIANTS.findIndex(v => v.k === st.variant); setVariant(VARIANTS[(i + (e.key === 'ArrowRight' ? 1 : -1) + 3) % 3].k); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const i = VARIANTS.findIndex(v => v.k === st.variant); setVariant(VARIANTS[(i + (e.key === 'ArrowRight' ? 1 : -1) + VARIANTS.length) % VARIANTS.length].k); }
 });
 window.addEventListener('hashchange', () => { const k = readVariant(); if (k !== st.variant) setVariant(k); });
 render();
