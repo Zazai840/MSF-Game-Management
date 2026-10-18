@@ -1,0 +1,391 @@
+<title>Running Zone Onboarding</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYPE - throwaway. Answers "What do the onboarding screens look like on a phone?"
+  (issue 71 on the "Onboarding redesign: Olympics password and phone profiles" map, issue 68).
+  Not production code: no tests, in-memory state only.
+
+  Plan: three variants of the profile flow (profile screen, Create profile, Lead sign-in),
+  switchable from the prototype bar, the ← / → keys, or #A #B #C in the URL:
+    A  Name tiles   - big tile per profile, Create and Lead as separate screens
+    B  One question - one field per screen, button docked at the bottom
+    C  One page     - pick a row and Continue; Create and Lead open in place
+  Built once and shared: the Olympics password screen, the owner path, the taken-name
+  refusal, Waiting for a lead, and the lead's To check item (shown on a second phone).
+  Colours, type and sizes copy src/client/theme.css (the v2 look).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: one or two phone frames beside a prototype panel on desktop; stacked on a phone. */
+:root {
+  --navy:#1b2a51; --red:#ac3036; --on-dark-muted:#c5cde2;
+  --ground:#f3f5f9; --surface:#ffffff; --tint:#e8ecf5;
+  --text:#18213b; --muted:#4a5470; --faint:#8a93ab;
+  --line:#d6dbe6; --line-strong:#c3cad9;
+  --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;
+  --green-fill:#e3f1e8; --green-line:#2f6b47; --green-text:#2f6b47;
+  --focus:#d78800;
+  --desk:#dde2ec; --frame:#1b2133; --proto-bg:#11151f; --proto-fg:#f4f6fa; --proto-muted:#a8b0c2;
+  --font:Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --tap:44px; --tap-primary:52px; --radius:12px; --radius-card:16px; --radius-box:14px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk:#0c101a; --frame:#2f3854; --proto-bg:#eef1f6; --proto-fg:#11151f; --proto-muted:#4a5266; color-scheme:dark;
+} }
+:root[data-theme="dark"] { --desk:#0c101a; --frame:#2f3854; --proto-bg:#eef1f6; --proto-fg:#11151f; --proto-muted:#4a5266; color-scheme:dark; }
+/* The phone screens keep the app's light look in both themes, because the app has no dark mode. */
+* {box-sizing:border-box;}
+[hidden] {display:none !important;}
+body {margin:0; background:var(--desk); font-family:var(--font); font-weight:500; font-size:17px; line-height:1.4; color:var(--text);
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:20px 96px;}
+.stage {display:flex; flex-wrap:wrap; gap:24px; justify-content:center; align-items:flex-start;}
+.phone-wrap {display:flex; flex-direction:column; gap:8px; align-items:center; min-width:0; width:100%; max-width:390px;}
+.phone-label {font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--proto-muted); background:var(--proto-bg); color:var(--proto-fg); padding:4px 10px; border-radius:999px;}
+.phone {width:100%; height:760px; max-height:calc(100vh - 140px); min-height:560px; background:var(--ground); border:10px solid var(--frame); border-radius:36px; overflow:hidden; display:flex; flex-direction:column;}
+@media (max-width:440px) { .phone {border-width:6px; border-radius:24px; height:auto; max-height:none; min-height:640px;} }
+.phone h1,.phone h2 {color:var(--navy); font-weight:800; line-height:1.2; margin:0; text-wrap:balance;}
+.phone h1 {font-size:28px;} .phone h2 {font-size:22px;}
+.phone p {margin:0;}
+.screen {flex:1; overflow-y:auto; padding:22px 16px; display:flex; flex-direction:column; gap:16px;}
+.lede {color:var(--muted); font-size:17px;}
+.small {font-size:15px; color:var(--muted);}
+
+.app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex:none;}
+.app-header strong {font-size:19px; font-weight:800;}
+.app-header-person {display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700; min-width:0;}
+.app-header-person span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.avatar {flex:none; width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;}
+
+button {font:inherit; font-size:17px; font-weight:800; line-height:1.2; min-height:var(--tap-primary); padding:.75rem 1rem; border-radius:var(--radius);
+  border:1.5px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+button:focus-visible,input:focus-visible {outline:3px solid var(--focus); outline-offset:3px;}
+.button-secondary {background:var(--surface); color:var(--navy);}
+.button-quiet {min-height:var(--tap); padding:0 14px; border-radius:10px; background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+.link {background:none; border:none; color:var(--navy); text-decoration:underline; min-height:var(--tap); padding:0; font-size:16px; font-weight:700; align-self:flex-start;}
+form {display:flex; flex-direction:column; gap:16px; margin:0;}
+label {display:grid; gap:6px; font-size:15px; font-weight:700; color:var(--muted);}
+input {font:inherit; font-size:20px; font-weight:700; color:var(--text); min-height:56px; padding:.7rem 14px; width:100%; min-width:0; background:var(--surface); border:2px solid var(--navy); border-radius:var(--radius-box);}
+.badge {display:inline-block; padding:3px 10px; border-radius:999px; background:var(--navy); color:#fff; font-size:13px; font-weight:800; line-height:1.3;}
+.badge-scoring {background:var(--tint); color:var(--navy); border:1.5px solid var(--line-strong);}
+.badge-attention {background:var(--red);}
+.alert {background:var(--amber-fill); border:1.5px solid var(--amber-line); border-radius:var(--radius-box); color:var(--amber-text); padding:12px 14px; font-weight:700; display:flex; flex-direction:column; gap:10px;}
+.alert button {min-height:var(--tap); font-size:16px;}
+.calm-note {padding:10px 14px; border-radius:var(--radius); background:var(--tint); color:var(--navy); font-size:15px; font-weight:700;}
+.ok-note {padding:10px 14px; border-radius:var(--radius); background:var(--green-fill); border:1.5px solid var(--green-line); color:var(--green-text); font-size:15px; font-weight:700;}
+.card {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); padding:16px; display:flex; flex-direction:column; gap:12px;}
+.grow {flex:1;}
+.dock {margin-top:auto; display:flex; flex-direction:column; gap:10px;}
+
+/* Variant A: name tiles */
+.tiles {display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.tile {display:flex; flex-direction:column; align-items:flex-start; gap:10px; min-height:132px; padding:16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--line); border-radius:var(--radius-card);}
+.tile .avatar {width:48px; height:48px; font-size:17px;}
+.tile-name {font-size:19px; font-weight:800; color:var(--navy); overflow-wrap:anywhere;}
+.tile-new {border-style:dashed; border-color:var(--navy); background:transparent; justify-content:center; align-items:center; text-align:center; color:var(--navy);}
+.tile-new .plus {font-size:34px; line-height:1;}
+
+/* Variant B: one question per screen */
+.step {font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);}
+.rows {display:flex; flex-direction:column; border:1.5px solid var(--line); border-radius:var(--radius-card); overflow:hidden; background:var(--surface);}
+.row {display:flex; align-items:center; gap:14px; width:100%; min-height:68px; padding:12px 16px; text-align:left; background:var(--surface); color:var(--text); border:none; border-radius:0; border-bottom:1.5px solid var(--line);}
+.row:last-child {border-bottom:none;}
+.row-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.row-name {font-size:19px; font-weight:800; color:var(--navy);}
+.row-text .badge {align-self:flex-start;}
+.chev {color:var(--faint); font-size:22px;}
+
+/* Variant C: one page */
+.pick {display:flex; align-items:center; gap:14px; width:100%; min-height:64px; padding:12px 16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--line); border-radius:var(--radius-card);}
+.pick[aria-pressed=true] {border:2.5px solid var(--navy); background:var(--tint);}
+.radio {flex:none; width:24px; height:24px; border-radius:50%; border:2.5px solid var(--navy); display:flex; align-items:center; justify-content:center;}
+.pick[aria-pressed=true] .radio::after {content:""; width:12px; height:12px; border-radius:50%; background:var(--navy);}
+details {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card);}
+summary {list-style:none; cursor:pointer; min-height:60px; padding:16px; font-size:18px; font-weight:800; color:var(--navy); display:flex; justify-content:space-between; align-items:center;}
+summary::-webkit-details-marker {display:none;}
+summary::after {content:"+"; font-size:24px;}
+details[open] summary::after {content:"−";}
+details form {padding:0 16px 16px;}
+
+/* Waiting, home stub */
+.big-name {font-size:36px; font-weight:800; color:var(--navy); line-height:1.1; overflow-wrap:anywhere; text-align:center; padding:28px 12px; background:var(--surface); border:2.5px solid var(--navy); border-radius:var(--radius-card);}
+.pulse {display:flex; align-items:center; gap:10px; color:var(--muted); font-weight:700;}
+.pulse i {width:12px; height:12px; border-radius:50%; background:var(--amber-line); animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse {50% {opacity:.25;}}
+@media (prefers-reduced-motion:reduce) {.pulse i {animation:none;}}
+.job {display:flex; align-items:center; gap:14px; padding:18px 16px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); font-size:19px; font-weight:800; color:var(--navy);}
+.job-icon {width:44px; height:44px; border-radius:var(--radius); background:var(--tint);}
+
+/* Prototype panel: clearly not part of the design */
+.panel {width:100%; max-width:340px; background:var(--proto-bg); color:var(--proto-fg); border-radius:18px; padding:18px; display:flex; flex-direction:column; gap:14px; font-size:14px;}
+.panel h3 {margin:0; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--proto-muted);}
+.panel button {min-height:40px; font-size:14px; font-weight:700; border-radius:10px; background:transparent; color:var(--proto-fg); border:1.5px solid var(--proto-muted); text-align:left; padding:8px 12px;}
+.panel button[aria-pressed=true] {background:var(--proto-fg); color:var(--proto-bg);}
+.panel .grid {display:flex; flex-direction:column; gap:6px;}
+.panel code {font-family:ui-monospace,Menlo,monospace; font-size:13px; background:color-mix(in srgb, var(--proto-muted) 25%, transparent); padding:1px 6px; border-radius:6px;}
+.panel dl {margin:0; display:grid; grid-template-columns:auto 1fr; gap:4px 10px;}
+.panel dt {color:var(--proto-muted);} .panel dd {margin:0; min-width:0; overflow-wrap:anywhere;}
+.protobar {position:fixed; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom, 0px)); z-index:20; display:flex; align-items:center; gap:6px; padding:6px; background:var(--proto-bg); color:var(--proto-fg); border-radius:999px; box-shadow:0 6px 24px rgb(0 0 0 / .3); max-width:calc(100% - 32px);}
+.protobar button {min-height:40px; min-width:40px; padding:0 12px; border-radius:999px; background:transparent; border:none; color:var(--proto-fg); font-size:18px;}
+.protobar span {font-size:14px; font-weight:800; padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+</style>
+
+<div class="stage">
+  <div class="phone-wrap"><span class="phone-label">This phone</span><div class="phone" id="phone"></div></div>
+  <div class="phone-wrap" id="lead-wrap" hidden><span class="phone-label">A lead's phone - Dashboard, To check</span><div class="phone" id="lead-phone"></div></div>
+  <aside class="panel" id="panel"></aside>
+</div>
+<div class="protobar" role="toolbar" aria-label="Prototype variant switcher">
+  <button data-cycle="-1" aria-label="Previous variant">←</button><span id="bar-label"></span><button data-cycle="1" aria-label="Next variant">→</button>
+</div>
+
+<script>
+const VARIANTS = [
+  {k:'A', name:'Name tiles', desc:'A big tile per profile. Create profile and Lead are their own screens.'},
+  {k:'B', name:'One question', desc:'One field per screen, the button docked at the bottom like the job screens.'},
+  {k:'C', name:'One page', desc:'Pick your name and Continue. Create profile and Lead open in place.'},
+];
+const OLYMPICS_PASSWORD = 'running2026', OWNER_PASSWORD = 'owner', LEAD_CODE = '4821';
+const ELSEWHERE = ['Sam Patel', 'Aisha Khan']; // profiles that live on other phones
+
+function fresh() {
+  return {
+    variant: readVariant(),
+    passwordOk: true,
+    dayRunning: true,
+    profiles: [{name:'Maya Okafor', role:'Volunteer'}, {name:'Jordan Lee', role:'Lead'}],
+    signedIn: null,
+    screen: 'profiles',
+    pending: null,      // name waiting for a lead
+    flash: '',          // one-off note on the next screen
+    error: '',          // refusal shown on the current form
+    taken: '',          // taken name, offers That's me
+    draft: {},          // values kept between steps (variant B)
+    pick: null,         // variant C selection
+    open: '',           // variant C open section
+  };
+}
+function readVariant() { const h = location.hash.slice(1); return VARIANTS.some(v => v.k === h) ? h : 'A'; }
+let st = fresh();
+if (st.profiles.length) st.passwordOk = false; // open on the password screen, profiles already on the phone
+st.screen = 'password';
+
+const same = (a, b) => a.trim().replace(/\s+/g, ' ').toLowerCase() === b.trim().replace(/\s+/g, ' ').toLowerCase();
+const tidy = s => s.trim().replace(/\s+/g, ' ');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const initials = n => { const w = n.trim().split(/\s+/); return ((w[0]||'')[0] + (w.length > 1 ? w[w.length-1][0] : '')).toUpperCase(); };
+const mine = n => st.profiles.find(p => same(p.name, n));
+const tag = p => p.role === 'Lead' ? '<span class="badge">Lead</span>' : p.role === 'Scoring team' ? '<span class="badge badge-scoring">Scoring team</span>' : '';
+
+function go(screen, extra = {}) { Object.assign(st, {screen, error:'', taken:''}, extra); render(); }
+function signIn(name, flash = '') { st.signedIn = mine(name).name; go('home', {flash}); }
+
+/* ---------- actions ---------- */
+function submitPassword(v) {
+  if (v === OWNER_PASSWORD) return go('owner');
+  if (v === OLYMPICS_PASSWORD) { st.passwordOk = true; return go('profiles'); }
+  st.error = 'That is not the Olympics password. Check with a lead and try again.'; render();
+}
+function createProfile(raw, role = 'Volunteer') {
+  const name = tidy(raw);
+  if (!name.includes(' ')) { st.error = 'Type your first and last name.'; return render(); }
+  if (mine(name)) { mine(name).role = role === 'Volunteer' ? mine(name).role : role; return signIn(name, `${mine(name).name} is already on this phone.`); }
+  if (ELSEWHERE.some(n => same(n, name))) { st.taken = ELSEWHERE.find(n => same(n, name)); st.error = ''; return render(); }
+  st.profiles.push({name, role});
+  signIn(name, role === 'Lead' ? 'You are a lead for today.' : '');
+}
+function leadSignIn(raw, code) {
+  if (code !== LEAD_CODE) { st.error = "That is not today's lead code. Ask the scoring team for it."; return render(); }
+  createProfile(raw, 'Lead');
+}
+function ownerSignIn(raw) {
+  const name = tidy(raw);
+  if (!name.includes(' ')) { st.error = 'Type your first and last name.'; return render(); }
+  const started = !st.dayRunning; st.dayRunning = true; st.passwordOk = true;
+  const p = mine(name); if (p) p.role = 'Scoring team'; else st.profiles.push({name, role:'Scoring team'});
+  signIn(name, started ? "Today's Olympics day has started. You are on the scoring team." : 'You are on the scoring team.');
+}
+function thatsMe() { st.pending = st.taken; go('waiting'); }
+function decide(approve) {
+  const name = st.pending; st.pending = null;
+  if (approve) { ELSEWHERE.splice(ELSEWHERE.indexOf(name), 1); st.profiles.push({name, role:'Volunteer'}); return signIn(name, 'Your profile is on this phone now. Your old phone has been signed out.'); }
+  go('create', {error:'A lead did not approve this. Add your middle name or initial.'});
+}
+
+/* ---------- shared screens ---------- */
+const header = () => { const p = st.signedIn && mine(st.signedIn);
+  return `<header class="app-header"><strong>Running Zone</strong>${p ? `<div class="app-header-person"><span>${esc(p.name)}</span><span class="avatar" aria-hidden="true">${initials(p.name)}</span></div>` : ''}</header>`; };
+const alertBox = () => st.error ? `<p class="alert" role="alert">${esc(st.error)}</p>` : '';
+const takenBox = () => st.taken ? `<div class="alert" role="alert"><span>${esc(st.taken)} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.</span><button data-act="thatsme">That's me</button></div>` : '';
+const docked = () => st.variant === 'B';
+
+function passwordScreen() {
+  return `<div class="screen"><span class="step"${docked() ? '' : ' hidden'}>Olympics 2026</span><h1>Welcome to the Running Zone</h1>
+    <p class="lede">Type the Olympics password. You only need it once on this phone.</p>
+    <form data-form="password" class="${docked() ? 'grow' : ''}"><label>Olympics password<input id="f-password" name="v" type="password" autocomplete="off" required></label>
+    ${alertBox()}<div class="${docked() ? 'dock' : ''}"><button style="width:100%">Continue</button></div></form></div>`;
+}
+function ownerScreen() {
+  return `<div class="screen"><span class="step">Owner password</span><h1>What's your full name?</h1>
+    <p class="lede">You'll sign in as the scoring team.</p>
+    ${st.dayRunning ? '' : `<p class="calm-note">No Olympics day is running. Signing in starts today's day.</p>`}
+    <form data-form="owner" class="${docked() ? 'grow' : ''}"><label>Full name<input id="f-owner" name="name" autocomplete="name" maxlength="80" required></label>
+    ${alertBox()}<div class="${docked() ? 'dock' : ''}"><button style="width:100%">${st.dayRunning ? 'Sign in' : 'Start the day and sign in'}</button></div></form>
+    <button class="link" data-go="password">Back</button></div>`;
+}
+function waitingScreen() {
+  return `<div class="screen"><h1>Waiting for a lead to approve</h1><p class="lede">Show this screen to a lead or the scoring team. They will check it's you.</p>
+    <div class="big-name">${esc(st.pending)}</div><p class="pulse"><i></i>Waiting…</p>
+    <p class="small">You can't do jobs on this phone until a lead approves.</p>
+    <div class="dock"><button class="button-secondary" data-act="cancel">Cancel</button></div></div>`;
+}
+function homeScreen() {
+  const p = mine(st.signedIn);
+  return `<div class="screen">${st.flash ? `<p class="ok-note">${esc(st.flash)}</p>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1>Home</h1>${tag(p)}</div>
+    <p class="small">Placeholder for the real Home. The jobs below don't open.</p>
+    ${['Start line','Finish order','Times'].map(j => `<div class="job"><span class="job-icon"></span>${j}</div>`).join('')}
+    <div class="dock"><button class="button-quiet" data-act="switch">Not ${esc(p.name.split(' ')[0])}? Switch profile</button></div></div>`;
+}
+function leadPhone() {
+  return `${`<header class="app-header"><strong>Running Zone</strong><div class="app-header-person"><span>Jordan Lee</span><span class="avatar" aria-hidden="true">JL</span></div></header>`}
+  <div class="screen"><div style="display:flex;align-items:center;gap:10px"><h1>To check</h1><span class="badge badge-attention">1</span></div>
+    <div class="card"><h2>${esc(st.pending)} wants their profile on a new phone</h2>
+      <p>Approve only after checking it's them in person. Their old phone will be signed out.</p>
+      <button data-act="approve">Approve</button><button class="button-secondary" data-act="decline">Decline</button></div></div>`;
+}
+
+/* ---------- variant A: name tiles ---------- */
+const A = {
+  profiles: () => `<div class="screen"><h1>Who's using this phone?</h1><p class="lede">Tap your name.</p>
+    <div class="tiles">${st.profiles.map(p => `<button class="tile" data-signin="${esc(p.name)}"><span class="avatar" aria-hidden="true">${initials(p.name)}</span><span class="tile-name">${esc(p.name)}</span>${tag(p)}</button>`).join('')}
+    <button class="tile tile-new" data-go="create"><span class="plus" aria-hidden="true">+</span><span class="tile-name">Create profile</span></button></div>
+    <div class="dock"><button class="button-secondary" data-go="lead">I'm a lead today</button></div></div>`,
+  create: () => `<div class="screen"><h1>Create profile</h1><p class="lede">Use your real first and last name. Leads see it on every result you save.</p>
+    <form data-form="create"><label>Full name<input id="f-create" name="name" autocomplete="name" maxlength="80" required></label>${alertBox()}${takenBox()}<button>Create profile</button></form>
+    ${st.profiles.length ? '<button class="link" data-go="profiles">Back</button>' : ''}</div>`,
+  lead: () => `<div class="screen"><h1>Lead sign-in</h1><p class="lede">For today only. Get the lead code from the scoring team.</p>
+    <form data-form="lead"><label>Full name<input id="f-lead-name" name="name" autocomplete="name" maxlength="80" required></label>
+    <label>Lead code<input id="f-lead-code" name="code" inputmode="numeric" autocomplete="off" required></label>${alertBox()}${takenBox()}<button>Sign in as lead</button></form>
+    <button class="link" data-go="profiles">Back</button></div>`,
+};
+
+/* ---------- variant B: one question per screen ---------- */
+const B = {
+  profiles: () => `<div class="screen"><h1>Who are you?</h1>
+    <div class="rows">${st.profiles.map(p => `<button class="row" data-signin="${esc(p.name)}"><span class="avatar" aria-hidden="true">${initials(p.name)}</span><span class="row-text"><span class="row-name">${esc(p.name)}</span>${tag(p)}</span><span class="chev" aria-hidden="true">›</span></button>`).join('')}</div>
+    <div class="dock"><button data-go="create">I'm new - create profile</button><button class="button-secondary" data-go="lead">I'm a lead today</button></div></div>`,
+  create: () => `<div class="screen"><span class="step">Create profile</span><h1>What's your full name?</h1>
+    <form data-form="create" class="grow"><label>First and last name<input id="f-create" name="name" autocomplete="name" maxlength="80" required></label>${alertBox()}${takenBox()}
+    <div class="dock"><button>Create profile</button>${st.profiles.length ? '<button type="button" class="button-quiet" data-go="profiles">Back</button>' : ''}</div></form></div>`,
+  lead: () => st.draft.leadName == null
+    ? `<div class="screen"><span class="step">Lead sign-in · 1 of 2</span><h1>What's your full name?</h1>
+      <form data-form="lead-name" class="grow"><label>First and last name<input id="f-lead-name" name="name" autocomplete="name" maxlength="80" required></label>${alertBox()}
+      <div class="dock"><button>Next</button><button type="button" class="button-quiet" data-go="profiles">Back</button></div></form></div>`
+    : `<div class="screen"><span class="step">Lead sign-in · 2 of 2</span><h1>Today's lead code</h1><p class="lede">Get it from the scoring team. It changes every day.</p>
+      <form data-form="lead" class="grow"><label>Lead code<input id="f-lead-code" name="code" inputmode="numeric" autocomplete="off" required></label>${alertBox()}${takenBox()}
+      <div class="dock"><button>Sign in as ${esc(st.draft.leadName.split(' ')[0])}</button><button type="button" class="button-quiet" data-act="lead-back">Back</button></div></form></div>`,
+};
+
+/* ---------- variant C: one page ---------- */
+const C = {
+  profiles: () => { const picked = st.pick && mine(st.pick);
+    return `<div class="screen"><h1>Who's using this phone?</h1>
+    ${st.profiles.map(p => `<button class="pick" data-pick="${esc(p.name)}" aria-pressed="${picked === p}"><span class="radio" aria-hidden="true"></span><span class="row-text"><span class="row-name">${esc(p.name)}</span>${tag(p)}</span></button>`).join('')}
+    <button ${picked ? '' : 'disabled style="opacity:.5"'} data-act="continue">${picked ? `Continue as ${esc(picked.name.split(' ')[0])}` : 'Pick your name'}</button>
+    <details ${st.open === 'create' ? 'open' : ''} data-open="create"><summary>New here? Create profile</summary>
+      <form data-form="create"><label>Full name<input id="f-create" name="name" autocomplete="name" maxlength="80" required></label>${st.open === 'create' ? alertBox() + takenBox() : ''}<button>Create profile</button></form></details>
+    <details ${st.open === 'lead' ? 'open' : ''} data-open="lead"><summary>Lead today? Sign in</summary>
+      <form data-form="lead"><label>Full name<input id="f-lead-name" name="name" autocomplete="name" maxlength="80" required></label>
+      <label>Today's lead code<input id="f-lead-code" name="code" inputmode="numeric" autocomplete="off" required></label>${st.open === 'lead' ? alertBox() + takenBox() : ''}<button>Sign in as lead</button></form></details></div>`; },
+  create: () => { st.open = 'create'; return C.profiles(); },
+  lead: () => { st.open = 'lead'; return C.profiles(); },
+};
+
+/* ---------- render ---------- */
+function screenHtml() {
+  const V = {A, B, C}[st.variant];
+  if (!st.passwordOk && !['password','owner'].includes(st.screen)) st.screen = 'password';
+  switch (st.screen) {
+    case 'password': return passwordScreen();
+    case 'owner': return ownerScreen();
+    case 'waiting': return waitingScreen();
+    case 'home': return homeScreen();
+    case 'profiles': return st.profiles.length ? V.profiles() : V.create();
+    default: return V[st.screen]();
+  }
+}
+const SCREENS = [['password','Olympics password'],['owner','Owner password: full name'],['profiles','Profile screen'],['create','Create profile'],['lead','Lead sign-in'],['taken','Taken name refusal'],['waiting','Waiting for a lead'],['home','Signed in (Home)']];
+function jump(k) {
+  st.passwordOk = k !== 'password' && k !== 'owner' ? true : st.passwordOk;
+  if (k === 'taken') { st.passwordOk = true; go('create'); st.taken = 'Sam Patel'; if (st.variant === 'C') st.open = 'create'; return render(); }
+  if (k === 'waiting') { st.passwordOk = true; st.pending = 'Sam Patel'; return go('waiting'); }
+  if (k === 'home') { st.passwordOk = true; return signIn(st.profiles[0].name); }
+  if (k === 'lead') st.draft = {};
+  st.open = k === 'create' || k === 'lead' ? k : '';
+  go(k);
+}
+function render() {
+  const v = VARIANTS.find(x => x.k === st.variant);
+  document.getElementById('phone').innerHTML = header() + screenHtml();
+  const lw = document.getElementById('lead-wrap'); lw.hidden = !st.pending;
+  document.getElementById('lead-phone').innerHTML = st.pending ? leadPhone() : '';
+  document.getElementById('bar-label').textContent = `${v.k} · ${v.name}`;
+  document.getElementById('panel').innerHTML = `
+    <h3>Variant</h3><div class="grid">${VARIANTS.map(x => `<button data-variant="${x.k}" aria-pressed="${x.k === st.variant}"><b>${x.k} · ${x.name}</b><br>${x.desc}</button>`).join('')}</div>
+    <h3>Jump to a screen</h3><div class="grid">${SCREENS.map(([k, n]) => `<button data-jump="${k}">${n}</button>`).join('')}</div>
+    <h3>Things that happen elsewhere</h3><div class="grid">
+      <button data-act="pw-change">Scoring team changes the Olympics password</button>
+      <button data-act="new-day">A new Olympics day starts (roles reset)</button>
+      <button data-act="no-day">No day running yet (for the owner path)</button>
+      <button data-act="wipe">Empty phone (no profiles yet)</button>
+      <button data-act="reset">Reset the prototype</button></div>
+    <h3>Try these</h3><dl>
+      <dt>Password</dt><dd><code>${OLYMPICS_PASSWORD}</code></dd><dt>Owner</dt><dd><code>${OWNER_PASSWORD}</code></dd>
+      <dt>Lead code</dt><dd><code>${LEAD_CODE}</code></dd><dt>Taken</dt><dd><code>Sam Patel</code> (on another phone)</dd></dl>
+    <h3>This phone's state</h3><dl>
+      <dt>Password</dt><dd>${st.passwordOk ? 'in' : 'not typed'}</dd><dt>Day</dt><dd>${st.dayRunning ? 'running' : 'none'}</dd>
+      <dt>Profiles</dt><dd>${st.profiles.map(p => `${esc(p.name)} (${p.role})`).join(', ') || 'none'}</dd>
+      <dt>Signed in</dt><dd>${esc(st.signedIn || 'nobody')}</dd><dt>Waiting</dt><dd>${esc(st.pending || 'no')}</dd></dl>`;
+  if (st.screen !== 'home') st.flash = '';
+  const first = document.querySelector('#phone input'); if (first && st.error === '' && !st.taken) first.focus({preventScroll:true});
+}
+function setVariant(k) { st.variant = k; history.replaceState(null, '', '#' + k); st.draft = {}; st.open = st.screen === 'create' || st.screen === 'lead' ? st.screen : ''; render(); }
+
+document.addEventListener('submit', e => {
+  e.preventDefault(); const f = e.target, d = Object.fromEntries(new FormData(f)), kind = f.dataset.form;
+  if (kind === 'password') submitPassword(d.v);
+  if (kind === 'owner') ownerSignIn(d.name);
+  if (kind === 'create') createProfile(d.name);
+  if (kind === 'lead-name') { const n = tidy(d.name); if (!n.includes(' ')) { st.error = 'Type your first and last name.'; return render(); } st.draft.leadName = n; go('lead'); }
+  if (kind === 'lead') leadSignIn(d.name ?? st.draft.leadName, d.code);
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('button, summary'); if (!t) return;
+  if (t.tagName === 'SUMMARY') { e.preventDefault(); const k = t.parentElement.dataset.open; st.open = st.open === k ? '' : k; st.error = ''; st.taken = ''; return render(); }
+  const {go: g, signin, pick, act, variant, jump: j, cycle} = t.dataset;
+  if (g) { if (g === 'lead') st.draft = {}; st.open = g === 'create' || g === 'lead' ? g : ''; go(g); }
+  if (signin) signIn(signin);
+  if (pick) { st.pick = pick; render(); }
+  if (variant) setVariant(variant);
+  if (j) jump(j);
+  if (cycle) { const i = VARIANTS.findIndex(v => v.k === st.variant); setVariant(VARIANTS[(i + +cycle + VARIANTS.length) % VARIANTS.length].k); }
+  ({
+    thatsme: thatsMe, continue: () => signIn(st.pick), approve: () => decide(true), decline: () => decide(false),
+    cancel: () => { st.pending = null; go('create'); }, switch: () => { st.signedIn = null; st.pick = null; go('profiles'); },
+    'lead-back': () => { st.draft = {}; go('lead'); },
+    'pw-change': () => { st.passwordOk = false; st.signedIn = null; st.pending = null; go('password'); },
+    'new-day': () => { st.profiles.forEach(p => p.role = 'Volunteer'); st.signedIn = null; go(st.passwordOk ? 'profiles' : 'password'); },
+    'no-day': () => { st.dayRunning = false; st.passwordOk = false; st.signedIn = null; go('password'); },
+    wipe: () => { st.profiles = []; st.signedIn = null; st.pick = null; go(st.passwordOk ? 'profiles' : 'password'); },
+    reset: () => { const v = st.variant; ELSEWHERE.splice(0, ELSEWHERE.length, 'Sam Patel', 'Aisha Khan'); st = fresh(); st.variant = v; st.passwordOk = false; st.screen = 'password'; render(); },
+  }[act] || (() => {}))();
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const i = VARIANTS.findIndex(v => v.k === st.variant); setVariant(VARIANTS[(i + (e.key === 'ArrowRight' ? 1 : -1) + 3) % 3].k); }
+});
+window.addEventListener('hashchange', () => { const k = readVariant(); if (k !== st.variant) setVariant(k); });
+render();
+</script>
