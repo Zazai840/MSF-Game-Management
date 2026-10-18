@@ -38,8 +38,14 @@ export const phoneStorage = {
     if(retained) localStorage.setItem(`${prefix}token`,retained);
     localStorage.setItem(`${prefix}day`,id);localStorage.setItem(`${prefix}session`,newSession());changed(true);
   },
+  /** Whether the profile screen says a new Olympics day has started; signing in drops it with the rest of the old session. */
+  newDayLine:()=>localStorage.getItem(`${prefix}new-day`)!==null,
   /** The session ended: drafts go, the profiles stay, and the pass stays unless the password changed. */
-  clear:(passChanged=false)=>{erase(passChanged?kept.slice(1):kept);epoch++;}
+  clear:(reason?:string)=>{
+    erase(reason==='password-changed'?kept.slice(1):kept);
+    if(reason==='new-day') localStorage.setItem(`${prefix}new-day`,'1');
+    epoch++;
+  }
 };
 // Tabs share this app's storage. A changed session marker also invalidates
 // outstanding work when the retained bearer token stays the same after reset.
@@ -67,7 +73,7 @@ export async function apiResponse(path:string,body?:unknown):Promise<Response> {
     const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
     current(captured);
     if (response.status === 401) {
-      phoneStorage.clear(result.reason==='password-changed');
+      phoneStorage.clear(result.reason);
       window.dispatchEvent(new Event('msf:removed'));
     }
     throw new ApiFailure(response.status, result.message || 'Could not connect - please try again', result);
