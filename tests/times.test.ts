@@ -1,17 +1,16 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'finish-owner',resetTestDay:true});
-  const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'finish-owner',name:'Aisha'}})).json();
-  const day=(await call(owner.token,'/api/day')).json();
+  const people=await signInOwner(app,'finish-owner'),owner=people.owner;
   await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json().token as string;
-  const volunteer=await join('Ahmed');
-  const lead=await join('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const volunteer=(await people.volunteer('Ahmed')).token;
+  const lead=(await people.lead('Maryam')).token;
   const checkIn=async(runners:number[],eventCode='R4')=>(await call(volunteer,'/api/races/check-in',{eventCode,runners})).json().race;
   return {owner:owner.token as string,volunteer,lead,checkIn};
 }
