@@ -3,7 +3,15 @@ let epoch=0;
 let resetPending=false;
 /** What a phone keeps when a session ends: the Olympics password pass and the profiles made on it. */
 const kept=[`${prefix}pass`,`${prefix}profiles`];
-const erase=(keep:string[]=[])=>{for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key)) localStorage.removeItem(key);};
+/** What each 401 reason leaves on the phone. With no known reason, everything goes. */
+const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],
+  // shortcut: moved keeps every profile because the phone does not record which one is signed in; forget the moved one when That's me (#84) lands.
+  moved:kept};
+// The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
+const erase=(keep:string[]=[])=>{
+  for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session`) localStorage.removeItem(key);
+  localStorage.removeItem(`${prefix}session`);
+};
 const token=()=>localStorage.getItem(`${prefix}token`);
 export interface HeldProfile {id:string;name:string;secret:string}
 function profiles():HeldProfile[] {
@@ -38,8 +46,10 @@ export const phoneStorage = {
     if(retained) localStorage.setItem(`${prefix}token`,retained);
     localStorage.setItem(`${prefix}day`,id);localStorage.setItem(`${prefix}session`,newSession());changed(true);
   },
-  /** The session ended: drafts go, the profiles stay, and the pass stays unless the password changed. */
-  clear:(passChanged=false)=>{erase(passChanged?kept.slice(1):kept);epoch++;}
+  /** The server ended the session (a 401): clears exactly what its reason calls for. */
+  clear:(reason='')=>{erase(Object.hasOwn(keptAfter,reason)?keptAfter[reason]:[]);epoch++;},
+  /** Sign out: the pass, session and drafts go, the profiles stay, and every tab goes to the password screen. */
+  signOut:()=>{erase(keptAfter['signed-out']);changed(false);}
 };
 // Tabs share this app's storage. A changed session marker also invalidates
 // outstanding work when the retained bearer token stays the same after reset.
@@ -67,7 +77,7 @@ export async function apiResponse(path:string,body?:unknown):Promise<Response> {
     const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
     current(captured);
     if (response.status === 401) {
-      phoneStorage.clear(result.reason==='password-changed');
+      phoneStorage.clear(result.reason);
       window.dispatchEvent(new Event('msf:removed'));
     }
     throw new ApiFailure(response.status, result.message || 'Could not connect - please try again', result);

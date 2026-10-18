@@ -12,7 +12,7 @@ import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
 import type { DayEvent } from '../../shared/day.js';
 import type { RaceRead,Runner } from '../../shared/races.js';
-import { Refusal } from '../access/permissions.js';
+import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
@@ -31,7 +31,7 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const stages=await readCompletedStages(db,dayId);
   const savers=await clashSavers(db,races);
   const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
-  if(!day) throw new Refusal(401,'Please join the Olympics day');
+  if(!day) throw newDay();
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
     const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings));
@@ -94,7 +94,7 @@ export async function resultsSnapshot<T>(pool:pg.Pool,dayId:string,read:(client:
   const client=await pool.connect();
   let failure:Error|boolean|undefined;
   try {await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-    if(!(await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active',[dayId])).rowCount) throw new Refusal(401,'Please join the Olympics day');
+    if(!(await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active',[dayId])).rowCount) throw newDay();
     const result=await read(client);await client.query('COMMIT');return result;}
   catch(error) {
     failure=error instanceof Error?error:true;

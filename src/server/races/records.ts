@@ -3,7 +3,7 @@ import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { raceLabel,type RaceRead } from '../../shared/races.js';
-import { Refusal } from '../access/permissions.js';
+import { newDay, Refusal, signedOut } from '../access/permissions.js';
 export type StoredRace=Omit<RaceRead,'final'> & {final?:FinalField};
 /** Jobs receive attendance only; heat ranking and provenance stay within Lead reads. */
 export function jobRace(race:StoredRace):RaceRead {
@@ -66,9 +66,9 @@ export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.P
   try {
     await client.query('BEGIN');
     const day=await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active FOR UPDATE',[phone.dayId]);
-    if (!day.rowCount) throw new Refusal(401,'Please join the Olympics day');
+    if (!day.rowCount) throw newDay();
     const joined=await client.query('SELECT id FROM sign_ins WHERE id=$1 AND day_id=$2 AND NOT signed_out FOR SHARE',[phone.id,phone.dayId]);
-    if (!joined.rowCount) throw new Refusal(401,'Please join the Olympics day');
+    if (!joined.rowCount) throw signedOut();
     let changed=true;
     const result=await change(client,()=>{changed=false;});
     if(changed) await client.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1',[phone.dayId]);
