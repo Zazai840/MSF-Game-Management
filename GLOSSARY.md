@@ -167,7 +167,7 @@ A profile using the app on the current Olympics day, with its role for that day.
 _Avoid_: Joined phone, logged in, online
 
 **Lead code**:
-The secret a person types, with their full name, to make their profile a lead for the current Olympics day. Making a new lead code turns every other lead back into a volunteer, except the scoring team.
+The secret a person types to make their profile a lead for the current Olympics day: with their full name before signing in, or on its own once signed in. Holding it is trust enough to make a new profile, so a lead whose name is already taken by a profile on another phone gets a new profile with a number added to the name. Making a new lead code turns every other lead back into a volunteer, except the scoring team.
 _Avoid_: Admin password, lead PIN
 
 **Owner password**:
