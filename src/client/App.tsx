@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { Phone, Job as JobName, WaitingCounts } from '../shared/domain.js';
 import { api, phoneStorage,StaleRequest } from './api.js';
-import { SignIn } from './access/SignIn.js';
+import { SignIn, type Renamed } from './access/SignIn.js';
 import { BecomeLead } from './access/BecomeLead.js';
 import { Home, LeadEntry } from './home/Home.js';
 import { Job } from './jobs/Job.js';
@@ -22,6 +22,7 @@ export function App() {
   const [leadSection,setLeadSection]=useState('Dashboard');
   const [updated,setUpdated] = useState('');
   const [error,setError] = useState('');
+  const [renamed,setRenamed]=useState<Renamed>();
   const request=useRef(0);
   function updateCount(count:number) {request.current++;setHome(current=>current?{...current,needsYou:count}:current);}
   async function refresh() {
@@ -45,6 +46,8 @@ export function App() {
     window.addEventListener('msf:session',session);
     return ()=>{window.removeEventListener('msf:removed',removed);window.removeEventListener('msf:session',session);};
   },[]);
+  // The numbered-name line shows on Home until the phone moves on.
+  useEffect(()=>{if(screen!=='home') setRenamed(undefined);},[screen]);
   useEffect(()=>{
     if (!joined) return;
     void refresh(); const timer=window.setInterval(()=>void refresh(),5000);
@@ -52,13 +55,14 @@ export function App() {
     document.addEventListener('visibilitychange',visible);
     return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',visible);};
   },[joined]);
-  if (!joined) return <SignIn onSignedIn={()=>setJoined(true)} />;
+  if (!joined) return <SignIn onSignedIn={numbered=>{setRenamed(numbered);setJoined(true);}} />;
   if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
   const isLead = home.phone.level !== 'Volunteer';
   const goHome=()=>{setScreen('home');setOpenDay(false);};
   return <><AppHeader name={home.phone.name} screen={screen==='lead'?leadSection:screenNames[screen]??screen} /><TrailArea>{!trailJobs.includes(screen) && <nav className={screen==='home'?'app-nav app-nav-home':'app-nav'} aria-label="Running Zone">{screen!=='home' && <button className="button-secondary" onClick={goHome}>Home</button>}
     {screen!=='become-lead' && <LeadEntry isLead={isLead} toCheck={home.needsYou||0} onDashboard={()=>setScreen('lead')} onBecomeLead={()=>setScreen('become-lead')} />}
   </nav>}<main>
+    {screen === 'home' && renamed && <p role="status" className="calm-note">{renamed.taken} is already taken, so you're signed in as <strong>{renamed.name}</strong></p>}
     {screen === 'home' ? <Home waiting={home.waiting} onJob={setScreen} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead key={home.phone.dayId} phone={home.phone} initialDay={openDay} toCheck={home.needsYou||0} onCount={updateCount} onChanged={()=>void refresh()} onHome={goHome} onSection={setLeadSection}/></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} onHome={goHome} />}
     {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='Finish order' && screen!=='Times' && screen!=='lead' && <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer>}
   </main></TrailArea></>;

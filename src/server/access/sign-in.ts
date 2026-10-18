@@ -8,6 +8,7 @@ import { seedEvents } from '../day/events.js';
 import { WrongAccessCode, type failureBackoff } from './failures.js';
 export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 const wrongPassword = 'That is not the Olympics password. Check with a lead and try again.';
+const wrongLeadCode = "That is not today's lead code. Ask the scoring team for it.";
 /** Full names are stored tidied (trimmed, inner spaces collapsed), so lower(name) is the form compared for uniqueness. */
 export function fullName(value: unknown) {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -88,8 +89,8 @@ async function runningDay(client: pg.PoolClient) {
   if (!day) throw new Refusal(401, 'Type the Olympics password again', {reason:'password-changed'});
   return day;
 }
-export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string, passwordFailures: ReturnType<typeof failureBackoff>) {
-  // These are public: the password check, owner sign-in, Create profile and tapping a name.
+export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string, passwordFailures: ReturnType<typeof failureBackoff>, leadFailures: ReturnType<typeof failureBackoff>) {
+  // These are public: the password check, owner sign-in, Create profile, tapping a name, Lead sign-in and this phone's profiles.
   app.post('/api/password', async (request, reply) => {
     const password = (request.body as {password?: unknown} | null)?.password;
     if (typeof password !== 'string') throw new Refusal(400, 'Type the Olympics password');
@@ -136,6 +137,31 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       const profile = (await client.query('SELECT id,name FROM profiles WHERE id::text=$1 AND secret_hash=$2', [profileId, tokenHash(secret)])).rows[0];
       if (!profile) throw new Refusal(401, 'This profile is now on another phone', {reason:'moved'});
       return signIn(client, day.id, profile);
+    });
+  });
+  app.post('/api/lead-sign-in', async (request, reply) => {
+    const body = request.body as {pass?: unknown; name?: unknown; code?: unknown; profiles?: unknown} | null;
+    if (typeof body?.code !== 'string') throw new Refusal(400, 'Enter the lead code');
+    const code = body.code, name = fullName(body.name);
+    // Before signing in, a phone is known only by the profiles it holds.
+    const phoneKeys = (Array.isArray(body.profiles) ? body.profiles : []).slice(0, 100).map(entry => `profile:${String(entry?.id)}`);
+    return leadFailures([...phoneKeys, `ip:${request.ip}`], reply, () => signInTransaction(pool, async client => {
+      await requirePass(client, body.pass);
+      const day = await runningDay(client);
+      if (!matches(code, day.lead_code)) throw new WrongAccessCode(wrongLeadCode);
+      const profile = await profileByName(client, name, body.profiles);
+      return {profile, ...await signIn(client, day.id, profile, 'Lead')};
+    }));
+  });
+  /** Today's role for each profile this phone holds, for the profile screen's tags; a profile whose secret no longer matches was moved away. */
+  app.post('/api/phone-profiles', async request => {
+    const body = request.body as {pass?: unknown; profiles?: unknown} | null;
+    return signInTransaction(pool, async client => {
+      await requirePass(client, body?.pass);
+      const held = await heldProfiles(client, body?.profiles);
+      const levels = new Map((await client.query('SELECT s.profile_id,s.level FROM sign_ins s JOIN olympics_days d ON d.id=s.day_id AND d.active WHERE s.profile_id=ANY($1::uuid[]) AND NOT s.signed_out', [[...held]])).rows
+        .map(row => [row.profile_id as string, row.level as string]));
+      return {profiles:((body?.profiles ?? []) as {id: string}[]).map(({id}) => held.has(id) ? {id, level:levels.get(id) ?? null} : {id, moved:true})};
     });
   });
 }

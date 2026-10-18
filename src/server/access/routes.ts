@@ -8,7 +8,7 @@ import { activeDay, fullName, matches, signInRoutes, signInTransaction, startFir
 export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string) {
   // Olympics, owner and day code attempts share one backoff per IP.
   const passwordFailures=failureBackoff(),leadFailures=failureBackoff();
-  signInRoutes(app, pool, ownerPassword, passwordFailures);
+  signInRoutes(app, pool, ownerPassword, passwordFailures, leadFailures);
   // shortcut: the old day-code join stays until the server tests move to the shared sign-in helper (spec 78); then it goes.
   app.post('/api/join', async (request,reply) => passwordFailures([request.ip],reply,async()=>{
     const body = request.body as {code?: unknown; name?: unknown} | null;
