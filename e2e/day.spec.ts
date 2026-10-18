@@ -11,7 +11,7 @@ test('the scoring team edits and confirms the Day programme',async({page},info)=
     await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');
     await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
     await openDashboard(page,'Day setup');
-    await expect(page.getByText(process.env.E2E_DAY_CODE!,{exact:true})).toBeVisible();
+    await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
     await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(steps(page)).toHaveText(/Day setup\s*›\s*Events$/);

@@ -1,12 +1,12 @@
-import { test as base,expect,type Locator,type Page } from '@playwright/test';
-// A real reset changes both codes. The original scoring phone is retained by
+import { test as base,expect,type APIRequestContext,type Locator,type Page } from '@playwright/test';
+// A real reset changes the lead code. The original scoring phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
-export const test=base.extend<{freshDayCodes:void}>({
-  freshDayCodes:[async({request},use)=>{
+export const test=base.extend<{freshCodes:void}>({
+  freshCodes:[async({request},use)=>{
     const response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
     expect(response.ok()).toBe(true);
-    const {dayCode,leadCode,olympicsPassword}=await response.json();
-    process.env.E2E_DAY_CODE=dayCode;process.env.E2E_LEAD_CODE=leadCode;process.env.E2E_OLYMPICS_PASSWORD=olympicsPassword;
+    const {leadCode,olympicsPassword}=await response.json();
+    process.env.E2E_LEAD_CODE=leadCode;process.env.E2E_OLYMPICS_PASSWORD=olympicsPassword;
     await use();
   },{auto:true}]
 });
@@ -39,6 +39,13 @@ export async function leadSignIn(page:Page,name:string,code=process.env.E2E_LEAD
   await page.getByLabel('Full name',{exact:true}).fill(name);
   await page.getByLabel("Today's lead code",{exact:true}).fill(code);
   await page.getByRole('button',{name:'Sign in as lead',exact:true}).click();
+}
+/** Signs a new profile in as a volunteer through the API (Olympics password, then Create profile) and returns its session token. */
+export async function signInThroughApi(request:APIRequestContext,name:string) {
+  const {pass}=await (await request.post('/api/password',{data:{password:process.env.E2E_OLYMPICS_PASSWORD}})).json();
+  const created=await request.post('/api/profiles',{data:{pass,name}});
+  expect(created.ok()).toBe(true);
+  return (await created.json()).token as string;
 }
 /** The breadcrumb trail below the header on every job screen. */
 export function steps(page:Page) {return page.getByRole('navigation',{name:'Steps',exact:true});}
