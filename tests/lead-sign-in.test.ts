@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app: FastifyInstance;
 const post = (url: string, payload: object, remoteAddress?: string, headers?: object) => app.inject({method:'POST', url, payload, remoteAddress, headers:headers as never});
 const auth = (token: string) => ({authorization:`Bearer ${token}`});
@@ -9,12 +10,10 @@ afterEach(async () => { vi.restoreAllMocks(); await app?.close(); });
 /** A running day with the owner signed in as scoring team, and the Olympics password pass and lead code a phone would have. */
 async function start() {
   app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL!, ownerPassword: 'lead-sign-in-owner', resetTestDay: true});
-  const scoring = (await post('/api/owner-sign-in', {password:'lead-sign-in-owner', name:'Aisha Khan', profiles:[]})).json();
-  const day = (await app.inject({url:'/api/day', headers:auth(scoring.token)})).json();
-  const pass = (await post('/api/password', {password:day.olympicsPassword})).json().pass as string;
-  return {scoring, pass, leadCode: day.leadCode as string};
+  const {owner, pass, day} = await signInOwner(app, 'lead-sign-in-owner', 'Aisha Khan');
+  return {scoring:owner, pass, leadCode: day.leadCode as string};
 }
-const held = (...profiles: {id:string; secret:string}[]) => profiles.map(({id, secret}) => ({id, secret}));
+const held = (...profiles: {id:string; secret?:string}[]) => profiles.map(({id, secret}) => ({id, secret}));
 
 test('Lead sign-in signs in this phone\'s profile, creates an unused name, and numbers a name taken on another phone', async () => {
   const {pass, leadCode} = await start();
