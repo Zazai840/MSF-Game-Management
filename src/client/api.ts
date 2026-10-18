@@ -29,6 +29,8 @@ export const phoneStorage = {
     const held=profiles();
     if(profile.secret && !held.some(entry=>entry.id===profile.id)) localStorage.setItem(`${prefix}profiles`,JSON.stringify([...held,{id:profile.id,name:profile.name,secret:profile.secret}]));
   },
+  /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
+  forgetProfile:(id:string)=>localStorage.setItem(`${prefix}profiles`,JSON.stringify(profiles().filter(entry=>entry.id!==id))),
   /** A new session drops the old one's drafts but keeps the pass and profiles. */
   signIn:(signedInToken:string)=>{
     erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);localStorage.setItem(`${prefix}session`,newSession());changed(false);

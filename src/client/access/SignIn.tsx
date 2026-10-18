@@ -84,9 +84,11 @@ function Section({id,title,open,onToggle,onSubmit,children}:{id:Exclude<Open,''>
 }
 /** "Who's using this phone?": the profiles made on this phone with today's role, one tap to sign in, and Create profile and Lead sign-in opening in place. */
 function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:SignedIn,renamed?:Renamed)=>void;onPasswordChanged:()=>void}) {
-  const [profiles]=useState(phoneStorage.profiles);
+  const [profiles,setProfiles]=useState(phoneStorage.profiles);
   const [levels,setLevels]=useState<Record<string,string|null>>({});
   const [open,setOpen]=useState<Open>(profiles.length===0 ? 'create-profile' : '');
+  const [editing,setEditing]=useState(false);
+  const [removing,setRemoving]=useState<HeldProfile|null>(null);
   const [name,setName]=useState('');
   const [lead,setLead]=useState({name:'',code:''});
   const tap=useSubmit(),create=useSubmit(),leadIn=useSubmit();
@@ -103,6 +105,12 @@ function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:Signed
   },[]);
   const toggle=(id:Exclude<Open,''>)=>()=>{setOpen(open===id ? '' : id);create.setError('');leadIn.setError('');};
   const signIn=(profile:HeldProfile)=>void tap.submit(async()=>onSignedIn(await api<SignedIn>('sign-in',{pass,profileId:profile.id,secret:profile.secret})),refused);
+  const forget=(profile:HeldProfile)=>{
+    phoneStorage.forgetProfile(profile.id);
+    const left=phoneStorage.profiles();
+    setProfiles(left);setRemoving(null);
+    if(left.length===0) {setEditing(false);setOpen('create-profile');}
+  };
   const createProfile=(event:FormEvent)=>{event.preventDefault();void create.submit(async()=>onSignedIn(await api<SignedIn>('profiles',{pass,name})),refused);};
   const leadSignIn=(event:FormEvent)=>{event.preventDefault();void leadIn.submit(async()=>{
     const result=await api<SignedIn&{profile:{name:string}}>('lead-sign-in',{pass,name:lead.name,code:lead.code,profiles:held()});
@@ -113,10 +121,17 @@ function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:Signed
   const submitting=open==='create-profile' ? create : leadIn;
   return <section className="sign-in"><h1>Who's using this phone?</h1>
     {phoneStorage.newDayLine() && <p className="calm-note">A new Olympics day has started. Tap your name to sign in.</p>}
-    {profiles.length>0 && <><p className="sign-in-lede">Tap your name.</p>
-      <div className="profile-rows">{profiles.map(profile=><button key={profile.id} className="profile-row" disabled={tap.busy} onClick={()=>signIn(profile)}>
+    {profiles.length>0 && <><div className="profile-list-head"><p className="sign-in-lede">{editing ? "Tidy this phone's list." : 'Tap your name.'}</p>
+        <button type="button" className="button-quiet" onClick={()=>{setEditing(!editing);setRemoving(null);}}>{editing ? 'Done' : 'Edit list'}</button></div>
+      <div className="profile-rows">{profiles.map(profile=>!editing ? <button key={profile.id} className="profile-row" disabled={tap.busy} onClick={()=>signIn(profile)}>
         <span className="avatar" aria-hidden="true">{initials(profile.name)}</span><span className="profile-text"><span className="profile-name">{profile.name}</span>{roleTag(levels[profile.id])}</span>{chevron}
-      </button>)}</div>
+      </button> : removing?.id===profile.id ? <div key={profile.id} className="profile-row profile-confirm">
+        <p>Remove {profile.name} from this phone? Your profile isn't deleted. A lead can put it back on any phone.</p>
+        <div className="profile-confirm-actions"><button className="button-small" onClick={()=>forget(profile)}>Remove from this phone</button><button className="button-secondary button-small" onClick={()=>setRemoving(null)}>Keep</button></div>
+      </div> : <div key={profile.id} className="profile-row">
+        <span className="avatar" aria-hidden="true">{initials(profile.name)}</span><span className="profile-text"><span className="profile-name">{profile.name}</span></span>
+        <button className="button-quiet" aria-label={`Remove ${profile.name}`} onClick={()=>setRemoving(profile)}>Remove</button>
+      </div>)}</div>
       {tap.error && <p role="alert">{tap.error}</p>}</>}
     <Section id="create-profile" title="New here? Create profile" open={open} onToggle={toggle('create-profile')} onSubmit={createProfile}>
       <label>Full name<input autoComplete="name" maxLength={80} value={name} onChange={event=>setName(event.target.value)} required /></label>
