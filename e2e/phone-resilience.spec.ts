@@ -106,11 +106,11 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   await expect(page.getByText('Shows as 1.23',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
 
-  // Simulate the server signing this phone out at the HTTP boundary.
-  await page.route('**/api/home',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please sign in again'})}));
+  // Simulate a new Olympics day at the HTTP boundary.
+  await page.route('**/api/home',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'A new Olympics day has started. Tap your name to sign in.',reason:'new-day'})}));
   await page.reload();
   // Drafts go; the Olympics password pass and the profile stay on the phone.
   await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();
-  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:pass','msf:profiles']);
+  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:new-day','msf:pass','msf:profiles']);
   await page.request.post(`/api/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

@@ -46,8 +46,14 @@ export const phoneStorage = {
     if(retained) localStorage.setItem(`${prefix}token`,retained);
     localStorage.setItem(`${prefix}day`,id);localStorage.setItem(`${prefix}session`,newSession());changed(true);
   },
+  /** Whether the profile screen says a new Olympics day has started; signing in drops it with the rest of the old session. */
+  newDayLine:()=>localStorage.getItem(`${prefix}new-day`)!==null,
   /** The server ended the session (a 401): clears exactly what its reason calls for. */
-  clear:(reason='')=>{erase(Object.hasOwn(keptAfter,reason)?keptAfter[reason]:[]);epoch++;},
+  clear:(reason='')=>{
+    erase(Object.hasOwn(keptAfter,reason)?keptAfter[reason]:[]);
+    if(reason==='new-day') localStorage.setItem(`${prefix}new-day`,'1');
+    epoch++;
+  },
   /** Sign out: the pass, session and drafts go, the profiles stay, and every tab goes to the password screen. */
   signOut:()=>{erase(keptAfter['signed-out']);changed(false);}
 };

@@ -74,7 +74,8 @@ async function profileByName(client: pg.PoolClient, name: string, phoneProfiles:
 }
 /** Signs a profile in to the day. Today's row keeps its role (so roles survive a password change) unless `level` raises it. */
 async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string; name: string}, level = 'Volunteer', owner = false) {
-  const token = randomBytes(32).toString('base64url');
+  // The token names its day, so after Start new day deletes the row the phone can still be told new-day.
+  const token = `${dayId}.${randomBytes(32).toString('base64url')}`;
   const phone = (await client.query(`INSERT INTO sign_ins(id,day_id,profile_id,name,level,owner,token_hash) VALUES($1,$2,$3,$4,$5,$6,$7)
     ON CONFLICT (day_id,profile_id) DO UPDATE SET token_hash=EXCLUDED.token_hash, signed_out=false, owner=sign_ins.owner OR EXCLUDED.owner,
       level=CASE WHEN array_position($8::text[],EXCLUDED.level)>array_position($8::text[],sign_ins.level) THEN EXCLUDED.level ELSE sign_ins.level END

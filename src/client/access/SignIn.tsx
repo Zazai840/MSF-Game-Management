@@ -79,6 +79,7 @@ function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:Signed
   const signIn=(profile:HeldProfile)=>void tap.submit(async()=>onSignedIn(await api<SignedIn>('sign-in',{pass,profileId:profile.id,secret:profile.secret})),refused);
   const createProfile=(event:FormEvent)=>{event.preventDefault();void create.submit(async()=>onSignedIn(await api<SignedIn>('profiles',{pass,name})),refused);};
   return <section className="sign-in"><h1>Who's using this phone?</h1>
+    {phoneStorage.newDayLine() && <p className="calm-note">A new Olympics day has started. Tap your name to sign in.</p>}
     {profiles.length>0 && <><p className="sign-in-lede">Tap your name.</p>
       <div className="profile-rows">{profiles.map(profile=><button key={profile.id} className="profile-row" disabled={tap.busy} onClick={()=>signIn(profile)}>
         <span className="avatar" aria-hidden="true">{initials(profile.name)}</span><span className="profile-name">{profile.name}</span>{chevron}
