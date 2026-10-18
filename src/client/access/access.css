@@ -26,3 +26,8 @@
 .sign-in-toggle {display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; min-height:60px; padding:16px; text-align:left; background:transparent; color:var(--navy); border:0; border-radius:var(--radius-card); font-size:18px;}
 .sign-in-toggle span {font-size:24px; line-height:1;}
 .sign-in-section form {padding:0 16px 16px;}
+
+/* Your profile screen from the header. */
+.your-profile {display:flex; align-items:center; gap:14px; padding:16px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card);}
+.your-profile-text {flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
+.your-profile .avatar {width:52px; height:52px; font-size:18px;}

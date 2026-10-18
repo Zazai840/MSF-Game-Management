@@ -32,6 +32,11 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
   }));
   const action = actions(app, pool);
   action('GET', '/api/me', 'Volunteer', (_request, _reply, phone) => phone);
+  // Signing yourself out is not a decision, so it writes no audit note. Tapping the name again signs in as a volunteer.
+  action('POST', '/api/sign-out', 'Volunteer', async (_request, _reply, phone) => {
+    await pool.query("UPDATE sign_ins SET signed_out=true, level='Volunteer' WHERE id=$1", [phone.id]);
+    return {status:'signed-out'};
+  });
   action('POST', '/api/become-lead', 'Volunteer', async (request, reply, phone) => {
     const code = (request.body as {code?: unknown} | null)?.code;
     if (typeof code !== 'string') throw new Refusal(400, 'Enter the lead code');

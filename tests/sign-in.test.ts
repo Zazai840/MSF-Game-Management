@@ -125,3 +125,42 @@ test('race parts saved by a signed-in profile name its author, and tapping the n
   expect(read.history.filter((save: {part:string}) => save.part === 'times').map((save: {author:string|null}) => save.author)).toEqual([null, 'Sam Patel']);
   expect((await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json().phone.id).toBe(phone.id);
 });
+
+test('Sign out ends the session, resets today\'s role to Volunteer and leaves Signed in today, with no audit note', async () => {
+  await start();
+  const scoring = await owner();
+  const pass = await olympicsPass(scoring.token);
+  const {leadCode} = (await app.inject({url:'/api/day', headers:auth(scoring.token)})).json();
+  const {profile, token} = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
+  await app.inject({method:'POST', url:'/api/become-lead', headers:auth(token), payload:{code:leadCode}});
+  const signedOut = await app.inject({method:'POST', url:'/api/sign-out', headers:auth(token), payload:{}});
+  expect(signedOut.statusCode).toBe(200);
+  const after = await app.inject({url:'/api/me', headers:auth(token)});
+  expect(after.statusCode).toBe(401);
+  expect(after.json().reason).toBe('signed-out');
+  const phones = (await app.inject({url:'/api/day/phones', headers:auth(scoring.token)})).json();
+  expect(phones.phones.map((phone: {name:string}) => phone.name)).toEqual(['Aisha Khan']);
+  expect(phones.auditNotes.map((note: {action:string}) => note.action)).toEqual(['Became lead']);
+  // Tapping the name again signs in as a volunteer: the lead code has to be typed again.
+  expect((await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json().phone.level).toBe('Volunteer');
+  // The scoring team gets back in with the owner password.
+  expect((await app.inject({method:'POST', url:'/api/sign-out', headers:auth(scoring.token), payload:{}})).statusCode).toBe(200);
+  expect((await app.inject({url:'/api/day', headers:auth(scoring.token)})).json().reason).toBe('signed-out');
+  expect((await owner('Aisha Khan', [{id:scoring.profile.id, secret:scoring.profile.secret}])).phone).toMatchObject({level:'Scoring team', profileId:scoring.profile.id});
+});
+
+test('every 401 says why: signed-out after Remove or with no session, new-day once the day has changed', async () => {
+  await start();
+  const scoring = await owner();
+  const pass = await olympicsPass(scoring.token);
+  const removed = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
+  const stale = (await post('/api/profiles', {pass, name:'Yusuf Ali'})).json();
+  await app.inject({method:'POST', url:`/api/day/phones/${removed.phone.id}/remove`, headers:auth(scoring.token), payload:{}});
+  expect((await app.inject({url:'/api/home', headers:auth(removed.token)})).json().reason).toBe('signed-out');
+  expect((await app.inject({url:'/api/home'})).json().reason).toBe('signed-out');
+  await app.inject({method:'POST', url:'/api/day/export', headers:auth(scoring.token), payload:{}});
+  expect((await app.inject({method:'POST', url:'/api/day/start-new', headers:auth(scoring.token), payload:{confirmation:'NEW DAY'}})).statusCode).toBe(200);
+  const old = await app.inject({url:'/api/home', headers:auth(stale.token)});
+  expect(old.statusCode).toBe(401);
+  expect(old.json().reason).toBe('new-day');
+});
