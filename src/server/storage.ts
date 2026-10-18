@@ -28,6 +28,13 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       owner boolean NOT NULL DEFAULT false, token_hash text NOT NULL UNIQUE, signed_out boolean NOT NULL DEFAULT false,
       signed_in_at timestamptz NOT NULL DEFAULT now(), UNIQUE(day_id, profile_id)
     );
+    -- That's me: a phone asks for a profile back. Approving gives the profile the waiting secret, so only that phone holds it;
+    -- the old phone's session token is kept so its next request is told the profile moved.
+    CREATE TABLE IF NOT EXISTS profile_requests (
+      id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), profile_id uuid NOT NULL REFERENCES profiles(id),
+      secret_hash text NOT NULL UNIQUE, status text NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting','approved','declined','cancelled')),
+      moved_token_hash text, created_at timestamptz NOT NULL DEFAULT now()
+    );
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS events_confirmed boolean NOT NULL DEFAULT false;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_at timestamptz;

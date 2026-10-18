@@ -49,5 +49,5 @@ test('Edit list forgets a profile on this phone only, and names do not sign in u
   await expect(profilesHeading(page)).toBeVisible();
   // The profile is still on the server, so its name is still taken.
   await createProfile(page,sam);
-  await expect(page.getByRole('alert')).toHaveText(`${sam} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`);
+  await expect(page.getByRole('alert').locator('p')).toHaveText(`${sam} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`);
 });

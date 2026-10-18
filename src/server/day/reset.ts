@@ -29,6 +29,7 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('DELETE FROM audit_notes WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM race_counters WHERE event_id IN (SELECT id FROM events WHERE day_id=$1)',[phone.dayId]);
       await client.query('DELETE FROM events WHERE day_id=$1',[phone.dayId]);
+      await client.query('DELETE FROM profile_requests WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM sign_ins WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM olympics_days WHERE id=$1',[phone.dayId]);
       await client.query('COMMIT');

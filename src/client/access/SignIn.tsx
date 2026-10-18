@@ -1,17 +1,18 @@
-import { useState, type FormEvent } from 'react';
-import { api, ApiFailure, phoneStorage, type HeldProfile } from '../api.js';
+import { useEffect, useState, type FormEvent } from 'react';
+import { api, ApiFailure, phoneStorage, type HeldProfile, type Waiting } from '../api.js';
 import type { Phone } from '../../shared/domain.js';
 import { AppHeader, initials } from '../shell/AppHeader.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import './access.css';
 interface SignedIn { token:string; phone:Phone; pass?:string; profile?:{id:string;name:string;secret?:string} }
-type Screen = 'password'|'owner'|'profiles';
-const screenNames:Record<Screen,string>={password:'Olympics password',owner:'Owner sign-in',profiles:'Profiles'};
+type Screen = 'password'|'owner'|'profiles'|'waiting';
+const screenNames:Record<Screen,string>={password:'Olympics password',owner:'Owner sign-in',profiles:'Profiles',waiting:'Waiting for a lead'};
+const declined='A lead did not approve this - add your middle name or initial.';
 const failure=(error:unknown)=>error instanceof Error ? error.message : 'Could not connect - please try again';
 /** Runs one sign-in request, keeping the busy state and the refusal for the form that sent it. */
-function useSubmit() {
+function useSubmit(initialError='') {
   const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
+  const [error,setError]=useState(initialError);
   async function submit(send:()=>Promise<void>,onRefused?:(error:unknown)=>void) {
     setBusy(true);setError('');
     try {await send();}
@@ -20,20 +21,24 @@ function useSubmit() {
   }
   return {busy,error,submit,setError};
 }
-function signedIn({token,pass,profile}:SignedIn) {
+function signedIn({token,phone,pass,profile}:SignedIn) {
   if(pass) phoneStorage.rememberPass(pass);
   if(profile) phoneStorage.rememberProfile(profile);
-  phoneStorage.signIn(token);
+  phoneStorage.signIn(token,phone.profileId);
 }
 /** Signing in, as in version D of the onboarding prototype: the Olympics password once per phone, then a profile. */
 export function SignIn({onSignedIn}:{onSignedIn:()=>void}) {
-  const [screen,setScreen]=useState<Screen>(phoneStorage.pass() ? 'profiles' : 'password');
+  const [screen,setScreen]=useState<Screen>(!phoneStorage.pass() ? 'password' : phoneStorage.waiting() ? 'waiting' : 'profiles');
   const [owner,setOwner]=useState({password:'',dayRunning:true});
+  // Where Create profile picks up after That's me: the name typed and, after a decline, why.
+  const [back,setBack]=useState({name:'',notice:''});
   const done=(result:SignedIn)=>{signedIn(result);onSignedIn();};
+  const leaveWaiting=(notice='')=>{const name=phoneStorage.waiting()?.name||'';phoneStorage.rememberWaiting(null);setBack({name,notice});setScreen('profiles');};
   return <><AppHeader screen={screenNames[screen]} /><main>
     {screen==='password' ? <PasswordScreen onOlympics={pass=>{phoneStorage.rememberPass(pass);setScreen('profiles');}} onOwner={(password,dayRunning)=>{setOwner({password,dayRunning});setScreen('owner');}} />
       : screen==='owner' ? <OwnerScreen {...owner} onSignedIn={done} onBack={()=>setScreen('password')} />
-      : <ProfileScreen onSignedIn={done} onPasswordChanged={()=>setScreen('password')} />}
+      : screen==='waiting' ? <WaitingScreen onSignedIn={done} onLeave={leaveWaiting} />
+      : <ProfileScreen key={back.name+back.notice} {...back} onSignedIn={done} onWaiting={()=>setScreen('waiting')} onPasswordChanged={()=>setScreen('password')} />}
   </main></>;
 }
 function PasswordScreen({onOlympics,onOwner}:{onOlympics:(pass:string)=>void;onOwner:(password:string,dayRunning:boolean)=>void}) {
@@ -69,23 +74,31 @@ function OwnerScreen({password,dayRunning,onSignedIn,onBack}:{password:string;da
 }
 const chevron=<svg className="profile-chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
 /** "Who's using this phone?": the profiles made on this phone, one tap to sign in, and Create profile opening in place. */
-function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:SignedIn)=>void;onPasswordChanged:()=>void}) {
+function ProfileScreen({name:typed,notice,onSignedIn,onWaiting,onPasswordChanged}:{name:string;notice:string;onSignedIn:(result:SignedIn)=>void;onWaiting:()=>void;onPasswordChanged:()=>void}) {
   const [profiles,setProfiles]=useState(phoneStorage.profiles);
-  const [creating,setCreating]=useState(profiles.length===0);
+  const [creating,setCreating]=useState(profiles.length===0 || Boolean(typed));
   const [editing,setEditing]=useState(false);
   const [removing,setRemoving]=useState<HeldProfile|null>(null);
-  const [name,setName]=useState('');
-  const tap=useSubmit(),create=useSubmit();
+  const [name,setName]=useState(typed);
+  const [taken,setTaken]=useState(false);
+  const tap=useSubmit(),create=useSubmit(notice);
   const refused=(error:unknown)=>{if(error instanceof ApiFailure && error.body.reason==='password-changed') onPasswordChanged();};
   const pass=phoneStorage.pass();
-  const signIn=(profile:HeldProfile)=>void tap.submit(async()=>onSignedIn(await api<SignedIn>('sign-in',{pass,profileId:profile.id,secret:profile.secret})),refused);
+  const signIn=(profile:HeldProfile)=>void tap.submit(async()=>onSignedIn(await api<SignedIn>('sign-in',{pass,profileId:profile.id,secret:profile.secret})),error=>{
+    // The profile went to another phone by That's me: this phone forgets it.
+    if(error instanceof ApiFailure && error.body.reason==='moved') {phoneStorage.forgetProfile(profile.id);setProfiles(phoneStorage.profiles());}
+    refused(error);
+  });
   const forget=(profile:HeldProfile)=>{
     phoneStorage.forgetProfile(profile.id);
     const left=phoneStorage.profiles();
     setProfiles(left);setRemoving(null);
     if(left.length===0) {setEditing(false);setCreating(true);}
   };
-  const createProfile=(event:FormEvent)=>{event.preventDefault();void create.submit(async()=>onSignedIn(await api<SignedIn>('profiles',{pass,name})),refused);};
+  const createProfile=(event:FormEvent)=>{event.preventDefault();setTaken(false);void create.submit(async()=>onSignedIn(await api<SignedIn>('profiles',{pass,name})),error=>{
+    setTaken(error instanceof ApiFailure && error.body.taken===true);refused(error);
+  });};
+  const thatsMe=()=>void create.submit(async()=>{phoneStorage.rememberWaiting(await api<Waiting>('thats-me',{pass,name}));onWaiting();},refused);
   return <section className="sign-in"><h1>Who's using this phone?</h1>
     {phoneStorage.newDayLine() && <p className="calm-note">A new Olympics day has started. Tap your name to sign in.</p>}
     {profiles.length>0 && <><div className="profile-list-head"><p className="sign-in-lede">{editing ? "Tidy this phone's list." : 'Tap your name.'}</p>
@@ -106,9 +119,41 @@ function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:Signed
       </button>
       {creating && <form id="create-profile" onSubmit={createProfile}>
         <label>Full name<input autoComplete="name" maxLength={80} value={name} onChange={event=>setName(event.target.value)} required /></label>
-        {create.error && <p role="alert">{create.error}</p>}
+        {create.error && (taken ? <div role="alert" className="sign-in-taken"><p>{create.error}</p><button type="button" className="button-secondary button-small" disabled={create.busy} onClick={thatsMe}>That's me</button></div>
+          : <p role="alert">{create.error}</p>)}
       </form>}
     </div>
     {creating && <ActionBar><button form="create-profile" disabled={create.busy}>{create.busy ? 'Creating…' : 'Create profile'}</button></ActionBar>}
+  </section>;
+}
+/** After That's me: the name to show a lead, checked on Home's refresh schedule until a lead decides. */
+function WaitingScreen({onSignedIn,onLeave}:{onSignedIn:(result:SignedIn)=>void;onLeave:(notice?:string)=>void}) {
+  const waiting=phoneStorage.waiting();
+  const cancel=useSubmit();
+  useEffect(()=>{
+    let stopped=false;
+    async function check() {
+      if(!waiting || document.visibilityState!=='visible') return;
+      try {
+        const result=await api<{status:'waiting'|'declined'|'cancelled'}|({status:'approved'}&SignedIn)>('thats-me/status',{secret:waiting.secret});
+        if(stopped) return;
+        if(result.status==='approved') onSignedIn(result);
+        else if(result.status==='declined') onLeave(declined);
+        else if(result.status==='cancelled') onLeave();
+      } catch(error) {if(!stopped && error instanceof ApiFailure && error.status<500) onLeave();}
+    }
+    void check();const timer=window.setInterval(()=>void check(),5000);
+    document.addEventListener('visibilitychange',check);
+    return ()=>{stopped=true;clearInterval(timer);document.removeEventListener('visibilitychange',check);};
+  },[]);
+  if(!waiting) return null;
+  const leave=()=>void cancel.submit(async()=>{await api('thats-me/cancel',{secret:waiting.secret}).catch(error=>{if(!(error instanceof ApiFailure && error.status===404)) throw error;});onLeave();});
+  return <section className="sign-in"><h1>Waiting for a lead to approve</h1>
+    <p className="sign-in-lede">Show this screen to a lead or the scoring team. They will check it's you.</p>
+    <p className="waiting-name" data-testid="waiting-name">{waiting.name}</p>
+    <p className="waiting-pulse"><span aria-hidden="true"/>Waiting…</p>
+    <p className="sign-in-lede">You can't do jobs on this phone until a lead approves.</p>
+    {cancel.error && <p role="alert">{cancel.error}</p>}
+    <ActionBar><button className="button-secondary" disabled={cancel.busy} onClick={leave}>Cancel</button></ActionBar>
   </section>;
 }

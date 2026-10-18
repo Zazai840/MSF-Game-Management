@@ -11,7 +11,7 @@ export function homeRoutes(app: FastifyInstance, pool: pg.Pool) {
     const start=races.filter(race=>race.parts.finish.value===null && (race.kind!=='final'||(race.final?.heatsComplete && !race.final.hasRun))).length;
     const finish=races.filter(race=>race.parts.finish.value===null && (race.kind!=='final'||((race.final?.heatsComplete || race.final?.hasRun) && race.final.presenceConfirmed))).length;
     return {phone, waiting: {'Start line':start, 'Finish order':finish, Times:timesWaiting(races).length},
-      ...(phone.level === 'Volunteer' ? {} : {needsYou:(await readResults(db,phone.dayId,allRaces)).needsYou.length})};
+      ...(phone.level === 'Volunteer' ? {} : {needsYou:await readResults(db,phone.dayId,allRaces).then(read=>read.needsYou.length+read.profileRequests.length)})};
   }));
   action('GET', '/api/lead', 'Lead', (_request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>readResults(db,phone.dayId)));
 }

@@ -38,7 +38,8 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
     needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId),clash=item.kind==='clash'?savers.get(item.raceId!):undefined;return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{}),...(clash?{clash}:{})};}));
     const rows=groups.get(event.name)||[];rows.push({event,needsYou:results.needsYou.length,status:results.status,raceCount:results.raceCount,provisional:results.provisional,latestNoteAt:notes.find(note=>note.eventId===event.id)?.at??null});groups.set(event.name,rows);
   }
-  return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),eventsConfirmed:day.events_confirmed,groups:[...groups].map(([name,events])=>({name,events}))};
+  const profileRequests=(await db.query("SELECT r.id,p.name,r.created_at AS at FROM profile_requests r JOIN profiles p ON p.id=r.profile_id WHERE r.day_id=$1 AND r.status='waiting' ORDER BY r.created_at DESC,r.id",[dayId])).rows.map(row=>({...row,at:row.at.toISOString()}));
+  return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),profileRequests,eventsConfirmed:day.events_confirmed,groups:[...groups].map(([name,events])=>({name,events}))};
 }
 export async function readEventResults(db:Database,dayId:string,code:string):Promise<EventResultsRead> {
   const event=(await eventsForDay(db,dayId)).find(event=>event.code===code);

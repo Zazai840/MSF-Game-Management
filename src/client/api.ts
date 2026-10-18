@@ -4,9 +4,7 @@ let resetPending=false;
 /** What a phone keeps when a session ends: the Olympics password pass and the profiles made on it. */
 const kept=[`${prefix}pass`,`${prefix}profiles`];
 /** What each 401 reason leaves on the phone. With no known reason, everything goes. */
-const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],
-  // shortcut: moved keeps every profile because the phone does not record which one is signed in; forget the moved one when That's me (#84) lands.
-  moved:kept};
+const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],moved:kept};
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
   for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session`) localStorage.removeItem(key);
@@ -18,6 +16,10 @@ function profiles():HeldProfile[] {
   try {return JSON.parse(localStorage.getItem(`${prefix}profiles`)||'[]');} catch {return [];}
 }
 const dayId=()=>localStorage.getItem(`${prefix}day`);
+/** The profile signed in now, so a "moved" 401 knows which profile to forget. */
+const signedInProfile=()=>localStorage.getItem(`${prefix}profile`);
+const forgetProfile=(id:string)=>localStorage.setItem(`${prefix}profiles`,JSON.stringify(profiles().filter(entry=>entry.id!==id)));
+export interface Waiting {secret:string;name:string}
 const sessionId=()=>`${epoch}:${token()}:${localStorage.getItem(`${prefix}session`)}`;
 function newSession() {
   const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
@@ -32,28 +34,37 @@ export const phoneStorage = {
   rememberDay:(id:string)=>localStorage.setItem(`${prefix}day`,id),
   pass:()=>localStorage.getItem(`${prefix}pass`),
   rememberPass:(pass:string)=>localStorage.setItem(`${prefix}pass`,pass),
-  /** Keeps a profile made on (or signed in from) this phone; a profile already held keeps its secret. */
+  /** Keeps a profile made on (or signed in from) this phone. A secret only comes back when it is new (That's me issues one), so it replaces the held one. */
   rememberProfile:(profile:{id:string;name:string;secret?:string})=>{
-    const held=profiles();
-    if(profile.secret && !held.some(entry=>entry.id===profile.id)) localStorage.setItem(`${prefix}profiles`,JSON.stringify([...held,{id:profile.id,name:profile.name,secret:profile.secret}]));
+    if(!profile.secret) return;
+    const held=profiles(),entry={id:profile.id,name:profile.name,secret:profile.secret};
+    localStorage.setItem(`${prefix}profiles`,JSON.stringify(held.some(other=>other.id===entry.id)?held.map(other=>other.id===entry.id?entry:other):[...held,entry]));
   },
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
-  forgetProfile:(id:string)=>localStorage.setItem(`${prefix}profiles`,JSON.stringify(profiles().filter(entry=>entry.id!==id))),
+  forgetProfile,
+  /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
+  waiting:():Waiting|null=>{try {return JSON.parse(localStorage.getItem(`${prefix}waiting`)||'null');} catch {return null;}},
+  rememberWaiting:(waiting:Waiting|null)=>waiting?localStorage.setItem(`${prefix}waiting`,JSON.stringify(waiting)):localStorage.removeItem(`${prefix}waiting`),
   /** A new session drops the old one's drafts but keeps the pass and profiles. */
-  signIn:(signedInToken:string)=>{
-    erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);localStorage.setItem(`${prefix}session`,newSession());changed(false);
+  signIn:(signedInToken:string,profileId:string|null)=>{
+    erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);
+    if(profileId) localStorage.setItem(`${prefix}profile`,profileId);
+    localStorage.setItem(`${prefix}session`,newSession());changed(false);
   },
   newDay:(id:string)=>{
-    const retained=token();erase(kept);
+    const retained=token(),profile=signedInProfile();erase(kept);
     if(retained) localStorage.setItem(`${prefix}token`,retained);
+    if(profile) localStorage.setItem(`${prefix}profile`,profile);
     localStorage.setItem(`${prefix}day`,id);localStorage.setItem(`${prefix}session`,newSession());changed(true);
   },
   /** Whether the profile screen says a new Olympics day has started; signing in drops it with the rest of the old session. */
   newDayLine:()=>localStorage.getItem(`${prefix}new-day`)!==null,
   /** The server ended the session (a 401): clears exactly what its reason calls for. */
   clear:(reason='')=>{
+    const profile=signedInProfile();
     erase(Object.hasOwn(keptAfter,reason)?keptAfter[reason]:[]);
     if(reason==='new-day') localStorage.setItem(`${prefix}new-day`,'1');
+    if(reason==='moved' && profile) forgetProfile(profile);
     epoch++;
   },
   /** Sign out: the pass, session and drafts go, the profiles stay, and every tab goes to the password screen. */

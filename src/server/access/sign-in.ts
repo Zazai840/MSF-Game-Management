@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { Refusal, tokenHash } from './permissions.js';
+import { moved, Refusal, tokenHash } from './permissions.js';
 import { newDayCode, newLeadCode, newOlympicsPassword } from './codes.js';
 import { seedEvents } from '../day/events.js';
 import { WrongAccessCode, type failureBackoff } from './failures.js';
@@ -41,7 +41,7 @@ interface Settings { password: string; password_version: number }
 const readSettings = async (db: pg.Pool | pg.PoolClient) => (await db.query('SELECT password,password_version FROM olympics_settings')).rows[0] as Settings | undefined;
 /** A password pass proves the phone typed the Olympics password. It is bound to the password version, so a change invalidates every pass. */
 const passFor = (settings: Settings) => createHmac('sha256', settings.password).update(`olympics-pass:${settings.password_version}`).digest('base64url');
-async function requirePass(client: pg.PoolClient, pass: unknown) {
+export async function requirePass(client: pg.PoolClient, pass: unknown) {
   const settings = await readSettings(client);
   if (!settings || typeof pass !== 'string' || !matches(pass, passFor(settings))) throw new Refusal(401, 'Type the Olympics password again', {reason:'password-changed'});
   return settings;
@@ -73,7 +73,7 @@ async function profileByName(client: pg.PoolClient, name: string, phoneProfiles:
   }
 }
 /** Signs a profile in to the day. Today's row keeps its role (so roles survive a password change) unless `level` raises it. */
-async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string; name: string}, level = 'Volunteer', owner = false) {
+export async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string; name: string}, level = 'Volunteer', owner = false) {
   // The token names its day, so after Start new day deletes the row the phone can still be told new-day.
   const token = `${dayId}.${randomBytes(32).toString('base64url')}`;
   const phone = (await client.query(`INSERT INTO sign_ins(id,day_id,profile_id,name,level,owner,token_hash) VALUES($1,$2,$3,$4,$5,$6,$7)
@@ -84,7 +84,7 @@ async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string
   await client.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1', [dayId]);
   return {token, phone};
 }
-async function runningDay(client: pg.PoolClient) {
+export async function runningDay(client: pg.PoolClient) {
   const day = await activeDay(client);
   if (!day) throw new Refusal(401, 'Type the Olympics password again', {reason:'password-changed'});
   return day;
@@ -135,7 +135,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       await requirePass(client, body.pass);
       const day = await runningDay(client);
       const profile = (await client.query('SELECT id,name FROM profiles WHERE id::text=$1 AND secret_hash=$2', [profileId, tokenHash(secret)])).rows[0];
-      if (!profile) throw new Refusal(401, 'This profile is now on another phone', {reason:'moved'});
+      if (!profile) throw moved();
       return signIn(client, day.id, profile);
     });
   });
