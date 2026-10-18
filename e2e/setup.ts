@@ -7,8 +7,7 @@ export default async function setup() {
   const {token} = await response.json();
   process.env.E2E_SCORING_TOKEN=token;
   const day = await api.get('/api/day', {headers:{authorization:`Bearer ${token}`}});
-  const {dayCode,leadCode,olympicsPassword} = await day.json();
-  process.env.E2E_DAY_CODE = dayCode;
+  const {leadCode,olympicsPassword} = await day.json();
   process.env.E2E_LEAD_CODE = leadCode;
   process.env.E2E_OLYMPICS_PASSWORD = olympicsPassword;
   await api.dispose();

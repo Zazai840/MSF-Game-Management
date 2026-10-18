@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { Refusal, tokenHash } from './permissions.js';
-import { newDayCode, newLeadCode, newOlympicsPassword } from './codes.js';
+import { newLeadCode, newOlympicsPassword } from './codes.js';
 import { seedEvents } from '../day/events.js';
 import { WrongAccessCode, type failureBackoff } from './failures.js';
 export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
@@ -32,7 +32,7 @@ export async function signInTransaction<T>(pool: pg.Pool, change: (client: pg.Po
 export const activeDay = async (client: pg.PoolClient) => (await client.query('SELECT * FROM olympics_days WHERE active FOR UPDATE')).rows[0];
 /** The owner starts the first day: its lead code, the built-in events and the first Olympics password. */
 export async function startFirstDay(client: pg.PoolClient) {
-  const day = (await client.query('INSERT INTO olympics_days(id,day_code,lead_code) VALUES($1,$2,$3) RETURNING *', [randomUUID(), newDayCode(), newLeadCode()])).rows[0];
+  const day = (await client.query('INSERT INTO olympics_days(id,lead_code) VALUES($1,$2) RETURNING *', [randomUUID(), newLeadCode()])).rows[0];
   await seedEvents(client, day.id);
   await client.query('INSERT INTO olympics_settings(password) VALUES($1) ON CONFLICT DO NOTHING', [newOlympicsPassword()]);
   return day;
