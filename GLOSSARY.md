@@ -155,11 +155,11 @@ The people outside the Running Zone who keep the Olympics scoring workbook and c
 _Avoid_: Scorers, results team, admin team
 
 **Olympics password**:
-The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until the scoring team changes it. It replaces the day code.
+The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until the scoring team changes it or someone signs out on that phone. It replaces the day code.
 _Avoid_: Day code, event password, PIN, access code
 
 **Profile**:
-A person's lasting identity in the app, made once with their full name and kept across Olympics days. Each phone shows only the profiles made on it. A profile's role (volunteer, lead or scoring team) starts again as volunteer on each new Olympics day. No two profiles share a full name, so a name is one person across the whole Olympics. Someone whose profile is gone from their phone gets it back on another phone once a lead has checked in person that it's them.
+A person's lasting identity in the app, made once with their full name and kept across Olympics days. Each phone shows only the profiles made on it. A profile's role (volunteer, lead or scoring team) starts again as volunteer on each new Olympics day. No two profiles share a full name, so a name is one person across the whole Olympics. Someone whose profile is gone from their phone gets it back on another phone once a lead has checked in person that it's them. A profile is never renamed, and removing it from a phone only forgets it there.
 _Avoid_: Account, user, login
 
 **Signed in**:
