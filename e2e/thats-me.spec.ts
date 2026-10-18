@@ -4,12 +4,12 @@ const home=(page:Page)=>expect(page.getByRole('heading',{name:"What's your job f
 const profilesHeading=(page:Page)=>page.getByRole('heading',{level:1,name:"Who's using this phone?"});
 const taken=(name:string)=>`${name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`;
 /** Another phone of the same size, for the lead or the person's new phone. */
-async function phone(browser:Browser,page:Page) {
-  return (await browser.newContext({viewport:page.viewportSize(),isMobile:test.info().project.use.isMobile,hasTouch:test.info().project.use.hasTouch})).newPage();
+async function phone(browser:Browser) {
+  return (await browser.newContext({...test.info().project.use})).newPage();
 }
 /** A signed-in lead on their own phone, with To check open. */
-async function leadPhone(browser:Browser,page:Page,name:string) {
-  const lead=await phone(browser,page);
+async function leadPhone(browser:Browser,name:string) {
+  const lead=await phone(browser);
   await lead.goto('/');await createProfile(lead,name);await home(lead);
   await becomeLead(lead);await openDashboard(lead,'To check');
   return lead;
@@ -28,8 +28,8 @@ test("That's me moves a profile to a new phone once a lead approves, and the old
   const name=`Sam Moved ${info.project.name}`;
   await page.goto('/');await createProfile(page,name);await home(page);
   await becomeLead(page);await expect(dashboardButton(page)).toBeVisible();
-  const lead=await leadPhone(browser,page,`Lena Approves ${info.project.name}`);
-  const newPhone=await phone(browser,page);
+  const lead=await leadPhone(browser,`Lena Approves ${info.project.name}`);
+  const newPhone=await phone(browser);
   await newPhone.goto('/');await createProfile(newPhone,name);
   await expect(newPhone.getByRole('alert')).toContainText(taken(name));
   await expect(newPhone.getByLabel('Full name',{exact:true})).toHaveValue(name);
@@ -70,8 +70,8 @@ test("That's me moves a profile to a new phone once a lead approves, and the old
 test("a declined That's me goes back to Create profile with the reason, and Cancel goes back too",async({page,browser},info)=>{
   const name=`Sam Declined ${info.project.name}`;
   await page.goto('/');await createProfile(page,name);await home(page);
-  const lead=await leadPhone(browser,page,`Lena Declines ${info.project.name}`);
-  const newPhone=await phone(browser,page);
+  const lead=await leadPhone(browser,`Lena Declines ${info.project.name}`);
+  const newPhone=await phone(browser);
   await newPhone.goto('/');await askForProfile(newPhone,name);
   await card(lead,name).getByRole('button',{name:'Decline',exact:true}).click();
   await expect(newPhone.getByRole('alert')).toHaveText('A lead did not approve this - add your middle name or initial.');

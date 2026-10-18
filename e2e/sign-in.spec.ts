@@ -67,7 +67,7 @@ test('Create profile refuses a name already taken, keeping what was typed',async
   const second=await browser.newContext({...info.project.use});
   try {
     const other=await second.newPage();await other.goto('/');await createProfile(other,name.toLowerCase());
-    await expect(other.getByRole('alert')).toHaveText(`${name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`);
+    await expect(other.getByRole('alert').locator('p')).toHaveText(`${name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`);
     await expect(other.getByLabel('Full name')).toHaveValue(name.toLowerCase());
     expect(await lookProblems(other)).toEqual([]);
     await other.screenshot({path:info.outputPath('create-profile-taken.png')});
