@@ -7,7 +7,7 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
   }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS olympics_days (
-      id uuid PRIMARY KEY, day_code text NOT NULL, lead_code text NOT NULL,
+      id uuid PRIMARY KEY, lead_code text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now(), active boolean NOT NULL DEFAULT true
     );
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_day ON olympics_days(active) WHERE active;
@@ -21,9 +21,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS profile_name ON profiles(lower(name));
     -- One row per profile per Olympics day; the name is the profile's (profiles are never renamed).
-    -- shortcut: profile_id stays nullable while the old day-code join makes rows without a profile; make it NOT NULL when that join goes.
     CREATE TABLE IF NOT EXISTS sign_ins (
-      id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), profile_id uuid REFERENCES profiles(id),
+      id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), profile_id uuid NOT NULL REFERENCES profiles(id),
       name text NOT NULL, level text NOT NULL CHECK (level IN ('Volunteer','Lead','Scoring team')),
       owner boolean NOT NULL DEFAULT false, token_hash text NOT NULL UNIQUE, signed_out boolean NOT NULL DEFAULT false,
       signed_in_at timestamptz NOT NULL DEFAULT now(), UNIQUE(day_id, profile_id)

@@ -1,4 +1,4 @@
-import { steps,trailBack,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { signInThroughApi,steps,trailBack,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
@@ -63,7 +63,7 @@ test('the Dashboard always opens on three buttons, with the To check badge and a
   } finally {await cleanUp(page,[race]);}
 });
 
-test('Day setup shows only for the scoring team and opens the day codes',async({page},info)=>{
+test('Day setup shows only for the scoring team and opens the Olympics password and lead code',async({page},info)=>{
   await page.goto('/');await createProfile(page,`Dashboard scoring ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');
   await openDashboard(page);
   for(const [title,line] of menu) await expect(dashboardMenuButton(page,title)).toContainText(line);
@@ -72,15 +72,15 @@ test('Day setup shows only for the scoring team and opens the day codes',async({
   await dashboardMenuButton(page,'Day setup').click();
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expect(steps(page)).toHaveText(/^Home\s*›\s*Dashboard\s*›\s*Day setup$/);
-  await expect(page.getByText(process.env.E2E_DAY_CODE!,{exact:true})).toBeVisible();
+  await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
+  await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
   await trailBack(page,'Dashboard');
   await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
 });
 
 test('To check explains each problem in plain English, opens the race and confirms a saved ruling',async({page},info)=>{
   const code=`TC-${info.project.name.toUpperCase()}`,wrong=await wrongTimeRace(page,code);
-  const join=async(name:string)=>(await(await page.request.post('/api/join',{data:{code:process.env.E2E_DAY_CODE,name}})).json()).token as string;
-  const first=await join(`Yusuf ${info.project.name}`),second=await join(`Maryam ${info.project.name}`);
+  const first=await signInThroughApi(page.request,`Yusuf ${info.project.name}`),second=await signInThroughApi(page.request,`Maryam ${info.project.name}`);
   const clash=(await(await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners:[2003]}})).json()).race;
   await page.request.post(`/api/races/${clash.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:[2003],didNotFinish:[],didNotRun:[],added:[]}});
   for(const [token,places] of [[first,[1400]],[second,[1500]]] as const) await page.request.post(`/api/races/${clash.id}/times`,{headers:{authorization:`Bearer ${token}`},data:{baseVersion:0,places}});

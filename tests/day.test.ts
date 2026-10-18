@@ -120,3 +120,11 @@ test('Become lead refuses a wrong code and preserves the joined name and scoring
   expect((await call(token,'/api/become-lead',{code:day.leadCode})).json()).toMatchObject({name:'Aisha',level:'Scoring team'});
   expect((await call(phone.token,'/api/become-lead',{code:'day-owner-fixture'})).json()).toMatchObject({name:'Ahmed',level:'Scoring team'});
 });
+test('the day read shows the scoring team the Olympics password and there is no day code to read, make or join with',async()=>{
+  const token = await start();
+  const day = (await call(token,'/api/day')).json();
+  expect(day.olympicsPassword).toMatch(/^[A-Z0-9]{8}$/);
+  expect(Object.keys(day).filter(key=>/day.?code/i.test(key))).toEqual([]);
+  expect((await call(token,'/api/day/day-code',{})).statusCode).toBe(404);
+  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.olympicsPassword,name:'Sam Patel'}})).statusCode).toBe(404);
+});
