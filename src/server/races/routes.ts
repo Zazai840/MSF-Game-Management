@@ -5,7 +5,7 @@ import { rememberRace,partVersion,savePart } from './versions.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
-import { actions, Refusal } from '../access/permissions.js';
+import { actions, newDay, Refusal } from '../access/permissions.js';
 import { raceChange, readRace, requireStageOpen, requireStartLineEdit, listRaces,jobRace } from './records.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { annotateRunners,keptWarningNumbers,wristbandRaces } from './warnings.js';
@@ -32,7 +32,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
   action('GET','/api/jobs/start-line','Volunteer',async(_request,_reply,phone)=>{
     const day=(await pool.query('SELECT events_confirmed FROM olympics_days WHERE id=$1 AND active',[phone.dayId])).rows[0];
-    if (!day) throw new Refusal(401,'Please join the Olympics day');
+    if (!day) throw newDay();
     const events=(await pool.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND enabled ORDER BY programme_order,code',[phone.dayId])).rows;
     const races=await listRaces(pool,phone.dayId);
     return {completedStages:await readCompletedStages(pool,phone.dayId),events,eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null && (race.kind!=='final' || (race.final?.heatsComplete && !race.final.hasRun))).map(jobRace),recent:races.slice(-10).reverse().map(jobRace)};

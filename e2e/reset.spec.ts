@@ -1,4 +1,4 @@
-import { trailBack,openDashboard,dashboardMenuButton,enterWristband,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
+import { trailBack,openDashboard,dashboardMenuButton,enterWristband,jobButton,dashboardButton,expect,createProfile,typePassword,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function scoring(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
@@ -80,7 +80,8 @@ test('an actual old removed-phone 401 cannot sign out a newly rejoined phone',as
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;
   await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;const response=await route.fetch();expect(response.status()).toBe(401);seen();await held;await route.fulfill({response});delivered();});
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
-  await jobButton(page,'Times').click();await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();
+  // Removed means signed out: the phone goes back to the password screen and keeps its profile.
+  await jobButton(page,'Times').click();await typePassword(page);
   await page.getByRole('button',{name:`Delayed ${info.project.name}`,exact:true}).click();await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
   const freshToken=await page.evaluate(()=>localStorage.getItem('msf:token'));expect(freshToken).not.toBe(oldToken);
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));

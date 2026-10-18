@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { randomUUID } from 'node:crypto';
-import { actions,Refusal,requireLevel } from '../access/permissions.js';
+import { actions,newDay,Refusal,requireLevel,signedOut } from '../access/permissions.js';
 import { newLeadCode } from '../access/codes.js';
 import { seedEvents } from './events.js';
 export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -12,9 +12,9 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       // Sign-in and reset always take this lock before the captured day, then phone.
       await client.query('SELECT pg_advisory_xact_lock(23001)');
       const day=(await client.query('SELECT * FROM olympics_days WHERE id=$1 AND active FOR UPDATE',[phone.dayId])).rows[0];
-      if(!day) throw new Refusal(401,'Please join the Olympics day');
+      if(!day) throw newDay();
       const current=(await client.query('SELECT id,day_id AS "dayId",name,level,profile_id AS "profileId" FROM sign_ins WHERE id=$1 AND day_id=$2 AND NOT signed_out FOR UPDATE',[phone.id,phone.dayId])).rows[0];
-      if(!current) throw new Refusal(401,'Please join the Olympics day');
+      if(!current) throw signedOut();
       requireLevel(current,'Scoring team');
       if((request.body as {confirmation?:unknown}|null)?.confirmation!=='NEW DAY') throw new Refusal(400,'Type NEW DAY to confirm');
       if(day.exported_revision===null || day.exported_at===null || day.exported_revision!==day.revision) throw new Refusal(409,'Download a day export after the last change before starting a new day');
