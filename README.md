@@ -16,7 +16,9 @@ Open http://localhost:3000. When no Olympics day exists, join with the owner pas
 
 `docker compose down` stops the app and keeps the day's data. `APP_PORT` and `DATABASE_PORT` in `.env` can change the default host ports (3000 and 5433). Rebuilding does not clear the day. The database password must match the value used to initialise the persistent database volume.
 
-For fast development, install Node.js 22.12+ and Postgres, run `npm ci`, then provide `DATABASE_URL` and `OWNER_PASSWORD` as environment settings and run `npm run dev`. The server serves the API and Vite screens together at port 3000; `HOST` and `PORT` are optional. For a production build, run `npm run build`, then `NODE_ENV=production npm start` with those same required settings. There is no default owner password or application database connection.
+For fast development, install Node.js 22.12+ and Postgres, run `npm ci`, then provide `DATABASE_URL` and `OWNER_PASSWORD` as environment settings and run `npm run dev`. The server serves the API and Vite screens together at port 3000; `HOST` and `PORT` are optional. Behind a reverse proxy, set `TRUSTED_PROXY_HOPS` to the number of proxies in front of the server (usually 1) so wrong-code backoff tells phones apart; leave it unset when phones reach the server directly. For a production build, run `npm run build`, then `NODE_ENV=production npm start` with those same required settings. There is no default owner password or application database connection.
+
+Set `TEST_BUILD=1` only on a public test deployment. The shared header then shows **Test build · <short commit>** and a **Report a bug** link that opens the tester bug form (`.github/ISSUE_TEMPLATE/tester-bug.yml`) pre-filled with the commit and the current screen. The commit comes from Railway's `RAILWAY_GIT_COMMIT_SHA` and shows as `unknown` when that is absent. Without `TEST_BUILD`, nothing extra shows.
 
 Dashboard → Day setup → Events starts with the 20 individual events from the scoring template. Scoring team members can rename events, add an event with its section and event format, and switch events off or back on. Confirm the event list after checking it; any setup change asks you to confirm again. Switched-off events remain visible on Events and are omitted from volunteer event choices.
 
@@ -34,6 +36,46 @@ Leads can tap a runner in Results to disqualify them, choosing a reason, or lift
 
 Scoring team members can download the whole Olympics day from Dashboard → Day setup → Download day export, including incomplete and deleted races. The workbook has Input - Running (completed events, winners in J/M/P with formula columns blank), Finals (original seeds, absences, call-ups and final positions), All results, and Audit notes. Times are numeric seconds to two decimal places; audit times are UTC. Day setup shows the last export time and whether later changes need another download.
 
+## Test build on Railway
+
+The public test build runs `main` on Railway's free plan as two services in one project: the app service, built from this repo's `Dockerfile`, and a Railway PostgreSQL service. The app is served at the HTTPS domain Railway generates (ending `.up.railway.app`). `railway.json` sets the Dockerfile build, the `/api/health` health check and restart on failure. Railway supplies `PORT`; the image already listens on all interfaces.
+
+Set these variables on the app service. Never write their values in GitHub, the repo or an issue.
+
+| Variable | What it holds |
+| --- | --- |
+| `DATABASE_URL` | A reference to the Postgres service's connection URL (`${{Postgres.DATABASE_URL}}`), never a typed password |
+| `OWNER_PASSWORD` | The owner password, 24 or more random characters, kept in the owner's password manager |
+| `TRUSTED_PROXY_HOPS` | The number of proxies in front of the server (Railway: 1, confirmed from the request logs) |
+| `TEST_BUILD` | Marks the deployment as a test build so phones show the build's commit and a bug-report link; set to `1` |
+
+Railway sets `RAILWAY_GIT_COMMIT_SHA` itself; the test build marker reads it.
+
+`TRUSTED_PROXY_HOPS` is safe only when every request passes through the proxy, so leave it unset wherever phones can reach the server directly.
+
+Every push to `main` builds and deploys a new version. Railway switches traffic only after the new version answers `/api/health`, so a failing build or health check keeps the previous version running. Look at the deployment's build and runtime logs in the Railway dashboard.
+
+To clear the Olympics day between test sessions, use the normal Start new day flow on Dashboard → Day setup: download the day export, then type **NEW DAY**. Redeploying never clears the day; the data lives in the Postgres service.
+
+To onboard testers, join first with the owner password, then send testers the Railway domain and the day code from Day setup (and the lead code only to testers who should try Lead). They join with the day code and their own full name. Testers report bugs with the **Report a bug** link in the app header, which opens a GitHub issue with the commit and screen filled in.
+
+### Smoke check against the deployed build
+
+`npm run test:remote` checks that the deployed build works for 5 testers: it joins the owner and 4 volunteers, runs one 60m Girl Cubs (R4) race through check-in, finishing order and times, shows a mistyped day code on one phone does not block another, checks the Test build marker, downloads the day export, and makes 70 saves across the 5 phones with no refusal or server error. It uses `playwright.remote.config.ts` (no local server, no test database) and skips unless `REMOTE_BASE_URL` and `REMOTE_OWNER_PASSWORD` are set. It never clears the day: it adds 5 phones named `Smoke ...` and one R4 race to it, so clear the day afterwards if testers should start fresh.
+
+```sh
+REMOTE_BASE_URL=https://YOUR-DOMAIN.up.railway.app REMOTE_OWNER_PASSWORD='...' REMOTE_DAY_CODE=... npm run test:remote
+```
+
+Leave out `REMOTE_DAY_CODE` only when no day exists yet; the owner password then starts the day. Each run uses one of the 5 wrong codes allowed per address in 15 minutes, so wait 15 minutes after 4 runs.
+
+### Guide for testers
+
+- **The link:** open the Railway domain the owner sends you (it ends `.up.railway.app`) on your phone.
+- **Joining:** the owner shares the day code with you directly. Type it with your own full name and tap Join. Only testers trying Lead get the lead code.
+- **Reporting a bug:** tap **Report a bug** in the header on the screen where it happened. It opens a GitHub issue with the build's commit and the screen already filled in; say what happened and what you expected.
+- **Data may be cleared:** this is a test build. The owner clears the day between test sessions, so anything you enter can disappear.
+
 ## Check changes
 
 ```sh
@@ -47,7 +89,7 @@ The default test database connection is local Postgres on port 5432 using your o
 
 `npm test` creates a fresh process-specific Postgres database, runs HTTP API tests in-process against it and plain results-rule unit tests, then drops that generated database. Different worktrees can run tests concurrently. `TEST_DATABASE_URL` or `TEST_DATABASE_NAME` selects a retained test database; only names matching `msf_spec22_<digits>_test` or `msf_spec22_<digits>_e2e` may be cleared. Never use an application database for tests. Test files run sequentially because each HTTP test resets its isolated day's state.
 
-Playwright builds and starts a production app on port 4323 with a fresh, isolated database and runs at iPhone, Android and desktop viewport sizes. Override `E2E_PORT` for concurrent browser runs; optional `E2E_DATABASE_URL` / `E2E_DATABASE_NAME` select a dedicated test database. Browser databases are retained after the run for inspection. Phone sizes use Chromium; real Safari and Samsung Internet checks belong to the rehearsal. Screenshots and failed traces appear in ignored `test-results/`.
+Playwright builds and starts a production app on port 4323 with a fresh, isolated database and runs at iPhone, Android and desktop viewport sizes. Override `E2E_PORT` for concurrent browser runs; optional `E2E_DATABASE_URL` / `E2E_DATABASE_NAME` select a dedicated test database. Browser databases are retained after the run for inspection. Phone sizes use Chromium; real Safari and Samsung Internet checks belong to the rehearsal. `npm run test:e2e` then makes a second run, of the test build marker spec in `e2e/test-build/`, against a server started with `TEST_BUILD=1` (`playwright.test-build.config.ts`). Screenshots and failed traces appear in ignored `test-results/`.
 
 The build measures the volunteer first load (all statically imported JavaScript and CSS, the self-hosted Nunito font files and the service worker) after gzip, prints the total and fails above 1,500,000 bytes (the aim is about 1 MB). The Lead screen is a dynamic import and is fetched only when an authorised phone opens it. No component library or CSS framework is used; colour tokens and shared styles live in `src/client/theme.css`.
 

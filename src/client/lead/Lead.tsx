@@ -25,7 +25,7 @@ const savedFor=3000;
  * The Dashboard (was v1's Lead area). It always opens on three big buttons; each opens its screen and the
  * trail (`Home › Dashboard › Results`) leads back. After Start a new day the scoring team lands in Day setup.
  */
-export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,onHome}:{phone:Phone;initialDay?:boolean;toCheck:number;onCount:(count:number)=>void;onChanged:()=>void;onHome:()=>void}) {
+export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,onHome,onSection}:{phone:Phone;initialDay?:boolean;toCheck:number;onCount:(count:number)=>void;onChanged:()=>void;onHome:()=>void;onSection:(section:string)=>void}) {
   const scoring=phone.level==='Scoring team';
   const [section,setSection] = useState<Section>(initialDay&&scoring?'Day setup':'Dashboard');
   const [target,setTarget]=useState<DayLeadItem|undefined>();
@@ -45,6 +45,7 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
   }
   useEffect(()=>{if(!daySetup.includes(section)) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   useEffect(()=>{if (!scoring && daySetup.includes(section)) {setSection('Dashboard');setDay(null);}},[scoring]);
+  useEffect(()=>onSection(section),[section]);
   useEffect(()=>{if(!saved) return;const timer=window.setTimeout(()=>setSaved(0),savedFor);return()=>clearTimeout(timer);},[saved]);
   function open(next:Section) {setTarget(undefined);setSection(next);window.scrollTo(0,0);}
   function changed() {setSaved(Date.now());onChanged();}

@@ -3,12 +3,14 @@
 main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; display:flex; flex-direction:column;}
 
 /* Navy header bar: Running Zone, the day's name where known, the joined person. */
-.app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;}
 .app-header-title {flex:none; display:flex; flex-direction:column; min-width:0;}
 .app-header-title strong {font-size:19px; font-weight:800; white-space:nowrap;}
 .app-header-title span {font-size:13px; font-weight:600; color:var(--on-dark-muted);}
-.app-header-person {display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}
+.app-header-person {flex:1 1 0; justify-content:flex-end; display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}
 .app-header-person > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.app-header-test {flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-2px 0 -12px; border-top:1px solid var(--muted); font-size:15px; font-weight:700; color:var(--on-dark-muted);}
+.app-header-test a {min-height:44px; display:inline-flex; align-items:center; color:#fff;}
 .avatar {flex:none; width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;}
 
 .app-nav {width:100%; max-width:48rem; margin:0 auto; padding:16px 16px 0; display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px;}

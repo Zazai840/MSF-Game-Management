@@ -18,10 +18,22 @@ import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
-export interface AppSettings { databaseUrl: string; ownerPassword: string; resetTestDay?: boolean }
+export interface AppSettings {
+  databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number;
+  // Turns on request logging (JSON lines); codes and the owner password only travel in bodies, which Fastify never logs.
+  logTo?: NodeJS.WritableStream;
+  /** Marks a public test deployment; its commit is shown to testers and carried into bug reports. */
+  testBuild?: {commit?: string};
+}
+const bugReportUrl = 'https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml';
 export async function createApp(settings: AppSettings) {
   if (!settings.ownerPassword || !settings.databaseUrl) throw new Error('DATABASE_URL and OWNER_PASSWORD are required');
-  const app = Fastify({logger: false});
+  const hops = settings.trustedProxyHops || 0;
+  // Trust only the nearest proxy hops, never all: a phone can prepend its own forwarded address. Fastify 5.12 ignores a bare hop count, so it is spelled as a function.
+  const app = Fastify({
+    logger: settings.logTo ? {stream:settings.logTo, redact:['req.headers.authorization']} : false,
+    trustProxy: hops > 0 && ((_address: string, hop: number) => hop < hops)
+  });
   const pool = await openDatabase(settings.databaseUrl, settings.resetTestDay);
   app.addHook('onClose', async () => { await pool.end(); });
   app.setErrorHandler((error, _request, reply) => {
@@ -32,6 +44,8 @@ export async function createApp(settings: AppSettings) {
     app.log.error(error);
     return reply.code(500).send({message:'Something went wrong - please try again'});
   });
+  const testBuild = settings.testBuild && {commit:settings.testBuild.commit || 'unknown', reportUrl:bugReportUrl};
+  app.get('/api/health', () => testBuild ? {ok:true, testBuild} : {ok:true});
   accessRoutes(app, pool, settings.ownerPassword);
   phoneManagementRoutes(app,pool);
   dayRoutes(app, pool);

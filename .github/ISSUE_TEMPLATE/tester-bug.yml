@@ -1,0 +1,33 @@
+name: Tester bug
+description: Something went wrong on the Running Zone test build.
+title: "Test build bug: "
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did and what the app did. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What you thought the app would do instead.
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Filled in by the Report a bug link. It is shown in the app's header after "Test build".
+    validations:
+      required: true
+  - type: input
+    id: screen
+    attributes:
+      label: Screen
+      description: The screen you were on, for example Home or Finish order.
+    validations:
+      required: true
