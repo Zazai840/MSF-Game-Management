@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app: FastifyInstance;
 const post = (url: string, payload: object, token?: string) => app.inject({method:'POST', url, payload, headers:token ? {authorization:`Bearer ${token}`} : {}});
 const get = (url: string, token: string) => app.inject({url, headers:{authorization:`Bearer ${token}`}});
@@ -8,12 +9,9 @@ afterEach(async () => { await app?.close(); });
 
 test('Start new day keeps the presser and profiles, sends other phones back with reason new-day and keeps the Olympics password', async () => {
   app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL!, ownerPassword: 'new-day-owner', resetTestDay: true});
-  const owner = (await post('/api/owner-sign-in', {password:'new-day-owner', name:'Aisha Khan', profiles:[]})).json();
-  const before = (await get('/api/day', owner.token)).json();
-  const pass = (await post('/api/password', {password:before.olympicsPassword})).json().pass as string;
-  const volunteer = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
-  const lead = (await post('/api/profiles', {pass, name:'Yusuf Ali'})).json();
-  expect((await post('/api/become-lead', {code:before.leadCode}, lead.token)).statusCode).toBe(200);
+  const people = await signInOwner(app, 'new-day-owner', 'Aisha Khan');
+  const {owner, day:before, pass} = people;
+  const volunteer = await people.volunteer('Sam Patel'), lead = await people.lead('Yusuf Ali');
   await post('/api/day/export', {}, owner.token);
   expect((await post('/api/day/start-new', {confirmation:'NEW DAY'}, owner.token)).statusCode).toBe(200);
 

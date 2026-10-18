@@ -1,14 +1,15 @@
 import { afterEach, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
-let app: FastifyInstance;
+import { signInOwner } from './support/sign-in.js';
+let app: FastifyInstance, people: Awaited<ReturnType<typeof signInOwner>>;
 const auth = (token:string) => ({authorization:`Bearer ${token}`});
 const call = (token:string, url:string, payload?:unknown) => app.inject({method:payload===undefined?'GET':'POST',url,headers:{...auth(token),...(payload===undefined?{}:{'content-type':'application/json'})},...(payload===undefined?{}:{payload:JSON.stringify(payload)})});
 afterEach(async()=>{await app?.close();});
 async function start() {
   app = await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'day-owner-fixture',resetTestDay:true});
-  const owner = (await app.inject({method:'POST',url:'/api/join',payload:{code:'day-owner-fixture',name:'Aisha'}})).json();
-  return owner.token as string;
+  people = await signInOwner(app,'day-owner-fixture');
+  return people.owner.token;
 }
 test('a new Olympics day starts with exactly the 20 individual running events',async()=>{
   const token = await start();
@@ -78,7 +79,7 @@ test('an event code already in the programme is refused plainly',async()=>{
 test('a switched-off event stays on Day and disappears from volunteer event choices',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
-  const volunteer = (await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Ahmed'}})).json();
+  const volunteer = await people.volunteer('Ahmed');
   const saved = await call(token,'/api/day/events/R4/enabled',{enabled:false});
   expect(saved.statusCode).toBe(200);
   const choices = await call(volunteer.token,'/api/events');
@@ -92,7 +93,7 @@ test('volunteers and ordinary leads are refused every scoring-team setup action'
   const token = await start();
   const day = (await call(token,'/api/day')).json();
   for (const name of ['Volunteer Ahmed','Lead Maryam']) {
-    const phone = (await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json();
+    const phone = await people.volunteer(name);
     if (name==='Lead Maryam') await call(phone.token,'/api/become-lead',{code:day.leadCode});
     for (const [url,payload] of [
       ['/api/day/confirm-events',{}],
@@ -110,7 +111,7 @@ test('volunteers and ordinary leads are refused every scoring-team setup action'
 test('Become lead refuses a wrong code and preserves the joined name and scoring-team level',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
-  const phone = (await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Ahmed'}})).json();
+  const phone = await people.volunteer('Ahmed');
   const wrong = await call(phone.token,'/api/become-lead',{code:'wrong-fixture'});
   expect(wrong.statusCode).toBe(403);
   expect(wrong.json().message).toBe('Wrong lead code');
