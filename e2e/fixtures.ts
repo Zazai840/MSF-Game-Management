@@ -94,7 +94,7 @@ export function dashboardButton(page:Page) {
 const dashboardTitles={'To check':'To check',Results:'Results','Day setup':'Day setup'} as const;
 /** One of the Dashboard's three menu buttons, whatever its explanation or badge says. */
 export function dashboardMenuButton(page:Page,section:keyof typeof dashboardTitles) {
-  return page.getByRole('button',{name:new RegExp(`^${dashboardTitles[section]} `)});
+  return page.getByRole('main').getByRole('button',{name:new RegExp(`^${dashboardTitles[section]} `)});
 }
 /** From Home: opens the Dashboard and, when named, one of its three screens. */
 export async function openDashboard(page:Page,section?:keyof typeof dashboardTitles) {
