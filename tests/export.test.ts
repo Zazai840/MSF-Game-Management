@@ -77,7 +77,7 @@ test('concurrent export and mutation never record a revision newer than the work
  const after=(await call(owner,'/api/day')).json();expect(after.revision).toBe(before.revision+1);expect(after.exportedRevision).toBe(revision);expect(after.exportedAt).toBe(download.headers['x-exported-at']);
 });
 test('removed and demoted Scoring phones cannot refresh export metadata',async()=>{
- const {owner,lead}=await start();const phone=(await call(lead,'/api/me')).json();await call(owner,`/api/day/phones/${phone.id}/scoring-team`,{scoringTeam:true});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(200);
- const before=(await call(owner,'/api/day')).json();await call(owner,`/api/day/phones/${phone.id}/scoring-team`,{scoringTeam:false});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(403);await call(owner,`/api/day/phones/${phone.id}/remove`,{});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(401);
+ const {owner,lead}=await start();const phone=(await call(lead,'/api/me')).json();await call(owner,`/api/day/phones/${phone.id}/role`,{role:'Scoring team'});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(200);
+ const before=(await call(owner,'/api/day')).json();await call(owner,`/api/day/phones/${phone.id}/role`,{role:'Lead'});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(403);await call(owner,`/api/day/phones/${phone.id}/remove`,{});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(401);
  const after=(await call(owner,'/api/day')).json();expect(after.exportedAt).toBe(before.exportedAt);expect(after.exportedRevision).toBe(before.exportedRevision);expect(after.revision).toBeGreaterThan(after.exportedRevision);
 });

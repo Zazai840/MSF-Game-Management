@@ -29,7 +29,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   await expect(leadCode.getByRole('button',{name:'Make a new lead code',exact:true})).toBeVisible();
   await expect(leadCode).toContainText('Zone leads who used the old code go back to being volunteers. The scoring team keeps access.');
 
-  await expect(page.getByRole('button',{name:`Phones ${phones} ${phones===1?'person':'people'} joined today`,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`Phones ${phones} ${phones===1?'person':'people'} signed in today`,exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:`Events ${day.events.length} events · ${day.eventsConfirmed?'checked and confirmed':'not confirmed yet'}`,exact:true})).toBeVisible();
 
   const dayExport=section(page,'Day export');
@@ -60,9 +60,9 @@ test('the day export says when it was last downloaded and whether changes came a
 test('Phones and Events open their screens with a trail back, and lead actions there say Saved',async({page},info)=>{
   await scoring(page);
   await page.getByRole('button',{name:/^Phones /}).click();
-  await expect(page.getByRole('heading',{level:1,name:'Phones',exact:true})).toBeVisible();
-  await expect(steps(page)).toHaveText(/^(Home\s*›\s*Dashboard|…)\s*›\s*Day setup\s*›\s*Phones$/);
-  await expect(page.getByRole('article',{name:'Phone E2E Scoring',exact:true})).toContainText('(you)');
+  await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
+  await expect(steps(page)).toHaveText(/^(Home|…)?\s*›?\s*(Dashboard|…)\s*›\s*Day setup\s*›\s*Signed in today$/);
+  await expect(page.getByRole('article',{name:'E2E Scoring',exact:true})).toContainText('(you)');
   await expect(page.getByRole('button',{name:'Back',exact:true})).toHaveCount(0);
   await page.screenshot({path:info.outputPath('phones.png'),fullPage:true});
   await trailBack(page,'Day setup');
