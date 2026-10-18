@@ -13,6 +13,11 @@
 .profile-row:focus-visible {outline-offset:-3px;}
 .profile-name {flex:1; min-width:0; font-size:19px; font-weight:800; color:var(--navy); overflow-wrap:anywhere;}
 .profile-chevron {flex:none; color:var(--faint);}
+.profile-list-head {display:flex; justify-content:space-between; align-items:center; gap:12px;}
+/* Edit list: a row asking before it forgets a profile on this phone. */
+.profile-confirm {flex-direction:column; align-items:stretch; background:var(--tint);}
+.profile-confirm p {color:var(--navy); font-weight:700;}
+.profile-confirm-actions {display:flex; flex-wrap:wrap; gap:10px;}
 
 .sign-in-section {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card);}
 .sign-in-toggle {display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; min-height:60px; padding:16px; text-align:left; background:transparent; color:var(--navy); border:0; border-radius:var(--radius-card); font-size:18px;}
