@@ -112,6 +112,7 @@ function ProfileScreen({onSignedIn,onPasswordChanged}:{onSignedIn:(result:Signed
   },refused);};
   const submitting=open==='create-profile' ? create : leadIn;
   return <section className="sign-in"><h1>Who's using this phone?</h1>
+    {phoneStorage.newDayLine() && <p className="calm-note">A new Olympics day has started. Tap your name to sign in.</p>}
     {profiles.length>0 && <><p className="sign-in-lede">Tap your name.</p>
       <div className="profile-rows">{profiles.map(profile=><button key={profile.id} className="profile-row" disabled={tap.busy} onClick={()=>signIn(profile)}>
         <span className="avatar" aria-hidden="true">{initials(profile.name)}</span><span className="profile-text"><span className="profile-name">{profile.name}</span>{roleTag(levels[profile.id])}</span>{chevron}

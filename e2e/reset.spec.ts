@@ -26,8 +26,13 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
     await expect(page.getByText(fresh.dayCode,{exact:true})).toBeVisible();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('fresh-day-codes.png')});
     const home=await (await page.request.get('/api/home',{headers:headers()})).json();expect(home.phone.id).toBe(oldHome.phone.id);expect(home.phone.level).toBe('Scoring team');expect(home.phone.dayId).not.toBe(oldHome.phone.dayId);
-    await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible({timeout:10000});expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:pass','msf:profiles']);
+    expect(fresh.olympicsPassword).toBe(process.env.E2E_OLYMPICS_PASSWORD);
+    const newDayLine=other.getByText('A new Olympics day has started. Tap your name to sign in.',{exact:true});
+    await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible({timeout:10000});await expect(newDayLine).toBeVisible();
+    expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:new-day','msf:pass','msf:profiles']);
+    await other.reload();await expect(newDayLine).toBeVisible();await other.screenshot({path:info.outputPath('new-day-line.png')});
     await other.getByRole('button',{name:`Reset helper ${info.project.name}`,exact:true}).click();await jobButton(other,'Start line').click();await expect(other.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();await expect(other.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();
+    await other.getByRole('button',{name:'Home',exact:true}).click();await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();await expect(newDayLine).toHaveCount(0);
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
     await trailBack(page,'Home');await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
   } finally {await otherContext.close().catch(()=>{});}
