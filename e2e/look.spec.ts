@@ -1,30 +1,8 @@
-import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,joinDay,test,type Page } from './fixtures.js';
+import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
 
-async function joinAs(page:Page,name:string) {await page.goto('/');await joinDay(page,name);}
-
-test('the Join screen asks for a full name and refuses a full name already in use',async({page,browser},info)=>{
-  await page.goto('/');
-  await expect(page.getByLabel('Full name')).toHaveAttribute('autocomplete','name');
-  await expect(page.getByLabel('First name')).toHaveCount(0);
-  expect(await lookProblems(page)).toEqual([]);
-  const join=page.getByRole('button',{name:'Join',exact:true});
-  const box=(await join.boundingBox())!;
-  expect(box.height).toBeGreaterThanOrEqual(50);expect(box.height).toBeLessThanOrEqual(56);
-  expect(await join.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(navy);
-  expect(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor)).toBe(ground);
-  await page.screenshot({path:info.outputPath('join.png'),fullPage:true});
-  const name=`Amina Look ${info.project.name}`;
-  await joinDay(page,name);
-  await expect(page.getByRole('banner')).toBeVisible();
-  const second=await browser.newContext({...info.project.use});
-  try {
-    const other=await second.newPage();await other.goto('/');await joinDay(other,name.toLowerCase());
-    await expect(other.getByRole('alert')).toHaveText(`Someone has joined as ${name} - use your full name so the zone lead can tell you apart`);
-    await other.screenshot({path:info.outputPath('join-taken.png'),fullPage:true});
-  } finally {await second.close();}
-});
+async function joinAs(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
 
 test('a navy header shows Running Zone and the joined person, in self-hosted Nunito',async({page},info)=>{
   const outside:string[]=[];

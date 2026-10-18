@@ -37,7 +37,7 @@ export async function createApp(settings: AppSettings) {
   const pool = await openDatabase(settings.databaseUrl, settings.resetTestDay);
   app.addHook('onClose', async () => { await pool.end(); });
   app.setErrorHandler((error, _request, reply) => {
-    if (error instanceof Refusal) return reply.code(error.statusCode).send({message:error.message});
+    if (error instanceof Refusal) return reply.code(error.statusCode).send({...error.details, message:error.message});
     if (typeof error === 'object' && error !== null && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500) {
       return reply.code(error.statusCode).send({message:'Check what you entered and try again'});
     }

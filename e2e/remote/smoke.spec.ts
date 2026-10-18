@@ -1,9 +1,9 @@
 import { test,expect,type Browser,type Page } from '@playwright/test';
-import { becomeLead,enterTime,enterWristband,jobButton,joinDay,openDashboard,pickRace,savedRaceLabel } from '../fixtures.js';
+import { enterTime,enterWristband,jobButton,createProfile,openDashboard,pickRace,savedRaceLabel,typePassword } from '../fixtures.js';
 
 // Runs only under playwright.remote.config.ts, against a deployed test build whose day is shared with real testers:
 // it adds phones and one race to the day and never clears it.
-const baseURL=process.env.REMOTE_BASE_URL,ownerPassword=process.env.REMOTE_OWNER_PASSWORD,givenDayCode=process.env.REMOTE_DAY_CODE;
+const baseURL=process.env.REMOTE_BASE_URL,ownerPassword=process.env.REMOTE_OWNER_PASSWORD;
 test.skip(!baseURL || !ownerPassword,'Set REMOTE_BASE_URL and REMOTE_OWNER_PASSWORD to run the remote smoke check');
 
 const run=Date.now().toString(36);
@@ -22,27 +22,28 @@ async function expectDeployedCommitShown(page:Page) {
   await expect(page.getByRole('banner').getByRole('link',{name:'Report a bug',exact:true})).toBeVisible();
 }
 
-test('five phones share the test build: one race end to end, a mistyped code, the export and 70 saves',async({browser},info)=>{
+test('five phones share the test build: one race end to end, a mistyped password, the export and 70 saves',async({browser},info)=>{
   test.setTimeout(240_000);
   const use={...info.project.use};
-  // Owner: a fresh server takes the owner password and starts the day; once a day exists, its day code plus the owner password as lead code.
+  // Owner: the owner password signs in as the scoring team, starting the day on a fresh server.
   const owner=await phone(browser,use);
   await expectDeployedCommitShown(owner);
-  await joinDay(owner,`Smoke Owner ${run}`,givenDayCode||ownerPassword!);
-  await expect(jobButton(owner,'Start line'),'If a day already exists, set REMOTE_DAY_CODE to its day code from Day setup').toBeVisible();
-  if(givenDayCode) await becomeLead(owner,ownerPassword!);
+  await typePassword(owner,ownerPassword!);
+  await owner.getByLabel('Full name',{exact:true}).fill(`Smoke Owner ${run}`);
+  await owner.getByRole('button',{name:/^(Sign in|Start the day and sign in)$/}).click();
+  await expect(jobButton(owner,'Start line')).toBeVisible();
   await openDashboard(owner,'Day setup');
   const ownerHeaders={authorization:`Bearer ${await token(owner)}`};
   const dayResponse=await owner.request.get('/api/day',{headers:ownerHeaders});
   expect(dayResponse.ok()).toBe(true);
-  const {dayCode}=await dayResponse.json();
+  process.env.E2E_OLYMPICS_PASSWORD=(await dayResponse.json()).olympicsPassword;
 
-  // A mistyped day code on one phone does not block another phone (all phones here share one address, as in a school hall).
+  // A mistyped password on one phone does not block another phone (all phones here share one address, as in a school hall).
   const [starter,finisher,timer,mistyped]=await Promise.all([1,2,3,4].map(()=>phone(browser,use)));
-  await joinDay(mistyped,`Smoke Volunteer 4 ${run}`,'wrong-day-code');
-  await expect(mistyped.getByRole('alert')).toHaveText('Wrong day code - ask for the right one');
+  await typePassword(mistyped,'wrong-olympics-password');
+  await expect(mistyped.getByRole('alert')).toHaveText('That is not the Olympics password. Check with a lead and try again.');
   for(const [index,page] of [starter,finisher,timer,mistyped].entries()) {
-    await joinDay(page,`Smoke Volunteer ${index+1} ${run}`,dayCode);
+    await createProfile(page,`Smoke Volunteer ${index+1} ${run}`);
     await expect(jobButton(page,'Start line')).toBeVisible();
     await expectDeployedCommitShown(page);
   }

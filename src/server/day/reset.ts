@@ -13,7 +13,7 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('SELECT pg_advisory_xact_lock(23001)');
       const day=(await client.query('SELECT * FROM olympics_days WHERE id=$1 AND active FOR UPDATE',[phone.dayId])).rows[0];
       if(!day) throw new Refusal(401,'Please join the Olympics day');
-      const current=(await client.query('SELECT id,day_id AS "dayId",name,level FROM phones WHERE id=$1 AND day_id=$2 AND NOT removed FOR UPDATE',[phone.id,phone.dayId])).rows[0];
+      const current=(await client.query('SELECT id,day_id AS "dayId",name,level,profile_id AS "profileId" FROM sign_ins WHERE id=$1 AND day_id=$2 AND NOT signed_out FOR UPDATE',[phone.id,phone.dayId])).rows[0];
       if(!current) throw new Refusal(401,'Please join the Olympics day');
       requireLevel(current,'Scoring team');
       if((request.body as {confirmation?:unknown}|null)?.confirmation!=='NEW DAY') throw new Refusal(400,'Type NEW DAY to confirm');
@@ -22,14 +22,14 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('UPDATE olympics_days SET active=false WHERE id=$1',[phone.dayId]);
       await client.query('INSERT INTO olympics_days(id,day_code,lead_code,revision) VALUES($1,$2,$3,1)',[nextDay,newDayCode(day.day_code),newLeadCode(day.lead_code)]);
       await seedEvents(client,nextDay);
-      await client.query('UPDATE phones SET day_id=$1 WHERE id=$2',[nextDay,current.id]);
+      await client.query('UPDATE sign_ins SET day_id=$1 WHERE id=$2',[nextDay,current.id]);
       // Parts reference their authors; counters and audit notes reference events.
       // Delete these in dependency order, scoped exclusively to the old day.
       await client.query('DELETE FROM races WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM audit_notes WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM race_counters WHERE event_id IN (SELECT id FROM events WHERE day_id=$1)',[phone.dayId]);
       await client.query('DELETE FROM events WHERE day_id=$1',[phone.dayId]);
-      await client.query('DELETE FROM phones WHERE day_id=$1',[phone.dayId]);
+      await client.query('DELETE FROM sign_ins WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM olympics_days WHERE id=$1',[phone.dayId]);
       await client.query('COMMIT');
       return {phone:{...current,dayId:nextDay}};

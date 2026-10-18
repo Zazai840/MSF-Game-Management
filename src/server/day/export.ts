@@ -8,7 +8,7 @@ export function exportRoutes(app:FastifyInstance,pool:pg.Pool) {
  actions(app,pool)('POST','/api/day/export','Scoring team',async(_request,reply,phone)=>{
   const exported=await raceChange(pool,phone,async(client,unchanged)=>{
    unchanged();
-   const current=(await client.query('SELECT id,day_id AS "dayId",name,level FROM phones WHERE id=$1',[phone.id])).rows[0] as Phone;
+   const current=(await client.query('SELECT id,day_id AS "dayId",name,level,profile_id AS "profileId" FROM sign_ins WHERE id=$1',[phone.id])).rows[0] as Phone;
    requireLevel(current,'Scoring team');
    const day=(await client.query('SELECT revision FROM olympics_days WHERE id=$1',[current.dayId])).rows[0];
    const buffer=await dayWorkbook(client,current.dayId);

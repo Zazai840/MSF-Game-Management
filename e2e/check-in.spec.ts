@@ -1,10 +1,10 @@
-import { expect,jobButton,joinDay,savedRaceLabel,steps,test,type Page } from './fixtures.js';
+import { expect,jobButton,createProfile,savedRaceLabel,steps,test,type Page } from './fixtures.js';
 const scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function openGirlCubs(page:Page,name:string) {
   await page.request.post('/api/day/events/R4/rename',{headers:scoring,data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers:scoring,data:{}});
   await page.goto('/');
-  await joinDay(page,name);
+  await createProfile(page,name);
   await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();

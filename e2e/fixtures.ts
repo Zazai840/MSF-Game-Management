@@ -5,16 +5,29 @@ export const test=base.extend<{freshDayCodes:void}>({
   freshDayCodes:[async({request},use)=>{
     const response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
     expect(response.ok()).toBe(true);
-    const {dayCode,leadCode}=await response.json();
-    process.env.E2E_DAY_CODE=dayCode;process.env.E2E_LEAD_CODE=leadCode;
+    const {dayCode,leadCode,olympicsPassword}=await response.json();
+    process.env.E2E_DAY_CODE=dayCode;process.env.E2E_LEAD_CODE=leadCode;process.env.E2E_OLYMPICS_PASSWORD=olympicsPassword;
     await use();
   },{auto:true}]
 });
-/** Fills the Join form already on screen and taps Join. Names must be unique per day. */
-export async function joinDay(page:Page,name:string,code=process.env.E2E_DAY_CODE!) {
-  await page.getByLabel('Day code or owner password').fill(code);
-  await page.getByLabel('Full name').fill(name);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+/** On the Olympics password screen: types the password (or the owner password) and taps Continue. */
+export async function typePassword(page:Page,password=process.env.E2E_OLYMPICS_PASSWORD!) {
+  await page.getByLabel('Olympics password',{exact:true}).fill(password);
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+}
+/**
+ * Signs a new person in as a volunteer would: past the Olympics password screen when it shows,
+ * then Create profile. Profiles last for the whole database, so names must be unique across the run
+ * (each test adds its project name).
+ */
+export async function createProfile(page:Page,name:string) {
+  const password=page.getByLabel('Olympics password',{exact:true}),profiles=page.getByRole('heading',{level:1,name:"Who's using this phone?"});
+  await expect(password.or(profiles)).toBeVisible();
+  if(await password.isVisible()) {await typePassword(page);await expect(profiles).toBeVisible();}
+  const create=page.getByRole('button',{name:'New here? Create profile'});
+  if(await create.getAttribute('aria-expanded')==='false') await create.click();
+  await page.getByLabel('Full name',{exact:true}).fill(name);
+  await page.getByRole('button',{name:'Create profile',exact:true}).click();
 }
 /** The breadcrumb trail below the header on every job screen. */
 export function steps(page:Page) {return page.getByRole('navigation',{name:'Steps',exact:true});}

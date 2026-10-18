@@ -1,7 +1,7 @@
-import { dragTo,enterWristband,expect,goHome,jobButton,joinDay,pickRace,savedRaceLabel,startDrag,steps,test,type Page } from './fixtures.js';
+import { dragTo,enterWristband,expect,goHome,jobButton,createProfile,pickRace,savedRaceLabel,startDrag,steps,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string) {
-  await page.goto('/');await joinDay(page,name);
+  await page.goto('/');await createProfile(page,name);
 }
 /** The finishing order check list and its rows. */
 const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');

@@ -1,4 +1,4 @@
-import { steps,trailBack,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { steps,trailBack,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
@@ -28,7 +28,7 @@ const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) aw
 test('the Dashboard always opens on three buttons, with the To check badge and a trail back to Home',async({page},info)=>{
   const code=`DB-${info.project.name.toUpperCase()}`,race=await wrongTimeRace(page,code);
   try {
-    await page.goto('/');await joinDay(page,`Dashboard lead ${info.project.name}`);await becomeLead(page);
+    await page.goto('/');await createProfile(page,`Dashboard lead ${info.project.name}`);await becomeLead(page);
     const homeLook=await buttonLook(page.getByRole('button',{name:/^Enter times/}));
     await dashboardButton(page).click();
     await expect(page.getByRole('heading',{level:1,name:'Dashboard',exact:true})).toBeVisible();
@@ -64,7 +64,7 @@ test('the Dashboard always opens on three buttons, with the To check badge and a
 });
 
 test('Day setup shows only for the scoring team and opens the day codes',async({page},info)=>{
-  await page.goto('/');await joinDay(page,`Dashboard scoring ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');
+  await page.goto('/');await createProfile(page,`Dashboard scoring ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');
   await openDashboard(page);
   for(const [title,line] of menu) await expect(dashboardMenuButton(page,title)).toContainText(line);
   await expect(dashboardMenuButton(page,'Day setup')).not.toContainText(/to check|\d/);
@@ -85,7 +85,7 @@ test('To check explains each problem in plain English, opens the race and confir
   await page.request.post(`/api/races/${clash.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:[2003],didNotFinish:[],didNotRun:[],added:[]}});
   for(const [token,places] of [[first,[1400]],[second,[1500]]] as const) await page.request.post(`/api/races/${clash.id}/times`,{headers:{authorization:`Bearer ${token}`},data:{baseVersion:0,places}});
   try {
-    await page.goto('/');await joinDay(page,`To check lead ${info.project.name}`);await becomeLead(page);
+    await page.goto('/');await createProfile(page,`To check lead ${info.project.name}`);await becomeLead(page);
     await openDashboard(page,'To check');
     const time=toCheckItem(page,new RegExp(`${code} · Dashboard sprint Girl Cubs · Race 1`));
     await expect(time).toContainText('A time looks wrong');

@@ -1,4 +1,4 @@
-import { becomeLead,expect,joinDay,openDashboard,test,type Page } from './fixtures.js';
+import { becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -14,7 +14,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:Array<
   return race as {id:string;number:number};
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
-  await page.goto('/');await joinDay(page,name);await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await createProfile(page,name);await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:`Open Race ${number}`,exact:true}).click();
 }

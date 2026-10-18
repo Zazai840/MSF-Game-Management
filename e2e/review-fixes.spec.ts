@@ -1,6 +1,6 @@
-import { pickRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { pickRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
-  await page.goto('/');await joinDay(page,name);
+  await page.goto('/');await createProfile(page,name);
 }
 async function surplusRace(page:Page,code:string) {
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};

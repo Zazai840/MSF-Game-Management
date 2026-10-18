@@ -1,11 +1,11 @@
-import { openDashboard,becomeLead,expect,joinDay,steps,test,trailBack } from './fixtures.js';
+import { openDashboard,becomeLead,expect,createProfile,steps,test,trailBack } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 test('the scoring team edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
   const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R4').name as string;
   try {
     await page.goto('/');
-    await joinDay(page,`Day ${info.project.name}`);
+    await createProfile(page,`Day ${info.project.name}`);
     await becomeLead(page,'wrong-lead-fixture');
     await expect(page.getByRole('alert')).toHaveText('Wrong lead code');
     await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');

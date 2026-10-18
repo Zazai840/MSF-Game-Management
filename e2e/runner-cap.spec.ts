@@ -1,7 +1,7 @@
-import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,pickRace,test,type Page,enterTime } from './fixtures.js';
+import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,createProfile,pickRace,test,type Page,enterTime } from './fixtures.js';
 const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
 async function join(page:Page,name:string,lead=false) {
-  await page.goto('/');await joinDay(page,name);
+  await page.goto('/');await createProfile(page,name);
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {

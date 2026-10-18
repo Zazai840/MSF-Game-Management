@@ -11,13 +11,23 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       created_at timestamptz NOT NULL DEFAULT now(), active boolean NOT NULL DEFAULT true
     );
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_day ON olympics_days(active) WHERE active;
-    CREATE TABLE IF NOT EXISTS phones (
-      id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id),
-      name text NOT NULL, level text NOT NULL CHECK (level IN ('Volunteer','Lead','Scoring team')),
-      token_hash text NOT NULL UNIQUE, removed boolean NOT NULL DEFAULT false,
-      joined_at timestamptz NOT NULL DEFAULT now()
+    -- Olympics settings: one row, made when the owner starts the first day and kept by Start new day.
+    CREATE TABLE IF NOT EXISTS olympics_settings (
+      id boolean PRIMARY KEY DEFAULT true CHECK (id), password text NOT NULL, password_version integer NOT NULL DEFAULT 1
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS joined_name ON phones(day_id, lower(name)) WHERE NOT removed;
+    -- Profiles last all of 2026: never renamed or deleted. The name is stored tidied, so lower(name) is its unique form.
+    CREATE TABLE IF NOT EXISTS profiles (
+      id uuid PRIMARY KEY, name text NOT NULL, secret_hash text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS profile_name ON profiles(lower(name));
+    -- One row per profile per Olympics day; the name is the profile's (profiles are never renamed).
+    -- shortcut: profile_id stays nullable while the old day-code join makes rows without a profile; make it NOT NULL when that join goes.
+    CREATE TABLE IF NOT EXISTS sign_ins (
+      id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), profile_id uuid REFERENCES profiles(id),
+      name text NOT NULL, level text NOT NULL CHECK (level IN ('Volunteer','Lead','Scoring team')),
+      owner boolean NOT NULL DEFAULT false, token_hash text NOT NULL UNIQUE, signed_out boolean NOT NULL DEFAULT false,
+      signed_in_at timestamptz NOT NULL DEFAULT now(), UNIQUE(day_id, profile_id)
+    );
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS events_confirmed boolean NOT NULL DEFAULT false;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_at timestamptz;
@@ -49,7 +59,7 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     CREATE TABLE IF NOT EXISTS race_parts (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL DEFAULT 0,
-      value jsonb, saved_at timestamptz, saved_by uuid REFERENCES phones(id),
+      value jsonb, saved_at timestamptz, saved_by uuid REFERENCES sign_ins(id),
       PRIMARY KEY(race_id,part)
     );
     CREATE TABLE IF NOT EXISTS race_part_history (
@@ -92,6 +102,6 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       PRIMARY KEY(event_id,tie_id)
     );
   `);
-  if (resetTestDay) await pool.query('TRUNCATE phones, olympics_days CASCADE');
+  if (resetTestDay) await pool.query('TRUNCATE sign_ins, olympics_days, profiles, olympics_settings CASCADE');
   return pool;
 }

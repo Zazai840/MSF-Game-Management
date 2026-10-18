@@ -2,7 +2,7 @@ import { expect,test,vi } from 'vitest';
 import type pg from 'pg';
 import { raceChange } from '../src/server/races/records.js';
 import { resultsSnapshot } from '../src/server/results/read.js';
-const phone={id:'phone',dayId:'day',name:'Ahmed',level:'Volunteer' as const};
+const phone={id:'phone',dayId:'day',name:'Ahmed',level:'Volunteer' as const,profileId:null};
 for(const name of ['raceChange','resultsSnapshot'] as const) {
   for(const rollbackFails of [false,true]) test(`${name} preserves the original error and discards the client (rollback failure: ${rollbackFails})`,async()=>{
     const original=new Error('transaction failed'),rollback=new Error('rollback failed');

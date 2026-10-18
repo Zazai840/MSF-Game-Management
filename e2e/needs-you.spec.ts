@@ -1,4 +1,4 @@
-import { timesOpened,goHome,trailBack,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { timesOpened,goHome,trailBack,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,createProfile,test } from './fixtures.js';
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
   const code=`NY-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
@@ -11,7 +11,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   };
   /** Inside a race: Home's count and the queue still agree. */
   const agrees=async()=>expect.poll(async()=>(await(await page.request.get('/api/home',{headers})).json()).needsYou).toBe((await queue()).length);
-  await page.goto('/');await joinDay(page,`Queue lead ${info.project.name}`);await becomeLead(page);await count();
+  await page.goto('/');await createProfile(page,`Queue lead ${info.project.name}`);await becomeLead(page);await count();
   await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await trailBack(page,'Home');
   await page.request.post('/api/day/events',{headers,data:{code,name:'Needs you sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const checkIn=async(runners:number[])=>(await(await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners,keptWarnings:runners}})).json()).race;
@@ -40,7 +40,7 @@ test('queue items open their race or tie directly and clear after the lead settl
   const races:any[]=[];
   async function recorded(numbers:number[],places:number[]) {const race=(await(await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:numbers}})).json()).race;races.push(race);await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:numbers,didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places}});return race;}
   await recorded([2001,2002],[1700,1600]);const clash=await recorded([2003],[1400]);await page.request.post(`/api/races/${clash.id}/times`,{headers,data:{baseVersion:0,places:[1500]}});await recorded([2004],[2000]);await recorded([2005],[2000]);
-  await page.goto('/');await joinDay(page,`Race queue lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'To check');
+  await page.goto('/');await createProfile(page,`Race queue lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'To check');
   const wrongTime=toCheckItem(page,new RegExp(`${code}.*A time looks wrong`)),versions=toCheckItem(page,new RegExp(`${code}.*Two different sets of times were saved`)),tie=toCheckItem(page,new RegExp(`${code}.*Runners tied on time`));
   await expect(page.getByRole('list',{name:'To check'})).toBeVisible();await expect(wrongTime).toBeVisible();
   await page.screenshot({path:info.outputPath('needs-you-races.png'),fullPage:true});

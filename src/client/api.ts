@@ -1,8 +1,14 @@
 const prefix = 'msf:';
 let epoch=0;
 let resetPending=false;
-const erase=()=>{for(const key of Object.keys(localStorage)) if(key.startsWith(prefix)) localStorage.removeItem(key);};
+/** What a phone keeps when a session ends: the Olympics password pass and the profiles made on it. */
+const kept=[`${prefix}pass`,`${prefix}profiles`];
+const erase=(keep:string[]=[])=>{for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key)) localStorage.removeItem(key);};
 const token=()=>localStorage.getItem(`${prefix}token`);
+export interface HeldProfile {id:string;name:string;secret:string}
+function profiles():HeldProfile[] {
+  try {return JSON.parse(localStorage.getItem(`${prefix}profiles`)||'[]');} catch {return [];}
+}
 const dayId=()=>localStorage.getItem(`${prefix}day`);
 const sessionId=()=>`${epoch}:${token()}:${localStorage.getItem(`${prefix}session`)}`;
 function newSession() {
@@ -14,24 +20,33 @@ function changed(newDay:boolean) {
   window.dispatchEvent(new CustomEvent('msf:session',{detail:{newDay}}));
 }
 export const phoneStorage = {
-  token,dayId,session:sessionId,
+  token,dayId,session:sessionId,profiles,
   rememberDay:(id:string)=>localStorage.setItem(`${prefix}day`,id),
-  join:(joinedToken:string)=>{
-    erase();localStorage.setItem(`${prefix}token`,joinedToken);localStorage.setItem(`${prefix}session`,newSession());changed(false);
+  pass:()=>localStorage.getItem(`${prefix}pass`),
+  rememberPass:(pass:string)=>localStorage.setItem(`${prefix}pass`,pass),
+  /** Keeps a profile made on (or signed in from) this phone; a profile already held keeps its secret. */
+  rememberProfile:(profile:{id:string;name:string;secret?:string})=>{
+    const held=profiles();
+    if(profile.secret && !held.some(entry=>entry.id===profile.id)) localStorage.setItem(`${prefix}profiles`,JSON.stringify([...held,{id:profile.id,name:profile.name,secret:profile.secret}]));
+  },
+  /** A new session drops the old one's drafts but keeps the pass and profiles. */
+  signIn:(signedInToken:string)=>{
+    erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);localStorage.setItem(`${prefix}session`,newSession());changed(false);
   },
   newDay:(id:string)=>{
-    const retained=token();erase();
+    const retained=token();erase(kept);
     if(retained) localStorage.setItem(`${prefix}token`,retained);
     localStorage.setItem(`${prefix}day`,id);localStorage.setItem(`${prefix}session`,newSession());changed(true);
   },
-  clear:()=>{erase();epoch++;}
+  /** The session ended: drafts go, the profiles stay, and the pass stays unless the password changed. */
+  clear:(passChanged=false)=>{erase(passChanged?kept.slice(1):kept);epoch++;}
 };
 // Tabs share this app's storage. A changed session marker also invalidates
 // outstanding work when the retained bearer token stays the same after reset.
 window.addEventListener('storage',event=>{
   if(event.key===`${prefix}session` || event.key===null) changed(Boolean(token() && dayId()));
 });
-export class ApiFailure extends Error { constructor(public status: number, message: string) { super(message); } }
+export class ApiFailure extends Error { constructor(public status: number, message: string, public body: {reason?:string;taken?:boolean} = {}) { super(message); } }
 export class StaleRequest extends Error {constructor(){super('Please refresh');}}
 const sessions=new WeakMap<Response,string>();
 function current(captured:string) {if(captured!==sessionId()) throw new StaleRequest();}
@@ -52,10 +67,10 @@ export async function apiResponse(path:string,body?:unknown):Promise<Response> {
     const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
     current(captured);
     if (response.status === 401) {
-      phoneStorage.clear();
+      phoneStorage.clear(result.reason==='password-changed');
       window.dispatchEvent(new Event('msf:removed'));
     }
-    throw new ApiFailure(response.status, result.message || 'Could not connect - please try again');
+    throw new ApiFailure(response.status, result.message || 'Could not connect - please try again', result);
   }
   sessions.set(response,captured);
   return response;

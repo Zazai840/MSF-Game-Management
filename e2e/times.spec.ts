@@ -1,6 +1,6 @@
-import { savedRaceLabel,enterWristband,enterTime,pickRace,jobButton,expect,joinDay,test,type Page } from './fixtures.js';
+import { savedRaceLabel,enterWristband,enterTime,pickRace,jobButton,expect,createProfile,test,type Page } from './fixtures.js';
 async function join(page:Page,name:string) {
-  await page.goto('/');await joinDay(page,name);
+  await page.goto('/');await createProfile(page,name);
 }
 test('three phones record a race, keep a time warning and repair a count mismatch',async({page,browser},info)=>{
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;

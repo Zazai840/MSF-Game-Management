@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { Phone, Job as JobName, WaitingCounts } from '../shared/domain.js';
 import { api, phoneStorage,StaleRequest } from './api.js';
-import { Join } from './access/Join.js';
+import { SignIn } from './access/SignIn.js';
 import { BecomeLead } from './access/BecomeLead.js';
 import { Home, LeadEntry } from './home/Home.js';
 import { Job } from './jobs/Job.js';
@@ -52,7 +52,7 @@ export function App() {
     document.addEventListener('visibilitychange',visible);
     return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',visible);};
   },[joined]);
-  if (!joined) return <><AppHeader screen="Join" /><main><Join onJoined={()=>setJoined(true)} /></main></>;
+  if (!joined) return <SignIn onSignedIn={()=>setJoined(true)} />;
   if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
   const isLead = home.phone.level !== 'Volunteer';
   const goHome=()=>{setScreen('home');setOpenDay(false);};

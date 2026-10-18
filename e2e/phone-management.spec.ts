@@ -24,8 +24,9 @@ test('scoring team manages joined leads and removal drops an actual phone draft'
   await page.screenshot({path:info.outputPath('joined-phones.png'),fullPage:true});
   await row.getByRole('button',{name:'Remove',exact:true}).click();
   await expect(row).toHaveCount(0);await expect(page.locator('.dashboard-saved')).toHaveText('Saved');
-  await expect(other.getByLabel('Day code or owner password')).toBeVisible({timeout:10000});
-  expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual([]);
+  // This phone was signed in through the API, so it holds no Olympics password pass to keep.
+  await expect(other.getByLabel('Olympics password',{exact:true})).toBeVisible({timeout:10000});
+  expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')&&key!=='msf:pass'&&key!=='msf:profiles'))).toEqual([]);
   await expect(page.getByRole('heading',{level:1,name:'Phones',exact:true})).toBeVisible();
   await context.close();
 });

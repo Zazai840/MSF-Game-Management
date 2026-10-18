@@ -1,4 +1,4 @@
-import { backToEvent,openDashboard,trailBack,goHome,jobButton,becomeLead,expect,joinDay,pickRace,test,type Locator } from './fixtures.js';
+import { backToEvent,openDashboard,trailBack,goHome,jobButton,becomeLead,expect,createProfile,pickRace,test,type Locator } from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 const sheetSectionBorder=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const style=getComputedStyle(section);return style.borderLeftStyle==='none'?'none':`${style.borderLeftStyle} ${style.borderLeftColor}`;});
 test('timed Event complete checks blockers, locks an old phone draft, and reopens with a retained comment',async({page,browser},info)=>{
@@ -9,13 +9,13 @@ test('timed Event complete checks blockers, locks an old phone draft, and reopen
   await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2601,2602],didNotFinish:[],didNotRun:[],added:[]}});
   await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1000,1100]}});
   const phone=await browser.newContext({viewport:info.project.use.viewport});const job=await phone.newPage();
-  await job.goto('/');await joinDay(job,`Stage timer ${info.project.name}`);
+  await job.goto('/');await createProfile(job,`Stage timer ${info.project.name}`);
   await jobButton(job,'Start line').click();await job.getByRole('button',{name:`Stage event ${info.project.name}`,exact:true}).click();await job.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();await job.getByLabel('Wristband number',{exact:true}).fill('2');
   await trailBack(job,'Check in runners');await goHome(job);await jobButton(job,'Finish order').click();await pickRace(job,'Finishing order',new RegExp(`${code}.*Race 1`));await job.getByRole('button',{name:'Change order',exact:true}).click();await job.getByRole('button',{name:'2601',exact:true}).click();
   await goHome(job);await jobButton(job,'Times').click();await pickRace(job,'Times',new RegExp(`${code}.*Race 1`));await job.getByRole('button',{name:'1st place · 10.00',exact:true}).click();await job.getByLabel('Place time',{exact:true}).pressSequentially('2');await expect(job.getByLabel('Place time',{exact:true})).toHaveValue('2');
   const before=await job.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([key])=>key.includes(':draft:'))));
   await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2603]}});
-  await page.goto('/');await joinDay(page,`Stage lead ${info.project.name}`);
+  await page.goto('/');await createProfile(page,`Stage lead ${info.project.name}`);
   await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();

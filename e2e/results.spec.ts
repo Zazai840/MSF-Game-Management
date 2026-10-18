@@ -1,5 +1,5 @@
-import { pickRace,enterTime,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
-async function join(page:Page,name:string) {await page.goto('/');await joinDay(page,name);}
+import { pickRace,enterTime,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+async function join(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
 test('a lead sees a phone-recorded race appear within one Results poll',async({page,browser},info)=>{
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const number=2401+offset;

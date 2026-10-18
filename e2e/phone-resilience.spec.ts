@@ -1,4 +1,4 @@
-import { goHome,jobButton,expect,joinDay,pickRace,test } from './fixtures.js';
+import { goHome,jobButton,expect,createProfile,pickRace,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -6,7 +6,7 @@ test('the volunteer app reopens from its shell cache without caching race reads 
   const scripts:string[]=[];
   page.on('request',request=>{if(request.resourceType()==='script') scripts.push(request.url());});
   await page.goto('/');
-  await expect(page.getByLabel('Day code or owner password')).toBeVisible();
+  await expect(page.getByLabel('Olympics password',{exact:true})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   expect(scripts.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
   // A real successful race-data read must not become available from the shell cache.
@@ -16,7 +16,7 @@ test('the volunteer app reopens from its shell cache without caching race reads 
   await context.setOffline(true);
   const navigation=await page.reload();
   expect(navigation?.fromServiceWorker()).toBe(true);
-  await expect(page.getByLabel('Day code or owner password')).toBeVisible();
+  await expect(page.getByLabel('Olympics password',{exact:true})).toBeVisible();
   const offlineRead=await page.evaluate(async headers=>{
     try {await fetch('/api/jobs/times',{headers});return 'cached';} catch {return 'unavailable';}
   },headers);
@@ -35,7 +35,7 @@ test('old phones see the browser message before the application opens',async({br
       const phone=await context.newPage();
       await phone.goto('/');
       await expect(phone.getByText("This phone's browser is too old, please use another phone",{exact:true})).toBeVisible();
-      await expect(phone.getByLabel('Day code or owner password')).toHaveCount(0);
+      await expect(phone.getByLabel('Olympics password',{exact:true})).toHaveCount(0);
     } finally {await context.close();}
   }
 });
@@ -43,7 +43,7 @@ test('old phones see the browser message before the application opens',async({br
 test('a deployed version waits for a tap and preserves an unfinished Start line entry',async({page},info)=>{
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
-  await joinDay(page,`Update ${info.project.name}`);
+  await createProfile(page,`Update ${info.project.name}`);
   await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
@@ -77,7 +77,7 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   const {race}=await checked.json();
   const raceName=`60m Girl Cubs (R4) · Heat ${race.number}`;
   await page.goto('/');
-  await joinDay(page,`Recovery ${info.project.name}`);
+  await createProfile(page,`Recovery ${info.project.name}`);
 
   await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
@@ -106,10 +106,11 @@ test('all three unfinished jobs survive reload and are dropped when the phone is
   await expect(page.getByText('Shows as 1.23',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
 
-  // Simulate the server revoking this joined phone at the HTTP boundary.
-  await page.route('**/api/home',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Your phone has been removed - join again'})}));
+  // Simulate the server signing this phone out at the HTTP boundary.
+  await page.route('**/api/home',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please sign in again'})}));
   await page.reload();
-  await expect(page.getByLabel('Day code or owner password')).toBeVisible();
-  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual([]);
+  // Drafts go; the Olympics password pass and the profile stay on the phone.
+  await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();
+  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:pass','msf:profiles']);
   await page.request.post(`/api/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });
