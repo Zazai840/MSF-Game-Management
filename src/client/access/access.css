@@ -11,8 +11,11 @@
 .profile-row:last-child {border-bottom:0;}
 /* The list clips its corners, so the focus ring sits inside the row. */
 .profile-row:focus-visible {outline-offset:-3px;}
-.profile-name {flex:1; min-width:0; font-size:19px; font-weight:800; color:var(--navy); overflow-wrap:anywhere;}
+.profile-text {flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px;}
+.profile-name {max-width:100%; font-size:19px; font-weight:800; color:var(--navy); overflow-wrap:anywhere;}
 .profile-chevron {flex:none; color:var(--faint);}
+/* Today's role tag: Lead is the navy badge, Scoring team the quiet one. */
+.badge-scoring {background:var(--tint); color:var(--navy); border:1.5px solid var(--line-strong);}
 .profile-list-head {display:flex; justify-content:space-between; align-items:center; gap:12px;}
 /* Edit list: a row asking before it forgets a profile on this phone. */
 .profile-confirm {flex-direction:column; align-items:stretch; background:var(--tint);}
