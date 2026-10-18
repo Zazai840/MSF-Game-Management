@@ -25,19 +25,20 @@ function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
   return {busy,run,failure};
 }
 
-function CodeCard({label,code,explanation,action,note,busy,onMake,failure}:{label:string;code:string;explanation:string;action:string;note:string;busy:boolean;onMake:()=>void;failure:ReactNode}) {
+/** A code the scoring team reads out; with an action, a button that makes a new one. */
+function CodeCard({label,code,explanation,note,make}:{label:string;code:string;explanation:string;note:string;make?:{action:string;busy:boolean;onMake:()=>void;failure:ReactNode}}) {
   return <section className="day-card" aria-label={label}>
     <span className="day-label" aria-hidden="true">{label}</span>
     <span className="code">{code}</span>
     <p className="day-text">{explanation}</p>
-    <button className="button-secondary button-small" disabled={busy} onClick={onMake}>{action}</button>
+    {make && <button className="button-secondary button-small" disabled={make.busy} onClick={make.onMake}>{make.action}</button>}
     <p className="day-note">{note}</p>
-    {failure}
+    {make?.failure}
   </section>;
 }
 
 /**
- * Day setup (v1's Day tab): the day and lead codes, rows opening Phones and Events, the day export and
+ * Day setup (v1's Day tab): the Olympics password and lead code, rows opening Phones and Events, the day export and
  * Start a new day. Start a new day keeps v1's typed confirmation; the server still refuses it until the
  * latest changes are in a day export.
  */
@@ -67,12 +68,11 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
   }
   const events=day.events.length;
   return <div className="day-setup">
-    <CodeCard label="Day code" code={day.dayCode} explanation="Volunteers type this to join today." action="Make a new day code"
-      note="The old code stops working for anyone new. People already in stay in." busy={saving}
-      onMake={()=>void run('day','day/day-code',{})} failure={failure('day','Make a new day code')}/>
-    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard." action="Make a new lead code"
-      note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access." busy={saving}
-      onMake={()=>void run('lead','day/lead-code',{})} failure={failure('lead','Make a new lead code')}/>
+    <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only the scoring team can see it here."
+      note="It stays the same when a new day starts."/>
+    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard."
+      note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access."
+      make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
     <div className="day-rows">
       <button className="day-row" onClick={()=>onOpen('Phones')}>
         <span className="day-row-text"><span className="day-row-title">Phones</span>

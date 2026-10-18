@@ -16,12 +16,15 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   const day=await(await page.request.get('/api/day',{headers:headers()})).json();
   await scoring(page);
 
-  const dayCode=section(page,'Day code');
-  await expect(dayCode.getByText(process.env.E2E_DAY_CODE!,{exact:true})).toBeVisible();
-  await expect(dayCode).toContainText('Volunteers type this to join today.');
-  await expect(dayCode.getByRole('button',{name:'Make a new day code',exact:true})).toBeVisible();
-  await expect(dayCode).toContainText('The old code stops working for anyone new. People already in stay in.');
-  expect(await dayCode.getByText(process.env.E2E_DAY_CODE!,{exact:true}).evaluate(element=>getComputedStyle(element).fontSize)).toBe('32px');
+  const password=section(page,'Olympics password');
+  expect(await page.locator('.day-card').first().getAttribute('aria-label')).toBe('Olympics password');
+  await expect(password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
+  await expect(password).toContainText('Volunteers type this once on their phone. Only the scoring team can see it here.');
+  await expect(password).toContainText('It stays the same when a new day starts.');
+  await expect(password.getByRole('button')).toHaveCount(0);
+  expect(await password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true}).evaluate(element=>getComputedStyle(element).fontSize)).toBe('32px');
+  await expect(page.getByText(/day code/i)).toHaveCount(0);
+  await password.screenshot({path:info.outputPath('olympics-password-card.png')});
 
   const leadCode=section(page,'Lead code');
   await expect(leadCode.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
@@ -83,11 +86,11 @@ test('Phones and Events open their screens with a trail back, and lead actions t
   await page.screenshot({path:info.outputPath('events.png'),fullPage:true});
   await trailBack(page,'Day setup');
 
-  const before=process.env.E2E_DAY_CODE!;
-  await section(page,'Day code').getByRole('button',{name:'Make a new day code',exact:true}).click();
+  const before=process.env.E2E_LEAD_CODE!;
+  await section(page,'Lead code').getByRole('button',{name:'Make a new lead code',exact:true}).click();
   await expect(savedNote(page)).toHaveText('Saved');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
-  await expect(section(page,'Day code').getByText(before,{exact:true})).toHaveCount(0);
+  await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
   const fresh=await(await page.request.get('/api/day',{headers:headers()})).json();
-  await expect(section(page,'Day code').getByText(fresh.dayCode,{exact:true})).toBeVisible();
+  await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
 });

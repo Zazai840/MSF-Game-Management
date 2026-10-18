@@ -10,8 +10,10 @@ afterEach(async()=>{vi.restoreAllMocks();await pool?.end();});
 test('batched pool and client reads match individual reads, preserve ordering, and isolate days/deleted races',async()=>{
   pool=await openDatabase(process.env.TEST_DATABASE_URL!,true);
   const day=randomUUID(),otherDay=randomUUID(),phone=randomUUID(),otherPhone=randomUUID(),timed=randomUUID(),heats=randomUUID(),otherEvent=randomUUID();
-  await pool.query("INSERT INTO olympics_days(id,day_code,lead_code,active) VALUES($1,'1111','LEAD11',true),($2,'2222','LEAD22',false)",[day,otherDay]);
-  await pool.query("INSERT INTO sign_ins(id,day_id,name,level,token_hash) VALUES($1,$2,'Ahmed','Volunteer','first'),($3,$4,'Aisha','Volunteer','second')",[phone,day,otherPhone,otherDay]);
+  const ahmed=randomUUID(),aisha=randomUUID();
+  await pool.query("INSERT INTO olympics_days(id,lead_code,active) VALUES($1,'LEAD11',true),($2,'LEAD22',false)",[day,otherDay]);
+  await pool.query("INSERT INTO profiles(id,name,secret_hash) VALUES($1,'Ahmed','first'),($2,'Aisha','second')",[ahmed,aisha]);
+  await pool.query("INSERT INTO sign_ins(id,day_id,profile_id,name,level,token_hash) VALUES($1,$2,$3,'Ahmed','Volunteer','first'),($4,$5,$6,'Aisha','Volunteer','second')",[phone,day,ahmed,otherPhone,otherDay,aisha]);
   await pool.query("INSERT INTO events(id,day_id,code,name,section,format,enabled,programme_order) VALUES($1,$2,'R1','Timed','Girl Cubs','timed',false,1),($3,$2,'R2','Heats','Girl Cubs','heats',true,2),($4,$5,'R1','Other day','Girl Cubs','timed',true,1)",[timed,day,heats,otherEvent,otherDay]);
   const ids=Array.from({length:8},(_,i)=>`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`);
   const client=await pool.connect();

@@ -1,13 +1,12 @@
-import { openDashboard,jobButton,expect,test } from './fixtures.js';
+import { signInThroughApi,openDashboard,jobButton,expect,test } from './fixtures.js';
 test('scoring team manages joined leads and removal drops an actual phone draft',async({page,browser,request},info)=>{
   await request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   const name=`Phones lead ${info.project.name}`;
-  const joined=await request.post('/api/join',{data:{code:process.env.E2E_DAY_CODE,name}});
-  const volunteer=await joined.json();
+  const volunteer={token:await signInThroughApi(request,name)};
   await request.post('/api/become-lead',{headers:{authorization:`Bearer ${volunteer.token}`},data:{code:process.env.E2E_LEAD_CODE}});
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await page.reload();
   await openDashboard(page,'Day setup');
-  await expect(page.getByRole('button',{name:'Make a new day code',exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Olympics password',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Make a new lead code',exact:true})).toBeVisible();
   await page.getByRole('button',{name:/^Phones \d+ people joined today$/}).click();
   await expect(page.getByRole('heading',{level:1,name:'Phones',exact:true})).toBeVisible();

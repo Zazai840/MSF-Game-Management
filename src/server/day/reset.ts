@@ -2,14 +2,14 @@ import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { randomUUID } from 'node:crypto';
 import { actions,newDay,Refusal,requireLevel,signedOut } from '../access/permissions.js';
-import { newDayCode,newLeadCode } from '../access/codes.js';
+import { newLeadCode } from '../access/codes.js';
 import { seedEvents } from './events.js';
 export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
   actions(app,pool)('POST','/api/day/start-new','Scoring team',async(request,_reply,phone)=>{
     const client=await pool.connect();
     try {
       await client.query('BEGIN');
-      // Join and reset always take this lock before the captured day, then phone.
+      // Sign-in and reset always take this lock before the captured day, then phone.
       await client.query('SELECT pg_advisory_xact_lock(23001)');
       const day=(await client.query('SELECT * FROM olympics_days WHERE id=$1 AND active FOR UPDATE',[phone.dayId])).rows[0];
       if(!day) throw newDay();
@@ -20,7 +20,7 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(day.exported_revision===null || day.exported_at===null || day.exported_revision!==day.revision) throw new Refusal(409,'Download a day export after the last change before starting a new day');
       const nextDay=randomUUID();
       await client.query('UPDATE olympics_days SET active=false WHERE id=$1',[phone.dayId]);
-      await client.query('INSERT INTO olympics_days(id,day_code,lead_code,revision) VALUES($1,$2,$3,1)',[nextDay,newDayCode(day.day_code),newLeadCode(day.lead_code)]);
+      await client.query('INSERT INTO olympics_days(id,lead_code,revision) VALUES($1,$2,1)',[nextDay,newLeadCode(day.lead_code)]);
       await seedEvents(client,nextDay);
       await client.query('UPDATE sign_ins SET day_id=$1 WHERE id=$2',[nextDay,current.id]);
       // Parts reference their authors; counters and audit notes reference events.
