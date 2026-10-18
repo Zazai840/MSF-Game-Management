@@ -162,12 +162,16 @@ _Avoid_: Day code, event password, PIN, access code
 A person's lasting identity in the app, made once with their full name and kept across Olympics days. Each phone shows only the profiles made on it. A profile's role (volunteer, lead or scoring team) starts again as volunteer on each new Olympics day. No two profiles share a full name, so a name is one person across the whole Olympics. Someone whose profile is gone from their phone gets it back on another phone once a lead has checked in person that it's them.
 _Avoid_: Account, user, login
 
+**Signed in**:
+A profile using the app on the current Olympics day, with its role for that day. The scoring team sees everyone signed in today and can change their role or sign them out.
+_Avoid_: Joined phone, logged in, online
+
 **Lead code**:
 The secret a person types, with their full name, to make their profile a lead for the current Olympics day. Making a new lead code turns every other lead back into a volunteer, except the scoring team.
 _Avoid_: Admin password, lead PIN
 
 **Owner password**:
-The app owner's master password, typed where the Olympics password goes, that makes the person scoring team. It never clears an Olympics day by itself.
+The app owner's master password, typed where the Olympics password goes, that makes the person scoring team. It never changes, so the scoring team can always get back in after the Olympics password changes, and it never clears an Olympics day by itself.
 _Avoid_: Admin password, master code
 
 **Job**:
