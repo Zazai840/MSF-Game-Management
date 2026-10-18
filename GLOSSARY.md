@@ -154,13 +154,21 @@ _Avoid_: Needs you, inbox, alerts
 The people outside the Running Zone who keep the Olympics scoring workbook and check eligibility. They are leads who can make the same rulings as a zone lead, and only they set up, export and clear an Olympics day.
 _Avoid_: Scorers, results team, admin team
 
-**Day code**:
-The short code a volunteer types, with their full name, to join on one Olympics day. Each Olympics day has a new one.
-_Avoid_: PIN, password, access code
+**Olympics password**:
+The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until the scoring team changes it. It replaces the day code.
+_Avoid_: Day code, event password, PIN, access code
+
+**Profile**:
+A person's lasting identity in the app, made once with their full name and kept across Olympics days. Each phone shows only the profiles made on it. A profile's role (volunteer, lead or scoring team) starts again as volunteer on each new Olympics day.
+_Avoid_: Account, user, login
 
 **Lead code**:
-The secret a volunteer who has joined types to become a lead. Making a new lead code turns every other lead back into a volunteer, except the scoring team.
+The secret a person types, with their full name, to make their profile a lead for the current Olympics day. Making a new lead code turns every other lead back into a volunteer, except the scoring team.
 _Avoid_: Admin password, lead PIN
+
+**Owner password**:
+The app owner's master password, typed where the Olympics password goes, that makes the person scoring team. It never clears an Olympics day by itself.
+_Avoid_: Admin password, master code
 
 **Job**:
 One of the three pieces of work on a race that any volunteer can take on: Start line, Finish order or Times.
