@@ -1,6 +1,7 @@
 import type { EventState,LeaderboardRow,ResultTie,LeadItem,ResultsRace } from './results-rules.js';
 import { isOpenEligibilityWarning } from './runner-rulings.js';
-import { timesOutOfOrder,formatTime } from './time-entry.js';
+import { formatTime } from './time-entry.js';
+import { notCountedReasons } from './race-counts.js';
 const latest=(dates:readonly string[])=>dates.reduce((a,b)=>a>b?a:b,'');
 /** The first place whose time is faster than an earlier place's, and that earlier place. */
 function firstWrongTime(places:readonly(number|null)[]):LeadItem['wrongTime'] {
@@ -18,8 +19,9 @@ export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],t
   const changed=(race:ResultsRace,part:'runners'|'finish'|'times'|'clash',entryId?:string,actions:readonly string[]=[],introducedAt?:string)=>latest([introducedAt||race.leadTimes?.[part]||race.checkedInAt,...(state.auditNotes||[]).filter(note=>['restore-race',...actions].includes(note.action) && note.touches.some(touch=>touch.raceId===race.id && (!entryId || !touch.entryId || touch.entryId===entryId))).map(note=>note.at)]);
   const items:LeadItem[]=[];
   for(const race of active) {
-    if(race.clash) items.push({id:`clash:${race.id}`,kind:'clash',raceId:race.id,at:changed(race,'clash'),message:'Two versions - zone lead to check'});
-    if(race.times && !race.times.acceptedByLead && timesOutOfOrder(race.times.places)) items.push({id:`times:${race.id}`,kind:'times-out-of-order',raceId:race.id,at:changed(race,'times'),message:'Times out of order',wrongTime:firstWrongTime(race.times.places)});
+    const reasons=notCountedReasons(race);
+    if(reasons.includes('two versions, lead to check')) items.push({id:`clash:${race.id}`,kind:'clash',raceId:race.id,at:changed(race,'clash'),message:'Two versions - zone lead to check'});
+    if(reasons.includes('times out of order')) items.push({id:`times:${race.id}`,kind:'times-out-of-order',raceId:race.id,at:changed(race,'times'),message:'Times out of order',wrongTime:firstWrongTime(race.times!.places)});
   }
   for(const row of rows) {
     const race=active.find(race=>race.id===row.raceId);if(!race) continue;
