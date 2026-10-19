@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { actions,newDay,Refusal,requireLevel,signedOut } from '../access/permissions.js';
 import { newLeadCode } from '../access/codes.js';
 import { seedEvents } from './events.js';
+import { dayChanged } from '../live/changes.js';
 export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
   actions(app,pool)('POST','/api/day/start-new','Scoring team',async(request,_reply,phone)=>{
     const client=await pool.connect();
@@ -33,6 +34,7 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('DELETE FROM sign_ins WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM olympics_days WHERE id=$1',[phone.dayId]);
       await client.query('COMMIT');
+      dayChanged(phone.dayId);
       return {phone:{...current,dayId:nextDay}};
     } catch(error) {await client.query('ROLLBACK');throw error;}
     finally {client.release();}

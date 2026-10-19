@@ -4,6 +4,7 @@ import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { raceLabel,type RaceRead } from '../../shared/races.js';
 import { newDay, Refusal, signedOut } from '../access/permissions.js';
+import { dayChanged } from '../live/changes.js';
 export type StoredRace=Omit<RaceRead,'final'> & {final?:FinalField};
 /** Jobs receive attendance only; heat ranking and provenance stay within Lead reads. */
 export function jobRace(race:StoredRace):RaceRead {
@@ -73,7 +74,9 @@ export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.P
     let changed=true;
     const result=await change(client,()=>{changed=false;});
     if(changed) await client.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1',[phone.dayId]);
-    await client.query('COMMIT'); return result;
+    await client.query('COMMIT');
+    if(changed) dayChanged(phone.dayId);
+    return result;
   } catch(error) {
     failure=error instanceof Error?error:true;
     try {await client.query('ROLLBACK');} catch { /* Preserve the original transaction error. */ }

@@ -19,12 +19,15 @@ import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
+import { liveRoutes } from './live/routes.js';
 export interface AppSettings {
   databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number;
   // Turns on request logging (JSON lines); codes and the owner password only travel in bodies, which Fastify never logs.
   logTo?: NodeJS.WritableStream;
   /** Marks a public test deployment; its commit is shown to testers and carried into bug reports. */
   testBuild?: {commit?: string};
+  /** Live streams: how often an idle stream sends a heartbeat (Railway cuts a stream after 5 minutes of silence), and when each stream ends (Railway's hard cap is 15 minutes). */
+  streamHeartbeatMs?: number; streamLimitMs?: number;
 }
 const bugReportUrl = 'https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml';
 export async function createApp(settings: AppSettings) {
@@ -65,5 +68,6 @@ export async function createApp(settings: AppSettings) {
   tieRoutes(app,pool);
   stageRoutes(app,pool);
   finalRoutes(app,pool);
+  liveRoutes(app,pool,{heartbeatMs:settings.streamHeartbeatMs ?? 15_000,limitMs:settings.streamLimitMs ?? 600_000});
   return app;
 }

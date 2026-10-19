@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Job, WaitingCounts } from '../../shared/domain.js';
+import { currentRaceLabel,type HomeEvent } from '../../shared/race-screen.js';
 
 const icon=(paths:ReactNode)=><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
 /** What each job is called on screen; the internal job names stay Start line, Finish order and Times. */
@@ -10,8 +11,13 @@ const jobs:{job:Job;title:string;explanation:string;counted:boolean;icon:ReactNo
 ];
 export const racesReady=(count:number)=>`${count} ${count===1?'race':'races'} ready`;
 
-export function Home({waiting,onJob}:{waiting:WaitingCounts;onJob:(job:Job)=>void}) {
-  return <section className="home"><h1>What's your job for this race?</h1><div className="jobs">
+/** Home: the day's switched-on events, one heading per event name in programme order, a tile per Section opening its race screen. The job buttons stay below until Submit Race retires the job screens. */
+export function Home({events,waiting,onEvent,onJob}:{events:HomeEvent[];waiting:WaitingCounts;onEvent:(code:string)=>void;onJob:(job:Job)=>void}) {
+  return <section className="home"><h1>Which event are you at?</h1>
+    {[...new Set(events.map(event=>event.name))].map(name=><section className="event-sections" key={name} aria-label={name}><h2>{name}</h2><div className="section-choices">
+      {events.filter(event=>event.name===name).map(event=><button key={event.code} aria-label={`${name} ${event.section} · ${currentRaceLabel(event.race)}`} onClick={()=>onEvent(event.code)}>{event.section}<small>{currentRaceLabel(event.race)}</small></button>)}
+    </div></section>)}
+    <h2 className="home-jobs-title">What's your job for this race?</h2><div className="jobs">
     {jobs.map(({job,title,explanation,counted,icon})=><JobButton key={job} icon={icon} title={title} explanation={explanation} badge={counted && waiting[job]>0?<span className="badge">{racesReady(waiting[job])}</span>:null} onClick={()=>onJob(job)}/>)}
   </div></section>;
 }
