@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { becomeLead,dashboardMenuButton,expect,jobButton,createProfile,lookProblems,openDashboard,steps,test,type Page } from '../fixtures.js';
+import { becomeLead,dashboardMenuButton,expect,jobButton,createProfile,lookProblems,openDashboard,test,type Page } from '../fixtures.js';
 
 // Runs only under playwright.test-build.config.ts, which starts the server as a test build of this commit.
 const commit=process.env.E2E_TEST_BUILD_COMMIT!;
@@ -36,7 +36,7 @@ test('a test build shows its commit and a Report a bug link on the Olympics pass
   await expectHeaderReports(page,'Home');
   await page.screenshot({path:info.outputPath('home.png')});
   await jobButton(page,'Start line').click();
-  await expect(steps(page)).toBeVisible();
+  await expect(page.getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
   await expectHeaderReports(page,'Start line');
   await page.screenshot({path:info.outputPath('job.png')});
 });

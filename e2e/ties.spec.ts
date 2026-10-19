@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import { recordRace,openDashboard,becomeLead,dragTo,expect,createProfile,test,trailBack } from './fixtures.js';
+import { recordRace,openDashboard,becomeLead,dragTo,expect,createProfile,test,back } from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;
@@ -63,7 +63,7 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
       await expect(board.getByRole('button',{name:new RegExp(`^Runner ${wristband} · Heat`)})).toHaveClass(/highlighted/);
     }
     await page.screenshot({path:info.outputPath('tie-leaderboard.png'),fullPage:true});
-    await trailBack(page,'Dashboard');
+    await back(page,'Dashboard');
     const item=page.getByRole('list',{name:'To check'}).getByRole('button',{name:new RegExp(code)}).filter({hasText:'Runners tied on time'});
     await expect(item).toHaveCount(1);await expect(item).toContainText('10.00');
     await item.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('tie-to-check.png'),fullPage:true});

@@ -1,4 +1,4 @@
-import { lookProblems,checkIn,dragTo,enterWristband,expect,goHome,jobButton,createProfile,pickRace,savedRaceLabel,startDrag,steps,test,type Page } from './fixtures.js';
+import { lookProblems,checkIn,dragTo,enterWristband,expect,goHome,jobButton,createProfile,pickRace,savedRaceLabel,startDrag,back,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await createProfile(page,name);
@@ -6,18 +6,17 @@ async function signInAs(page:Page,name:string) {
 /** The finishing order check list and its rows. */
 const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
 const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Drag to move ${number}`,exact:true});
-const current=(page:Page)=>steps(page).locator('[aria-current=step]');
 /** Checks a race of R4 in through the API and returns it. */
 async function checkInR4(page:Page,runners:number[]) {
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   return checkIn(page.request,process.env.E2E_SCORING_TOKEN!,'R4',runners);
 }
-/** Opens one race from the Finish order race picker (reached through the trail). */
+/** Opens one race from the Finish order race picker (reached with the back arrow). */
 async function openRace(page:Page,race:{number:number}) {
   await pickRace(page,'Finishing order',new RegExp(`\\(R4\\) · Heat ${race.number}$`));
 }
 
-test('two phones check in and record Finish order with missing runner, trail, nonfinishers and correction',async({page,browser},info)=>{
+test('two phones check in and record Finish order with missing runner, back arrow, nonfinishers and correction',async({page,browser},info)=>{
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const n=(number:number)=>number+offset;
   await page.request.post('/api/day/events/R4/rename',{headers:headers(),data:{name:'60m'}});
@@ -32,8 +31,8 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await signInAs(finish,`Finish ${info.project.name}`);await jobButton(finish,'Finish order').click();
   await openRace(finish,{number:Number(label.split(' ')[1])});
   await expect(finish.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
-  // The trail replaces the separate Home and Other race buttons.
-  await expect(current(finish)).toHaveText(`60m Girl Cubs ${label}`);
+  // The back arrow replaces the separate Home and Other race buttons.
+  await expect(finish.getByRole('button',{name:'Back to Finishing order',exact:true})).toBeVisible();
   await expect(finish.getByRole('button',{name:'Other race',exact:true})).toHaveCount(0);
   expect(await lookProblems(finish)).toEqual([]);await finish.screenshot({path:info.outputPath('finish-order-question.png'),fullPage:true});
   await finish.getByRole('button',{name:String(n(2012)),exact:true}).click();
@@ -44,7 +43,6 @@ test('two phones check in and record Finish order with missing runner, trail, no
   // A runner not on the list goes in through the phone's own number pad, with check-in's warnings.
   await finish.getByRole('button',{name:'+ Runner not on the list',exact:true}).click();
   await expect(finish.getByRole('heading',{name:'Runner not on the list: wristband number?',exact:true})).toBeVisible();
-  await expect(current(finish)).toHaveText('Runner not on the list');
   const input=finish.getByLabel('Wristband number',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toBeFocused();
   await enterWristband(finish,n(2011));
@@ -65,9 +63,8 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await finish.getByRole('button',{name:'Did not finish',exact:true}).click();await finish.getByRole('button',{name:"Didn't run",exact:true}).click();
   await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
   await expect(finish.getByText('Wrong place? Drag the handle on the right to move a runner.',{exact:true})).toBeVisible();
-  await expect(current(finish)).toHaveText('Check');
-  // Tapping the race name opens the race picker, as on check-in and Times; carrying on keeps the order.
-  await steps(finish).getByRole('button',{name:`60m Girl Cubs ${label}`,exact:true}).click();
+  // The back arrow opens the race picker, as on check-in and Times; carrying on keeps the order.
+  await back(finish,'Finishing order');
   await expect(finish.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   await finish.getByRole('button',{name:`Carry on with 60m Girl Cubs ${label}`,exact:true}).click();
   await expect(finish.getByRole('heading',{name:'Check the order',exact:true})).toBeVisible();
@@ -135,7 +132,7 @@ test('dragging the handle reorders the finishing order with live places, and Sav
   // Next race goes straight on to a race still waiting for its finishing order.
   await page.getByRole('button',{name:'Next race',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
-  await expect(current(page)).not.toHaveText('Saved');
+  await expect(page.getByTestId('saved-race')).toHaveCount(0);
   await page.request.post(`/api/races/${next.id}/delete`,{headers:headers(),data:{permanent:true}});
 });
 
@@ -188,19 +185,18 @@ test('Finish order preserves its draft versions while polling and reload expose 
   await page.request.post(`/api/lead/races/${race.id}/clashes/finish`,{headers:headers(),data:{candidateId:chosen.id}});
 });
 
-test('on a narrow phone a long race name still leaves a step to go back along the trail',async({page},info)=>{
+test('on a narrow phone a long race name still leaves the back arrow in sight',async({page},info)=>{
   const code=`L49${info.project.name.toUpperCase()}`,name=`Under 11s obstacle sprint ${info.project.name}`;
   await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Girl Cubs',format:'heats'}});
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const race=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,code,[2501,2502]);
   await signInAs(page,`Long name ${info.project.name}`);await jobButton(page,'Finish order').click();
   await pickRace(page,'Finishing order',new RegExp(`\\(${code}\\) · Heat ${race.number}$`));
-  await expect(current(page)).toHaveText(`${name} Girl Cubs Heat ${race.number}`);
   await expect(page.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
-  const back=steps(page).getByRole('button',{name:'Finishing order',exact:true});
-  await expect(back).toBeInViewport();
+  const arrow=page.getByRole('button',{name:'Back to Finishing order',exact:true});
+  await expect(arrow).toBeInViewport();
   await page.screenshot({path:info.outputPath('finish-order-long-name.png')});
-  await back.click();
+  await arrow.click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   await page.request.post(`/api/races/${race.id}/delete`,{headers:headers(),data:{permanent:true}});
 });

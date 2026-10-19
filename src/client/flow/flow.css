@@ -1,23 +1,11 @@
-/* Shared job flow pieces: breadcrumb trail, phone number entry with its keyboard bar, saved confirmation. Tokens from theme.css. */
+/* Shared job flow pieces: back arrow, phone number entry with its keyboard bar, saved confirmation. Tokens from theme.css. */
 
-/* Breadcrumb trail: one line, white bar under the header, aligned with the content column. */
-.trail {
-  display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-height:var(--tap); overflow:hidden; white-space:nowrap;
-  padding:0 max(16px, calc((100% - 48rem) / 2 + 16px));
-  background:var(--surface);
-  font-size:var(--text-small); font-weight:700; color:var(--text);
+/* Back arrow: bare, at the left of the row under the header, the glyph lined up with the content column. */
+.app-nav .back-arrow {
+  display:inline-flex; align-items:center; justify-content:center; width:var(--tap); min-height:var(--tap); padding:0; margin-left:-14px;
+  border:0; border-radius:var(--radius-small); background:transparent; color:var(--navy);
 }
-.trail-step {display:inline-flex; align-items:center; gap:6px; flex:none;}
-/* Steps keep their full width so overflow can be measured; only a lone current step may shorten. */
-.trail-step-alone {flex:0 1 auto; min-width:0; overflow:hidden;}
-.trail-step-alone > span,.trail-step-alone > button {overflow:hidden; text-overflow:ellipsis; min-width:0;}
-.trail button {
-  min-height:var(--tap); min-width:var(--tap); padding:0; border:0; border-radius:var(--radius-small); background:none;
-  color:var(--navy); font-size:var(--text-small); font-weight:700; text-decoration:underline; text-underline-offset:3px;
-}
-.trail-separator,.trail-more {color:var(--faint); flex:none;}
 @media(min-width:800px) {
-  .trail {padding:0 max(24px, calc((100% - 48rem) / 2 + 24px));}
   .action-bar {padding-left:24px; padding-right:24px;}
   .action-bar-inner {max-width:calc(48rem - 48px);}
 }
