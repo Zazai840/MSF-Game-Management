@@ -142,6 +142,15 @@ export async function writeCheckIn(request:APIRequestContext,token:string,eventC
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
   expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
 }
+/**
+ * Deletes the event's current race for good, as a lead does a race opened by mistake. Until the job screens go,
+ * a race left unfinished shows on their pickers as waiting, so every test ends by deleting the one it left.
+ */
+export async function deleteCurrentRace(request:APIRequestContext,code:string) {
+  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  const {race}=await (await request.get(`/api/race-screen/${code}`,{headers})).json() as RaceScreenRead;
+  expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}})).ok()).toBe(true);
+}
 /** From Home: taps the event's tile and waits for its race screen. */
 export async function openRaceScreen(page:Page,name:string,section='Girl Cubs') {
   await page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} ${section} · `)}).click();

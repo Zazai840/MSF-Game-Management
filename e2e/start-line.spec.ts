@@ -1,4 +1,4 @@
-import { savedRaceLabel,jobButton,expect,createProfile,openRaceScreen,ownEvent,recordRace,test,type Page } from './fixtures.js';
+import { deleteCurrentRace,savedRaceLabel,jobButton,expect,createProfile,openRaceScreen,ownEvent,recordRace,test,type Page } from './fixtures.js';
 async function typeNumber(page:Page,number:number) {await page.getByLabel('Wristband number',{exact:true}).fill(String(number));}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
   await page.request.post('/api/day/events/R4/rename',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{name:'60m'}});
@@ -63,4 +63,5 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   const lead={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const items=(await (await request.get('/api/lead/results',{headers:lead})).json()).needsYou.filter((item:{event:{code:string}})=>item.event.code===code);
   expect(items.map((item:{wristband?:number})=>item.wristband)).toEqual(expect.arrayContaining([3045,2008]));
+  await deleteCurrentRace(request,code);
 });

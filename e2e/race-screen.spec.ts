@@ -1,4 +1,4 @@
-import { checkIn,enterWristband,expect,live,lookProblems,openRaceScreen,ownEvent,recordFinishingOrder,recordTimes,setHidden,signInThroughApi,test,writeCheckIn,type Page } from './fixtures.js';
+import { checkIn,deleteCurrentRace,enterWristband,expect,live,lookProblems,openRaceScreen,ownEvent,recordFinishingOrder,recordTimes,setHidden,signInThroughApi,test,writeCheckIn,type Page } from './fixtures.js';
 const checkInCard=(page:Page)=>page.getByRole('button',{name:/^Check-in Wristbands/});
 const checkedIn=(page:Page)=>page.getByRole('list',{name:'Checked in'}).getByRole('listitem');
 
@@ -30,6 +30,7 @@ test('opening Check-in Wristbands takes check-in, and another phone sees "Sam is
   await sam.page.getByRole('button',{name:'Remove runner 2041',exact:true}).click();
   await expect(checkedIn(jo.page)).toHaveText(['2042'],live);
   await expect(checkInCard(jo.page)).toHaveAccessibleName(new RegExp(`Sam hold ${project} is checking in · 1 in$`));
+  await deleteCurrentRace(request,code);
 });
 
 test('Take over confirms in the card, carries on from what was entered, and the old holder\'s next entry is refused',async({openPhone,request},info)=>{
@@ -59,6 +60,7 @@ test('Take over confirms in the card, carries on from what was entered, and the 
   await expect(checkedIn(old.page)).toHaveText(['2051','2052','2053']);
   await expect(old.page.getByLabel('Wristband number',{exact:true})).toHaveCount(0);
   await old.page.screenshot({path:info.outputPath('taken-over.png'),fullPage:true});
+  await deleteCurrentRace(request,code);
 });
 
 test('a phone on the race screen shows the check-in, order and times another phone makes, live and without a reload',async({openPhone,request},info)=>{

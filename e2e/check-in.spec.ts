@@ -1,4 +1,4 @@
-import { lookProblems,back,expect,jobButton,createProfile,openRaceScreen,ownEvent,savedRaceLabel,test,type Page } from './fixtures.js';
+import { deleteCurrentRace,lookProblems,back,expect,jobButton,createProfile,openRaceScreen,ownEvent,savedRaceLabel,test,type Page } from './fixtures.js';
 const scoring=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function openGirlCubs(page:Page,name:string) {
   await page.request.post('/api/day/events/R4/rename',{headers:scoring(),data:{name:'60m'}});
@@ -77,6 +77,7 @@ test('wristband numbers go in through the phone keyboard on the race screen and 
   await page.reload();await openRaceScreen(page,name);
   await page.getByRole('button',{name:/^Check-in Wristbands You are checking in · 4 in$/}).click();
   await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2001','2002','2004','3046']);
+  await deleteCurrentRace(request,code);
 });
 
 test('the back arrow goes back to earlier steps without losing typed entries',async({page},info)=>{
