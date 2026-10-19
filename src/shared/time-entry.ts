@@ -1,4 +1,6 @@
-export interface RaceTimes { places:Array<number|null>; outOfOrder:boolean; acceptedByLead?:boolean }
+export interface RaceTimes { places:Array<number|null>; outOfOrder:boolean; acceptedByLead?:boolean;
+  /** The race screen's Keep: the place indexes whose wrong time the timer kept as typed. A retyped time is new, so it is no longer kept. */
+  keptWrong?:number[] }
 /** The last two digits are hundredths, the next two seconds, then minutes. */
 export function parseTimeDigits(digits:string):number|null {
   if(!/^\d+$/.test(digits)) return null;

@@ -5,6 +5,8 @@ import type { Phone } from '../../shared/domain.js';
 import type { RacePartName } from '../../shared/race-clashes.js';
 import { currentRaceLabel,jobWords,raceJobs,type RaceJob,type RaceScreenRead } from '../../shared/race-screen.js';
 import type { FinishingOrder,Runner } from '../../shared/races.js';
+import { timesOutOfOrder } from '../../shared/time-entry.js';
+import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
@@ -168,6 +170,25 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners,runners);
       const finish=onlyRunners({order,didNotFinish},runners);
       await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null,runners);
+    });
+  });
+  // The times: the holder's whole column by place, with the wrong times kept as typed. Only a place with a wristband
+  // takes a time; a time left at a place that has since lost its wristband stays as it is.
+  action('POST','/api/race-screen/:code/times','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {raceId?:unknown;version?:unknown;places?:unknown;keptWrong?:unknown};
+    const {raceId,version}=seenRace(body,'Open the race before saving its times');
+    const hundredths=(value:unknown)=>Array.isArray(value) && value.every(item=>Number.isSafeInteger(item) && item>=0);
+    if(!hundredths(body.places)) throw new Refusal(400,'Enter whole hundredths for every place');
+    if(!hundredths(body.keptWrong)) throw new Refusal(400,'Choose the wrong times to keep');
+    const places=body.places as number[],keptWrong=body.keptWrong as number[];
+    return write(phone,code(request),async(client,screen)=>{
+      await requireWrite(client,phone,screen,'times',raceId,version);
+      if(raceId===null) throw new Refusal(409,'Check runners in before the times');
+      const placed=screen.race.parts.finish.value?.order.length||0,stored=screen.race.parts.times.value;
+      const unplaced=places.findIndex((time,index)=>index>=placed && time!==stored?.places[index]);
+      if(unplaced>=0) throw new Refusal(409,`Place ${unplaced+1} has no wristband yet`);
+      const wrong=wrongTimes(places).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
+      await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
     });
   });
 }
