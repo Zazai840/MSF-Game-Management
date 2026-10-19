@@ -19,6 +19,7 @@ import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
+import { spikeSseRoutes } from './spike-sse.js';
 export interface AppSettings {
   databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number;
   // Turns on request logging (JSON lines); codes and the owner password only travel in bodies, which Fastify never logs.
@@ -65,5 +66,6 @@ export async function createApp(settings: AppSettings) {
   tieRoutes(app,pool);
   stageRoutes(app,pool);
   finalRoutes(app,pool);
+  spikeSseRoutes(app);
   return app;
 }
