@@ -11,9 +11,9 @@ import { Day,Events } from './Day.js';
 import { Phones } from './Phones.js';
 import type { PhonesRead } from '../../shared/phones.js';
 import './dashboard.css';
-type Section='Dashboard'|'To check'|'Results'|'Day setup'|'Phones'|'Events';
+type Section='Dashboard'|'To check'|'Results'|'Day setup'|'Signed in today'|'Events';
 /** Day setup and the two screens its rows open; only the scoring team sees them. */
-const daySetup:Section[]=['Day setup','Phones','Events'];
+const daySetup:Section[]=['Day setup','Signed in today','Events'];
 const menu:{section:'To check'|'Results'|'Day setup';explanation:string;icon:ReturnType<typeof jobIcon>;scoringOnly?:true}[]=[
   {section:'To check',explanation:'Problems on races that need a zone lead to decide',icon:jobIcon(<><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4"/><path d="M12 17.5v.01"/></>)},
   {section:'Results',explanation:'Standings for every event, heats and finals',icon:jobIcon(<><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 6h3a3 3 0 0 1-3 4"/><path d="M7 6H4a3 3 0 0 0 3 4"/></>)},
@@ -37,8 +37,8 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
   async function refresh() {
     try {
       if (section === 'Day setup') {
-        const [read,joined]=await Promise.all([api<DayRead>('day'),api<PhonesRead>('day/phones')]);
-        setDay(read);setPhones(joined.phones.length);
+        const [read,signedIn]=await Promise.all([api<DayRead>('day'),api<PhonesRead>('day/phones')]);
+        setDay(read);setPhones(signedIn.phones.length);
       } else if (daySetup.includes(section)) setDay(await api('day'));
       setUpdated(new Date().toLocaleTimeString()); setError('');
     } catch (error) { if(error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect'); }
@@ -52,7 +52,7 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
   const steps:TrailStep[]=[{label:'Home',onSelect:onHome},{label:'Dashboard',onSelect:()=>open('Dashboard')}];
   // Results extends the trail with its own steps (the event, then the race), so it draws the trail itself.
   if(target) steps.push({label:'To check',onSelect:()=>open('To check')});
-  else if(section==='Phones' || section==='Events') steps.push({label:'Day setup',onSelect:()=>open('Day setup')},{label:section});
+  else if(section==='Signed in today' || section==='Events') steps.push({label:'Day setup',onSelect:()=>open('Day setup')},{label:section});
   else if(section!=='Dashboard' && section!=='Results') steps.push({label:section});
   return <section className="dashboard">{section!=='Results' && <Trail steps={steps}/>}
     {section==='Dashboard'?<div className="home"><h1>Dashboard</h1><div className="jobs">
@@ -64,7 +64,7 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
     :<><h1>{section}</h1>{error && <p role="alert">{error}</p>}
       {scoring && section==='Day setup' && day && <Day day={day} phones={phones} onOpen={open} onChanged={refresh} onSaved={changed}/>}
       {scoring && section==='Events' && day && <Events day={day} onChanged={refresh} onSaved={changed}/>}
-      {scoring && section==='Phones' && <Phones onChanged={refresh} onSaved={changed}/>}
+      {scoring && section==='Signed in today' && <Phones onChanged={refresh} onSaved={changed}/>}
       <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer></>}
     {saved>0 && <p className="dashboard-saved" role="status" key={saved}>
       <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Saved</p>}

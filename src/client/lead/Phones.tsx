@@ -1,7 +1,11 @@
 import { useEffect,useState } from 'react';
 import type { PhonesRead } from '../../shared/phones.js';
+import type { Level } from '../../shared/domain.js';
 import { api } from '../api.js';
-/** v1's joined phones: who joined today, and the scoring team's way to promote, demote or remove a phone. */
+/** The role buttons a row offers, in screen order, skipping the role it already has. */
+const makeRole:Record<Level,string>={Lead:'Make lead','Scoring team':'Make scoring team',Volunteer:'Make volunteer'};
+const roles=Object.keys(makeRole) as Level[];
+/** Signed in today: who is signed in on today's Olympics day, and the scoring team's way to set a role or remove someone. */
 export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const [data,setData]=useState<PhonesRead|null>(null);
   const [busy,setBusy]=useState(false);
@@ -18,15 +22,15 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
     catch(error) {setError(error instanceof Error?error.message:'Could not connect');setFailed(true);}
     finally {setBusy(false);}
   }
-  return <section className="day-setup" aria-label="Managing phones and leads">
-    <p className="day-intro">Everyone who joined today. Remove sends that phone back to Join on its next request and drops anything it hasn't saved.</p>
+  return <section className="day-setup" aria-label="Signed in today">
+    <p className="day-intro">Everyone signed in today, oldest first. Role changes last for today only. Remove signs that person out and sends their phone to the Olympics password screen, dropping anything it hasn't saved.</p>
     {failed && <p className="day-not-saved">Not saved - try again</p>}{error && <p role="alert">{error}</p>}
-    {!data && !error && <p className="day-intro">Opening joined phones…</p>}
-    <div className="day-events">{data?.phones.map(phone=><article key={phone.id} className="day-card" aria-label={`Phone ${phone.name}`}>
-      <h3>{phone.name}{phone.id===data.selfId?' (you)':''}</h3><p className="day-text">{phone.level}</p>
+    {!data && !error && <p className="day-intro">Opening Signed in today…</p>}
+    <div className="day-events">{data?.phones.map(phone=><article key={phone.id} className="day-card" aria-label={phone.name}>
+      <h3>{phone.name}{phone.id===data.selfId?' (you)':''}</h3><p className="day-text">{phone.level}{phone.owner?' · Owner':''}</p>
       {phone.id!==data.selfId && <div className="day-actions">
-        {phone.level==='Lead' && <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/scoring-team`,{scoringTeam:true})}>Make scoring team</button>}
-        {phone.level==='Scoring team' && <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/scoring-team`,{scoringTeam:false})}>Remove from scoring team</button>}
+        {roles.filter(role=>role!==phone.level && !(phone.owner && role!=='Scoring team')).map(role=>
+          <button key={role} className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/role`,{role})}>{makeRole[role]}</button>)}
         <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{})}>Remove</button>
       </div>}
     </article>)}</div>
