@@ -1,4 +1,4 @@
-import { deleteCurrentRace,expect,live,openRaceScreen,ownEvent,test,writeCheckIn,type Page } from './fixtures.js';
+import { deleteCurrentRace,expect,live,openRaceScreen,ownEvent,setHidden,test,writeCheckIn,type Page } from './fixtures.js';
 const checkInCard=(page:Page)=>page.getByRole('button',{name:/^Check-in Wristbands/});
 const checkedIn=(page:Page)=>page.getByRole('list',{name:'Checked in'}).getByRole('listitem');
 const liveStream=/\/api\/live\/race-screen\//;
@@ -21,5 +21,22 @@ test('signal drop: once back online, phone B shows what phone A checked in while
   await failures;
   await b.context.setOffline(false);
   await expect(checkedIn(b.page)).toHaveText(['2101','2102'],live);
+  await deleteCurrentRace(request,code);
+});
+
+test('app switch: once the app is back in front, phone B shows what phone A checked in while it was in the background',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`LA-${project.toUpperCase()}`,name=`App switch ${project}`;
+  await ownEvent(request,code,name);
+  const a=await openPhone(`Ann switch ${project}`),b=await openPhone(`Ben switch ${project}`);
+  await writeCheckIn(request,a.token,code,[2201]);
+  await openRaceScreen(b.page,name);await checkInCard(b.page).click();
+  await expect(checkedIn(b.page)).toHaveText(['2201']);
+  // In the background B's stream closes, so it hears nothing of A's entry.
+  const closed=streamFailures(b.page,1);
+  await setHidden(b.page,true);
+  await closed;
+  await writeCheckIn(request,a.token,code,[2201,2202]);
+  await setHidden(b.page,false);
+  await expect(checkedIn(b.page)).toHaveText(['2201','2202'],live);
   await deleteCurrentRace(request,code);
 });
