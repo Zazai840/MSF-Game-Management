@@ -1,17 +1,17 @@
-import { expect,jobButton,joinDay,savedRaceLabel,steps,test,type Page } from './fixtures.js';
-const scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+import { expect,jobButton,createProfile,savedRaceLabel,steps,test,type Page } from './fixtures.js';
+const scoring=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function openGirlCubs(page:Page,name:string) {
-  await page.request.post('/api/day/events/R4/rename',{headers:scoring,data:{name:'60m'}});
-  await page.request.post('/api/day/confirm-events',{headers:scoring,data:{}});
+  await page.request.post('/api/day/events/R4/rename',{headers:scoring(),data:{name:'60m'}});
+  await page.request.post('/api/day/confirm-events',{headers:scoring(),data:{}});
   await page.goto('/');
-  await joinDay(page,name);
+  await createProfile(page,name);
   await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'60m',exact:true}).click();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
 }
 async function deleteRaces(page:Page,wristband:number) {
-  const read=await (await page.request.get('/api/jobs/start-line',{headers:scoring})).json();
-  for(const race of read.waiting.filter((item:any)=>item.parts.runners.value?.some((runner:any)=>runner.wristband===wristband))) await page.request.post(`/api/races/${race.id}/delete`,{headers:scoring,data:{permanent:true}});
+  const read=await (await page.request.get('/api/jobs/start-line',{headers:scoring()})).json();
+  for(const race of read.waiting.filter((item:any)=>item.parts.runners.value?.some((runner:any)=>runner.wristband===wristband))) await page.request.post(`/api/races/${race.id}/delete`,{headers:scoring(),data:{permanent:true}});
 }
 
 test('wristband numbers go in through the phone keyboard and the input keeps focus between runners',async({page,context},info)=>{

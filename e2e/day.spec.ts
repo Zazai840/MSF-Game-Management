@@ -1,17 +1,17 @@
-import { openDashboard,becomeLead,expect,joinDay,steps,test,trailBack } from './fixtures.js';
+import { openDashboard,becomeLead,expect,createProfile,steps,test,trailBack } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 test('the scoring team edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
   const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R4').name as string;
   try {
     await page.goto('/');
-    await joinDay(page,`Day ${info.project.name}`);
+    await createProfile(page,`Day ${info.project.name}`);
     await becomeLead(page,'wrong-lead-fixture');
     await expect(page.getByRole('alert')).toHaveText('Wrong lead code');
     await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');
     await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
     await openDashboard(page,'Day setup');
-    await expect(page.getByText(process.env.E2E_DAY_CODE!,{exact:true})).toBeVisible();
+    await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
     await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(steps(page)).toHaveText(/Day setup\s*›\s*Events$/);

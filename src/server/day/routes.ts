@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { randomUUID } from 'node:crypto';
-import { actions, Refusal } from '../access/permissions.js';
+import { actions, newDay, Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { readEvents } from './events.js';
 import { changeDay, eventName, eventDetails } from './mutations.js';
@@ -9,9 +9,9 @@ export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app,pool);
   action('GET','/api/events','Volunteer',async(_request,_reply,phone)=>({events:await readEvents(pool,true,phone.dayId)}));
   action('GET', '/api/day', 'Scoring team', (_request,_reply,phone) => resultsSnapshot(pool,phone.dayId,async client=>{
-    const day = (await client.query('SELECT day_code,lead_code,events_confirmed,revision,exported_at,exported_revision FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
-    if(!day) throw new Refusal(401,'Please join the Olympics day');
-    return {dayCode: day.day_code, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(client,false,phone.dayId)};
+    const day = (await client.query('SELECT lead_code,events_confirmed,revision,exported_at,exported_revision,(SELECT password FROM olympics_settings) AS olympics_password FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
+    if(!day) throw newDay();
+    return {olympicsPassword: day.olympics_password, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(client,false,phone.dayId)};
   }));
   action('POST','/api/day/confirm-events','Scoring team',async(_request,_reply,phone)=>{
     return changeDay(pool,phone,async()=>{},true);

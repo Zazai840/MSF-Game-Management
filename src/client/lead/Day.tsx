@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
-import { api,apiDownload,startNewDay } from '../api.js';
+import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
+import { useSubmit } from '../flow/useSubmit.js';
 import './day.css';
 
 const chevron=<svg className="day-row-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
@@ -25,23 +26,47 @@ function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
   return {busy,run,failure};
 }
 
-function CodeCard({label,code,explanation,action,note,busy,onMake,failure}:{label:string;code:string;explanation:string;action:string;note:string;busy:boolean;onMake:()=>void;failure:ReactNode}) {
+/** A code the scoring team reads out; with an action, a button that makes a new one, or the children that change it. */
+function CodeCard({label,code,explanation,note,make,children}:{label:string;code:string;explanation:string;note:string;make?:{action:string;busy:boolean;onMake:()=>void;failure:ReactNode};children?:ReactNode}) {
   return <section className="day-card" aria-label={label}>
     <span className="day-label" aria-hidden="true">{label}</span>
     <span className="code">{code}</span>
     <p className="day-text">{explanation}</p>
-    <button className="button-secondary button-small" disabled={busy} onClick={onMake}>{action}</button>
+    {make && <button className="button-secondary button-small" disabled={make.busy} onClick={make.onMake}>{make.action}</button>}
+    {children}
     <p className="day-note">{note}</p>
-    {failure}
+    {make?.failure}
   </section>;
 }
 
+/** Change Olympics password: the new password and what it does to every phone, then this phone goes to the password screen too. */
+function ChangePassword() {
+  const [open,setOpen]=useState(false);
+  const [password,setPassword]=useState('');
+  const [confirming,setConfirming]=useState(false);
+  const {busy,error,submit,setError}=useSubmit();
+  // The change ends this phone's session too, so it signs out as the server's password-changed reason would.
+  const change=()=>void submit(async()=>{await api('day/olympics-password',{password});phoneStorage.signOut();},()=>setConfirming(false));
+  if(!open) return <button className="button-secondary button-small" onClick={()=>setOpen(true)}>Change Olympics password</button>;
+  if(confirming) return <div className="day-confirm">
+    <p className="calm-note">Every phone, including yours, goes back to the password screen. Profiles stay on the phones.</p>
+    <div className="day-actions"><button className="button-small" disabled={busy} onClick={change}>{busy?'Changing…':'Yes, change password'}</button>
+      <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setConfirming(false)}>Keep the old password</button></div>
+  </div>;
+  return <form onSubmit={(event:FormEvent)=>{event.preventDefault();setError('');setConfirming(true);}}>
+    <label>New Olympics password<input value={password} onChange={event=>setPassword(event.target.value)} autoComplete="off" autoCapitalize="none" required /></label>
+    {error && <p role="alert">{error}</p>}
+    <div className="day-actions"><button className="button-small">Change password</button>
+      <button type="button" className="button-secondary button-small" onClick={()=>{setOpen(false);setPassword('');setError('');}}>Cancel</button></div>
+  </form>;
+}
+
 /**
- * Day setup (v1's Day tab): the day and lead codes, rows opening Phones and Events, the day export and
+ * Day setup (v1's Day tab): the Olympics password and lead code, rows opening Phones and Events, the day export and
  * Start a new day. Start a new day keeps v1's typed confirmation; the server still refuses it until the
  * latest changes are in a day export.
  */
-export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(screen:'Phones'|'Events')=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(screen:'Signed in today'|'Events')=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const {busy:saving,run,failure}=useAction(onChanged,onSaved);
   const [busy,setBusy] = useState(false);
   const [exportMessage,setExportMessage] = useState('');
@@ -67,16 +92,15 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
   }
   const events=day.events.length;
   return <div className="day-setup">
-    <CodeCard label="Day code" code={day.dayCode} explanation="Volunteers type this to join today." action="Make a new day code"
-      note="The old code stops working for anyone new. People already in stay in." busy={saving}
-      onMake={()=>void run('day','day/day-code',{})} failure={failure('day','Make a new day code')}/>
-    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard." action="Make a new lead code"
-      note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access." busy={saving}
-      onMake={()=>void run('lead','day/lead-code',{})} failure={failure('lead','Make a new lead code')}/>
+    <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only the scoring team can see it here."
+      note="It stays the same when a new day starts."><ChangePassword/></CodeCard>
+    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard."
+      note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access."
+      make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
     <div className="day-rows">
-      <button className="day-row" onClick={()=>onOpen('Phones')}>
+      <button className="day-row" onClick={()=>onOpen('Signed in today')}>
         <span className="day-row-text"><span className="day-row-title">Phones</span>
-          <span className="day-row-sub">{phones===null?'Joined phones':`${phones} ${phones===1?'person':'people'} joined today`}</span></span>{chevron}
+          <span className="day-row-sub">{phones===null?'Signed in today':`${phones} ${phones===1?'person':'people'} signed in today`}</span></span>{chevron}
       </button>
       <button className="day-row" onClick={()=>onOpen('Events')}>
         <span className="day-row-text"><span className="day-row-title">Events</span>

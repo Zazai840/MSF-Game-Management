@@ -2,15 +2,15 @@ import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`},...(body===undefined?{}:{payload:body as object})});
 afterEach(async()=>{await app?.close();});
 async function start(){
  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'export-owner',resetTestDay:true});
- const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'export-owner',name:'Scoring'}})).json();
- const day=(await call(owner.token,'/api/day')).json();
- const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json().token as string;
- const volunteer=await join('Ahmed'),lead=await join('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
+ const people=await signInOwner(app,'export-owner','Scoring'),owner=people.owner,day=people.day;
+ const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+ const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
  await call(owner.token,'/api/day/confirm-events',{});return {owner:owner.token as string,volunteer,lead};
 }
 test('Scoring downloads four value-only sheets and records its exact day revision without changing it',async()=>{
@@ -40,7 +40,7 @@ test('the workbook keeps completed podium columns, every recorded/pending/delete
  const detail=(await call(lead,'/api/lead/events/R7/results')).json();const tie=detail.results.ties[0];expect(tie).toBeDefined();
  expect((await call(lead,'/api/lead/events/R7/settle-tie',{tieId:tie.id,outcome:'decided',comment:'Photo reviewed',order:[...tie.entries].reverse()})).statusCode).toBe(200);
  expect((await call(lead,'/api/lead/events/R7/complete-stage',{stage:'event'})).statusCode).toBe(200);
- await call(owner,'/api/day/day-code',{});
+ await call(owner,'/api/day/lead-code',{});
  const sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);
  const input=sheets[0].data;expect(input).toHaveLength(2);expect(input[1]).toEqual(['R7',null,null,null,null,null,null,null,null,101,null,null,106,null,null,102]);
  const all=sheets[2].data;expect(all[0]).toEqual(['Event code','Event','Section','Race','Wristband number','Time','Place in race','Event position','Status','Warning','Note']);expect(all).toHaveLength(11);
@@ -48,7 +48,7 @@ test('the workbook keeps completed podium columns, every recorded/pending/delete
  expect(row(101).slice(5,9)).toEqual([9,1,1,'1st']);expect(row(106,'Race 3')[8]).toContain('Tie settled');expect(row(104).slice(5,9)).toEqual([null,null,null,'Did not finish']);
  expect(row(103)[8]).toContain('Disqualified: Obstruction');expect(row(103)[10]).toContain('=1+1');expect(row(1005)[9]).toContain('Checked:');expect(row(1005)[10]).toContain('Checked wristband < & >');
  expect(row(101,'Race 2')[8]).toContain('Not counted');expect(row(107,'Race 4').slice(5,9)).toEqual([8,1,null,'Deleted race; Finished']);expect(row(108,'Race 1','R8')[8]).toContain('checked in');
- expect(sheets[3].data.some(values=>values[0]===null&&String(values[3]).includes('Changed the day code'))).toBe(true);expect(sheets[3].data.some(values=>values[4]==='=1+1')).toBe(true);
+ expect(sheets[3].data.some(values=>values[0]===null&&String(values[3]).includes('Changed the lead code'))).toBe(true);expect(sheets[3].data.some(values=>values[4]==='=1+1')).toBe(true);
  expect(other.id).not.toBe(first.id);
 });
 test('final export preserves absent seeds, sourced callups, corrected numbers, typed additions and deleted final generations',async()=>{
@@ -77,7 +77,7 @@ test('concurrent export and mutation never record a revision newer than the work
  const after=(await call(owner,'/api/day')).json();expect(after.revision).toBe(before.revision+1);expect(after.exportedRevision).toBe(revision);expect(after.exportedAt).toBe(download.headers['x-exported-at']);
 });
 test('removed and demoted Scoring phones cannot refresh export metadata',async()=>{
- const {owner,lead}=await start();const phone=(await call(lead,'/api/me')).json();await call(owner,`/api/day/phones/${phone.id}/scoring-team`,{scoringTeam:true});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(200);
- const before=(await call(owner,'/api/day')).json();await call(owner,`/api/day/phones/${phone.id}/scoring-team`,{scoringTeam:false});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(403);await call(owner,`/api/day/phones/${phone.id}/remove`,{});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(401);
+ const {owner,lead}=await start();const phone=(await call(lead,'/api/me')).json();await call(owner,`/api/day/phones/${phone.id}/role`,{role:'Scoring team'});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(200);
+ const before=(await call(owner,'/api/day')).json();await call(owner,`/api/day/phones/${phone.id}/role`,{role:'Lead'});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(403);await call(owner,`/api/day/phones/${phone.id}/remove`,{});expect((await call(lead,'/api/day/export',{})).statusCode).toBe(401);
  const after=(await call(owner,'/api/day')).json();expect(after.exportedAt).toBe(before.exportedAt);expect(after.exportedRevision).toBe(before.exportedRevision);expect(after.revision).toBeGreaterThan(after.exportedRevision);
 });

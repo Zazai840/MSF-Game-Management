@@ -1,12 +1,12 @@
 import { writeFile } from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import { goHome,backToEvent,openDashboard,steps,jobButton,becomeLead,expect,joinDay,test } from './fixtures.js';
+import { goHome,backToEvent,openDashboard,steps,jobButton,becomeLead,expect,createProfile,test } from './fixtures.js';
 test('a heat replaced by a re-run says which heat replaced it, offers no Restore, and both heats reach check-in and the day export',async({page},info)=>{
   const code=`RR-${info.project.name.toUpperCase()}`,name=`Re-run heats ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2011,2012,2013]}})).json()).race;
   await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2011,2012,2013],didNotFinish:[],didNotRun:[],added:[]}});
-  await page.goto('/');await joinDay(page,`Re-run lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await createProfile(page,`Re-run lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Re-run race',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByLabel('Comment (optional)',{exact:true}).fill('False start');await sheet.getByRole('button',{name:'Confirm re-run',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expect(page.getByText('Heat 1 · Replaced by Heat 2 (re-run)',{exact:true})).toBeVisible();

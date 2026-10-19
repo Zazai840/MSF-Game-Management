@@ -1,24 +1,24 @@
-import { enterTime,expect,jobButton,joinDay,pickRace,steps,test,type Page } from './fixtures.js';
-const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+import { enterTime,expect,jobButton,createProfile,pickRace,steps,test,type Page } from './fixtures.js';
+const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 /** A race of 4 Girl Cubs with its finishing order saved, waiting for times. */
 async function raceWaitingForTimes(page:Page,code:string) {
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Times wrong',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Times wrong',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const runners=[2601,2602,2603,2604];
-  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners}})).json()).race;
-  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
+  const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
+  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
   created.push(race.id);
   return race as {id:string;number:number};
 }
 const created:string[]=[];
 // Remove the races even when a test fails, so no other Times test opens them as waiting.
-test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers,data:{permanent:true}});});
-const savedTimes=async(page:Page,id:string)=>(await (await page.request.get(`/api/races/${id}`,{headers})).json()).parts.times.value;
+test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
+const savedTimes=async(page:Page,id:string)=>(await (await page.request.get(`/api/races/${id}`,{headers:headers()})).json()).parts.times.value;
 
 test('wrong times show in amber with a reason, Keep as it is keeps them for a lead, and a retyped place clears them',async({page},info)=>{
   const code=`TW-${info.project.name.slice(0,3).toUpperCase()}`,race=await raceWaitingForTimes(page,code);
-  await page.goto('/');await joinDay(page,`Wrong times ${info.project.name}`);
+  await page.goto('/');await createProfile(page,`Wrong times ${info.project.name}`);
   await jobButton(page,'Times').click();await pickRace(page,'Times',`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
   // The trail names the job, the race and the place being typed.
   await expect(steps(page).locator('[aria-current=step]')).toHaveText('1st place');
@@ -85,7 +85,7 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
 
 test('tapping a place chip while typing retypes it, and Next race follows the saved confirmation',async({page},info)=>{
   const code=`TC-${info.project.name.slice(0,3).toUpperCase()}`,race=await raceWaitingForTimes(page,code);
-  await page.goto('/');await joinDay(page,`Chip retype ${info.project.name}`);
+  await page.goto('/');await createProfile(page,`Chip retype ${info.project.name}`);
   await jobButton(page,'Times').click();await pickRace(page,'Times',`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
   await enterTime(page,'1100');await enterTime(page,'1200');
   await page.getByRole('button',{name:'1st place · 11.00',exact:true}).click();

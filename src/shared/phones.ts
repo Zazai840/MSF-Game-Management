@@ -1,4 +1,4 @@
 import type { Level } from './domain.js';
 import type { AuditNote } from './rulings.js';
-export interface JoinedPhone {id:string;name:string;level:Level}
-export interface PhonesRead {selfId:string;phones:JoinedPhone[];auditNotes:Array<AuditNote & {eventId:null}>}
+export interface SignedInRow {id:string;name:string;level:Level;owner:boolean}
+export interface PhonesRead {selfId:string;phones:SignedInRow[];auditNotes:Array<AuditNote & {eventId:null}>}

@@ -1,18 +1,18 @@
-import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,joinDay,pickRace,test,type Page,enterTime } from './fixtures.js';
-const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-async function join(page:Page,name:string,lead=false) {
-  await page.goto('/');await joinDay(page,name);
+import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,createProfile,pickRace,test,type Page,enterTime } from './fixtures.js';
+const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+async function signInAs(page:Page,name:string,lead=false) {
+  await page.goto('/');await createProfile(page,name);
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {
-  await join(page,name,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await signInAs(page,name,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
 
 test('a phone checks in 8 runners and carries them through finishing order, times and Results',async({page,browser},info)=>{
   test.setTimeout(60000);
   const code=`E8-${info.project.name.slice(0,3).toUpperCase()}`,name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await join(phone,`Eight phone ${info.project.name}`);
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await signInAs(phone,`Eight phone ${info.project.name}`);
   await jobButton(phone,'Start line').click();await phone.getByRole('button',{name,exact:true}).click();await phone.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();
   for(const number of numbers) await enterWristband(phone,number);
   await expect(phone.getByRole('heading',{name:'Runner 9: wristband number?',exact:true})).toBeVisible();
@@ -40,12 +40,12 @@ test('a phone checks in 8 runners and carries them through finishing order, time
 test('a lead adds a 7th runner to a final and the final is recorded end to end',async({page,browser},info)=>{
   test.setTimeout(60000);
   const code=`F7-${info.project.name.slice(0,3).toUpperCase()}`,name=`Seven ${info.project.name}`;
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Boy Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
-    const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners}})).json()).race;
-    await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:times}});
+    const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
+    await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places:times}});
   }
-  expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers,data:{stage:'heats'}})).ok()).toBe(true);
+  expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
   await openResults(page,code,`Seven lead ${info.project.name}`);
   await page.getByRole('button',{name:'Open final',exact:true}).click();await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:'Add runner',exact:true}).click();await sheet.getByLabel('Wristband for runner 7',{exact:true}).fill('1806');
@@ -53,7 +53,7 @@ test('a lead adds a 7th runner to a final and the final is recorded end to end',
   await page.screenshot({path:info.outputPath('lead-add-seventh.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Review runner list',exact:true}).click();await expect(sheet.getByRole('heading',{name:'7 runners. Is that right?',exact:true})).toBeVisible();
   await sheet.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
-  const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await join(phone,`Seven phone ${info.project.name}`);
+  const context=await browser.newContext({...info.project.use}),phone=await context.newPage();await signInAs(phone,`Seven phone ${info.project.name}`);
   await jobButton(phone,'Start line').click();await phone.getByRole('button',{name:new RegExp(`${code}.*Final 1`)}).click();
   await expect(phone.getByRole('heading',{name:'Is everyone here?',exact:true})).toBeVisible();await expect(phone.getByRole('button',{name:/ · Here$/})).toHaveCount(7);
   await phone.screenshot({path:info.outputPath('final-attendance-seven.png'),fullPage:true});

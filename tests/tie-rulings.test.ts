@@ -1,16 +1,16 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
 async function start(mixed=false) {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'ties-owner',resetTestDay:true});
-  const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'ties-owner',name:'Scoring'}})).json();
-  const day=(await call(owner.token,'/api/day')).json();
+  const people=await signInOwner(app,'ties-owner','Scoring'),owner=people.owner,day=people.day;
   await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json().token as string;
-  const volunteer=await join('Ahmed'),lead=await join('Aisha');
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');
   await call(lead,'/api/become-lead',{code:day.leadCode});
   async function race(number:number|number[],time:number) {
     const runners=Array.isArray(number)?number:[number];

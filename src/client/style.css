@@ -2,12 +2,13 @@
 #root {min-height:100vh; display:flex; flex-direction:column;}
 main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; display:flex; flex-direction:column;}
 
-/* Navy header bar: Running Zone, the day's name where known, the joined person. */
+/* Navy header bar: Running Zone, the day's name where known, the signed-in person. */
 .app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;}
 .app-header-title {flex:none; display:flex; flex-direction:column; min-width:0;}
 .app-header-title strong {font-size:19px; font-weight:800; white-space:nowrap;}
 .app-header-title span {font-size:13px; font-weight:600; color:var(--on-dark-muted);}
-.app-header-person {flex:1 1 0; justify-content:flex-end; display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}
+/* The person is a button to your profile screen: a full tap target, its margins keeping the bar's height. */
+.app-header-person {flex:0 1 auto; display:flex; align-items:center; gap:8px; min-width:0; min-height:var(--tap); margin:-5px -8px; padding:0 8px; background:transparent; color:#fff; border:0; border-radius:var(--radius-small); font-size:15px; font-weight:700;}
 .app-header-person > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .app-header-test {flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-2px 0 -12px; border-top:1px solid var(--muted); font-size:15px; font-weight:700; color:var(--on-dark-muted);}
 .app-header-test a {min-height:44px; display:inline-flex; align-items:center; color:#fff;}

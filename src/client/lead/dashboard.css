@@ -14,6 +14,7 @@
 .to-check-dot {flex:none; width:10px; height:10px; border-radius:50%; background:var(--red);}
 .to-check-title {font-size:17px; font-weight:800; color:var(--navy);}
 .to-check-explanation {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
+.to-check-decide {display:flex; flex-direction:column; gap:10px; margin-top:6px;}
 .to-check-open {
   align-self:flex-start; margin-top:4px; min-height:var(--tap); padding:0 14px; display:inline-flex; align-items:center;
   border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800;

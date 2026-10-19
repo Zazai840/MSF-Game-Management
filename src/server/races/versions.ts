@@ -8,7 +8,7 @@ import { Refusal } from '../access/permissions.js';
 import { readRace,withReplacement,type Database,type StoredRace } from './records.js';
 /** Capture every published value before another command can replace it. Called under the day lock. */
 export async function rememberRace(client:pg.PoolClient,race:StoredRace) {
-  const parts=(await client.query('SELECT p.*,f.name FROM race_parts p LEFT JOIN phones f ON f.id=p.saved_by WHERE p.race_id=$1 ORDER BY p.part',[race.id])).rows;
+  const parts=(await client.query('SELECT p.*,f.name FROM race_parts p LEFT JOIN sign_ins f ON f.id=p.saved_by WHERE p.race_id=$1 ORDER BY p.part',[race.id])).rows;
   const runners=parts.find(part=>part.part==='runners')?.value||[];
   for(const part of parts) {
     await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[race.id,part.part,part.version,JSON.stringify(part.value),JSON.stringify(runners)]);

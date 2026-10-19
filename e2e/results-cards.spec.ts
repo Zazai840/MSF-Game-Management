@@ -1,4 +1,4 @@
-import { steps,trailBack,openDashboard,becomeLead,expect,joinDay,test,type Page } from './fixtures.js';
+import { steps,trailBack,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const colours={
@@ -30,7 +30,7 @@ const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) aw
 test('Results shows each event as a card coloured by its state, with a legend and no to-check counts',async({page},info)=>{
   const name=`Cards ${info.project.name}`,prefix=`RC${info.project.name.slice(0,1).toUpperCase()}`,races=await events(page,name,prefix);
   try {
-    await page.goto('/');await joinDay(page,`Cards lead ${info.project.name}`);await becomeLead(page);
+    await page.goto('/');await createProfile(page,`Cards lead ${info.project.name}`);await becomeLead(page);
     expect((await(await page.request.get('/api/lead',{headers:headers()})).json()).needsYou.some((item:any)=>item.event.code===`${prefix}R`)).toBe(true);
     await openDashboard(page,'Results');
     const legend=page.getByRole('list',{name:'Card colours'});

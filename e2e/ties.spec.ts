@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import { openDashboard,becomeLead,dragTo,expect,joinDay,test,trailBack } from './fixtures.js';
+import { openDashboard,becomeLead,dragTo,expect,createProfile,test,trailBack } from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;
@@ -12,7 +12,7 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
     await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[time]}});
   };
   await createRace(2701,1000);await createRace(2702,1000);
-  await page.goto('/');await joinDay(page,`Tie lead ${info.project.name}`);
+  await page.goto('/');await createProfile(page,`Tie lead ${info.project.name}`);
   await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
@@ -63,7 +63,7 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
   // 2731 and 2735 share a time in Heat 1; 2733 has the same time in Heat 2.
   await heat([2731,2735,2736],[1000,1000,1200]);await heat([2733,2734],[1000,1100]);
   try {
-    await page.goto('/');await joinDay(page,`Tie heats lead ${info.project.name}`);await becomeLead(page);
+    await page.goto('/');await createProfile(page,`Tie heats lead ${info.project.name}`);await becomeLead(page);
     await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {

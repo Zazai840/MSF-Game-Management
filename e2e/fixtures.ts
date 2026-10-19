@@ -1,20 +1,59 @@
-import { test as base,expect,type Locator,type Page } from '@playwright/test';
-// A real reset changes both codes. The original scoring phone is retained by
+import { test as base,expect,type APIRequestContext,type Locator,type Page } from '@playwright/test';
+// A real reset changes the lead code. The original scoring phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
-export const test=base.extend<{freshDayCodes:void}>({
-  freshDayCodes:[async({request},use)=>{
-    const response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
+export const test=base.extend<{freshCodes:void}>({
+  freshCodes:[async({request},use)=>{
+    let response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
+    // A password change ends every session; a fresh worker still holds setup's token, so sign the scoring team back in.
+    if(response.status()===401) {await signScoringTeamBackIn(request);response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});}
     expect(response.ok()).toBe(true);
-    const {dayCode,leadCode}=await response.json();
-    process.env.E2E_DAY_CODE=dayCode;process.env.E2E_LEAD_CODE=leadCode;
+    const {leadCode,olympicsPassword}=await response.json();
+    process.env.E2E_LEAD_CODE=leadCode;process.env.E2E_OLYMPICS_PASSWORD=olympicsPassword;
     await use();
   },{auto:true}]
 });
-/** Fills the Join form already on screen and taps Join. Names must be unique per day. */
-export async function joinDay(page:Page,name:string,code=process.env.E2E_DAY_CODE!) {
-  await page.getByLabel('Day code or owner password').fill(code);
-  await page.getByLabel('Full name').fill(name);
-  await page.getByRole('button',{name:'Join',exact:true}).click();
+/** Signs setup's scoring team profile in again with the owner password; its role and Day setup are untouched. */
+export async function signScoringTeamBackIn(request:APIRequestContext) {
+  const response=await request.post('/api/owner-sign-in',{data:{password:'e2e-owner-fixture',name:'E2E Scoring',profiles:[JSON.parse(process.env.E2E_SCORING_PROFILE!)]}});
+  expect(response.ok()).toBe(true);
+  process.env.E2E_SCORING_TOKEN=(await response.json()).token;
+}
+/** On the Olympics password screen: types the password (or the owner password) and taps Continue. */
+export async function typePassword(page:Page,password=process.env.E2E_OLYMPICS_PASSWORD!) {
+  await page.getByLabel('Olympics password',{exact:true}).fill(password);
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+}
+/**
+ * Signs a new person in as a volunteer would: past the Olympics password screen when it shows,
+ * then Create profile. Profiles last for the whole database, so names must be unique across the run
+ * (each test adds its project name).
+ */
+export async function createProfile(page:Page,name:string) {
+  const password=page.getByLabel('Olympics password',{exact:true}),profiles=page.getByRole('heading',{level:1,name:"Who's using this phone?"});
+  await expect(password.or(profiles)).toBeVisible();
+  if(await password.isVisible()) {await typePassword(page);await expect(profiles).toBeVisible();}
+  const create=page.getByRole('button',{name:'New here? Create profile'});
+  if(await create.getAttribute('aria-expanded')==='false') await create.click();
+  await page.getByLabel('Full name',{exact:true}).fill(name);
+  await page.getByRole('button',{name:'Create profile',exact:true}).click();
+}
+/** Signs in as a lead from the profile screen: past the Olympics password screen when it shows, then Lead sign-in with a full name and the lead code. */
+export async function leadSignIn(page:Page,name:string,code=process.env.E2E_LEAD_CODE!) {
+  const password=page.getByLabel('Olympics password',{exact:true}),profiles=page.getByRole('heading',{level:1,name:"Who's using this phone?"});
+  await expect(password.or(profiles)).toBeVisible();
+  if(await password.isVisible()) {await typePassword(page);await expect(profiles).toBeVisible();}
+  const lead=page.getByRole('button',{name:'Lead today? Sign in'});
+  if(await lead.getAttribute('aria-expanded')==='false') await lead.click();
+  await page.getByLabel('Full name',{exact:true}).fill(name);
+  await page.getByLabel("Today's lead code",{exact:true}).fill(code);
+  await page.getByRole('button',{name:'Sign in as lead',exact:true}).click();
+}
+/** Signs a new profile in as a volunteer through the API (Olympics password, then Create profile) and returns its session token. */
+export async function signInThroughApi(request:APIRequestContext,name:string) {
+  const {pass}=await (await request.post('/api/password',{data:{password:process.env.E2E_OLYMPICS_PASSWORD}})).json();
+  const created=await request.post('/api/profiles',{data:{pass,name}});
+  expect(created.ok()).toBe(true);
+  return (await created.json()).token as string;
 }
 /** The breadcrumb trail below the header on every job screen. */
 export function steps(page:Page) {return page.getByRole('navigation',{name:'Steps',exact:true});}
@@ -81,7 +120,7 @@ export function dashboardButton(page:Page) {
 const dashboardTitles={'To check':'To check',Results:'Results','Day setup':'Day setup'} as const;
 /** One of the Dashboard's three menu buttons, whatever its explanation or badge says. */
 export function dashboardMenuButton(page:Page,section:keyof typeof dashboardTitles) {
-  return page.getByRole('button',{name:new RegExp(`^${dashboardTitles[section]} `)});
+  return page.getByRole('main').getByRole('button',{name:new RegExp(`^${dashboardTitles[section]} `)});
 }
 /** From Home: opens the Dashboard and, when named, one of its three screens. */
 export async function openDashboard(page:Page,section?:keyof typeof dashboardTitles) {

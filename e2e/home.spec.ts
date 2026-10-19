@@ -1,4 +1,4 @@
-import { expect,joinDay,test,type Page } from './fixtures.js';
+import { expect,createProfile,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)';
 const jobs=[
@@ -20,7 +20,7 @@ async function homeCounts(page:Page,counts:{start:number;finish:number;times:num
 }
 
 test('Home says what each job is and shows race counts only when there is work',async({page},info)=>{
-  await page.goto('/');await joinDay(page,`Home volunteer ${info.project.name}`);
+  await page.goto('/');await createProfile(page,`Home volunteer ${info.project.name}`);
   await expect(page.getByRole('heading',{level:1,name:"What's your job for this race?"})).toBeVisible();
   await expect(page.getByRole('heading',{name:'What are you doing?'})).toHaveCount(0);
   for(const [title,line] of jobs) {
@@ -45,7 +45,7 @@ test('Home says what each job is and shows race counts only when there is work',
 });
 
 test("a volunteer taps I'm a zone lead, gives the lead code and then sees the Dashboard with its to-check badge",async({page},info)=>{
-  await page.goto('/');await joinDay(page,`Home lead ${info.project.name}`);
+  await page.goto('/');await createProfile(page,`Home lead ${info.project.name}`);
   const zoneLead=page.getByRole('button',{name:"I'm a zone lead",exact:true});
   await expect(zoneLead).toBeVisible();
   await expect(page.getByRole('button',{name:'Become lead',exact:true})).toHaveCount(0);

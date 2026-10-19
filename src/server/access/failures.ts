@@ -30,7 +30,7 @@ export function failureBackoff() {
         failures.set(key,{count,at:now,until:now+wait});
         delay=Math.max(delay,wait);
       }
-      // Bound memory even if callers supply many different IPs or joined phones.
+      // Bound memory even if callers supply many different IPs or signed-in phones.
       while(failures.size>10_000) failures.delete(failures.keys().next().value!);
       if(!delay) throw error;
       reply.header('Retry-After',Math.ceil(delay/1000));

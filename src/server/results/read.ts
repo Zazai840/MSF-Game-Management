@@ -12,7 +12,7 @@ import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
 import type { DayEvent } from '../../shared/day.js';
 import type { RaceRead,Runner } from '../../shared/races.js';
-import { Refusal } from '../access/permissions.js';
+import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
@@ -31,14 +31,15 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const stages=await readCompletedStages(db,dayId);
   const savers=await clashSavers(db,races);
   const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
-  if(!day) throw new Refusal(401,'Please join the Olympics day');
+  if(!day) throw newDay();
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
     const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings));
     needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId),clash=item.kind==='clash'?savers.get(item.raceId!):undefined;return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{}),...(clash?{clash}:{})};}));
     const rows=groups.get(event.name)||[];rows.push({event,needsYou:results.needsYou.length,status:results.status,raceCount:results.raceCount,provisional:results.provisional,latestNoteAt:notes.find(note=>note.eventId===event.id)?.at??null});groups.set(event.name,rows);
   }
-  return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),eventsConfirmed:day.events_confirmed,groups:[...groups].map(([name,events])=>({name,events}))};
+  const profileRequests=(await db.query("SELECT r.id,p.name,r.created_at AS at FROM profile_requests r JOIN profiles p ON p.id=r.profile_id WHERE r.day_id=$1 AND r.status='waiting' ORDER BY r.created_at DESC,r.id",[dayId])).rows.map(row=>({...row,at:row.at.toISOString()}));
+  return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),profileRequests,eventsConfirmed:day.events_confirmed,groups:[...groups].map(([name,events])=>({name,events}))};
 }
 export async function readEventResults(db:Database,dayId:string,code:string):Promise<EventResultsRead> {
   const event=(await eventsForDay(db,dayId)).find(event=>event.code===code);
@@ -94,7 +95,7 @@ export async function resultsSnapshot<T>(pool:pg.Pool,dayId:string,read:(client:
   const client=await pool.connect();
   let failure:Error|boolean|undefined;
   try {await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-    if(!(await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active',[dayId])).rowCount) throw new Refusal(401,'Please join the Olympics day');
+    if(!(await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active',[dayId])).rowCount) throw newDay();
     const result=await read(client);await client.query('COMMIT');return result;}
   catch(error) {
     failure=error instanceof Error?error:true;

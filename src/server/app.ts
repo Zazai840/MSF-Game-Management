@@ -8,6 +8,7 @@ import Fastify from 'fastify';
 import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
 import { accessRoutes } from './access/routes.js';
+import { thatsMeRoutes } from './access/thats-me.js';
 import { dayRoutes } from './day/routes.js';
 import { homeRoutes } from './home/routes.js';
 import { Refusal } from './access/permissions.js';
@@ -37,7 +38,7 @@ export async function createApp(settings: AppSettings) {
   const pool = await openDatabase(settings.databaseUrl, settings.resetTestDay);
   app.addHook('onClose', async () => { await pool.end(); });
   app.setErrorHandler((error, _request, reply) => {
-    if (error instanceof Refusal) return reply.code(error.statusCode).send({message:error.message});
+    if (error instanceof Refusal) return reply.code(error.statusCode).send({...error.details, message:error.message});
     if (typeof error === 'object' && error !== null && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500) {
       return reply.code(error.statusCode).send({message:'Check what you entered and try again'});
     }
@@ -47,6 +48,7 @@ export async function createApp(settings: AppSettings) {
   const testBuild = settings.testBuild && {commit:settings.testBuild.commit || 'unknown', reportUrl:bugReportUrl};
   app.get('/api/health', () => testBuild ? {ok:true, testBuild} : {ok:true});
   accessRoutes(app, pool, settings.ownerPassword);
+  thatsMeRoutes(app, pool);
   phoneManagementRoutes(app,pool);
   dayRoutes(app, pool);
   resetRoutes(app,pool);

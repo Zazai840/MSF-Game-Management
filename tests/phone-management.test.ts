@@ -1,53 +1,79 @@
 import { afterEach, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,payload?:unknown)=>app.inject({method:payload===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(payload===undefined?{}:{'content-type':'application/json'})},...(payload===undefined?{}:{payload:JSON.stringify(payload)})});
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'phones-owner-fixture',resetTestDay:true});
-  const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'phones-owner-fixture',name:'Aisha'}})).json();
-  const day=(await call(owner.token,'/api/day')).json();
-  const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json();
-  return {owner,day,join};
+  const {owner,day,pass,volunteer:signInAs}=await signInOwner(app,'phones-owner-fixture');
+  return {owner,day,pass,signInAs};
 }
-test('removing a joined phone invalidates its token and keeps a day-level audit note',async()=>{
-  const {owner,join}=await start();const volunteer=await join('Ahmed');
-  const before=(await call(owner.token,'/api/day')).json().revision;
-  const removed=await call(owner.token,`/api/day/phones/${volunteer.phone.id}/remove`,{});
-  expect(removed.statusCode).toBe(200);
-  expect((await call(volunteer.token,'/api/home')).statusCode).toBe(401);
-  const list=(await call(owner.token,'/api/day/phones')).json();
-  expect(list.phones.map((phone:any)=>phone.name)).toEqual(['Aisha']);
-  expect(list.auditNotes[0]).toMatchObject({eventId:null,actor:'Aisha',action:'Removed phone',message:'Removed Ahmed',touches:[]});
-  expect((await call(owner.token,'/api/day')).json().revision).toBeGreaterThan(before);
-  expect((await join('Ahmed')).token).toBeTypeOf('string');
-});
-test('scoring team promotes a joined lead and demotes scoring team back to Lead, with audit notes',async()=>{
-  const {owner,day,join}=await start();const lead=await join('Maryam');
+test('Remove signs a profile out for today as a volunteer, with reason signed-out and a day-level audit note',async()=>{
+  const {owner,pass,day,signInAs}=await start();const lead=await signInAs('Ahmed');
   await call(lead.token,'/api/become-lead',{code:day.leadCode});
   const before=(await call(owner.token,'/api/day')).json().revision;
-  expect((await call(owner.token,`/api/day/phones/${lead.phone.id}/scoring-team`,{scoringTeam:true})).statusCode).toBe(200);
-  expect((await call(lead.token,'/api/me')).json().level).toBe('Scoring team');
-  expect((await call(owner.token,`/api/day/phones/${lead.phone.id}/scoring-team`,{scoringTeam:false})).statusCode).toBe(200);
-  expect((await call(lead.token,'/api/me')).json().level).toBe('Lead');
-  const notes=(await call(owner.token,'/api/day/phones')).json().auditNotes;
-  expect(notes.slice(0,2).map((note:any)=>[note.action,note.actor,note.eventId])).toEqual([['Removed from scoring team','Aisha',null],['Made scoring team','Aisha',null]]);
-  expect(notes.slice(0,2).map((note:any)=>note.message)).toEqual(['Removed Maryam from the scoring team','Made Maryam scoring team']);
+  const self=await call(owner.token,`/api/day/phones/${owner.phone.id}/remove`,{});
+  expect(self.statusCode).toBe(409);expect(self.json().message).toBe("Use Sign out to remove yourself");
+  expect((await call(owner.token,`/api/day/phones/${lead.phone.id}/remove`,{})).statusCode).toBe(200);
+  const next=await call(lead.token,'/api/home');
+  expect(next.statusCode).toBe(401);expect(next.json().reason).toBe('signed-out');
+  const list=(await call(owner.token,'/api/day/phones')).json();
+  expect(list.phones.map((phone:any)=>phone.name)).toEqual(['Aisha']);
+  expect(list.auditNotes[0]).toMatchObject({eventId:null,actor:'Aisha',action:'Removed',message:'Removed Ahmed',touches:[]});
   expect((await call(owner.token,'/api/day')).json().revision).toBeGreaterThan(before);
-  const volunteer=await join('Ahmed');
-  expect((await call(owner.token,`/api/day/phones/${volunteer.phone.id}/scoring-team`,{scoringTeam:true})).statusCode).toBe(409);
+  const again=await app.inject({method:'POST',url:'/api/sign-in',payload:{pass,profileId:lead.profile.id,secret:lead.profile.secret}});
+  expect((await call(again.json().token,'/api/me')).json()).toMatchObject({name:'Ahmed',level:'Volunteer'});
 });
-test('new codes refuse old joins and lead upgrades, retain joined jobs, and demote only ordinary leads',async()=>{
-  const {owner,day,join}=await start();const lead=await join('Maryam');const scoring=await join('Yusuf');const volunteer=await join('Ahmed');
+test('Remove on the owner row signs the owner out but keeps Scoring team and the owner marker',async()=>{
+  const {owner,pass,signInAs}=await start();const scoring=await signInAs('Yusuf');
+  await call(owner.token,`/api/day/phones/${scoring.phone.id}/role`,{role:'Scoring team'});
+  expect((await call(scoring.token,`/api/day/phones/${owner.phone.id}/remove`,{})).statusCode).toBe(200);
+  expect((await call(owner.token,'/api/home')).json().reason).toBe('signed-out');
+  const again=await app.inject({method:'POST',url:'/api/sign-in',payload:{pass,profileId:owner.profile.id,secret:owner.profile.secret}});
+  expect((await call(again.json().token,'/api/me')).json()).toMatchObject({name:'Aisha',level:'Scoring team'});
+  const list=(await call(scoring.token,'/api/day/phones')).json();
+  expect(list.phones.find((phone:any)=>phone.name==='Aisha')).toMatchObject({level:'Scoring team',owner:true});
+});
+test('Signed in today lists rows oldest first with role, owner marker and your own row',async()=>{
+  const {owner,signInAs}=await start();const volunteer=await signInAs('Ahmed');
+  const list=(await call(owner.token,'/api/day/phones')).json();
+  expect(list.selfId).toBe(owner.phone.id);
+  expect(list.phones).toEqual([{id:owner.phone.id,name:'Aisha',level:'Scoring team',owner:true},{id:volunteer.phone.id,name:'Ahmed',level:'Volunteer',owner:false}]);
+});
+test('Set role moves a row between all three roles for today, each with a day-level audit note naming who did it',async()=>{
+  const {owner,signInAs}=await start();const target=await signInAs('Maryam');
+  const before=(await call(owner.token,'/api/day')).json().revision;
+  for(const role of ['Lead','Scoring team','Volunteer','Scoring team','Lead','Volunteer']) {
+    expect((await call(owner.token,`/api/day/phones/${target.phone.id}/role`,{role})).statusCode).toBe(200);
+    expect((await call(target.token,'/api/me')).json().level).toBe(role);
+  }
+  const notes=(await call(owner.token,'/api/day/phones')).json().auditNotes;
+  expect(notes.slice(0,3).map((note:any)=>[note.action,note.actor,note.eventId,note.message])).toEqual([
+    ['Made volunteer','Aisha',null,'Made Maryam a volunteer'],['Made lead','Aisha',null,'Made Maryam a lead'],['Made scoring team','Aisha',null,'Made Maryam scoring team']]);
+  expect((await call(owner.token,'/api/day')).json().revision).toBeGreaterThan(before);
+});
+test('Set role is refused for your own row, for demoting the owner, for the role a row has and for an unknown role',async()=>{
+  const {owner,signInAs}=await start();const scoring=await signInAs('Yusuf');const volunteer=await signInAs('Ahmed');
+  await call(owner.token,`/api/day/phones/${scoring.phone.id}/role`,{role:'Scoring team'});
+  const refused=async(token:string,id:string,role:unknown,status:number,message:string)=>{
+    const response=await call(token,`/api/day/phones/${id}/role`,{role});
+    expect(response.statusCode).toBe(status);expect(response.json().message).toBe(message);
+  };
+  await refused(scoring.token,scoring.phone.id,'Lead',409,"You can't change your own role");
+  await refused(scoring.token,owner.phone.id,'Lead',409,"Nobody can lower the owner's role");
+  await refused(scoring.token,owner.phone.id,'Volunteer',409,"Nobody can lower the owner's role");
+  await refused(owner.token,volunteer.phone.id,'Volunteer',409,'Ahmed is already Volunteer');
+  await refused(owner.token,volunteer.phone.id,'Owner',400,'Choose Volunteer, Lead or Scoring team');
+  await refused(owner.token,'00000000-0000-0000-0000-000000000000','Lead',404,'Nobody is signed in with that row today');
+  expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
+});
+test('a new lead code refuses old lead upgrades, keeps signed-in jobs, and demotes only ordinary leads',async()=>{
+  const {owner,day,signInAs}=await start();const lead=await signInAs('Maryam');const scoring=await signInAs('Yusuf');const volunteer=await signInAs('Ahmed');
   await call(lead.token,'/api/become-lead',{code:day.leadCode});
   await call(scoring.token,'/api/become-lead',{code:'phones-owner-fixture'});
   const before=(await call(owner.token,'/api/day')).json().revision;
-  expect((await call(owner.token,'/api/day/day-code',{})).statusCode).toBe(200);
-  const changed=(await call(owner.token,'/api/day')).json();
-  expect(changed.dayCode).toMatch(/^\d{4}$/);expect(changed.dayCode).not.toBe(day.dayCode);
-  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Old'}})).statusCode).toBe(403);
-  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:changed.dayCode,name:'New'}})).statusCode).toBe(200);
   expect((await call(owner.token,'/api/day/lead-code',{})).statusCode).toBe(200);
   const rotated=(await call(owner.token,'/api/day')).json();
   expect(rotated.leadCode).toMatch(/^[A-Z2-9]{6}$/);expect(rotated.leadCode).not.toBe(day.leadCode);
@@ -61,22 +87,22 @@ test('new codes refuse old joins and lead upgrades, retain joined jobs, and demo
   expect((await call(lead.token,'/api/become-lead',{code:rotated.leadCode})).json().level).toBe('Lead');
 });
 test('joining and becoming lead each invalidate the current export revision',async()=>{
-  const {owner,day,join}=await start();const before=(await call(owner.token,'/api/day')).json().revision;
-  const volunteer=await join('Ahmed');const joined=(await call(owner.token,'/api/day')).json().revision;
-  expect(joined).toBeGreaterThan(before);
+  const {owner,day,signInAs}=await start();const before=(await call(owner.token,'/api/day')).json().revision;
+  const volunteer=await signInAs('Ahmed');const afterSignIn=(await call(owner.token,'/api/day')).json().revision;
+  expect(afterSignIn).toBeGreaterThan(before);
   await call(volunteer.token,'/api/become-lead',{code:day.leadCode});
-  expect((await call(owner.token,'/api/day')).json().revision).toBeGreaterThan(joined);
+  expect((await call(owner.token,'/api/day')).json().revision).toBeGreaterThan(afterSignIn);
 });
-test('volunteers and ordinary leads cannot read joined phones or use any scoring-team access action',async()=>{
-  const {owner,day,join}=await start();const target=await join('Target');
+test('volunteers and ordinary leads cannot read signed-in phones or use any scoring-team access action',async()=>{
+  const {owner,day,signInAs}=await start();const target=await signInAs('Target');
   for(const name of ['Volunteer Ahmed','Lead Maryam']) {
-    const phone=await join(name);if(name.startsWith('Lead')) await call(phone.token,'/api/become-lead',{code:day.leadCode});
+    const phone=await signInAs(name);if(name.startsWith('Lead')) await call(phone.token,'/api/become-lead',{code:day.leadCode});
     expect((await call(phone.token,'/api/day/phones')).statusCode).toBe(403);
     for(const [url,payload] of [
-      ['/api/day/day-code',{}],['/api/day/lead-code',{}],
+      ['/api/day/lead-code',{}],
       [`/api/day/phones/${target.phone.id}/remove`,{}],
-      [`/api/day/phones/${target.phone.id}/scoring-team`,{scoringTeam:true}],
-      [`/api/day/phones/${owner.phone.id}/scoring-team`,{scoringTeam:false}]
+      [`/api/day/phones/${target.phone.id}/role`,{role:'Lead'}],
+      [`/api/day/phones/${owner.phone.id}/role`,{role:'Volunteer'}]
     ] as const) {
       const response=await call(phone.token,url,payload);expect(response.statusCode).toBe(403);expect(response.json().message).toBe('Scoring team access needed');
     }
@@ -85,18 +111,11 @@ test('volunteers and ordinary leads cannot read joined phones or use any scoring
   expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
 });
 test('a concurrent old lead-code upgrade cannot survive a new lead code',async()=>{
-  const {owner,join}=await start();const phone=await join('Ahmed');
+  const {owner,signInAs}=await start();const phone=await signInAs('Ahmed');
   for(let round=0;round<5;round++) {
     const day=(await call(owner.token,'/api/day')).json();
     const [upgraded,rotated]=await Promise.all([call(phone.token,'/api/become-lead',{code:day.leadCode}),call(owner.token,'/api/day/lead-code',{})]);
     expect([200,403]).toContain(upgraded.statusCode);expect(rotated.statusCode).toBe(200);
     expect((await call(phone.token,'/api/me')).json().level).toBe('Volunteer');
   }
-});
-test('a concurrent join uses the old code only before its rotation commits',async()=>{
-  const {owner,day}=await start();
-  const [rotated,joined]=await Promise.all([call(owner.token,'/api/day/day-code',{}),app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Ahmed'}})]);
-  expect(rotated.statusCode).toBe(200);expect([200,403]).toContain(joined.statusCode);
-  if(joined.statusCode===200) expect((await call(joined.json().token,'/api/home')).statusCode).toBe(200);
-  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Maryam'}})).statusCode).toBe(403);
 });

@@ -1,6 +1,7 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 import { toCheckWording } from '../src/shared/to-check.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
 let app:FastifyInstance;
@@ -8,10 +9,9 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'needs-owner',resetTestDay:true});
-  const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'needs-owner',name:'Scoring'}})).json().token as string;
-  const day=(await call(owner,'/api/day')).json();await call(owner,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json().token as string;
-  const volunteer=await join('Ahmed'),lead=await join('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const people=await signInOwner(app,'needs-owner','Scoring'),owner=people.owner.token,day=people.day;await call(owner,'/api/day/confirm-events',{});
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
   const checkIn=async(numbers:number[])=>(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:numbers,keptWarnings:numbers})).json().race;
   const queue=async()=>(await call(lead,'/api/lead')).json();
   const path=(race:any,index=0)=>`/api/lead/races/${race.id}/runners/${race.parts.runners.value[index].id}`;
@@ -19,7 +19,7 @@ async function start() {
     expect((await queue()).needsYou).toHaveLength(expected);expect((await call(lead,'/api/home')).json().needsYou).toBe(expected);
     const list=(await call(lead,'/api/lead/results')).json();expect(list.groups.flatMap((group:any)=>group.events).find((item:any)=>item.event.code==='R4').needsYou).toBe(expected);
   }
-  return {owner,lead,volunteer,checkIn,queue,path,count};
+  return {owner,lead,volunteer,signInAs,checkIn,queue,path,count};
 }
 test('lead queue, home and event counts include pending warnings and settle consistently by disqualification and lifting the disqualification, correction and mark checked',async()=>{
   const {lead,volunteer,checkIn,queue,path,count}=await start();
@@ -84,8 +84,8 @@ test('an unrelated runner addition does not make an older eligibility warning ne
   const result=(await call(lead,'/api/lead/events/R4/results')).json();expect(result.results.needsYou.filter((item:any)=>item.kind==='warning').map((item:any)=>item.raceId)).toEqual([newer.id,older.id]);
 });
 test('the lead queue carries the facts To check needs to explain each item in plain English',async()=>{
-  const {owner,volunteer,checkIn,queue}=await start();
-  const day=(await call(owner,'/api/day')).json();const second=(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name:'Maryam'}})).json().token as string;
+  const {volunteer,signInAs,checkIn,queue}=await start();
+  const second=await signInAs('Maryam');
   await checkIn([3045]);
   const added=await checkIn([2001]);await call(volunteer,`/api/races/${added.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[2002]});
   await checkIn([2001]);

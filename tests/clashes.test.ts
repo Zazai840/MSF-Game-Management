@@ -1,15 +1,15 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'clash-owner',resetTestDay:true});
-  const owner=(await app.inject({method:'POST',url:'/api/join',payload:{code:'clash-owner',name:'Aisha'}})).json();
-  const day=(await call(owner.token,'/api/day')).json();await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await app.inject({method:'POST',url:'/api/join',payload:{code:day.dayCode,name}})).json().token as string;
-  const first=await join('Ahmed'),second=await join('Yusuf'),third=await join('Fatima'),lead=await join('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const people=await signInOwner(app,'clash-owner','Aisha'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const first=await signInAs('Ahmed'),second=await signInAs('Yusuf'),third=await signInAs('Fatima'),lead=await signInAs('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
   const checkIn=async(runners=[2001,2002])=>(await call(first,'/api/races/check-in',{eventCode:'R4',runners})).json().race;
   return {first,second,third,lead,checkIn};
 }

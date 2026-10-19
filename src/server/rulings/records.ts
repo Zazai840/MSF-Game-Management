@@ -7,7 +7,7 @@ import { raceChange,type Database } from '../races/records.js';
 /** All lead rulings share the day lock, current permission check and export revision. */
 export function rulingChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,current:Phone)=>Promise<T>,minimum:Level='Lead') {
   return raceChange(pool,phone,async client=>{
-    const current=(await client.query('SELECT id,day_id AS "dayId",name,level FROM phones WHERE id=$1',[phone.id])).rows[0] as Phone;
+    const current=(await client.query('SELECT id,day_id AS "dayId",name,level,profile_id AS "profileId" FROM sign_ins WHERE id=$1',[phone.id])).rows[0] as Phone;
     requireLevel(current,minimum);
     return change(client,current);
   });
