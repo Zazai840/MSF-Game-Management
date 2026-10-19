@@ -2,11 +2,10 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import { useSubmit } from '../flow/useSubmit.js';
+import { clock } from '../../shared/clock.js';
 import './day.css';
 
 const chevron=<svg className="day-row-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
-/** "13:40": the day export's time in 24-hour form, as the scoring team reads it on the day. */
-function clock(at:string) {const time=new Date(at);return `${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}`;}
 /** When the day export was last downloaded, and whether anything changed after it. */
 export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>) {
   if(!day.exportedAt) return 'Not downloaded yet.';

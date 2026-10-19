@@ -10,7 +10,7 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 /* The person is a button to your profile screen: a full tap target, its margins keeping the bar's height. */
 .app-header-person {flex:0 1 auto; display:flex; align-items:center; gap:8px; min-width:0; min-height:var(--tap); margin:-5px -8px; padding:0 8px; background:transparent; color:#fff; border:0; border-radius:var(--radius-small); font-size:15px; font-weight:700;}
 .app-header-person > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.app-header-test {flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-2px 0 -12px; border-top:1px solid var(--muted); font-size:15px; font-weight:700; color:var(--on-dark-muted);}
+.app-header-test {flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-2px 0 -12px; font-size:15px; font-weight:700; color:var(--on-dark-muted);}
 .app-header-test a {min-height:44px; display:inline-flex; align-items:center; color:#fff;}
 .avatar {flex:none; width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;}
 
@@ -21,11 +21,11 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 .lead-entry {display:inline-flex; align-items:center; gap:10px;}
 .lead-entry .badge {padding:3px 9px;}
 
-/* Home job buttons (also the look of the Dashboard menu): icon tile, title, one line of explanation, optional badge, chevron. */
+/* Home job buttons (also the look of the Dashboard menu): icon, title, one line of explanation, optional badge, chevron. */
 .home h1 {margin-bottom:4px;}
 .jobs {display:grid; gap:14px; margin-top:14px;}
-.job-button {display:flex; align-items:center; gap:14px; width:100%; padding:18px 16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--line); border-radius:var(--radius-card);}
-.job-icon {flex:none; width:44px; height:44px; border-radius:var(--radius); background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center;}
+.job-button {display:flex; align-items:center; gap:14px; width:100%; padding:18px 16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface); border-radius:var(--radius-card);}
+.job-icon {flex:none; width:28px; display:flex; align-items:center; justify-content:center; color:var(--navy);}
 .job-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
 .job-title {font-size:19px; font-weight:800; color:var(--navy);}
 .job-explanation {font-size:var(--text-small); font-weight:500; color:var(--muted); line-height:1.35;}
@@ -33,7 +33,7 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 .job-chevron {flex:none; color:var(--faint);}
 
 footer {margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:var(--text-small); font-weight:600; color:var(--muted);}
-footer button {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+footer button {min-height:var(--tap); padding:0 6px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:transparent; font-size:15px; font-weight:800; text-decoration:underline; text-underline-offset:3px;}
 
 .code {font-size:32px; font-weight:800; letter-spacing:3px; color:var(--navy); margin-left:0;}
 .app-update {width:100%; max-width:48rem; margin:16px auto 0; padding:0 16px;}

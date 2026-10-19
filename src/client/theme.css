@@ -31,17 +31,17 @@
   --red:#ac3036;           /* attention only: count badges, avatar, Start a new day */
   --on-dark-muted:#c5cde2; /* secondary text on navy */
   /* Surfaces */
-  --ground:#f3f5f9;        /* page background */
+  --ground:#e9edf4;        /* page background: one clear tone step below the white surfaces, so no outlines are needed */
   --surface:#ffffff;       /* cards, rows, inputs */
-  --tint:#e8ecf5;          /* icon tiles, chips, calm notes */
+  --tint:#dce3ef;          /* chips, calm notes, rows with no place */
   /* Text */
   --text:#18213b;
   --muted:#4a5470;
   --faint:#8a93ab;         /* decoration only (chevrons, separators), never text */
-  /* Lines */
-  --line:#d6dbe6;          /* card and row borders */
+  /* Lines: inputs and outline buttons only; surfaces are told apart by tone */
+  --line:#d6dbe6;          /* input borders, table cells */
   --line-strong:#c3cad9;   /* quiet button borders */
-  --chip-line:#c9d1e3;
+  --chip-line:#c9d1e3;     /* job screen runner chips */
   --divider:#dfe3ec;
   /* Amber: every warning and wrong time */
   --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;
@@ -75,6 +75,7 @@ p {margin:.75rem 0;}
 small {font-size:var(--text-small);}
 a {color:var(--navy); font-weight:700;}
 input,time,.code {font-variant-numeric:tabular-nums;}
+summary {padding:12px 0; color:var(--navy); font-weight:800; cursor:pointer;}
 
 /* Buttons: primary is the default; variants are opt-in classes. */
 button {
@@ -106,16 +107,16 @@ input[type=checkbox],input[type=radio] {min-height:0; width:24px; height:24px; a
 .badge-attention {background:var(--red);}
 
 /* Wristband chip */
-.chip {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); border:1.5px solid var(--chip-line); color:var(--navy); font-size:17px; font-weight:800; font-variant-numeric:tabular-nums;}
+.chip {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); border:1.5px solid var(--tint); color:var(--navy); font-size:17px; font-weight:800; font-variant-numeric:tabular-nums;}
 
 /* Surfaces */
-.card {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); padding:16px;}
+.card {background:var(--surface); border-radius:var(--radius-card); padding:16px;}
 .calm-note {padding:10px 14px; border-radius:var(--radius); background:var(--tint); color:var(--navy); font-size:var(--text-small); font-weight:700;}
 .done {background:var(--green-fill); border-color:var(--green-line); color:var(--green-text);}
 
 /* Amber: every warning, error and wrong time, so red keeps one meaning. */
 .warning-box,[role=alert] {
-  background:var(--amber-fill); border:1.5px solid var(--amber-line); border-radius:var(--radius-box);
+  background:var(--amber-fill); border-radius:var(--radius-box);
   color:var(--amber-text); padding:12px 14px; font-weight:700;
 }
 .warning-box button {min-height:var(--tap); border-radius:var(--radius-small); font-size:16px;}

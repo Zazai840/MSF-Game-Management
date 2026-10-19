@@ -200,6 +200,17 @@ export async function lookProblems(page:Page) {
       const box=(target.matches('input[type=radio],input[type=checkbox]')&&target.closest('label')?target.closest('label')!:target).getBoundingClientRect();
       if(box.height<43.5||box.width<43.5) problems.push(`tap target ${describe(target)} is ${Math.round(box.width)}x${Math.round(box.height)}`);
     }
+    // House style: surfaces are told apart by tone, not outlines; labels in sentence case; one clock; Refresh says only Refresh.
+    for(const box of document.querySelectorAll('div,li,section,article,nav,ol,ul,details,aside,header,footer,p,small,span')) {
+      if(!visible(box)) continue;
+      // An outline that marks a state stays: a wrong time, the row being edited, the row being dragged, a legend swatch.
+      if(box.matches(".time-wrong,.lead-editing,[data-dragging],.results-swatch")) continue;
+      const style=getComputedStyle(box);
+      if(['top','right','bottom','left'].some(side=>parseFloat(style.getPropertyValue(`border-${side}-width`))>0&&style.getPropertyValue(`border-${side}-style`)!=='none')) problems.push(`outlined ${describe(box)}`);
+      if(style.textTransform==='uppercase') problems.push(`uppercase ${describe(box)}`);
+    }
+    if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
+    for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
     for(const heading of document.querySelectorAll('h1,h2')) {
       const size=parseFloat(getComputedStyle(heading).fontSize);
       if(visible(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);

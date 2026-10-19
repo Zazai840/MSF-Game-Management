@@ -1,4 +1,4 @@
-import { dragTo,enterWristband,expect,goHome,jobButton,createProfile,pickRace,savedRaceLabel,startDrag,steps,test,type Page } from './fixtures.js';
+import { lookProblems,dragTo,enterWristband,expect,goHome,jobButton,createProfile,pickRace,savedRaceLabel,startDrag,steps,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await createProfile(page,name);
@@ -35,7 +35,7 @@ test('two phones check in and record Finish order with missing runner, trail, no
   // The trail replaces the separate Home and Other race buttons.
   await expect(current(finish)).toHaveText(`60m Girl Cubs ${label}`);
   await expect(finish.getByRole('button',{name:'Other race',exact:true})).toHaveCount(0);
-  await finish.screenshot({path:info.outputPath('finish-order-question.png'),fullPage:true});
+  expect(await lookProblems(finish)).toEqual([]);await finish.screenshot({path:info.outputPath('finish-order-question.png'),fullPage:true});
   await finish.getByRole('button',{name:String(n(2012)),exact:true}).click();
   // The places trail stays, for jumping back to a place.
   await finish.getByRole('button',{name:`1st: ${n(2012)}`,exact:true}).click();
@@ -76,7 +76,7 @@ test('two phones check in and record Finish order with missing runner, trail, no
   await dragTo(finish,handle(finish,3045),orderRows(finish).first());
   await expect(orderRows(finish).first()).toContainText('3045');
   await expect(orderRows(finish)).toHaveText(['1st3045Added at the finish',`2nd${n(2011)}`,`3rd${n(2012)}`]);
-  await finish.screenshot({path:info.outputPath('finish-order-review.png'),fullPage:true});
+  expect(await lookProblems(finish)).toEqual([]);await finish.screenshot({path:info.outputPath('finish-order-review.png'),fullPage:true});
   await finish.route('**/api/races/*/finish',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary connection problem'})}));
   await finish.getByRole('button',{name:'Save',exact:true}).click();await expect(finish.getByText('Not saved - tap Save again',{exact:true})).toBeVisible();
   await finish.screenshot({path:info.outputPath('finish-order-not-saved.png'),fullPage:true});
@@ -169,7 +169,7 @@ test('Finish order preserves its draft versions while polling and reload expose 
   await page.getByRole('button',{name:'2102',exact:true}).click();await page.getByRole('button',{name:'2101',exact:true}).click();
   await page.getByRole('button',{name:'Check the order',exact:true}).click();
   await page.request.post(`/api/races/${race.id}/runners`,{headers:headers(),data:{baseVersion:1,runners:[2101,2102,2103]}});
-  await page.getByRole('button',{name:'Refresh Finish order',exact:true}).click();
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await page.reload();await jobButton(page,'Finish order').click();
   await expect(orderRows(page).first()).toContainText('2102');
   await expect(orderRows(page)).toHaveCount(2);

@@ -2,7 +2,7 @@ import { useEffect,useRef,useState } from 'react';
 import { api } from '../api.js';
 import type { DayLeadItem,ProfileRequest,ResultsRead } from '../../shared/lead-results.js';
 import { toCheckHeading,toCheckWording } from '../../shared/to-check.js';
-const clock=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
+import { clock } from '../../shared/clock.js';
 /** v1's Needs you queue, newest first, each item in plain English with Open race. */
 export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCount:(count:number)=>void}) {
   const [items,setItems]=useState<DayLeadItem[]|null>(null),[error,setError]=useState(''),[updated,setUpdated]=useState('');
@@ -10,7 +10,7 @@ export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCoun
   const request=useRef(0);
   async function refresh() {
     const generation=++request.current;
-    try {const read=await api<ResultsRead>('lead');if(generation!==request.current) return;setItems(read.needsYou);setRequests(read.profileRequests);onCount(read.needsYou.length+read.profileRequests.length);setUpdated(clock(new Date().toISOString()));setError('');}
+    try {const read=await api<ResultsRead>('lead');if(generation!==request.current) return;setItems(read.needsYou);setRequests(read.profileRequests);onCount(read.needsYou.length+read.profileRequests.length);setUpdated(clock());setError('');}
     catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);const visible=()=>{if(document.visibilityState==='visible') void refresh();};document.addEventListener('visibilitychange',visible);return()=>{request.current++;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[]);

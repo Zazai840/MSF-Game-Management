@@ -1,6 +1,7 @@
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { api,phoneStorage,StaleRequest } from '../api.js';
 import type { RaceRead } from '../../shared/races.js';
+import { clock } from '../../shared/clock.js';
 /** Keep the originally opened version while saving drafts only in their session. */
 export function useJobDraft<T>(dayId:string,job:string,restore:(key:string)=>T) {
   const [identity]=useState(()=>({session:phoneStorage.session(),key:`msf:draft:${phoneStorage.token()}:${dayId}:${job}`}));
@@ -18,7 +19,7 @@ export function useJobData<T>(path:string,onRead?:(next:T)=>void) {
   const refresh=useCallback(async()=>{
     try {
       const next=await api<T>(path);if(!mounted.current) return;
-      setData(next);setUpdated(new Date().toLocaleTimeString());setReadError('');read.current?.(next);
+      setData(next);setUpdated(clock());setReadError('');read.current?.(next);
     } catch(error) {if(mounted.current && !(error instanceof StaleRequest)) setReadError(error instanceof Error?error.message:'Could not connect');}
   },[path]);
   useEffect(()=>{
