@@ -28,7 +28,7 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 .section-choices small {color:var(--muted); font-weight:700;}
 .home-jobs-title {margin:1.75rem 0 0;}
 /* The back arrow: bare, at the left of the row under the header, a full tap target. */
-.app-nav .back-arrow {min-width:var(--tap); margin-left:-10px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:transparent; border-color:transparent; color:var(--navy);}
+.app-nav .back-arrow {min-width:var(--tap); margin-left:-14px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:transparent; border-color:transparent; color:var(--navy);}
 
 /* Home job buttons (also the look of the Dashboard menu): icon, title, one line of explanation, optional badge, chevron. */
 .home h1 {margin-bottom:4px;}
