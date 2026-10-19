@@ -1,4 +1,4 @@
-import { backToEvent,openDashboard,trailBack,goHome,jobButton,becomeLead,expect,createProfile,pickRace,test,type Locator } from './fixtures.js';
+import { checkIn,recordRace,backToEvent,openDashboard,trailBack,goHome,jobButton,becomeLead,expect,createProfile,pickRace,test,type Locator } from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
@@ -6,16 +6,14 @@ test('timed Event complete checks blockers, locks an old phone draft, and reopen
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};const code=`T36${info.project.name.toUpperCase()}`;
   await page.request.post('/api/day/events',{headers,data:{code,name:`Stage event ${info.project.name}`,section:'Girl Cubs',format:'timed'}});
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2601,2602]}})).json()).race;
-  await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2601,2602],didNotFinish:[],didNotRun:[],added:[]}});
-  await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1000,1100]}});
+  const token=process.env.E2E_SCORING_TOKEN!;await recordRace(page.request,token,code,[2601,2602],[1000,1100]);
   const phone=await browser.newContext({viewport:info.project.use.viewport});const job=await phone.newPage();
   await job.goto('/');await createProfile(job,`Stage timer ${info.project.name}`);
   await jobButton(job,'Start line').click();await job.getByRole('button',{name:`Stage event ${info.project.name}`,exact:true}).click();await job.getByRole('button',{name:`Girl Cubs · ${code}`,exact:true}).click();await job.getByLabel('Wristband number',{exact:true}).fill('2');
   await trailBack(job,'Check in runners');await goHome(job);await jobButton(job,'Finish order').click();await pickRace(job,'Finishing order',new RegExp(`${code}.*Race 1`));await job.getByRole('button',{name:'Change order',exact:true}).click();await job.getByRole('button',{name:'2601',exact:true}).click();
   await goHome(job);await jobButton(job,'Times').click();await pickRace(job,'Times',new RegExp(`${code}.*Race 1`));await job.getByRole('button',{name:'1st place · 10.00',exact:true}).click();await job.getByLabel('Place time',{exact:true}).pressSequentially('2');await expect(job.getByLabel('Place time',{exact:true})).toHaveValue('2');
   const before=await job.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([key])=>key.includes(':draft:'))));
-  await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2603]}});
+  await checkIn(page.request,token,code,[2603]);
   await page.goto('/');await createProfile(page,`Stage lead ${info.project.name}`);
   await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();

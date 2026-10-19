@@ -1,4 +1,4 @@
-import { savedRaceLabel,enterWristband,enterTime,pickRace,jobButton,expect,createProfile,test,type Page } from './fixtures.js';
+import { checkIn,recordFinishingOrder,recordTimes,savedRaceLabel,enterWristband,enterTime,pickRace,jobButton,expect,createProfile,test,type Page } from './fixtures.js';
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await createProfile(page,name);
 }
@@ -33,12 +33,12 @@ test('three phones record a race, keep a time warning and repair a count mismatc
 test('Times premarks nonfinishers and keeps the draft version across polling and reload',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const checked=await page.request.post('/api/races/check-in',{headers,data:{eventCode:'R4',runners:[2301,2302]}});const race=(await checked.json()).race;
-  await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2301],didNotFinish:[2302],didNotRun:[],added:[]}});
+  const token=process.env.E2E_SCORING_TOKEN!,race=await checkIn(page.request,token,'R4',[2301,2302]);
+  await recordFinishingOrder(page.request,token,race,{order:[2301],didNotFinish:[2302]});
   await signInAs(page,`Times draft ${info.project.name}`);await jobButton(page,'Times').click();await pickRace(page,'Times',`60m Girl Cubs (R4) · Heat ${race.number}`);
   await expect(page.getByRole('button',{name:'2nd place · No finisher',exact:true})).toBeDisabled();
   await enterTime(page,'1234');await expect(page.getByRole('button',{name:'2nd did finish',exact:true})).toBeVisible();
-  await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1300,null]}});
+  await recordTimes(page.request,token,race,[1300,null]);
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.reload();await jobButton(page,'Times').click();await expect(page.getByRole('button',{name:'1st place · 12.34',exact:true})).toBeVisible();
   const saving=page.waitForRequest(request=>request.url().endsWith(`/api/races/${race.id}/times`) && request.method()==='POST');
   await page.getByRole('button',{name:'Save',exact:true}).click();expect((await saving).postDataJSON()).toMatchObject({baseVersion:0,places:[1234,null]});

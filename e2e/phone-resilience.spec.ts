@@ -1,4 +1,4 @@
-import { goHome,jobButton,expect,createProfile,pickRace,test } from './fixtures.js';
+import { checkIn,goHome,jobButton,expect,createProfile,pickRace,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -72,9 +72,7 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
 test('all three unfinished jobs survive reload and are dropped when the phone is removed',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const checked=await page.request.post('/api/races/check-in',{headers,data:{eventCode:'R4',runners:[2401,2402]}});
-  expect(checked.ok()).toBe(true);
-  const {race}=await checked.json();
+  const race=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,'R4',[2401,2402]);
   const raceName=`60m Girl Cubs (R4) · Heat ${race.number}`;
   await page.goto('/');
   await createProfile(page,`Recovery ${info.project.name}`);

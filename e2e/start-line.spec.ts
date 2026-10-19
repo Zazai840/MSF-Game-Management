@@ -1,4 +1,4 @@
-import { savedRaceLabel,jobButton,expect,createProfile,test,type Page } from './fixtures.js';
+import { checkIn,savedRaceLabel,jobButton,expect,createProfile,test,type Page } from './fixtures.js';
 async function typeNumber(page:Page,number:number) {await page.getByLabel('Wristband number',{exact:true}).fill(String(number));}
 test('a volunteer checks in a race, keeps a failed save and corrects the saved runners',async({page},info)=>{
   await page.request.post('/api/day/events/R4/rename',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{name:'60m'}});
@@ -40,8 +40,7 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   const scoringHeaders={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events/R4/rename',{headers:scoringHeaders,data:{name:'60m'}});
   await page.request.post('/api/day/confirm-events',{headers:scoringHeaders,data:{}});
-  const earlier=await page.request.post('/api/races/check-in',{headers:scoringHeaders,data:{eventCode:'R4',runners:[2008]}});
-  const earlierRace=(await earlier.json()).race;
+  const earlierRace=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,'R4',[2008]);
   await page.goto('/');
   await createProfile(page,`Warnings ${info.project.name}`);
   await jobButton(page,'Start line').click();

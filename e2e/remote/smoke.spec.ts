@@ -1,5 +1,5 @@
 import { test,expect,type Browser,type Page } from '@playwright/test';
-import { enterTime,enterWristband,jobButton,createProfile,openDashboard,pickRace,savedRaceLabel,typePassword } from '../fixtures.js';
+import { checkIn,enterTime,enterWristband,jobButton,createProfile,openDashboard,pickRace,savedRaceLabel,typePassword } from '../fixtures.js';
 
 // Runs only under playwright.remote.config.ts, against a deployed test build whose day is shared with real testers:
 // it adds phones and one race to the day and never clears it.
@@ -89,10 +89,9 @@ test('five phones share the test build: one race end to end, a mistyped password
 
   // 70 saves across the 5 phones (a busy hour's envelope): a check-in, then 69 runner-list changes, every one saved.
   const phones=await Promise.all([owner,starter,finisher,timer,mistyped].map(async page=>({page,headers:{authorization:`Bearer ${await token(page)}`}})));
+  // The check-in helper fails the test unless its save is accepted; the 69 changes record their statuses.
+  let race=await checkIn(starter.request,(await token(starter))!,'R4',[loopA]);
   const statuses:string[]=[];
-  const checkIn=await starter.request.post('/api/races/check-in',{headers:starterHeaders,data:{eventCode:'R4',runners:[loopA]}});
-  statuses.push(`${checkIn.status()} ${(await checkIn.json()).status}`);
-  let race=(await checkIn.json()).race;
   for(let save=1;save<70;save++) {
     const {page,headers}=phones[save%phones.length];
     const response=await page.request.post(`/api/races/${race.id}/runners`,{headers,data:{baseVersion:race.parts.runners.version,runners:save%2?[loopA,loopB]:[loopA]}});
@@ -100,7 +99,7 @@ test('five phones share the test build: one race end to end, a mistyped password
     statuses.push(`${response.status()} ${body.status}`);
     if(body.race) race=body.race;
   }
-  expect(statuses).toEqual(Array(70).fill('200 saved'));
+  expect(statuses).toEqual(Array(69).fill('200 saved'));
   // The loop's race has no finishing order, so it can go again and leave only the smoke race on the day.
   expect((await starter.request.post(`/api/races/${race.id}/delete`,{headers:starterHeaders,data:{permanent:true}})).ok()).toBe(true);
 });

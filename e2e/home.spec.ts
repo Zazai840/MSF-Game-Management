@@ -1,4 +1,4 @@
-import { expect,createProfile,lookProblems,test,type Page } from './fixtures.js';
+import { expect,createProfile,lookProblems,recordRace,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)';
 const jobs=[
@@ -25,9 +25,7 @@ test('Home lists events under distance headings in programme order, and a tile o
   expect((await request.post('/api/day/events',{headers:scoring,data:{code:off,name,section:'Girl Scouts',format:'heats'}})).ok()).toBe(true);
   expect((await request.post(`/api/day/events/${off}/enabled`,{headers:scoring,data:{enabled:false}})).ok()).toBe(true);
   // Heat 1 is recorded in full, so it counts and the event's current race is the next heat, not stored yet.
-  const race=(await (await request.post('/api/races/check-in',{headers:scoring,data:{eventCode:code,runners:[3001,3002]}})).json()).race;
-  await request.post(`/api/races/${race.id}/finish`,{headers:scoring,data:{baseVersion:0,runnersVersion:1,order:[3002,3001],didNotFinish:[],didNotRun:[],added:[]}});
-  await request.post(`/api/races/${race.id}/times`,{headers:scoring,data:{baseVersion:0,places:[1234,1301]}});
+  await recordRace(request,process.env.E2E_SCORING_TOKEN!,code,[3001,3002],[1234,1301]);
   const {page}=await openPhone(`Home picker ${project}`);
   const distances=['60m','60m Hurdles','200m','400m'];
   expect((await page.getByRole('main').getByRole('heading',{level:2}).allInnerTexts()).filter(heading=>distances.includes(heading))).toEqual(distances);

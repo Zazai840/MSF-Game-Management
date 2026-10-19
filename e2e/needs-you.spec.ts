@@ -1,4 +1,4 @@
-import { lookProblems,timesOpened,goHome,trailBack,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,createProfile,test } from './fixtures.js';
+import { lookProblems,checkIn,recordFinishingOrder,recordTimes,recordRace,timesOpened,goHome,trailBack,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,createProfile,test } from './fixtures.js';
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
   const code=`NY-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
@@ -14,9 +14,9 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   await page.goto('/');await createProfile(page,`Queue lead ${info.project.name}`);await becomeLead(page);await count();
   await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await trailBack(page,'Home');
   await page.request.post('/api/day/events',{headers,data:{code,name:'Needs you sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const checkIn=async(runners:number[])=>(await(await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners,keptWarnings:runners}})).json()).race;
-  const first=await checkIn([3045,2001]),second=await checkIn([2001]);
-  await page.request.post(`/api/races/${first.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[3045,2001,2002],didNotFinish:[],didNotRun:[],added:[2002]}});
+  const token=process.env.E2E_SCORING_TOKEN!,kept=(runners:number[])=>checkIn(page.request,token,code,runners,runners);
+  const first=await kept([3045,2001]),second=await kept([2001]);
+  await recordFinishingOrder(page.request,token,first,{order:[3045,2001,2002],added:[2002]});
   await count();
   await jobButton(page,'Times').click();await timesOpened(page);await goHome(page);await count();
   await openDashboard(page);
@@ -38,8 +38,9 @@ test('queue items open their race or tie directly and clear after the lead settl
   const code=`NR-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:'Queue race actions',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:any[]=[];
-  async function recorded(numbers:number[],places:number[]) {const race=(await(await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:numbers}})).json()).race;races.push(race);await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:numbers,didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places}});return race;}
-  await recorded([2001,2002],[1700,1600]);const clash=await recorded([2003],[1400]);await page.request.post(`/api/races/${clash.id}/times`,{headers,data:{baseVersion:0,places:[1500]}});await recorded([2004],[2000]);await recorded([2005],[2000]);
+  const token=process.env.E2E_SCORING_TOKEN!;
+  async function recorded(numbers:number[],places:number[]) {const race=await recordRace(page.request,token,code,numbers,places);races.push(race);return race;}
+  await recorded([2001,2002],[1700,1600]);const clash=await recorded([2003],[1400]);await recordTimes(page.request,token,clash,[1500]);await recorded([2004],[2000]);await recorded([2005],[2000]);
   await page.goto('/');await createProfile(page,`Race queue lead ${info.project.name}`);await becomeLead(page);await openDashboard(page);
   const wrongTime=toCheckItem(page,new RegExp(`${code}.*A time looks wrong`)),versions=toCheckItem(page,new RegExp(`${code}.*Two different sets of times were saved`)),tie=toCheckItem(page,new RegExp(`${code}.*Runners tied on time`));
   await expect(page.getByRole('list',{name:'To check'})).toBeVisible();await expect(wrongTime).toBeVisible();
