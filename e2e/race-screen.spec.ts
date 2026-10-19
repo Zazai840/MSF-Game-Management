@@ -117,7 +117,8 @@ test('the order fills in live on another phone, and follows check-in live: a lat
   await expect(rows(orderer)).toHaveText([/^Place/,/^1st\s*Next\s*$/,/^2nd\s*$/,/^3rd\s*$/]);
   await orderer.getByRole('button',{name:'2072',exact:true}).click();
   await expect(orderer.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
-  await expect(rows(timer.page)).toHaveText([/^Place/,/^1st\s*2072\s*$/,/^2nd\s*$/,/^3rd\s*$/],live);
+  // The timer's next time is now 1st place's.
+  await expect(rows(timer.page)).toHaveText([/^Place/,/^1st\s*2072\s*Next$/,/^2nd\s*$/,/^3rd\s*$/],live);
   // A late check-in appears in the list to tap, live.
   await writeCheckIn(request,sam,code,[2071,2072,2073,2074]);
   await expect(orderer.getByRole('button',{name:'2074',exact:true})).toBeVisible(live);

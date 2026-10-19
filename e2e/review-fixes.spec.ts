@@ -1,29 +1,39 @@
-import { checkIn,recordFinishingOrder,recordTimes,pickRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { checkIn,deleteCurrentRace,recordFinishingOrder,recordTimes,openDashboard,openRaceScreen,savedRaceLabel,enterTime,enterWristband,jobButton,becomeLead,expect,createProfile,lookProblems,test,type APIRequestContext,type Page } from './fixtures.js';
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await createProfile(page,name);
 }
-async function surplusRace(page:Page,code:string) {
+async function surplusRace(request:APIRequestContext,code:string,name='Review surplus') {
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Review surplus',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
-  const token=process.env.E2E_SCORING_TOKEN!,race=await checkIn(page.request,token,code,[2401,2402,2403,2404,2405,2406]);
-  await recordTimes(page.request,token,race,[1200,1300,1400,1500,1600,1700]);
-  await recordFinishingOrder(page.request,token,race,{order:[2401,2402,2403,2404,2405],didNotRun:[2406]});
+  expect((await request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  const token=process.env.E2E_SCORING_TOKEN!,race=await checkIn(request,token,code,[2401,2402,2403,2404,2405,2406]);
+  await recordTimes(request,token,race,[1200,1300,1400,1500,1600,1700]);
+  await recordFinishingOrder(request,token,race,{order:[2401,2402,2403,2404,2405],didNotRun:[2406]});
   return {race,headers};
 }
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
-test('Times keeps surplus saved numeric places visible until the volunteer deliberately records No finisher',async({page},info)=>{
-  const code=`SV-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
-  await signInAs(page,`Surplus timer ${info.project.name}`);await jobButton(page,'Times').click();await pickRace(page,'Times',`Review surplus Girl Cubs (${code}) · Race ${race.number} · Finishers and times don't agree`);
-  await expect(page.getByRole('button',{name:'6th place · 17.00',exact:true})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(page);await expect(page.getByText(mismatch,{exact:true})).toBeVisible();await page.getByRole('button',{name:'Change times',exact:true}).click();
-  const unchanged=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(unchanged.parts.times.value.places).toEqual([1200,1300,1400,1500,1600,1700]);
-  await page.getByRole('button',{name:'6th place · 17.00',exact:true}).click();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-volunteer.png'),fullPage:true});
-  await page.getByRole('button',{name:'No more finishers',exact:true}).click();await expect(page.getByRole('list',{name:'Times',exact:true}).getByRole('listitem').nth(5)).toHaveText('6thNo finisher');const correction=page.waitForResponse(response=>response.url().endsWith(`/api/races/${race.id}/times`) && response.request().method()==='POST');await page.getByRole('button',{name:'Save',exact:true}).click();expect((await correction).ok()).toBe(true);await savedRaceLabel(page);await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);
-  const corrected=await (await page.request.get(`/api/races/${race.id}`,{headers})).json();expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
-  await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
+test('the times column keeps a surplus time at a place with no wristband, and retyping an earlier place leaves it for a lead',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`SV-${project.toUpperCase()}`,name=`Review surplus ${project}`;
+  await surplusRace(request,code,name);
+  const {page}=await openPhone(`Surplus timer ${project}`);
+  await openRaceScreen(page,name);await page.getByRole('button',{name:/^Order and Times/}).click();
+  await page.getByRole('button',{name:'Do the times',exact:true}).click();
+  const rows=page.getByRole('table',{name:'Order and times'}).getByRole('row');
+  await expect(rows).toHaveText([/^Place/,/^1st\s*2401\s*12\.00$/,/^2nd/,/^3rd/,/^4th/,/^5th\s*2405\s*16\.00$/,/^6th\s*17\.00$/]);
+  // Nothing more to time, and the surplus time can't be changed from here.
+  await expect(page.getByText('6th place has a time but no wristband. A zone lead will check it.',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Place time',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/^6th place/})).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('surplus-times-volunteer.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);
+  await page.getByRole('button',{name:'1st place · 12.00',exact:true}).click();
+  await enterTime(page,'1150');
+  await expect(rows.nth(1)).toHaveText(/^1st\s*2401\s*11\.50$/);
+  await expect(rows.nth(6)).toHaveText(/^6th\s*17\.00$/);
+  await expect.poll(async()=>(await (await request.get(`/api/race-screen/${code}`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}})).json()).race.parts.times.value.places).toEqual([1150,1300,1400,1500,1600,1700]);
+  await deleteCurrentRace(request,code);
 });
 test('a lead sees surplus numeric times and the mismatch before deliberately correcting the last place',async({page},info)=>{
-  const code=`SL-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page,code);
+  const code=`SL-${info.project.name.toUpperCase()}`,{race,headers}=await surplusRace(page.request,code);
   await signInAs(page,`Surplus lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
   const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.';

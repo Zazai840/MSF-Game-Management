@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef,useState } from 'react';
 import { ApiFailure,api } from '../api.js';
 import { jobWords,type RaceJob,type RaceScreenRead } from '../../shared/race-screen.js';
 /** Hands a write's answer (the race screen as it then stands) to the screen, which keeps the newest. */
@@ -18,6 +18,32 @@ export function useRaceWrite(eventCode:string,offer:Offer) {
     finally {setBusy(false);}
   }
   return {busy,error,setError,write};
+}
+/**
+ * One column's writes (the order or the times), latest wins: each change sends the holder's whole column with the
+ * part version last answered. A change made while a write is on its way shows at once as `pending` and goes in the
+ * next write, so quick taps on a slow link are never lost. A refusal leaves the card showing what the server has.
+ * `send` answers like `write`, or true when the change was queued behind a write on its way.
+ */
+export function useColumnWrites<Column extends object>(write:ReturnType<typeof useRaceWrite>['write'],job:'order'|'times',version:number) {
+  const queue=useRef<Column|null>(null),running=useRef(false);
+  const [pending,setPending]=useState<Column|null>(null),[sending,setSending]=useState(false);
+  async function send(column:Column) {
+    queue.current=column;setPending(column);
+    if(running.current) return true;
+    running.current=true;setSending(true);
+    let seen=version,sent:Awaited<ReturnType<typeof write>>=false;
+    try {
+      while(queue.current) {
+        const next=queue.current;queue.current=null;
+        sent=await write(job,{...next,version:seen});
+        if(typeof sent!=='object') break;
+        seen=sent.race.parts[job==='order'?'finish':'times'].version;
+      }
+    } finally {queue.current=null;running.current=false;setSending(false);setPending(null);}
+    return sent;
+  }
+  return {pending,sending,send};
 }
 /** Take over beside a job's holder. It confirms inline in the card first. */
 export function TakeOver({job,holder,busy,onConfirm}:{job:RaceJob;holder:string;busy:boolean;onConfirm:()=>void}) {

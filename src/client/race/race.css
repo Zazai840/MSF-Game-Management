@@ -69,3 +69,13 @@
 .race-move-place small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
 .race-move-runner {flex:1; min-width:0; font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
 .race-move-runner small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
+
+/* The times column: the timer taps a time to retype it; a wrong one is amber with its reason, on every phone. */
+.race-table td.time-wrong {background:var(--amber-fill); box-shadow:inset 0 0 0 2px var(--amber-line);}
+/* Fixed columns, so Wristband and Time line up the same in every race whatever is in them. */
+.race-table {table-layout:fixed;}
+.race-table th:first-child {width:64px;}
+.race-time {display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:calc(100% + 24px); min-height:50px; margin:0 -12px; padding:0 12px; border:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; text-align:left;}
+.race-time:disabled {opacity:1; cursor:default;}
+.race-card-body .time-shows {margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-card-body .time-shows strong {color:var(--text); font-variant-numeric:tabular-nums;}
