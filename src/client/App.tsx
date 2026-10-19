@@ -11,7 +11,9 @@ import type { HomeEvent } from '../shared/race-screen.js';
 import { AppHeader } from './shell/AppHeader.js';
 import { BackArea,BackArrow } from './flow/BackArrow.js';
 import { clock } from '../shared/clock.js';
-const Lead = lazy(()=>import('./lead/Lead.js'));
+import { reloadApp } from './shell/updates.js';
+// A failed load (often an old page after a deploy) reloads the app; until then the Opening Lead line stays.
+const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 interface HomeRead { phone:Phone; events:HomeEvent[]; waiting:WaitingCounts; needsYou?:number }
 type Screen = 'home'|'become-lead'|'lead'|'race'|JobName;
 /** How each screen is named in a tester's bug report. */

@@ -6,7 +6,7 @@ import { currentRaces } from '../races/current.js';
 import type { Database } from '../races/records.js';
 import { resultsSnapshot } from '../results/read.js';
 import { onDayChange } from './changes.js';
-export interface StreamSettings { heartbeatMs:number; limitMs:number }
+export interface StreamSettings { heartbeatMs:number; limitMs:number; buildId?:string }
 async function raceScreenRead(db:Database,dayId:string,code:string):Promise<RaceScreenRead> {
   const event=(await db.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
   if(!event) throw new Refusal(404,'Event not found');
@@ -30,14 +30,16 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     const write=(text:string)=>{if(!ended()) raw.write(text);};
     const end=()=>{if(!ended()) raw.end();};
     raw.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache, no-transform','x-accel-buffering':'no'});
-    write(`data: ${JSON.stringify(sent)}\n\n`);
+    // Every snapshot carries the build id, so a phone on another build reloads.
+    const send=(snapshot:T)=>write(`data: ${JSON.stringify({...snapshot,build:settings.buildId})}\n\n`);
+    send(sent);
     // shortcut: every stream reads its own snapshot per change; share one read per day revision if Postgres load shows it.
     let reading=false,again=false;
     async function changed() {
       if(reading) {again=true;return;}
       reading=true;
       try {
-        do {again=false;const next=await read();if(next.revision>sent.revision) {sent=next;write(`data: ${JSON.stringify(next)}\n\n`);}} while(again && !ended());
+        do {again=false;const next=await read();if(next.revision>sent.revision) {sent=next;send(next);}} while(again && !ended());
       } catch(error) {
         // The phone reconnects and is told why (a new day, a removed event).
         if(!(error instanceof Refusal)) app.log.error(error);

@@ -1,3 +1,4 @@
+import { onThisBuild } from './shell/updates.js';
 const prefix = 'msf:';
 let epoch=0;
 let resetPending=false;
@@ -92,6 +93,7 @@ export async function apiResponse(path:string,body?:unknown,signal?:AbortSignal)
     });
   } catch(error) {current(captured);throw error;}
   current(captured);
+  onThisBuild(response.headers.get('x-build-id'));
   if (!response.ok) {
     const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
     current(captured);
