@@ -3,17 +3,13 @@ import type { Phone } from '../../shared/domain.js';
 import { api, phoneStorage } from '../api.js';
 import { initials } from '../shell/AppHeader.js';
 import { ActionBar } from '../flow/ActionBar.js';
+import { useSubmit } from '../flow/useSubmit.js';
 import './access.css';
 /** Your profile screen from the header: full name, today's role, Back and Sign out, the same for every role. */
 export function YourProfile({phone,onBack}:{phone:Phone;onBack:()=>void}) {
   const [confirming,setConfirming]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  async function signOut() {
-    setBusy(true);setError('');
-    try {await api('sign-out',{});phoneStorage.signOut();}
-    catch(error) {setError(error instanceof Error ? error.message : 'Could not connect - please try again');setBusy(false);}
-  }
+  const {busy,error,submit}=useSubmit();
+  const signOut=()=>submit(async()=>{await api('sign-out',{});phoneStorage.signOut();});
   return <section className="sign-in"><h1>Your profile</h1>
     <section className="your-profile" aria-label="Your profile">
       <span className="avatar" aria-hidden="true">{initials(phone.name)}</span>

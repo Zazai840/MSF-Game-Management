@@ -14,6 +14,7 @@
 .day-not-saved {font-size:var(--text-small); font-weight:800; color:var(--amber-text);}
 .day-card .button-small {align-self:flex-start;}
 .day-actions {display:flex; flex-wrap:wrap; gap:10px;}
+.day-confirm {display:grid; gap:1rem;}
 .day-events {display:grid; gap:12px;}
 
 /* Phones and Events as rows that open their screens. */

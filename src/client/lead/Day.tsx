@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
+import { useSubmit } from '../flow/useSubmit.js';
 import './day.css';
 
 const chevron=<svg className="day-row-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
@@ -42,21 +43,21 @@ function CodeCard({label,code,explanation,note,make,children}:{label:string;code
 function ChangePassword() {
   const [open,setOpen]=useState(false);
   const [password,setPassword]=useState('');
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  async function change(event:FormEvent) {
-    event.preventDefault();setBusy(true);setError('');
-    // The change ends this phone's session too, so it signs out as the server's password-changed reason would.
-    try {await api('day/olympics-password',{password});phoneStorage.signOut();}
-    catch(error) {setError(error instanceof Error?error.message:'Could not connect - tap Change password again');setBusy(false);}
-  }
+  const [confirming,setConfirming]=useState(false);
+  const {busy,error,submit,setError}=useSubmit();
+  // The change ends this phone's session too, so it signs out as the server's password-changed reason would.
+  const change=()=>void submit(async()=>{await api('day/olympics-password',{password});phoneStorage.signOut();},()=>setConfirming(false));
   if(!open) return <button className="button-secondary button-small" onClick={()=>setOpen(true)}>Change Olympics password</button>;
-  return <form onSubmit={change}>
+  if(confirming) return <div className="day-confirm">
+    <p className="calm-note">Every phone, including yours, goes back to the password screen. Profiles stay on the phones.</p>
+    <div className="day-actions"><button className="button-small" disabled={busy} onClick={change}>{busy?'Changing…':'Yes, change password'}</button>
+      <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setConfirming(false)}>Keep the old password</button></div>
+  </div>;
+  return <form onSubmit={(event:FormEvent)=>{event.preventDefault();setError('');setConfirming(true);}}>
     <label>New Olympics password<input value={password} onChange={event=>setPassword(event.target.value)} autoComplete="off" autoCapitalize="none" required /></label>
-    <p className="day-text">Every phone, including yours, goes back to the password screen. Profiles stay on the phones.</p>
     {error && <p role="alert">{error}</p>}
-    <div className="day-actions"><button className="button-small" disabled={busy}>{busy?'Changing…':'Change password'}</button>
-      <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>{setOpen(false);setPassword('');setError('');}}>Cancel</button></div>
+    <div className="day-actions"><button className="button-small">Change password</button>
+      <button type="button" className="button-secondary button-small" onClick={()=>{setOpen(false);setPassword('');setError('');}}>Cancel</button></div>
   </form>;
 }
 

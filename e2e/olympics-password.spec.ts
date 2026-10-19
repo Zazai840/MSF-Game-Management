@@ -17,17 +17,29 @@ test('changing the Olympics password sends both phones to the password screen wi
     await openDashboard(page,'Day setup');
     const card=page.getByRole('region',{name:'Olympics password'});
     await card.getByRole('button',{name:'Change Olympics password',exact:true}).click();
-    await expect(card.getByText('Every phone, including yours, goes back to the password screen. Profiles stay on the phones.',{exact:true})).toBeVisible();
-    await card.getByLabel('New Olympics password',{exact:true}).fill('short');
+    const warning='Every phone, including yours, goes back to the password screen. Profiles stay on the phones.';
+    // Change password asks first; Keep the old password goes back to the form with nothing changed.
+    const change=async(password:string)=>{
+      await card.getByLabel('New Olympics password',{exact:true}).fill(password);
+      await card.getByRole('button',{name:'Change password',exact:true}).click();
+      await expect(card.getByText(warning,{exact:true})).toBeVisible();
+    };
+    await change('short');
+    await card.getByRole('button',{name:'Keep the old password',exact:true}).click();
+    await expect(card.getByText(warning,{exact:true})).toHaveCount(0);
+    await expect(card.getByLabel('New Olympics password',{exact:true})).toHaveValue('short');
     await card.getByRole('button',{name:'Change password',exact:true}).click();
+    expect(await lookProblems(page)).toEqual([]);
+    await card.screenshot({path:info.outputPath('change-password-confirm.png')});
+    await card.getByRole('button',{name:'Yes, change password',exact:true}).click();
     await expect(card.getByRole('alert')).toHaveText('Use at least 6 characters for the Olympics password');
-    await card.getByLabel('New Olympics password',{exact:true}).fill(original);
-    await card.getByRole('button',{name:'Change password',exact:true}).click();
+    await change(original);
+    await card.getByRole('button',{name:'Yes, change password',exact:true}).click();
     await expect(card.getByRole('alert')).toHaveText('That is already the Olympics password. Type a new one.');
     expect(await lookProblems(page)).toEqual([]);
     await card.screenshot({path:info.outputPath('change-password.png')});
-    await card.getByLabel('New Olympics password',{exact:true}).fill(changed);
-    await card.getByRole('button',{name:'Change password',exact:true}).click();
+    await change(changed);
+    await card.getByRole('button',{name:'Yes, change password',exact:true}).click();
     // Both phones go back to the password screen; the pass, session and drafts go and the profiles stay.
     for(const phone of [page,other]) {
       await passwordScreen(phone);

@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { api, ApiFailure, phoneStorage, type HeldProfile, type Waiting } from '../api.js';
-import type { Phone } from '../../shared/domain.js';
+import type { Level, Phone } from '../../shared/domain.js';
 import { AppHeader, initials } from '../shell/AppHeader.js';
 import { ActionBar } from '../flow/ActionBar.js';
+import { useSubmit } from '../flow/useSubmit.js';
 import './access.css';
 interface SignedIn { token:string; phone:Phone; pass?:string; profile?:{id:string;name:string;secret?:string} }
 /** Lead sign-in numbered a name taken on another phone: `taken` is that name, `name` the one signed in. */
@@ -10,19 +11,6 @@ export interface Renamed { taken:string; name:string }
 type Screen = 'password'|'owner'|'profiles'|'waiting';
 const screenNames:Record<Screen,string>={password:'Olympics password',owner:'Owner sign-in',profiles:'Profiles',waiting:'Waiting for a lead'};
 const declined='A lead did not approve this - add your middle name or initial.';
-const failure=(error:unknown)=>error instanceof Error ? error.message : 'Could not connect - please try again';
-/** Runs one sign-in request, keeping the busy state and the refusal for the form that sent it. */
-function useSubmit(initialError='') {
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState(initialError);
-  async function submit(send:()=>Promise<void>,onRefused?:(error:unknown)=>void) {
-    setBusy(true);setError('');
-    try {await send();}
-    catch(error) {setError(failure(error));onRefused?.(error);}
-    finally {setBusy(false);}
-  }
-  return {busy,error,submit,setError};
-}
 function signedIn({token,phone,pass,profile}:SignedIn) {
   if(pass) phoneStorage.rememberPass(pass);
   if(profile) phoneStorage.rememberProfile(profile);
@@ -75,8 +63,8 @@ function OwnerScreen({password,dayRunning,onSignedIn,onBack}:{password:string;da
   </section>;
 }
 const chevron=<svg className="profile-chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
-const roleTag=(level?:string|null)=>level==='Lead' ? <span className="badge">Lead</span> : level==='Scoring team' ? <span className="badge badge-scoring">Scoring team</span> : null;
-const tidy=(name:string)=>name.trim().replace(/\s+/g,' ').toLowerCase();
+const roleTag=(level?:Level|null)=>level==='Lead' ? <span className="badge">Lead</span> : level==='Scoring team' ? <span className="badge badge-scoring">Scoring team</span> : null;
+const tidyFullName=(name:string)=>name.trim().replace(/\s+/g,' ').toLowerCase();
 type Open=''|'create-profile'|'lead-sign-in';
 /** One of the profile screen's sections that open in place below the list; one is open at a time. */
 function Section({id,title,open,onToggle,onSubmit,children}:{id:Exclude<Open,''>;title:string;open:Open;onToggle:()=>void;onSubmit:(event:FormEvent)=>void;children:ReactNode}) {
@@ -90,7 +78,7 @@ function Section({id,title,open,onToggle,onSubmit,children}:{id:Exclude<Open,''>
 /** "Who's using this phone?": the profiles made on this phone with today's role, one tap to sign in, and Create profile and Lead sign-in opening in place. */
 function ProfileScreen({name:typed,notice,onSignedIn,onWaiting,onPasswordChanged}:{name:string;notice:string;onSignedIn:(result:SignedIn,renamed?:Renamed)=>void;onWaiting:()=>void;onPasswordChanged:()=>void}) {
   const [profiles,setProfiles]=useState(phoneStorage.profiles);
-  const [levels,setLevels]=useState<Record<string,string|null>>({});
+  const [levels,setLevels]=useState<Record<string,Level|null>>({});
   const [open,setOpen]=useState<Open>(profiles.length===0 || typed ? 'create-profile' : '');
   const [editing,setEditing]=useState(false);
   const [removing,setRemoving]=useState<HeldProfile|null>(null);
@@ -105,7 +93,7 @@ function ProfileScreen({name:typed,notice,onSignedIn,onWaiting,onPasswordChanged
     if(!profiles.length) return;
     let live=true;
     // The tags are a nicety: a failed read leaves the rows untagged.
-    api<{profiles:{id:string;level?:string|null;moved?:true}[]}>('phone-profiles',{pass,profiles:held()})
+    api<{profiles:{id:string;level?:Level|null;moved?:true}[]}>('phone-profiles',{pass,profiles:held()})
       .then(result=>{
         if(!live) return;
         // A profile moved to another phone by That's me is forgotten here.
@@ -135,7 +123,7 @@ function ProfileScreen({name:typed,notice,onSignedIn,onWaiting,onPasswordChanged
     const result=await api<SignedIn&{profile:{name:string}}>('lead-sign-in',{pass,name:lead.name,code:lead.code,profiles:held()});
     // A name taken on another phone comes back numbered, spelled as the existing profile is ("Sam Patel 2").
     const final=result.profile.name;
-    onSignedIn(result,tidy(final)===tidy(lead.name) ? undefined : {taken:final.replace(/ \d+$/,''),name:final});
+    onSignedIn(result,tidyFullName(final)===tidyFullName(lead.name) ? undefined : {taken:final.replace(/ \d+$/,''),name:final});
   },refused);};
   const submitting=open==='create-profile' ? create : leadIn;
   return <section className="sign-in"><h1>Who's using this phone?</h1>
