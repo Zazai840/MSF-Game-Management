@@ -1,4 +1,4 @@
-import { backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,createProfile,pickRace,test,type Page,enterTime } from './fixtures.js';
+import { recordRace,backToEvent,openDashboard,savedRaceLabel,goHome,enterWristband,jobButton,becomeLead,expect,createProfile,pickRace,test,type Page,enterTime } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await createProfile(page,name);
@@ -42,8 +42,7 @@ test('a lead adds a 7th runner to a final and the final is recorded end to end',
   const code=`F7-${info.project.name.slice(0,3).toUpperCase()}`,name=`Seven ${info.project.name}`;
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
-    const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
-    await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places:times}});
+    await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,times);
   }
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
   await openResults(page,code,`Seven lead ${info.project.name}`);
