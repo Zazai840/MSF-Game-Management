@@ -1,6 +1,8 @@
-import { deleteCurrentRace,expect,live,openRaceScreen,ownEvent,setHidden,test,writeCheckIn,type Page } from './fixtures.js';
+import { deleteCurrentRace,enterWristband,expect,live,openRaceScreen,ownEvent,setHidden,test,writeCheckIn,type Page } from './fixtures.js';
 const checkInCard=(page:Page)=>page.getByRole('button',{name:/^Check-in Wristbands/});
 const checkedIn=(page:Page)=>page.getByRole('list',{name:'Checked in'}).getByRole('listitem');
+/** On a slow network every "the other phone sees it" check waits this long. */
+const slowLive={timeout:3000};
 const liveStream=/\/api\/live\/race-screen\//;
 /** Waits for this many of the page's race screen stream requests to fail (as a lost signal or a close makes them). */
 async function streamFailures(page:Page,count:number) {
@@ -73,5 +75,29 @@ test('planned end: phone B reconnects at once after the stream ends, and shows w
   },{times:1});
   await openRaceScreen(b.page,name);await checkInCard(b.page).click();
   await expect(checkedIn(b.page)).toHaveText(['2401','2402'],live);
+  await deleteCurrentRace(request,code);
+});
+
+test('slow network: on a 3G-like link each phone sees the other\'s check-in within 3 s',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`LN-${project.toUpperCase()}`,name=`Slow network ${project}`,ann=`Ann slow ${project}`,ben=`Ben slow ${project}`;
+  await ownEvent(request,code,name);
+  const a=await openPhone(ann),b=await openPhone(ben);
+  for(const {page} of [a,b]) {
+    const network=await page.context().newCDPSession(page);
+    await network.send('Network.enable');
+    await network.send('Network.emulateNetworkConditions',{offline:false,latency:300,downloadThroughput:400_000/8,uploadThroughput:400_000/8});
+  }
+  await openRaceScreen(a.page,name);await openRaceScreen(b.page,name);
+  await checkInCard(a.page).click();
+  await expect(checkInCard(b.page)).toHaveAccessibleName(new RegExp(`${ann} is checking in · 0 in$`),slowLive);
+  await checkInCard(b.page).click();
+  await enterWristband(a.page,2501);await enterWristband(a.page,2502);
+  await expect(checkedIn(b.page)).toHaveText(['2501','2502'],slowLive);
+  // Ben takes over, and Ann's phone follows him the same way.
+  await b.page.getByRole('button',{name:'Take over check-in',exact:true}).click();
+  await b.page.getByRole('button',{name:'Take over',exact:true}).click();
+  await expect(checkInCard(a.page)).toHaveAccessibleName(new RegExp(`${ben} is checking in · 2 in$`),slowLive);
+  await enterWristband(b.page,2503);
+  await expect(checkedIn(a.page)).toHaveText(['2501','2502','2503'],slowLive);
   await deleteCurrentRace(request,code);
 });
