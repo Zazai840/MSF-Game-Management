@@ -10,22 +10,22 @@ import { Results } from './Results.js';
 import { Day,Events } from './Day.js';
 import { Phones } from './Phones.js';
 import type { PhonesRead } from '../../shared/phones.js';
+import { clock } from '../../shared/clock.js';
 import './dashboard.css';
-type Section='Dashboard'|'To check'|'Results'|'Day setup'|'Signed in today'|'Events';
+type Section='Dashboard'|'Results'|'Day setup'|'Signed in today'|'Events';
 /** Day setup and the two screens its rows open; only the scoring team sees them. */
 const daySetup:Section[]=['Day setup','Signed in today','Events'];
-const menu:{section:'To check'|'Results'|'Day setup';explanation:string;icon:ReturnType<typeof jobIcon>;scoringOnly?:true}[]=[
-  {section:'To check',explanation:'Problems on races that need a zone lead to decide',icon:jobIcon(<><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4"/><path d="M12 17.5v.01"/></>)},
+const menu:{section:'Results'|'Day setup';explanation:string;icon:ReturnType<typeof jobIcon>;scoringOnly?:true}[]=[
   {section:'Results',explanation:'Standings for every event, heats and finals',icon:jobIcon(<><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 6h3a3 3 0 0 1-3 4"/><path d="M7 6H4a3 3 0 0 0 3 4"/></>)},
   {section:'Day setup',explanation:'Day and lead codes, phones, events and the day export',scoringOnly:true,icon:jobIcon(<><circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="M4.9 4.9l2.1 2.1"/><path d="M17 17l2.1 2.1"/><path d="M4.9 19.1L7 17"/><path d="M17 7l2.1-2.1"/></>)}
 ];
 /** How long the short "Saved" note stays after a lead action. */
 const savedFor=3000;
 /**
- * The Dashboard (was v1's Lead area). It always opens on three big buttons; each opens its screen and the
- * trail (`Home › Dashboard › Results`) leads back. After Start a new day the scoring team lands in Day setup.
+ * The Dashboard (was v1's Lead area). It opens on the To check list, under big Results and Day setup buttons, so a
+ * lead reaches a problem in one tap; the trail (`Home › Dashboard › Results`) leads back. After Start a new day the scoring team lands in Day setup.
  */
-export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,onHome,onSection}:{phone:Phone;initialDay?:boolean;toCheck:number;onCount:(count:number)=>void;onChanged:()=>void;onHome:()=>void;onSection:(section:string)=>void}) {
+export default function Lead({phone,initialDay=false,onCount,onChanged,onHome,onSection}:{phone:Phone;initialDay?:boolean;onCount:(count:number)=>void;onChanged:()=>void;onHome:()=>void;onSection:(section:string)=>void}) {
   const scoring=phone.level==='Scoring team';
   const [section,setSection] = useState<Section>(initialDay&&scoring?'Day setup':'Dashboard');
   const [target,setTarget]=useState<DayLeadItem|undefined>();
@@ -40,7 +40,7 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
         const [read,signedIn]=await Promise.all([api<DayRead>('day'),api<PhonesRead>('day/phones')]);
         setDay(read);setPhones(signedIn.phones.length);
       } else if (daySetup.includes(section)) setDay(await api('day'));
-      setUpdated(new Date().toLocaleTimeString()); setError('');
+      setUpdated(clock()); setError('');
     } catch (error) { if(error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect'); }
   }
   useEffect(()=>{if(!daySetup.includes(section)) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
@@ -51,15 +51,12 @@ export default function Lead({phone,initialDay=false,toCheck,onCount,onChanged,o
   function changed() {setSaved(Date.now());onChanged();}
   const steps:TrailStep[]=[{label:'Home',onSelect:onHome},{label:'Dashboard',onSelect:()=>open('Dashboard')}];
   // Results extends the trail with its own steps (the event, then the race), so it draws the trail itself.
-  if(target) steps.push({label:'To check',onSelect:()=>open('To check')});
-  else if(section==='Signed in today' || section==='Events') steps.push({label:'Day setup',onSelect:()=>open('Day setup')},{label:section});
+  if(section==='Signed in today' || section==='Events') steps.push({label:'Day setup',onSelect:()=>open('Day setup')},{label:section});
   else if(section!=='Dashboard' && section!=='Results') steps.push({label:section});
   return <section className="dashboard">{section!=='Results' && <Trail steps={steps}/>}
     {section==='Dashboard'?<div className="home"><h1>Dashboard</h1><div className="jobs">
-      {menu.filter(item=>scoring || !item.scoringOnly).map(item=><JobButton key={item.section} icon={item.icon} title={item.section} explanation={item.explanation} onClick={()=>open(item.section)}
-        badge={item.section==='To check' && toCheck>0?<span className="badge badge-attention">{toCheck} to check</span>:null}/>)}
-    </div></div>
-    :section==='To check'?<ToCheck onCount={onCount} onOpen={item=>{setTarget(item);setSection('Results');window.scrollTo(0,0);}}/>
+      {menu.filter(item=>scoring || !item.scoringOnly).map(item=><JobButton key={item.section} icon={item.icon} title={item.section} explanation={item.explanation} onClick={()=>open(item.section)}/>)}
+    </div><ToCheck onCount={onCount} onOpen={item=>{setTarget(item);setSection('Results');window.scrollTo(0,0);}}/></div>
     :section==='Results'?<Results key={target?.id||'events'} target={target} trail={steps} onChanged={changed}/>
     :<><h1>{section}</h1>{error && <p role="alert">{error}</p>}
       {scoring && section==='Day setup' && day && <Day day={day} phones={phones} onOpen={open} onChanged={refresh} onSaved={changed}/>}

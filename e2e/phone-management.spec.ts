@@ -22,7 +22,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it to
   await expect(row.getByRole('button')).toHaveText(['Make scoring team','Make volunteer','Remove']);
   await page.getByText('Phone and access audit notes',{exact:true}).click();
   await expect(page.getByText(`Made ${name} a lead · E2E Scoring`)).toBeVisible();
-  await page.screenshot({path:info.outputPath('signed-in-today.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('signed-in-today.png'),fullPage:true});
   // The other phone's Home picks up today's new role on its next refresh.
   await expect(dashboardButton(other)).toBeVisible({timeout:10000});
 

@@ -1,6 +1,6 @@
 import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
 
-const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
+const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(233, 237, 244)';
 
 async function joinAs(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
 
@@ -74,8 +74,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-results.png'),fullPage:true});
   await trailBack(page,'Dashboard');
-  await dashboardMenuButton(page,'To check').click();
-  await expect(page.getByRole('heading',{level:1,name:/zone lead|Nothing to check/})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });
 

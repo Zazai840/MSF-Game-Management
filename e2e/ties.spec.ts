@@ -21,7 +21,7 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
-  await createRace(2703,800);await page.getByRole('button',{name:'Refresh Results',exact:true}).click();
+  await createRace(2703,800);await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
   await page.getByRole('button',{name:'Decided without a run-off',exact:true}).click();
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
@@ -72,7 +72,6 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
     }
     await page.screenshot({path:info.outputPath('tie-leaderboard.png'),fullPage:true});
     await trailBack(page,'Dashboard');
-    await page.getByRole('button',{name:/^To check /}).click();
     const item=page.getByRole('list',{name:'To check'}).getByRole('button',{name:new RegExp(code)}).filter({hasText:'Runners tied on time'});
     await expect(item).toHaveCount(1);await expect(item).toContainText('10.00');
     await item.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('tie-to-check.png'),fullPage:true});

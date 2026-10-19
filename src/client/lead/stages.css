@@ -1,5 +1,5 @@
 /* Amber marks only a list that holds something to settle or look at; "Nothing to settle" stays plain. */
-.stage-attention {border-left:4px solid var(--amber-line);padding-left:.8rem;}
+.stage-attention {background:var(--amber-fill);color:var(--amber-text);border-radius:var(--radius);padding:10px 14px;}
 .stage-blockers ul,.stage-warnings ul {list-style:none;padding:0;}
 .stage-blockers li,.stage-warnings li {margin-bottom:.5rem;}
 .input-running {width:100%;border-collapse:collapse;margin:1rem 0;}

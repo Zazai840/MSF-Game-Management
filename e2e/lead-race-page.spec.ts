@@ -1,4 +1,4 @@
-import { becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
+import { lookProblems,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -30,13 +30,15 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
   expect(await background(second)).toBe(amber);
   await expect(record.getByRole('listitem').filter({hasText:'2103'})).not.toContainText('Faster');
   await expect(page.getByText('3 times · 3 finishers',{exact:true})).toBeVisible();
-  await page.screenshot({path:info.outputPath('race-page-wrong-time.png'),fullPage:true});
+  // A wrong time's amber outline must not nudge its row's content off the line the plain rows keep.
+  expect(new Set(await page.locator('.record-row').evaluateAll(rows=>rows.map(row=>row.querySelector('.record-place')!.getBoundingClientRect().left)))).toHaveProperty('size',1);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-wrong-time.png'),fullPage:true});
 
   await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');
   const wrongRow=sheet.getByRole('button',{name:'2nd place · 11.00 · Faster than 1st place',exact:true});
   expect(await background(wrongRow)).toBe(amber);
-  await page.screenshot({path:info.outputPath('times-editor-wrong.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('times-editor-wrong.png'),fullPage:true});
   await wrongRow.click();
   const input=sheet.getByLabel('2nd place time',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
@@ -81,7 +83,7 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
   await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
   const sheet=page.getByRole('dialog');
   await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeInViewport();
-  await page.screenshot({path:info.outputPath('runner-list-editor.png'),fullPage:false});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('runner-list-editor.png'),fullPage:false});
   // Retyping a number keeps the child's row (and so their place and time).
   await sheet.getByRole('button',{name:'Runner 2 · 2122',exact:true}).click();
   const second=sheet.getByLabel('Wristband for runner 2',{exact:true});
@@ -99,5 +101,5 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
   await sheet.getByLabel('New runners did not finish',{exact:true}).check();
   await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expect(saved(page)).toBeVisible();
-  await expect(page.getByText('2127 · Place 2 · 13.10',{exact:true})).toBeVisible();
+  await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2127'})).toHaveText(/^2nd\s*2127\s*13\.10$/);
 });

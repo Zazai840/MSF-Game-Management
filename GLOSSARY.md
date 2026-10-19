@@ -151,7 +151,7 @@ A person trusted with everything beyond the jobs: the live leaderboard and makin
 _Avoid_: Admin, organiser, superuser
 
 **Dashboard**:
-A lead's own screen, opened from Home, with three ways in: To check, Results and Day setup (Day setup for the scoring team only).
+A lead's own screen, opened from Home. It shows To check, with ways into Results and Day setup (Day setup for the scoring team only).
 _Avoid_: Lead area, admin panel, control panel
 
 **To check**:

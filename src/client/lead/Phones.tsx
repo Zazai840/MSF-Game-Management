@@ -2,6 +2,7 @@ import { useEffect,useState } from 'react';
 import type { PhonesRead } from '../../shared/phones.js';
 import type { Level } from '../../shared/domain.js';
 import { api } from '../api.js';
+import { clock } from '../../shared/clock.js';
 /** The role buttons a row offers, in screen order. */
 const makeRole:Record<Level,string>={Lead:'Make lead','Scoring team':'Make scoring team',Volunteer:'Make volunteer'};
 const roles=Object.keys(makeRole) as Level[];
@@ -35,6 +36,6 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
         <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{})}>Remove</button>
       </div>}
     </article>)}</div>
-    {!!data?.auditNotes.length && <details className="day-card day-audit"><summary>Phone and access audit notes</summary><ol>{data.auditNotes.map(note=><li key={note.id}>{note.message} · {note.actor} · <time dateTime={note.at}>{new Date(note.at).toLocaleString()}</time></li>)}</ol></details>}
+    {!!data?.auditNotes.length && <details className="day-card day-audit"><summary>Phone and access audit notes</summary><ol>{data.auditNotes.map(note=><li key={note.id}>{note.message} · {note.actor} · <time dateTime={note.at}>{clock(note.at)}</time></li>)}</ol></details>}
   </section>;
 }

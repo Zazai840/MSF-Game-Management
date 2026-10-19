@@ -2,15 +2,15 @@ import { useEffect,useRef,useState } from 'react';
 import { api } from '../api.js';
 import type { DayLeadItem,ProfileRequest,ResultsRead } from '../../shared/lead-results.js';
 import { toCheckHeading,toCheckWording } from '../../shared/to-check.js';
-const clock=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
-/** v1's Needs you queue, newest first, each item in plain English with Open race. */
+import { clock } from '../../shared/clock.js';
+/** The To check list on the Dashboard, newest first, each item in plain English with Open race. */
 export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCount:(count:number)=>void}) {
   const [items,setItems]=useState<DayLeadItem[]|null>(null),[error,setError]=useState(''),[updated,setUpdated]=useState('');
   const [requests,setRequests]=useState<ProfileRequest[]>([]),[deciding,setDeciding]=useState('');
   const request=useRef(0);
   async function refresh() {
     const generation=++request.current;
-    try {const read=await api<ResultsRead>('lead');if(generation!==request.current) return;setItems(read.needsYou);setRequests(read.profileRequests);onCount(read.needsYou.length+read.profileRequests.length);setUpdated(clock(new Date().toISOString()));setError('');}
+    try {const read=await api<ResultsRead>('lead');if(generation!==request.current) return;setItems(read.needsYou);setRequests(read.profileRequests);onCount(read.needsYou.length+read.profileRequests.length);setUpdated(clock());setError('');}
     catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);const visible=()=>{if(document.visibilityState==='visible') void refresh();};document.addEventListener('visibilitychange',visible);return()=>{request.current++;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[]);
@@ -22,7 +22,7 @@ export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCoun
   }
   return <div className="to-check">{error && <p role="alert">{error}</p>}
     {items===null?<p>Opening To check…</p>:<>
-      <h1>{toCheckHeading(items.length+requests.length)}</h1>
+      <h2>{toCheckHeading(items.length+requests.length)}</h2>
       {items.length+requests.length===0?<p className="to-check-none">Nothing needs a zone lead right now.</p>:<ol aria-label="To check">{requests.map(request=><li key={request.id} className="to-check-item">
         <small className="to-check-race"><span className="to-check-dot" aria-hidden="true"/><span>That's me</span><time dateTime={request.at}>{clock(request.at)}</time></small>
         <span className="to-check-title">{request.name} wants their profile on a new phone</span>
