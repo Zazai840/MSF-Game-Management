@@ -67,8 +67,8 @@ export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.P
     await client.query('BEGIN');
     const day=await client.query('SELECT id FROM olympics_days WHERE id=$1 AND active FOR UPDATE',[phone.dayId]);
     if (!day.rowCount) throw newDay();
-    const joined=await client.query('SELECT id FROM sign_ins WHERE id=$1 AND day_id=$2 AND NOT signed_out FOR SHARE',[phone.id,phone.dayId]);
-    if (!joined.rowCount) throw signedOut();
+    const signedIn=await client.query('SELECT id FROM sign_ins WHERE id=$1 AND day_id=$2 AND NOT signed_out FOR SHARE',[phone.id,phone.dayId]);
+    if (!signedIn.rowCount) throw signedOut();
     let changed=true;
     const result=await change(client,()=>{changed=false;});
     if(changed) await client.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1',[phone.dayId]);

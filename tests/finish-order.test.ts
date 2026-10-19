@@ -9,9 +9,9 @@ async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'finish-owner',resetTestDay:true});
   const people=await signInOwner(app,'finish-owner','Aisha'),owner=people.owner,day=people.day;
   await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await people.volunteer(name)).token;
-  const volunteer=await join('Ahmed');
-  const lead=await join('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const volunteer=await signInAs('Ahmed');
+  const lead=await signInAs('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
   const checkIn=async(runners:number[],eventCode='R4')=>(await call(volunteer,'/api/races/check-in',{eventCode,runners})).json().race;
   return {owner:owner.token as string,volunteer,lead,checkIn};
 }
@@ -46,7 +46,7 @@ test('Finish order adds a missing runner with kept warnings, retains Did not fin
   expect((await call(volunteer,'/api/wristband-check',{eventCode:'R4',wristband:2002})).json().warnings).toMatchObject([{kind:'already-ran'}]);
   const later=await checkIn([2003]);expect(later.parts.runners.value[0].warnings).toEqual([]);
 });
-test('all joined levels can correct Finish order while stale drafts are kept for a lead instead of overwriting either part',async()=>{
+test('all signed-in levels can correct Finish order while stale drafts are kept for a lead instead of overwriting either part',async()=>{
   const {owner,lead,volunteer,checkIn}=await start();
   const race=await checkIn([2001,2002]);
   for(const [version,token] of [volunteer,lead,owner].entries()) {
@@ -60,8 +60,8 @@ test('all joined levels can correct Finish order while stale drafts are kept for
   const waiting=await checkIn([2003]);
   await call(volunteer,`/api/races/${waiting.id}/runners`,{baseVersion:1,runners:[2003,2004]});
   expect((await call(volunteer,`/api/races/${waiting.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2003],didNotFinish:[],didNotRun:[],added:[]})).json().status).toBe('clash');
-  expect((await call('not-joined','/api/jobs/finish-order')).statusCode).toBe(401);
-  expect((await call('not-joined',`/api/races/${race.id}/finish`,{})).statusCode).toBe(401);
+  expect((await call('not-signed-in','/api/jobs/finish-order')).statusCode).toBe(401);
+  expect((await call('not-signed-in',`/api/races/${race.id}/finish`,{})).statusCode).toBe(401);
 });
 test.each([
   [{order:[2001,2001],didNotFinish:[],didNotRun:[],added:[]},'Choose a place, Did not finish or Did not run for every runner'],

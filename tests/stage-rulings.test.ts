@@ -8,8 +8,8 @@ afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'stages-owner',resetTestDay:true});
   const people=await signInOwner(app,'stages-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await people.volunteer(name)).token;
-  const volunteer=await join('Ahmed'),lead=await join('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
   const check=await call(volunteer,'/api/races/check-in',{eventCode:'R16',runners:[2001,2002]});const race=check.json().race;
   await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]});
   await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[1000,1100]});

@@ -9,8 +9,8 @@ afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'cap-owner',resetTestDay:true});
   const people=await signInOwner(app,'cap-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await people.volunteer(name)).token;
-  const volunteer=await join('Ahmed Khan'),lead=await join('Aisha Malik');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const volunteer=await signInAs('Ahmed Khan'),lead=await signInAs('Aisha Malik');await call(lead,'/api/become-lead',{code:day.leadCode});
   return {owner:owner.token as string,volunteer,lead};
 }
 const eight=[2001,2002,2003,2004,2005,2006,2007,2008];

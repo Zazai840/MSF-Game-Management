@@ -8,8 +8,8 @@ afterEach(async()=>{await app?.close();});
 async function start(fields:number[][]=[[1023,1088,1012,1135,1047,1101],[1066,1005,1110,1031,1092]]) {
  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'final-owner',resetTestDay:true});
  const people=await signInOwner(app,'final-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
- const join=async(name:string)=>(await people.volunteer(name)).token;
- const volunteer=await join('Ahmed'),lead=await join('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
+ const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+ const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
  const heats=[];const times=[[901,925,948,977,990,1024],[912,939,961,1003,1048]];
  for(const [i,runners] of fields.entries()) {const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R3',runners})).json().race;heats.push(race);await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]});await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:times[i].slice(0,runners.length)});}
  return {volunteer,lead,heats,owner:owner.token as string};

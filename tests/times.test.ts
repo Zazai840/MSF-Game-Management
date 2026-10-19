@@ -49,7 +49,7 @@ test('count disagreement returns to the top of Times and fixing either list clea
   expect(trimmed.statusCode).toBe(200);expect(trimmed.json().race.parts.times.value.places).toEqual([1234,null]);
   expect((await call(volunteer,'/api/jobs/times')).json().waiting.map((item:any)=>item.id)).toEqual([oldest.id]);
 });
-test('all joined levels may keep out-of-order times, but the race stays unranked until corrected; stale drafts remain as a clash',async()=>{
+test('all signed-in levels may keep out-of-order times, but the race stays unranked until corrected; stale drafts remain as a clash',async()=>{
   const {owner,lead,volunteer,checkIn}=await start();const race=await checkIn([2001,2002]);
   await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]});
   for(const [version,token] of [volunteer,lead,owner].entries()) {

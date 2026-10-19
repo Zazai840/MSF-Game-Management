@@ -9,9 +9,9 @@ async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'finish-owner',resetTestDay:true});
   const people=await signInOwner(app,'finish-owner','Aisha'),owner=people.owner,day=people.day;
   await call(owner.token,'/api/day/confirm-events',{});
-  const join=async(name:string)=>(await people.volunteer(name)).token;
-  const volunteer=await join('Ahmed');
-  const lead=await join('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
+  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+  const volunteer=await signInAs('Ahmed');
+  const lead=await signInAs('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
   const checkIn=async(runners:number[],eventCode='R4')=>(await call(volunteer,'/api/races/check-in',{eventCode,runners})).json().race;
   return {owner:owner.token as string,volunteer,lead,checkIn};
 }

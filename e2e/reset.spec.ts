@@ -45,7 +45,7 @@ for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${o
     if(!first) {await route.continue();return;}first=false;
     const response=await route.fetch();seen();await held;
     if(oldResponse==='success') await route.fulfill({response});
-    else await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please join the Olympics day'})});
+    else await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please sign in again'})});
     delivered();
   });
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
@@ -72,7 +72,7 @@ test('a lost reset reply recovers the fresh Day through Home and discards an old
   expect((await page.request.post('/api/day/start-new',{headers:headers(),data:{confirmation:'NEW DAY'}})).status()).toBe(409);
   await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toHaveCount(0);
 });
-test('an actual old removed-phone 401 cannot sign out a newly rejoined phone',async({page},info)=>{
+test('an actual old removed-phone 401 cannot sign out a newly signed-in phone',async({page},info)=>{
   await page.goto('/');await createProfile(page,`Delayed ${info.project.name}`);await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
   const oldToken=await page.evaluate(()=>localStorage.getItem('msf:token'));const phone=await (await page.request.get('/api/me',{headers:{authorization:`Bearer ${oldToken}`}})).json();
   await page.request.post(`/api/day/phones/${phone.id}/remove`,{headers:headers(),data:{}});
@@ -114,7 +114,7 @@ test('a lost reply from Start new day keeps the retained phone safe from a previ
   await scoring(page);await exportDay(page);
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;
-  await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;await route.fetch();seen();await held;await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please join the Olympics day'})});delivered();});
+  await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;await route.fetch();seen();await held;await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please sign in again'})});delivered();});
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
   await page.route('**/api/day/start-new',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);await route.abort('failed');});
   await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');await page.getByRole('button',{name:'Start a new day',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();

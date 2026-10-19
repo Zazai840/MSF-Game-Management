@@ -4,7 +4,7 @@ const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(243, 245, 249)';
 
 async function joinAs(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
 
-test('a navy header shows Running Zone and the joined person, in self-hosted Nunito',async({page},info)=>{
+test('a navy header shows Running Zone and the signed-in person, in self-hosted Nunito',async({page},info)=>{
   const outside:string[]=[];
   page.on('request',request=>{if(!request.url().startsWith(info.project.use.baseURL||'http://127.0.0.1')) outside.push(request.url());});
   const fonts:string[]=[];

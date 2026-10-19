@@ -9,8 +9,8 @@ afterEach(async()=>{await app?.close();});
 async function start(){
  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'export-owner',resetTestDay:true});
  const people=await signInOwner(app,'export-owner','Scoring'),owner=people.owner,day=people.day;
- const join=async(name:string)=>(await people.volunteer(name)).token;
- const volunteer=await join('Ahmed'),lead=await join('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
+ const signInAs=async(name:string)=>(await people.volunteer(name)).token;
+ const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
  await call(owner.token,'/api/day/confirm-events',{});return {owner:owner.token as string,volunteer,lead};
 }
 test('Scoring downloads four value-only sheets and records its exact day revision without changing it',async()=>{

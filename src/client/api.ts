@@ -82,12 +82,12 @@ function current(captured:string) {if(captured!==sessionId()) throw new StaleReq
 /** JSON and binary calls share authentication, removal and session lifetime. */
 export async function apiResponse(path:string,body?:unknown):Promise<Response> {
   if(resetPending && path!=='day/start-new') throw new StaleRequest();
-  const captured=sessionId(),joinedToken=token();
+  const captured=sessionId(),sessionToken=token();
   let response:Response;
   try {
     response=await fetch(`/api/${path}`, {
       method:body === undefined ? 'GET':'POST',
-      headers:{...(joinedToken ? {authorization:`Bearer ${joinedToken}`} : {}), ...(body === undefined ? {} : {'content-type':'application/json'})},
+      headers:{...(sessionToken ? {authorization:`Bearer ${sessionToken}`} : {}), ...(body === undefined ? {} : {'content-type':'application/json'})},
       ...(body === undefined ? {} : {body:JSON.stringify(body)})
     });
   } catch(error) {current(captured);throw error;}

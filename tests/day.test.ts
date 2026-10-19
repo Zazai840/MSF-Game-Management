@@ -108,7 +108,7 @@ test('volunteers and ordinary leads are refused every scoring-team setup action'
     expect((await call(phone.token,'/api/day')).statusCode).toBe(403);
   }
 });
-test('Become lead refuses a wrong code and preserves the joined name and scoring-team level',async()=>{
+test('Become lead refuses a wrong code and preserves the signed-in name and scoring-team level',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
   const phone = await people.volunteer('Ahmed');

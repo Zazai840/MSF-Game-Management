@@ -16,7 +16,7 @@ const trailJobs:readonly Screen[]=['Start line','Finish order','Times','lead'];
 /** How each screen is named in a tester's bug report. */
 const screenNames:Partial<Record<Screen,string>>={home:'Home','become-lead':'Become lead'};
 export function App() {
-  const [joined,setJoined] = useState(Boolean(phoneStorage.token()));
+  const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
   const [screen,setScreen] = useState<Screen>('home');
   // Your profile screen opens over whichever screen you were on, and Back returns to it.
@@ -39,10 +39,10 @@ export function App() {
     catch (error) { if(generation!==request.current || error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect - tap Refresh'); }
   }
   useEffect(()=>{
-    const removed = () => {request.current++;setJoined(false);setHome(null);setScreen('home');setProfileOpen(false);setError('');};
+    const removed = () => {request.current++;setSignedIn(false);setHome(null);setScreen('home');setProfileOpen(false);setError('');};
     const session=(event:Event)=>{
       const newDay=(event as CustomEvent<{newDay:boolean}>).detail.newDay;
-      request.current++;setJoined(Boolean(phoneStorage.token()));setHome(null);setScreen(newDay?'lead':'home');setProfileOpen(false);setOpenDay(newDay);setError('');
+      request.current++;setSignedIn(Boolean(phoneStorage.token()));setHome(null);setScreen(newDay?'lead':'home');setProfileOpen(false);setOpenDay(newDay);setError('');
       if(phoneStorage.token()) void refresh();
     };
     window.addEventListener('msf:removed',removed);
@@ -52,13 +52,13 @@ export function App() {
   // The numbered-name line shows on Home until the phone moves on.
   useEffect(()=>{if(screen!=='home') setRenamed(undefined);},[screen]);
   useEffect(()=>{
-    if (!joined) return;
+    if (!signedIn) return;
     void refresh(); const timer=window.setInterval(()=>void refresh(),5000);
     const visible=()=>{if (document.visibilityState === 'visible') void refresh();};
     document.addEventListener('visibilitychange',visible);
     return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',visible);};
-  },[joined]);
-  if (!joined) return <SignIn onSignedIn={numbered=>{setRenamed(numbered);setJoined(true);}} />;
+  },[signedIn]);
+  if (!signedIn) return <SignIn onSignedIn={numbered=>{setRenamed(numbered);setSignedIn(true);}} />;
   if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
   const isLead = home.phone.level !== 'Volunteer';
   const goHome=()=>{setScreen('home');setOpenDay(false);};
