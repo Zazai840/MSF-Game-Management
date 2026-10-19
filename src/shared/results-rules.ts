@@ -7,7 +7,7 @@ import type { WristbandWarning } from './wristband-checks.js';
 import type { FinishingOrder,Runner } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
-import { timesOutOfOrder } from './time-entry.js';
+import { notCountedReasons } from './race-counts.js';
 import { eventTies,type TieSettlement } from './ties.js';
 export type Section = 'Boy Beavers' | 'Girl Beavers' | 'Boy Cubs' | 'Girl Cubs' | 'Boy Scouts' | 'Girl Scouts';
 export interface Event { code:string; name:string; section:Section; format:'heats'|'timed' }
@@ -62,13 +62,8 @@ export function eventResults(state:EventState):EventResults {
     const races=appearances.get(runner.wristband)||new Set<string>();races.add(race.id);appearances.set(runner.wristband,races);
   }
   for(const race of state.races) {
-    const reasons:NotRankedReason[]=[];
-    if(race.clash) reasons.push('two versions, lead to check');
-    if(!race.finish) reasons.push(race.times?'awaiting finishing order':'checked in');
+    const reasons=notCountedReasons(race);
     if(race.kind==='final' && !race.final?.presenceConfirmed) reasons.push('checked in');
-    if(race.kind!=='final' && race.finish && !race.times) reasons.push('awaiting times');
-    if(race.kind!=='final' && race.times && timesOutOfOrder(race.times.places) && race.times.acceptedByLead!==true) reasons.push('times out of order');
-    if(race.kind!=='final' && race.finish && race.times && race.finish.order.length!==race.times.places.filter(time=>time!==null).length) reasons.push("finishers and times don't agree");
     recordingReasons.set(race.id,reasons);
     if(reasons.length && !race.deleted && race.kind!=='final') notRankedYet.push({race:reference(race),reasons});
     for(const runner of race.runners) {

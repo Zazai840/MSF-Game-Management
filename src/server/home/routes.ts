@@ -8,8 +8,9 @@ export function homeRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app, pool);
   action('GET', '/api/home', 'Volunteer', (_request, _reply, phone) => resultsSnapshot(pool,phone.dayId,async db=>{
     const allRaces=await listRaces(db,phone.dayId),races=allRaces.filter(race=>!race.stageComplete);
-    const start=races.filter(race=>race.parts.finish.value===null && (race.kind!=='final'||(race.final?.heatsComplete && !race.final.hasRun))).length;
-    const finish=races.filter(race=>race.parts.finish.value===null && (race.kind!=='final'||((race.final?.heatsComplete || race.final?.hasRun) && race.final.presenceConfirmed))).length;
+    // Waiting means not counted yet, with the job's part still missing.
+    const start=races.filter(race=>!race.recording.readyForRanking && race.parts.finish.value===null && (race.kind!=='final'||(race.final?.heatsComplete && !race.final.hasRun))).length;
+    const finish=races.filter(race=>!race.recording.readyForRanking && race.parts.finish.value===null && (race.kind!=='final'||((race.final?.heatsComplete || race.final?.hasRun) && race.final.presenceConfirmed))).length;
     return {phone, waiting: {'Start line':start, 'Finish order':finish, Times:timesWaiting(races).length},
       ...(phone.level === 'Volunteer' ? {} : {needsYou:await readResults(db,phone.dayId,allRaces).then(read=>read.needsYou.length+read.profileRequests.length)})};
   }));
