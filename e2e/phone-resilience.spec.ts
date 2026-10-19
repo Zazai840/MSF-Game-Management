@@ -59,7 +59,8 @@ test('a deployed version reloads the phone by itself and keeps an unfinished Sta
       const response=await route.fetch();
       await route.fulfill({response,headers:{...response.headers(),'x-build-id':'a newer build'}});
     },{times:1});
-    await expect.poll(()=>loads,{timeout:10000}).toBe(1);
+    // Home reads every 5 s, then the new worker installs (the app reloads anyway 10 s after an update that never takes over).
+    await expect.poll(()=>loads,{timeout:20000}).toBe(1);
     await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
     await expect(page.getByRole('button',{name:'New version, tap to reload'})).toHaveCount(0);
     // The phone now matches the server: the next Home read does not reload it again.
