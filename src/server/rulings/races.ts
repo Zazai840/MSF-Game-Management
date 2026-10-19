@@ -137,5 +137,24 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
-
+  /** Correct finishing order: wristbands move between places while times stay by place; Didn't run takes the runner off the race. */
+  action('POST','/api/lead/races/:id/finish-order','Lead',async(request,_reply,phone)=>{
+    const {value,comment}=rulingDetails(request.body,false),unclassified="Choose a place, Did not finish or Didn't run for every runner";
+    if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0 || !Number.isSafeInteger(value.runnersVersion) || Number(value.runnersVersion)<1) throw new Refusal(400,'Open the race before correcting its finishing order');
+    const numbers=(list:unknown)=>{if(!Array.isArray(list) || list.some(number=>!Number.isSafeInteger(number))) throw new Refusal(400,unclassified);return list as number[];};
+    const order=numbers(value.order),didNotFinish=numbers(value.didNotFinish),didNotRun=numbers(value.didNotRun);
+    return rulingChange(pool,phone,async(client,current)=>{
+      const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
+      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      if(value.baseVersion!==race.parts.finish.version || value.runnersVersion!==race.parts.runners.version) throw new Refusal(409,'This race has changed - open it again');
+      const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
+      if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(runner=>runner.wristband===number))) throw new Refusal(400,unclassified);
+      const idFor=(number:number)=>previous.find(runner=>runner.wristband===number)!.id,runners=previous.filter(runner=>!didNotRun.includes(runner.wristband));
+      if(didNotRun.length) await publishPart(client,current,race,'runners',runners,runners);
+      await publishPart(client,current,race,'finish',{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},runners);
+      const details=[order.join(', ')||'no places',...(didNotFinish.length?[`Did not finish ${didNotFinish.join(', ')}`]:[]),...(didNotRun.length?[`Didn't run ${didNotRun.join(', ')}`]:[])].join('; ');
+      await writeAuditNote(client,current,race.event.id,{action:'correct-finish-order',comment,message:`${current.name} corrected the finishing order for ${raceLabel(race)}: ${details}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
+      return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
+    });
+  });
 }

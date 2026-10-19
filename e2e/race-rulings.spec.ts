@@ -1,4 +1,4 @@
-import { goHome,backToEvent,openDashboard,jobButton,becomeLead,expect,createProfile,test } from './fixtures.js';
+import { goHome,backToEvent,openDashboard,jobButton,becomeLead,expect,createProfile,dragTo,lookProblems,test } from './fixtures.js';
 test('a lead repairs a race, keeps failed corrections, deletes and restores it, then calls a prefilled re-run',async({page},info)=>{
   const code=`RC-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:'Race corrections',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
@@ -31,5 +31,31 @@ test('a lead can correct times again straight after saving, even when the race i
   await page.getByRole('button',{name:'Correct times',exact:true}).click();
   await expect(sheet.getByRole('button',{name:'2nd place · 14.00',exact:true})).toBeVisible();
   await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1500');await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
+});
+test('a lead corrects a saved race\'s finishing order: drags a wristband, marks Did not finish, and Results updates',async({page},info)=>{
+  const code=`RO-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  await page.request.post('/api/day/events',{headers,data:{code,name:'Order corrections',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2001,2002,2003]}})).json()).race;
+  await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2001,2002,2003],didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1200,1300,1400]}});
+  await page.goto('/');await createProfile(page,`Order lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();
+  const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
+  await expect(rows).toHaveText(['1st12.002001No place','2nd13.002002No place','3rd14.002003No place']);
+  // Times stay by place: 2003 dragged to 1st takes 1st place's time, and the change saves at once.
+  await dragTo(page,sheet.getByRole('button',{name:'Drag to move 2003',exact:true}),rows.first());
+  await expect(rows).toHaveText(['1st12.002003No place','2nd13.002001No place','3rd14.002002No place']);
+  await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2003'})).toHaveText(/^1st\s*2003[\s\S]*12\.00$/);
+  await sheet.getByRole('button',{name:'No place for 2002',exact:true}).click();
+  await expect(sheet.getByText('2002 has no place. What happened?',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('order-no-place.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Did not finish',exact:true}).click();
+  await expect(rows).toHaveText(['1st12.002003No place','2nd13.002001No place']);
+  await expect(sheet.getByRole('list',{name:'No place',exact:true})).toHaveText(['2002Did not finishGive a place']);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('order-corrected.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await backToEvent(page);
+  await expect(page.locator('.not-ranked')).toContainText("Race 1 · finishers and times don't agree");
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('corrected the finishing order for Race 1: 2003, 2001; Did not finish 2002');
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });
