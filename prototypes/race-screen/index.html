@@ -1,0 +1,786 @@
+<title>Race Screen Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYPE - throwaway. Answers "What do Home and the race screen look like on a phone?"
+  (issue 94 on the "Two-screen volunteer flow" map, issue 91).
+  Not production code: no tests, in-memory state only, no server.
+
+  Plan: three phones (Sam, Priya, Jo) share one in-memory race, so a tap on one phone
+  shows up on the others at once. Three layouts, switchable from the bottom bar,
+  the left / right arrow keys, or #A #B #C in the URL:
+    A  Stacked cards   - two collapsible cards, Order and Times as a table, Submit Race docked at the bottom
+    B  Progress strip  - a strip of the race's parts and Submit Race at the top, full-width bands, entry pad docked
+    C  Your part first - the part you hold opens at the top, the rest are one-line summaries, Submit Race last
+  Each layout has its own Home. "Jump to" sets up a moment of the race on all three phones.
+  Colours, type and sizes copy src/client/theme.css (the v2 look). Live updates are instant here;
+  the real app takes about a second, 1-3 s after a quiet spell (decided in issue 92).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: a prototype panel, then up to three phone frames side by side; one per row on a phone. */
+:root {
+  --navy:#1b2a51; --red:#ac3036; --on-dark-muted:#c5cde2;
+  --ground:#f3f5f9; --surface:#ffffff; --tint:#e8ecf5;
+  --text:#18213b; --muted:#4a5470; --faint:#8a93ab;
+  --line:#d6dbe6; --line-strong:#c3cad9; --chip-line:#c9d1e3; --divider:#dfe3ec;
+  --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;
+  --green-fill:#e3f1e8; --green-line:#2f6b47; --green-text:#2f6b47;
+  --focus:#d78800; --flash:rgba(215,136,0,.30);
+  --desk:#dde2ec; --desk-text:#18213b; --desk-muted:#4a5470; --frame:#1b2133;
+  --proto-bg:#11151f; --proto-fg:#f4f6fa; --proto-muted:#a8b0c2; --proto-line:#3a4258;
+  --font:Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --tap:44px; --tap-primary:52px; --radius:12px; --radius-small:10px; --radius-card:16px; --radius-box:14px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk:#0c101a; --desk-text:#eef1f6; --desk-muted:#a8b0c2; --frame:#2f3854;
+  --proto-bg:#eef1f6; --proto-fg:#11151f; --proto-muted:#4a5266; --proto-line:#c3cad9; color-scheme:dark;
+} }
+:root[data-theme="dark"] {
+  --desk:#0c101a; --desk-text:#eef1f6; --desk-muted:#a8b0c2; --frame:#2f3854;
+  --proto-bg:#eef1f6; --proto-fg:#11151f; --proto-muted:#4a5266; --proto-line:#c3cad9; color-scheme:dark;
+}
+/* The phone screens keep the app's light look in both themes, because the app has no dark mode. */
+* {box-sizing:border-box;}
+[hidden] {display:none !important;}
+body {margin:0; background:var(--desk); color:var(--desk-text); font-family:var(--font); font-weight:500; font-size:16px; line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:20px 100px;}
+
+/* Prototype panel (not part of the design) */
+.top {max-width:1200px; margin:0 auto 20px; display:flex; flex-direction:column; gap:12px;}
+.proto-eyebrow {margin:0; font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--desk-muted);}
+.top h1 {margin:0; font-size:24px; font-weight:800; line-height:1.2; text-wrap:balance;}
+.top p {margin:0; max-width:70ch; color:var(--desk-muted);}
+.controls {display:flex; flex-wrap:wrap; gap:10px 24px; align-items:center;}
+.pctl {display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+.ctl-label {font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--desk-muted); margin-right:4px;}
+.pbtn {font:inherit; font-size:14px; font-weight:700; min-height:36px; padding:0 12px; border-radius:999px; cursor:pointer;
+  background:transparent; color:var(--desk-text); border:1.5px solid var(--desk-muted);}
+.pbtn[aria-pressed=true] {background:var(--proto-bg); color:var(--proto-fg); border-color:var(--proto-bg);}
+.pbtn:focus-visible,.switcher button:focus-visible {outline:3px solid var(--focus); outline-offset:2px;}
+.variant-note {padding:10px 14px; border-radius:12px; border:1.5px dashed var(--desk-muted); color:var(--desk-text) !important; max-width:none !important;}
+.variant-note strong {font-weight:800;}
+
+.stage {display:flex; flex-wrap:wrap; gap:24px; justify-content:center; align-items:flex-start;}
+.phone-wrap {display:flex; flex-direction:column; gap:8px; align-items:center; min-width:0; width:100%; max-width:375px;}
+.phone-label {font-size:13px; font-weight:800; letter-spacing:.04em; background:var(--proto-bg); color:var(--proto-fg); padding:4px 12px; border-radius:999px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.phone {position:relative; width:100%; height:760px; max-height:calc(100vh - 120px); min-height:600px; background:var(--ground); color:var(--text);
+  border:10px solid var(--frame); border-radius:36px; overflow:hidden; display:flex; flex-direction:column; font-size:17px; line-height:1.4;}
+@media (max-width:440px) { .phone {border-width:6px; border-radius:24px;} }
+
+.switcher {position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:20;
+  display:flex; align-items:center; gap:4px; padding:6px; border-radius:999px; background:var(--proto-bg); color:var(--proto-fg);
+  box-shadow:0 8px 28px rgba(0,0,0,.35); max-width:calc(100vw - 32px);}
+.switcher button {font:inherit; width:40px; height:40px; border-radius:50%; border:0; background:transparent; color:var(--proto-fg); font-size:20px; font-weight:800; cursor:pointer;}
+.switcher span {padding:0 8px; font-size:15px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+/* ===== The app, inside each phone (copies theme.css, style.css, flow.css, jobs.css) ===== */
+.phone h1,.phone h2,.phone h3 {color:var(--navy); font-weight:800; line-height:1.2; margin:0; text-wrap:balance;}
+.phone h1 {font-size:24px;} .phone h2 {font-size:20px;} .phone h3 {font-size:17px;}
+.phone p {margin:0;}
+.phone button {font:inherit; font-size:17px; font-weight:800; line-height:1.2; min-height:var(--tap-primary); padding:.7rem 1rem; border-radius:var(--radius);
+  border:1.5px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.phone button:disabled {opacity:.5; cursor:not-allowed;}
+.phone button:focus-visible,.phone input:focus-visible {outline:3px solid var(--focus); outline-offset:2px;}
+.phone .button-secondary {background:var(--surface); color:var(--navy);}
+.phone .button-small {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); font-size:15px;}
+.phone .button-quiet {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+.phone .badge {display:inline-block; padding:2px 9px; border-radius:999px; background:var(--navy); color:#fff; font-size:13px; font-weight:800; line-height:1.3;}
+
+.app-header {flex:none; background:var(--navy); color:#fff; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.app-header-title {display:flex; flex-direction:column; min-width:0;}
+.app-header-title strong {font-size:19px; font-weight:800; white-space:nowrap;}
+.app-header-title span {font-size:13px; font-weight:600; color:var(--on-dark-muted);}
+.app-header-person {display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}
+.app-header-person > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.avatar {flex:none; width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;}
+.avatar.small {width:26px; height:26px; font-size:11px;}
+.avatar.navy {background:var(--navy);}
+
+.trail {flex:none; display:flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 16px; background:var(--surface); border-bottom:1px solid var(--divider); font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden;}
+.phone .trail button {min-height:var(--tap); padding:0; border:0; background:none; color:var(--navy); font-size:15px; font-weight:700; text-decoration:underline; text-underline-offset:3px;}
+.trail-sep {color:var(--faint);}
+
+.scroll {flex:1; overflow-y:auto; padding:18px 16px 24px; display:flex; flex-direction:column; gap:14px;}
+.scroll > * {flex-shrink:0;}
+.dock {flex:none; background:var(--ground); border-top:1px solid var(--divider); padding:10px 16px 14px; display:flex; flex-direction:column; gap:8px; max-height:55%; overflow-y:auto;}
+.dock-row {display:flex; gap:10px;}
+.dock-row > * {flex:1; min-width:0;}
+
+.job-heading {display:flex; flex-direction:column; gap:2px;}
+.race-line {color:var(--muted); font-size:15px; font-weight:700;}
+.job-sub,.job-hint,.empty {color:var(--muted); font-size:15px; font-weight:600;}
+.calm-note {padding:10px 14px; border-radius:var(--radius); background:var(--tint); color:var(--navy); font-size:15px; font-weight:700;}
+.ok-note {padding:10px 14px; border-radius:var(--radius); background:var(--green-fill); border:1.5px solid var(--green-line); color:var(--green-text); font-size:15px; font-weight:700;}
+.warning-box {background:var(--amber-fill); border:1.5px solid var(--amber-line); border-radius:var(--radius-box); color:var(--amber-text); padding:12px 14px; font-weight:700; display:flex; flex-direction:column; gap:10px;}
+.warning-actions {display:flex; gap:10px;}
+.warning-actions button {flex:1; min-height:var(--tap) !important; font-size:16px !important;}
+.blocked {font-size:15px; font-weight:700; color:var(--muted); text-align:center;}
+.phone .submit {width:100%;}
+
+.runner-chips {display:flex; flex-wrap:wrap; gap:8px;}
+.chip {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); border:1.5px solid var(--chip-line); color:var(--navy); font-size:17px; font-weight:800; font-variant-numeric:tabular-nums;}
+.phone button.chip {background:var(--tint); color:var(--navy); border-color:var(--chip-line); min-height:var(--tap); padding:0 14px; border-radius:999px;}
+
+.entry {display:flex; flex-direction:column; gap:6px;}
+.entry label {font-size:15px; font-weight:700; color:var(--muted);}
+.entry-row {display:flex; gap:8px;}
+.entry-row input {flex:1; min-width:0;}
+.phone .entry-row button {flex:none; min-width:84px;}
+.number-input {font:inherit; height:56px; padding:0 14px; font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text); background:var(--surface); border:2px solid var(--navy); border-radius:var(--radius-box);}
+.number-input::placeholder {color:var(--muted); font-weight:600; font-size:18px;}
+.time-shows {font-size:15px; font-weight:700; color:var(--muted);}
+.time-shows strong {color:var(--text);}
+
+.finish-numbers {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+.phone .finish-numbers button {font-size:28px; min-height:72px; background:var(--surface); color:var(--text); border-color:var(--line); font-variant-numeric:tabular-nums;}
+.ctl {display:flex; flex-direction:column; gap:10px;}
+.pair {display:flex; gap:10px;} .pair > * {flex:1; min-width:0;}
+
+/* Order and Times table */
+.ot {width:100%; border-collapse:separate; border-spacing:0 6px; margin:-6px 0; font-variant-numeric:tabular-nums;}
+.ot th {font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); text-align:left; padding:0 12px;}
+.ot th.mine {color:var(--navy);}
+.ot td {background:var(--surface); border-top:1.5px solid var(--line); border-bottom:1.5px solid var(--line); height:50px; padding:0 12px; font-size:21px; font-weight:800; color:var(--text);}
+.ot td:first-child {border-left:1.5px solid var(--line); border-radius:var(--radius) 0 0 var(--radius); width:64px; font-size:16px; color:var(--navy);}
+.ot td:last-child {border-right:1.5px solid var(--line); border-radius:0 var(--radius) var(--radius) 0;}
+.ot td.mine {background:#f7f9fd;}
+.ot td.next {color:var(--navy); font-size:14px; font-weight:800; box-shadow:inset 0 0 0 2px var(--navy); border-radius:var(--radius-small);}
+.ot td.gap {color:var(--faint); font-weight:700;}
+.ot td.none {font-size:14px; color:var(--muted); background:var(--tint);}
+.ot td.wrong {background:var(--amber-fill); box-shadow:inset 0 0 0 2px var(--amber-line);}
+.kept {display:inline-block; margin-left:6px; width:9px; height:9px; border-radius:50%; background:var(--amber-line); vertical-align:middle;}
+.phone .cell-btn {all:unset; cursor:pointer; display:flex; align-items:center; min-height:44px; width:100%; font:inherit; color:inherit;}
+.phone .cell-btn:focus-visible {outline:3px solid var(--focus); outline-offset:2px;}
+[data-flash] {animation:flash 1.3s ease-out both;}
+@keyframes flash {from {box-shadow:inset 0 0 0 100px var(--flash);} to {box-shadow:inset 0 0 0 100px rgba(215,136,0,0);}}
+@media (prefers-reduced-motion:reduce) {[data-flash] {animation:none;}}
+.finish-others {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.finish-others li {display:flex; align-items:center; gap:12px; min-height:40px; padding:0 14px; border-radius:var(--radius); background:var(--tint); font-size:15px;}
+.finish-others strong {font-size:18px; font-weight:800; font-variant-numeric:tabular-nums;}
+.finish-others span {font-weight:700; color:var(--muted);}
+.time-count {font-size:15px; font-weight:700; color:var(--muted);}
+.time-count.agree {color:var(--green-text);}
+.time-count.mismatch {color:var(--amber-text);}
+
+/* Column owners row */
+.col-owners {display:flex; flex-direction:column; gap:6px;}
+.col-owner {display:flex; align-items:center; gap:10px; min-height:44px;}
+.col-name {flex:none; width:84px; font-size:15px; font-weight:700; color:var(--muted);}
+.phone .col-right .button-quiet {white-space:nowrap;}
+.band-owners .owner-pill {padding-right:3px;}
+.col-right {flex:1; display:flex; align-items:center; gap:8px; justify-content:flex-end; min-width:0;}
+.owner-pill,.you-pill {display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 3px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:14px; font-weight:800; white-space:nowrap;}
+.you-pill {background:var(--navy); color:#fff;}
+.free {font-size:14px; font-weight:700; color:var(--muted);}
+
+/* Final attendance */
+.attend {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.attend li {display:flex; align-items:center; gap:10px; min-height:56px; padding:6px 8px 6px 14px; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius);}
+.attend strong {font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; min-width:44px;}
+.seed {font-size:13px; font-weight:700; color:var(--muted); width:58px;}
+.attend .pair {margin-left:auto; flex:none; gap:6px;}
+.phone .attend .pair button {min-height:var(--tap); padding:0 12px; font-size:15px; border-radius:var(--radius-small); background:var(--surface); color:var(--navy);}
+.phone .attend .pair button.on {background:var(--navy); color:#fff;}
+.phone .attend .pair button.on-absent {background:var(--amber-fill); color:var(--amber-text); border:2px solid var(--amber-line);}
+.att {margin-left:auto; font-size:14px; font-weight:800; color:var(--muted);}
+.att.here {color:var(--green-text);} .att.absent {color:var(--amber-text);}
+.attend li.is-absent strong {color:var(--muted); text-decoration:line-through;}
+
+/* Results and submit */
+.ticks {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.ticks li {display:flex; align-items:center; gap:10px; min-height:44px; padding:4px 12px 4px 6px; border-radius:999px; background:var(--surface); border:1.5px solid var(--line); font-weight:700;}
+.ticks .tick-state {margin-left:auto; font-size:14px; font-weight:800; color:var(--muted);}
+.ticks li.done {border-color:var(--green-line); background:var(--green-fill);}
+.ticks li.done .tick-state {color:var(--green-text);}
+.waiting {font-size:15px; font-weight:700; color:var(--navy); text-align:center;}
+.results-card {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); padding:16px; display:flex; flex-direction:column; gap:12px;}
+.results-card .ot td {background:var(--ground);}
+.toast {position:absolute; left:16px; right:16px; bottom:16px; z-index:5; padding:12px 14px; border-radius:var(--radius); background:var(--text); color:#fff; font-size:15px; font-weight:700; box-shadow:0 8px 24px rgba(0,0,0,.25);}
+
+/* ===== A: stacked cards ===== */
+.sec {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); overflow:hidden;}
+.sec.open {border-color:var(--line-strong);}
+.phone .sec-head {width:100%; display:flex; align-items:center; gap:12px; min-height:68px; padding:12px 14px 12px 16px; text-align:left; background:var(--surface); color:var(--text); border:0; border-radius:0;}
+.sec-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.sec-title {font-size:19px; font-weight:800; color:var(--navy);}
+.sec-status {font-size:15px; font-weight:600; color:var(--muted);}
+.sec-status b {color:var(--navy); font-weight:800;}
+.arrow {flex:none; width:40px; height:40px; border-radius:50%; background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center; transition:transform .15s;}
+.open > .sec-head .arrow,.open > .band-head .arrow {transform:rotate(90deg);}
+@media (prefers-reduced-motion:reduce) {.arrow {transition:none;}}
+.sec-body {padding:14px 16px 16px; border-top:1px solid var(--divider); display:flex; flex-direction:column; gap:14px;}
+
+/* ===== B: progress strip, bands, docked entry ===== */
+.strip {display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); gap:6px;}
+.step {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; min-width:0;}
+.step.done {background:var(--green-fill); border-color:var(--green-line);}
+.step.doing {border-color:var(--navy); box-shadow:inset 0 0 0 1px var(--navy);}
+.step-k {font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);}
+.step-who {font-size:15px; font-weight:800; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.step-val {font-size:13px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.strip-submit {display:flex; flex-direction:column; gap:6px;}
+.band {margin-inline:-16px; background:var(--surface); border-block:1px solid var(--divider);}
+.phone .band-head {position:sticky; top:-18px; z-index:2; width:100%; display:flex; align-items:center; gap:10px; min-height:56px; padding:8px 12px 8px 16px; text-align:left; background:var(--surface); color:var(--text); border:0; border-radius:0; border-bottom:1px solid var(--divider);}
+.band-title {flex:1; font-size:18px; font-weight:800; color:var(--navy);}
+.band-owners {display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;}
+.band-body {padding:14px 16px 16px; display:flex; flex-direction:column; gap:14px;}
+.dock .finish-numbers {grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;}
+.phone .dock .finish-numbers button {min-height:56px; font-size:24px;}
+.dock h3 {font-size:16px;}
+
+/* ===== C: your part first ===== */
+.eyebrow {font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:-6px !important;}
+.part {background:var(--surface); border:2px solid var(--navy); border-radius:var(--radius-card); padding:16px; display:flex; flex-direction:column; gap:14px;}
+.phone .sum {width:100%; display:flex; align-items:center; gap:12px; min-height:64px; padding:10px 12px 10px 14px; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid var(--line); border-radius:var(--radius-card);}
+.sum-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;}
+.sum-title {font-size:17px; font-weight:800; color:var(--navy);}
+.sum-line {font-size:14px; font-weight:600; color:var(--muted);}
+.sum-open {background:var(--surface); border:1.5px solid var(--line); border-top:0; border-radius:0 0 var(--radius-card) var(--radius-card); margin-top:-16px; padding:14px; display:flex; flex-direction:column; gap:12px;}
+.phone .sum.open {border-radius:var(--radius-card) var(--radius-card) 0 0;}
+.tiles {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;}
+.tile {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; min-height:84px; font-variant-numeric:tabular-nums;}
+.part .tile {background:var(--ground);}
+.tile-place {font-size:13px; font-weight:800; color:var(--navy);}
+.tile-w {font-size:24px; font-weight:800; color:var(--text); line-height:1.2;}
+.tile-t {font-size:16px; font-weight:800; color:var(--muted);}
+.tile .gapv {color:var(--faint);}
+.tile.next {border:2px dashed var(--navy);}
+.tile.wrong {background:var(--amber-fill) !important; border:2px solid var(--amber-line);}
+.phone .tile .cell-btn {min-height:0;}
+.submit-sec {background:var(--surface); border:1.5px solid var(--line); border-radius:var(--radius-card); padding:16px; display:flex; flex-direction:column; gap:12px;}
+.phone .part .finish-numbers {grid-template-columns:repeat(3,minmax(0,1fr));}
+.phone .part .finish-numbers button {min-height:64px; font-size:24px;}
+
+/* ===== Home ===== */
+.home-top {display:flex; justify-content:flex-end;}
+.jobs {display:flex; flex-direction:column; gap:10px;}
+.phone .job-button {display:flex; align-items:center; gap:14px; width:100%; padding:14px 14px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--line); border-radius:var(--radius-card);}
+.job-icon {flex:none; width:48px; height:48px; border-radius:var(--radius); background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800;}
+.job-button.is-done .job-icon {background:var(--green-fill); color:var(--green-text);}
+.job-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.job-title {font-size:18px; font-weight:800; color:var(--navy);}
+.job-explanation {font-size:15px; font-weight:500; color:var(--muted); line-height:1.35;}
+.chev {flex:none; color:var(--faint);}
+.group-title {font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:8px; margin-bottom:-6px;}
+.rows {display:flex; flex-direction:column; border:1.5px solid var(--line); border-radius:var(--radius-card); overflow:hidden; background:var(--surface);}
+.phone .ev-row {display:flex; align-items:center; gap:10px; width:100%; min-height:64px; padding:10px 12px 10px 16px; text-align:left; background:var(--surface); color:var(--text); border:0; border-bottom:1.5px solid var(--line); border-radius:0;}
+.phone .ev-row:last-child {border-bottom:0;}
+.ev-main {flex:1; min-width:0; display:flex; flex-direction:column;}
+.ev-name {font-size:17px; font-weight:800; color:var(--navy);}
+.ev-race {font-size:14px; font-weight:600; color:var(--muted);}
+.avs {display:flex; flex:none;}
+.avs .avatar {margin-left:-6px; border:2px solid var(--surface);}
+.state-pill {flex:none; font-size:13px; font-weight:800; padding:3px 9px; border-radius:999px; background:var(--tint); color:var(--navy); white-space:nowrap;}
+.state-pill.needs {background:var(--navy); color:#fff;}
+.state-pill.submit {background:var(--amber-fill); color:var(--amber-text);}
+.state-pill.done {background:var(--green-fill); color:var(--green-text);}
+.ev-tiles {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+.phone .ev-tile {display:flex; flex-direction:column; align-items:stretch; gap:8px; min-height:148px; padding:12px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--line); border-radius:var(--radius-card);}
+.phone .ev-tile.needs {border:2px solid var(--navy);}
+.phone .ev-tile.done {background:var(--green-fill); border-color:var(--green-line);}
+.ev-tile-race {font-size:24px; font-weight:800; color:var(--navy); line-height:1.1;}
+.ev-tile.done .ev-tile-race {color:var(--green-text);}
+.ev-tile-name {font-size:15px; font-weight:700; color:var(--text); line-height:1.25;}
+.ev-tile-state {font-size:13px; font-weight:700; color:var(--muted); margin-top:auto;}
+.bars {display:flex; gap:4px;}
+.bars i {flex:1; height:6px; border-radius:3px; background:var(--line);}
+.bars i.doing {background:var(--focus);}
+.bars i.done {background:var(--green-line);}
+.legend {display:flex; gap:12px; font-size:13px; font-weight:700; color:var(--muted);}
+</style>
+
+<div class="top">
+  <p class="proto-eyebrow">Prototype · throwaway · Two-screen volunteer flow</p>
+  <h1>What do Home and the race screen look like on a phone?</h1>
+  <p>Three volunteers on three phones share one race. Tap on any phone and the others update at once (in the real app, about a second). Switch layouts with the bar at the bottom or the arrow keys.</p>
+  <div class="controls">
+    <div class="pctl" id="presets"><span class="ctl-label">Jump to</span></div>
+    <div class="pctl" id="who"><span class="ctl-label">Show</span></div>
+  </div>
+  <p class="variant-note" id="note"></p>
+</div>
+<div class="stage" id="stage"></div>
+<div class="switcher" role="group" aria-label="Layout"><button id="prev" aria-label="Previous layout">‹</button><span id="vlabel"></span><button id="next" aria-label="Next layout">›</button></div>
+
+<script>
+const VARIANTS={
+  A:['Stacked cards','<strong>A, Stacked cards.</strong> Both sections are cards you open with the side arrow; opening one you can do claims it. Order and Times is one table by place with two columns. Submit Race is docked at the bottom, with the reason when it is blocked. Home is a list of events in the style of today\'s job buttons.'],
+  B:['Progress strip','<strong>B, Progress strip.</strong> A strip at the top shows each part of the race, who holds it and how far it has got, with Submit Race under it. The sections are full-width bands with sticky headers. Your entry pad (wristband numbers, runners to tap, or times) rides at the bottom like today\'s keyboard bar. Home groups events by what they need.'],
+  C:['Your part first','<strong>C, Your part first.</strong> Whatever you hold opens at the top in a navy frame; everything else folds to a one-line summary you can open to watch or help. Places are tiles. Submit Race is the last block on the page, with a tick for everyone who has to press it. Home is tiles with a progress bar per part.']
+};
+const NAMES={Sam:'Sam Patel',Priya:'Priya Kaur',Jo:'Jo Okafor',Aisha:'Aisha Rahman',Bilal:'Bilal Hussain',Yusuf:'Yusuf Ali',Hana:'Hana Malik',Omar:'Omar Shah'};
+const PEOPLE=['Sam','Priya','Jo'];
+const EVENT_ORDER=['60m Boy Beavers','60m Girl Beavers','60m Boy Cubs','60m Girl Cubs','60m Hurdles Girl Scouts','200m Boy Scouts','400m Girl Scouts'];
+const OTHERS={
+  '60m Boy Beavers':{race:'Heat 4',text:'Waiting on 1 to submit',who:['Hana'],group:'submit',bars:['done','done','done']},
+  '60m Girl Beavers':{race:'Final',text:'Ready for check-in',who:[],group:'needs',bars:['','','']},
+  '60m Boy Cubs':{race:'Heat 3',text:'Order and times',who:['Omar'],group:'progress',bars:['done','doing','']},
+  '60m Girl Cubs':{race:'Heat 1',text:'Checking in',who:['Aisha'],group:'progress',bars:['doing','','']},
+  '60m Hurdles Girl Scouts':{race:'Race 1',text:'Ready for check-in',who:[],group:'needs',bars:['','','']},
+  '200m Boy Scouts':{race:'Race 3',text:'Order and times',who:['Bilal','Yusuf'],group:'progress',bars:['done','doing','doing']},
+  '400m Girl Scouts':{race:'',text:'Done · 3 races',who:[],group:'done',bars:['done','done','done']},
+};
+const SEC_NAME={checkin:'check-in',order:'the finishing order',times:'the times'};
+
+let V='A', WHO='all', PRESET='live', S, P;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ord=n=>{const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+const ini=n=>(NAMES[n]||n).split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const you=(n,p)=>n===p?'You':n;
+const andList=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+function shows(d){if(!d) return '';const p=d.padStart(3,'0'),s=Number(p.slice(0,-2)),h=p.slice(-2);return s>=60?`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}.${h}`:`${s}.${h}`;}
+const secs=d=>Number(d)/100;
+const CHEV='<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+const ARROW=`<span class="arrow" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>`;
+
+/* ---------- Shared race state ---------- */
+function fresh(over={}){
+  return {event:'60m Boy Cubs',kind:'Heat',no:2,final:false,
+    checkin:{owner:null,runners:[]},order:{owner:null,places:[],dnf:[],dnr:[],noPlace:false},times:{owner:null,list:[],kept:[],noneFrom:null},
+    stage:'editing',submitted:[],entered:[],notYet:null,savedNote:null,taken:{},flash:{},...over};
+}
+function phones(over={}){
+  const out={};
+  for(const p of PEOPLE) out[p]={screen:'race',open:{checkin:false,ot:false},input:'',confirm:null,warn:null,retype:null,toast:null,...(over[p]||{})};
+  return out;
+}
+const heatRunners=n=>n.map(n=>({n,here:true}));
+const raceLabel=()=>S.final?'Final':`${S.kind} ${S.no}`;
+const runners=()=>S.checkin.runners.filter(r=>r.here!==false).map(r=>r.n);
+const unplaced=()=>{const done=[...S.order.places,...S.order.dnf,...S.order.dnr];return runners().filter(n=>!done.includes(n));};
+const wrong=i=>{const l=S.times.list;return i>0 && i<l.length && !S.times.kept.includes(i) && l.slice(0,i).some(x=>secs(x)>secs(l[i]));};
+const wrongIndex=()=>S.times.list.findIndex((_,i)=>wrong(i));
+const keptWrong=i=>S.times.kept.includes(i);
+function blockedReason(){
+  if(!S.checkin.runners.length) return 'Nobody is checked in yet';
+  if(S.final && S.checkin.runners.every(r=>r.here===false)) return 'Everyone is marked absent';
+  const u=unplaced();
+  if(u.length) return u.length===1?`${u[0]} has no place yet`:`${u.length} runners have no place yet`;
+  const w=wrongIndex();
+  if(w>=0) return `${ord(w+1)} place's time needs Fix or Keep`;
+  return null;
+}
+const mismatch=()=>!S.final && S.times.list.length!==S.order.places.length;
+function rows(){
+  const n=Math.max(runners().length-S.order.dnf.length-S.order.dnr.length,S.order.places.length,S.final?0:S.times.list.length);
+  return Array.from({length:Math.max(n,0)},(_,i)=>({i,w:S.order.places[i],t:S.times.list[i],none:S.times.noneFrom!=null&&i>=S.times.noneFrom}));
+}
+function touch(p){if(!S.entered.includes(p)) S.entered.push(p);S.savedNote=null;}
+function flash(key,p){S.flash[key]={t:Date.now(),by:p};setTimeout(render,1400);}
+function flashAttr(key,p){const f=S.flash[key];if(!f||f.by===p) return '';const age=Date.now()-f.t;return age<1300?` data-flash style="animation-delay:-${age}ms"`:'';}
+function liveState(){
+  if(S.stage==='done') return {text:'Done',who:[],group:'done',bars:['done','done','done']};
+  const holders=[S.checkin.owner,S.order.owner,S.times.owner].filter((x,i,a)=>x&&a.indexOf(x)===i);
+  const u=unplaced();
+  const bars=[
+    S.order.places.length||S.order.owner?'done':S.checkin.owner?'doing':'',
+    S.order.places.length&&!u.length?'done':S.order.places.length||S.order.owner?'doing':'',
+    S.times.noneFrom!=null||(S.times.list.length&&S.times.list.length>=S.order.places.length&&!u.length)?'done':S.times.list.length||S.times.owner?'doing':''];
+  if(S.final) bars.pop();
+  if(S.stage==='submitting'){const w=S.entered.filter(n=>!S.submitted.includes(n));return {text:`Waiting on ${w.length} to submit`,who:w,group:'submit',bars:bars.map(()=>'done')};}
+  if(S.order.places.length||S.times.list.length||S.order.owner||S.times.owner) return {text:S.final?'Finishing order':'Order and times',who:holders,group:'progress',bars};
+  if(S.checkin.owner) return {text:S.final?'Checking who is here':'Checking in',who:holders,group:'progress',bars};
+  return {text:'Ready for check-in',who:[],group:'needs',bars};
+}
+function events(){
+  return EVENT_ORDER.map(name=>name===S.event?{name,race:S.stage==='done'?'':raceLabel(),live:true,...liveState()}:{name,...OTHERS[name]});
+}
+
+/* ---------- Actions ---------- */
+function toast(p,text){P[p].toast=text;render();setTimeout(()=>{if(P[p].toast===text){P[p].toast=null;render();}},2600);}
+function claimOt(p){
+  if(S.stage!=='editing') return;
+  if(S.final){if(!S.order.owner) S.order.owner=p;return;}
+  if(S.order.owner===p||S.times.owner===p) return;
+  const free=['order','times'].filter(c=>!S[c].owner);
+  if(free.length===1) S[free[0]].owner=p;
+}
+function save(){
+  const label=raceLabel();
+  if(S.final){S.stage='done';S.savedNote=`${S.event} final saved. The event is done.`;return;}
+  const keep={checkin:S.checkin.owner,order:S.order.owner,times:S.times.owner};
+  S=fresh({event:S.event,kind:S.kind,no:S.no+1,savedNote:`${label} saved. ${S.kind} ${S.no+1} is ready for check-in.`});
+  // The same volunteers usually do the next heat, so their parts stay theirs.
+  S.checkin.owner=keep.checkin;S.order.owner=keep.order;S.times.owner=keep.times;
+  for(const p of PEOPLE){P[p].input='';P[p].confirm=null;P[p].retype=null;}
+}
+function submit(p){
+  P[p].confirm=null;S.stage='submitting';S.notYet=null;
+  if(!S.submitted.includes(p)) S.submitted.push(p);
+  if(S.entered.every(n=>S.submitted.includes(n))) save();
+}
+const ACT={
+  home:p=>{P[p].screen='home';},
+  'open-event':(p,a)=>{if(a===S.event) P[p].screen='race';else toast(p,`Only ${S.event} is live in this prototype`);},
+  'lead-entry':p=>toast(p,'Zone lead sign-in works as today'),
+  toggle:(p,a)=>{const o=!P[p].open[a];P[p].open[a]=o;if(!o) return;
+    if(a==='checkin'&&!S.checkin.owner&&S.stage==='editing') S.checkin.owner=p;
+    if(a==='ot') claimOt(p);},
+  claim:(p,a)=>{if(!S[a].owner&&S.stage==='editing'){S[a].owner=p;P[p].open[a==='checkin'?'checkin':'ot']=true;}},
+  take:(p,a)=>{P[p].confirm='take-'+a;},
+  'take-yes':(p,a)=>{const from=S[a].owner;S[a].owner=p;S.taken[a]={from,by:p};P[p].confirm=null;P[p].open[a==='checkin'?'checkin':'ot']=true;},
+  cancel:p=>{P[p].confirm=null;},
+  'in-next':p=>{const n=Number(P[p].input);if(!P[p].input) return;
+    if(S.checkin.runners.some(r=>r.n===n)){P[p].warn=`${n} is already in this race. Check the wristband.`;return;}
+    S.checkin.runners.push({n,here:true});P[p].input='';touch(p);flash('c'+n,p);},
+  'fix-number':p=>{P[p].warn=null;P[p].input='';},
+  uncheck:(p,a)=>{const n=Number(a);S.checkin.runners=S.checkin.runners.filter(r=>r.n!==n);
+    const o=S.order;o.places=o.places.filter(x=>x!==n);o.dnf=o.dnf.filter(x=>x!==n);o.dnr=o.dnr.filter(x=>x!==n);touch(p);},
+  here:(p,a)=>{const r=S.checkin.runners.find(r=>r.n===Number(a));r.here=true;touch(p);flash('c'+a,p);},
+  absent:(p,a)=>{const n=Number(a),r=S.checkin.runners.find(r=>r.n===n);r.here=false;S.order.places=S.order.places.filter(x=>x!==n);touch(p);flash('c'+a,p);},
+  place:(p,a)=>{S.order.places.push(Number(a));touch(p);flash('o'+(S.order.places.length-1),p);},
+  unplace:(p,a)=>{S.order.places=S.order.places.slice(0,Number(a));S.order.noPlace=false;touch(p);},
+  'nobody-else':p=>{S.order.noPlace=true;},
+  'back-order':p=>{S.order.noPlace=false;},
+  dnf:(p,a)=>{S.order.dnf.push(Number(a));touch(p);},
+  dnr:(p,a)=>{S.order.dnr.push(Number(a));touch(p);},
+  'undo-other':(p,a)=>{const n=Number(a);S.order.dnf=S.order.dnf.filter(x=>x!==n);S.order.dnr=S.order.dnr.filter(x=>x!==n);touch(p);},
+  'add-runner':p=>toast(p,'Runner not on the list works as today: number, warnings, "Added at the finish"'),
+  'time-next':p=>{const d=P[p].input;if(!d) return;const i=P[p].retype??S.times.list.length;
+    S.times.list[i]=d;S.times.kept=S.times.kept.filter(k=>k!==i);P[p].retype=null;P[p].input='';touch(p);flash('t'+i,p);},
+  retype:(p,a)=>{P[p].retype=Number(a);P[p].input='';},
+  'cancel-retype':p=>{P[p].retype=null;P[p].input='';},
+  keep:(p,a)=>{S.times.kept.push(Number(a));touch(p);},
+  'no-more':p=>{S.times.noneFrom=S.times.list.length;touch(p);},
+  'undo-none':p=>{S.times.noneFrom=null;touch(p);},
+  submit:p=>{if(S.stage==='editing'&&blockedReason()) return;if(S.stage==='editing'&&mismatch()&&P[p].confirm!=='mismatch'){P[p].confirm='mismatch';return;}submit(p);},
+  'submit-anyway':p=>submit(p),
+  'not-yet':p=>{S.stage='editing';S.submitted=[];S.notYet=p;},
+};
+
+/* ---------- Shared pieces ---------- */
+function heading(){
+  const n=runners().length;
+  return `<div class="job-heading"><p class="race-line">${S.stage==='done'?'Final · done':`${raceLabel()} · ${n} ${n===1?'runner':'runners'}`}</p><h1>${esc(S.event)}</h1></div>`;
+}
+function notices(p){
+  let h='';
+  if(S.savedNote) h+=`<p class="ok-note" role="status">${esc(S.savedNote)}</p>`;
+  if(S.notYet&&S.stage==='editing') h+=`<p class="calm-note" role="status">${S.notYet===p?'You':S.notYet} tapped Not yet. Fix anything in your column, then everyone presses Submit Race again.</p>`;
+  return h;
+}
+function ciStatus(p){
+  const o=S.checkin.owner,doing=S.final?'checking who is here':'checking in';
+  if(!o) return S.stage==='editing'?'Nobody yet · open to start':'Nobody';
+  const n=S.final?`${S.checkin.runners.filter(r=>r.here).length} here`:`${S.checkin.runners.length} in`;
+  return `${o===p?`<b>You are ${doing}</b>`:`<b>${o}</b> is ${doing}`} · ${n}`;
+}
+function otStatus(p){
+  const o=S.order.owner,t=S.times.owner;
+  if(!o&&!t) return S.stage==='editing'?'Nobody yet · open to start':'Nobody';
+  if(S.final) return `Order: <b>${you(o,p)}</b>`;
+  return `Order: ${o?`<b>${you(o,p)}</b>`:'nobody'} · Times: ${t?`<b>${you(t,p)}</b>`:'nobody'}`;
+}
+function confirmTake(p,sec){
+  if(P[p].confirm!=='take-'+sec) return '';
+  const o=S[sec].owner;
+  return `<div class="warning-box" role="alert"><p>Take over ${SEC_NAME[sec]} from ${o}? ${o}'s phone shows it read-only from now on. Everything already entered stays.</p><div class="warning-actions"><button data-act="take-yes" data-arg="${sec}">Take over</button><button class="button-secondary" data-act="cancel">Cancel</button></div></div>`;
+}
+function takeOverButton(p,sec){
+  const o=S[sec].owner;
+  if(!o||o===p||S.stage!=='editing'||P[p].confirm==='take-'+sec) return '';
+  return `<button class="button-quiet" data-act="take" data-arg="${sec}">Take over ${SEC_NAME[sec]}</button>`;
+}
+function takenNote(p,sec){const t=S.taken[sec];return t&&t.from===p&&S[sec].owner!==p?`<p class="calm-note">${t.by} took over ${SEC_NAME[sec]}. What you entered is kept.</p>`:'';}
+function ciList(p){
+  const mine=S.checkin.owner===p&&S.stage==='editing';
+  if(S.final) return `<ul class="attend">${S.checkin.runners.map((r,i)=>`<li class="${r.here===false?'is-absent':''}"${flashAttr('c'+r.n,p)}><span class="seed">${ord(i+1)} seed</span><strong>${r.n}</strong>${mine
+    ?`<span class="pair"><button class="${r.here===true?'on':''}" data-act="here" data-arg="${r.n}" aria-pressed="${r.here===true}">Here</button><button class="${r.here===false?'on-absent':''}" data-act="absent" data-arg="${r.n}" aria-pressed="${r.here===false}">Absent</button></span>`
+    :`<span class="att ${r.here===false?'absent':r.here?'here':''}">${r.here===false?'Absent':r.here?'Here':'Not marked yet'}</span>`}</li>`).join('')}</ul>`;
+  const rs=S.checkin.runners;
+  if(!rs.length) return `<p class="empty">No runners checked in yet</p>`;
+  return `<div class="runner-chips" aria-label="Checked in">${rs.map(r=>mine?`<button class="chip" data-act="uncheck" data-arg="${r.n}" aria-label="Take ${r.n} off">${r.n} <span aria-hidden="true">×</span></button>`:`<span class="chip"${flashAttr('c'+r.n,p)}>${r.n}</span>`).join('')}</div>`;
+}
+function entry(p,label,placeholder,act,extra=''){
+  return `<div class="entry"><label for="in-${p}">${label}</label><div class="entry-row"><input id="in-${p}" data-in="${act}" class="number-input" type="text" inputmode="numeric" autocomplete="off" placeholder="${placeholder}" value="${esc(P[p].input)}"${P[p].warn?' readonly':''}><button data-act="${act}"${P[p].input&&!P[p].warn?'':' disabled'}>Next</button></div>${extra}</div>`;
+}
+function ciEntry(p){
+  if(S.final||S.checkin.owner!==p||S.stage!=='editing') return '';
+  return entry(p,'Wristband number','e.g. 205','in-next')+(P[p].warn?`<div class="warning-box" role="alert"><p>${esc(P[p].warn)}</p><div class="warning-actions"><button data-act="fix-number">Fix number</button></div></div>`:'');
+}
+function ciBody(p,withEntry=true){
+  return takenNote(p,'checkin')+ciList(p)+(withEntry?ciEntry(p):'')+confirmTake(p,'checkin')+takeOverButton(p,'checkin');
+}
+function columns(p){
+  const cols=S.final?['order']:['order','times'],label={order:'Wristbands',times:'Times'},editing=S.stage==='editing';
+  const row=c=>{const o=S[c].owner;
+    const right=!o?(editing?`<button class="button-small" data-act="claim" data-arg="${c}">${c==='order'?'Do the order':'Do the times'}</button>`:'<span class="free">Nobody</span>')
+      :o===p?`<span class="you-pill"><span class="avatar small navy">${ini(o)}</span>You</span>`
+      :`<span class="owner-pill"><span class="avatar small">${ini(o)}</span>${o}</span>${editing&&P[p].confirm!=='take-'+c?`<button class="button-quiet" data-act="take" data-arg="${c}">Take over</button>`:''}`;
+    return `<div class="col-owner"><span class="col-name">${label[c]}</span><span class="col-right">${right}</span></div>`;};
+  return `<div class="col-owners">${cols.map(row).join('')}</div>`+cols.map(c=>confirmTake(p,c)).join('')+takenNote(p,'order')+takenNote(p,'times');
+}
+function timeText(r){
+  if(r.none) return 'No finisher';
+  if(r.t==null) return '';
+  return shows(r.t)+(keptWrong(r.i)?'<span class="kept" title="Kept: goes to To check"></span>':'');
+}
+function nextFor(p){
+  const editing=S.stage==='editing';
+  return {
+    o:editing&&S.order.owner===p&&unplaced().length&&!S.order.noPlace?S.order.places.length:-1,
+    t:editing&&!S.final&&S.times.owner===p&&S.times.noneFrom==null&&P[p].retype==null&&wrongIndex()<0?S.times.list.length:(P[p].retype??-1),
+  };
+}
+function otTable(p,readOnly=false){
+  const rs=rows();
+  if(!rs.length) return `<p class="empty">Places appear here once runners are checked in</p>`;
+  const mineO=!readOnly&&S.order.owner===p&&S.stage==='editing',mineT=!readOnly&&S.times.owner===p&&S.stage==='editing',nx=readOnly?{o:-1,t:-1}:nextFor(p);
+  const oCell=r=>{
+    if(r.w==null) return `<td class="${r.i===nx.o?'next':'gap'}${mineO?' mine':''}"${flashAttr('o'+r.i,p)}>${r.i===nx.o?'Next':'·'}</td>`;
+    return `<td class="${mineO?'mine':''}"${flashAttr('o'+r.i,p)}>${mineO?`<button class="cell-btn" data-act="unplace" data-arg="${r.i}" aria-label="Redo from ${ord(r.i+1)}">${r.w}</button>`:r.w}</td>`;};
+  const tCell=r=>{
+    if(r.none) return `<td class="none"${flashAttr('t'+r.i,p)}>No finisher</td>`;
+    if(r.t==null) return `<td class="${r.i===nx.t?'next':'gap'}${mineT?' mine':''}"${flashAttr('t'+r.i,p)}>${r.i===nx.t?'Next':'·'}</td>`;
+    const cls=[wrong(r.i)?'wrong':'',mineT?'mine':'',r.i===nx.t&&P[p].retype===r.i?'next':''].filter(Boolean).join(' ');
+    return `<td class="${cls}"${flashAttr('t'+r.i,p)}>${mineT&&!wrong(r.i)?`<button class="cell-btn" data-act="retype" data-arg="${r.i}" aria-label="Retype ${ord(r.i+1)} time">${timeText(r)}</button>`:timeText(r)}</td>`;};
+  return `<table class="ot"><thead><tr><th>Place</th><th class="${mineO?'mine':''}">Wristband</th>${S.final?'':`<th class="${mineT?'mine':''}">Time</th>`}</tr></thead><tbody>${rs.map(r=>`<tr><td>${ord(r.i+1)}</td>${oCell(r)}${S.final?'':tCell(r)}</tr>`).join('')}</tbody></table>`+others(p)+countLine();
+}
+function otTiles(p){
+  const rs=rows();
+  if(!rs.length) return `<p class="empty">Places appear here once runners are checked in</p>`;
+  const nx=nextFor(p),mineO=S.order.owner===p&&S.stage==='editing',mineT=S.times.owner===p&&S.stage==='editing';
+  return `<div class="tiles">${rs.map(r=>{
+    const w=r.w==null?`<span class="tile-w gapv">${r.i===nx.o?'Next':'·'}</span>`:mineO?`<button class="cell-btn" data-act="unplace" data-arg="${r.i}" aria-label="Redo from ${ord(r.i+1)}"><span class="tile-w">${r.w}</span></button>`:`<span class="tile-w">${r.w}</span>`;
+    const t=S.final?'':r.none?'<span class="tile-t">No finisher</span>':r.t==null?`<span class="tile-t gapv">${r.i===nx.t?'Next time':'·'}</span>`:mineT&&!wrong(r.i)?`<button class="cell-btn" data-act="retype" data-arg="${r.i}" aria-label="Retype ${ord(r.i+1)} time"><span class="tile-t">${timeText(r)}</span></button>`:`<span class="tile-t">${timeText(r)}</span>`;
+    return `<div class="tile${r.i===nx.o||r.i===nx.t?' next':''}${wrong(r.i)?' wrong':''}"${flashAttr('o'+r.i,p)||flashAttr('t'+r.i,p)}><span class="tile-place">${ord(r.i+1)}</span>${w}${t}</div>`;}).join('')}</div>`+others(p)+countLine();
+}
+function others(p){
+  const mine=S.order.owner===p&&S.stage==='editing';
+  // Absent belongs to check-in, so only Did not finish and Didn't run get Undo here.
+  const li=(n,why)=>`<li><strong>${n}</strong><span>${why}</span>${mine&&why!=='Absent'?`<button class="button-quiet" style="margin-left:auto;min-height:36px" data-act="undo-other" data-arg="${n}">Undo</button>`:''}</li>`;
+  const list=[...S.order.dnf.map(n=>li(n,'Did not finish')),...S.order.dnr.map(n=>li(n,"Didn't run")),
+    ...S.checkin.runners.filter(r=>r.here===false).map(r=>li(r.n,'Absent'))];
+  return list.length?`<ul class="finish-others" aria-label="No place">${list.join('')}</ul>`:'';
+}
+function countLine(){
+  if(S.final||!(S.order.places.length||S.times.list.length)) return '';
+  const f=S.order.places.length,t=S.times.list.length,settled=!unplaced().length;
+  const cls=f===t?'agree':settled?'mismatch':'';
+  return `<p class="time-count ${cls}">${f} ${f===1?'finisher':'finishers'} · ${t} ${t===1?'time':'times'}${settled&&f!==t?" · they don't agree":''}</p>`;
+}
+function orderCtl(p){
+  if(S.order.owner!==p||S.stage!=='editing') return '';
+  const u=unplaced(),next=S.order.places.length+1;
+  if(!runners().length) return `<p class="job-hint">Runners to tap appear here as they are checked in.</p>`;
+  if(u.length&&S.order.noPlace) return `<div class="ctl"><h3>${u[0]} has no place. What happened?</h3><div class="pair"><button class="button-secondary" data-act="dnf" data-arg="${u[0]}">Did not finish</button><button class="button-secondary" data-act="dnr" data-arg="${u[0]}">Didn't run</button></div><button class="button-quiet" data-act="back-order">Back to the order</button></div>`;
+  if(u.length) return `<div class="ctl"><h3>Who came ${ord(next)}?</h3><div class="finish-numbers">${u.map(n=>`<button data-act="place" data-arg="${n}">${n}</button>`).join('')}</div><div class="pair"><button class="button-secondary" data-act="nobody-else">Nobody else crossed the line</button></div><button class="button-quiet" data-act="add-runner">+ Runner not on the list</button></div>`;
+  return `<div class="ctl"><p class="ok-note">Everyone has a place</p><button class="button-quiet" data-act="add-runner">+ Runner not on the list</button></div>`;
+}
+function timesCtl(p){
+  if(S.final||S.times.owner!==p||S.stage!=='editing') return '';
+  const w=wrongIndex(),l=S.times.list;
+  if(w>=0&&P[p].retype==null){
+    const earlier=l.slice(0,w).reduce((a,x,i)=>secs(x)>secs(l[a])?i:a,0);
+    return `<div class="warning-box" role="alert"><p>${ord(w+1)}: ${shows(l[w])} is faster than ${ord(earlier+1)} (${shows(l[earlier])}).</p><div class="warning-actions"><button data-act="retype" data-arg="${w}">Fix time</button><button class="button-secondary" data-act="keep" data-arg="${w}">Keep</button></div></div>`;
+  }
+  if(S.times.noneFrom!=null&&P[p].retype==null) return `<div class="ctl"><p class="calm-note">No finisher from ${ord(S.times.noneFrom+1)} on</p><button class="button-quiet" data-act="undo-none">Undo No more finishers</button></div>`;
+  const i=P[p].retype??l.length;
+  return `<div class="ctl">${entry(p,P[p].retype!=null?`Retype the ${ord(i+1)} time`:`Time for ${ord(i+1)}`,'e.g. 1295','time-next',P[p].input?`<p class="time-shows">Shows as <strong>${shows(P[p].input)}</strong></p>`:'')}${P[p].retype!=null?`<button class="button-quiet" data-act="cancel-retype">Cancel</button>`:`<button class="button-secondary" data-act="no-more">No more finishers</button>`}</div>`;
+}
+function mismatchConfirm(p){
+  return P[p].confirm==='mismatch'?`<div class="warning-box" role="alert"><p>Times and finishers don't agree (${S.order.places.length} finishers, ${S.times.list.length} times). Submit anyway?</p><div class="warning-actions"><button data-act="submit-anyway">Submit anyway</button><button class="button-secondary" data-act="cancel">Cancel</button></div></div>`:'';
+}
+function submitControls(p){
+  if(S.stage==='done') return '';
+  if(S.stage==='editing'){
+    if(P[p].confirm==='mismatch') return mismatchConfirm(p);
+    const r=blockedReason();
+    return `${r?`<p class="blocked">${esc(r)}</p>`:''}<button class="submit" data-act="submit"${r?' disabled':''}>Submit Race</button>`;
+  }
+  return `<div class="dock-row">${S.submitted.includes(p)?'':`<button data-act="submit">Submit Race</button>`}<button class="button-secondary" data-act="not-yet">Not yet</button></div>`;
+}
+function waitingLine(p){
+  const w=S.entered.filter(n=>!S.submitted.includes(n));
+  const mine=S.submitted.includes(p);
+  return `<p class="waiting">${mine?'You submitted. ':''}Waiting on ${andList(w.map(n=>n===p?'you':n))}</p>`;
+}
+function tickList(p){
+  const people=S.entered.length?S.entered:[];
+  if(!people.length) return `<p class="job-sub">Everyone who enters something on this race presses Submit Race.</p>`;
+  return `<ul class="ticks">${people.map(n=>{const d=S.submitted.includes(n);return `<li class="${d?'done':''}"><span class="avatar small">${ini(n)}</span><span>${n===p?'You':NAMES[n]}</span><span class="tick-state">${d?'Submitted':S.stage==='submitting'?'Waiting':'Will submit'}</span></li>`;}).join('')}</ul>`;
+}
+function results(p){
+  return `<section class="results-card"><div><h2>${S.stage==='done'?'Final results':'Results'}</h2><p class="job-sub">${S.stage==='done'?'Saved. Corrections go through a zone lead.':'Check them. Spot a mistake? Tap Not yet.'}</p></div>${otTable(p,true)}</section>`;
+}
+
+/* ---------- A: stacked cards ---------- */
+function cardA(p,sec,title,status,body){
+  const open=P[p].open[sec];
+  return `<section class="sec${open?' open':''}"><button class="sec-head" data-act="toggle" data-arg="${sec}" aria-expanded="${open}"><span class="sec-text"><span class="sec-title">${title}</span><span class="sec-status">${status}</span></span>${ARROW}</button>${open?`<div class="sec-body">${body}</div>`:''}</section>`;
+}
+const RACE={};
+RACE.A=p=>{
+  let b=heading()+notices(p);
+  if(S.stage!=='editing') b+=results(p);
+  else b+=cardA(p,'checkin','Check-in Wristbands',ciStatus(p),ciBody(p))
+    +cardA(p,'ot',S.final?'Finishing order':'Order and Times',otStatus(p),columns(p)+otTable(p)+orderCtl(p)+timesCtl(p));
+  const dock=S.stage==='submitting'?waitingLine(p)+submitControls(p):submitControls(p);
+  return {body:b,dock};
+};
+
+/* ---------- B: progress strip ---------- */
+function strip(p){
+  const placed=S.order.places.length,total=Math.max(runners().length-S.order.dnf.length-S.order.dnr.length,0),u=unplaced().length;
+  const steps=[
+    {k:'Check-in',who:S.checkin.owner,val:S.final?`${S.checkin.runners.filter(r=>r.here).length} here · ${S.checkin.runners.filter(r=>r.here===false).length} absent`:`${S.checkin.runners.length} checked in`,st:placed||S.order.owner?'done':S.checkin.owner?'doing':''},
+    {k:'Order',who:S.order.owner,val:`${placed} of ${total} placed`,st:placed&&!u?'done':S.order.owner?'doing':''},
+  ];
+  if(!S.final) steps.push({k:'Times',who:S.times.owner,val:`${S.times.list.length} ${S.times.list.length===1?'time':'times'}`,st:S.times.noneFrom!=null||(S.times.list.length&&S.times.list.length>=placed&&!u)?'done':S.times.owner?'doing':''});
+  return `<div class="strip">${steps.map(s=>`<div class="step ${S.stage!=='editing'?'done':s.st}"><span class="step-k">${s.k}</span><span class="step-who">${s.who?you(s.who,p):'Nobody'}</span><span class="step-val">${s.val}</span></div>`).join('')}</div>`
+    +(S.stage==='editing'?`<div class="strip-submit">${submitControls(p)}</div>`:'');
+}
+function bandB(p,sec,title,owners,body){
+  const open=P[p].open[sec];
+  return `<section class="band${open?' open':''}"><button class="band-head" data-act="toggle" data-arg="${sec}" aria-expanded="${open}"><span class="band-title">${title}</span><span class="band-owners">${owners}</span>${ARROW}</button>${open?`<div class="band-body">${body}</div>`:''}</section>`;
+}
+// Band headers are narrow: others show as an avatar only (name on hover and to screen readers), you as "You".
+const ownerChip=(o,p)=>o?(o===p?`<span class="you-pill"><span class="avatar small navy">${ini(o)}</span>You</span>`:`<span class="owner-pill" title="${esc(NAMES[o])}"><span class="avatar small" aria-label="${esc(o)}">${ini(o)}</span></span>`):'<span class="free">Nobody yet</span>';
+RACE.B=p=>{
+  let b=heading()+strip(p)+notices(p);
+  let dock='';
+  if(S.stage!=='editing'){b+=results(p);dock=S.stage==='submitting'?waitingLine(p)+submitControls(p):'';}
+  else{
+    const o=S.order.owner,t=S.times.owner;
+    b+=bandB(p,'checkin','Check-in Wristbands',ownerChip(S.checkin.owner,p),ciBody(p,false))
+      +bandB(p,'ot',S.final?'Finishing order':'Order and Times',S.final||o===t&&o?ownerChip(o,p):!o&&!t?ownerChip(null,p):ownerChip(o,p)+ownerChip(t,p),columns(p)+otTable(p));
+    if(P[p].open.ot) dock=orderCtl(p)+timesCtl(p);
+    if(!dock&&P[p].open.checkin) dock=ciEntry(p);
+  }
+  return {body:b,dock};
+};
+
+/* ---------- C: your part first ---------- */
+function summaryC(p,sec){
+  const open=P[p].open[sec];
+  const title=sec==='checkin'?'Check-in Wristbands':S.final?'Finishing order':'Order and Times';
+  const line=sec==='checkin'?ciStatus(p).replace(/<\/?b>/g,''):`${otStatus(p).replace(/<\/?b>/g,'')} · ${S.order.places.length} placed`;
+  const body=sec==='checkin'?ciBody(p):columns(p)+otTiles(p);
+  return `<button class="sum${open?' open':''}" data-act="toggle" data-arg="${sec}" aria-expanded="${open}"><span class="sum-text"><span class="sum-title">${title}</span><span class="sum-line">${line}</span></span>${ARROW}</button>${open?`<div class="sum-open">${body}</div>`:''}`;
+}
+function partC(p,sec){
+  if(sec==='checkin') return `<section class="part"><h2>${S.final?'You are checking who is here':'You are checking in'}</h2>${ciBody(p)}</section>`;
+  const both=S.order.owner===p&&S.times.owner===p,title=both?'You do the order and the times':S.order.owner===p?'You do the finishing order':'You do the times';
+  return `<section class="part"><h2>${title}</h2>${columns(p)}${otTiles(p)}${orderCtl(p)}${timesCtl(p)}</section>`;
+}
+RACE.C=p=>{
+  let b=heading()+notices(p);
+  if(S.stage!=='editing'){
+    b+=results(p)+`<section class="submit-sec"><h2>Submit Race</h2>${tickList(p)}${submitControls(p)}</section>`;
+    return {body:b};
+  }
+  const mine=[];
+  if(S.checkin.owner===p) mine.push('checkin');
+  if(S.order.owner===p||S.times.owner===p) mine.push('ot');
+  if(mine.length) b+=`<p class="eyebrow">Your part</p>`+mine.map(s=>partC(p,s)).join('');
+  const rest=['checkin','ot'].filter(s=>!mine.includes(s));
+  if(rest.length) b+=`<p class="eyebrow">${mine.length?'The rest of this race':'This race'}</p>`+rest.map(s=>summaryC(p,s)).join('');
+  b+=`<section class="submit-sec"><h2>Submit Race</h2>${tickList(p)}${submitControls(p)}</section>`;
+  return {body:b};
+};
+
+/* ---------- Home ---------- */
+const homeTop=`<div class="home-top"><button class="button-secondary button-small" data-act="lead-entry">I'm a zone lead</button></div>`;
+const shortRace=r=>!r?'✓':r==='Final'?'F':r.replace(/^Heat /,'H').replace(/^Race /,'R');
+const avatars=who=>who&&who.length?`<span class="avs">${who.map(n=>`<span class="avatar small" title="${esc(NAMES[n]||n)}">${ini(n)}</span>`).join('')}</span>`:'';
+const HOME={};
+HOME.A=p=>homeTop+`<h1>Which event are you at?</h1><div class="jobs">${events().map(e=>`<button class="job-button${e.group==='done'?' is-done':''}" data-act="open-event" data-arg="${esc(e.name)}"><span class="job-icon" aria-hidden="true">${shortRace(e.race)}</span><span class="job-text"><span class="job-title">${esc(e.name)}</span><span class="job-explanation">${e.race?e.race+' · ':''}${esc(e.text)}${e.who&&e.who.length?' · '+e.who.join(', '):''}</span></span>${CHEV}</button>`).join('')}</div>`;
+HOME.B=p=>{
+  const groups=[['needs','Needs volunteers'],['progress','Happening now'],['submit','Waiting to submit'],['done','Done']];
+  const ev=events();
+  return homeTop+`<h1>Which event are you at?</h1>`+groups.map(([g,title])=>{const list=ev.filter(e=>e.group===g);if(!list.length) return '';
+    return `<p class="group-title">${title}</p><div class="rows">${list.map(e=>`<button class="ev-row" data-act="open-event" data-arg="${esc(e.name)}"><span class="ev-main"><span class="ev-name">${esc(e.name)}</span><span class="ev-race">${e.race||'All races saved'}${g==='progress'||g==='submit'?' · '+esc(e.text):''}</span></span>${avatars(e.who)}${g==='needs'||g==='done'?`<span class="state-pill ${g}">${g==='needs'?'Start':'Done'}</span>`:''}${CHEV}</button>`).join('')}</div>`;}).join('');
+};
+HOME.C=p=>homeTop+`<h1>Which event are you at?</h1><div class="legend"><span>Bars: check-in · order · times</span></div><div class="ev-tiles">${events().map(e=>`<button class="ev-tile ${e.group}" data-act="open-event" data-arg="${esc(e.name)}"><span class="ev-tile-race">${e.race||'Done'}</span><span class="ev-tile-name">${esc(e.name)}</span><span class="bars">${(e.bars||[]).map(b=>`<i class="${b}"></i>`).join('')}</span><span class="ev-tile-state">${esc(e.text)}</span>${avatars(e.who)}</button>`).join('')}</div>`;
+
+/* ---------- Presets ---------- */
+const PRESETS=[
+  ['ready','Heat 2 ready',()=>{S=fresh({savedNote:null});P=phones({Sam:{screen:'home'},Priya:{screen:'home'},Jo:{screen:'race'}});}],
+  ['checkin','Checking in',()=>{S=fresh({checkin:{owner:'Sam',runners:heatRunners([204,211,217])},entered:['Sam']});P=phones({Sam:{open:{checkin:true,ot:false},input:'22'},Priya:{open:{checkin:true,ot:false}},Jo:{screen:'home'}});}],
+  ['live','Order and times live',()=>{S=fresh({checkin:{owner:'Sam',runners:heatRunners([204,211,217,223,238])},order:{owner:'Priya',places:[217,204,238],dnf:[],dnr:[],noPlace:false},times:{owner:'Jo',list:['1295','1312'],kept:[],noneFrom:null},entered:['Sam','Priya','Jo']});
+    P=phones({Sam:{open:{checkin:true,ot:true}},Priya:{open:{checkin:false,ot:true}},Jo:{open:{checkin:false,ot:true},input:'134'}});}],
+  ['wrong','Wrong time',()=>{S=fresh({checkin:{owner:'Sam',runners:heatRunners([204,211,217,223,238])},order:{owner:'Priya',places:[217,204,238,211],dnf:[],dnr:[],noPlace:false},times:{owner:'Jo',list:['1295','1312','1240'],kept:[],noneFrom:null},entered:['Sam','Priya','Jo']});
+    P=phones({Sam:{open:{checkin:false,ot:true}},Priya:{open:{checkin:false,ot:true}},Jo:{open:{checkin:false,ot:true}}});}],
+  ['submit','Waiting on Submit',()=>{S=fresh({checkin:{owner:'Sam',runners:heatRunners([204,211,217,223,238])},order:{owner:'Priya',places:[217,204,238,211],dnf:[223],dnr:[],noPlace:false},times:{owner:'Jo',list:['1295','1312','1340','1388'],kept:[],noneFrom:null},stage:'submitting',submitted:['Priya'],entered:['Sam','Priya','Jo']});
+    P=phones({Sam:{open:{checkin:true,ot:false}},Priya:{open:{checkin:false,ot:true}},Jo:{open:{checkin:false,ot:true}}});}],
+  ['notyet','After Not yet',()=>{S=fresh({checkin:{owner:'Sam',runners:heatRunners([204,211,217,223,238])},order:{owner:'Priya',places:[217,204,238,211],dnf:[223],dnr:[],noPlace:false},times:{owner:'Jo',list:['1295','1312','1340','1388'],kept:[],noneFrom:null},notYet:'Jo',entered:['Sam','Priya','Jo']});
+    P=phones({Sam:{open:{checkin:false,ot:false}},Priya:{open:{checkin:false,ot:true}},Jo:{open:{checkin:false,ot:true}}});}],
+  ['takeover','Take over',()=>{S=fresh({checkin:{owner:'Sam',runners:heatRunners([204,211,217])},entered:['Sam']});P=phones({Sam:{open:{checkin:true,ot:false}},Priya:{open:{checkin:true,ot:false},confirm:'take-checkin'},Jo:{screen:'home'}});}],
+  ['final','Final: here or absent',()=>{S=fresh({event:'60m Girl Beavers',kind:'Final',final:true,checkin:{owner:'Sam',runners:[{n:112,here:true},{n:105,here:true},{n:131,here:false},{n:118,here:null},{n:140,here:true},{n:127,here:null}]},order:{owner:'Priya',places:[],dnf:[],dnr:[],noPlace:false},entered:['Sam']});
+    P=phones({Sam:{open:{checkin:true,ot:false}},Priya:{open:{checkin:false,ot:true}},Jo:{screen:'home'}});}],
+  ['saved','Heat 2 saved',()=>{S=fresh({no:3,savedNote:'Heat 2 saved. Heat 3 is ready for check-in.'});S.checkin.owner='Sam';S.order.owner='Priya';S.times.owner='Jo';
+    P=phones({Sam:{open:{checkin:true,ot:false}},Priya:{open:{checkin:false,ot:true}},Jo:{screen:'home'}});}],
+];
+
+/* ---------- Rendering ---------- */
+function phoneHTML(p){
+  const ph=P[p];
+  const head=`<header class="app-header"><div class="app-header-title"><strong>Running Zone</strong><span>South day 1</span></div><span class="app-header-person"><span>${NAMES[p]}</span><span class="avatar" aria-hidden="true">${ini(p)}</span></span></header>`;
+  const toastEl=ph.toast?`<div class="toast" role="status">${esc(ph.toast)}</div>`:'';
+  if(ph.screen==='home') return head+`<div class="scroll">${HOME[V](p)}</div>`+toastEl;
+  const r=RACE[V](p);
+  return head+`<nav class="trail" aria-label="Where you are"><button data-act="home">Home</button><span class="trail-sep" aria-hidden="true">›</span><span>${esc(S.event)}</span></nav><div class="scroll">${r.body}</div>${r.dock?`<div class="dock">${r.dock}</div>`:''}`+toastEl;
+}
+function roleLabel(p){
+  const r=[];
+  if(S.checkin.owner===p) r.push(S.final?'checking who is here':'checking in');
+  if(S.order.owner===p) r.push('ordering');
+  if(S.times.owner===p&&!S.final) r.push('timing');
+  return `${NAMES[p]}'s phone${r.length?' · '+r.join(', '):P[p].screen==='home'?' · on Home':' · watching'}`;
+}
+function render(){
+  const a=document.activeElement,fid=a&&a.id&&a.id.startsWith('in-')?a.id:null,sel=fid?a.selectionStart:0;
+  const stage=document.getElementById('stage');
+  for(const p of PEOPLE){
+    let wrap=document.getElementById('ph-'+p);
+    if(!wrap){wrap=document.createElement('div');wrap.className='phone-wrap';wrap.id='ph-'+p;wrap.innerHTML=`<span class="phone-label"></span><div class="phone" data-phone="${p}"></div>`;stage.appendChild(wrap);}
+    wrap.hidden=WHO!=='all'&&WHO!==p;
+    wrap.querySelector('.phone-label').textContent=roleLabel(p);
+    const phone=wrap.querySelector('.phone');
+    const old=phone.querySelector('.scroll'),top=old?old.scrollTop:0,wasScreen=phone.dataset.screen;
+    phone.innerHTML=phoneHTML(p);
+    phone.dataset.screen=P[p].screen;
+    const sc=phone.querySelector('.scroll');
+    if(sc&&wasScreen===P[p].screen) sc.scrollTop=top;
+  }
+  if(fid){const n=document.getElementById(fid);if(n){n.focus({preventScroll:true});try{n.setSelectionRange(sel,sel);}catch{}}}
+  document.getElementById('note').innerHTML=VARIANTS[V][1];
+  document.getElementById('vlabel').textContent=`${V} (${VARIANTS[V][0]})`;
+  document.querySelectorAll('#presets .pbtn').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.preset===PRESET)));
+  document.querySelectorAll('#who .pbtn').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.who===WHO)));
+}
+function setVariant(v){V=v;try{history.replaceState(null,'','#'+v);}catch{}render();}
+function cycle(d){const k=Object.keys(VARIANTS);setVariant(k[(k.indexOf(V)+d+k.length)%k.length]);}
+
+const presetsEl=document.getElementById('presets');
+PRESETS.forEach(([key,label])=>{const b=document.createElement('button');b.className='pbtn';b.dataset.preset=key;b.textContent=label;presetsEl.appendChild(b);});
+const whoEl=document.getElementById('who');
+[['all','All phones'],...PEOPLE.map(p=>[p,p])].forEach(([key,label])=>{const b=document.createElement('button');b.className='pbtn';b.dataset.who=key;b.textContent=label;whoEl.appendChild(b);});
+
+document.addEventListener('click',e=>{
+  const pre=e.target.closest('[data-preset]');if(pre){PRESET=pre.dataset.preset;PRESETS.find(x=>x[0]===PRESET)[2]();render();return;}
+  const w=e.target.closest('[data-who]');if(w){WHO=w.dataset.who;render();return;}
+  const b=e.target.closest('[data-act]');if(!b||b.disabled) return;
+  const phone=b.closest('[data-phone]');if(!phone) return;
+  const p=phone.dataset.phone;ACT[b.dataset.act](p,b.dataset.arg);render();
+});
+document.addEventListener('input',e=>{
+  const i=e.target.closest('input[data-in]');if(!i) return;
+  const p=i.closest('[data-phone]').dataset.phone;P[p].input=i.value.replace(/\D/g,'').slice(0,6);render();
+});
+document.addEventListener('keydown',e=>{
+  const i=e.target.closest&&e.target.closest('input[data-in]');
+  if(i){if(e.key==='Enter'){e.preventDefault();const p=i.closest('[data-phone]').dataset.phone;ACT[i.dataset.in](p);render();}return;}
+  if(e.target.closest&&e.target.closest('input,textarea,[contenteditable]')) return;
+  if(e.key==='ArrowLeft') cycle(-1);
+  if(e.key==='ArrowRight') cycle(1);
+});
+document.getElementById('prev').onclick=()=>cycle(-1);
+document.getElementById('next').onclick=()=>cycle(1);
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(VARIANTS[h]&&h!==V){V=h;render();}});
+{const h=location.hash.slice(1);if(VARIANTS[h]) V=h;}
+PRESETS.find(x=>x[0]===PRESET)[2]();
+render();
+</script>
