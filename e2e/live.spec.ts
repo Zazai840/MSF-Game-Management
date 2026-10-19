@@ -44,7 +44,7 @@ test('app switch: once the app is back in front, phone B shows what phone A chec
 });
 
 test('silent link: once the watchdog gives up on a stream that went quiet, phone B shows what phone A checked in meanwhile',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LS-${project.toUpperCase()}`,name=`Silent link ${project}`;
+  const project=info.project.name,code=`LQ-${project.toUpperCase()}`,name=`Silent link ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(`Ann silent ${project}`),b=await openPhone(`Ben silent ${project}`);
   await b.page.clock.install();
@@ -79,7 +79,7 @@ test('planned end: phone B reconnects at once after the stream ends, and shows w
 });
 
 test('slow network: on a 3G-like link each phone sees the other\'s check-in within 3 s',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LN-${project.toUpperCase()}`,name=`Slow network ${project}`,ann=`Ann slow ${project}`,ben=`Ben slow ${project}`;
+  const project=info.project.name,code=`LT-${project.toUpperCase()}`,name=`Slow network ${project}`,ann=`Ann slow ${project}`,ben=`Ben slow ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(ann),b=await openPhone(ben);
   for(const {page} of [a,b]) {
