@@ -56,6 +56,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   // The timer types the next place's time once it has a wristband. A wrong time waits for Fix time or Keep first.
   const retype=timing && pad.retype!==null && pad.retype<places.length?pad.retype:null,held=timing && retype===null && !!unkept;
   const target=held?unkept!.index:retype??places.length,typing=timing && (held || retype!==null || places.length<order.length);
+  // A held pad shows the wrong time waiting for Fix time or Keep.
+  const padDigits=held?digitsForTime(places[target]):pad.typed;
   function sendTime() {
     const time=parseTimeDigits(pad.typed);
     if(time===null) return;
@@ -134,8 +136,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     </div>}
     {timing && (typing?<div className="race-order">
       <h3 className="race-question">{ordinal(target+1)} place time?</h3>
-      <NumberEntry label="Place time" placeholder="Digits only, e.g. 1234" value={held?digitsForTime(places[target]):pad.typed} held={held} onChange={digits=>setPad(digits,retype)} onNext={sendTime}
-        selectKey={`${race.id}:${target}:${retype===null?'next':'retype'}`} display={<p className="time-shows">Shows as <strong>{formatTimeDigits(held?digitsForTime(places[target]):pad.typed)}</strong></p>}
+      <NumberEntry label="Place time" placeholder="Digits only, e.g. 1234" value={padDigits} held={held} onChange={digits=>setPad(digits,retype)} onNext={sendTime}
+        selectKey={`${race.id}:${target}:${retype===null?'next':'retype'}`} display={<p className="time-shows">Shows as <strong>{formatTimeDigits(padDigits)}</strong></p>}
         extraAction={retype!==null && <button className="button-secondary" onClick={()=>setPad('',null)}>Cancel</button>}/>
       {held && <div className="warning-box" role="alert">
         <p>{wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.</p>
