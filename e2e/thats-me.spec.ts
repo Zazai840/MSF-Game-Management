@@ -54,8 +54,8 @@ test("That's me moves a profile to a new phone once a lead approves, and the old
   await request.getByRole('button',{name:'Approve',exact:true}).click();
   await expect(request).toHaveCount(0);
 
-  // The new phone notices by itself and signs in as a volunteer.
-  await home(newPhone);
+  // The new phone notices by itself on its next check (every 5 seconds) and signs in as a volunteer.
+  await expect(newPhone.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible({timeout:15000});
   await expect(newPhone.getByRole('banner').getByText(name,{exact:true})).toBeVisible();
   await expect(newPhone.getByRole('button',{name:"I'm a zone lead",exact:true})).toBeVisible();
   // The old phone is signed out of it and forgets it, staying past the Olympics password.
@@ -74,7 +74,7 @@ test("a declined That's me goes back to Create profile with the reason, and Canc
   const newPhone=await phone(browser);
   await newPhone.goto('/');await askForProfile(newPhone,name);
   await card(lead,name).getByRole('button',{name:'Decline',exact:true}).click();
-  await expect(newPhone.getByRole('alert')).toHaveText('A lead did not approve this - add your middle name or initial.');
+  await expect(newPhone.getByRole('alert')).toHaveText('A lead did not approve this - add your middle name or initial.',{timeout:15000});
   await expect(profilesHeading(newPhone)).toBeVisible();
   await expect(newPhone.getByLabel('Full name',{exact:true})).toHaveValue(name);
   // The old phone keeps its profile.
