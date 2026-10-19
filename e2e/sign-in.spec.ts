@@ -1,4 +1,4 @@
-import { goHome,timesOpened,trailBack,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,lookProblems,typePassword,expect,createProfile,test,type Locator,type Page } from './fixtures.js';
+import { goHome,timesOpened,back,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,lookProblems,typePassword,expect,createProfile,test,type Locator,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the job screens. */
 async function expectDocked(page:Page,button:Locator) {
@@ -57,7 +57,7 @@ test('a new phone types the Olympics password once, creates a profile, stays sig
   await expect(dashboardButton(page)).toBeVisible();
   await openDashboard(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
-  await trailBack(page,'Dashboard');await expect(dashboardMenuButton(page,'Day setup')).toHaveCount(0);
+  await back(page,'Dashboard');await expect(dashboardMenuButton(page,'Day setup')).toHaveCount(0);
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(true);
 });
 test('Create profile refuses a name already taken, keeping what was typed',async({page,browser},info)=>{

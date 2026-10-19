@@ -8,7 +8,7 @@ import { digitsForTime,formatTimeDigits,parseTimeDigits,timesOutOfOrder } from '
 import { raceRecording } from '../../shared/recording.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { wrongTimes,wrongTimesBanner } from '../../shared/wrong-times.js';
-import { Trail,type TrailStep } from '../flow/Trail.js';
+import { BackArrow } from '../flow/BackArrow.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { Saved } from '../flow/Saved.js';
@@ -91,8 +91,8 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     setSaved(null);
     if(following) void open(following);else {setDraft(null);setChoosing(true);}
   }
-  const home:TrailStep={label:'Home',onSelect:onHome};
-  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Times'}]}/><h1>Times</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
+  const home=<BackArrow to="Home" onBack={onHome}/>;
+  if(!data) return <section className="race-job">{home}<h1>Times</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
   const alerts=<>{readError && <p role="alert">{readError}</p>}{error && message!=='Not saved - tap Save again' && <p role="alert">{error}</p>}</>;
   const latestOf=(race:RaceRead)=>[...data.waiting,...data.recent].find(item=>item.id===race.id)||race;
   if(saved) {
@@ -102,8 +102,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       <button disabled={busy} onClick={()=>setSaved(null)}>Change times</button>
     </Saved></section>;
   }
-  const timesStep:TrailStep={label:'Times',onSelect:()=>setChoosing(true)};
-  if(choosing || !draft) return <section className="race-job"><Trail steps={[home,{label:'Times'}]}/>{alerts}
+  if(choosing || !draft) return <section className="race-job">{home}{alerts}
     <h1>Which race is it?</h1>
     {draft && <button className="button-secondary carry-on" disabled={busy} onClick={()=>setChoosing(false)}>Carry on with {raceName(draft.race)}</button>}
     <h3>Waiting for times</h3>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}{race.recording.countMismatch && <small className="choice-note"> · Finishers and times don't agree</small>}</button>)}</div>
@@ -118,18 +117,17 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const unkept=[...wrong.values()].filter(item=>!draft.keptWrong.includes(item.index));
   const firstNoFinisher=draft.slots.indexOf(null);
   const locked=stageLocked(draft.race,data.completedStages);
-  const raceStep:TrailStep={label:raceName(draft.race),onSelect:()=>setChoosing(true)};
   const lastTimed=draft.slots.reduce((last,slot,index)=>slot===null?last:index,-1);
-  const checkStep:TrailStep={label:'Check',onSelect:()=>change({...draft,step:'check',warning:false,fromCheck:false})};
-  const trail:TrailStep[]=draft.step==='entry'?[home,timesStep,raceStep,...(draft.fromCheck?[checkStep]:[]),{label:`${ordinal(draft.index+1)} place`}]
-    :[home,timesStep,raceStep,...(lastTimed>=0?[{label:`${ordinal(lastTimed+1)} place`,onSelect:()=>edit(lastTimed)}]:[]),{label:'Check'}];
+  // Up one step: a place goes back to the check it came from, the check to the last timed place, otherwise to the race picker.
+  const back=draft.step==='entry' && draft.fromCheck?<BackArrow to="Check" onBack={()=>change({...draft,step:'check',warning:false,fromCheck:false})}/>
+    :draft.step!=='entry' && lastTimed>=0?<BackArrow to={`${ordinal(lastTimed+1)} place`} onBack={()=>edit(lastTimed)}/>:<BackArrow to="Times" onBack={()=>setChoosing(true)}/>;
   const runners=draft.race.parts.runners.value?.length||0;
   const raceHeading=<p className="race-line">{raceLine(draft.race,runners)} · checked in {clock(draft.race.checkedInAt)}</p>;
   const notSaved='Not saved - tap Save again';
   const failedSave=message===notSaved && <div className="warning-box save-failed"><p role="status">{notSaved}</p>{error && <p role="alert">{error}</p>}</div>;
   const timeLabel=(index:number,slot:string|null)=>`${ordinal(index+1)} place · ${slot===null?'No finisher':slot?formatTimeDigits(slot):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
   const typed=draft.slots[draft.index]||'';
-  return <section className="race-job"><Trail steps={trail}/><ClashNotice race={latest}/>{alerts}
+  return <section className="race-job">{back}<ClashNotice race={latest}/>{alerts}
     {locked && <p role="status" className="warning-box">Stage complete - ask a lead</p>}
     {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
     <fieldset className="stage-job-fields" disabled={locked}>

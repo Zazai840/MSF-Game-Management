@@ -1,4 +1,4 @@
-import { lookProblems,expect,jobButton,createProfile,savedRaceLabel,steps,test,type Page } from './fixtures.js';
+import { lookProblems,back,expect,jobButton,createProfile,savedRaceLabel,test,type Page } from './fixtures.js';
 const scoring=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function openGirlCubs(page:Page,name:string) {
   await page.request.post('/api/day/events/R4/rename',{headers:scoring(),data:{name:'60m'}});
@@ -78,44 +78,34 @@ test('wristband numbers go in through the phone keyboard and the input keeps foc
   await expect(page.getByRole('heading',{name:'Runner 5: wristband number?',exact:true})).toBeVisible();
 });
 
-test('the trail goes back to earlier steps without losing typed entries and shortens from the left',async({page},info)=>{
-  await openGirlCubs(page,`Trail ${info.project.name}`);
+test('the back arrow goes back to earlier steps without losing typed entries',async({page},info)=>{
+  await openGirlCubs(page,`Back arrow ${info.project.name}`);
   const input=page.getByLabel('Wristband number',{exact:true});
   for(const number of ['2011','2012']) {await input.fill(number);await input.press('Enter');}
   await input.fill('20');
-  // The trail replaces the separate Home and Other race buttons.
-  await page.setViewportSize({width:1280,height:800});
-  await expect(page.getByRole('button',{name:'Home',exact:true})).toHaveCount(1);
+  // The back arrow replaces the separate Home and Other race buttons.
+  await expect(page.getByRole('button',{name:'Home',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:/^(Other race|Choose another race)$/})).toHaveCount(0);
-  await expect(steps(page)).toHaveText('Home›Check in runners›60m›Girl Cubs›Runners (2)');
-  await expect(steps(page).locator('[aria-current=step]')).toHaveText('Runners (2)');
-  await steps(page).getByRole('button',{name:'Check in runners',exact:true}).click();
+  await back(page,'Check in runners');
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
-  await expect(steps(page)).toHaveText('Home›Check in runners');
+  await expect(page.getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'60m',exact:true}).click();
-  await expect(steps(page)).toHaveText('Home›Check in runners›60m');
+  await expect(page.getByRole('button',{name:'Back to Check in runners',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await expect(page.getByRole('button',{name:'Remove runner 2011',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Remove runner 2012',exact:true})).toBeVisible();
   await expect(input).toHaveValue('20');
   await input.fill('');
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(steps(page)).toHaveText('Home›Check in runners›60m›Girl Cubs›Runners (2)›Check');
-  await steps(page).getByRole('button',{name:'Runners (2)',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Check the runners',exact:true})).toBeVisible();
+  await back(page,'Runners (2)');
   await expect(page.getByRole('heading',{name:'Runner 3: wristband number?',exact:true})).toBeVisible();
-  await steps(page).getByRole('button',{name:'Girl Cubs',exact:true}).click();
+  await back(page,'Check in runners');
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
-  await steps(page).getByRole('button',{name:'Home',exact:true}).click();
+  await back(page,'Home');
   await jobButton(page,'Start line').click();
   await page.getByRole('button',{name:'Carry on with 60m Girl Cubs · 2 runners',exact:true}).click();
   await expect(page.getByRole('button',{name:'Remove runner 2012',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  // A narrow phone keeps one line by dropping the earliest steps.
-  await page.setViewportSize({width:320,height:640});
-  await expect(steps(page)).toHaveText(/^…›.*›Runners \(2\)›Check$/);
-  await expect(steps(page).getByRole('button',{name:'Home',exact:true})).toHaveCount(0);
-  expect((await steps(page).boundingBox())!.height).toBeLessThan(50);
-  await page.screenshot({path:info.outputPath('trail-narrow.png'),fullPage:true});
 });
 
 test('a confirmed save shows the thank-you screen with the race, the next race and Home',async({page},info)=>{
@@ -126,7 +116,7 @@ test('a confirmed save shows the thank-you screen with the race, the next race a
   await page.getByRole('button',{name:'Save',exact:true}).click();
   const label=await savedRaceLabel(page);
   await expect(page.getByTestId('saved-race')).toHaveText(`60m Girl Cubs · ${label} · 2 runners`);
-  await expect(steps(page)).toHaveText('Home›Saved');
+  await expect(page.getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Check in the next race',exact:true})).toBeVisible();
   await expect(page.getByRole('main').getByRole('button',{name:'Home',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Edit runners',exact:true})).toBeVisible();
@@ -135,7 +125,7 @@ test('a confirmed save shows the thank-you screen with the race, the next race a
   await page.getByRole('button',{name:'Check in the next race',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
   await page.getByRole('button',{name:`60m Girl Cubs (R4) · ${label}`,exact:true}).click();
-  await expect(steps(page)).toContainText(`Girl Cubs · ${label}`);
+  await expect(page.getByText(`60m · Girl Cubs · ${label}`,{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Remove runner 2021',exact:true})).toBeVisible();
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await page.getByRole('button',{name:'Save',exact:true}).click();

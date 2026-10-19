@@ -7,14 +7,14 @@ import { api } from '../api.js';
 import { raceLabel,racePickerLabel,raceSummary,runnersText,type RaceRead,type StartLineRead } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { plainWristbandWarning,wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
-import { Trail,type TrailStep } from '../flow/Trail.js';
+import { BackArrow } from '../flow/BackArrow.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { Saved } from '../flow/Saved.js';
 import './jobs.css';
 type Step='pick'|'section'|'entry'|'check'|'presence'|'presence-check';
 type Draft={step:Step;final?:RaceRead;absent?:string[];family:string;eventCode:string;runners:number[];current:string;raceId?:string;
-  /** "Heat 2" once the race exists, so the trail and header name it. */
+  /** "Heat 2" once the race exists, so the race line names it. */
   raceLabel?:string;baseVersion:number;requestId:string;keptWarnings:number[];warnings:Record<string,WristbandWarning[]>;pendingWarnings:WristbandWarning[];
   /** A number refused outright (already in this race): only Fix number. */
   refused?:string};
@@ -96,8 +96,8 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
   }
-  const home:TrailStep={label:'Home',onSelect:onHome};
-  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Check in runners'}]}/><h1>Check in runners</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
+  const home=<BackArrow to="Home" onBack={onHome}/>;
+  if(!data) return <section className="race-job">{home}<h1>Check in runners</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
   const alerts=<>{readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}</>;
   const notSaved='Not saved - tap Save again';
   /** A failed save shows beside Save, in one amber box with the reason. */
@@ -118,17 +118,13 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const locked=!choosing && (draft.final?stageLocked(draft.final,data.completedStages)||!data.completedStages.some(item=>item.eventCode===draft.eventCode&&item.stage==='heats'):data.completedStages.some(item=>item.eventCode===draft.eventCode && item.stage!=='final'));
   const family=draft.family||event?.name||'';
   const raceName=`${event?.section||draft.final?.event.section||''}${draft.raceLabel?` · ${draft.raceLabel}`:''}`;
-  const pickStep:TrailStep={label:'Check in runners',onSelect:()=>goTo('pick')};
-  const raceSteps:TrailStep[]=[home,pickStep,{label:family,onSelect:()=>change({...draft,step:'section',family})},{label:raceName,onSelect:()=>goTo('pick')}];
-  const runnersStep:TrailStep={label:`Runners (${draft.runners.length})`,onSelect:()=>goTo('entry')};
-  const attendanceStep:TrailStep={label:'Attendance',onSelect:()=>goTo('presence')};
-  const trail:TrailStep[]=draft.step==='pick'?[home,{label:'Check in runners'}]:draft.step==='section'?[home,pickStep,{label:draft.family}]
-    :draft.step==='entry'?[...raceSteps,runnersStep]:draft.step==='check'?[...raceSteps,runnersStep,{label:'Check'}]
-    :draft.step==='presence'?[...raceSteps,attendanceStep]:[...raceSteps,attendanceStep,{label:'Check'}];
+  // Up one step: each check goes back to what it checks, everything else to the race picker.
+  const back=draft.step==='pick'?home:draft.step==='section' || draft.step==='entry' || draft.step==='presence'?<BackArrow to="Check in runners" onBack={()=>goTo('pick')}/>
+    :draft.step==='check'?<BackArrow to={`Runners (${draft.runners.length})`} onBack={()=>goTo('entry')}/>:<BackArrow to="Attendance" onBack={()=>goTo('presence')}/>;
   const raceLine=<p className="race-line">{[family,event?.section,draft.raceLabel].filter(Boolean).join(' · ')}</p>;
   const held=draft.pendingWarnings.length>0 || !!draft.refused;
   const pendingNumber=Number(draft.current);
-  return <section className="race-job"><Trail steps={trail}/>
+  return <section className="race-job">{back}
     {draft.step!=='pick' && draft.step!=='section' && <ClashNotice race={[...data.waiting,...data.recent].find(race=>race.id===draft.raceId)}/>}
     {!failedSave && <>{alerts}{message && <p role="status" className="calm-note">{message}</p>}</>}
     {locked && <p role="status" className="warning-box">Stage complete - ask a lead</p>}

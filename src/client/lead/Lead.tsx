@@ -4,7 +4,7 @@ import type { Phone } from '../../shared/domain.js';
 import type { DayRead } from '../../shared/day.js';
 import type { DayLeadItem } from '../../shared/lead-results.js';
 import { JobButton,jobIcon } from '../home/Home.js';
-import { Trail,type TrailStep } from '../flow/Trail.js';
+import { BackArrow } from '../flow/BackArrow.js';
 import { ToCheck } from './ToCheck.js';
 import { Results } from './Results.js';
 import { Day,Events } from './Day.js';
@@ -23,7 +23,7 @@ const menu:{section:'Results'|'Day setup';explanation:string;icon:ReturnType<typ
 const savedFor=3000;
 /**
  * The Dashboard (was v1's Lead area). It opens on the To check list, under big Results and Day setup buttons, so a
- * lead reaches a problem in one tap; the trail (`Home › Dashboard › Results`) leads back. After Start a new day the scoring team lands in Day setup.
+ * lead reaches a problem in one tap; the back arrow goes up one level (Day setup to the Dashboard, the Dashboard to Home). After Start a new day the scoring team lands in Day setup.
  */
 export default function Lead({phone,initialDay=false,onCount,onChanged,onHome,onSection}:{phone:Phone;initialDay?:boolean;onCount:(count:number)=>void;onChanged:()=>void;onHome:()=>void;onSection:(section:string)=>void}) {
   const scoring=phone.level==='Scoring team';
@@ -49,15 +49,14 @@ export default function Lead({phone,initialDay=false,onCount,onChanged,onHome,on
   useEffect(()=>{if(!saved) return;const timer=window.setTimeout(()=>setSaved(0),savedFor);return()=>clearTimeout(timer);},[saved]);
   function open(next:Section) {setTarget(undefined);setSection(next);window.scrollTo(0,0);}
   function changed() {setSaved(Date.now());onChanged();}
-  const steps:TrailStep[]=[{label:'Home',onSelect:onHome},{label:'Dashboard',onSelect:()=>open('Dashboard')}];
-  // Results extends the trail with its own steps (the event, then the race), so it draws the trail itself.
-  if(section==='Signed in today' || section==='Events') steps.push({label:'Day setup',onSelect:()=>open('Day setup')},{label:section});
-  else if(section!=='Dashboard' && section!=='Results') steps.push({label:section});
-  return <section className="dashboard">{section!=='Results' && <Trail steps={steps}/>}
+  // Results goes deeper (an event, then a race), so it draws its own back arrow.
+  return <section className="dashboard">{section==='Dashboard'?<BackArrow to="Home" onBack={onHome}/>
+    :section==='Signed in today' || section==='Events'?<BackArrow to="Day setup" onBack={()=>open('Day setup')}/>
+    :section!=='Results' && <BackArrow to="Dashboard" onBack={()=>open('Dashboard')}/>}
     {section==='Dashboard'?<div className="home"><h1>Dashboard</h1><div className="jobs">
       {menu.filter(item=>scoring || !item.scoringOnly).map(item=><JobButton key={item.section} icon={item.icon} title={item.section} explanation={item.explanation} onClick={()=>open(item.section)}/>)}
     </div><ToCheck onCount={onCount} onOpen={item=>{setTarget(item);setSection('Results');window.scrollTo(0,0);}}/></div>
-    :section==='Results'?<Results key={target?.id||'events'} target={target} trail={steps} onChanged={changed}/>
+    :section==='Results'?<Results key={target?.id||'events'} target={target} onDashboard={()=>open('Dashboard')} onChanged={changed}/>
     :<><h1>{section}</h1>{error && <p role="alert">{error}</p>}
       {scoring && section==='Day setup' && day && <Day day={day} phones={phones} onOpen={open} onChanged={refresh} onSaved={changed}/>}
       {scoring && section==='Events' && day && <Events day={day} onChanged={refresh} onSaved={changed}/>}

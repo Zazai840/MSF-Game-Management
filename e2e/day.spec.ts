@@ -1,4 +1,4 @@
-import { openDashboard,becomeLead,expect,createProfile,steps,test,trailBack } from './fixtures.js';
+import { openDashboard,becomeLead,expect,createProfile,test,back } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 test('the scoring team edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
@@ -14,7 +14,7 @@ test('the scoring team edits and confirms the Day programme',async({page},info)=
     await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
     await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
-    await expect(steps(page)).toHaveText(/Day setup\s*›\s*Events$/);
+    await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Rename R4',exact:true}).click();
     await page.getByLabel('New name for R4',{exact:true}).fill(`60m ${info.project.name}`);
     await page.getByRole('button',{name:'Save name for R4',exact:true}).click();
@@ -32,7 +32,7 @@ test('the scoring team edits and confirms the Day programme',async({page},info)=
     await page.getByRole('button',{name:'Confirm event list',exact:true}).click();
     await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();
     await page.screenshot({path:info.outputPath('day-programme.png'),fullPage:true});
-    await trailBack(page,'Day setup');
+    await back(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
     await page.reload();
     await openDashboard(page,'Day setup');

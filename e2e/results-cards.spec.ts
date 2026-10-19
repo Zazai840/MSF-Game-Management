@@ -1,4 +1,4 @@
-import { steps,trailBack,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { back,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const colours={
@@ -54,18 +54,18 @@ test('Results shows each event as a card coloured by its state, with a legend an
     await group.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('results-cards.png'),fullPage:true});
 
     await card(`${prefix}R`).click();
-    await expect(steps(page)).toHaveText(new RegExp(`Results\\s*›\\s*${name} Boy Cubs$`));
+    await expect(page.getByRole('button',{name:'Back to Results',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:/^Back to event/})).toHaveCount(0);
     await expect(page.getByText('Running · 1 race',{exact:true})).toBeVisible();
     await expect(results).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
     await page.getByRole('button',{name:'Open Race 1',exact:true}).click();
-    await expect(steps(page)).toContainText('Race 1');
+    await expect(page.getByRole('button',{name:`Back to ${name} Boy Cubs`,exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:/^Back to event/})).toHaveCount(0);
-    await trailBack(page,`${name} Boy Cubs`);
+    await back(page,`${name} Boy Cubs`);
     await expect(page.getByRole('button',{name:'Open Race 1',exact:true})).toBeVisible();
-    await trailBack(page,'Results');
+    await back(page,'Results');
     await expect(legend).toBeVisible();
-    await expect(steps(page)).toHaveText(/^Home\s*›\s*Dashboard\s*›\s*Results$/);
+    await expect(page.getByRole('button',{name:'Back to Dashboard',exact:true})).toBeVisible();
   } finally {await cleanUp(page,races);}
 });

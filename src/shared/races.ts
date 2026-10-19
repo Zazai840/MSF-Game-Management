@@ -19,7 +19,7 @@ export interface StartLineRead { events:DayEvent[]; eventsConfirmed:boolean; wai
 export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
 type NamedRace=Pick<RaceRead,'kind'|'number'|'event'>;
 export const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
-/** "60m Girl Cubs Heat 2": the race in a trail step or a Carry on button. */
+/** "60m Girl Cubs Heat 2": the race in a Carry on button. */
 export const raceName=(race:NamedRace)=>`${race.event.name} ${race.event.section} ${raceLabel(race)}`;
 /** "60m Girl Cubs (R4) · Heat 2": a race picker choice. */
 export const racePickerLabel=(race:NamedRace)=>`${race.event.name} ${race.event.section} (${race.event.code}) · ${raceLabel(race)}`;

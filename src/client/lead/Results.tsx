@@ -10,8 +10,7 @@ import { RunnerActions } from './RunnerActions.js';
 import { TieSheet } from './TieSheet.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { eventState } from '../../shared/event-state.js';
-import { raceLabel } from '../../shared/races.js';
-import { Trail,type TrailStep } from '../flow/Trail.js';
+import { BackArrow } from '../flow/BackArrow.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { clock } from '../../shared/clock.js';
 import './results.css';
@@ -19,10 +18,10 @@ const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='h
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**
  * Results: the event cards (coloured Done / Running / Not started), then one event's leaderboard, rulings and audit notes,
- * then one race. It extends the Dashboard trail it is given (`Home › Dashboard`, also when opened from a To check item)
- * with its own steps, so the trail is the way back. No to-check count shows anywhere here.
+ * then one race. Its back arrow goes up one level: a race to its event, an event to Results, Results to the Dashboard;
+ * whatever a To check item opened goes back to the Dashboard, where To check lives. No to-check count shows anywhere here.
  */
-export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:TrailStep[];onChanged?:()=>void}={}) {
+export function Results({target,onDashboard,onChanged}:{target?:DayLeadItem;onDashboard:()=>void;onChanged?:()=>void}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
   const [code,setCode]=useState<string|null>(target?.event.code||null);
@@ -30,7 +29,6 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [selectedRace,setSelectedRace]=useState<string|null>(target?.entryId?null:target?.raceId||null);
   const [eventName,setEventName]=useState(target?`${target.event.name} ${target.event.section}`:'');
-  const [raceName,setRaceName]=useState(target?.race?raceLabel(target.race):'Race');
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
   const [updated,setUpdated]=useState('');
   const [error,setError]=useState('');
@@ -48,11 +46,10 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
     return()=>{request.current++;clearInterval(timer);};
   },[code]);
   function open(code:string|null,name='') {request.current++;setDetail(null);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setSelectedRace(null);setCode(code);setEventName(name);setError('');window.scrollTo(0,0);}
-  function openRace(id:string|null) {setRaceName('Race');setSelectedRace(id);window.scrollTo(0,0);}
-  const steps:TrailStep[]=[...trail];
-  if(!target) steps.push({label:'Results',onSelect:code?()=>open(null):undefined});
-  if(code) steps.push({label:detail?`${detail.event.name} ${detail.event.section}`:eventName||code,onSelect:selectedRace?()=>openRace(null):undefined});
-  if(code && selectedRace) steps.push({label:raceName});
+  function openRace(id:string|null) {setSelectedRace(id);window.scrollTo(0,0);}
+  const fromToCheck=target?.entryId?null:target?.raceId||null;
+  const back=code && selectedRace && selectedRace!==fromToCheck?<BackArrow to={detail?`${detail.event.name} ${detail.event.section}`:eventName||code} onBack={()=>openRace(null)}/>
+    :code && !target?<BackArrow to="Results" onBack={()=>open(null)}/>:<BackArrow to="Dashboard" onBack={onDashboard}/>;
 
   const selectedTie=detail?.results.ties.find(tie=>tie.id===selectedTieId);
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
@@ -65,9 +62,9 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
     else if(item.raceId) openRace(item.raceId);
   }
   const state=detail?eventState({status:detail.results.status,raceCount:detail.results.raceCount,format:detail.event.format}):null;
-  return <div className="results-view"><Trail steps={steps}/>{error && <p role="alert">{error}</p>}
+  return <div className="results-view">{back}{error && <p role="alert">{error}</p>}
     {code ? <>{!detail?<p className="results-opening">Opening results…</p>:<>
-      {selectedRace?<RacePage key={selectedRace} raceId={selectedRace} actionableRunners={detail.results.actionableRunners} onSaved={saved} onClose={()=>openRace(null)} onRace={race=>setRaceName(raceLabel(race))}/>:<>
+      {selectedRace?<RacePage key={selectedRace} raceId={selectedRace} actionableRunners={detail.results.actionableRunners} onSaved={saved} onClose={()=>openRace(null)}/>:<>
       <header className="results-event-head"><h1>{detail.event.name} {detail.event.section}</h1>
         <p className="results-event-meta"><span className={`event-status event-status-${state!.state}`}>{state!.state==='done' && tick}{state!.line}</span><span className="results-event-code">{detail.event.code}{!detail.event.enabled?' · Switched off':''}</span></p></header>
       {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.actionableRunners} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}

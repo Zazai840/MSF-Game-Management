@@ -1,4 +1,4 @@
-import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
+import { lookProblems,timesOpened,back,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(233, 237, 244)';
 
@@ -73,7 +73,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-results.png'),fullPage:true});
-  await trailBack(page,'Dashboard');
+  await back(page,'Dashboard');
   await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });
@@ -86,7 +86,7 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   await page.getByRole('button',{name:/^Phones /}).click();
   await expect(page.getByRole('article',{name:'E2E Scoring',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await trailBack(page,'Day setup');
+  await back(page,'Day setup');
   await page.getByRole('button',{name:/^Events /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
