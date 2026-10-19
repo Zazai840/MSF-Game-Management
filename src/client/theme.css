@@ -39,9 +39,8 @@
   --muted:#4a5470;
   --faint:#8a93ab;         /* decoration only (chevrons, separators), never text */
   /* Lines: inputs and outline buttons only; surfaces are told apart by tone */
-  --line:#d6dbe6;          /* card and row borders */
+  --line:#d6dbe6;          /* input borders, table cells */
   --line-strong:#c3cad9;   /* quiet button borders */
-  --chip-line:#c9d1e3;
   --divider:#dfe3ec;
   /* Amber: every warning and wrong time */
   --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;

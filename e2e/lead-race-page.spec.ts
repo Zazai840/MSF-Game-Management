@@ -30,6 +30,8 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
   expect(await background(second)).toBe(amber);
   await expect(record.getByRole('listitem').filter({hasText:'2103'})).not.toContainText('Faster');
   await expect(page.getByText('3 times · 3 finishers',{exact:true})).toBeVisible();
+  // A wrong time's amber outline must not nudge its row's content off the line the plain rows keep.
+  expect(new Set(await page.locator('.record-row').evaluateAll(rows=>rows.map(row=>row.querySelector('.record-place')!.getBoundingClientRect().left)))).toHaveProperty('size',1);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-wrong-time.png'),fullPage:true});
 
   await page.getByRole('button',{name:'Correct times',exact:true}).click();

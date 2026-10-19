@@ -13,8 +13,8 @@ import { NumberEntry } from '../flow/NumberEntry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { Saved } from '../flow/Saved.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
-import './jobs.css';
 import { clock } from '../../shared/clock.js';
+import './jobs.css';
 type Draft={race:RaceRead;slots:Array<string|null>;index:number;step:'entry'|'check';
   /** A Fix time / Keep choice is waiting for the place just typed. */
   warning:boolean;

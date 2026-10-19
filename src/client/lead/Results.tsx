@@ -13,8 +13,8 @@ import { eventState } from '../../shared/event-state.js';
 import { raceLabel } from '../../shared/races.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
 import { ordinal } from '../../shared/ordinal.js';
-import './results.css';
 import { clock } from '../../shared/clock.js';
+import './results.css';
 const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**
@@ -102,6 +102,6 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
           <span className="event-card-status">{card.line}{!item.event.enabled?' · Switched off':''}</span>
           {item.latestNoteAt && <span className="event-card-note">Latest note {clock(item.latestNoteAt)}</span>}
         </button>;})}</div></section>)}</>}
-    {!selectedRace && <footer className="results-footer">Updated at {updated || '…'} <button className="button-quiet" onClick={()=>void refresh()}>Refresh</button></footer>}
+    {!selectedRace && <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>}
   </div>;
 }

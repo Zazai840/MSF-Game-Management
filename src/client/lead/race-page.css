@@ -7,7 +7,7 @@
 .record-row {display:flex; align-items:center; gap:12px; min-height:56px; padding:6px 14px; border-radius:var(--radius); font-size:var(--text-body); font-weight:700; font-variant-numeric:tabular-nums;}
 /* A wrong time takes the amber of .time-wrong (flow.css). */
 .record-row:not(.time-wrong) {background:var(--surface);}
-.record-row.time-wrong {padding:5.5px 13.5px;}
+.record-row.time-wrong {padding:4px 12px;}
 .record-place {width:64px; flex:none; font-size:16px; font-weight:800; color:var(--navy);}
 .record-text {flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px;}
 .record-text strong {font-size:20px; font-weight:800;}

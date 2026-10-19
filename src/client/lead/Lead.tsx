@@ -10,8 +10,8 @@ import { Results } from './Results.js';
 import { Day,Events } from './Day.js';
 import { Phones } from './Phones.js';
 import type { PhonesRead } from '../../shared/phones.js';
-import './dashboard.css';
 import { clock } from '../../shared/clock.js';
+import './dashboard.css';
 type Section='Dashboard'|'Results'|'Day setup'|'Signed in today'|'Events';
 /** Day setup and the two screens its rows open; only the scoring team sees them. */
 const daySetup:Section[]=['Day setup','Signed in today','Events'];

@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import type { DayLeadItem,ProfileRequest,ResultsRead } from '../../shared/lead-results.js';
 import { toCheckHeading,toCheckWording } from '../../shared/to-check.js';
 import { clock } from '../../shared/clock.js';
-/** v1's Needs you queue on the Dashboard, newest first, each item in plain English with Open race. */
+/** The To check list on the Dashboard, newest first, each item in plain English with Open race. */
 export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCount:(count:number)=>void}) {
   const [items,setItems]=useState<DayLeadItem[]|null>(null),[error,setError]=useState(''),[updated,setUpdated]=useState('');
   const [requests,setRequests]=useState<ProfileRequest[]>([]),[deciding,setDeciding]=useState('');
