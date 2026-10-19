@@ -1,6 +1,7 @@
 import { useEffect,useState } from 'react';
 import { frameData,newerSnapshot,splitFrames } from '../shared/live.js';
 import { ApiFailure,apiResponse,StaleRequest } from './api.js';
+import { onThisBuild } from './shell/updates.js';
 /** Silence this long means the link is dead. Spread over 30-45 s so phones that lost signal together don't all reconnect at once. */
 const silence=()=>30_000+Math.random()*15_000;
 /** The wait before reconnecting after a failure or silence: 1 s, doubling up to 30 s. */
@@ -34,7 +35,8 @@ export function useLive<T extends {revision:number}>(path:string) {
           const split=splitFrames(rest+value);rest=split.rest;
           for(const data of split.frames.map(frameData)) {
             if(data===null) continue;
-            const next=JSON.parse(data) as T;
+            const next=JSON.parse(data) as T&{build?:string};
+            if(!onThisBuild(next.build)) return;
             if(newerSnapshot(held,next)) {held=next;failures=0;setSnapshot(next);setError('');}
           }
         }

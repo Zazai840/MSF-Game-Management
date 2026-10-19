@@ -1,4 +1,4 @@
-import { checkIn,goHome,jobButton,expect,createProfile,pickRace,test } from './fixtures.js';
+import { checkIn,dashboardButton,goHome,jobButton,expect,createProfile,openDashboard,pickRace,test } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -40,7 +40,7 @@ test('old phones see the browser message before the application opens',async({br
   }
 });
 
-test('a deployed version waits for a tap and preserves an unfinished Start line entry',async({page},info)=>{
+test('a deployed version reloads the phone by itself and keeps an unfinished Start line entry',async({page},info)=>{
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
   await createProfile(page,`Update ${info.project.name}`);
@@ -51,22 +51,50 @@ test('a deployed version waits for a tap and preserves an unfinished Start line 
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   const workerPath=resolve('dist/web/sw.js');
   const previous=await readFile(workerPath,'utf8');
-  let navigations=0;
-  page.on('framenavigated',frame=>{if(frame===page.mainFrame()) navigations++;});
+  let loads=0;page.on('load',()=>loads++);
   try {
-    // A byte-changing deployment exercises the browser's actual worker lifecycle.
+    // A deploy: a byte-changed worker on the server, and the server's build id on an API response no longer matching the phone's.
     await writeFile(workerPath,`${previous}\n// Deployed revision ${info.project.name}\n`);
-    await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-    const reload=page.getByRole('button',{name:'New version, tap to reload',exact:true});
-    await expect(reload).toBeVisible({timeout:10000});
-    await expect(page.getByLabel('Wristband number')).toHaveValue('21');
-    expect(navigations).toBe(0);
-    await page.screenshot({path:info.outputPath('new-version-prompt.png'),fullPage:true});
-    await Promise.all([page.waitForEvent('load'),reload.click()]);
+    await page.route('**/api/home',async route=>{
+      const response=await route.fetch();
+      await route.fulfill({response,headers:{...response.headers(),'x-build-id':'a newer build'}});
+    },{times:1});
+    await expect.poll(()=>loads,{timeout:10000}).toBe(1);
+    await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+    await expect(page.getByRole('button',{name:'New version, tap to reload'})).toHaveCount(0);
+    // The phone now matches the server: the next Home read does not reload it again.
+    await page.waitForResponse('**/api/home');
     await jobButton(page,'Start line').click();
     await expect(page.getByLabel('Wristband number')).toHaveValue('21');
-    expect(navigations).toBe(1);
+    expect(loads).toBe(1);
   } finally {await writeFile(workerPath,previous);}
+});
+
+test('a race screen snapshot from another build reloads the phone by itself',async({openPhone},info)=>{
+  const {page}=await openPhone(`Snapshot build ${info.project.name}`);
+  let loads=0;page.on('load',()=>loads++);
+  await page.route('**/api/live/race-screen/**',route=>route.fulfill({status:200,contentType:'text/event-stream',body:`data: ${JSON.stringify({revision:1,build:'a newer build'})}\n\n`}),{times:1});
+  const tile=page.getByRole('button',{name:/^60m Girl Cubs · /});
+  await tile.click();
+  await expect.poll(()=>loads,{timeout:10000}).toBe(1);
+  await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+  await tile.click();
+  await expect(page.getByRole('heading',{level:1,name:'60m Girl Cubs',exact:true})).toBeVisible();
+  expect(loads).toBe(1);
+});
+
+test('a failed load of the Lead area reloads the app instead of leaving a blank screen',async({openPhone},info)=>{
+  const {page}=await openPhone(`Lead load ${info.project.name}`,{lead:true});
+  let loads=0;page.on('load',()=>loads++);
+  // An old page after a deploy: its Lead files are gone from the server. The service worker passes these requests on, so only the context sees them.
+  const leadFiles=/\/assets\/Lead-[^/]+\.(js|css)$/;
+  await page.context().route(leadFiles,route=>route.abort());
+  await dashboardButton(page).click();
+  await expect.poll(()=>loads,{timeout:10000}).toBe(1);
+  await page.context().unroute(leadFiles);
+  await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+  await openDashboard(page);
+  expect(loads).toBe(1);
 });
 
 test('all three unfinished jobs survive reload and are dropped when the phone is removed',async({page},info)=>{
