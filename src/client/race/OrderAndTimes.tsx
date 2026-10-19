@@ -58,7 +58,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   const unplaced=runners.filter(runner=>!order.includes(runner.id) && !didNotFinish.includes(runner.id));
   const change=(next:Partial<OrderColumn>)=>void send({order,didNotFinish,didNotRun:shown.didNotRun,...next});
   const places=final?[]:race.parts.times.value?.places||[],timed=places.filter(time=>time!==null).length;
-  const ordering=holds.order?.id===phoneId && !stageComplete && !final;
+  const ordering=holds.order?.id===phoneId && !stageComplete;
   const next=ordering && step==='place' && unplaced.length?order.length:-1;
   const rows=Math.max(runners.length-didNotFinish.length,order.length,places.length);
   const time=(place:number)=>places[place-1]==null?'':formatTime(places[place-1]!);

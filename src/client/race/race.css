@@ -9,7 +9,7 @@
 .race-card-head {width:100%; display:flex; align-items:center; gap:12px; min-height:68px; padding:12px 14px 12px 16px; text-align:left; background:var(--surface); color:var(--text); border:0; border-radius:0;}
 .race-card-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
 .race-card-title {font-size:var(--text-h3); font-weight:800; color:var(--navy);}
-.race-card-status {font-size:var(--text-small); font-weight:600; color:var(--muted);}
+.race-card-status {font-size:var(--text-small); font-weight:600; color:var(--muted); text-wrap:pretty;}
 .race-card-arrow {flex:none; width:40px; height:40px; border-radius:50%; background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center; transition:transform .15s;}
 .race-card-head[aria-expanded=true] .race-card-arrow {transform:rotate(90deg);}
 @media (prefers-reduced-motion:reduce) {.race-card-arrow {transition:none;}}
@@ -27,6 +27,19 @@
 .race-card-body .warning-actions {display:flex; gap:10px;}
 .race-card-body .warning-actions button {flex:1;}
 .race-take-over {align-self:flex-start;}
+
+/* Check-in on a final: one row per seeded runner, Here or Absent. An absent runner's number is struck through. */
+.race-attendance {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.race-attendance li {display:flex; align-items:center; gap:10px; min-height:56px; padding:6px 6px 6px 14px; border-radius:var(--radius); background:var(--ground);}
+.race-attendance strong {min-width:52px; font-size:21px; font-weight:800; font-variant-numeric:tabular-nums;}
+.race-attendance li.is-absent strong {color:var(--muted); text-decoration:line-through;}
+.race-seed {width:74px; flex:none; white-space:nowrap; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-attend-pair {margin-left:auto; display:flex; gap:6px;}
+.race-attend-pair button {min-height:var(--tap); padding:0 12px; border-radius:var(--radius-small); font-size:15px;}
+.race-attend-pair .race-absent-on {background:var(--amber-fill); color:var(--amber-text); border:2px solid var(--amber-line);}
+.race-here,.race-absent {margin-left:auto; padding-right:8px; font-size:var(--text-small); font-weight:800;}
+.race-here {color:var(--green-text);}
+.race-absent {color:var(--amber-text);}
 
 /* Order and Times: one row per place, rows told apart by tone. */
 .race-table {width:100%; border-collapse:separate; border-spacing:0 6px; margin:-6px 0; font-variant-numeric:tabular-nums;}
