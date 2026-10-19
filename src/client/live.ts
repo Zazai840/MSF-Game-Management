@@ -10,7 +10,8 @@ const backoff=(failures:number)=>Math.min(30_000,1000*2**(failures-1));
 /**
  * Reads a live stream (`live/...`, read with fetch so the bearer token goes with it) and holds its newest snapshot,
  * ignoring any older than the one held. A planned end reconnects at once; a failure or silence reconnects with backoff.
- * The stream closes while the page is hidden and reopens when it is visible; every connect sends the whole snapshot first.
+ * The stream closes while the page is hidden and reopens when it is visible, and starts again when the signal goes or comes back;
+ * every connect sends the whole snapshot first.
  * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule.
  */
 export function useLive<T extends {revision:number}>(path:string) {
@@ -59,9 +60,14 @@ export function useLive<T extends {revision:number}>(path:string) {
       if(!hidden()) {void connect();return;}
       clearTimeout(retry);controller?.abort();controller=null;
     };
-    document.addEventListener('visibilitychange',visibility);
+    // The signal going or coming back leaves the open stream likely dead (it can stay silent until the watchdog): start again at once.
+    const restart=()=>{clearTimeout(retry);controller?.abort();controller=null;void connect();};
+    document.addEventListener('visibilitychange',visibility);addEventListener('offline',restart);addEventListener('online',restart);
     void connect();
-    return ()=>{stopped=true;clearTimeout(retry);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
+    return ()=>{
+      stopped=true;clearTimeout(retry);controller?.abort();
+      document.removeEventListener('visibilitychange',visibility);removeEventListener('offline',restart);removeEventListener('online',restart);
+    };
   },[path]);
   const offer=(next:T)=>{if(newerSnapshot(held.current,next)) {held.current=next;setSnapshot(next);}};
   return {snapshot,error,offer};
