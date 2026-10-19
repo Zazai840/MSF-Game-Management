@@ -56,7 +56,8 @@ const takeHold=(client:pg.PoolClient,screen:RaceScreenRead,job:RaceJob,phone:Pho
 async function requireWrite(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,job:RaceJob,raceId:string|null,version:number) {
   requireJob(screen,job);
   if(raceId!==null && raceId!==screen.race.id) {
-    const race=await readRace(client,phone.dayId,raceId).catch(()=>null);
+    // A race deleted permanently is gone, so its name is too.
+    const race=await readRace(client,phone.dayId,raceId).catch(error=>{if(error instanceof Refusal) return null;throw error;});
     if(!race || race.event.id!==screen.event.id) throw new Refusal(409,'A lead deleted this race');
     if(race.deleted) throw new Refusal(409,`A lead deleted ${currentRaceLabel(race)}`);
     if(race.recording.readyForRanking) throw new Refusal(409,`${currentRaceLabel(race)} is saved - ask a lead to change it`);
