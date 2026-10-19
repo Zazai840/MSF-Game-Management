@@ -40,3 +40,22 @@ test('app switch: once the app is back in front, phone B shows what phone A chec
   await expect(checkedIn(b.page)).toHaveText(['2201','2202'],live);
   await deleteCurrentRace(request,code);
 });
+
+test('silent link: once the watchdog gives up on a stream that went quiet, phone B shows what phone A checked in meanwhile',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`LS-${project.toUpperCase()}`,name=`Silent link ${project}`;
+  await ownEvent(request,code,name);
+  const a=await openPhone(`Ann silent ${project}`),b=await openPhone(`Ben silent ${project}`);
+  await b.page.clock.install();
+  // B's first stream request is never answered, as on a link that died without telling the phone.
+  let asked!:()=>void;const silent=new Promise<void>(resolve=>asked=resolve);
+  await b.page.route(liveStream,()=>asked(),{times:1});
+  await b.page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} Girl Cubs · `)}).click();
+  await silent;
+  await expect(b.page.getByText('Opening…',{exact:true})).toBeVisible();
+  await writeCheckIn(request,a.token,code,[2301]);
+  await b.page.clock.fastForward('00:45');
+  await expect(checkInCard(b.page)).toHaveAccessibleName(new RegExp(`Ann silent ${project} is checking in · 1 in$`),live);
+  await checkInCard(b.page).click();
+  await expect(checkedIn(b.page)).toHaveText(['2301']);
+  await deleteCurrentRace(request,code);
+});
