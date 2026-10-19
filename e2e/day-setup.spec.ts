@@ -21,7 +21,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   await expect(password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
   await expect(password).toContainText('Volunteers type this once on their phone. Only the scoring team can see it here.');
   await expect(password).toContainText('It stays the same when a new day starts.');
-  await expect(password.getByRole('button')).toHaveCount(0);
+  await expect(password.getByRole('button')).toHaveText(['Change Olympics password']);
   expect(await password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true}).evaluate(element=>getComputedStyle(element).fontSize)).toBe('32px');
   await expect(page.getByText(/day code/i)).toHaveCount(0);
   await password.screenshot({path:info.outputPath('olympics-password-card.png')});

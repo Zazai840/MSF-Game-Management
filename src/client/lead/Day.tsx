@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { sections, type DayRead } from '../../shared/day.js';
-import { api,apiDownload,startNewDay } from '../api.js';
+import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import './day.css';
 
 const chevron=<svg className="day-row-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
@@ -25,16 +25,39 @@ function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
   return {busy,run,failure};
 }
 
-/** A code the scoring team reads out; with an action, a button that makes a new one. */
-function CodeCard({label,code,explanation,note,make}:{label:string;code:string;explanation:string;note:string;make?:{action:string;busy:boolean;onMake:()=>void;failure:ReactNode}}) {
+/** A code the scoring team reads out; with an action, a button that makes a new one, or the children that change it. */
+function CodeCard({label,code,explanation,note,make,children}:{label:string;code:string;explanation:string;note:string;make?:{action:string;busy:boolean;onMake:()=>void;failure:ReactNode};children?:ReactNode}) {
   return <section className="day-card" aria-label={label}>
     <span className="day-label" aria-hidden="true">{label}</span>
     <span className="code">{code}</span>
     <p className="day-text">{explanation}</p>
     {make && <button className="button-secondary button-small" disabled={make.busy} onClick={make.onMake}>{make.action}</button>}
+    {children}
     <p className="day-note">{note}</p>
     {make?.failure}
   </section>;
+}
+
+/** Change Olympics password: the new password and what it does to every phone, then this phone goes to the password screen too. */
+function ChangePassword() {
+  const [open,setOpen]=useState(false);
+  const [password,setPassword]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  async function change(event:FormEvent) {
+    event.preventDefault();setBusy(true);setError('');
+    // The change ends this phone's session too, so it signs out as the server's password-changed reason would.
+    try {await api('day/olympics-password',{password});phoneStorage.signOut();}
+    catch(error) {setError(error instanceof Error?error.message:'Could not connect - tap Change password again');setBusy(false);}
+  }
+  if(!open) return <button className="button-secondary button-small" onClick={()=>setOpen(true)}>Change Olympics password</button>;
+  return <form onSubmit={change}>
+    <label>New Olympics password<input value={password} onChange={event=>setPassword(event.target.value)} autoComplete="off" autoCapitalize="none" required /></label>
+    <p className="day-text">Every phone, including yours, goes back to the password screen. Profiles stay on the phones.</p>
+    {error && <p role="alert">{error}</p>}
+    <div className="day-actions"><button className="button-small" disabled={busy}>{busy?'Changing…':'Change password'}</button>
+      <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>{setOpen(false);setPassword('');setError('');}}>Cancel</button></div>
+  </form>;
 }
 
 /**
@@ -69,7 +92,7 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
   const events=day.events.length;
   return <div className="day-setup">
     <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only the scoring team can see it here."
-      note="It stays the same when a new day starts."/>
+      note="It stays the same when a new day starts."><ChangePassword/></CodeCard>
     <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard."
       note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access."
       make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>

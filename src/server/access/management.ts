@@ -18,6 +18,17 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
     await writeAuditNote(client,current,null,{action:'Made new lead code',message:'Changed the lead code; ordinary leads are volunteers again',comment:null,touches:[]});
     return {status:'saved'};
   },'Scoring team'));
+  // Bumping the version ends every session, the caller's too, with password-changed; roles stay on today's rows.
+  action('POST','/api/day/olympics-password','Scoring team',async(request,_reply,phone)=>{
+    const password=(request.body as {password?:unknown}|null)?.password;
+    if(typeof password!=='string' || password.length<6) throw new Refusal(400,'Use at least 6 characters for the Olympics password');
+    return rulingChange(pool,phone,async(client,current)=>{
+      const changed=await client.query('UPDATE olympics_settings SET password=$1,password_version=password_version+1 WHERE password<>$1',[password]);
+      if(!changed.rowCount) throw new Refusal(409,'That is already the Olympics password. Type a new one.');
+      await writeAuditNote(client,current,null,{action:'Changed Olympics password',message:'Changed the Olympics password; every phone types the new one',comment:null,touches:[]});
+      return {status:'saved'};
+    },'Scoring team');
+  });
   action('POST','/api/day/phones/:phoneId/scoring-team','Scoring team',async(request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{
     const {phoneId}=request.params as {phoneId:string};
     const scoringTeam=(request.body as {scoringTeam?:unknown}|null)?.scoringTeam;
