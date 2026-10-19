@@ -1,15 +1,15 @@
 import { becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
-const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
-test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers,data:{permanent:true}});});
+test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times. */
 async function recordedRace(page:Page,code:string,runners:number[],places:Array<number|null>) {
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners}})).json()).race;
-  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
-  expect((await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
+  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
+  expect((await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places}})).ok()).toBe(true);
   created.push(race.id);
   return race as {id:string;number:number};
 }

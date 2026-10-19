@@ -3,13 +3,21 @@ import { test as base,expect,type APIRequestContext,type Locator,type Page } fro
 // every reset journey, so each test reads the current codes rather than a seed.
 export const test=base.extend<{freshCodes:void}>({
   freshCodes:[async({request},use)=>{
-    const response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
+    let response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
+    // A password change ends every session; a fresh worker still holds setup's token, so sign the scoring team back in.
+    if(response.status()===401) {await signScoringTeamBackIn(request);response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});}
     expect(response.ok()).toBe(true);
     const {leadCode,olympicsPassword}=await response.json();
     process.env.E2E_LEAD_CODE=leadCode;process.env.E2E_OLYMPICS_PASSWORD=olympicsPassword;
     await use();
   },{auto:true}]
 });
+/** Signs setup's scoring team profile in again with the owner password; its role and Day setup are untouched. */
+export async function signScoringTeamBackIn(request:APIRequestContext) {
+  const response=await request.post('/api/owner-sign-in',{data:{password:'e2e-owner-fixture',name:'E2E Scoring',profiles:[JSON.parse(process.env.E2E_SCORING_PROFILE!)]}});
+  expect(response.ok()).toBe(true);
+  process.env.E2E_SCORING_TOKEN=(await response.json()).token;
+}
 /** On the Olympics password screen: types the password (or the owner password) and taps Continue. */
 export async function typePassword(page:Page,password=process.env.E2E_OLYMPICS_PASSWORD!) {
   await page.getByLabel('Olympics password',{exact:true}).fill(password);

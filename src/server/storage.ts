@@ -25,7 +25,7 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), profile_id uuid NOT NULL REFERENCES profiles(id),
       name text NOT NULL, level text NOT NULL CHECK (level IN ('Volunteer','Lead','Scoring team')),
       owner boolean NOT NULL DEFAULT false, token_hash text NOT NULL UNIQUE, signed_out boolean NOT NULL DEFAULT false,
-      signed_in_at timestamptz NOT NULL DEFAULT now(), UNIQUE(day_id, profile_id)
+      signed_in_at timestamptz NOT NULL DEFAULT now(), password_version integer NOT NULL DEFAULT 1, UNIQUE(day_id, profile_id)
     );
     -- That's me: a phone asks for a profile back. Approving gives the profile the waiting secret, so only that phone holds it;
     -- the old phone's session token is kept so its next request is told the profile moved.
