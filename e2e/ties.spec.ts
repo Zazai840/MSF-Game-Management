@@ -1,16 +1,12 @@
 import { writeFile } from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import { openDashboard,becomeLead,dragTo,expect,createProfile,test,back } from './fixtures.js';
+import { recordRace,openDashboard,becomeLead,dragTo,expect,createProfile,test,back } from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;
   expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie event ${info.project.name}`,section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const createRace=async(number:number,time:number)=>{
-    const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[number]}})).json()).race;
-    await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[number],didNotFinish:[],didNotRun:[],added:[]}});
-    await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[time]}});
-  };
+  const createRace=(number:number,time:number)=>recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[number],[time]);
   await createRace(2701,1000);await createRace(2702,1000);
   await page.goto('/');await createProfile(page,`Tie lead ${info.project.name}`);
   await becomeLead(page);await openDashboard(page,'Results');
@@ -55,11 +51,7 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
   expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie heats ${info.project.name}`,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:string[]=[];
-  const heat=async(runners:number[],places:number[])=>{
-    const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners}})).json()).race;races.push(race.id);
-    await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}});
-    expect((await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places}})).ok()).toBe(true);
-  };
+  const heat=async(runners:number[],places:number[])=>{races.push((await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,places)).id);};
   // 2731 and 2735 share a time in Heat 1; 2733 has the same time in Heat 2.
   await heat([2731,2735,2736],[1000,1000,1200]);await heat([2733,2734],[1000,1100]);
   try {

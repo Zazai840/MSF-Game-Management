@@ -1,4 +1,5 @@
 import { test as base,expect,type APIRequestContext,type Locator,type Page } from '@playwright/test';
+import type { RaceRead } from '../src/shared/races.js';
 // A real reset changes the lead code. The original scoring phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
 export const test=base.extend<{freshCodes:void}>({
@@ -69,6 +70,35 @@ export async function back(page:Page,to:string) {
     await expect(arrow).not.toHaveAttribute('aria-label',label);
   }
   throw new Error(`No way back to ${to}`);
+}
+// Race setup: every spec that needs a race recorded before it starts goes through these, so they are
+// the one place that knows how a race is entered and saved. Each acts as the phone whose token it is given.
+/** Saves one race write as that phone and returns the race as saved. */
+async function saveRace(request:APIRequestContext,token:string,path:string,data:object) {
+  const response=await request.post(path,{headers:{authorization:`Bearer ${token}`},data});
+  expect(response.ok(),`${path}: ${await response.text()}`).toBe(true);
+  return (await response.json()).race as RaceRead;
+}
+/** Checks runners in to the event's next race; `keptWarnings` are the wristbands whose warnings the starter kept. */
+export function checkIn(request:APIRequestContext,token:string,eventCode:string,runners:number[],keptWarnings?:number[]) {
+  return saveRace(request,token,'/api/races/check-in',{eventCode,runners,keptWarnings});
+}
+/**
+ * Records a race's finishing order: every runner goes in `order`, `didNotFinish` or `didNotRun`, and `added` names
+ * finishers who were not checked in. The versions it was opened at default to the first save on the first runner list.
+ */
+export function recordFinishingOrder(request:APIRequestContext,token:string,race:{id:string},{order,didNotFinish=[],didNotRun=[],added=[],baseVersion=0,runnersVersion=1}:{order:number[];didNotFinish?:number[];didNotRun?:number[];added?:number[];baseVersion?:number;runnersVersion?:number}) {
+  return saveRace(request,token,`/api/races/${race.id}/finish`,{baseVersion,runnersVersion,order,didNotFinish,didNotRun,added});
+}
+/** Records a race's times in place order, in hundredths (null for No finisher at the bottom). */
+export function recordTimes(request:APIRequestContext,token:string,race:{id:string},places:readonly (number|null)[],baseVersion=0) {
+  return saveRace(request,token,`/api/races/${race.id}/times`,{baseVersion,places});
+}
+/** A fully recorded race: checks the runners in, records them finishing in that order, then records their times. */
+export async function recordRace(request:APIRequestContext,token:string,eventCode:string,runners:number[],places:readonly (number|null)[],keptWarnings?:number[]) {
+  const race=await checkIn(request,token,eventCode,runners,keptWarnings);
+  await recordFinishingOrder(request,token,race,{order:runners});
+  return recordTimes(request,token,race,places);
 }
 /** Types one wristband into the phone number input and taps Next, as a volunteer would. */
 export async function enterWristband(page:Page,number:number|string,label='Wristband number') {
@@ -216,4 +246,4 @@ export async function lookProblems(page:Page) {
   });
 }
 export { expect };
-export type { Locator,Page };
+export type { APIRequestContext,Locator,Page };

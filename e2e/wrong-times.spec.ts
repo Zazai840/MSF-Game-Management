@@ -1,4 +1,4 @@
-import { enterTime,expect,jobButton,createProfile,pickRace,test,type Page } from './fixtures.js';
+import { checkIn,recordFinishingOrder,enterTime,expect,jobButton,createProfile,pickRace,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 /** A race of 4 Girl Cubs with its finishing order saved, waiting for times. */
@@ -6,10 +6,10 @@ async function raceWaitingForTimes(page:Page,code:string) {
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Times wrong',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const runners=[2601,2602,2603,2604];
-  const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
-  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
+  const race=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,code,runners);
+  await recordFinishingOrder(page.request,process.env.E2E_SCORING_TOKEN!,race,{order:runners});
   created.push(race.id);
-  return race as {id:string;number:number};
+  return race;
 }
 const created:string[]=[];
 // Remove the races even when a test fails, so no other Times test opens them as waiting.

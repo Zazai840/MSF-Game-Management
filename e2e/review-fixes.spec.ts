@@ -1,13 +1,13 @@
-import { pickRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { checkIn,recordFinishingOrder,recordTimes,pickRace,openDashboard,savedRaceLabel,enterWristband,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await createProfile(page,name);
 }
 async function surplusRace(page:Page,code:string) {
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Review surplus',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
-  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2401,2402,2403,2404,2405,2406]}})).json()).race;
-  expect((await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1200,1300,1400,1500,1600,1700]}})).ok()).toBe(true);
-  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2401,2402,2403,2404,2405],didNotFinish:[],didNotRun:[2406],added:[]}})).ok()).toBe(true);
+  const token=process.env.E2E_SCORING_TOKEN!,race=await checkIn(page.request,token,code,[2401,2402,2403,2404,2405,2406]);
+  await recordTimes(page.request,token,race,[1200,1300,1400,1500,1600,1700]);
+  await recordFinishingOrder(page.request,token,race,{order:[2401,2402,2403,2404,2405],didNotRun:[2406]});
   return {race,headers};
 }
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';

@@ -1,4 +1,4 @@
-import { signInThroughApi,back,pickRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
+import { checkIn,recordFinishingOrder,signInThroughApi,back,pickRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
 async function times(page:Page,code:string,first:string,second:string) {
   await jobButton(page,'Times').click();await pickRace(page,'Times',new RegExp(`\\(${code}\\) · Race 1$`));
   for(const value of [first,second]) await enterTime(page,value);
@@ -7,8 +7,8 @@ async function times(page:Page,code:string,first:string,second:string) {
 test('two phone drafts retain different Times versions and a lead chooses one',async({page,browser,request},info)=>{
   const code=`CL-${info.project.name.toUpperCase()}`;const scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await request.post('/api/day/events',{headers:scoring,data:{code,name:'Clash sprint',section:'Girl Cubs',format:'timed'}});await request.post('/api/day/confirm-events',{headers:scoring,data:{}});
-  const race=(await (await request.post('/api/races/check-in',{headers:scoring,data:{eventCode:code,runners:[2081,2082]}})).json()).race;
-  await request.post(`/api/races/${race.id}/finish`,{headers:scoring,data:{baseVersion:0,runnersVersion:1,order:[2081,2082],didNotFinish:[],didNotRun:[],added:[]}});
+  const race=await checkIn(request,process.env.E2E_SCORING_TOKEN!,code,[2081,2082]);
+  await recordFinishingOrder(request,process.env.E2E_SCORING_TOKEN!,race,{order:[2081,2082]});
   const nameA=`Clash A ${info.project.name}`,nameB=`Clash B ${info.project.name}`;
   const tokenA=await signInThroughApi(request,nameA),tokenB=await signInThroughApi(request,nameB);
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),tokenA);await page.reload();
@@ -35,8 +35,8 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await back(lead,'Clash sprint Girl Cubs');
   await expect(lead.getByRole('button',{name:'Runner 2081 · Race 1',exact:true})).toContainText('12.10');
   await expect(lead.getByRole('list',{name:'Audit notes'})).toContainText(nameB);
-  await request.post(`/api/races/${race.id}/finish`,{headers:{authorization:`Bearer ${tokenA}`},data:{baseVersion:1,runnersVersion:1,order:[2081],didNotFinish:[],didNotRun:[2082],added:[]}});
-  await request.post(`/api/races/${race.id}/finish`,{headers:{authorization:`Bearer ${tokenB}`},data:{baseVersion:1,runnersVersion:1,order:[2082,2081],didNotFinish:[],didNotRun:[],added:[]}});
+  await recordFinishingOrder(request,tokenA,race,{order:[2081],didNotRun:[2082],baseVersion:1});
+  await recordFinishingOrder(request,tokenB,race,{order:[2082,2081],baseVersion:1});
   await lead.getByRole('button',{name:'Refresh',exact:true}).click();await lead.getByRole('button',{name:'Open Race 1',exact:true}).click();
   await expect(lead.getByText("2082 · Didn't run",{exact:true})).toBeVisible();
   await lead.getByRole('radio',{name:`Finishing order by ${nameB}`,exact:true}).check();

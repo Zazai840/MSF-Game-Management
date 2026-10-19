@@ -1,4 +1,4 @@
-import { lookProblems,signInThroughApi,back,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { lookProblems,checkIn,recordFinishingOrder,recordTimes,recordRace,signInThroughApi,back,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const menu=[
@@ -16,10 +16,7 @@ async function buttonLook(button:ReturnType<Page['getByRole']>) {
 /** A timed event with one race whose 2nd place time is faster than 1st, so To check has an item. */
 async function wrongTimeRace(page:Page,code:string) {
   await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Dashboard sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const race=(await(await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners:[2001,2002]}})).json()).race;
-  await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]}});
-  await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places:[1600,1305]}});
-  return race;
+  return recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[2001,2002],[1600,1305]);
 }
 const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers:headers(),data:{permanent:true}});};
 
@@ -75,9 +72,9 @@ test('Day setup shows only for the scoring team and opens the Olympics password 
 test('To check explains each problem in plain English, opens the race and confirms a saved ruling',async({page},info)=>{
   const code=`TC-${info.project.name.toUpperCase()}`,wrong=await wrongTimeRace(page,code);
   const first=await signInThroughApi(page.request,`Yusuf ${info.project.name}`),second=await signInThroughApi(page.request,`Maryam ${info.project.name}`);
-  const clash=(await(await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners:[2003]}})).json()).race;
-  await page.request.post(`/api/races/${clash.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:[2003],didNotFinish:[],didNotRun:[],added:[]}});
-  for(const [token,places] of [[first,[1400]],[second,[1500]]] as const) await page.request.post(`/api/races/${clash.id}/times`,{headers:{authorization:`Bearer ${token}`},data:{baseVersion:0,places}});
+  const clash=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,code,[2003]);
+  await recordFinishingOrder(page.request,process.env.E2E_SCORING_TOKEN!,clash,{order:[2003]});
+  for(const [token,places] of [[first,[1400]],[second,[1500]]] as const) await recordTimes(page.request,token,clash,places);
   try {
     await page.goto('/');await createProfile(page,`To check lead ${info.project.name}`);await becomeLead(page);
     await openDashboard(page);

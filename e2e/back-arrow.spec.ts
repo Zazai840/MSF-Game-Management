@@ -1,4 +1,4 @@
-import { back,toCheckItem,openDashboard,dashboardMenuButton,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { back,recordRace,toCheckItem,openDashboard,dashboardMenuButton,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const row=(page:Page)=>page.getByRole('navigation',{name:'Back',exact:true});
@@ -42,9 +42,7 @@ test('on lead screens the back arrow goes up one level: event results to Results
   const code=`BA-${info.project.name.toUpperCase()}`,event='Back arrow sprint Girl Cubs';
   await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Back arrow sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   // A 2nd place faster than 1st puts the race on To check.
-  const race=(await(await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners:[2021,2022]}})).json()).race;
-  await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:[2021,2022],didNotFinish:[],didNotRun:[],added:[]}});
-  await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places:[1600,1305]}});
+  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[2021,2022],[1600,1305]);
   try {
     await page.goto('/');await createProfile(page,`Back arrow lead ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');
     await openDashboard(page);

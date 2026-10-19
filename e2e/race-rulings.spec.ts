@@ -1,9 +1,8 @@
-import { goHome,back,openDashboard,jobButton,becomeLead,expect,createProfile,test } from './fixtures.js';
+import { recordRace,goHome,back,openDashboard,jobButton,becomeLead,expect,createProfile,test } from './fixtures.js';
 test('a lead repairs a race, keeps failed corrections, deletes and restores it, then calls a prefilled re-run',async({page},info)=>{
   const code=`RC-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:'Race corrections',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2001,2002]}})).json()).race;
-  await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1300,1200]}});
+  await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[2001,2002],[1300,1200]);
   await page.goto('/');await createProfile(page,`Race lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1400');
@@ -20,8 +19,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
 test('a lead can correct times again straight after saving, even when the race is slow to re-read',async({page},info)=>{
   const code=`RQ-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:'Quick corrections',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=(await (await page.request.post('/api/races/check-in',{headers,data:{eventCode:code,runners:[2001,2002]}})).json()).race;
-  await page.request.post(`/api/races/${race.id}/finish`,{headers,data:{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]}});await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1200,1300]}});
+  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[2001,2002],[1200,1300]);
   await page.goto('/');await createProfile(page,`Quick lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1400');
