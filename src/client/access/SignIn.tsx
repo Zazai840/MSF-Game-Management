@@ -174,7 +174,7 @@ function WaitingScreen({onSignedIn,onLeave}:{onSignedIn:(result:SignedIn)=>void;
     async function check() {
       if(!waiting || document.visibilityState!=='visible') return;
       try {
-        const result=await api<{status:'waiting'|'declined'|'cancelled'}|({status:'approved'}&SignedIn)>('thats-me/status',{secret:waiting.secret});
+        const result=await api<{status:'waiting'|'declined'|'cancelled'}|({status:'approved'}&SignedIn)>('thats-me/status',{pass:phoneStorage.pass(),secret:waiting.secret});
         if(stopped) return;
         if(result.status==='approved') onSignedIn(result);
         else if(result.status==='declined') onLeave(declined);

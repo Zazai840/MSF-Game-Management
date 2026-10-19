@@ -26,6 +26,16 @@ test('Remove signs a profile out for today as a volunteer, with reason signed-ou
   const again=await app.inject({method:'POST',url:'/api/sign-in',payload:{pass,profileId:lead.profile.id,secret:lead.profile.secret}});
   expect((await call(again.json().token,'/api/me')).json()).toMatchObject({name:'Ahmed',level:'Volunteer'});
 });
+test('Remove on the owner row signs the owner out but keeps Scoring team and the owner marker',async()=>{
+  const {owner,pass,join}=await start();const scoring=await join('Yusuf');
+  await call(owner.token,`/api/day/phones/${scoring.phone.id}/role`,{role:'Scoring team'});
+  expect((await call(scoring.token,`/api/day/phones/${owner.phone.id}/remove`,{})).statusCode).toBe(200);
+  expect((await call(owner.token,'/api/home')).json().reason).toBe('signed-out');
+  const again=await app.inject({method:'POST',url:'/api/sign-in',payload:{pass,profileId:owner.profile.id,secret:owner.profile.secret}});
+  expect((await call(again.json().token,'/api/me')).json()).toMatchObject({name:'Aisha',level:'Scoring team'});
+  const list=(await call(scoring.token,'/api/day/phones')).json();
+  expect(list.phones.find((phone:any)=>phone.name==='Aisha')).toMatchObject({level:'Scoring team',owner:true});
+});
 test('Signed in today lists rows oldest first with role, owner marker and your own row',async()=>{
   const {owner,join}=await start();const volunteer=await join('Ahmed');
   const list=(await call(owner.token,'/api/day/phones')).json();

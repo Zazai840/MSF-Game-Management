@@ -34,6 +34,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       secret_hash text NOT NULL UNIQUE, status text NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting','approved','declined','cancelled')),
       moved_token_hash text, created_at timestamptz NOT NULL DEFAULT now()
     );
+    -- Set when the waiting phone has read its approved answer, which is handed out once.
+    ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS delivered boolean NOT NULL DEFAULT false;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS events_confirmed boolean NOT NULL DEFAULT false;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_at timestamptz;

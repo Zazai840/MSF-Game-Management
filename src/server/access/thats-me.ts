@@ -28,18 +28,21 @@ export function thatsMeRoutes(app: FastifyInstance, pool: pg.Pool) {
       return {id, name:profile.name, secret};
     });
   });
-  // The waiting phone polls this. Once approved, each read signs the profile in, like tapping the name.
+  // The waiting phone polls this. The approved answer (secret and session) comes once, so a later read cannot undo a Remove.
   app.post('/api/thats-me/status', async request => {
-    const hash = secretOf(request.body);
+    const body = request.body as {pass?: unknown; secret?: unknown} | null;
+    const hash = secretOf(body);
     return signInTransaction(pool, async client => {
-      const found = (await client.query(`SELECT r.status,r.day_id,p.id,p.name,p.secret_hash=r.secret_hash AS held FROM profile_requests r JOIN profiles p ON p.id=r.profile_id
+      await requirePass(client, body?.pass);
+      const found = (await client.query(`SELECT r.id AS "requestId",r.status,r.delivered,r.day_id,p.id,p.name,p.secret_hash=r.secret_hash AS held FROM profile_requests r JOIN profiles p ON p.id=r.profile_id
         JOIN olympics_days d ON d.id=r.day_id AND d.active WHERE r.secret_hash=$1`, [hash])).rows[0];
-      if (!found) throw noRequest();
+      if (!found || found.delivered) throw noRequest();
       if (found.status !== 'approved') return {status:found.status};
       // Approved, then moved again by a later That's me.
       if (!found.held) throw moved();
+      await client.query('UPDATE profile_requests SET delivered=true WHERE id=$1', [found.requestId]);
       const profile = {id:found.id as string, name:found.name as string};
-      return {status:'approved', profile:{...profile, secret:(request.body as {secret: string}).secret}, ...await signIn(client, found.day_id, profile)};
+      return {status:'approved', profile:{...profile, secret:body!.secret as string}, ...await signIn(client, found.day_id, profile)};
     });
   });
   app.post('/api/thats-me/cancel', async request => {
