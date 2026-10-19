@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import type { DayLeadItem,ProfileRequest,ResultsRead } from '../../shared/lead-results.js';
 import { toCheckHeading,toCheckWording } from '../../shared/to-check.js';
 import { clock } from '../../shared/clock.js';
-/** v1's Needs you queue, newest first, each item in plain English with Open race. */
+/** v1's Needs you queue on the Dashboard, newest first, each item in plain English with Open race. */
 export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCount:(count:number)=>void}) {
   const [items,setItems]=useState<DayLeadItem[]|null>(null),[error,setError]=useState(''),[updated,setUpdated]=useState('');
   const [requests,setRequests]=useState<ProfileRequest[]>([]),[deciding,setDeciding]=useState('');
@@ -22,7 +22,7 @@ export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCoun
   }
   return <div className="to-check">{error && <p role="alert">{error}</p>}
     {items===null?<p>Opening To check…</p>:<>
-      <h1>{toCheckHeading(items.length+requests.length)}</h1>
+      <h2>{toCheckHeading(items.length+requests.length)}</h2>
       {items.length+requests.length===0?<p className="to-check-none">Nothing needs a zone lead right now.</p>:<ol aria-label="To check">{requests.map(request=><li key={request.id} className="to-check-item">
         <small className="to-check-race"><span className="to-check-dot" aria-hidden="true"/><span>That's me</span><time dateTime={request.at}>{clock(request.at)}</time></small>
         <span className="to-check-title">{request.name} wants their profile on a new phone</span>
