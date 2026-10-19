@@ -29,6 +29,8 @@ export interface AppSettings {
   testBuild?: {commit?: string};
   /** Live streams: how often an idle stream sends a heartbeat (Railway cuts a stream after 5 minutes of silence), and when each stream ends (Railway's hard cap is 15 minutes). */
   streamHeartbeatMs?: number; streamLimitMs?: number;
+  /** The web build this server serves, sent on every response and live snapshot; a phone running another build reloads. */
+  buildId?: string;
 }
 const bugReportUrl = 'https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml';
 export async function createApp(settings: AppSettings) {
@@ -49,6 +51,8 @@ export async function createApp(settings: AppSettings) {
     app.log.error(error);
     return reply.code(500).send({message:'Something went wrong - please try again'});
   });
+  // Set on the raw response so hijacked live streams carry it too.
+  if (settings.buildId) app.addHook('onRequest', async (_request, reply) => { reply.raw.setHeader('x-build-id', settings.buildId!); });
   const testBuild = settings.testBuild && {commit:settings.testBuild.commit || 'unknown', reportUrl:bugReportUrl};
   app.get('/api/health', () => testBuild ? {ok:true, testBuild} : {ok:true});
   accessRoutes(app, pool, settings.ownerPassword);
@@ -70,6 +74,6 @@ export async function createApp(settings: AppSettings) {
   tieRoutes(app,pool);
   stageRoutes(app,pool);
   finalRoutes(app,pool);
-  liveRoutes(app,pool,{heartbeatMs:settings.streamHeartbeatMs ?? 15_000,limitMs:settings.streamLimitMs ?? 600_000});
+  liveRoutes(app,pool,{heartbeatMs:settings.streamHeartbeatMs ?? 15_000,limitMs:settings.streamLimitMs ?? 600_000,buildId:settings.buildId});
   return app;
 }

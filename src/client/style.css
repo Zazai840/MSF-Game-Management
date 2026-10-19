@@ -43,8 +43,6 @@ footer {margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; align-i
 footer button {min-height:var(--tap); padding:0 6px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:transparent; font-size:15px; font-weight:800; text-decoration:underline; text-underline-offset:3px;}
 
 .code {font-size:32px; font-weight:800; letter-spacing:3px; color:var(--navy); margin-left:0;}
-.app-update {width:100%; max-width:48rem; margin:16px auto 0; padding:0 16px;}
-.app-update button {width:100%; background:var(--amber-fill); border-color:var(--amber-line); color:var(--amber-text);}
 @media(min-width:800px) {main {padding:28px 24px;} .app-nav {padding:16px 24px 0;} }
 nav {display:flex; flex-wrap:wrap; gap:10px;}
 .app-header {order:-1;}
