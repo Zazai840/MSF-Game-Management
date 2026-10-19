@@ -29,6 +29,17 @@ export async function createProfile(page:Page,name:string) {
   await page.getByLabel('Full name',{exact:true}).fill(name);
   await page.getByRole('button',{name:'Create profile',exact:true}).click();
 }
+/** Signs in as a lead from the profile screen: past the Olympics password screen when it shows, then Lead sign-in with a full name and the lead code. */
+export async function leadSignIn(page:Page,name:string,code=process.env.E2E_LEAD_CODE!) {
+  const password=page.getByLabel('Olympics password',{exact:true}),profiles=page.getByRole('heading',{level:1,name:"Who's using this phone?"});
+  await expect(password.or(profiles)).toBeVisible();
+  if(await password.isVisible()) {await typePassword(page);await expect(profiles).toBeVisible();}
+  const lead=page.getByRole('button',{name:'Lead today? Sign in'});
+  if(await lead.getAttribute('aria-expanded')==='false') await lead.click();
+  await page.getByLabel('Full name',{exact:true}).fill(name);
+  await page.getByLabel("Today's lead code",{exact:true}).fill(code);
+  await page.getByRole('button',{name:'Sign in as lead',exact:true}).click();
+}
 /** Signs a new profile in as a volunteer through the API (Olympics password, then Create profile) and returns its session token. */
 export async function signInThroughApi(request:APIRequestContext,name:string) {
   const {pass}=await (await request.post('/api/password',{data:{password:process.env.E2E_OLYMPICS_PASSWORD}})).json();

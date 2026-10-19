@@ -7,7 +7,7 @@ import { matches, signInRoutes } from './sign-in.js';
 export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string) {
   // Olympics and owner password attempts share one backoff per IP.
   const passwordFailures=failureBackoff(),leadFailures=failureBackoff();
-  signInRoutes(app, pool, ownerPassword, passwordFailures);
+  signInRoutes(app, pool, ownerPassword, passwordFailures, leadFailures);
   const action = actions(app, pool);
   action('GET', '/api/me', 'Volunteer', (_request, _reply, phone) => phone);
   // Signing yourself out is not a decision, so it writes no audit note. Tapping the name again signs in as a volunteer.
