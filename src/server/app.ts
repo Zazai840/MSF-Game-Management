@@ -19,6 +19,7 @@ import { resultsRoutes } from './results/routes.js';
 import { timesRoutes } from './races/times.js';
 import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
+import { raceScreenRoutes } from './races/race-screen.js';
 import { liveRoutes } from './live/routes.js';
 export interface AppSettings {
   databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number;
@@ -58,6 +59,7 @@ export async function createApp(settings: AppSettings) {
   exportRoutes(app,pool);
   homeRoutes(app, pool);
   raceRoutes(app,pool);
+  raceScreenRoutes(app,pool);
   finishOrderRoutes(app,pool);
   timesRoutes(app,pool);
   resultsRoutes(app,pool);

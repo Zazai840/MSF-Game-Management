@@ -104,6 +104,13 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE, stage text NOT NULL,
       PRIMARY KEY(event_id,stage)
     );
+    -- Holds: at most one signed-in phone per event and job. They belong to the event, so they carry over to its next race.
+    CREATE TABLE IF NOT EXISTS job_holds (
+      event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      job text NOT NULL CHECK (job IN ('check-in','order','times')),
+      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
+      PRIMARY KEY(event_id,job)
+    );
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       tie_id text NOT NULL, settlement jsonb NOT NULL,

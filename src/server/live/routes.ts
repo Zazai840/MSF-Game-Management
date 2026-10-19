@@ -1,18 +1,10 @@
 import type { FastifyInstance,FastifyReply } from 'fastify';
 import type pg from 'pg';
-import type { RaceScreenRead } from '../../shared/race-screen.js';
-import { actions,Refusal } from '../access/permissions.js';
-import { currentRaces } from '../races/current.js';
-import type { Database } from '../races/records.js';
+import { actions,Refusal,signedOut } from '../access/permissions.js';
+import { raceScreenRead } from '../races/race-screen.js';
 import { resultsSnapshot } from '../results/read.js';
 import { onDayChange } from './changes.js';
 export interface StreamSettings { heartbeatMs:number; limitMs:number }
-async function raceScreenRead(db:Database,dayId:string,code:string):Promise<RaceScreenRead> {
-  const event=(await db.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
-  if(!event) throw new Refusal(404,'Event not found');
-  const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
-  return {revision,event,race:(await currentRaces(db,dayId,[event])).get(event.id)!};
-}
 /**
  * Live streams (Server-Sent Events). Each frame is a whole snapshot versioned by the day revision, sent first on
  * every connect and again after each change of the day that raises the revision. A heartbeat comment keeps idle
@@ -51,6 +43,10 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
   }
   action('GET','/api/live/race-screen/:code','Volunteer',(request,reply,phone)=>{
     const code=(request.params as {code:string}).code;
-    return stream(reply,phone.dayId,()=>resultsSnapshot(pool,phone.dayId,db=>raceScreenRead(db,phone.dayId,code)));
+    // A sign-out wakes the streams, so a signed-out phone's stream ends and its reconnect is told why.
+    return stream(reply,phone.dayId,()=>resultsSnapshot(pool,phone.dayId,async db=>{
+      if(!(await db.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();
+      return raceScreenRead(db,phone.dayId,code);
+    }));
   });
 }

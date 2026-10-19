@@ -17,6 +17,8 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
   const existing=(await listRaces(client,phone.dayId)).find(race=>race.event.id===event.id && race.kind==='final');
   if(existing?.final?.hasRun) return;
   await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[event.id]);
+  // Holds carry over from heat to heat, but the final starts with nobody holding anything.
+  await client.query('DELETE FROM job_holds WHERE event_id=$1',[event.id]);
   const id=existing?.id||randomUUID();
   const entries:FinalEntry[]=qualifiers.map((row,index)=>({finalEntryId:randomUUID(),heatRaceId:row.raceId,heatEntryId:row.entryId,heatWristband:row.wristband,heatRank:row.position!,seed:index+1,kind:'qualifier',absent:false}));
   const runners=entries.map(entry=>({id:entry.finalEntryId,wristband:entry.heatWristband}));

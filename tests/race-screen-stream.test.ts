@@ -120,6 +120,22 @@ test('Start new day ends the old day\'s streams, so their phones reconnect and a
   expect(await stream.frame()).toBe('ended');
   expect(await refusedStream(volunteer,'R4')).toMatchObject({status:401,refusal:{reason:'new-day'}});
 });
+test('taking a hold reaches every open stream with the holder\'s name, and a phone that signs out loses its holds and its stream',async()=>{
+  const {volunteer,other}=await start();
+  const watching=await openStream(other,'R4'),holding=await openStream(volunteer,'R4');
+  const empty=await watching.snapshot();await holding.snapshot();
+  expect(empty.holds).toEqual({});
+  expect((await call(volunteer,'/api/race-screen/R4/hold',{job:'check-in'})).statusCode).toBe(200);
+  const held=await watching.snapshot();
+  expect(held.revision).toBeGreaterThan(empty.revision);
+  expect(held.holds).toEqual({'check-in':{id:expect.any(String),name:'Sam'}});
+  await holding.snapshot();
+  expect((await call(volunteer,'/api/sign-out',{})).statusCode).toBe(200);
+  expect((await watching.snapshot()).holds).toEqual({});
+  expect(await holding.frame()).toBe('ended');
+  expect(await refusedStream(volunteer,'R4')).toMatchObject({status:401,refusal:{reason:'signed-out'}});
+  await watching.close();
+});
 test('a timed event moves on to its next race, and a heat that counts no longer holds the screen',async()=>{
   const {volunteer}=await start();
   const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R16',runners:[2003]})).json().race;
