@@ -1,8 +1,8 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
-import type { Phone } from '../../shared/domain.js';
-import { moved, Refusal, tokenHash } from './permissions.js';
+import { levels, type Level, type Phone } from '../../shared/domain.js';
+import { moved, passwordChanged, Refusal, tokenHash } from './permissions.js';
 import { newLeadCode, newOlympicsPassword } from './codes.js';
 import { seedEvents } from '../day/events.js';
 import { WrongAccessCode, type failureBackoff } from './failures.js';
@@ -44,7 +44,7 @@ const readSettings = async (db: pg.Pool | pg.PoolClient) => (await db.query('SEL
 const passFor = (settings: Settings) => createHmac('sha256', settings.password).update(`olympics-pass:${settings.password_version}`).digest('base64url');
 export async function requirePass(client: pg.PoolClient, pass: unknown) {
   const settings = await readSettings(client);
-  if (!settings || typeof pass !== 'string' || !matches(pass, passFor(settings))) throw new Refusal(401, 'Type the Olympics password again', {reason:'password-changed'});
+  if (!settings || typeof pass !== 'string' || !matches(pass, passFor(settings))) throw passwordChanged();
   return settings;
 }
 async function createProfile(client: pg.PoolClient, name: string) {
@@ -74,7 +74,7 @@ async function profileByName(client: pg.PoolClient, name: string, phoneProfiles:
   }
 }
 /** Signs a profile in to the day. Today's row keeps its role (so roles survive a password change) unless `level` raises it. */
-export async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string; name: string}, level = 'Volunteer', owner = false) {
+export async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string; name: string}, level: Level = 'Volunteer', owner = false) {
   // The token names its day, so after Start new day deletes the row the phone can still be told new-day.
   const token = `${dayId}.${randomBytes(32).toString('base64url')}`;
   // The session is issued under the current password version, so a password change ends it.
@@ -82,13 +82,13 @@ export async function signIn(client: pg.PoolClient, dayId: string, profile: {id:
     ON CONFLICT (day_id,profile_id) DO UPDATE SET token_hash=EXCLUDED.token_hash, signed_out=false, owner=sign_ins.owner OR EXCLUDED.owner, password_version=EXCLUDED.password_version,
       level=CASE WHEN array_position($8::text[],EXCLUDED.level)>array_position($8::text[],sign_ins.level) THEN EXCLUDED.level ELSE sign_ins.level END
     RETURNING id,day_id AS "dayId",name,level,profile_id AS "profileId"`,
-  [randomUUID(), dayId, profile.id, profile.name, level, owner, tokenHash(token), ['Volunteer','Lead','Scoring team']])).rows[0] as Phone;
+  [randomUUID(), dayId, profile.id, profile.name, level, owner, tokenHash(token), levels])).rows[0] as Phone;
   await client.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1', [dayId]);
   return {token, phone};
 }
 export async function runningDay(client: pg.PoolClient) {
   const day = await activeDay(client);
-  if (!day) throw new Refusal(401, 'Type the Olympics password again', {reason:'password-changed'});
+  if (!day) throw passwordChanged();
   return day;
 }
 export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string, passwordFailures: ReturnType<typeof failureBackoff>, leadFailures: ReturnType<typeof failureBackoff>) {

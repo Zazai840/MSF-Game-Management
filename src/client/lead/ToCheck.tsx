@@ -17,7 +17,7 @@ export function ToCheck({onOpen,onCount}:{onOpen:(item:DayLeadItem)=>void;onCoun
   async function decide(request:ProfileRequest,decision:'approve'|'decline') {
     setDeciding(request.id);
     try {await api(`lead/thats-me/${request.id}/${decision}`,{});setError('');}
-    catch(error) {setError(error instanceof Error?error.message:'Could not connect');}
+    catch(error) {setError(error instanceof Error?error.message:'Could not connect - please try again');}
     finally {setDeciding('');void refresh();}
   }
   return <div className="to-check">{error && <p role="alert">{error}</p>}
