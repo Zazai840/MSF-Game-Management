@@ -23,6 +23,7 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/day/olympics-password','Scoring team',async(request,_reply,phone)=>{
     const password=(request.body as {password?:unknown}|null)?.password;
     if(typeof password!=='string' || password.length<6) throw new Refusal(400,'Use at least 6 characters for the Olympics password');
+    if(password!==password.trim()) throw new Refusal(400,'Do not put spaces at the start or end of the Olympics password');
     return rulingChange(pool,phone,async(client,current)=>{
       const changed=await client.query('UPDATE olympics_settings SET password=$1,password_version=password_version+1 WHERE password<>$1',[password]);
       if(!changed.rowCount) throw new Refusal(409,'That is already the Olympics password. Type a new one.');

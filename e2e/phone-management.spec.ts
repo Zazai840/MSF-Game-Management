@@ -30,7 +30,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it to
   await other.getByRole('button',{name:'60m',exact:true}).click();
   await other.getByRole('button',{name:'Boy Beavers · R1',exact:true}).click();
   await other.getByLabel('Wristband number',{exact:true}).fill('1');
-  const drafts=()=>other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')&&!['msf:token','msf:pass','msf:profiles','msf:session','msf:day'].includes(key)));
+  const drafts=()=>other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:draft:')));
   await expect.poll(async()=>(await drafts()).length).toBeGreaterThan(0);
 
   await row.getByRole('button',{name:'Remove',exact:true}).click();

@@ -21,14 +21,18 @@ export function fullName(value: unknown) {
  */
 export async function signInTransaction<T>(pool: pg.Pool, change: (client: pg.PoolClient) => Promise<T>) {
   const client = await pool.connect();
+  let rollbackFailure: Error | boolean | undefined;
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(23001)');
     const result = await change(client);
     await client.query('COMMIT');
     return result;
-  } catch (error) { await client.query('ROLLBACK'); throw error; }
-  finally { client.release(); }
+  } catch (error) {
+    try { await client.query('ROLLBACK'); }
+    catch (rollbackError) { rollbackFailure = rollbackError instanceof Error ? rollbackError : true; }
+    throw error;
+  } finally { client.release(rollbackFailure); }
 }
 export const activeDay = async (client: pg.PoolClient) => (await client.query('SELECT * FROM olympics_days WHERE active FOR UPDATE')).rows[0];
 /** The owner starts the first day: its lead code, the built-in events and the first Olympics password. */

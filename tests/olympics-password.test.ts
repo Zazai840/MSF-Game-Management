@@ -27,6 +27,24 @@ test('only the scoring team changes the Olympics password', async () => {
   expect((await call(maryam.token, '/api/day/olympics-password', {password:'sunny-days'})).statusCode).toBe(403);
 });
 
+test('passwords with surrounding whitespace are refused without changing the password or day', async () => {
+  const {owner, day} = await start();
+  for (const password of [' sunny-days', 'sunny-days ', '      ', '\tsunny-days', 'sunny-days\n']) {
+    const refused = await call(owner.token, '/api/day/olympics-password', {password});
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().message).toBe('Do not put spaces at the start or end of the Olympics password');
+    expect((await call(owner.token, '/api/day')).json()).toEqual(day);
+  }
+  expect((await call(owner.token, '/api/day/phones')).json().auditNotes).toEqual([]);
+});
+
+test.each(['abcdef', 'sun ny'])('a six-character password %j is stored exactly', async password => {
+  const {owner} = await start();
+  expect((await call(owner.token, '/api/day/olympics-password', {password})).statusCode).toBe(200);
+  const again = (await app.inject({method:'POST', url:'/api/owner-sign-in', payload:{password:'password-owner-fixture', name:'Aisha', profiles:[owner.profile]}})).json();
+  expect((await call(again.token, '/api/day')).json().olympicsPassword).toBe(password);
+});
+
 test('changing the password ends every session with password-changed, refuses old passes, and roles come back with the new password', async () => {
   const {owner, day, pass, volunteer, lead} = await start();
   const ahmed = await volunteer('Ahmed'), maryam = await lead('Maryam');

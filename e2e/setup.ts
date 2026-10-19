@@ -9,6 +9,7 @@ export default async function setup() {
   // Kept so a spec that changes the Olympics password (which ends every session) can sign the scoring team back in.
   process.env.E2E_SCORING_PROFILE=JSON.stringify(profile);
   const day = await api.get('/api/day', {headers:{authorization:`Bearer ${token}`}});
+  if (!day.ok()) throw new Error(await day.text());
   const {leadCode,olympicsPassword} = await day.json();
   process.env.E2E_LEAD_CODE = leadCode;
   process.env.E2E_OLYMPICS_PASSWORD = olympicsPassword;
