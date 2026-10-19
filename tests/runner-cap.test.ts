@@ -101,9 +101,7 @@ test('a final accepts a 7th runner added by a lead through finishing order, resu
   const added=await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband})),{wristband:1135}],comment:'Tie for 6th'});
   expect(added.statusCode).toBe(200);
   race=(await call(volunteer,`/api/races/${id}`)).json();expect(race.final.entries).toHaveLength(7);
-  const present=await call(volunteer,`/api/races/${id}/presence`,{baseVersion:race.parts.runners.version,generation:race.final.generation,lineup:race.final.entries.map((entry:any)=>entry.finalEntryId),absent:[]});
-  expect(present.statusCode).toBe(200);
-  race=(await call(volunteer,`/api/races/${id}`)).json();expect(race.parts.runners.value).toHaveLength(7);
+  expect(race.parts.runners.value).toHaveLength(7);
   const order=[1135,1023,1066,1088,1005,1012,1110];
   expect((await call(volunteer,`/api/races/${id}/finish`,{baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order,didNotFinish:[],didNotRun:[],added:[]})).statusCode).toBe(200);
   const done=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'});expect(done.statusCode).toBe(200);

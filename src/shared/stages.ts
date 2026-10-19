@@ -25,7 +25,7 @@ export function heatsCheckSheet(state:EventState,rows:readonly LeaderboardRow[],
 export function finalCheckSheet(state:EventState,final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
   const race=state.races.find(race=>race.id===final?.raceId);
   const mustSettleFirst:StageItem[]=[];
-  if(!race || !final?.presenceConfirmed || !raceCounts(race)) mustSettleFirst.push({id:'final-recording',kind:race?.clash?'clash':'incomplete',raceId:race?.id,message:race?.clash?'Final: two versions, lead to check':!final?.presenceConfirmed?'Final: confirm who is here at the Start line':'Final: awaiting finishing order'});
+  if(!race || !raceCounts(race)) mustSettleFirst.push({id:'final-recording',kind:race?.clash?'clash':'incomplete',raceId:race?.id,message:race?.clash?'Final: two versions, lead to check':'Final: awaiting finishing order'});
   const rows=final?.leaderboard.filter(row=>row.position!==null)||[];
   return {stage:'final',label:'Final complete',completed:state.completedStages?.includes('final')??false,mustSettleFirst,worthALook:needsYou.filter(item=>item.kind==='warning'&&item.raceId===final?.raceId).map(item=>({id:item.id,kind:'warning',raceId:item.raceId,entryId:item.entryId,message:item.message})),creates:[1,2,3].map(position=>{const row=rows[position-1];return {position,wristband:row?.wristband??null,...(row?{raceId:row.raceId,entryId:row.entryId}:{})};})};
 }

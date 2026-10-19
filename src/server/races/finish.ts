@@ -13,7 +13,7 @@ export function finishOrderRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('GET','/api/jobs/finish-order','Volunteer',async(_request,_reply,phone)=>{
     const races=await listRaces(pool,phone.dayId);
-    return {completedStages:await readCompletedStages(pool,phone.dayId),waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null && (race.kind!=='final' || ((race.final?.heatsComplete || race.final?.hasRun) && race.final.presenceConfirmed))).map(jobRace),recent:races.filter(race=>race.parts.finish.value!==null).slice(-10).reverse().map(jobRace)};
+    return {completedStages:await readCompletedStages(pool,phone.dayId),waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null && (race.kind!=='final' || race.final?.heatsComplete || race.final?.hasRun)).map(jobRace),recent:races.filter(race=>race.parts.finish.value!==null).slice(-10).reverse().map(jobRace)};
   });
   action('POST','/api/races/:id/finish','Volunteer',async(request,_reply,phone)=>{
     const body=request.body as {baseVersion?:unknown;runnersVersion?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown}|null;

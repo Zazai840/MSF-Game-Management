@@ -63,7 +63,6 @@ export function eventResults(state:EventState):EventResults {
   }
   for(const race of state.races) {
     const reasons=notCountedReasons(race);
-    if(race.kind==='final' && !race.final?.presenceConfirmed) reasons.push('checked in');
     recordingReasons.set(race.id,reasons);
     if(reasons.length && !race.deleted && race.kind!=='final') notRankedYet.push({race:reference(race),reasons});
     for(const runner of race.runners) {
