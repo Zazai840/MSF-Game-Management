@@ -42,7 +42,7 @@ function CodeCard({label,code,explanation,note,make}:{label:string;code:string;e
  * Start a new day. Start a new day keeps v1's typed confirmation; the server still refuses it until the
  * latest changes are in a day export.
  */
-export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(screen:'Phones'|'Events')=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(screen:'Signed in today'|'Events')=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const {busy:saving,run,failure}=useAction(onChanged,onSaved);
   const [busy,setBusy] = useState(false);
   const [exportMessage,setExportMessage] = useState('');
@@ -74,9 +74,9 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
       note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access."
       make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
     <div className="day-rows">
-      <button className="day-row" onClick={()=>onOpen('Phones')}>
+      <button className="day-row" onClick={()=>onOpen('Signed in today')}>
         <span className="day-row-text"><span className="day-row-title">Phones</span>
-          <span className="day-row-sub">{phones===null?'Joined phones':`${phones} ${phones===1?'person':'people'} joined today`}</span></span>{chevron}
+          <span className="day-row-sub">{phones===null?'Signed in today':`${phones} ${phones===1?'person':'people'} signed in today`}</span></span>{chevron}
       </button>
       <button className="day-row" onClick={()=>onOpen('Events')}>
         <span className="day-row-text"><span className="day-row-title">Events</span>
