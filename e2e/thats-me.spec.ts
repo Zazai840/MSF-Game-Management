@@ -11,7 +11,7 @@ async function phone(browser:Browser) {
 async function leadPhone(browser:Browser,name:string) {
   const lead=await phone(browser);
   await lead.goto('/');await createProfile(lead,name);await home(lead);
-  await becomeLead(lead);await openDashboard(lead,'To check');
+  await becomeLead(lead);await openDashboard(lead);
   return lead;
 }
 /** On a new phone: Create profile with a taken name, then That's me. */
@@ -48,7 +48,7 @@ test("That's me moves a profile to a new phone once a lead approves, and the old
   const request=card(lead,name);
   await expect(request).toBeVisible();
   await expect(request).toContainText("Approve only after checking it's them in person. Their old phone will be signed out.");
-  await expect(lead.getByRole('heading',{level:1,name:/^\d+ things? needs? a zone lead$/})).toBeVisible();
+  await expect(lead.getByRole('heading',{level:2,name:/^\d+ things? needs? a zone lead$/})).toBeVisible();
   expect(await lookProblems(lead)).toEqual([]);
   await lead.screenshot({path:info.outputPath('to-check-thats-me.png')});
   await request.getByRole('button',{name:'Approve',exact:true}).click();

@@ -19,7 +19,7 @@ const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='h
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**
  * Results: the event cards (coloured Done / Running / Not started), then one event's leaderboard, rulings and audit notes,
- * then one race. It extends the Dashboard trail it is given (`Home › Dashboard`, plus `To check` when opened from an item)
+ * then one race. It extends the Dashboard trail it is given (`Home › Dashboard`, also when opened from a To check item)
  * with its own steps, so the trail is the way back. No to-check count shows anywhere here.
  */
 export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:TrailStep[];onChanged?:()=>void}={}) {
