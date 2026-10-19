@@ -12,8 +12,8 @@ import { api } from '../api.js';
 import { ClashVersions } from './ClashVersions.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
-/** A lead's page for one race. It has no back button: the trail above it leads back to the event. */
-export function RacePage({raceId,onSaved,onClose,onRace,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;onRace?:(race:LeadRaceRead['race'])=>void;actionableRunners?:readonly LeaderboardRow[]}) {
+/** A lead's page for one race. It has no back button of its own: the back arrow above it leads back. */
+export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
   const [selectedEntry,setSelectedEntry]=useState<string|null>(null);
   const selectedRow=actionableRunners.find(row=>row.raceId===raceId && row.entryId===selectedEntry);
@@ -21,7 +21,7 @@ export function RacePage({raceId,onSaved,onClose,onRace,actionableRunners=[]}:{r
   const request=useRef(0);
   async function refresh() {
     const generation=++request.current;
-    try {const next=await api<LeadRaceRead>(`lead/races/${raceId}`);if(generation===request.current) {setRead(next);onRace?.(next.race);setUpdated(clock());setError('');}}
+    try {const next=await api<LeadRaceRead>(`lead/races/${raceId}`);if(generation===request.current) {setRead(next);setUpdated(clock());setError('');}}
     catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not open the race');}
   }
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>{request.current++;clearInterval(timer);};},[raceId]);

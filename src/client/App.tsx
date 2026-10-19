@@ -7,13 +7,11 @@ import { YourProfile } from './access/YourProfile.js';
 import { Home, LeadEntry } from './home/Home.js';
 import { Job } from './jobs/Job.js';
 import { AppHeader } from './shell/AppHeader.js';
-import { TrailArea } from './flow/Trail.js';
+import { BackArea,BackArrow } from './flow/BackArrow.js';
 import { clock } from '../shared/clock.js';
 const Lead = lazy(()=>import('./lead/Lead.js'));
 interface HomeRead { phone:Phone; waiting:WaitingCounts; needsYou?:number }
 type Screen = 'home'|'become-lead'|'lead'|JobName;
-/** Jobs whose own breadcrumb trail replaces the Home and lead buttons. */
-const trailJobs:readonly Screen[]=['Start line','Finish order','Times','lead'];
 /** How each screen is named in a tester's bug report. */
 const screenNames:Partial<Record<Screen,string>>={home:'Home','become-lead':'Become lead'};
 export function App() {
@@ -64,11 +62,10 @@ export function App() {
   const isLead = home.phone.level !== 'Volunteer';
   const goHome=()=>{setScreen('home');setOpenDay(false);};
   if (profileOpen) return <><AppHeader name={home.phone.name} screen="Your profile" onProfile={()=>{}} /><main><YourProfile phone={home.phone} onBack={()=>setProfileOpen(false)} /></main></>;
-  return <><AppHeader name={home.phone.name} screen={screen==='lead'?leadSection:screenNames[screen]??screen} onProfile={()=>setProfileOpen(true)} /><TrailArea>{!trailJobs.includes(screen) && <nav className={screen==='home'?'app-nav app-nav-home':'app-nav'} aria-label="Running Zone">{screen!=='home' && <button className="button-secondary" onClick={goHome}>Home</button>}
-    {screen!=='become-lead' && <LeadEntry isLead={isLead} toCheck={home.needsYou||0} onDashboard={()=>setScreen('lead')} onBecomeLead={()=>setScreen('become-lead')} />}
-  </nav>}<main>
+  return <><AppHeader name={home.phone.name} screen={screen==='lead'?leadSection:screenNames[screen]??screen} onProfile={()=>setProfileOpen(true)} /><BackArea>{screen==='home' ? <nav className="app-nav app-nav-home" aria-label="Running Zone"><LeadEntry isLead={isLead} toCheck={home.needsYou||0} onDashboard={()=>setScreen('lead')} onBecomeLead={()=>setScreen('become-lead')} /></nav>
+    : (screen==='become-lead' || (screen==='lead' && !isLead)) && <BackArrow to="Home" onBack={goHome}/>}<main>
     {screen === 'home' && renamed && <p role="status" className="calm-note">{renamed.taken} is already taken, so you're signed in as <strong>{renamed.name}</strong></p>}
     {screen === 'home' ? <Home waiting={home.waiting} onJob={setScreen} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead key={home.phone.dayId} phone={home.phone} initialDay={openDay} onCount={updateCount} onChanged={()=>void refresh()} onHome={goHome} onSection={setLeadSection}/></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} onHome={goHome} />}
     {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='Finish order' && screen!=='Times' && screen!=='lead' && <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer>}
-  </main></TrailArea></>;
+  </main></BackArea></>;
 }

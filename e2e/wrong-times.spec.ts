@@ -1,4 +1,4 @@
-import { checkIn,recordFinishingOrder,enterTime,expect,jobButton,createProfile,pickRace,steps,test,type Page } from './fixtures.js';
+import { checkIn,recordFinishingOrder,enterTime,expect,jobButton,createProfile,pickRace,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 /** A race of 4 Girl Cubs with its finishing order saved, waiting for times. */
@@ -20,9 +20,9 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
   const code=`TW-${info.project.name.slice(0,3).toUpperCase()}`,race=await raceWaitingForTimes(page,code);
   await page.goto('/');await createProfile(page,`Wrong times ${info.project.name}`);
   await jobButton(page,'Times').click();await pickRace(page,'Times',`Times wrong Girl Cubs (${code}) · Race ${race.number}`);
-  // The trail names the job, the race and the place being typed.
-  await expect(steps(page).locator('[aria-current=step]')).toHaveText('1st place');
-  await expect(steps(page)).toContainText(`Times wrong Girl Cubs Race ${race.number}`);
+  // The heading names the place being typed, and the race line the race.
+  await expect(page.getByRole('heading',{name:'1st place time?',exact:true})).toBeVisible();
+  await expect(page.getByText(new RegExp(`^Times wrong · Girl Cubs · Race ${race.number} · `))).toBeVisible();
   const input=page.getByLabel('Place time',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
   await input.click();await input.pressSequentially('12.44');await expect(input).toHaveValue('1244');
@@ -44,7 +44,7 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
   // Check screen: the kept time stays amber, with a calm note instead of the banner.
   await expect(page.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();
-  await expect(steps(page).locator('[aria-current=step]')).toHaveText('Check');
+  await expect(page.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();
   await expect(page.getByText('4 times · 4 finishers',{exact:true})).toBeVisible();
   const fourth=page.getByRole('button',{name:'4th place · 12.90 · Faster than 3rd place',exact:true});
   expect(await fourth.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(amber);
@@ -52,7 +52,7 @@ test('wrong times show in amber with a reason, Keep as it is keeps them for a le
   await expect(page.locator('[draggable=true]')).toHaveCount(0);
   // Retype 3rd so it is faster than 2nd: the banner asks, and Save waits for the choice.
   await page.getByRole('button',{name:'3rd place · 13.05',exact:true}).click();
-  await expect(steps(page).locator('[aria-current=step]')).toHaveText('3rd place');
+  await expect(page.getByRole('heading',{name:'3rd place time?',exact:true})).toBeVisible();
   await expect(input).toHaveValue('1305');await input.fill('1250');await expect(page.getByText('Shows as 12.50',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Check the times',exact:true})).toBeVisible();

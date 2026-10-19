@@ -1,4 +1,4 @@
-import { trailBack,openDashboard,dashboardMenuButton,enterWristband,jobButton,dashboardButton,expect,createProfile,typePassword,test,type Page } from './fixtures.js';
+import { back,openDashboard,dashboardMenuButton,enterWristband,jobButton,dashboardButton,expect,createProfile,typePassword,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function scoring(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
@@ -32,9 +32,9 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
     expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:new-day','msf:pass','msf:profiles']);
     await other.reload();await expect(newDayLine).toBeVisible();await other.screenshot({path:info.outputPath('new-day-line.png')});
     await other.getByRole('button',{name:`Reset helper ${info.project.name}`,exact:true}).click();await jobButton(other,'Start line').click();await expect(other.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();await expect(other.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();
-    await other.getByRole('button',{name:'Home',exact:true}).click();await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();await expect(newDayLine).toHaveCount(0);
+    await back(other,'Home');await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();await expect(newDayLine).toHaveCount(0);
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
-    await trailBack(page,'Home');await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
+    await back(page,'Home');await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
   } finally {await otherContext.close().catch(()=>{});}
 });
 for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${oldResponse} response cannot repaint or eject the retained scoring phone after reset`,async({page})=>{
@@ -98,7 +98,7 @@ test('a stale successful Create profile cannot replace a newer signed-in phone i
   expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByText(`New sign-in ${info.project.name}`,{exact:true})).toBeVisible();await newer.close();
 });
 test('an old successful job save cannot restore an old draft after Home discovers a reset',async({page})=>{
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});await scoring(page);await page.getByRole('button',{name:'Home',exact:true}).click();await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});await scoring(page);await back(page,'Home');await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
   await enterWristband(page,2001);await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});
@@ -108,7 +108,7 @@ test('an old successful job save cannot restore an old draft after Home discover
   const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:draft:')))).toEqual([]);await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Home',exact:true}).click();await jobButton(page,'Start line').click();await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
+  await back(page,'Home');await jobButton(page,'Start line').click();await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
 });
 test('a lost reply from Start new day keeps the retained phone safe from a previously pending 401 until Home recovers',async({page})=>{
   await scoring(page);await exportDay(page);

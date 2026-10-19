@@ -7,7 +7,7 @@ import { api } from '../api.js';
 import { raceLine,raceName,racePickerLabel,raceSummary,type FinishOrderRead,type RaceRead,type Runner } from '../../shared/races.js';
 import { plainWristbandWarning,runnerListRefusal,wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { Trail,type TrailStep } from '../flow/Trail.js';
+import { BackArrow } from '../flow/BackArrow.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { Saved } from '../flow/Saved.js';
@@ -79,9 +79,9 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     } catch(error) {setMessage('Not saved - tap Save again');setError(error instanceof Error?error.message:'Could not connect');}
     finally {setBusy(false);}
   }
-  const home:TrailStep={label:'Home',onSelect:onHome};
-  const jobStep:TrailStep={label:'Finishing order',onSelect:()=>{setChoosing(true);setError('');setMessage('');}};
-  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Finishing order'}]}/><h1>Record the finishing order</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
+  const home=<BackArrow to="Home" onBack={onHome}/>;
+  const choose=()=>{setChoosing(true);setError('');setMessage('');};
+  if(!data) return <section className="race-job">{home}<h1>Record the finishing order</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
   const latest=(race:RaceRead)=>[...data.waiting,...data.recent].find(item=>item.id===race.id)||race;
   if(saved) {
     const first=fromRace(saved).order[0];
@@ -95,7 +95,7 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   /** A failed save shows beside Save, in one amber box with the reason. */
   const failedSave=message===notSaved && <div className="warning-box save-failed"><p role="status">{notSaved}</p>{error && <p role="alert">{error}</p>}</div>;
   if(choosing || !draft) {
-    return <section className="race-job"><Trail steps={[home,{label:'Finishing order'}]}/>{alerts}
+    return <section className="race-job">{home}{alerts}
       <h1>Which race is it?</h1>
       {draft && <button className="button-secondary carry-on" disabled={busy} onClick={()=>setChoosing(false)}>Carry on with {raceName(draft.race)}</button>}
       <h3>Waiting for a finishing order</h3>
@@ -108,14 +108,13 @@ export function FinishOrder({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const step=draft.step==='no-place' && unplaced.length===0?'check':draft.step;
   const locked=stageLocked(draft.race,data.completedStages);
   const toPlaces=()=>change({...draft,step:'place',current:'',pendingWarnings:[],refused:undefined});
-  /** Tapping the race name opens the race picker, as on check-in and Times. */
-  const raceStep:TrailStep={label:raceName(draft.race),onSelect:jobStep.onSelect};
-  const trail:TrailStep[]=step==='add'?[home,jobStep,raceStep,{label:'Runner not on the list'}]:step==='check'?[home,jobStep,raceStep,{label:'Check'}]:[home,jobStep,{label:raceStep.label}];
+  // Up one step, to the race picker, as on check-in and Times.
+  const back=<BackArrow to="Finishing order" onBack={choose}/>;
   const runnerCount=draft.runners.length-draft.didNotRun.length;
   const raceHeading=<p className="race-line">{raceLine(draft.race,runnerCount)}</p>;
   const held=draft.pendingWarnings.length>0 || !!draft.refused;
   const addRunner=<button className="button-secondary" disabled={busy} onClick={()=>change({...draft,step:'add'})}>+ Runner not on the list</button>;
-  return <section className="race-job"><Trail steps={trail}/>
+  return <section className="race-job">{back}
     <ClashNotice race={latest(draft.race)}/>
     {!failedSave && alerts}
     {locked && <p role="status" className="warning-box">Stage complete - ask a lead</p>}

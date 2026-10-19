@@ -1,4 +1,4 @@
-import { checkIn,recordFinishingOrder,signInThroughApi,backToEvent,pickRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
+import { checkIn,recordFinishingOrder,signInThroughApi,back,pickRace,enterTime,savedRaceLabel,openDashboard,jobButton,expect,test,type Page } from './fixtures.js';
 async function times(page:Page,code:string,first:string,second:string) {
   await jobButton(page,'Times').click();await pickRace(page,'Times',new RegExp(`\\(${code}\\) · Race 1$`));
   for(const value of [first,second]) await enterTime(page,value);
@@ -32,7 +32,7 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await lead.screenshot({path:info.outputPath('clash-versions.png'),fullPage:true});
   await lead.getByRole('button',{name:'Use chosen Times version',exact:true}).click();
   await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toHaveCount(0);
-  await backToEvent(lead);
+  await back(lead,'Clash sprint Girl Cubs');
   await expect(lead.getByRole('button',{name:'Runner 2081 · Race 1',exact:true})).toContainText('12.10');
   await expect(lead.getByRole('list',{name:'Audit notes'})).toContainText(nameB);
   await recordFinishingOrder(request,tokenA,race,{order:[2081],didNotRun:[2082],baseVersion:1});
@@ -47,7 +47,7 @@ test('two phone drafts retain different Times versions and a lead chooses one',a
   await lead.unroute('**/api/lead/races/*/clashes/finish');
   await lead.getByRole('button',{name:'Use chosen Finishing order version',exact:true}).click();
   await expect(lead.getByRole('heading',{name:'Two versions - zone lead to check',exact:true})).toHaveCount(0);
-  await backToEvent(lead);
+  await back(lead,'Clash sprint Girl Cubs');
   await expect(lead.getByRole('button',{name:'Runner 2082 · Race 1',exact:true})).toContainText('12.10');
 
   await context.close();
