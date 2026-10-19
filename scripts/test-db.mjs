@@ -5,5 +5,7 @@ if (!/^msf_spec22_\d+_(test|e2e)$/.test(database)) throw new Error('Use a ticket
 if (url) url.pathname = '/postgres';
 const admin = new pg.Client({connectionString: process.env.PG_ADMIN_URL || url?.href || `postgresql://${process.env.USER}@localhost:5432/postgres`});
 await admin.connect();
-if (!(await admin.query('SELECT 1 FROM pg_database WHERE datname=$1', [database])).rowCount) await admin.query(`CREATE DATABASE "${database}"`);
+// Names come from process ids, which get reused: a database an older branch left behind can carry columns this schema removed, so start fresh.
+await admin.query(`DROP DATABASE IF EXISTS "${database}"`);
+await admin.query(`CREATE DATABASE "${database}"`);
 await admin.end();
