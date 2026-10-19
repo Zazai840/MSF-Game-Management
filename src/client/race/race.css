@@ -15,9 +15,18 @@
 @media (prefers-reduced-motion:reduce) {.race-card-arrow {transition:none;}}
 .race-card-body {padding:4px 16px 16px; display:flex; flex-direction:column; gap:14px;}
 
-/* Checked-in wristbands: read-only chips. */
+/* Checked-in wristbands: chips, read-only for everyone but the holder, who taps one to take it off. An amber dot marks a kept warning. */
 .race-chips {list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px;}
-.race-chips li {display:inline-flex; align-items:center; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-weight:800; font-variant-numeric:tabular-nums;}
+.race-chips li {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-weight:800; font-variant-numeric:tabular-nums;}
+.race-chips li:has(> button) {padding:0;}
+.race-chips button {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border:0; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-variant-numeric:tabular-nums;}
+.race-chips .kept-dot {width:9px; height:9px; border-radius:50%; background:var(--amber-line); flex:none;}
+.race-hint {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
+.race-card-body .warning-box p {margin:0 0 10px;}
+.race-card-body .warning-box p:last-child,.race-card-body p[role=alert] {margin:0;}
+.race-card-body .warning-actions {display:flex; gap:10px;}
+.race-card-body .warning-actions button {flex:1;}
+.race-take-over {align-self:flex-start;}
 
 /* Order and Times: one row per place, rows told apart by tone. */
 .race-table {width:100%; border-collapse:separate; border-spacing:0 6px; margin:-6px 0; font-variant-numeric:tabular-nums;}

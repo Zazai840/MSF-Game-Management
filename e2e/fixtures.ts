@@ -1,5 +1,6 @@
 import { test as base,expect,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
 import type { RaceRead } from '../src/shared/races.js';
+import type { RaceJob,RaceScreenRead } from '../src/shared/race-screen.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
 /** Every "the other phone sees it" check waits this long, so a fall back to 5 s polling fails. Everything else keeps the 5 s default. */
@@ -121,6 +122,34 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
   const race=await checkIn(request,token,eventCode,runners,keptWarnings);
   await recordFinishingOrder(request,token,race,{order:runners});
   return recordTimes(request,token,race,places);
+}
+/** One race screen write as that phone; fails unless the server accepts it, and returns the race screen as it then stands. */
+async function raceScreenWrite(request:APIRequestContext,token:string,eventCode:string,what:string,data:object) {
+  const response=await request.post(`/api/race-screen/${eventCode}/${what}`,{headers:{authorization:`Bearer ${token}`},data});
+  expect(response.ok(),`${what}: ${await response.text()}`).toBe(true);
+  return await response.json() as RaceScreenRead;
+}
+/** Takes a job's hold on the event's race screen as that phone, as opening the job's card does (nothing changes if someone holds it). */
+export function takeJob(request:APIRequestContext,token:string,eventCode:string,job:RaceJob) {
+  return raceScreenWrite(request,token,eventCode,'hold',{job});
+}
+/** Checks runners in on the race screen as that phone: takes check-in, then writes the whole list at the version it sees. */
+export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:number[],keptWarnings?:number[]) {
+  const {race}=await takeJob(request,token,eventCode,'check-in');
+  return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners,keptWarnings});
+}
+/** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
+export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
+  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
+}
+/** From Home: taps the event's tile and waits for its race screen. */
+export async function openRaceScreen(page:Page,name:string,section='Girl Cubs') {
+  await page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} ${section} · `)}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} ${section}`,exact:true})).toBeVisible();
+}
+/** Hides the page as an app switch does (the race screen's stream closes), or shows it again (it reconnects). */
+export async function setHidden(page:Page,hidden:boolean) {
+  await page.evaluate(hidden=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>hidden?'hidden':'visible'});document.dispatchEvent(new Event('visibilitychange'));},hidden);
 }
 /** Types one wristband into the phone number input and taps Next, as a volunteer would. */
 export async function enterWristband(page:Page,number:number|string,label='Wristband number') {

@@ -1,4 +1,4 @@
-import { lookProblems,back,expect,jobButton,createProfile,savedRaceLabel,test,type Page } from './fixtures.js';
+import { lookProblems,back,expect,jobButton,createProfile,openRaceScreen,ownEvent,savedRaceLabel,test,type Page } from './fixtures.js';
 const scoring=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function openGirlCubs(page:Page,name:string) {
   await page.request.post('/api/day/events/R4/rename',{headers:scoring(),data:{name:'60m'}});
@@ -14,8 +14,12 @@ async function deleteRaces(page:Page,wristband:number) {
   for(const race of read.waiting.filter((item:any)=>item.parts.runners.value?.some((runner:any)=>runner.wristband===wristband))) await page.request.post(`/api/races/${race.id}/delete`,{headers:scoring(),data:{permanent:true}});
 }
 
-test('wristband numbers go in through the phone keyboard and the input keeps focus between runners',async({page,context},info)=>{
-  await openGirlCubs(page,`Keyboard ${info.project.name}`);
+test('wristband numbers go in through the phone keyboard on the race screen and the input keeps focus between runners',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`KB-${project.toUpperCase()}`,name=`Keyboard sprint ${project}`;
+  await ownEvent(request,code,name);
+  const {page,context}=await openPhone(`Keyboard ${project}`);
+  await openRaceScreen(page,name);
+  await page.getByRole('button',{name:/^Check-in Wristbands/}).click();
   const input=page.getByLabel('Wristband number',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');
   await expect(input).toHaveAttribute('pattern','[0-9]*');
@@ -51,6 +55,7 @@ test('wristband numbers go in through the phone keyboard and the input keeps foc
   await expect(warning).toContainText('3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.');
   await expect(input).not.toBeFocused();
   await page.screenshot({path:info.outputPath('check-in-warning.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);
   await warning.getByRole('button',{name:'Fix number',exact:true}).click();
   await expect(input).toBeFocused();await expect(input).toHaveValue('');
   // A number already in the race is refused: Fix number only.
@@ -65,17 +70,13 @@ test('wristband numbers go in through the phone keyboard and the input keeps foc
   const kept=page.getByRole('button',{name:'Remove runner 3046',exact:true});
   await expect(kept.locator('.kept-dot')).toBeVisible();
   await expect(input).toBeFocused();
+  // Every number is saved as it goes in: there is no check step, and the race screen opened again shows the same list.
+  await expect(page.getByText('Heat 1 · 4 runners',{exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('check-in-entry.png'),fullPage:true});
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Check the runners',exact:true})).toBeVisible();
-  await expect(page.getByText('4 runners lined up',{exact:true})).toBeVisible();
-  const rows=page.getByRole('list',{name:'Runners',exact:true}).getByRole('listitem');
-  await expect(rows).toHaveText(['Runner 12001','Runner 22002','Runner 32004','Runner 43046Kept - lead will check']);
-  await expect(page.getByRole('button',{name:'Save',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Add another runner',exact:true})).toBeVisible();
-  await page.screenshot({path:info.outputPath('check-in-check.png'),fullPage:true});
-  await page.getByRole('button',{name:'Add another runner',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Runner 5: wristband number?',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.reload();await openRaceScreen(page,name);
+  await page.getByRole('button',{name:/^Check-in Wristbands You are checking in · 4 in$/}).click();
+  await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2001','2002','2004','3046']);
 });
 
 test('the back arrow goes back to earlier steps without losing typed entries',async({page},info)=>{

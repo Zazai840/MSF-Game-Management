@@ -1,4 +1,4 @@
-import { useEffect,useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { frameData,newerSnapshot,splitFrames } from '../shared/live.js';
 import { ApiFailure,apiResponse,StaleRequest } from './api.js';
 /** Silence this long means the link is dead. Spread over 30-45 s so phones that lost signal together don't all reconnect at once. */
@@ -10,12 +10,15 @@ const backoff=(failures:number)=>Math.min(30_000,1000*2**(failures-1));
  * Reads a live stream (`live/...`, read with fetch so the bearer token goes with it) and holds its newest snapshot,
  * ignoring any older than the one held. A planned end reconnects at once; a failure or silence reconnects with backoff.
  * The stream closes while the page is hidden and reopens when it is visible; every connect sends the whole snapshot first.
+ * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule.
  */
 export function useLive<T extends {revision:number}>(path:string) {
   const [snapshot,setSnapshot]=useState<T|null>(null);
   const [error,setError]=useState('');
+  const held=useRef<T|null>(null);
   useEffect(()=>{
-    let held:T|null=null,controller:AbortController|null=null,retry=0,failures=0,stopped=false;
+    held.current=null;
+    let controller:AbortController|null=null,retry=0,failures=0,stopped=false;
     const hidden=()=>document.visibilityState==='hidden';
     async function connect() {
       clearTimeout(retry);
@@ -35,7 +38,7 @@ export function useLive<T extends {revision:number}>(path:string) {
           for(const data of split.frames.map(frameData)) {
             if(data===null) continue;
             const next=JSON.parse(data) as T;
-            if(newerSnapshot(held,next)) {held=next;failures=0;setSnapshot(next);setError('');}
+            if(newerSnapshot(held.current,next)) {held.current=next;failures=0;setSnapshot(next);setError('');}
           }
         }
       } catch(failure) {
@@ -58,5 +61,6 @@ export function useLive<T extends {revision:number}>(path:string) {
     void connect();
     return ()=>{stopped=true;clearTimeout(retry);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
   },[path]);
-  return {snapshot,error};
+  const offer=(next:T)=>{if(newerSnapshot(held.current,next)) {held.current=next;setSnapshot(next);}};
+  return {snapshot,error,offer};
 }
