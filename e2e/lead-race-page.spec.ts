@@ -1,4 +1,4 @@
-import { becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
+import { recordRace,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -7,11 +7,9 @@ test.afterEach(async({request})=>{for(const id of created.splice(0)) await reque
 async function recordedRace(page:Page,code:string,runners:number[],places:Array<number|null>) {
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
-  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
-  expect((await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places}})).ok()).toBe(true);
+  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,places);
   created.push(race.id);
-  return race as {id:string;number:number};
+  return race;
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await createProfile(page,name);await becomeLead(page);await openDashboard(page,'Results');
