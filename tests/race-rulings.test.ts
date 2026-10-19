@@ -110,3 +110,36 @@ test('all lead race commands refuse volunteer phones and invalid corrections lea
   await call(lead,`/api/lead/races/${race.id}/delete`,{permanent:false});
   for(const command of ['times','runners','re-run']) expect((await call(lead,`/api/lead/races/${race.id}/${command}`,command==='times'?{baseVersion:1,places:[1200,1300]}:command==='runners'?{baseVersion:1,finishVersion:1,runners}:{})).statusCode).toBe(409);
 });
+test('a lead corrects the finishing order: wristbands move, times stay by place, with an audit note and a history row',async()=>{
+  const {lead,volunteer,race,read}=await start();
+  await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1200,1300]});
+  const corrected=await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:1,order:[2002,2001],didNotFinish:[],didNotRun:[],comment:'Photo checked'});expect(corrected.statusCode).toBe(200);
+  expect(corrected.json().results.leaderboard.map((row:any)=>[row.wristband,row.time])).toEqual([[2002,1200],[2001,1300]]);
+  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.finish.version).toBe(2);
+  expect((await read()).auditNotes[0]).toMatchObject({action:'correct-finish-order',message:'Aisha corrected the finishing order for Race 1: 2002, 2001 - Photo checked'});
+  const history=(await call(lead,`/api/lead/races/${race.id}`)).json().history;expect(history.at(-1)).toMatchObject({part:'finish',version:2,author:'Aisha'});
+});
+test('a finishing order correction at a stale version is refused with today\'s wording and changes nothing',async()=>{
+  const {lead,volunteer,race,read}=await start();
+  for(const body of [{baseVersion:0,runnersVersion:1},{baseVersion:1,runnersVersion:2}]) {
+    const stale=await call(lead,`/api/lead/races/${race.id}/finish-order`,{...body,order:[2002,2001],didNotFinish:[],didNotRun:[]});
+    expect(stale.statusCode).toBe(409);expect(stale.json().message).toBe('This race has changed - open it again');
+  }
+  for(const body of [{},{baseVersion:1,runnersVersion:1,order:[2002],didNotFinish:[],didNotRun:[]},{baseVersion:1,runnersVersion:1,order:[2002,2002],didNotFinish:[],didNotRun:[]},{baseVersion:1,runnersVersion:1,order:[2002,2003],didNotFinish:[],didNotRun:[]},{baseVersion:1,runnersVersion:1,order:[2002],didNotFinish:[],didNotRun:['2001']}]) expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,body)).statusCode).toBe(400);
+  expect((await call(volunteer,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:1,order:[2002,2001],didNotFinish:[],didNotRun:[]})).statusCode).toBe(403);
+  expect((await read()).auditNotes).toEqual([]);
+});
+test('Did not finish or Didn\'t run leaves times the finishers don\'t agree with until the lead clears the leftover places',async()=>{
+  const {lead,volunteer,race,read}=await start();
+  await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1200,1300]});
+  const reasons=async()=>(await read()).results.notRankedYet.flatMap((item:any)=>item.reasons);
+  expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:1,order:[2001],didNotFinish:[2002],didNotRun:[]})).statusCode).toBe(200);
+  expect(await reasons()).toEqual(["finishers and times don't agree"]);
+  await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:2,places:[1200,null]});
+  expect(await reasons()).toEqual([]);
+  expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:2,runnersVersion:1,order:[2002],didNotFinish:[],didNotRun:[2001]})).statusCode).toBe(200);
+  const current=(await call(volunteer,`/api/races/${race.id}`)).json();expect(current.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2002]);
+  expect(current.parts.finish.value).toEqual({order:[current.parts.runners.value[0].id],didNotFinish:[]});
+  expect((await read()).auditNotes[0].message).toBe('Aisha corrected the finishing order for Race 1: 2002; Didn\'t run 2001');
+  expect(await reasons()).toEqual([]);
+});
