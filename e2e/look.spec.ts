@@ -1,6 +1,6 @@
 import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
 
-const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(233, 237, 244)';
+const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)';
 
 async function joinAs(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
 

@@ -1,4 +1,4 @@
-import { steps,trailBack,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { checkIn,recordRace,steps,trailBack,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const colours={
@@ -14,15 +14,11 @@ async function events(page:Page,name:string,prefix:string) {
   const add=async(code:string,section:string,format:'heats'|'timed')=>page.request.post('/api/day/events',{headers:headers(),data:{code,name,section,format}});
   await add(`${prefix}D`,'Girl Cubs','timed');await add(`${prefix}R`,'Boy Cubs','timed');await add(`${prefix}H`,'Girl Scouts','heats');await add(`${prefix}N`,'Boy Scouts','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const checkIn=async(eventCode:string,runners:number[])=>(await(await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode,runners,keptWarnings:runners}})).json()).race as {id:string};
-  const record=async(race:{id:string},order:number[],places:number[])=>{
-    await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order,didNotFinish:[],didNotRun:[],added:[]}});
-    await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places}});
-  };
-  const done=await checkIn(`${prefix}D`,[2001,2002]);await record(done,[2001,2002],[1000,1100]);
+  const token=process.env.E2E_SCORING_TOKEN!;
+  const done=await recordRace(page.request,token,`${prefix}D`,[2001,2002],[1000,1100],[2001,2002]);
   expect((await page.request.post(`/api/lead/events/${prefix}D/complete-stage`,{headers:headers(),data:{stage:'event'}})).ok()).toBe(true);
-  const running=await checkIn(`${prefix}R`,[1001,1002]);await record(running,[1001,1002],[1600,1305]);
-  const heats=[await checkIn(`${prefix}H`,[3001]),await checkIn(`${prefix}H`,[3002])];
+  const running=await recordRace(page.request,token,`${prefix}R`,[1001,1002],[1600,1305],[1001,1002]);
+  const heats=[await checkIn(page.request,token,`${prefix}H`,[3001],[3001]),await checkIn(page.request,token,`${prefix}H`,[3002],[3002])];
   return [done,running,...heats];
 }
 const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers:headers(),data:{permanent:true}});};
