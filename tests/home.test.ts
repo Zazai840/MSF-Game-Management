@@ -1,0 +1,22 @@
+import { afterEach,expect,test } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { createApp } from '../src/server/app.js';
+import { signInOwner } from './support/sign-in.js';
+let app:FastifyInstance;
+const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
+afterEach(async()=>{await app?.close();});
+test('Home lists the switched-on events in programme order, each with its current race',async()=>{
+  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'home-owner',resetTestDay:true});
+  const people=await signInOwner(app,'home-owner'),owner=people.owner.token as string;
+  const volunteer=(await people.volunteer('Sam')).token;
+  await call(owner,'/api/day/events/R5/enabled',{enabled:false});
+  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001]})).json().race;
+  await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[],didNotRun:[],added:[]});
+  await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[1234]});
+  await call(volunteer,'/api/races/check-in',{eventCode:'R7',runners:[1001]});
+  const {events}=(await call(volunteer,'/api/home')).json();
+  expect(events.map((event:{code:string})=>event.code)).toEqual(['R1','R2','R3','R4','R6','R7','R8','R9','R10','R11','R12','R13','R14','R15','R16','R17','R18','R23','R24']);
+  expect(events[0]).toEqual({code:'R1',name:'60m',section:'Boy Beavers',race:{kind:'heat',number:1}});
+  expect(events.find((event:{code:string})=>event.code==='R4')).toEqual({code:'R4',name:'60m',section:'Girl Cubs',race:{kind:'heat',number:2}});
+  expect(events.find((event:{code:string})=>event.code==='R7')).toEqual({code:'R7',name:'60m Hurdles',section:'Boy Beavers',race:{kind:'race',number:1}});
+});

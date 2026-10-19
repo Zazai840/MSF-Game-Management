@@ -1,8 +1,30 @@
-import { test as base,expect,type APIRequestContext,type Locator,type Page } from '@playwright/test';
+import { test as base,expect,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
 import type { RaceRead } from '../src/shared/races.js';
+/** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
+export interface PhoneSession { context:BrowserContext; page:Page; token:string }
+/** Every "the other phone sees it" check waits this long, so a fall back to 5 s polling fails. Everything else keeps the 5 s default. */
+export const live={timeout:2000};
 // A real reset changes the lead code. The original scoring phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
-export const test=base.extend<{freshCodes:void}>({
+export const test=base.extend<{freshCodes:void;openPhone:(name:string,options?:{lead?:boolean})=>Promise<PhoneSession>}>({
+  /**
+   * Opens a phone as its own browser context with this project's device settings, signed in through the API
+   * as a new volunteer (or a lead) and on Home. Names must be unique across the run (add the project name).
+   * Every phone opened is closed when the test ends.
+   */
+  openPhone:async({browser},use)=>{
+    const contexts:BrowserContext[]=[];
+    await use(async(name,{lead=false}={})=>{
+      const context=await browser.newContext({...test.info().project.use});contexts.push(context);
+      const token=await signInThroughApi(context.request,name);
+      if(lead) expect((await context.request.post('/api/become-lead',{headers:{authorization:`Bearer ${token}`},data:{code:process.env.E2E_LEAD_CODE}})).ok()).toBe(true);
+      const page=await context.newPage();
+      await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),token);await page.reload();
+      await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+      return {context,page,token};
+    });
+    for(const context of contexts) await context.close();
+  },
   freshCodes:[async({request},use)=>{
     let response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
     // A password change ends every session; a fresh worker still holds setup's token, so sign the scoring team back in.
