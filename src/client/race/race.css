@@ -37,3 +37,35 @@
 .race-no-place {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
 .race-no-place li {display:flex; align-items:center; gap:12px; min-height:44px; padding:0 14px; border-radius:var(--radius); background:var(--tint); font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .race-no-place strong {font-size:18px; color:var(--text); font-variant-numeric:tabular-nums;}
+.race-no-place li span {flex:1;}
+.race-no-place li:has(> button) {padding-right:6px;}
+.race-table small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
+.race-next {display:inline-flex; align-items:center; min-height:32px; padding:0 12px; border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small);}
+
+/* Fixing a checked-in number: take it off or cancel, side by side under the number pad. */
+.race-fixing {display:flex; gap:10px;}
+.race-fixing button {flex:1;}
+.race-chips button[aria-pressed=true] {background:var(--navy); color:#fff;}
+
+/* Who holds each column, one row each; Take over's confirm drops onto its own line below. */
+.race-columns {display:flex; flex-direction:column; gap:6px;}
+.race-column {display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-height:var(--tap);}
+.race-column-name {width:64px; flex:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-column-who {flex:1 1 auto; min-width:0; font-size:var(--text-body); font-weight:800; color:var(--text); overflow-wrap:break-word;}
+.race-column-you {color:var(--navy);}
+.race-column > button {margin-left:auto;}
+.race-column .warning-box {flex-basis:100%;}
+
+/* The order holder's controls: tap runners in the order they crossed the line. */
+.race-order {display:flex; flex-direction:column; gap:12px;}
+.race-question {margin:0;}
+.race-numbers {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;}
+.race-numbers button {min-height:72px; font-size:28px; background:var(--ground); color:var(--text); border-color:var(--ground); font-variant-numeric:tabular-nums;}
+.race-pair {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.race-order-more {display:flex; flex-wrap:wrap; gap:10px;}
+.race-order-more button {flex:1 1 auto;}
+.race-card-body .sortable-row {background:var(--ground);}
+.race-move-place {width:64px; flex:none; display:flex; flex-direction:column; gap:2px; font-size:16px; font-weight:800; color:var(--navy);}
+.race-move-place small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.race-move-runner {flex:1; min-width:0; font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+.race-move-runner small {display:block; font-size:13px; font-weight:700; color:var(--muted);}

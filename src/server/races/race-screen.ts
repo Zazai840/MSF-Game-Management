@@ -4,6 +4,7 @@ import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import type { RacePartName } from '../../shared/race-clashes.js';
 import { currentRaceLabel,jobWords,raceJobs,type RaceJob,type RaceScreenRead } from '../../shared/race-screen.js';
+import type { FinishingOrder,Runner } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
@@ -13,7 +14,7 @@ import { readCompletedStages } from '../rulings/stages.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
-import { publishPart,rememberRace } from './versions.js';
+import { publishPart,rememberRace,sameRunnerSnapshot } from './versions.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** The race part each job writes. */
 const jobParts:Record<RaceJob,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
@@ -99,25 +100,85 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(from) await writeAuditNote(client,phone,screen.event.id,{action:'take-over',message:`${phone.name} took over ${jobWords[job]} from ${from.name} on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:screen.race.id?[{raceId:screen.race.id}]:[]});
     });
   });
-  // Check-in: the holder's whole list of wristbands. The first write on the empty next race creates it.
+  // Check-in: the holder's whole list of wristbands, a fixed number keeping its entry. The first write on the empty next race creates it.
   action('POST','/api/race-screen/:code/check-in','Volunteer',(request,_reply,phone)=>{
     const body=(request.body||{}) as {raceId?:unknown;version?:unknown;runners?:unknown};
-    if(body.raceId!==null && typeof body.raceId!=='string') throw new Refusal(400,'Choose a race');
-    if(!Number.isSafeInteger(body.version) || Number(body.version)<0) throw new Refusal(400,'Open the race before checking runners in');
+    const {raceId,version}=seenRace(body,'Open the race before checking runners in');
+    const entries=(Array.isArray(body.runners)?body.runners:[]) as Array<{id?:unknown;wristband?:unknown}>;
+    if(!Array.isArray(body.runners) || entries.some(entry=>!entry || typeof entry!=='object' || (entry.id!==undefined && typeof entry.id!=='string'))) throw new Refusal(400,'Enter the runner list');
+    const numbers=entries.map(entry=>entry.wristband) as number[];
     // Taking the last runner off leaves the stored race with nobody checked in; only a first runner stores a race.
-    const refusal=Array.isArray(body.runners) && !body.runners.length && body.raceId!==null?null:runnerListRefusal(body.runners);
+    const refusal=!numbers.length && raceId!==null?null:runnerListRefusal(numbers);
     if(refusal) throw new Refusal(400,refusal);
-    const numbers=body.runners as number[],kept=keptWarningNumbers(body,numbers),raceId=body.raceId as string|null;
+    const ids=entries.flatMap(entry=>typeof entry.id==='string'?[entry.id]:[]);
+    if(new Set(ids).size!==ids.length) throw new Refusal(400,'Choose each runner only once');
+    const kept=keptWarningNumbers(body,numbers);
     return write(phone,code(request),async(client,screen)=>{
-      await requireWrite(client,phone,screen,'check-in',raceId,Number(body.version));
+      await requireWrite(client,phone,screen,'check-in',raceId,version);
       if(screen.race.kind==='final') throw new Refusal(409,'Use Is everyone here? for the seeded final');
       const previous=screen.race.parts.runners.value||[],id=screen.race.id||randomUUID();
-      // An unchanged number keeps its entry and warnings; a new one gets the server's warnings.
-      const runners=await annotateRunners(client,phone.dayId,screen.event,numbers.map(wristband=>previous.find(runner=>runner.wristband===wristband)||{id:randomUUID(),wristband}),kept,id,previous);
-      if(screen.race.id) {await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners,runners);return;}
-      if(!screen.event.enabled) throw new Refusal(409,'This event is switched off');
-      await createRace(client,runners,{id,dayId:phone.dayId,eventId:screen.event.id,kind:screen.race.kind,savedBy:phone.id});
-      await rememberRace(client,await readRace(client,phone.dayId,id));
+      // A fixed number keeps its entry, so its place follows it. A number sent without its entry keeps the entry
+      // already holding that number. Unchanged numbers keep their warnings; a new or fixed one gets the server's.
+      const input=entries.map(({id:entryId,wristband})=>{
+        if(entryId===undefined) return previous.find(runner=>runner.wristband===wristband && !ids.includes(runner.id))||{id:randomUUID(),wristband:wristband as number};
+        const old=previous.find(runner=>runner.id===entryId);
+        if(!old) throw new Refusal(400,'Choose a runner from this race');
+        return {...old,wristband:wristband as number};
+      });
+      const runners=await annotateRunners(client,phone.dayId,screen.event,input,kept,id,previous);
+      if(!screen.race.id) {
+        if(!screen.event.enabled) throw new Refusal(409,'This event is switched off');
+        await createRace(client,runners,{id,dayId:phone.dayId,eventId:screen.event.id,kind:screen.race.kind,savedBy:phone.id});
+        await rememberRace(client,await readRace(client,phone.dayId,id));
+        return;
+      }
+      await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners,runners);
+      // A runner taken off drops out of the order, later places moving up. The order's version stays as it is: it
+      // counts the order holder's own changes, so an order they send before seeing this is still saved.
+      const finish=screen.race.parts.finish.value,left=finish && onlyRunners(finish,runners);
+      if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),id]);
     });
   });
+  // The order: the holder's whole finishing order by entry, with Did not finish, Didn't run (which takes the runner
+  // off the race) and runners added at the finish. Runners check-in has since taken off are dropped, later places moving up.
+  action('POST','/api/race-screen/:code/order','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown};
+    const {raceId,version}=seenRace(body,'Open the race before saving its finishing order');
+    const unclassified="Choose a place, Did not finish or Didn't run for each runner";
+    const entryIds=(value:unknown)=>{
+      if(!Array.isArray(value) || value.some(id=>typeof id!=='string')) throw new Refusal(400,unclassified);
+      return value as string[];
+    };
+    const order=entryIds(body.order),didNotFinish=entryIds(body.didNotFinish),didNotRun=entryIds(body.didNotRun),classified=[...order,...didNotFinish,...didNotRun];
+    if(new Set(classified).size!==classified.length) throw new Refusal(400,unclassified);
+    if(!Array.isArray(body.added)) throw new Refusal(400,'Enter the runners added at the finish');
+    const added=body.added as number[],addedRefusal=added.length?runnerListRefusal(added):null;
+    if(addedRefusal) throw new Refusal(400,addedRefusal);
+    const kept=keptWarningNumbers(body,added);
+    return write(phone,code(request),async(client,screen)=>{
+      await requireWrite(client,phone,screen,'order',raceId,version);
+      if(raceId===null) throw new Refusal(409,'Check runners in before the order');
+      // The final's order comes with its Here / Absent list; until then it stays on the Finish order job.
+      if(screen.race.kind==='final') throw new Refusal(409,'Use the Finish order job for the final');
+      const previous=screen.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
+      const already=added.find(number=>previous.some(runner=>runner.wristband===number));
+      if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
+      const input=[...previous.filter(runner=>!didNotRun.includes(runner.id)),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))];
+      const runners=await annotateRunners(client,phone.dayId,screen.event,input,kept,raceId,previous);
+      if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners,runners);
+      const finish=onlyRunners({order,didNotFinish},runners);
+      await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null,runners);
+    });
+  });
+}
+/** The race and part version a write was made on: null and 0 for the empty next race. */
+function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {
+  if(body.raceId!==null && typeof body.raceId!=='string') throw new Refusal(400,'Choose a race');
+  if(!Number.isSafeInteger(body.version) || Number(body.version)<0) throw new Refusal(400,message);
+  return {raceId:body.raceId as string|null,version:Number(body.version)};
+}
+/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
+function onlyRunners(finish:FinishingOrder,runners:readonly Runner[]):FinishingOrder {
+  const on=(id:string)=>runners.some(runner=>runner.id===id);
+  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
 }

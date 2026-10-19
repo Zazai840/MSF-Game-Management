@@ -30,14 +30,14 @@ test('wristband numbers go in through the phone keyboard on the race screen and 
   await input.pressSequentially('20.0-1');
   await expect(input).toHaveValue('2001');
   await input.press('Enter');
-  await expect(page.getByRole('button',{name:'Remove runner 2001',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Change runner 2001',exact:true})).toBeVisible();
   await expect(input).toHaveValue('');
   await expect(input).toBeFocused();
   await input.pressSequentially('2002');
   const next=page.getByRole('button',{name:'Next',exact:true});
   await expect(next).toBeInViewport();
   await next.click();
-  await expect(page.getByRole('button',{name:'Remove runner 2002',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Change runner 2002',exact:true})).toBeVisible();
   await expect(input).toBeFocused();
   await expect(input).toHaveValue('');
   // Pasted text keeps only its digits.
@@ -48,7 +48,7 @@ test('wristband numbers go in through the phone keyboard on the race screen and 
   await input.press('Backspace');await input.pressSequentially('4');
   await expect(input).toHaveValue('2004');
   await input.press('Enter');
-  await expect(page.getByRole('button',{name:'Remove runner 2004',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Change runner 2004',exact:true})).toBeVisible();
   // A warning closes the keyboard so the choice shows; Fix reopens it, cleared.
   await input.pressSequentially('3045');await input.press('Enter');
   const warning=page.getByRole('alert');
@@ -67,7 +67,7 @@ test('wristband numbers go in through the phone keyboard on the race screen and 
   // Keep adds the number with an amber dot and carries on.
   await input.pressSequentially('3046');await input.press('Enter');
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
-  const kept=page.getByRole('button',{name:'Remove runner 3046',exact:true});
+  const kept=page.getByRole('button',{name:'Change runner 3046',exact:true});
   await expect(kept.locator('.kept-dot')).toBeVisible();
   await expect(input).toBeFocused();
   // Every number is saved as it goes in: there is no check step, and the race screen opened again shows the same list.

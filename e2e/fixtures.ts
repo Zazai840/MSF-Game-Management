@@ -134,9 +134,17 @@ export function takeJob(request:APIRequestContext,token:string,eventCode:string,
   return raceScreenWrite(request,token,eventCode,'hold',{job});
 }
 /** Checks runners in on the race screen as that phone: takes check-in, then writes the whole list at the version it sees. */
-export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:number[],keptWarnings?:number[]) {
+export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:Array<number|{fix:number;to:number}>,keptWarnings?:number[]) {
   const {race}=await takeJob(request,token,eventCode,'check-in');
-  return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners,keptWarnings});
+  // A fix keeps the entry of the number it replaces, as fixing a number on the card does.
+  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
+  return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners:runners.map(entry),keptWarnings});
+}
+/** Writes the finishing order on the race screen as that phone, by wristband: takes the order, then writes the whole column at the version it sees. */
+export async function writeOrder(request:APIRequestContext,token:string,eventCode:string,order:number[],didNotFinish:number[]=[]) {
+  const {race}=await takeJob(request,token,eventCode,'order');
+  const id=(wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+  return raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:[],added:[]});
 }
 /** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {

@@ -21,7 +21,7 @@ async function screen(token:string,code='R4'):Promise<RaceScreenRead> {
 }
 const hold=(token:string,job:string,code='R4')=>call(token,`/api/race-screen/${code}/hold`,{job});
 const takeOver=(token:string,job:string,code='R4')=>call(token,`/api/race-screen/${code}/take-over`,{job});
-const checkIn=(token:string,body:object,code='R4')=>call(token,`/api/race-screen/${code}/check-in`,body);
+const checkIn=(token:string,body:{raceId:string|null;version:number;runners:number[];keptWarnings?:number[]},code='R4')=>call(token,`/api/race-screen/${code}/check-in`,{...body,runners:body.runners.map(wristband=>({wristband}))});
 
 test('opening a free job takes its hold, the race screen names the holder, and the day revision rises',async()=>{
   const {jo,ali,joId}=await start();

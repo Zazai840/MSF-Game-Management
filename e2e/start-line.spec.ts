@@ -59,7 +59,7 @@ test('a volunteer fixes an unknown number and keeps wrong-section and already-ra
   await page.getByRole('button',{name:'Keep',exact:true}).click();
   await expect(page.getByText('Heat 2 · 3 runners',{exact:true})).toBeVisible();
   // The kept warnings are on the server's list: they show on every phone, and go to To check.
-  for(const [number,dot] of [[2009,0],[3045,1],[2008,1]] as const) await expect(page.getByRole('button',{name:`Remove runner ${number}`,exact:true}).locator('.kept-dot')).toHaveCount(dot);
+  for(const [number,dot] of [[2009,0],[3045,1],[2008,1]] as const) await expect(page.getByRole('button',{name:`Change runner ${number}`,exact:true}).locator('.kept-dot')).toHaveCount(dot);
   const lead={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const items=(await (await request.get('/api/lead/results',{headers:lead})).json()).needsYou.filter((item:{event:{code:string}})=>item.event.code===code);
   expect(items.map((item:{wristband?:number})=>item.wristband)).toEqual(expect.arrayContaining([3045,2008]));

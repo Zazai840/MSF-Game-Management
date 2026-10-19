@@ -10,10 +10,10 @@ export type Offer=(next:RaceScreenRead)=>void;
 export function useRaceWrite(eventCode:string,offer:Offer) {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  /** Sends one write; true once the server has it, 'refused' when the server said no, false when it could not be sent. */
-  async function write(what:string,body:object):Promise<true|false|'refused'> {
+  /** Sends one write; the race screen it answers once the server has it, 'refused' when the server said no, false when it could not be sent. */
+  async function write(what:string,body:object):Promise<RaceScreenRead|false|'refused'> {
     setBusy(true);setError('');
-    try {offer(await api<RaceScreenRead>(`race-screen/${encodeURIComponent(eventCode)}/${what}`,body));return true;}
+    try {const answer=await api<RaceScreenRead>(`race-screen/${encodeURIComponent(eventCode)}/${what}`,body);offer(answer);return answer;}
     catch(failure) {setError(failure instanceof Error?failure.message:'Could not connect - please try again');return failure instanceof ApiFailure?'refused':false;}
     finally {setBusy(false);}
   }
