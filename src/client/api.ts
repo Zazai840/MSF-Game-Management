@@ -80,13 +80,13 @@ export class StaleRequest extends Error {constructor(){super('Please refresh');}
 const sessions=new WeakMap<Response,string>();
 function current(captured:string) {if(captured!==sessionId()) throw new StaleRequest();}
 /** JSON and binary calls share authentication, removal and session lifetime. */
-export async function apiResponse(path:string,body?:unknown):Promise<Response> {
+export async function apiResponse(path:string,body?:unknown,signal?:AbortSignal):Promise<Response> {
   if(resetPending && path!=='day/start-new') throw new StaleRequest();
   const captured=sessionId(),sessionToken=token();
   let response:Response;
   try {
     response=await fetch(`/api/${path}`, {
-      method:body === undefined ? 'GET':'POST',
+      method:body === undefined ? 'GET':'POST', signal,
       headers:{...(sessionToken ? {authorization:`Bearer ${sessionToken}`} : {}), ...(body === undefined ? {} : {'content-type':'application/json'})},
       ...(body === undefined ? {} : {body:JSON.stringify(body)})
     });

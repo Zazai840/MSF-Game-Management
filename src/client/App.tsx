@@ -6,18 +6,22 @@ import { BecomeLead } from './access/BecomeLead.js';
 import { YourProfile } from './access/YourProfile.js';
 import { Home, LeadEntry } from './home/Home.js';
 import { Job } from './jobs/Job.js';
+import { RaceScreen } from './race/RaceScreen.js';
+import type { HomeEvent } from '../shared/race-screen.js';
 import { AppHeader } from './shell/AppHeader.js';
 import { BackArea,BackArrow } from './flow/BackArrow.js';
 import { clock } from '../shared/clock.js';
 const Lead = lazy(()=>import('./lead/Lead.js'));
-interface HomeRead { phone:Phone; waiting:WaitingCounts; needsYou?:number }
-type Screen = 'home'|'become-lead'|'lead'|JobName;
+interface HomeRead { phone:Phone; events:HomeEvent[]; waiting:WaitingCounts; needsYou?:number }
+type Screen = 'home'|'become-lead'|'lead'|'race'|JobName;
 /** How each screen is named in a tester's bug report. */
-const screenNames:Partial<Record<Screen,string>>={home:'Home','become-lead':'Become lead'};
+const screenNames:Partial<Record<Screen,string>>={home:'Home','become-lead':'Become lead',race:'Race screen'};
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
   const [screen,setScreen] = useState<Screen>('home');
+  // The event whose race screen is open.
+  const [raceEvent,setRaceEvent]=useState('');
   // Your profile screen opens over whichever screen you were on, and Back returns to it.
   const [profileOpen,setProfileOpen]=useState(false);
   const [openDay,setOpenDay]=useState(false);
@@ -63,9 +67,9 @@ export function App() {
   const goHome=()=>{setScreen('home');setOpenDay(false);};
   if (profileOpen) return <><AppHeader name={home.phone.name} screen="Your profile" onProfile={()=>{}} /><main><YourProfile phone={home.phone} onBack={()=>setProfileOpen(false)} /></main></>;
   return <><AppHeader name={home.phone.name} screen={screen==='lead'?leadSection:screenNames[screen]??screen} onProfile={()=>setProfileOpen(true)} /><BackArea>{screen==='home' ? <nav className="app-nav app-nav-home" aria-label="Running Zone"><LeadEntry isLead={isLead} toCheck={home.needsYou||0} onDashboard={()=>setScreen('lead')} onBecomeLead={()=>setScreen('become-lead')} /></nav>
-    : (screen==='become-lead' || (screen==='lead' && !isLead)) && <BackArrow to="Home" onBack={goHome}/>}<main>
+    : (screen==='race' || screen==='become-lead' || (screen==='lead' && !isLead)) && <BackArrow to="Home" onBack={goHome}/>}<main>
     {screen === 'home' && renamed && <p role="status" className="calm-note">{renamed.taken} is already taken, so you're signed in as <strong>{renamed.name}</strong></p>}
-    {screen === 'home' ? <Home waiting={home.waiting} onJob={setScreen} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead key={home.phone.dayId} phone={home.phone} initialDay={openDay} onCount={updateCount} onChanged={()=>void refresh()} onHome={goHome} onSection={setLeadSection}/></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} onHome={goHome} />}
-    {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='Finish order' && screen!=='Times' && screen!=='lead' && <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer>}
+    {screen === 'home' ? <Home events={home.events} waiting={home.waiting} onEvent={code=>{setRaceEvent(code);setScreen('race');}} onJob={setScreen} /> : screen === 'race' ? <RaceScreen key={raceEvent} eventCode={raceEvent} /> : screen === 'become-lead' ? <BecomeLead onDone={()=>{setScreen('home');void refresh();}} /> : screen === 'lead' && isLead ? <Suspense fallback={<p>Opening Lead…</p>}><Lead key={home.phone.dayId} phone={home.phone} initialDay={openDay} onCount={updateCount} onChanged={()=>void refresh()} onHome={goHome} onSection={setLeadSection}/></Suspense> : screen === 'lead' ? <p>Lead access needed</p> : <Job job={screen} phone={home.phone} onHome={goHome} />}
+    {error && <p role="alert">{error}</p>}{screen!=='Start line' && screen!=='Finish order' && screen!=='Times' && screen!=='lead' && screen!=='race' && <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer>}
   </main></BackArea></>;
 }
