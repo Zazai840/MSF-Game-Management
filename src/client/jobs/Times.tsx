@@ -14,6 +14,7 @@ import { ActionBar } from '../flow/ActionBar.js';
 import { Saved } from '../flow/Saved.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import './jobs.css';
+import { clock } from '../../shared/clock.js';
 type Draft={race:RaceRead;slots:Array<string|null>;index:number;step:'entry'|'check';
   /** A Fix time / Keep choice is waiting for the place just typed. */
   warning:boolean;
@@ -91,7 +92,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     if(following) void open(following);else {setDraft(null);setChoosing(true);}
   }
   const home:TrailStep={label:'Home',onSelect:onHome};
-  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Times'}]}/><h1>Times</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh Times</button></section>;
+  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Times'}]}/><h1>Times</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
   const alerts=<>{readError && <p role="alert">{readError}</p>}{error && message!=='Not saved - tap Save again' && <p role="alert">{error}</p>}</>;
   const latestOf=(race:RaceRead)=>[...data.waiting,...data.recent].find(item=>item.id===race.id)||race;
   if(saved) {
@@ -107,7 +108,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     {draft && <button className="button-secondary carry-on" disabled={busy} onClick={()=>setChoosing(false)}>Carry on with {raceName(draft.race)}</button>}
     <h3>Waiting for times</h3>{data.waiting.length===0 && <p>No races waiting</p>}<div className="job-choices">{data.waiting.map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}{race.recording.countMismatch && <small className="choice-note"> · Finishers and times don't agree</small>}</button>)}</div>
     <h3>Recent races</h3><div className="job-choices">{data.recent.filter(race=>!data.waiting.some(item=>item.id===race.id)).map(race=><button disabled={busy} key={race.id} onClick={()=>void open(race)}>{racePickerLabel(race)}</button>)}</div>
-    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Times</button></footer>
+    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>
   </section>;
   const latest=latestOf(draft.race);
   const places=placesOf(draft.slots);
@@ -123,7 +124,7 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
   const trail:TrailStep[]=draft.step==='entry'?[home,timesStep,raceStep,...(draft.fromCheck?[checkStep]:[]),{label:`${ordinal(draft.index+1)} place`}]
     :[home,timesStep,raceStep,...(lastTimed>=0?[{label:`${ordinal(lastTimed+1)} place`,onSelect:()=>edit(lastTimed)}]:[]),{label:'Check'}];
   const runners=draft.race.parts.runners.value?.length||0;
-  const raceHeading=<p className="race-line">{raceLine(draft.race,runners)} · checked in {new Date(draft.race.checkedInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>;
+  const raceHeading=<p className="race-line">{raceLine(draft.race,runners)} · checked in {clock(draft.race.checkedInAt)}</p>;
   const notSaved='Not saved - tap Save again';
   const failedSave=message===notSaved && <div className="warning-box save-failed"><p role="status">{notSaved}</p>{error && <p role="alert">{error}</p>}</div>;
   const timeLabel=(index:number,slot:string|null)=>`${ordinal(index+1)} place · ${slot===null?'No finisher':slot?formatTimeDigits(slot):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
@@ -161,6 +162,6 @@ export function Times({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       <ActionBar stacked><button disabled={busy || locked || unkept.length>0} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button>{firstNoFinisher>=0 && <button className="button-secondary" disabled={busy || locked} onClick={undoNoFinisher}>{ordinal(firstNoFinisher+1)} did finish</button>}</ActionBar>
     </div>}
     </fieldset>
-    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Times</button></footer>
+    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>
   </section>;
 }

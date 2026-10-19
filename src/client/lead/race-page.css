@@ -6,9 +6,12 @@
 .record-rows {list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; gap:8px;}
 .record-row {display:flex; align-items:center; gap:12px; min-height:56px; padding:6px 14px; border-radius:var(--radius); font-size:var(--text-body); font-weight:700; font-variant-numeric:tabular-nums;}
 /* A wrong time takes the amber of .time-wrong (flow.css). */
-.record-row:not(.time-wrong) {background:var(--surface); border:1.5px solid var(--line);}
+.record-row:not(.time-wrong) {background:var(--surface);}
 .record-row.time-wrong {padding:5.5px 13.5px;}
-.record-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.record-place {width:64px; flex:none; font-size:16px; font-weight:800; color:var(--navy);}
+.record-text {flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px;}
+.record-text strong {font-size:20px; font-weight:800;}
+.record-time {flex:none; font-size:20px; font-weight:800; color:var(--text);}
 .record-runner {min-height:var(--tap); min-width:var(--tap); padding:0 12px; font-size:var(--text-body); background:var(--surface); color:var(--navy); border-color:var(--navy); border-radius:var(--radius-small); font-variant-numeric:tabular-nums;}
 
 /* Correction sheets */
@@ -18,18 +21,18 @@
 .runner-actions .lead-checkbox {display:flex; align-items:center; gap:10px; min-height:var(--tap); margin:0; color:var(--text); font-weight:700;}
 .runner-actions .lead-checkbox input {flex:none;}
 .lead-time-place {display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px;}
-.runner-actions .lead-time-place .lead-checkbox {flex-direction:column; justify-content:center; gap:2px; width:64px; font-size:13px; line-height:1.15; text-align:center;}
+.runner-actions .lead-time-place .lead-checkbox {flex-direction:column; justify-content:center; gap:2px; width:72px; font-size:var(--text-small); line-height:1.15; text-align:center;}
 .lead-editing {padding:12px 14px; border:2px solid var(--navy); border-radius:var(--radius); background:var(--surface);}
 .lead-editing .number-input {height:54px; font-size:26px;}
 .lead-runner-rows {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
 .lead-runner-rows li {display:flex; align-items:stretch; gap:8px;}
 .lead-runner-rows .lead-editing {flex:1; scroll-margin-bottom:128px;}
-.lead-runner-row {flex:1; display:flex; align-items:center; gap:12px; min-height:52px; padding:0 14px; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid var(--line);}
+.lead-runner-row {flex:1; display:flex; align-items:center; gap:12px; min-height:52px; padding:0 14px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface);}
 .lead-runner-row .row-label {width:84px; flex:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .lead-runner-row strong {flex:1; font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;}
-.lead-remove {flex:none; width:52px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--surface); color:var(--navy); border-color:var(--line-strong);}
+.lead-remove {flex:none; width:52px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--navy); border-color:var(--tint);}
 /* Add runner and Review stay in reach at the foot of the sheet, however long the list. */
-.sheet-actions {position:sticky; bottom:0; z-index:1; display:grid; grid-template-columns:auto 1fr; gap:10px; margin:0 -1rem; padding:12px 1rem; background:var(--surface); border-top:1px solid var(--divider);}
+.sheet-actions {position:sticky; bottom:0; z-index:1; display:grid; grid-template-columns:auto 1fr; gap:10px; margin:0 -1rem; padding:12px 1rem; background:var(--tint);}
 .race-page {display:flex; flex-direction:column;}
 .race-page h3 {margin:0 0 4px;}
 .race-page > p:not([role]) {margin:0 0 8px; color:var(--muted); font-size:var(--text-small); font-weight:600;}

@@ -14,7 +14,7 @@ import { raceLabel } from '../../shared/races.js';
 import { Trail,type TrailStep } from '../flow/Trail.js';
 import { ordinal } from '../../shared/ordinal.js';
 import './results.css';
-const noteTime=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
+import { clock } from '../../shared/clock.js';
 const label=(race:{kind:'heat'|'final'|'race';number:number})=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**
@@ -40,7 +40,7 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
     try {
       if(code) {const next=await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`);if(generation!==request.current) return;setDetail(next);}
       else {const next=await api<ResultsRead>('lead/results');if(generation!==request.current) return;setList(next);}
-      setUpdated(new Date().toLocaleTimeString());setError('');
+      setUpdated(clock());setError('');
     } catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
   useEffect(()=>{
@@ -56,7 +56,7 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
 
   const selectedTie=detail?.results.ties.find(tie=>tie.id===selectedTieId);
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
-  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(new Date().toLocaleTimeString());onChanged?.();}
+  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(clock());onChanged?.();}
   function openStageItem(item:StageItem) {
     setSelectedStage(null);
     const tie=detail?.results.ties.find(tie=>tie.id===item.tieId);
@@ -91,7 +91,7 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
       </section>}
       {detail.results.inputRunning && <section className="input-running-section"><h3>Input - Running</h3><table className="input-running" aria-label="Input - Running"><thead><tr><th>Event code</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody><tr><td>{detail.results.inputRunning.eventCode}</td><td>{detail.results.inputRunning.first??'-'}</td><td>{detail.results.inputRunning.second??'-'}</td><td>{detail.results.inputRunning.third??'-'}</td></tr></tbody></table></section>}
       <DeletedRaces eventCode={detail.event.code} onOpen={openRace}/>
-      {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{noteTime(note.at)}</time><span>{note.message}</span></li>)}</ol></section>}
+      {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol></section>}
     </>}</>}</> : !list?<><h1>Results</h1><p className="results-opening">Opening events…</p></>:<><h1>Results</h1>
       <ul className="results-legend" aria-label="Card colours">{(['done','running','not-started'] as const).map(state=><li key={state}><span className={`results-swatch event-card-${state}`} aria-hidden="true"/>{state==='done'?'Done':state==='running'?'Running':'Not started'}</li>)}</ul>
       {!list.eventsConfirmed && <p className="calm-note">Event list awaiting confirmation by the scoring team</p>}
@@ -100,8 +100,8 @@ export function Results({target,trail=[],onChanged}:{target?:DayLeadItem;trail?:
         return <button key={item.event.id} className={`event-card event-card-${card.state}`} onClick={()=>open(item.event.code,`${item.event.name} ${item.event.section}`)}>
           <span className="event-card-title"><span>{item.event.code} · {item.event.section}</span>{card.state==='done' && tick}</span>
           <span className="event-card-status">{card.line}{!item.event.enabled?' · Switched off':''}</span>
-          {item.latestNoteAt && <span className="event-card-note">Latest note {noteTime(item.latestNoteAt)}</span>}
+          {item.latestNoteAt && <span className="event-card-note">Latest note {clock(item.latestNoteAt)}</span>}
         </button>;})}</div></section>)}</>}
-    {!selectedRace && <footer className="results-footer">Updated at {updated || '…'} <button className="button-quiet" onClick={()=>void refresh()}>Refresh Results</button></footer>}
+    {!selectedRace && <footer className="results-footer">Updated at {updated || '…'} <button className="button-quiet" onClick={()=>void refresh()}>Refresh</button></footer>}
   </div>;
 }

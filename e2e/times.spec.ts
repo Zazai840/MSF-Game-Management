@@ -22,7 +22,7 @@ test('three phones record a race, keep a time warning and repair a count mismatc
   await signInAs(finish,`Finish times ${info.project.name}`);await jobButton(finish,'Finish order').click();
   for(const number of [numbers[1],numbers[0]]) await finish.getByRole('button',{name:String(number),exact:true}).click();
   await finish.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();await finish.getByRole('button',{name:'Did not finish',exact:true}).click();await finish.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(finish);
-  await timer.getByRole('button',{name:'Change times',exact:true}).click();await timer.getByRole('button',{name:'Refresh Times',exact:true}).click();await expect(timer.getByText('Finish order has 2 finishers, times have 1 - check the recording',{exact:true})).toBeVisible();await expect(timer.getByText('1 time · 2 finishers',{exact:true})).toBeVisible();
+  await timer.getByRole('button',{name:'Change times',exact:true}).click();await timer.getByRole('button',{name:'Refresh',exact:true}).click();await expect(timer.getByText('Finish order has 2 finishers, times have 1 - check the recording',{exact:true})).toBeVisible();await expect(timer.getByText('1 time · 2 finishers',{exact:true})).toBeVisible();
   await timer.getByRole('button',{name:'2nd did finish',exact:true}).click();await enterTime(timer,'1200');
   await expect(timer.getByRole('button',{name:'Fix time',exact:true})).toBeVisible();await timer.getByRole('button',{name:'Fix time',exact:true}).click();await expect(timer.getByLabel('Place time')).toHaveValue('');await enterTime(timer,'1200');await timer.getByRole('button',{name:'Keep',exact:true}).click();
   await expect(timer.getByText('Kept as typed. A zone lead will check it.',{exact:true})).toBeVisible();await timer.getByRole('button',{name:'Save',exact:true}).click();await savedRaceLabel(timer);
@@ -39,7 +39,7 @@ test('Times premarks nonfinishers and keeps the draft version across polling and
   await expect(page.getByRole('button',{name:'2nd place · No finisher',exact:true})).toBeDisabled();
   await enterTime(page,'1234');await expect(page.getByRole('button',{name:'2nd did finish',exact:true})).toBeVisible();
   await page.request.post(`/api/races/${race.id}/times`,{headers,data:{baseVersion:0,places:[1300,null]}});
-  await page.getByRole('button',{name:'Refresh Times',exact:true}).click();await page.reload();await jobButton(page,'Times').click();await expect(page.getByRole('button',{name:'1st place · 12.34',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.reload();await jobButton(page,'Times').click();await expect(page.getByRole('button',{name:'1st place · 12.34',exact:true})).toBeVisible();
   const saving=page.waitForRequest(request=>request.url().endsWith(`/api/races/${race.id}/times`) && request.method()==='POST');
   await page.getByRole('button',{name:'Save',exact:true}).click();expect((await saving).postDataJSON()).toMatchObject({baseVersion:0,places:[1234,null]});
   await expect(page.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();

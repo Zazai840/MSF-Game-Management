@@ -97,7 +97,7 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
     finally {setBusy(false);}
   }
   const home:TrailStep={label:'Home',onSelect:onHome};
-  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Check in runners'}]}/><h1>Check in runners</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh Start line</button></section>;
+  if(!data) return <section className="race-job"><Trail steps={[home,{label:'Check in runners'}]}/><h1>Check in runners</h1><p>{readError || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></section>;
   const alerts=<>{readError && <p role="alert">{readError}</p>}{error && <p role="alert">{error}</p>}</>;
   const notSaved='Not saved - tap Save again';
   /** A failed save shows beside Save, in one amber box with the reason. */
@@ -158,6 +158,6 @@ export function StartLine({dayId,onHome}:{dayId:string;onHome:()=>void}) {
       <ActionBar stacked><button disabled={busy||locked} onClick={()=>void save()}>{busy?'Saving…':'Save'}</button><button className="button-secondary" disabled={busy||locked} onClick={()=>goTo('entry')}>Add another runner</button></ActionBar>
     </div>}
     </fieldset>
-    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh Start line</button></footer>
+    <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>
   </section>;
 }
