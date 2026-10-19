@@ -7,27 +7,29 @@ import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
 import { raceLabel,replacedByRerun } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
-import { digitsForTime,parseTimeDigits,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
+import { SortableList } from '../flow/SortableList.js';
 import { WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import '../jobs/jobs.css';
 import './race-page.css';
 export interface RaceActionsProps {race:LeadRaceRead['race'];onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void|Promise<void>;onRemoved:()=>void}
 export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps) {
-  const [action,setAction]=useState<'times'|'runners'|'delete'|'re-run'|'restore'|null>(null);
+  const [action,setAction]=useState<'times'|'order'|'runners'|'delete'|'re-run'|'restore'|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function command(command:string,body:unknown,removed=false) {
+  /** `stay` keeps the sheet open for corrections that save each change at once. */
+  async function command(command:string,body:unknown,removed=false,stay=false) {
     if(busy) return;setBusy(true);setError('');
-    try {onSaved(await api<EventResultsRead>(`lead/races/${race.id}/${command}`,body));if(removed) {setAction(null);onRemoved();} else {await onRefresh();setAction(null);}}
+    try {onSaved(await api<EventResultsRead>(`lead/races/${race.id}/${command}`,body));if(removed) {setAction(null);onRemoved();} else {await onRefresh();if(!stay) setAction(null);}}
     catch(error) {setError(error instanceof Error?error.message:'Not saved - try again');}
     finally {setBusy(false);}
   }
   function open(next:typeof action) {setAction(next);setError('');}
   const replaced=replacedByRerun(race);
-  return <div className="race-action-choices">{race.parts.times.value?.acceptedByLead && <p className="calm-note">Out-of-order times accepted by a lead</p>}{race.deleted?<>{replaced?<p>{raceLabel(race)} · {replaced}</p>:<><p>Deleted race</p><button onClick={()=>open('restore')}>Restore race</button></>}<button className="button-secondary" onClick={()=>open('delete')}>Delete permanently</button></>:<>{race.kind!=='final' && <button className="button-secondary" onClick={()=>open('times')}>Correct times</button>}<button className="button-secondary" onClick={()=>open('runners')}>Correct runner list</button><button className="button-secondary" onClick={()=>open('re-run')}>Re-run race</button><button className="button-secondary" onClick={()=>open('delete')}>Delete race</button></>}
-    {action && <ActionSheet title={`${action==='times'?'Correct times':action==='runners'?'Correct runner list':action==='restore'?'Restore race':action==='re-run'?'Re-run race':'Delete race'} · ${raceLabel(race)}`} busy={busy} onClose={()=>setAction(null)}><h3>{raceLabel(race)}</h3>{error && <p role="alert">{error}</p>}
-      {action==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body)} onClose={()=>setAction(null)}/>:action==='runners'?<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body)} onClose={()=>setAction(null)}/>:<RaceLifecycle action={action} race={race} busy={busy} onSave={(body,permanent)=>void command(action==='delete'?'delete':action,body,!!permanent)} onClose={()=>setAction(null)}/>}
+  return <div className="race-action-choices">{race.parts.times.value?.acceptedByLead && <p className="calm-note">Out-of-order times accepted by a lead</p>}{race.deleted?<>{replaced?<p>{raceLabel(race)} · {replaced}</p>:<><p>Deleted race</p><button onClick={()=>open('restore')}>Restore race</button></>}<button className="button-secondary" onClick={()=>open('delete')}>Delete permanently</button></>:<>{race.kind!=='final' && <button className="button-secondary" onClick={()=>open('times')}>Correct times</button>}{race.parts.finish.value && <button className="button-secondary" onClick={()=>open('order')}>Correct finishing order</button>}<button className="button-secondary" onClick={()=>open('runners')}>Correct runner list</button><button className="button-secondary" onClick={()=>open('re-run')}>Re-run race</button><button className="button-secondary" onClick={()=>open('delete')}>Delete race</button></>}
+    {action && <ActionSheet title={`${action==='times'?'Correct times':action==='order'?'Correct finishing order':action==='runners'?'Correct runner list':action==='restore'?'Restore race':action==='re-run'?'Re-run race':'Delete race'} · ${raceLabel(race)}`} busy={busy} onClose={()=>setAction(null)}><h3>{raceLabel(race)}</h3>{error && <p role="alert">{error}</p>}
+      {action==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body)} onClose={()=>setAction(null)}/>:action==='order'?<RaceOrderEditor race={race} busy={busy} onSave={body=>command('finish-order',body,false,true)} onClose={()=>setAction(null)}/>:action==='runners'?<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body)} onClose={()=>setAction(null)}/>:<RaceLifecycle action={action} race={race} busy={busy} onSave={(body,permanent)=>void command(action==='delete'?'delete':action,body,!!permanent)} onClose={()=>setAction(null)}/>}
     </ActionSheet>}
   </div>;
 }
@@ -97,6 +99,35 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
     <label>Comment (optional)<textarea maxLength={1000} disabled={busy} value={comment} onChange={event=>setComment(event.target.value)}/></label>
     {invalid && <p className="sheet-hint">Enter a valid time for each place, or choose No finisher.</p>}<button disabled={busy || invalid || leftover}>{busy?'Saving…':'Save times'}</button><button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Cancel correction</button>
   </form>;
+}
+/**
+ * The lead's finishing order correction on a saved race: dragging a wristband moves it to another place while
+ * times stay by place, and No place marks Did not finish or Didn't run. Each change saves at once.
+ */
+function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>Promise<void>;onClose:()=>void}) {
+  type Order={order:number[];didNotFinish:number[];didNotRun:number[]};
+  const wristband=(id:string)=>race.parts.runners.value?.find(runner=>runner.id===id)?.wristband??0;
+  const finish=race.parts.finish.value!,places=race.kind==='final'?null:race.parts.times.value?.places;
+  // A change being saved shows at once; the race read after the save replaces it.
+  const [saving,setSaving]=useState<Order|null>(null),[asking,setAsking]=useState<number|null>(null);
+  const shown=saving||{order:finish.order.map(wristband),didNotFinish:finish.didNotFinish.map(wristband),didNotRun:[]};
+  async function save(next:Order) {setAsking(null);setSaving(next);await onSave({baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,...next});setSaving(null);}
+  const without=(list:number[],number:number)=>list.filter(other=>other!==number);
+  const time=(place:number)=>{const value=places?.[place-1];return value===undefined?null:value===null?'No time':formatTime(value);};
+  return <div className="sheet-stack lead-order">
+    <p className="sheet-hint">Drag a wristband to its place: times stay by place. Each change saves at once.</p>
+    <SortableList label="Finishing order" items={shown.order} itemKey={number=>number} itemName={String} disabled={busy} onReorder={order=>void save({...shown,order})}
+      renderItem={(number,place)=><><span className="lead-order-place"><span className="row-place">{ordinal(place)}</span>{places && <small>{time(place)}</small>}</span><span className="row-runner"><strong>{number}</strong></span>
+        <button type="button" className="button-small button-secondary lead-no-place" disabled={busy} aria-label={`No place for ${number}`} onClick={()=>setAsking(number)}>No place</button></>}/>
+    {asking!==null && <div className="lead-order-ask"><p><strong>{asking} has no place. What happened?</strong></p>
+      <div className="lead-order-choices"><button autoFocus disabled={busy} onClick={()=>void save({...shown,order:without(shown.order,asking),didNotFinish:[...shown.didNotFinish,asking]})}>Did not finish</button><button disabled={busy} onClick={()=>void save({...shown,order:without(shown.order,asking),didNotRun:[...shown.didNotRun,asking]})}>Didn't run</button></div>
+      <p className="sheet-hint">Didn't run takes {asking} off this race.</p><button className="button-secondary" disabled={busy} onClick={()=>setAsking(null)}>Keep {asking}'s place</button></div>}
+    {shown.didNotFinish.length+shown.didNotRun.length>0 && <ul className="lead-order-others" aria-label="No place">
+      {shown.didNotFinish.map(number=><li key={number}><strong>{number}</strong><span>Did not finish</span><button className="button-small button-secondary" disabled={busy} aria-label={`Give a place to ${number}`} onClick={()=>void save({...shown,order:[...shown.order,number],didNotFinish:without(shown.didNotFinish,number)})}>Give a place</button></li>)}
+      {shown.didNotRun.map(number=><li key={number}><strong>{number}</strong><span>Didn't run · taken off this race</span></li>)}
+    </ul>}
+    <button className="button-secondary" disabled={busy} onClick={onClose}>Done</button>
+  </div>;
 }
 /**
  * The lead's runner list correction: tapping a runner retypes their number on the phone's own number pad
