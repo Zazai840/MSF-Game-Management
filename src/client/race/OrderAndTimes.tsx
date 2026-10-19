@@ -67,7 +67,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     void timesWrites.send({raceId:race.id,places:next,keptWrong:keptWrong.filter(index=>index!==target && stillWrong.has(index))});
     setPad('',null);
   }
-  const ordering=holds.order?.id===phoneId && !stageComplete && !final;
+  const ordering=holds.order?.id===phoneId && !stageComplete;
   const next=ordering && step==='place' && unplaced.length?order.length:-1;
   const rows=Math.max(runners.length-didNotFinish.length,order.length,places.length);
   const time=(place:number)=>places[place-1]==null?'':formatTime(places[place-1]!);

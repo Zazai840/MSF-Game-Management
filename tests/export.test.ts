@@ -55,7 +55,7 @@ test('final export preserves absent seeds, sourced callups, corrected numbers, t
  const {owner,lead,volunteer}=await start();await race(volunteer,'R3',[1023,1066,1088,1005,1012,1110],[900,910,920,930,940,950]);await race(volunteer,'R3',[1135,1047],[960,970]);
  const completed=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(completed.statusCode).toBe(200);const id=completed.json().results.finalResults.raceId;
  let final=(await call(volunteer,`/api/races/${id}`)).json();
- await call(volunteer,`/api/races/${id}/presence`,{baseVersion:final.parts.runners.version,generation:final.final.generation,lineup:final.final.entries.map((entry:any)=>entry.finalEntryId),absent:[final.parts.runners.value.find((r:any)=>r.wristband===1066).id]});
+ await call(volunteer,'/api/race-screen/R3/hold',{job:'check-in'});await call(volunteer,'/api/race-screen/R3/absent',{raceId:id,version:final.parts.runners.version,absent:[final.parts.runners.value.find((r:any)=>r.wristband===1066).id]});
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect((await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:detail.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
  final=(await call(volunteer,`/api/races/${id}`)).json();const correctedId=final.parts.runners.value.find((r:any)=>r.wristband===1023).id;
  await call(lead,`/api/lead/races/${id}/runners/${correctedId}/correct-number`,{expectedWristband:1023,wristband:1050});final=(await call(volunteer,`/api/races/${id}`)).json();

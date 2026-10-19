@@ -35,7 +35,7 @@ export function raceRoutes(app:FastifyInstance,pool:pg.Pool) {
     if (!day) throw newDay();
     const events=(await pool.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND enabled ORDER BY programme_order,code',[phone.dayId])).rows;
     const races=await listRaces(pool,phone.dayId);
-    return {completedStages:await readCompletedStages(pool,phone.dayId),events,eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null && (race.kind!=='final' || (race.final?.heatsComplete && !race.final.hasRun))).map(jobRace),recent:races.slice(-10).reverse().map(jobRace)};
+    return {completedStages:await readCompletedStages(pool,phone.dayId),events,eventsConfirmed:day.events_confirmed,waiting:races.filter(race=>!race.stageComplete && race.parts.finish.value===null && race.kind!=='final').map(jobRace),recent:races.slice(-10).reverse().map(jobRace)};
   });
   action('GET','/api/races/:id','Volunteer',async(request,_reply,phone)=>jobRace(await readRace(pool,phone.dayId,(request.params as {id:string}).id)));
   // Each job uses this same Volunteer boundary for all three permission levels.

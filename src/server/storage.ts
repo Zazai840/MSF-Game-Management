@@ -56,8 +56,10 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
     );
     CREATE TABLE IF NOT EXISTS race_finals (
-      race_id uuid PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE, entries jsonb NOT NULL, presence_confirmed boolean NOT NULL DEFAULT false
+      race_id uuid PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE, entries jsonb NOT NULL
     );
+    -- Attendance is now a live Here / Absent list with no confirm step; older builds stored that confirm here.
+    ALTER TABLE race_finals DROP COLUMN IF EXISTS presence_confirmed;
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS generation text NOT NULL DEFAULT '';
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS additional_entries jsonb NOT NULL DEFAULT '[]';
     CREATE TABLE IF NOT EXISTS race_counters (

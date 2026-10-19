@@ -117,7 +117,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     const kept=keptWarningNumbers(body,numbers);
     return write(phone,code(request),async(client,screen)=>{
       await requireWrite(client,phone,screen,'check-in',raceId,version);
-      if(screen.race.kind==='final') throw new Refusal(409,'Use Is everyone here? for the seeded final');
+      if(screen.race.kind==='final') throw new Refusal(409,"Mark the final's runners Here or Absent");
       const previous=screen.race.parts.runners.value||[],id=screen.race.id||randomUUID();
       // A fixed number keeps its entry, so its place follows it. A number sent without its entry keeps the entry
       // already holding that number. Unchanged numbers keep their warnings; a new or fixed one gets the server's.
@@ -135,10 +135,27 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
         return;
       }
       await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners,runners);
-      // A runner taken off drops out of the order, later places moving up. The order's version stays as it is: it
-      // counts the order holder's own changes, so an order they send before seeing this is still saved.
-      const finish=screen.race.parts.finish.value,left=finish && onlyRunners(finish,runners);
-      if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),id]);
+      await dropFromOrder(client,screen,runners);
+    });
+  });
+  // Here / Absent on the final: the check-in holder's whole list of absent seeded runners, by entry. Only those Here
+  // are the final's runners, so one marked Absent leaves the order holder's list, and comes back when marked Here.
+  action('POST','/api/race-screen/:code/absent','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {raceId?:unknown;version?:unknown;absent?:unknown};
+    const {raceId,version}=seenRace(body,'Open the final before marking who is here');
+    if(!Array.isArray(body.absent) || body.absent.some(id=>typeof id!=='string') || new Set(body.absent).size!==body.absent.length) throw new Refusal(400,'Choose the absent runners');
+    const absent=body.absent as string[];
+    return write(phone,code(request),async(client,screen)=>{
+      await requireWrite(client,phone,screen,'check-in',raceId,version);
+      if(raceId===null || screen.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
+      const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=race.parts.runners.value||[];
+      const lineup=[...final.entries.map(entry=>entry.runner||{id:entry.finalEntryId,wristband:entry.heatWristband}),...(final.additionalEntries||[]).map(entry=>entry.runner)];
+      if(absent.some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
+      const runners=lineup.filter(runner=>!absent.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
+      if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
+      // The runner list is the attendance: publishing it marks everyone else Absent on the final's line-up.
+      await publishPart(client,phone,race,'runners',runners,runners);
+      await dropFromOrder(client,screen,runners);
     });
   });
   // The order: the holder's whole finishing order by entry, with Did not finish, Didn't run (which takes the runner
@@ -160,13 +177,12 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     return write(phone,code(request),async(client,screen)=>{
       await requireWrite(client,phone,screen,'order',raceId,version);
       if(raceId===null) throw new Refusal(409,'Check runners in before the order');
-      // The final's order comes with its Here / Absent list; until then it stays on the Finish order job.
-      if(screen.race.kind==='final') throw new Refusal(409,'Use the Finish order job for the final');
       const previous=screen.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
       const already=added.find(number=>previous.some(runner=>runner.wristband===number));
       if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
       const input=[...previous.filter(runner=>!didNotRun.includes(runner.id)),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))];
-      const runners=await annotateRunners(client,phone.dayId,screen.event,input,kept,raceId,previous);
+      // A final's runners all ran in its heats, so "already ran in this event" does not apply.
+      const runners=await annotateRunners(client,phone.dayId,screen.event,input,kept,raceId,previous,screen.race.kind==='final');
       if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners,runners);
       const finish=onlyRunners({order,didNotFinish},runners);
       await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null,runners);
@@ -197,6 +213,14 @@ function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {
   if(body.raceId!==null && typeof body.raceId!=='string') throw new Refusal(400,'Choose a race');
   if(!Number.isSafeInteger(body.version) || Number(body.version)<0) throw new Refusal(400,message);
   return {raceId:body.raceId as string|null,version:Number(body.version)};
+}
+/**
+ * A runner taken off (or marked Absent) drops out of the order, later places moving up. The order's version stays as
+ * it is: it counts the order holder's own changes, so an order they send before seeing this is still saved.
+ */
+async function dropFromOrder(client:pg.PoolClient,screen:RaceScreenRead,runners:readonly Runner[]) {
+  const finish=screen.race.parts.finish.value,left=finish && onlyRunners(finish,runners);
+  if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),screen.race.id]);
 }
 /** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
 function onlyRunners(finish:FinishingOrder,runners:readonly Runner[]):FinishingOrder {
