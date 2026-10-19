@@ -59,3 +59,19 @@ test('silent link: once the watchdog gives up on a stream that went quiet, phone
   await expect(checkedIn(b.page)).toHaveText(['2301']);
   await deleteCurrentRace(request,code);
 });
+
+test('planned end: phone B reconnects at once after the stream ends, and shows what phone A checked in since',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`LP-${project.toUpperCase()}`,name=`Planned end ${project}`;
+  await ownEvent(request,code,name);
+  const a=await openPhone(`Ann end ${project}`),b=await openPhone(`Ben end ${project}`);
+  await writeCheckIn(request,a.token,code,[2401]);
+  // B's first stream sends the race as it was, then ends cleanly as the server does after about 10 minutes; A checks in another runner in between.
+  await b.page.route(liveStream,async route=>{
+    const before=await (await request.get(`/api/race-screen/${code}`,{headers:{authorization:`Bearer ${b.token}`}})).json();
+    await writeCheckIn(request,a.token,code,[2401,2402]);
+    await route.fulfill({status:200,contentType:'text/event-stream',body:`data: ${JSON.stringify(before)}\n\n`});
+  },{times:1});
+  await openRaceScreen(b.page,name);await checkInCard(b.page).click();
+  await expect(checkedIn(b.page)).toHaveText(['2401','2402'],live);
+  await deleteCurrentRace(request,code);
+});
