@@ -73,6 +73,22 @@ test('the first press moves the race to submitted and asks every holder with ent
   expect(history).toEqual([{part:'finish',held_by:'Priya'},{part:'runners',held_by:'Sam'},{part:'times',held_by:'Jo'}]);
 });
 
+test('only those asked press Submit Race: a watcher or a lead holding nothing is refused, in progress and once submitted; with nobody asked, anyone saves it',async()=>{
+  const context=await start(),{sam,priya,jo,ali,lead,setup}=context;
+  const race=await worked(context),alex=(await lead('Alex')).token;
+  const refusal={message:"Only the people doing this race's jobs submit it"};
+  for(const token of [ali,alex]) expect((await submit(token,race.id)).json()).toEqual(refusal);
+  expect((await setup.screen(ali,'R4')).race.state).toBe('in progress');
+  await submit(sam,race.id);
+  for(const token of [ali,alex]) expect((await submit(token,race.id)).json()).toEqual(refusal);
+  expect((await setup.screen(ali,'R4'))).toMatchObject({race:{state:'submitted'},pressed:[{name:'Sam'}]});
+  // Every holder signed out: nobody is left to ask, so any press saves it.
+  await setup.submit(priya,'R4');
+  for(const token of [sam,priya,jo]) expect((await call(token,'/api/sign-out',{})).statusCode).toBe(200);
+  expect((await setup.screen(ali,'R4')).asked).toEqual([]);
+  expect((await submit(ali,race.id)).json()).toMatchObject({race:{id:null,number:2},lastSaved:{number:1,by:'Ali'}});
+});
+
 test('Not yet sends a submitted race back to in progress, clears every press and leaves an audit note; entries are refused while submitted',async()=>{
   const context=await start(),{sam,priya,jo,ali,setup,lead}=context;
   const race=await worked(context);

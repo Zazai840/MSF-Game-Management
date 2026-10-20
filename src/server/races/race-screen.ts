@@ -247,11 +247,13 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
     });
   });
-  // Submit Race: the first press (once nothing blocks it) moves the race to submitted; the last of those asked saves it.
+  // Submit Race, pressed by those asked: the first press (once nothing blocks it) moves the race to submitted; the last of those asked saves it.
   action('POST','/api/race-screen/:code/submit','Volunteer',(request,_reply,phone)=>{
     const raceId=tappedRace(request.body);
     return write(phone,code(request),async(client,screen,unchanged)=>{
       await requireSubmittable(client,phone,screen,raceId);
+      // Watchers (and a lead holding nothing) are not asked; with nobody left to ask, anyone's press saves it.
+      if(screen.asked.length && !screen.asked.some(holder=>holder.id===phone.id)) throw new Refusal(409,"Only the people doing this race's jobs submit it");
       const pressed=[...screen.pressed.map(holder=>holder.id),phone.id];
       if(screen.asked.every(holder=>pressed.includes(holder.id))) {await saveRace(client,phone,screen);return;}
       const press=await client.query('INSERT INTO submit_presses(race_id,sign_in_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[raceId,phone.id]);

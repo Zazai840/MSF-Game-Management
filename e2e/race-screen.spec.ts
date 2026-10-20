@@ -163,16 +163,17 @@ test('a phone on the race screen shows the check-in, order and times another pho
   await writeOrder(request,jo,code,[2042,2041]);
   const table=page.getByRole('table',{name:'Order and times'});
   await expect(table.getByRole('row')).toHaveText([/^Place\s*Wristband\s*Time$/,/^1st\s*2042\s*$/,/^2nd\s*2041\s*$/],live);
-  // A placed wristband with no time blocks Submit Race, with the reason under it.
+  // A placed wristband with no time blocks Submit Race, with the reason shown to the watcher too; only Jo, doing the jobs, has Submit Race.
   await writeTimes(request,jo,code,[1234]);
   await expect(table.getByRole('row')).toHaveText([/^Place/,/^1st\s*2042\s*12\.34$/,/^2nd\s*2041\s*$/],live);
   await expect(page.getByText('Place 2 has no time',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
   await page.screenshot({path:info.outputPath('race-screen-live.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
   // Once Heat 1 is saved the event moves on: Heat 2 with empty cards.
   await writeTimes(request,jo,code,[1234,1301]);
-  await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled(live);
+  await expect(page.getByText('Place 2 has no time',{exact:true})).toHaveCount(0,live);
+  await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
   await submitRace(request,jo,code);
   await expect(page.getByText('Heat 1 saved',{exact:true})).toBeVisible(live);
   await expect(page.getByText('Heat 2 · 0 runners',{exact:true})).toBeVisible();
@@ -205,6 +206,8 @@ test('Submit Race waits for every holder: once two have pressed, every phone sho
   await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toBeDisabled();
   await writeTimes(request,timer.token,code,[1295,1312]);
   await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled(live);
+  // Ali holds nothing, so is not asked: no Submit Race on Ali's phone.
+  await expect(ali.page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
   await sam.page.getByRole('button',{name:'Submit Race',exact:true}).click();
   await priya.page.getByRole('button',{name:'Submit Race',exact:true}).click();
   await dockSays(sam.page,`You submitted. Waiting on ${jo}`);
@@ -215,10 +218,14 @@ test('Submit Race waits for every holder: once two have pressed, every phone sho
     await expect(phone.page.getByRole('table',{name:'Results'}).getByRole('row')).toHaveText([/^Place\s*Wristband\s*Time$/,/^1st\s*2091\s*12\.95$/,/^2nd\s*2092\s*13\.12$/],live);
     await expect(phone.page.getByRole('button',{name:/^Check-in Wristbands/})).toBeHidden();
   }
-  // Those who pressed keep only Not yet; Jo and the watcher still have Submit Race.
-  await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
-  await expect(sam.page.getByRole('button',{name:'Not yet',exact:true})).toBeVisible();
+  // Those who pressed keep only Not yet, and so does the watcher, who is not asked; Jo still has Submit Race.
+  for(const phone of [sam,ali]) {
+    await expect(phone.page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
+    await expect(phone.page.getByRole('button',{name:'Not yet',exact:true})).toBeVisible();
+  }
   await expect(timer.page.getByRole('button',{name:'Submit Race',exact:true})).toBeVisible();
+  await ali.page.screenshot({path:info.outputPath('submitted-watcher.png'),fullPage:true});
+  expect(await lookProblems(ali.page)).toEqual([]);
   await sam.page.screenshot({path:info.outputPath('submitted-waiting.png'),fullPage:true});
   expect(await lookProblems(sam.page)).toEqual([]);
   await timer.page.screenshot({path:info.outputPath('submitted-asked.png'),fullPage:true});
@@ -243,10 +250,9 @@ test('Not yet sends the race back for changes and clears every press; only a col
   await dockSays(timer.page,'Waiting on you');
   // Anyone may tap Not yet: Ali holds nothing.
   await ali.page.getByRole('button',{name:'Not yet',exact:true}).click();
-  for(const page of [ali.page,timer.page]) {
-    await expect(page.getByRole('button',{name:/^Order and Times/})).toBeVisible(live);
-    await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled();
-  }
+  for(const page of [ali.page,timer.page]) await expect(page.getByRole('button',{name:/^Order and Times/})).toBeVisible(live);
+  await expect(timer.page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled();
+  await expect(ali.page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
   expect((await readRaceScreen(request,sam,code)).pressed).toEqual([]);
   // Ali watches the columns, with Take over and no time pad; Jo retypes the 2nd time and Ali sees it.
   await ali.page.getByRole('button',{name:/^Order and Times/}).click();

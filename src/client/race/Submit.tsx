@@ -31,17 +31,21 @@ export function ResultsCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneI
   </div></section>;
 }
 /**
- * Submit Race, docked at the bottom of the screen. In progress, it shows why it is blocked under it. Once submitted it
- * says who it is waiting on, with Submit Race for those still to press and Not yet for anyone. The last press saves.
- * A lead also has Save as lead, which saves after a confirm without the presses still missing.
+ * Submit Race, docked at the bottom of the screen, for those asked to press it (anyone, once nobody is left to ask).
+ * In progress, it shows why it is blocked under it, on every phone. Once submitted it says who it is waiting on, with
+ * Submit Race for those still to press and Not yet for anyone. The last press saves. A lead also has Save as lead,
+ * which saves after a confirm without the presses still missing.
  */
 export function SubmitDock({screen,phoneId,lead,offer}:{screen:RaceScreenRead;phoneId:string;lead:boolean;offer:Offer}) {
   const {race,asked,pressed}=screen;
   const {busy,error,write}=useRaceWrite(screen.event.code,offer);
   const [confirming,setConfirming]=useState(false);
-  const submit=(blocked=false)=><button disabled={busy || blocked} onClick={()=>void write('submit',{raceId:race.id})}>Submit Race</button>;
+  // Watchers (holding nothing with entries on this race) are not asked to submit.
+  const asking=!asked.length || asked.some(holder=>holder.id===phoneId);
+  const submit=(blocked=false)=>asking && <button disabled={busy || blocked} onClick={()=>void write('submit',{raceId:race.id})}>Submit Race</button>;
   if(race.state==='in progress') {
     const blocked=submitBlocker(race);
+    if(!asking && !blocked && !error) return null;
     return <ActionBar stacked>{error && <p role="alert">{error}</p>}{blocked && <p className="race-blocked">{blocked}</p>}{submit(!!blocked)}</ActionBar>;
   }
   const waiting=asked.filter(holder=>!pressed.some(other=>other.id===holder.id)),mine=pressed.some(holder=>holder.id===phoneId);

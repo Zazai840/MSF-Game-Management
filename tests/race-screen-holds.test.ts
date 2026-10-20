@@ -95,7 +95,7 @@ test('check-in writes are refused in order: stage complete, race deleted, race s
   expect((await checkIn(jo,{raceId:heat.race.id,version:0,runners:[2005]})).json()).toEqual({message:'Not saved - check your entries and enter it again'});
   // A submitted race says so before who holds the job; a saved one and a deleted one say so, even to someone who never held it.
   const setup=raceSetup(app);
-  await setup.order(jo,'R4',[2001]);await setup.times(jo,'R4',[1234]);
+  await setup.order(jo,'R4',[2001]);await setup.times(owner,'R4',[1234]);
   await call(owner,'/api/race-screen/R4/submit',{raceId:heat.race.id});
   expect((await checkIn(ali,{raceId:heat.race.id,version:1,runners:[2001,2002]})).json()).toEqual({message:'Heat 1 is submitted - tap Not yet to change it'});
   await setup.submit(jo,'R4');
