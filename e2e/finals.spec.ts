@@ -44,6 +44,8 @@ test('a final on the race screen: Absent hides a runner from the order holder li
  expect(await lookProblems(sam)).toEqual([]);await sam.screenshot({path:info.outputPath('final-here-absent.png'),fullPage:true});
  for(const number of [1015,1011,1017,1013,1018,1014]) await priya.getByRole('button',{name:String(number),exact:true}).click();
  await expect(priya.getByText('Everyone has a place',{exact:true})).toBeVisible();
+ // With no Time column, Wristband sits where it does in a heat, just after Place.
+ expect(await priya.getByRole('table',{name:'Finishing order',exact:true}).getByRole('columnheader',{name:'Place',exact:true}).evaluate(cell=>cell.getBoundingClientRect().width)).toBe(48);
  expect(await lookProblems(priya)).toEqual([]);await priya.screenshot({path:info.outputPath('final-finishing-order.png'),fullPage:true});
  // Sam holds check-in and Priya the order: the final is saved once both press Submit Race.
  await sam.getByRole('button',{name:'Submit Race',exact:true}).click();await priya.getByRole('button',{name:'Submit Race',exact:true}).click();
