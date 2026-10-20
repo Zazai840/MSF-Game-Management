@@ -54,6 +54,7 @@ test('lead corrections and Re-run wait until the race is saved; Delete works at 
   expect((await call(alex,`/api/lead/races/${race.id}/times`,{baseVersion:0,places:[1200,1300]})).json()).toEqual({message:unsaved});
   expect((await call(alex,`/api/lead/races/${race.id}/runners`,{baseVersion:1,finishVersion:1,runners:[{wristband:2001}]})).json()).toEqual({message:unsaved});
   expect((await call(alex,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:1,order:[2002,2001],didNotFinish:[],didNotRun:[]})).json()).toEqual({message:unsaved});
-  expect((await call(alex,`/api/lead/races/${race.id}/re-run`,{})).json()).toEqual({message:unsaved});
+  // A race not saved yet is the current race, so Re-run says when it can run again.
+  expect((await call(alex,`/api/lead/races/${race.id}/re-run`,{})).json()).toEqual({message:"Heat 1 is in progress - re-run after it's saved"});
   expect((await call(alex,`/api/lead/races/${race.id}/delete`,{permanent:false})).statusCode).toBe(200);
 });
