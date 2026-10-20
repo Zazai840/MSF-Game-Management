@@ -28,12 +28,12 @@ export interface HomeEvent { code:string; name:string; section:DayEvent['section
 export interface HomeSnapshot { revision:number; events:HomeEvent[] }
 /** "Heat 2", "Race 3", or just "Final": an event has one final. */
 export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':raceLabel(race);
-/** A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" or "Done". */
+/** A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" ("Heat 2 · Ready to save" with nobody left to wait on) or "Done". */
 export function homeStatus({race,holds,started,waitingOn,done}:HomeEvent) {
   if(done) return 'Done';
   const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
   const holders=[...new Map(jobs.flatMap(job=>holds[job]?[[holds[job].id,holds[job].name] as const]:[])).values()].join(', ');
-  if(race.state==='submitted') return waitingOn.length?line(`Waiting on ${waitingOn.length} to submit`,waitingOn.join(', ')):line('Submitted');
+  if(race.state==='submitted') return waitingOn.length?line(`Waiting on ${waitingOn.length} to submit`,waitingOn.join(', ')):line('Ready to save');
   if(started || holds.order || holds.times) return line(final?'Finishing order':'Order and times',holders);
   if(holds['check-in']) return line(final?'Checking who is here':'Checking in',holders);
   return line();

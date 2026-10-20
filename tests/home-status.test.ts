@@ -9,8 +9,8 @@ test('a tile\'s status line names the race, what is happening on it and who is o
   expect(homeStatus(event({started:true}))).toBe('Heat 2 · Order and times');
   expect(homeStatus(event({holds:{'check-in':sam,order:jo,times:sam}}))).toBe('Heat 2 · Order and times · Sam, Jo');
   expect(homeStatus(event({race:{kind:'heat',number:2,state:'submitted'},holds:{order:jo},waitingOn:['Sam','Jo']}))).toBe('Heat 2 · Waiting on 2 to submit · Sam, Jo');
-  // Everyone asked signed out: any press saves it.
-  expect(homeStatus(event({race:{kind:'heat',number:2,state:'submitted'}}))).toBe('Heat 2 · Submitted');
+  // Everyone asked signed out: nobody is left to wait on, and any press saves it.
+  expect(homeStatus(event({race:{kind:'heat',number:2,state:'submitted'}}))).toBe('Heat 2 · Ready to save');
   expect(homeStatus(event({race:{kind:'race',number:3,state:'in progress'}}))).toBe('Race 3');
   expect(homeStatus(event({done:true,holds:{order:jo}}))).toBe('Done');
 });
