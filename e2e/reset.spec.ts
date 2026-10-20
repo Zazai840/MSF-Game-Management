@@ -77,6 +77,8 @@ test('a lost reset reply recovers the fresh Day through Home and discards an old
 test('an actual old removed-phone 401 cannot sign out a newly signed-in phone',async({page},info)=>{
   await page.goto('/');await createProfile(page,`Delayed ${info.project.name}`);await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   const oldToken=await page.evaluate(()=>localStorage.getItem('msf:token'));const phone=await (await page.request.get('/api/me',{headers:{authorization:`Bearer ${oldToken}`}})).json();
+  // Home's stream would tell the old phone it was removed at once; this is about the poll's 401 arriving late, so that stream is cut.
+  await page.route('**/api/live/home',route=>route.request().headers().authorization===`Bearer ${oldToken}`?route.abort():route.continue());
   await page.request.post(`/api/day/phones/${phone.id}/remove`,{headers:headers(),data:{}});
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;

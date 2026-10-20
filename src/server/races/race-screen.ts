@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { andList,currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
+import { andList,currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
 import type { FinishingOrder,RacePartName,Runner } from '../../shared/races.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
@@ -12,6 +12,7 @@ import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { writeAuditNote } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
+import { readEvents } from '../day/events.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
@@ -45,12 +46,25 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
   const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
   return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null};
 }
+/** Home: every switched-on event's status line inputs, read for the whole day at once. */
+export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
+  const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
+  const events=await readEvents(db,true,dayId),current=await currentRaces(db,dayId,events),stages=await readCompletedStages(db,dayId),holds=await readHolds(db,dayId);
+  const presses=(await db.query("SELECT p.race_id,p.sign_in_id FROM submit_presses p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1 AND r.state='submitted'",[dayId])).rows;
+  return {revision,events:events.map(event=>{
+    const race=current.get(event.id)!,own=holds.get(event.id)||{},stage=stageForRace({kind:race.kind,event});
+    const waitingOn=race.state==='submitted'?askedToSubmit(race,own).filter(holder=>!presses.some(press=>press.race_id===race.id && press.sign_in_id===holder.id)).map(holder=>holder.name):[];
+    return {code:event.code,name:event.name,section:event.section,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
+      started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn,done:stages.some(item=>item.eventId===event.id && item.stage===stage)};
+  })};
+}
+const hasEntries=(race:CurrentRace,job:Job)=>{const value=race.parts[jobParts[job]].value;return value!==null && (!Array.isArray(value) || value.length>0);};
 /** Who must press Submit Race: the holder of each job that has entries on this race, each person once. Watchers are not asked. */
 function askedToSubmit(race:CurrentRace,holds:RaceScreenRead['holds']):Holder[] {
   const asked:Holder[]=[];
   for(const job of jobs) {
-    const holder=holds[job],value=race.parts[jobParts[job]].value;
-    if(holder && value!==null && (!Array.isArray(value) || value.length) && !asked.some(other=>other.id===holder.id)) asked.push(holder);
+    const holder=holds[job];
+    if(holder && hasEntries(race,job) && !asked.some(other=>other.id===holder.id)) asked.push(holder);
   }
   return asked;
 }

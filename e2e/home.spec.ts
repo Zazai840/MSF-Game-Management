@@ -1,4 +1,4 @@
-import { expect,createProfile,lookProblems,recordRace,test,type Page } from './fixtures.js';
+import { expect,createProfile,deleteCurrentRace,live,lookProblems,ownEvent,recordRace,signInThroughApi,submitRace,takeJob,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)';
 
@@ -29,8 +29,9 @@ test('Home lists events under distance headings in programme order, and a tile o
   const mine=page.getByRole('region',{name,exact:true}).getByRole('button');
   // The switched-off Girl Scouts event is not listed.
   await expect(mine).toHaveCount(1);
-  await expect(mine).toHaveAccessibleName(`${name} Boy Scouts · Heat 2`);
-  await expect(mine).toHaveText('Boy ScoutsHeat 2');
+  // The scoring team that recorded Heat 1 still holds its jobs, which carry over to Heat 2.
+  await expect(mine).toHaveAccessibleName(new RegExp(`^${name} Boy Scouts · Heat 2 · Order and times · `));
+  await expect(mine).toHaveText(/^Boy ScoutsHeat 2 · Order and times · /);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('home-events.png'),fullPage:true});
   await mine.click();
@@ -50,6 +51,33 @@ test('Home lists events under distance headings in programme order, and a tile o
   await expect(page.getByText('Places appear here once runners are checked in',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Back to Home',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+});
+
+test('a tile\'s status line changes live on another phone as phones check in, take the order and press Submit Race, and says Done once the stage is complete',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Home live ${project}`,code=`HL-${project.toUpperCase()}`,timed=`HT-${project.toUpperCase()}`;
+  await ownEvent(request,code,name);await ownEvent(request,timed,name,'Boy Cubs','timed');
+  const sam=`Home Sam ${project}`,jo=`Home Jo ${project}`,samToken=await signInThroughApi(request,sam),joToken=await signInThroughApi(request,jo);
+  const {page}=await openPhone(`Home watcher ${project}`);
+  const tile=(section:string)=>page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} ${section} · `)});
+  await expect(tile('Girl Cubs')).toHaveText('Girl CubsHeat 1');
+  await writeCheckIn(request,samToken,code,[2601,2602]);
+  await expect(tile('Girl Cubs')).toHaveText(`Girl CubsHeat 1 · Checking in · ${sam}`,live);
+  await takeJob(request,joToken,code,'order');
+  await expect(tile('Girl Cubs')).toHaveText(`Girl CubsHeat 1 · Order and times · ${sam}, ${jo}`,live);
+  await expect(tile('Girl Cubs')).toHaveAccessibleName(`${name} Girl Cubs · Heat 1 · Order and times · ${sam}, ${jo}`);
+  await writeOrder(request,joToken,code,[2602,2601]);await writeTimes(request,samToken,code,[1000,1100]);
+  await submitRace(request,samToken,code);
+  await expect(tile('Girl Cubs')).toHaveText(`Girl CubsHeat 1 · Waiting on 1 to submit · ${jo}`,live);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('home-status-lines.png'),fullPage:true});
+  await submitRace(request,joToken,code);
+  // Heat 1 is saved; the holds carry over to Heat 2.
+  await expect(tile('Girl Cubs')).toHaveText(`Girl CubsHeat 2 · Order and times · ${sam}, ${jo}`,live);
+  await recordRace(request,process.env.E2E_SCORING_TOKEN!,timed,[2611],[1000]);
+  expect((await request.post(`/api/lead/events/${timed}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{stage:'event'}})).ok()).toBe(true);
+  await expect(tile('Boy Cubs')).toHaveText('Boy CubsDone',live);
+  expect(await lookProblems(page)).toEqual([]);
+  await deleteCurrentRace(request,code);await deleteCurrentRace(request,timed);
 });
 
 test("a volunteer taps I'm a zone lead, gives the lead code and then sees the Dashboard with its to-check badge",async({page},info)=>{

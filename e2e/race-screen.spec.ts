@@ -149,8 +149,7 @@ test('a phone on the race screen shows the check-in, order and times another pho
   // Jo does every job, so Sam only watches.
   for(const job of ['check-in','order','times'] as const) await takeJob(request,jo,code,job);
   const page=sam.page;
-  await page.getByRole('region',{name,exact:true}).getByRole('button',{name:`${name} Girl Cubs · Heat 1`,exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await openRaceScreen(page,name);
   await expect(page.getByText('Heat 1 · 0 runners',{exact:true})).toBeVisible();
   const checkInCard=page.getByRole('button',{name:/^Check-in Wristbands/}),orderAndTimes=page.getByRole('button',{name:/^Order and Times/});
   await checkInCard.click();await orderAndTimes.click();
