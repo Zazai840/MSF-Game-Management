@@ -146,7 +146,12 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       </div>}
       {!held && <p className="race-hint">Type digits only: 1234 shows as 12.34, 13240 as 1:32.40. Tap a time to retype it.</p>}
     </div>
-    :places.length>order.length?<p className="calm-note">{ordinal(order.length+1)} place has a time but no wristband. A zone lead will check it.</p>
+    // A runner came off the order after the times were in: Submit Race waits until the timer removes the time left over.
+    :places.length>order.length?<div className="race-order">
+      <p className="calm-note">{ordinal(order.length+1)} place has a time but no wristband.</p>
+      <button className="button-secondary" disabled={timesWrites.sending} onClick={()=>void timesWrites.send({raceId:race.id,places:places.slice(0,order.length),keptWrong:keptWrong.filter(index=>index<order.length)})}>
+        {places.length-order.length===1?`Remove ${ordinal(order.length+1)} place's time`:`Remove the ${places.length-order.length} times with no wristband`}</button>
+    </div>
     :runners.length && !unplaced.length?<p className="calm-note" role="status">Every place has a time</p>
     :<p className="race-hint">The next time goes in once {ordinal(places.length+1)} place has a wristband.</p>)}
   </RaceCard>;

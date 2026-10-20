@@ -40,8 +40,8 @@ export function homeStatus({race,holds,started,waitingOn,done}:HomeEvent) {
 }
 /**
  * Why Submit Race cannot be pressed yet, or null: nobody checked in (on a final, everyone Absent), a runner with no
- * place (nor Did not finish), a placed wristband with no time, or a wrong time neither kept nor retyped. Kept wristband
- * warnings never block it. The phone shows it under the button; the server refuses a press with it.
+ * place (nor Did not finish), a placed wristband with no time, a time at a place with no wristband (left when a runner
+ * came off the order), or a wrong time neither kept nor retyped. Kept wristband warnings never block it. The phone shows it under the button; the server refuses a press with it.
  */
 export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>):string|null {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
@@ -52,6 +52,9 @@ export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>):string|null
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
   if(untimed>=0) return `Place ${untimed+1} has no time`;
+  // Finishers and times disagree only after a lead's correction, never on a saved race.
+  const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
+  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no wristband`;
   const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }

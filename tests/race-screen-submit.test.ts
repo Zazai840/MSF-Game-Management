@@ -44,6 +44,17 @@ test('Submit Race is blocked while nobody is checked in, a runner has no place, 
   expect((await submit(sam,checked.id)).statusCode).toBe(200);
 });
 
+test('a time at a place with no wristband blocks Submit Race until the timer drops it, so finishers and times always agree',async()=>{
+  const context=await start(),{sam,priya,jo,setup}=context;
+  const checked=await setup.checkIn(sam,'R4',[2001,2002,2003]);
+  await setup.order(priya,'R4',[2001,2002,2003]);await setup.times(jo,'R4',[1295,1312,1340]);
+  // 2003 turns out not to have run: three times for two finishers.
+  await setup.order(priya,'R4',[2001,2002],{didNotRun:[2003]});
+  expect((await submit(sam,checked.id)).json()).toEqual({message:'3rd place has a time but no wristband'});
+  await setup.times(jo,'R4',[1295,1312]);
+  expect((await submit(sam,checked.id)).json().race.state).toBe('submitted');
+});
+
 test('the first press moves the race to submitted and asks every holder with entries; the last press saves it, and the next heat keeps the holds',async()=>{
   const context=await start(),{sam,priya,jo,ali,ids,setup}=context;
   const race=await worked(context);
