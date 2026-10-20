@@ -142,3 +142,9 @@ test('Did not finish or Didn\'t run leaves times the finishers don\'t agree with
   expect((await read()).auditNotes[0].message).toBe('Aisha corrected the finishing order for Race 1: 2002; Didn\'t run 2001');
   expect(await reasons()).toEqual([]);
 });
+test('one writer per job leaves nothing to choose between: the lead race read has no clash candidates and the clash route is gone',async()=>{
+  const {lead,race}=await start();
+  const read=(await call(lead,`/api/lead/races/${race.id}`)).json();
+  expect(read).not.toHaveProperty('clashes');expect(read.race.parts.times).toEqual({version:1,value:expect.any(Object)});
+  expect((await call(lead,`/api/lead/races/${race.id}/clashes/times`,{candidateId:race.id})).statusCode).toBe(404);
+});

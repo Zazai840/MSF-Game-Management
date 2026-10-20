@@ -2,9 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import type { RacePartName } from '../../shared/race-clashes.js';
 import { currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
-import type { FinishingOrder,Runner } from '../../shared/races.js';
+import type { FinishingOrder,RacePartName,Runner } from '../../shared/races.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
@@ -16,7 +15,7 @@ import { readCompletedStages } from '../rulings/stages.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
-import { publishPart,rememberRace,sameRunnerSnapshot } from './versions.js';
+import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** The race part each job writes. */
 const jobParts:Record<Job,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
@@ -159,10 +158,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!screen.race.id) {
         if(!screen.event.enabled) throw new Refusal(409,'This event is switched off');
         await createRace(client,runners,{id,dayId:phone.dayId,eventId:screen.event.id,kind:screen.race.kind,savedBy:phone.id});
-        await rememberRace(client,await readRace(client,phone.dayId,id));
         return;
       }
-      await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners,runners);
+      await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners);
       await dropFromOrder(client,screen,runners);
     });
   });
@@ -182,7 +180,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       const runners=lineup.filter(runner=>!absent.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
       if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
       // The runner list is the attendance: publishing it marks everyone else Absent on the final's line-up.
-      await publishPart(client,phone,race,'runners',runners,runners);
+      await publishPart(client,phone,race,'runners',runners);
       await dropFromOrder(client,screen,runners);
     });
   });
@@ -211,9 +209,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       const input=[...previous.filter(runner=>!didNotRun.includes(runner.id)),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))];
       // A final's runners all ran in its heats, so "already ran in this event" does not apply.
       const runners=await annotateRunners(client,phone.dayId,screen.event,input,kept,raceId,previous,screen.race.kind==='final');
-      if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners,runners);
+      if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
       const finish=onlyRunners({order,didNotFinish},runners);
-      await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null,runners);
+      await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
     });
   });
   // The times: the holder's whole column by place, with the wrong times kept as typed. Only a place with a wristband
@@ -279,7 +277,7 @@ async function saveRace(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead) 
   await client.query("UPDATE races SET state='saved',saved_at=clock_timestamp(),saved_by=$2 WHERE id=$1",[race.id,phone.name]);
   for(const job of jobs) {
     const part=jobParts[job],{version,value}=race.parts[part];
-    await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,held_by) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(race_id,part,version) DO UPDATE SET held_by=EXCLUDED.held_by',[race.id,part,version,JSON.stringify(value),runners,screen.holds[job]?.name??null]);
+    await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,held_by) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(race_id,part,version) DO UPDATE SET held_by=EXCLUDED.held_by,saved_at=coalesce(race_part_history.saved_at,EXCLUDED.saved_at)',[race.id,part,version,JSON.stringify(value),runners,screen.holds[job]?.name??null]);
   }
 }
 /** The race and part version a write was made on: null and 0 for the empty next race. */

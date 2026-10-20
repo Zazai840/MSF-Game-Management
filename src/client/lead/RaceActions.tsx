@@ -1,5 +1,5 @@
 import { raceRecording } from '../../shared/recording.js';
-import type { LeadRaceRead } from '../../shared/race-clashes.js';
+import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';

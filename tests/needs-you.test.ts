@@ -78,15 +78,16 @@ test('all five item kinds are persisted newest first and each existing settlemen
   await call(lead,`/api/lead/races/${times.id}/times`,{baseVersion:2,places:[1800,1600]});expect((await queue()).needsYou.some((item:any)=>item.kind==='times-out-of-order')).toBe(true);
   await call(lead,`/api/lead/races/${times.id}/times`,{baseVersion:3,places:[1600,1800]});expect((await queue()).needsYou.some((item:any)=>item.kind==='times-out-of-order')).toBe(false);
 });
-test('an unrelated runner addition does not make an older eligibility warning newer than a later warning',async()=>{
-  const {volunteer,setup,queue}=await start();
-  // The older warning is checked in on R4; the newer is saved on R16 (also Girl Cubs) before R4's order adds a runner at the finish.
-  const older=await setup.checkIn(volunteer,'R4',[3045],[3045]);
-  const newer=await setup.record(volunteer,'R16',[4045],[1400],{keptWarnings:[4045]});
-  await setup.order(volunteer,'R4',[3045,2001],{added:[2001]});await setup.times(volunteer,'R4',[1300,1350]);await setup.submit(volunteer,'R4');
+test('a lead correction that takes an unrelated runner off does not make an older eligibility warning newer than a later one',async()=>{
+  const {lead,setup,queue}=await start();
+  // The older warning is saved on R4; the newer on R16 (also Girl Cubs). A lead then takes R4's other runner off.
+  const older=await setup.record(lead,'R4',[3045,2001],[1300],{keptWarnings:[3045]});
+  const newer=await setup.record(lead,'R16',[4045],[1400],{keptWarnings:[4045]});
   const items=(await queue()).needsYou;
-  expect(items.map((item:any)=>[item.kind,item.raceId])).toEqual([['added-at-finish',older.id],['warning',newer.id],['warning',older.id]]);
-  const repeated=(await queue()).needsYou;expect(repeated.map((item:any)=>item.at)).toEqual(items.map((item:any)=>item.at));
+  expect(items.map((item:any)=>[item.kind,item.raceId])).toEqual([['warning',newer.id],['warning',older.id]]);
+  const race=(await call(lead,`/api/lead/races/${older.id}`)).json().race;
+  expect((await call(lead,`/api/lead/races/${older.id}/finish-order`,{baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order:[3045],didNotFinish:[],didNotRun:[2001]})).statusCode).toBe(200);
+  expect((await queue()).needsYou.map((item:any)=>[item.kind,item.raceId,item.at])).toEqual(items.map((item:any)=>[item.kind,item.raceId,item.at]));
 });
 test('the lead queue carries the facts To check needs to explain each item in plain English',async()=>{
   const {saved,withAdded,queue}=await start();

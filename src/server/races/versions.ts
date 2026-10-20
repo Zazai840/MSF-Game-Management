@@ -1,44 +1,28 @@
 import { publishFinalRunners } from './final-field.js';
-import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import type { Runner } from '../../shared/races.js';
-import { raceParts,type RacePartName,type PartValue,type PartSave,type LeadRaceRead } from '../../shared/race-clashes.js';
+import type { Runner,RacePartName,PartValue } from '../../shared/races.js';
+import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { readRace,withReplacement,type Database,type StoredRace } from './records.js';
-/** Capture every published value before another command can replace it. Called under the day lock. */
-export async function rememberRace(client:pg.PoolClient,race:StoredRace) {
-  const parts=(await client.query('SELECT p.*,f.name FROM race_parts p LEFT JOIN sign_ins f ON f.id=p.saved_by WHERE p.race_id=$1 ORDER BY p.part',[race.id])).rows;
-  const runners=parts.find(part=>part.part==='runners')?.value||[];
-  for(const part of parts) {
-    await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[race.id,part.part,part.version,JSON.stringify(part.value),JSON.stringify(runners)]);
-    const saved=await client.query('SELECT 1 FROM race_part_saves WHERE race_id=$1 AND part=$2 LIMIT 1',[race.id,part.part]);
-    if(!saved.rowCount) await client.query('INSERT INTO race_part_saves(id,race_id,part,base_version,version,author_name,saved_at,value,runners,before_runners) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)',[randomUUID(),race.id,part.part,Math.max(0,part.version-1),part.version,part.name,part.saved_at||race.checkedInAt,JSON.stringify(part.value),JSON.stringify(runners)]);
-  }
-}
 function canonical(value:unknown):string {
   const ordered=(value:unknown):unknown=>Array.isArray(value)?value.map(ordered):value && typeof value==='object'?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,ordered(item)])):value;
   return JSON.stringify(ordered(value));
 }
 /** Unlike answer equality, applying a coherent snapshot must preserve every entry ID. */
 export const sameRunnerSnapshot=(left:readonly Runner[],right:readonly Runner[])=>canonical(left)===canonical(right);
-async function recordSave(client:pg.PoolClient,phone:Phone,raceId:string,part:RacePartName,baseVersion:number,version:number,value:PartValue,runners:Runner[],active:boolean,runnersBefore:Runner[]=runners) {
-  await client.query('INSERT INTO race_part_saves(id,race_id,part,base_version,version,author_name,value,runners,active,before_runners) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[randomUUID(),raceId,part,baseVersion,version,phone.name,JSON.stringify(value),JSON.stringify(runners),active,JSON.stringify(runnersBefore)]);
-}
-/** Publish an intentional current correction, retaining an already open clash. Lead resolution retires its candidates explicitly first. */
-export async function publishPart(client:pg.PoolClient,phone:Phone,race:StoredRace,part:RacePartName,value:PartValue,runners:Runner[]=race.parts.runners.value||[],runnersBefore:Runner[]=race.parts.runners.value||[]) {
-  await rememberRace(client,race);
-  const old=(await client.query('SELECT version FROM race_parts WHERE race_id=$1 AND part=$2',[race.id,part])).rows[0];
-  const candidates=Number((await client.query('SELECT count(*) FROM race_part_saves WHERE race_id=$1 AND part=$2 AND active',[race.id,part])).rows[0].count);
-  if(candidates<2) await client.query('UPDATE race_part_saves SET active=false WHERE race_id=$1 AND part=$2 AND active',[race.id,part]);
-  const version=old.version+1;
-  await client.query('UPDATE race_parts SET value=$1,version=$2,saved_at=clock_timestamp(),saved_by=$3 WHERE race_id=$4 AND part=$5',[JSON.stringify(value),version,phone.id,race.id,part]);
-  await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,$2,$3,$4,$5)',[race.id,part,version,JSON.stringify(value),JSON.stringify(runners)]);
-  await recordSave(client,phone,race.id,part,old.version,version,value,runners,true,runnersBefore);
+/** Writes a part's new value at the next version. Taps before saving are not kept: history is written at save and by `correctPart`. */
+export async function publishPart(client:pg.PoolClient,phone:Phone,race:StoredRace,part:RacePartName,value:PartValue) {
+  const version=(await client.query('UPDATE race_parts SET value=$1,version=version+1,saved_at=clock_timestamp(),saved_by=$2 WHERE race_id=$3 AND part=$4 RETURNING version',[JSON.stringify(value),phone.id,race.id,part])).rows[0].version as number;
   if(part==='runners') await publishFinalRunners(client,race,value as Runner[]||[]);
+  return version;
+}
+/** A lead correction: the part's new value, kept in the race's history with the lead's name and the race's runners then. */
+export async function correctPart(client:pg.PoolClient,lead:Phone,race:StoredRace,part:RacePartName,value:PartValue,runners:Runner[]=race.parts.runners.value||[]) {
+  const version=await publishPart(client,lead,race,part,value);
+  await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,corrected_by) VALUES($1,$2,$3,$4,$5,$6)',[race.id,part,version,JSON.stringify(value),JSON.stringify(runners),lead.name]);
 }
 export async function leadRace(db:Database,dayId:string,id:string):Promise<LeadRaceRead> {
   const race=await withReplacement(db,dayId,await readRace(db,dayId,id));
-  const rows=(await db.query('SELECT id,part,base_version AS "baseVersion",version,author_name AS author,saved_at,value,runners,before_runners AS "runnersBefore",active FROM race_part_saves WHERE race_id=$1 ORDER BY sequence_number',[race.id])).rows;
-  const history:PartSave[]=rows.map(({saved_at,...save})=>({...save,at:saved_at.toISOString()}));
-  return {race,history,clashes:raceParts.filter(part=>race.parts[part].clash).map(part=>({part,candidates:history.filter(save=>save.part===part && save.active)}))};
+  const rows=(await db.query(`SELECT part,version,coalesce(corrected_by,held_by) AS author,saved_at FROM race_part_history WHERE race_id=$1 ORDER BY saved_at NULLS FIRST,version,array_position(ARRAY['runners','finish','times'],part)`,[race.id])).rows;
+  return {race,history:rows.map(({saved_at,...row})=>({...row,at:saved_at?.toISOString()??null}))};
 }

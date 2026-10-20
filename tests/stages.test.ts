@@ -7,13 +7,12 @@ test('the Event complete sheet blocks a highlighted tie and previews the podium'
   expect(result.checkSheet?.mustSettleFirst).toMatchObject([{kind:'tie',tieId:result.ties[0].id}]);
   expect(result.checkSheet?.creates.map(place=>[place.position,place.wristband])).toEqual([[1,2001],[2,2002],[3,null]]);
 });
-test('incomplete recordings and clashes block once per race, while warning-only races can complete',()=>{
+test('incomplete recordings block once per race, while warning-only races can complete',()=>{
   for(const change of [
     (r:ResultsRace)=>{r.finish=null;},
     (r:ResultsRace)=>{r.times=null;},
     (r:ResultsRace)=>{r.times={places:[1000,1100],outOfOrder:false};},
-    (r:ResultsRace)=>{r.runners=[...r.runners,{id:'second',wristband:2002}];r.finish={order:['entry-a','second'],didNotFinish:[]};r.times={places:[1000,900],outOfOrder:true};},
-    (r:ResultsRace)=>{r.clash=true;r.finish=null;}
+    (r:ResultsRace)=>{r.runners=[...r.runners,{id:'second',wristband:2002}];r.finish={order:['entry-a','second'],didNotFinish:[]};r.times={places:[1000,900],outOfOrder:true};}
   ]) {
     const r=race('a',1,1000);change(r);
     const sheet=eventResults({event,races:[r]}).checkSheet!;

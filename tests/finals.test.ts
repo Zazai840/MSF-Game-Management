@@ -20,8 +20,8 @@ test('final pending facts are stage scoped, empty saved final can complete, and 
  expect(result.checkSheet?.creates.map(place=>place.wristband)).toEqual([null,null,null]);
 });
 
-test('a final clash blocks completion and a heat appearance is never a repeated final appearance',()=>{
- const race={...final,clash:true,finish:{order:['f2','f1'],didNotFinish:[]},final:{...final.final!,hasRun:true}};
- const result=eventResults({event,races:[heat,race],completedStages:['heats']});expect(result.checkSheet?.mustSettleFirst).toMatchObject([{kind:'clash',raceId:'final'}]);expect(result.finalResults?.leaderboard).toEqual([]);expect(result.heatsCheckSheet?.mustSettleFirst).toEqual([]);
- const ready=eventResults({event,races:[heat,{...race,clash:false}],completedStages:['heats']});expect(ready.actionableRunners.filter(row=>row.raceId==='final')).toHaveLength(2);expect(ready.actionableRunners.filter(row=>row.raceId==='final').every(row=>!row.recordingPending)).toBe(true);expect(ready.finalResults?.leaderboard.every(row=>row.flags.every(flag=>flag.kind!=='ran-twice'))).toBe(true);
+test('an unsaved final blocks completion and a heat appearance is never a repeated final appearance',()=>{
+ const race={...final,saved:false,finish:{order:['f2','f1'],didNotFinish:[]},final:{...final.final!,hasRun:true}};
+ const result=eventResults({event,races:[heat,race],completedStages:['heats']});expect(result.checkSheet?.mustSettleFirst).toMatchObject([{kind:'incomplete',raceId:'final'}]);expect(result.finalResults?.leaderboard).toEqual([]);expect(result.heatsCheckSheet?.mustSettleFirst).toEqual([]);
+ const ready=eventResults({event,races:[heat,{...race,saved:true}],completedStages:['heats']});expect(ready.actionableRunners.filter(row=>row.raceId==='final')).toHaveLength(2);expect(ready.actionableRunners.filter(row=>row.raceId==='final').every(row=>!row.recordingPending)).toBe(true);expect(ready.finalResults?.leaderboard.every(row=>row.flags.every(flag=>flag.kind!=='ran-twice'))).toBe(true);
 });

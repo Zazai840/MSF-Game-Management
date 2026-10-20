@@ -3,7 +3,6 @@ import { finalRoutes } from './rulings/finals.js';
 import { resetRoutes } from './day/reset.js';
 import { stageRoutes } from './rulings/stages.js';
 import { raceRulingRoutes } from './rulings/races.js';
-import { clashRoutes } from './rulings/clashes.js';
 import Fastify from 'fastify';
 import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
@@ -64,7 +63,6 @@ export async function createApp(settings: AppSettings) {
   raceScreenRoutes(app,pool);
   resultsRoutes(app,pool);
   rulingRoutes(app,pool);
-  clashRoutes(app,pool);
   runnerRulingRoutes(app,pool);
   raceRulingRoutes(app,pool);
   tieRoutes(app,pool);

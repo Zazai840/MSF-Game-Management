@@ -1,9 +1,8 @@
-import { hasClash } from './race-clashes.js';
 import { notCountedReasons } from './race-counts.js';
 import type { RaceRead,RaceRecording } from './races.js';
 export function raceRecording(race:Pick<RaceRead,'kind'|'state'|'parts'>):RaceRecording {
   const finish=race.parts.finish.value,times=race.parts.times.value;
-  const reasons=notCountedReasons({kind:race.kind,saved:race.state==='saved',clash:hasClash(race),finish,times});
+  const reasons=notCountedReasons({kind:race.kind,saved:race.state==='saved',finish,times});
   // Worked out apart from the saved mark, so a lead's correction shows it before the race counts.
   const timed=times?.places.filter(time=>time!==null).length;
   const countMismatch=finish && times && race.kind!=='final' && finish.order.length!==timed?`Finish order has ${finish.order.length} finishers, times have ${timed} - check the recording`:null;

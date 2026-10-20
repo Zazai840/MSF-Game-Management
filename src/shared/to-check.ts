@@ -1,32 +1,12 @@
 import type { DayLeadItem } from './lead-results.js';
-import type { ClashSaver } from './results-rules.js';
 import { plainWristbandWarning } from './wristband-checks.js';
 import { formatTime } from './time-entry.js';
 import { raceLabel } from './races.js';
 import { ordinal } from './ordinal.js';
 export interface ToCheckWording { race:string; title:string; explanation:string }
-const counted=['Two','Three','Four','Five'];
 const listed=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names[names.length-1]}`;
-const partWords={runners:'runner lists',finish:'finishing orders',times:'sets of times'} as const;
-function apart(savers:readonly ClashSaver[]) {
-  const times=savers.map(saver=>Date.parse(saver.at)).filter(Number.isFinite);
-  const minutes=times.length?Math.floor((Math.max(...times)-Math.min(...times))/60000):0;
-  if(minutes<1) return 'less than a minute apart';
-  if(minutes===1) return 'a minute apart';
-  if(minutes<60) return `${minutes} minutes apart`;
-  const hours=Math.floor(minutes/60);
-  return hours===1?'over an hour apart':`${hours} hours apart`;
-}
 function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
   switch(item.kind) {
-    case 'clash': {
-      const clash=item.clash?.length===1?item.clash[0]:null;
-      if(!clash) return {title:'Two different versions were saved',explanation:'Open the race and choose which one stands.'};
-      const named=clash.savers.map((saver,index)=>saver.name || (index===0?'someone':'someone else'));
-      const one=clash.savers[0].name && clash.savers.every(saver=>saver.name===clash.savers[0].name)?clash.savers[0].name:null;
-      const by=one?`Saved ${named.length===2?'twice':`${named.length} times`} by ${one}`:`Saved by ${listed(named)}`;
-      return {title:`${counted[clash.savers.length-2]||clash.savers.length} different ${partWords[clash.part]} were saved`,explanation:`${by} ${apart(clash.savers)}. Choose which one stands.`};
-    }
     case 'times-out-of-order': {
       const wrong=item.wrongTime;
       return {title:'A time looks wrong',explanation:wrong?`${ordinal(wrong.place)} place (${formatTime(wrong.time)}) is faster than ${ordinal(wrong.earlierPlace)} (${formatTime(wrong.earlierTime)}). The timer kept it as typed.`:item.message};
