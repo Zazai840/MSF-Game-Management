@@ -71,7 +71,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   const next=ordering && step==='place' && unplaced.length?order.length:-1;
   const rows=Math.max(runners.length-didNotFinish.length,order.length,places.length);
   const time=(place:number)=>places[place-1]==null?'':formatTime(places[place-1]!);
-  const who=(column:Column)=>{const holder=holds[column];return !holder?'nobody':holder.id===phoneId?'You':holder.name;};
+  const who=(column:Column)=>{const holder=holds[column];return !holder?'Nobody':holder.id===phoneId?'You':holder.name;};
   const status=columns.some(column=>holds[column])?columns.map(column=>`${columnNames[column]}: ${who(column)}`).join(' · ')
     :order.length || timed?(final?`${order.length} placed`:`${order.length} placed · ${timed} ${timed===1?'time':'times'}`):stageComplete?'Nobody':'Nobody yet · open to start';
   function open() {

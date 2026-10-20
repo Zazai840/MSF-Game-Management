@@ -86,7 +86,7 @@ test('with both columns free, opening Order and Times takes nothing and offers D
   await orderer.screenshot({path:info.outputPath('order-both-free.png'),fullPage:true});
   expect(await lookProblems(orderer)).toEqual([]);
   await orderer.getByRole('button',{name:'Do the order',exact:true}).click();
-  await expect(orderCard(orderer)).toHaveAccessibleName('Order and Times Order: You · Times: nobody');
+  await expect(orderCard(orderer)).toHaveAccessibleName('Order and Times Order: You · Times: Nobody');
   await expect(orderer.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
   // Holding the order still offers the times: one person may hold both.
   await orderer.getByRole('button',{name:'Do the times',exact:true}).click();

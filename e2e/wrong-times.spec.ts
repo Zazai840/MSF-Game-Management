@@ -36,6 +36,10 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await expect(warning).toBeVisible();await expect(input).not.toBeFocused();
   const fourth=page.getByRole('button',{name:'4th place · 12.90 · Faster than 3rd place',exact:true});
   await expect(fourth).toBeVisible();expect(await fourth.evaluate(element=>getComputedStyle(element.closest('td')!).backgroundColor)).toBe(amber);
+  // The reason fits on one line in the Time cell, even at phone width.
+  const reason=fourth.locator('.wrong-time-reason');
+  expect(await reason.evaluate(element=>Math.round(element.getBoundingClientRect().height/parseFloat(getComputedStyle(element).lineHeight)))).toBe(1);
+  expect(await reason.evaluate(element=>element.getBoundingClientRect().right<=element.closest('td')!.getBoundingClientRect().right)).toBe(true);
   await page.screenshot({path:info.outputPath('times-entry-wrong.png'),fullPage:true});
   // Fix time retypes it.
   await warning.getByRole('button',{name:'Fix time',exact:true}).click();
