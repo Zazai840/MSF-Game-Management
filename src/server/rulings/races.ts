@@ -1,4 +1,5 @@
 import { createRace } from '../races/create.js';
+import { requireCurrentUnstarted } from '../races/current.js';
 import type { Runner,FinishingOrder } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -67,6 +68,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(!race.deleted) throw new Refusal(409,'This race is already in the event');
       if(race.deleteReason==='re-run') throw new Refusal(409,'This race was replaced by a re-run and cannot be restored');
+      if(race.state!=='saved') await requireCurrentUnstarted(client,current.dayId,race.event,'restore');
       await client.query('UPDATE races SET deleted=false,delete_reason=null WHERE id=$1',[race.id]);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
@@ -79,6 +81,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
+      await requireCurrentUnstarted(client,current.dayId,race.event,'re-run');
       const runners=race.parts.runners.value.map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
       const {id,number}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id});
