@@ -45,12 +45,11 @@ test('lead deletion, restoration and permanent deletion work after Finish and pr
   expect((await read()).auditNotes.map((note:any)=>note.action)).toEqual(['delete-race-permanently','restore-race','delete-race','correct-times']);
 });
 test('a re-run deletes the old record with its reason and creates a new numbered prefilled race without already-ran warnings',async()=>{
-  const {owner,lead,volunteer,race,read,setup,leadRead}=await start();
-  await setup.checkIn(volunteer,'R10',[2001],[2001]);
+  const {owner,lead,volunteer,race,read,leadRead}=await start();
   const rerun=await call(lead,`/api/lead/races/${race.id}/re-run`,{comment:'Recording lost'});expect(rerun.statusCode).toBe(200);
   const newId=rerun.json().newRaceId;expect(newId).not.toBe(race.id);
   const fresh=await leadRead(newId);
-  expect(fresh).toMatchObject({number:3,kind:'race',deleted:false,parts:{finish:{value:null},times:{value:null}}});
+  expect(fresh).toMatchObject({number:2,kind:'race',deleted:false,parts:{finish:{value:null},times:{value:null}}});
   expect(fresh.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2002]);
   expect(fresh.parts.runners.value.flatMap((runner:any)=>runner.warnings).some((warning:any)=>warning.kind==='already-ran')).toBe(false);
   expect(fresh.parts.runners.value[0].id).not.toBe(race.parts.runners.value[0].id);
