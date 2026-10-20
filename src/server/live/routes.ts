@@ -1,9 +1,10 @@
 import type { FastifyInstance,FastifyReply } from 'fastify';
 import type pg from 'pg';
 import { actions,Refusal,signedOut } from '../access/permissions.js';
-import { raceScreenRead } from '../races/race-screen.js';
+import type { HomeSnapshot } from '../../shared/race-screen.js';
+import { homeRead,raceScreenRead } from '../races/race-screen.js';
 import { resultsSnapshot } from '../results/read.js';
-import { onDayChange } from './changes.js';
+import { changesSoFar,onDayChange } from './changes.js';
 export interface StreamSettings { heartbeatMs:number; limitMs:number; buildId?:string }
 /**
  * Live streams (Server-Sent Events). Each frame is a whole snapshot versioned by the day revision, sent first on
@@ -25,7 +26,7 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     // Every snapshot carries the build id, so a phone on another build reloads.
     const send=(snapshot:T)=>write(`data: ${JSON.stringify({...snapshot,build:settings.buildId})}\n\n`);
     send(sent);
-    // shortcut: every stream reads its own snapshot per change; share one read per day revision if Postgres load shows it.
+    // shortcut: every race screen stream reads its own snapshot per change (Home's share one); share those too if Postgres load shows it.
     let reading=false,again=false;
     async function changed() {
       if(reading) {again=true;return;}
@@ -51,4 +52,19 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
       return raceScreenRead(db,phone.dayId,code);
     }));
   });
+  // Home is the same for every phone of the day, so its streams share one read per change: the read begun since the latest change.
+  const homeReads=new Map<string,{at:number;read:Promise<HomeSnapshot>}>();
+  function sharedHomeRead(dayId:string) {
+    const at=changesSoFar();let held=homeReads.get(dayId);
+    if(held?.at!==at) {
+      const read=resultsSnapshot(pool,dayId,db=>homeRead(db,dayId));
+      homeReads.set(dayId,held={at,read});
+      read.catch(()=>{if(homeReads.get(dayId)?.read===read) homeReads.delete(dayId);});
+    }
+    return held.read;
+  }
+  action('GET','/api/live/home','Volunteer',(_request,reply,phone)=>stream(reply,phone.dayId,async()=>{
+    if(!(await pool.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();
+    return sharedHomeRead(phone.dayId);
+  }));
 }

@@ -18,10 +18,26 @@ export interface Holder { id:string; name:string }
  */
 export interface RaceScreenRead { revision:number; event:DayEvent; race:CurrentRace; stageComplete:boolean; holds:Partial<Record<Job,Holder>>;
   asked:Holder[]; pressed:Holder[]; lastSaved:(Pick<RaceRead,'kind'|'number'> & {by:string;at:string})|null }
-/** A switched-on event as Home lists it, with its current race. */
-export interface HomeEvent { code:string; name:string; section:DayEvent['section']; race:Pick<CurrentRace,'kind'|'number'> }
+/**
+ * A switched-on event as Home lists it: what its tile's status line is made of. `started` is the order or times
+ * having entries, `waitingOn` the names of those asked to press Submit Race who have not, and `done` its stage complete.
+ */
+export interface HomeEvent { code:string; name:string; section:DayEvent['section']; race:Pick<CurrentRace,'kind'|'number'|'state'>;
+  holds:RaceScreenRead['holds']; started:boolean; waitingOn:string[]; done:boolean }
+/** One snapshot of Home, versioned by the day revision: the day's switched-on events in programme order. */
+export interface HomeSnapshot { revision:number; events:HomeEvent[] }
 /** "Heat 2", "Race 3", or just "Final": an event has one final. */
 export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':raceLabel(race);
+/** A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" or "Done". */
+export function homeStatus({race,holds,started,waitingOn,done}:HomeEvent) {
+  if(done) return 'Done';
+  const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
+  const holders=[...new Map(jobs.flatMap(job=>holds[job]?[[holds[job].id,holds[job].name] as const]:[])).values()].join(', ');
+  if(race.state==='submitted') return waitingOn.length?line(`Waiting on ${waitingOn.length} to submit`,waitingOn.join(', ')):line('Submitted');
+  if(started || holds.order || holds.times) return line(final?'Finishing order':'Order and times',holders);
+  if(holds['check-in']) return line(final?'Checking who is here':'Checking in',holders);
+  return line();
+}
 /**
  * Why Submit Race cannot be pressed yet, or null: nobody checked in (on a final, everyone Absent), a runner with no
  * place (nor Did not finish), a placed wristband with no time, or a wrong time neither kept nor retyped. Kept wristband

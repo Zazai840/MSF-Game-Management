@@ -1,13 +1,20 @@
 import type { ReactNode } from 'react';
-import { currentRaceLabel,type HomeEvent } from '../../shared/race-screen.js';
+import { homeStatus,type HomeSnapshot } from '../../shared/race-screen.js';
+import { useLive } from '../live.js';
 
 const icon=(paths:ReactNode)=><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
 
-/** Home: the day's switched-on events, one heading per event name in programme order, a tile per Section opening its race screen. */
-export function Home({events,onEvent}:{events:HomeEvent[];onEvent:(code:string)=>void}) {
+/**
+ * Home: the day's switched-on events, live from the day-wide stream, one heading per event name in programme order,
+ * a tile per Section opening its race screen. Each tile's status line says what is happening on the event's current race.
+ */
+export function Home({onEvent}:{onEvent:(code:string)=>void}) {
+  const {snapshot,error}=useLive<HomeSnapshot>('live/home');
+  const events=snapshot?.events||[];
   return <section className="home"><h1>Which event are you at?</h1>
+    {!snapshot && (error?<p role="alert">{error}</p>:<p>Opening…</p>)}
     {[...new Set(events.map(event=>event.name))].map(name=><section className="event-sections" key={name} aria-label={name}><h2>{name}</h2><div className="section-choices">
-      {events.filter(event=>event.name===name).map(event=><button key={event.code} aria-label={`${name} ${event.section} · ${currentRaceLabel(event.race)}`} onClick={()=>onEvent(event.code)}>{event.section}<small>{currentRaceLabel(event.race)}</small></button>)}
+      {events.filter(event=>event.name===name).map(event=>{const status=homeStatus(event);return <button key={event.code} aria-label={`${name} ${event.section} · ${status}`} onClick={()=>onEvent(event.code)}>{event.section}<small>{status}</small></button>;})}
     </div></section>)}
   </section>;
 }

@@ -31,7 +31,7 @@ test('permission ladder refuses volunteer lead reads and ordinary lead Day reads
   for (const phone of [volunteer, lead, owner]) {
     const home = await app.inject({url:'/api/home', headers:auth(phone.token)});
     expect(home.statusCode).toBe(200);
-    expect(home.json().events.length).toBeGreaterThan(0);
+    expect(home.json().phone.id).toBe(phone.phone.id);
   }
   const home = (await app.inject({url:'/api/home', headers:auth(volunteer.token)})).json();
   expect(home).not.toHaveProperty('leadCode');
