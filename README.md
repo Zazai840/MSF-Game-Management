@@ -18,7 +18,7 @@ Open http://localhost:3000. Type the owner password where the Olympics password 
 
 For fast development, install Node.js 22.12+ and Postgres, run `npm ci`, then provide `DATABASE_URL` and `OWNER_PASSWORD` as environment settings and run `npm run dev`. The server serves the API and Vite screens together at port 3000; `HOST` and `PORT` are optional. Behind a reverse proxy, set `TRUSTED_PROXY_HOPS` to the number of proxies in front of the server (usually 1) so wrong-code backoff tells phones apart; leave it unset when phones reach the server directly. For a production build, run `npm run build`, then `NODE_ENV=production npm start` with those same required settings. There is no default owner password or application database connection.
 
-Set `TEST_BUILD=1` only on a public test deployment. The shared header then shows **Test build · <short commit>** and a **Report a bug** link that opens the tester bug form (`.github/ISSUE_TEMPLATE/tester-bug.yml`) pre-filled with the commit and the current screen. The commit comes from Railway's `RAILWAY_GIT_COMMIT_SHA` and shows as `unknown` when that is absent. Without `TEST_BUILD`, nothing extra shows.
+Set `TEST_BUILD=1` only on the staging test build (see below), never on production. The shared header then shows **Test build · <short commit>** and a **Report a bug** link that opens the tester bug form (`.github/ISSUE_TEMPLATE/tester-bug.yml`) pre-filled with the commit and the current screen. The commit comes from Railway's `RAILWAY_GIT_COMMIT_SHA` and shows as `unknown` when that is absent. Without `TEST_BUILD`, nothing extra shows.
 
 Dashboard → Day setup → Events starts with the 20 individual events from the scoring template. Scoring team members can rename events, add an event with its section and event format, and switch events off or back on. Confirm the event list after checking it; any setup change asks you to confirm again. Switched-off events remain visible on Events and are omitted from volunteer event choices.
 
@@ -34,42 +34,44 @@ Leads can tap a runner in Results to disqualify them, choosing a reason, or lift
 
 Scoring team members can download the whole Olympics day from Dashboard → Day setup → Download day export, including incomplete and deleted races. The workbook has Input - Running (completed events, winners in J/M/P with formula columns blank), Finals (original seeds, absences, call-ups and final positions), All results, and Audit notes. Times are numeric seconds to two decimal places; audit times are UTC. Day setup shows the last export time and whether later changes need another download.
 
-## Test build on Railway
+## Production and staging on Railway
 
-The public test build runs `main` on Railway's free plan as two services in one project: the app service, built from this repo's `Dockerfile`, and a Railway PostgreSQL service. The app is served at the HTTPS domain Railway generates (ending `.up.railway.app`). `railway.json` sets the Dockerfile build, the `/api/health` health check and restart on failure. Railway supplies `PORT`; the image already listens on all interfaces.
+The app runs on Railway's free plan in one project with two environments, each with two services: the app service, built from this repo's `Dockerfile`, and its own Railway PostgreSQL service. **production** runs `main`. **staging** runs `integration/race-screen` and is the public test build. Each environment is served at the HTTPS domain Railway generates for it (ending `.up.railway.app`). `railway.json` sets the Dockerfile build, the `/api/health` health check and restart on failure. Railway supplies `PORT`; the image already listens on all interfaces.
 
-Set these variables on the app service. Never write their values in GitHub, the repo or an issue.
+Set these variables on each environment's app service. Never write their values in GitHub, the repo or an issue.
 
 | Variable | What it holds |
 | --- | --- |
 | `DATABASE_URL` | A reference to the Postgres service's connection URL (`${{Postgres.DATABASE_URL}}`), never a typed password |
 | `OWNER_PASSWORD` | The owner password, 24 or more random characters, kept in the owner's password manager |
 | `TRUSTED_PROXY_HOPS` | The number of proxies in front of the server (Railway: 1, confirmed from the request logs) |
-| `TEST_BUILD` | Marks the deployment as a test build so phones show the build's commit and a bug-report link; set to `1` |
+| `TEST_BUILD` | Staging only: marks the deployment as a test build so phones show the build's commit and a bug-report link; set to `1`. Leave it unset on production |
 
-Railway sets `RAILWAY_GIT_COMMIT_SHA` itself; the test build marker reads it.
+Railway sets `RAILWAY_GIT_COMMIT_SHA` itself; the test build marker on staging reads it.
 
 `TRUSTED_PROXY_HOPS` is safe only when every request passes through the proxy, so leave it unset wherever phones can reach the server directly.
 
-Every push to `main` builds and deploys a new version. Railway switches traffic only after the new version answers `/api/health`, so a failing build or health check keeps the previous version running. Look at the deployment's build and runtime logs in the Railway dashboard.
+Every push to an environment's branch builds and deploys a new version there. Railway switches traffic only after the new version answers `/api/health`, so a failing build or health check keeps the previous version running. Look at the deployment's build and runtime logs in the Railway dashboard.
 
 To clear the Olympics day between test sessions, use the normal Start new day flow on Dashboard → Day setup: download the day export, then type **NEW DAY**. Redeploying never clears the day; the data lives in the Postgres service.
 
-To onboard testers, sign in first with the owner password, then send testers the Railway domain and the Olympics password from Day setup (and the lead code only to testers who should try Lead). They type the Olympics password and create a profile with their own full name. Testers report bugs with the **Report a bug** link in the app header, which opens a GitHub issue with the commit and screen filled in.
+To onboard testers, sign in to staging first with the owner password, then send testers the staging domain and the Olympics password from Day setup (and the lead code only to testers who should try Lead). They type the Olympics password and create a profile with their own full name. Testers report bugs with the **Report a bug** link in the app header, which opens a GitHub issue with the commit and screen filled in.
 
-### Smoke check against the deployed build
+### Smoke check against staging
 
-`npm run test:remote` checks that the deployed build works for 5 testers: it signs in the owner and 4 volunteers, runs one 60m Girl Cubs (R4) race through check-in, finishing order and times, shows a mistyped Olympics password on one phone does not block another, checks the Test build marker, downloads the day export, and makes 70 saves across the 5 phones with no refusal or server error. It uses `playwright.remote.config.ts` (no local server, no test database) and skips unless `REMOTE_BASE_URL` and `REMOTE_OWNER_PASSWORD` are set. It never clears the day: it adds 5 profiles named `Smoke ...` and one R4 race to it, so clear the day afterwards if testers should start fresh.
+`npm run test:remote` checks that the staging test build works for 5 testers: it signs in the owner and 4 volunteers and shows a mistyped Olympics password on one phone does not block another. Three volunteers then work one 60m Girl Cubs (R4) race on its race screen (check-in on one phone, the order on another, the times on the third), each phone's entries showing on the other two within 3 s, and all three press Submit Race until it is saved. It checks the Test build marker, downloads the day export, and makes 70 live check-in writes on the next race, each accepted, while the phones follow live. It uses `playwright.remote.config.ts` (no local server, no test database) and skips unless `REMOTE_BASE_URL` and `REMOTE_OWNER_PASSWORD` are set. It never clears the day: it adds 5 profiles named `Smoke ...` and one saved R4 race to it, so clear the day afterwards if testers should start fresh.
 
 ```sh
-REMOTE_BASE_URL=https://YOUR-DOMAIN.up.railway.app REMOTE_OWNER_PASSWORD='...' npm run test:remote
+REMOTE_BASE_URL=https://YOUR-STAGING-DOMAIN.up.railway.app REMOTE_OWNER_PASSWORD='...' npm run test:remote
 ```
+
+To try it on your machine, start a production build as a test build (`TEST_BUILD=1` with `DATABASE_URL`, `OWNER_PASSWORD` and `PORT` set, then `NODE_ENV=production npm start`) and point `REMOTE_BASE_URL` at it.
 
 The owner password signs in on a running day, or starts the day when none exists. Each run uses one of the 5 wrong passwords allowed per address in 15 minutes, so wait 15 minutes after 4 runs.
 
 ### Guide for testers
 
-- **The link:** open the Railway domain the owner sends you (it ends `.up.railway.app`) on your phone.
+- **The link:** open the staging domain the owner sends you (it ends `.up.railway.app`) on your phone.
 - **Signing in:** the owner shares the Olympics password with you directly. Type it once, then create a profile with your own full name. Next time, tap your name. Only testers trying Lead get the lead code.
 - **Reporting a bug:** tap **Report a bug** in the header on the screen where it happened. It opens a GitHub issue with the build's commit and the screen already filled in; say what happened and what you expected.
 - **Data may be cleared:** this is a test build. The owner clears the day between test sessions, so anything you enter can disappear.
