@@ -261,6 +261,32 @@ test('Not yet sends the race back for changes and clears every press; only a col
   await deleteCurrentRace(request,code);
 });
 
+test('a lead\'s Save as lead saves a race stuck waiting on another phone, after a confirm, and the phone it waited on loses its hold',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`SA-${project.toUpperCase()}`,name=`Save as lead sprint ${project}`,jo=`Jo stuck ${project}`;
+  await ownEvent(request,code,name);
+  const sam=await signInThroughApi(request,`Sam stuck ${project}`),timer=await signInThroughApi(request,jo),priya=await openPhone(`Priya stuck ${project}`);
+  await workedHeat(request,code,sam,priya.token,timer);
+  await submitRace(request,sam,code);await submitRace(request,priya.token,code);
+  const alex=await openPhone(`Alex lead ${project}`,{lead:true});
+  await openRaceScreen(alex.page,name);await openRaceScreen(priya.page,name);
+  await dockSays(alex.page,`Waiting on ${jo}`);
+  // Only a lead has Save as lead.
+  await dockSays(priya.page,`You submitted. Waiting on ${jo}`);
+  await expect(priya.page.getByRole('button',{name:'Save as lead',exact:true})).toHaveCount(0);
+  await alex.page.getByRole('button',{name:'Save as lead',exact:true}).click();
+  await expect(alex.page.getByText(`${jo} hasn't submitted. Save anyway?`,{exact:true})).toBeVisible();
+  await alex.page.screenshot({path:info.outputPath('save-as-lead-confirm.png'),fullPage:true});
+  expect(await lookProblems(alex.page)).toEqual([]);
+  await alex.page.getByRole('button',{name:'Save anyway',exact:true}).click();
+  for(const page of [alex.page,priya.page]) {
+    await expect(page.getByText('Heat 1 saved',{exact:true})).toBeVisible(live);
+    await expect(page.getByText('Heat 2 · 0 runners',{exact:true})).toBeVisible();
+  }
+  // Jo's hold went with the save; Sam and Priya keep theirs on the next heat.
+  expect(Object.keys((await readRaceScreen(request,sam,code)).holds).sort()).toEqual(['check-in','order']);
+  await deleteCurrentRace(request,code);
+});
+
 test('once a heat is saved the same screen shows "Heat 1 saved" and the empty next heat, and the holder carries on checking in',async({openPhone,request},info)=>{
   const project=info.project.name,code=`HN-${project.toUpperCase()}`,name=`Next heat sprint ${project}`;
   await ownEvent(request,code,name);

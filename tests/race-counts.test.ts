@@ -30,7 +30,3 @@ test('a race whose finishers and times disagree does not count',()=>{
   expect(notCountedReasons({...race,finish:{order:['one'],didNotFinish:['two']}})).toEqual(["finishers and times don't agree"]);
   expect(raceCounts({...race,times:{places:[1200,null],outOfOrder:false}})).toBe(false);
 });
-test('a race with a clash does not count, whatever its parts hold',()=>{
-  expect(notCountedReasons({...race,clash:true})).toEqual(['two versions, lead to check']);
-  expect(notCountedReasons({...race,kind:'final',saved:false,clash:true,finish:null,times:null})).toEqual(['two versions, lead to check','in progress']);
-});

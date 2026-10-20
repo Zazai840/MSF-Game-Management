@@ -16,11 +16,10 @@ function firstWrongTime(places:readonly(number|null)[]):LeadItem['wrongTime'] {
 /** Canonical lead queue, shared by live counts and stage check sheets. A race joins it once saved. */
 export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[]):LeadItem[] {
   const active=state.races.filter(race=>!race.deleted && race.saved);
-  const changed=(race:ResultsRace,part:'runners'|'finish'|'times'|'clash',entryId?:string,actions:readonly string[]=[],introducedAt?:string)=>latest([introducedAt||race.leadTimes?.[part]||race.checkedInAt,...(state.auditNotes||[]).filter(note=>['restore-race',...actions].includes(note.action) && note.touches.some(touch=>touch.raceId===race.id && (!entryId || !touch.entryId || touch.entryId===entryId))).map(note=>note.at)]);
+  const changed=(race:ResultsRace,part:'runners'|'finish'|'times',entryId?:string,actions:readonly string[]=[],introducedAt?:string)=>latest([introducedAt||race.leadTimes?.[part]||race.checkedInAt,...(state.auditNotes||[]).filter(note=>['restore-race',...actions].includes(note.action) && note.touches.some(touch=>touch.raceId===race.id && (!entryId || !touch.entryId || touch.entryId===entryId))).map(note=>note.at)]);
   const items:LeadItem[]=[];
   for(const race of active) {
     const reasons=notCountedReasons(race);
-    if(reasons.includes('two versions, lead to check')) items.push({id:`clash:${race.id}`,kind:'clash',raceId:race.id,at:changed(race,'clash'),message:'Two versions - zone lead to check'});
     if(reasons.includes('times out of order')) items.push({id:`times:${race.id}`,kind:'times-out-of-order',raceId:race.id,at:changed(race,'times'),message:'Times out of order',wrongTime:firstWrongTime(race.times!.places)});
   }
   for(const row of rows) {
@@ -33,6 +32,6 @@ export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],t
       items.push({id:`ran-twice:${row.raceId}:${row.entryId}`,kind:'ran-twice',raceId:row.raceId,entryId:row.entryId,at:latest(copies.map(other=>changed(active.find(race=>race.id===other.raceId)!,'runners',other.entryId,['correct-number','correct-runners','correct-finish-order','count-result','disqualify','lift-disqualification']))),message:`${row.wristband}: Ran twice in this event`,wristband:row.wristband});
     }
   }
-  for(const tie of ties) items.push({id:`tie:${tie.id}`,kind:'tie',tieId:tie.id,at:latest([...tie.entries.flatMap(entry=>{const race=active.find(race=>race.id===entry.raceId)!;return [changed(race,'finish'),changed(race,'times')];}),...(state.auditNotes||[]).filter(note=>['disqualify','lift-disqualification','correct-number','count-result','correct-times','accept-times','correct-runners','correct-finish-order','restore-race','delete-race','delete-race-permanently','re-run'].includes(note.action) || note.action.startsWith('Chose ')).map(note=>note.at)]),message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`,tie:{time:tie.time,wristbands:tie.entries.map(entry=>entry.wristband)}});
+  for(const tie of ties) items.push({id:`tie:${tie.id}`,kind:'tie',tieId:tie.id,at:latest([...tie.entries.flatMap(entry=>{const race=active.find(race=>race.id===entry.raceId)!;return [changed(race,'finish'),changed(race,'times')];}),...(state.auditNotes||[]).filter(note=>['disqualify','lift-disqualification','correct-number','count-result','correct-times','accept-times','correct-runners','correct-finish-order','restore-race','delete-race','delete-race-permanently','re-run'].includes(note.action)).map(note=>note.at)]),message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(entry=>entry.wristband).join(', ')}`,tie:{time:tie.time,wristbands:tie.entries.map(entry=>entry.wristband)}});
   return items.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id));
 }

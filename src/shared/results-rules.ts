@@ -15,7 +15,7 @@ export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:n
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
 export interface ResultsRace extends RaceReference { deleted:boolean;
   /** Saved through Submit Race (or Save as lead): only a saved race counts. */
-  saved:boolean; clash?:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|'clash'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
+  saved:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[] }
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
 
@@ -24,22 +24,19 @@ export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }
-export type NotRankedReason='two versions, lead to check'|'in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
+export type NotRankedReason='in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
 export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
-/** One version of a race part saved while another was also active: who saved it and when. */
-export interface ClashSaver { name:string|null; at:string }
 /**
  * A lead queue item. `message` is v1's terse line; the optional facts beside it let the
  * To check list explain the item in plain English (see src/shared/to-check.ts).
  */
 export interface LeadItem {
-  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'clash'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
+  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
   wristband?:number; warningKinds?:WristbandWarning['kind'][];
   wrongTime?:{ place:number; time:number; earlierPlace:number; earlierTime:number };
   tie?:{ time:number; wristbands:number[] };
-  clash?:Array<{ part:'runners'|'finish'|'times'; savers:ClashSaver[] }>;
 }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {

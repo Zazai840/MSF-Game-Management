@@ -2,9 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import type { RacePartName } from '../../shared/race-clashes.js';
-import { currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
-import type { FinishingOrder,Runner } from '../../shared/races.js';
+import { andList,currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
+import type { FinishingOrder,RacePartName,Runner } from '../../shared/races.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
@@ -17,7 +16,7 @@ import { readEvents } from '../day/events.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
-import { publishPart,rememberRace,sameRunnerSnapshot } from './versions.js';
+import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** The race part each job writes. */
 const jobParts:Record<Job,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
@@ -173,10 +172,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!screen.race.id) {
         if(!screen.event.enabled) throw new Refusal(409,'This event is switched off');
         await createRace(client,runners,{id,dayId:phone.dayId,eventId:screen.event.id,kind:screen.race.kind,savedBy:phone.id});
-        await rememberRace(client,await readRace(client,phone.dayId,id));
         return;
       }
-      await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners,runners);
+      await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners);
       await dropFromOrder(client,screen,runners);
     });
   });
@@ -196,7 +194,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       const runners=lineup.filter(runner=>!absent.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
       if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
       // The runner list is the attendance: publishing it marks everyone else Absent on the final's line-up.
-      await publishPart(client,phone,race,'runners',runners,runners);
+      await publishPart(client,phone,race,'runners',runners);
       await dropFromOrder(client,screen,runners);
     });
   });
@@ -225,9 +223,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       const input=[...previous.filter(runner=>!didNotRun.includes(runner.id)),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))];
       // A final's runners all ran in its heats, so "already ran in this event" does not apply.
       const runners=await annotateRunners(client,phone.dayId,screen.event,input,kept,raceId,previous,screen.race.kind==='final');
-      if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners,runners);
+      if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
       const finish=onlyRunners({order,didNotFinish},runners);
-      await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null,runners);
+      await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
     });
   });
   // The times: the holder's whole column by place, with the wrong times kept as typed. Only a place with a wristband
@@ -253,16 +251,24 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/race-screen/:code/submit','Volunteer',(request,_reply,phone)=>{
     const raceId=tappedRace(request.body);
     return write(phone,code(request),async(client,screen,unchanged)=>{
-      if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
-      await requireUnsaved(client,phone,screen,raceId);
-      if(raceId!==screen.race.id) throw new Refusal(409,'Not saved - check your entries and enter it again');
-      const blocker=submitBlocker(screen.race);
-      if(blocker) throw new Refusal(409,blocker);
+      await requireSubmittable(client,phone,screen,raceId);
       const pressed=[...screen.pressed.map(holder=>holder.id),phone.id];
       if(screen.asked.every(holder=>pressed.includes(holder.id))) {await saveRace(client,phone,screen);return;}
       const press=await client.query('INSERT INTO submit_presses(race_id,sign_in_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[raceId,phone.id]);
       if(screen.race.state==='in progress') await client.query("UPDATE races SET state='submitted' WHERE id=$1",[raceId]);
       else if(!press.rowCount) unchanged();
+    });
+  });
+  // Save as lead: a lead saves the race without the Submit presses it still waits on, under the same blockers. Those
+  // it waited on lose their holds, so the next race does not wait on them too.
+  action('POST','/api/race-screen/:code/save-as-lead','Lead',(request,_reply,phone)=>{
+    const raceId=tappedRace(request.body);
+    return write(phone,code(request),async(client,screen)=>{
+      await requireSubmittable(client,phone,screen,raceId);
+      const waiting=screen.asked.filter(holder=>holder.id!==phone.id && !screen.pressed.some(other=>other.id===holder.id));
+      await saveRace(client,phone,screen);
+      await client.query('DELETE FROM job_holds WHERE event_id=$1 AND sign_in_id=ANY($2)',[screen.event.id,waiting.map(holder=>holder.id)]);
+      await writeAuditNote(client,phone,screen.event.id,{action:'save-as-lead',message:`Saved by ${phone.name}${waiting.length?` without ${andList(waiting.map(holder=>holder.name))}'s Submit`:''} on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
     });
   });
   // Not yet: anyone sends a submitted race back to in progress, clearing every press, so everyone confirms again.
@@ -277,6 +283,14 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await writeAuditNote(client,phone,screen.event.id,{action:'not-yet',message:`${phone.name} tapped Not yet on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
     });
   });
+}
+/** A race Submit Race (or Save as lead) can save: the current race, its stage open, not saved, and nothing blocking it. */
+async function requireSubmittable(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,raceId:string|null) {
+  if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  await requireUnsaved(client,phone,screen,raceId);
+  if(raceId!==screen.race.id) throw new Refusal(409,'Not saved - check your entries and enter it again');
+  const blocker=submitBlocker(screen.race);
+  if(blocker) throw new Refusal(409,blocker);
 }
 /** The race a Submit Race or Not yet was tapped on: null for the empty next race. */
 function tappedRace(body:unknown) {
@@ -293,7 +307,7 @@ async function saveRace(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead) 
   await client.query("UPDATE races SET state='saved',saved_at=clock_timestamp(),saved_by=$2 WHERE id=$1",[race.id,phone.name]);
   for(const job of jobs) {
     const part=jobParts[job],{version,value}=race.parts[part];
-    await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,held_by) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(race_id,part,version) DO UPDATE SET held_by=EXCLUDED.held_by',[race.id,part,version,JSON.stringify(value),runners,screen.holds[job]?.name??null]);
+    await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,held_by) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(race_id,part,version) DO UPDATE SET held_by=EXCLUDED.held_by,saved_at=coalesce(race_part_history.saved_at,EXCLUDED.saved_at)',[race.id,part,version,JSON.stringify(value),runners,screen.holds[job]?.name??null]);
   }
 }
 /** The race and part version a write was made on: null and 0 for the empty next race. */

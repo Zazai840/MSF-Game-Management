@@ -36,10 +36,10 @@ test('a times save still checks each value when there are more than 6 places',as
 
 test('a lead rules on 8 times and keeps warnings for more than 6 numbers in the race',async()=>{
   const {volunteer,lead,setup,read:leadRead}=await start();
-  const race=await setup.checkIn(volunteer,'R4',eight);
-  const ruled=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places:eightTimes});
+  const race=await setup.record(volunteer,'R4',eight,eightTimes),retimed=eightTimes.map(time=>time+1);
+  const ruled=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places:retimed});
   expect(ruled.statusCode).toBe(200);
-  const read=(await leadRead(race.id!));expect(read.parts.times.value.places).toEqual(eightTimes);
+  const read=(await leadRead(race.id!));expect(read.parts.times.value.places).toEqual(retimed);
   const runners=read.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}));
   const kept=await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version,finishVersion:read.parts.finish.version,runners:[...runners,{wristband:2009}],keptWarnings:[...eight,2009]});
   expect(kept.statusCode).toBe(200);
@@ -50,20 +50,19 @@ test('a lead rules on 8 times and keeps warnings for more than 6 numbers in the 
 
 test('a lead times correction refuses more places than the race has runners and still checks each value',async()=>{
   const {volunteer,lead,setup,read:leadRead}=await start();
-  const race=await setup.checkIn(volunteer,'R4',eight);
+  const race=await setup.record(volunteer,'R4',eight,eightTimes),baseVersion=race.parts.times.version;
   for(const places of [[...eightTimes,1320],[...eightTimes,null]]) {
-    const refused=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places});
+    const refused=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places});
     expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('This race has 8 runners - enter no more places than that');
   }
-  const invalid=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places:[...eightTimes.slice(0,7),-1]});
+  const invalid=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[...eightTimes.slice(0,7),-1]});
   expect(invalid.statusCode).toBe(400);expect(invalid.json().message).toBe('Enter whole hundredths or No finisher for every place');
-  expect((await leadRead(race.id!)).parts.times.value).toBeNull();
+  expect((await leadRead(race.id!)).parts.times.value.places).toEqual(eightTimes);
 });
 
 test('a lead trims leftover times beyond the runners after a runner is removed',async()=>{
   const {volunteer,lead,setup,read:leadRead}=await start();
-  const race=await setup.checkIn(volunteer,'R4',eight);
-  await setup.order(volunteer,'R4',eight);await setup.times(volunteer,'R4',eightTimes);
+  const race=await setup.record(volunteer,'R4',eight,eightTimes);
   let read=(await leadRead(race.id!));
   const seven=read.parts.runners.value.slice(0,7).map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}));
   expect((await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version,finishVersion:read.parts.finish.version,runners:seven})).statusCode).toBe(200);
@@ -95,12 +94,13 @@ test('a final is seeded with exactly the 6 fastest qualifiers in seed order',asy
 test('a final accepts a 7th runner added by a lead through finishing order, results and the day export',async()=>{
   const {owner,volunteer,lead,results,setup}=await finalWithHeats();const id=results.finalResults.raceId;
   let race:any=(await setup.screen(volunteer,'R3')).race;expect(race.id).toBe(id);
-  const added=await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband})),{wristband:1135}],comment:'Tie for 6th'});
+  // Lead corrections wait until the final is saved: the 7th runner is added then, with the finishing order.
+  await setup.order(volunteer,'R3',[1023,1066,1088,1005,1012,1110]);race=(await setup.submit(volunteer,'R3')).race;
+  const order=[1135,1023,1066,1088,1005,1012,1110];
+  const added=await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband})),{wristband:1135}],finish:{order,didNotFinish:[]},comment:'Tie for 6th'});
   expect(added.statusCode).toBe(200);
   race=(await setup.screen(volunteer,'R3')).race;expect(race.final.entries).toHaveLength(7);
   expect(race.parts.runners.value).toHaveLength(7);
-  const order=[1135,1023,1066,1088,1005,1012,1110];
-  await setup.order(volunteer,'R3',order);await setup.submit(volunteer,'R3');
   const done=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'});expect(done.statusCode).toBe(200);
   expect(done.json().results.finalResults.leaderboard.map((row:any)=>[row.position,row.wristband])).toEqual(order.map((number,index)=>[index+1,number]));
   expect(done.json().results.inputRunning).toEqual({eventCode:'R3',first:1135,second:1023,third:1066});

@@ -1,7 +1,7 @@
 import type pg from 'pg';
 import type { RaceRead,Runner } from '../../shared/races.js';
 import type { FinalEntry,FinalAddition } from '../../shared/finals.js';
-/** Attendance follows the authoritative runner publication, including a chosen clash candidate. */
+/** Attendance follows the published runner list. */
 export async function publishFinalRunners(client:pg.PoolClient,race:Pick<RaceRead,'id'|'kind'>,runners:readonly Runner[]) {
   if(race.kind!=='final') return;
   const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[race.id])).rows[0];

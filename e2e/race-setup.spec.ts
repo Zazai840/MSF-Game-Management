@@ -5,7 +5,7 @@ async function leadRead(request:APIRequestContext,id:string) {
   const {race,history}=await (await request.get(`/api/lead/races/${id}`,{headers:scoring()})).json();
   return {
     results:race.recording.results.map(({wristband,place,time}:{wristband:number;place:number|null;time:number|null})=>[wristband,place,time]),
-    // Each part starts with an empty save by no one.
+    // History starts when the race is saved: a row per part naming who held its job.
     authors:[...new Set(history.filter(({author}:{author:string|null})=>author).map(({part,author}:{part:string;author:string})=>`${part} by ${author}`))].sort()
   };
 }

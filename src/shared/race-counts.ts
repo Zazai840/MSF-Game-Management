@@ -1,6 +1,6 @@
 import type { NotRankedReason,ResultsRace } from './results-rules.js';
 import { timesOutOfOrder } from './time-entry.js';
-export type CountingRace=Pick<ResultsRace,'kind'|'saved'|'clash'|'finish'|'times'>;
+export type CountingRace=Pick<ResultsRace,'kind'|'saved'|'finish'|'times'>;
 /**
  * The one rule for whether a race's results count: why it does not count yet, in the order
  * Results shows them. Only a saved race counts. A saved race can still be held back by a lead's
@@ -9,8 +9,7 @@ export type CountingRace=Pick<ResultsRace,'kind'|'saved'|'clash'|'finish'|'times
  */
 export function notCountedReasons(race:CountingRace):NotRankedReason[] {
   const reasons:NotRankedReason[]=[];
-  if(race.clash) reasons.push('two versions, lead to check');
-  if(!race.saved) return [...reasons,'in progress'];
+  if(!race.saved) return ['in progress'];
   if(!race.finish) reasons.push(race.times?'awaiting finishing order':'checked in');
   if(race.kind==='final') return reasons;
   // A race where nobody finished has no times to wait for.
