@@ -1,4 +1,4 @@
-import { dashboardButton,deleteCurrentRace,expect,createProfile,openDashboard,openRaceScreen,ownEvent,test,writeCheckIn,writeOrder,writeTimes } from './fixtures.js';
+import { dashboardButton,deleteCurrentRace,expect,createProfile,openDashboard,openRaceScreen,ownEvent,readRaceScreen,test,writeCheckIn,writeOrder,writeTimes } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -77,6 +77,26 @@ test('a race screen snapshot from another build reloads the phone by itself',asy
   await tile.click();
   await expect(page.getByRole('heading',{level:1,name:'60m Girl Cubs',exact:true})).toBeVisible();
   expect(loads).toBe(1);
+});
+
+test('a phone meeting the old and the new server in turn mid-deploy reloads once, then carries on instead of reloading again',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`RB-${project.toUpperCase()}`,name=`Reload once ${project}`;
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(`Reload once ${project}`);
+  const screen=await readRaceScreen(request,token,code);
+  let loads=0;page.on('load',()=>loads++);
+  // A deploy overlap: after reloading onto the new build, the phone's stream reaches the old server again.
+  let served=0;
+  await page.route('**/api/live/race-screen/**',route=>{served++;return route.fulfill({status:200,contentType:'text/event-stream',body:`data: ${JSON.stringify({...screen,build:'the other build'})}\n\n`});},{times:2});
+  const tile=page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} Girl Cubs · `)});
+  await tile.click();
+  await expect.poll(()=>loads,{timeout:10000}).toBe(1);
+  await openRaceScreen(page,name);
+  expect(served).toBe(2);
+  // Give a second reload time to start: it must not.
+  await page.waitForTimeout(2000);
+  expect(loads).toBe(1);
+  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
 });
 
 test('a failed load of the Lead area reloads the app instead of leaving a blank screen',async({openPhone},info)=>{
