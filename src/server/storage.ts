@@ -55,6 +55,10 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       delete_reason text, request_id text, original_runners jsonb,
       UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
     );
+    -- A race moves in progress -> submitted (the first Submit press) -> saved (the last press), which is who and when.
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','submitted','saved'));
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS saved_at timestamptz;
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS saved_by text;
     CREATE TABLE IF NOT EXISTS race_finals (
       race_id uuid PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE, entries jsonb NOT NULL
     );
@@ -77,6 +81,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL,
       value jsonb, runners jsonb NOT NULL, PRIMARY KEY(race_id,part,version)
     );
+    -- Set on the rows written when a race is saved: who held the part's job then.
+    ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS held_by text;
     CREATE TABLE IF NOT EXISTS race_part_saves (
       id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
@@ -112,6 +118,13 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       job text NOT NULL CHECK (job IN ('check-in','order','times')),
       sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
       PRIMARY KEY(event_id,job)
+    );
+    -- Submit presses on a race: who pressed and when. Not yet clears them; Take over removes the old holder's.
+    CREATE TABLE IF NOT EXISTS submit_presses (
+      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
+      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
+      pressed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+      PRIMARY KEY(race_id,sign_in_id)
     );
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,

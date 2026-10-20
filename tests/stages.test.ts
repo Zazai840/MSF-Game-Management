@@ -1,7 +1,7 @@
 import { expect,test } from 'vitest';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 const event={code:'R16',name:'200m',section:'Girl Cubs' as const,format:'timed' as const};
-const race=(id:string,number:number,time:number):ResultsRace=>({id,kind:'race',number,checkedInAt:'2026-10-12T10:00:00Z',deleted:false,runners:[{id:`entry-${id}`,wristband:2000+number}],finish:{order:[`entry-${id}`],didNotFinish:[]},times:{places:[time],outOfOrder:false}});
+const race=(id:string,number:number,time:number):ResultsRace=>({id,kind:'race',number,checkedInAt:'2026-10-12T10:00:00Z',deleted:false,saved:true,runners:[{id:`entry-${id}`,wristband:2000+number}],finish:{order:[`entry-${id}`],didNotFinish:[]},times:{places:[time],outOfOrder:false}});
 test('the Event complete sheet blocks a highlighted tie and previews the podium',()=>{
   const result=eventResults({event,races:[race('a',1,1000),race('b',2,1000)]});
   expect(result.checkSheet?.mustSettleFirst).toMatchObject([{kind:'tie',tieId:result.ties[0].id}]);

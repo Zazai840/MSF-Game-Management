@@ -33,7 +33,7 @@ async function ordered(sam:string,priya:string,placed:number,code='R4') {
 }
 
 test('the times holder writes times by place; a time for a place with no wristband is refused, and a kept wrong time is stored for a lead',async()=>{
-  const {sam,priya,jo}=await start();
+  const {owner,sam,priya,jo}=await start();
   const race=await ordered(sam,priya,2);
   await hold(jo,'times');
   const first=await times(jo,{raceId:race.race.id,version:0,places:[1295]});
@@ -46,9 +46,9 @@ test('the times holder writes times by place; a time for a place with no wristba
   const kept=await times(jo,{raceId:race.race.id,version:1,places:[1295,1240],keptWrong:[1,0]});
   expect(kept.statusCode,kept.body).toBe(200);
   expect((kept.json() as RaceScreenRead).race.parts.times.value).toEqual({places:[1295,1240],outOfOrder:true,keptWrong:[1]});
-  // Retyping it clears it, kept or not. (Both places timed, the race counts, so the race screen moves on: read the race itself.)
-  expect((await times(jo,{raceId:race.race.id,version:2,places:[1295,1312],keptWrong:[1]})).statusCode).toBe(200);
-  expect((await call(jo,`/api/races/${race.race.id}`)).json().parts.times.value).toEqual({places:[1295,1312],outOfOrder:false,keptWrong:[]});
+  // Retyping it clears it, kept or not.
+  expect((await times(jo,{raceId:race.race.id,version:2,places:[1295,1312],keptWrong:[1]})).json().race.parts.times.value).toEqual({places:[1295,1312],outOfOrder:false,keptWrong:[]});
+  expect((await call(owner,`/api/lead/races/${race.race.id}`)).json().race.parts.times.value).toEqual({places:[1295,1312],outOfOrder:false,keptWrong:[]});
 });
 test('times left at places that lost their wristband stay as they are while earlier places are retyped, but cannot be changed',async()=>{
   const {sam,priya,jo}=await start();

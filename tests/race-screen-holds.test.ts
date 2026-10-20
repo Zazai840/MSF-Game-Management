@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { RaceScreenRead } from '../src/shared/race-screen.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -84,7 +85,7 @@ test('the first check-in on the empty next heat creates the race, and the next h
   expect((await checkIn(jo,{raceId:null,version:0,runners:[]})).json()).toEqual({message:'Enter at least one wristband number'});
   expect((await checkIn(jo,{raceId:read.race.id,version:3,runners:[2001,2001]})).json()).toEqual({message:'2001 is already in this race'});
 });
-test('check-in writes are refused in order: stage complete, race deleted, race saved, not the holder, version behind',async()=>{
+test('check-in writes are refused in order: stage complete, race deleted, race saved, race submitted, not the holder, version behind',async()=>{
   const {owner,jo,ali}=await start();
   await hold(jo,'check-in');
   const heat=(await checkIn(jo,{raceId:null,version:0,runners:[2001]})).json() as RaceScreenRead;
@@ -92,9 +93,12 @@ test('check-in writes are refused in order: stage complete, race deleted, race s
   expect((await checkIn(ali,{raceId:null,version:0,runners:[2005]})).json()).toEqual({message:'Jo took over check-in'});
   expect((await checkIn(jo,{raceId:null,version:0,runners:[2005]})).json()).toEqual({message:'Not saved - check your entries and enter it again'});
   expect((await checkIn(jo,{raceId:heat.race.id,version:0,runners:[2005]})).json()).toEqual({message:'Not saved - check your entries and enter it again'});
-  // A race that counts is saved; a deleted one says so, even to someone who never held it.
-  await call(owner,`/api/races/${heat.race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001],didNotFinish:[],didNotRun:[],added:[]});
-  await call(owner,`/api/races/${heat.race.id}/times`,{baseVersion:0,places:[1234]});
+  // A submitted race says so before who holds the job; a saved one and a deleted one say so, even to someone who never held it.
+  const setup=raceSetup(app);
+  await setup.order(jo,'R4',[2001]);await setup.times(jo,'R4',[1234]);
+  await call(owner,'/api/race-screen/R4/submit',{raceId:heat.race.id});
+  expect((await checkIn(ali,{raceId:heat.race.id,version:1,runners:[2001,2002]})).json()).toEqual({message:'Heat 1 is submitted - tap Not yet to change it'});
+  await setup.submit(jo,'R4');
   expect((await checkIn(ali,{raceId:heat.race.id,version:1,runners:[2001,2002]})).json()).toEqual({message:'Heat 1 is saved - ask a lead to change it'});
   await call(owner,`/api/lead/races/${heat.race.id}/delete`,{permanent:false});
   expect((await checkIn(ali,{raceId:heat.race.id,version:1,runners:[2001,2002]})).json()).toEqual({message:'A lead deleted Heat 1'});
@@ -124,10 +128,10 @@ test('signing out clears the phone\'s holds and raises the day revision, by the 
 test('storing the final clears all of the event\'s holds: the final starts with nobody holding anything',async()=>{
   const {owner,jo}=await start();
   await hold(jo,'check-in');await hold(jo,'order');
-  const heat=(await checkIn(jo,{raceId:null,version:0,runners:[2001,2002]})).json() as RaceScreenRead;
-  await call(owner,`/api/races/${heat.race.id}/finish`,{baseVersion:0,runnersVersion:1,order:[2001,2002],didNotFinish:[],didNotRun:[],added:[]});
-  await call(owner,`/api/races/${heat.race.id}/times`,{baseVersion:0,places:[1234,1301]});
-  expect((await screen(jo)).holds).toMatchObject({'check-in':{name:'Jo'},order:{name:'Jo'}});
+  await checkIn(jo,{raceId:null,version:0,runners:[2001,2002]});
+  const setup=raceSetup(app);
+  await setup.order(jo,'R4',[2001,2002]);await setup.times(jo,'R4',[1234,1301]);await setup.submit(jo,'R4');
+  expect((await screen(jo)).holds).toMatchObject({'check-in':{name:'Jo'},order:{name:'Jo'},times:{name:'Jo'}});
   expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await screen(jo);
   expect(final.race.kind).toBe('final');

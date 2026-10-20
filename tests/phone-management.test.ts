@@ -69,7 +69,7 @@ test('Set role is refused for your own row, for demoting the owner, for the role
   await refused(owner.token,'00000000-0000-0000-0000-000000000000','Lead',404,'Nobody is signed in with that row today');
   expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
 });
-test('a new lead code refuses old lead upgrades, keeps signed-in jobs, and demotes only ordinary leads',async()=>{
+test('a new lead code refuses old lead upgrades, keeps signed-in race screens, and demotes only ordinary leads',async()=>{
   const {owner,day,signInAs}=await start();const lead=await signInAs('Maryam');const scoring=await signInAs('Yusuf');const volunteer=await signInAs('Ahmed');
   await call(lead.token,'/api/become-lead',{code:day.leadCode});
   await call(scoring.token,'/api/become-lead',{code:'phones-owner-fixture'});
@@ -82,7 +82,7 @@ test('a new lead code refuses old lead upgrades, keeps signed-in jobs, and demot
   expect((await call(scoring.token,'/api/me')).json().level).toBe('Scoring team');
   expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
   expect((await call(volunteer.token,'/api/become-lead',{code:day.leadCode})).statusCode).toBe(403);
-  for(const phone of [lead,volunteer,scoring]) for(const path of ['/api/jobs/start-line','/api/jobs/finish-order','/api/jobs/times']) expect((await call(phone.token,path)).statusCode).toBe(200);
+  for(const phone of [lead,volunteer,scoring]) expect((await call(phone.token,'/api/race-screen/R4')).statusCode).toBe(200);
   expect((await call(lead.token,'/api/lead/results')).statusCode).toBe(403);
   expect((await call(lead.token,'/api/become-lead',{code:rotated.leadCode})).json().level).toBe('Lead');
 });

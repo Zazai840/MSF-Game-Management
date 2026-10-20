@@ -18,7 +18,7 @@ test('wrong owner password is refused without starting an Olympics day', async (
   expect(refused.json().message).toBe('That is not the Olympics password. Check with a lead and try again.');
   expect((await checkPassword('test-owner-fixture')).json()).toEqual({kind:'owner', dayRunning:false});
 });
-test('permission ladder refuses volunteer lead reads and ordinary lead Day reads but shares jobs', async () => {
+test('permission ladder refuses volunteer lead reads and ordinary lead Day reads but shares Home', async () => {
   await start();
   const people = await signInOwner(app, 'test-owner-fixture'), {owner, day} = people;
   const volunteer = await people.volunteer('Ahmed');
@@ -31,7 +31,7 @@ test('permission ladder refuses volunteer lead reads and ordinary lead Day reads
   for (const phone of [volunteer, lead, owner]) {
     const home = await app.inject({url:'/api/home', headers:auth(phone.token)});
     expect(home.statusCode).toBe(200);
-    expect(home.json().waiting).toEqual({'Start line':0, 'Finish order':0, Times:0});
+    expect(home.json().events.length).toBeGreaterThan(0);
   }
   const home = (await app.inject({url:'/api/home', headers:auth(volunteer.token)})).json();
   expect(home).not.toHaveProperty('leadCode');

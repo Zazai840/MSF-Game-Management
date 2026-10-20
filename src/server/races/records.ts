@@ -14,9 +14,7 @@ export function jobRace(race:StoredRace):RaceRead {
 export type Database=pg.Pool|pg.PoolClient;
 const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=r.event_id AND s.stage=CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END) AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
 const finalRowsQuery=`SELECT f.race_id,f.entries,f.additional_entries,f.generation,
-  EXISTS(SELECT 1 FROM event_stages WHERE event_id=r.event_id AND stage='heats') AS heats_complete,
-  EXISTS(SELECT 1 FROM race_part_history WHERE race_id=f.race_id AND part='finish' AND value IS NOT NULL AND value<>'null'::jsonb)
-  OR EXISTS(SELECT 1 FROM race_part_saves WHERE race_id=f.race_id AND part='finish' AND value IS NOT NULL AND value<>'null'::jsonb) AS finish_recorded
+  EXISTS(SELECT 1 FROM event_stages WHERE event_id=r.event_id AND stage='heats') AS heats_complete
   FROM race_finals f JOIN races r ON r.id=f.race_id`;
 export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> {
   const rows=(await db.query(`${raceRowsQuery} WHERE r.day_id=$1 AND NOT r.deleted ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
@@ -32,12 +30,6 @@ export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> 
 }
 export function requireStageOpen(race:Pick<RaceRead,'stageComplete'>) {
   if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
-}
-export function requireStartLineEdit(race:StoredRace) {
-  requireStageOpen(race);
-  if (race.deleted) throw new Refusal(409,'This race is in Deleted races - ask a lead');
-  if(race.kind==='final') throw new Refusal(409,'Use Is everyone here? for the seeded final');
-  if (race.parts.finish.value!==null) throw new Refusal(409,'Finishing order already recorded - ask a lead');
 }
 export async function readRace(db:Database,dayId:string,id:string):Promise<StoredRace> {
   if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) throw new Refusal(404,'Race not found');
@@ -56,11 +48,10 @@ export async function withReplacement<T extends StoredRace>(db:Database,dayId:st
 }
 function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],clashes:string[],finalRow?:pg.QueryResultRow):StoredRace {
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value,...(clashes.includes(row.part)?{clash:true}:{})}]));
-  const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:finalRow.finish_recorded,heatsComplete:finalRow.heats_complete}:undefined;
-  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
-  const recording=raceRecording(race);
-  // A final has run once it counts, or once any finishing order was recorded for it.
-  return {...race,...(final?{final:{...final,hasRun:final.hasRun || recording.readyForRanking}}:{}),recording};
+  // A final has run once it is saved.
+  const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:row.state==='saved',heatsComplete:finalRow.heats_complete}:undefined;
+  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
+  return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {
   const client=await pool.connect();

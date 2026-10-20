@@ -5,6 +5,7 @@ import { createApp,type AppSettings } from '../src/server/app.js';
 import { frameData,newerSnapshot,splitFrames } from '../src/shared/live.js';
 import type { RaceScreenRead } from '../src/shared/race-screen.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -50,8 +51,6 @@ async function openStream(token:string,code:string) {
   }
   return {response,frame,snapshot,close:()=>reader.cancel()};
 }
-const finish=(token:string,race:{id:string},order:number[])=>call(token,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order,didNotFinish:[],didNotRun:[],added:[]});
-const times=(token:string,race:{id:string},places:number[])=>call(token,`/api/races/${race.id}/times`,{baseVersion:0,places});
 
 test('a race screen stream sends the whole race first, an empty next heat when nothing is stored',async()=>{
   const {volunteer}=await start();
@@ -79,22 +78,24 @@ test('the stream refuses a phone that is not signed in, and an unknown event, be
   expect(await refusedStream(volunteer,'R99')).toEqual({status:404,refusal:{message:'Event not found'}});
 });
 test('a race write raises the day revision and reaches every open stream of the event, ending with the next heat on the same stream',async()=>{
-  const {volunteer,other}=await start();
+  const {volunteer,other}=await start(),setup=raceSetup(app);
+  // Sam holds every job before the stream opens, so each write below is one change.
+  for(const job of ['check-in','order','times']) await call(volunteer,'/api/race-screen/R4/hold',{job});
   const watching=await openStream(other,'R4');
   const empty=await watching.snapshot();
-  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:[2001,2002]})).json().race;
+  const race=await setup.checkIn(volunteer,'R4',[2001,2002]);
   const checkedIn=await watching.snapshot();
   expect(checkedIn.revision).toBeGreaterThan(empty.revision);
   expect(checkedIn.race).toMatchObject({id:race.id,kind:'heat',number:1,parts:{runners:{version:1,value:[{wristband:2001},{wristband:2002}]}}});
-  await finish(volunteer,race,[2002,2001]);
+  await setup.order(volunteer,'R4',[2002,2001]);
   const ordered=await watching.snapshot();
   expect(ordered.revision).toBeGreaterThan(checkedIn.revision);
-  expect(ordered.race.parts.finish.value!.order).toEqual([race.parts.runners.value[1].id,race.parts.runners.value[0].id]);
-  // One time for two finishers does not count yet, so Heat 1 stays current.
-  await times(volunteer,race,[1234]);
-  expect((await watching.snapshot()).race).toMatchObject({id:race.id,parts:{times:{value:{places:[1234]}}}});
-  await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:1,places:[1234,1301]});
-  expect((await watching.snapshot()).race).toEqual({id:null,kind:'heat',number:2,parts:{runners:{version:0,value:null},finish:{version:0,value:null},times:{version:0,value:null}}});
+  expect(ordered.race.parts.finish.value!.order).toEqual([race.parts.runners.value![1].id,race.parts.runners.value![0].id]);
+  // Every placed wristband timed is not saved: Heat 1 stays current until Submit Race.
+  await setup.times(volunteer,'R4',[1234,1301]);
+  expect((await watching.snapshot()).race).toMatchObject({id:race.id,state:'in progress',parts:{times:{value:{places:[1234,1301]}}}});
+  await setup.submit(volunteer,'R4');
+  expect((await watching.snapshot()).race).toEqual({id:null,kind:'heat',number:2,state:'in progress',parts:{runners:{version:0,value:null},finish:{version:0,value:null},times:{version:0,value:null}}});
   await watching.close();
 });
 test('a change elsewhere in the day that leaves the revision alone sends nothing new, and a phone keeps the newest snapshot it holds',async()=>{
@@ -136,10 +137,9 @@ test('taking a hold reaches every open stream with the holder\'s name, and a pho
   expect(await refusedStream(volunteer,'R4')).toMatchObject({status:401,refusal:{reason:'signed-out'}});
   await watching.close();
 });
-test('a timed event moves on to its next race, and a heat that counts no longer holds the screen',async()=>{
+test('a timed event moves on to its next race, and a saved race no longer holds the screen',async()=>{
   const {volunteer}=await start();
-  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R16',runners:[2003]})).json().race;
-  await finish(volunteer,race,[2003]);await times(volunteer,race,[2650]);
+  await raceSetup(app).record(volunteer,'R16',[2003],[2650]);
   const stream=await openStream(volunteer,'R16');
   expect((await stream.snapshot()).race).toMatchObject({id:null,kind:'race',number:2});
   await stream.close();

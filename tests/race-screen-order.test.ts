@@ -99,7 +99,9 @@ test('one person may hold check-in, the order and the times; the order is refuse
   expect(taken.statusCode,taken.body).toBe(200);
   expect((taken.json() as RaceScreenRead).holds.order!.name).toBe('Ali');
   // A saved or deleted race and a complete stage refuse it, as they do check-in.
-  await call(owner,`/api/races/${checked.race.id}/times`,{baseVersion:0,places:[1234,1301]});
+  await call(sam,'/api/race-screen/R4/times',{raceId:checked.race.id,version:0,places:[1234,1301],keptWrong:[]});
+  await call(sam,'/api/race-screen/R4/submit',{raceId:checked.race.id});
+  await call(ali,'/api/race-screen/R4/submit',{raceId:checked.race.id});
   expect((await order(ali,{raceId:checked.race.id,version:2})).json()).toEqual({message:'Heat 1 is saved - ask a lead to change it'});
   await call(owner,`/api/lead/races/${checked.race.id}/delete`,{permanent:false});
   expect((await order(ali,{raceId:checked.race.id,version:2})).json()).toEqual({message:'A lead deleted Heat 1'});

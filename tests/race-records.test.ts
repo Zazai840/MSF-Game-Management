@@ -25,7 +25,9 @@ test('batched pool and client reads match individual reads, preserve ordering, a
     }
     for(const i of [2,3,4,5]) await client.query("INSERT INTO race_finals(race_id,entries,additional_entries,generation) VALUES($1,$2,$3,$4)",[ids[i],JSON.stringify([{finalEntryId:`entry-${i}`,heatRaceId:ids[1],heatEntryId:'entry-1',heatWristband:2002,seed:i-1,heatRank:i-1,kind:'qualifier',absent:false}]),JSON.stringify([{runner:{id:`extra-${i}`,wristband:2010+i},absent:true}]),`generation-${i}`]);
     await client.query("INSERT INTO event_stages(event_id,stage) VALUES($1,'heats'),($2,'event')",[heats,timed]);
-    await client.query("INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,'finish',1,$2,'[]')",[ids[3],JSON.stringify({order:['entry-3'],didNotFinish:[]})]);
+    // A final has run once saved; a finishing order recorded on an unsaved final is not enough.
+    await client.query("INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,'finish',1,$2,'[]')",[ids[2],JSON.stringify({order:['entry-2'],didNotFinish:[]})]);
+    await client.query("UPDATE races SET state='saved',saved_at=now(),saved_by='Ahmed' WHERE id=ANY($1::uuid[])",[[ids[3],ids[4],ids[5]]]);
     await client.query("UPDATE race_parts SET version=1,value=$1 WHERE race_id=$2 AND part='finish'",[JSON.stringify({order:['entry-4'],didNotFinish:[]}),ids[4]]);
     for(const [id,part,active,value] of [[ids[0],'times',true,{places:[1200]}],[ids[0],'times',true,{places:[1300]}],[ids[1],'times',true,{places:[1400]}],[ids[1],'times',false,{places:[1500]}],[ids[5],'finish',false,{order:[],didNotFinish:['entry-5']}]] as const) {
       await client.query('INSERT INTO race_part_saves(id,race_id,part,base_version,version,value,runners,before_runners,active) VALUES($1,$2,$3,0,1,$4,\'[]\',\'[]\',$5)',[randomUUID(),id,part,JSON.stringify(value),active]);

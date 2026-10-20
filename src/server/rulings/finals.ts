@@ -33,9 +33,6 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
   await client.query("INSERT INTO race_finals(race_id,entries,generation) VALUES($1,$2,$3) ON CONFLICT(race_id) DO UPDATE SET entries=EXCLUDED.entries,additional_entries='[]',generation=EXCLUDED.generation",[id,JSON.stringify(entries),randomUUID()]);
   await rememberRace(client,await readRace(client,phone.dayId,id));
 }
-export function requireFinalReady(race:Awaited<ReturnType<typeof readRace>>) {
-  if(race.kind==='final' && !race.final?.heatsComplete && !race.final?.hasRun) throw new Refusal(409,'Complete the heats before recording the final');
-}
 export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('POST','/api/lead/events/:code/call-up','Lead',async(request,_reply,phone)=>{

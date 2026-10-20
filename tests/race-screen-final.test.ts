@@ -4,6 +4,7 @@ import { createApp } from '../src/server/app.js';
 import { openDatabase } from '../src/server/storage.js';
 import type { RaceScreenRead } from '../src/shared/race-screen.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -19,12 +20,7 @@ async function start() {
   const owner=people.owner.token as string;
   await call(owner,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam')).token,priya=(await people.volunteer('Priya')).token;
-  for(const runners of [[2001,2002,2003,2004,2005,2006],[2007,2008]]) {
-    const read=await screen(owner);
-    const heat=(await call(owner,'/api/race-screen/R4/check-in',{raceId:read.race.id,version:read.race.parts.runners.version,runners:runners.map(wristband=>({wristband}))})).json() as RaceScreenRead;
-    await call(owner,`/api/races/${heat.race.id}/finish`,{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]});
-    await call(owner,`/api/races/${heat.race.id}/times`,{baseVersion:0,places:runners.map(wristband=>1000+wristband-2000)});
-  }
+  for(const runners of [[2001,2002,2003,2004,2005,2006],[2007,2008]]) await raceSetup(app).record(owner,'R4',runners,runners.map(wristband=>1000+wristband-2000));
   expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   return {owner,lead:people.lead,sam,priya};
 }

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -11,69 +12,67 @@ async function start() {
   const people=await signInOwner(app,'cap-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed Khan'),lead=await signInAs('Aisha Malik');await call(lead,'/api/become-lead',{code:day.leadCode});
-  return {owner:owner.token as string,volunteer,lead};
+  const read=async(id:string)=>(await call(lead,`/api/lead/races/${id}`)).json().race;
+  return {owner:owner.token as string,volunteer,lead,setup:raceSetup(app),read};
 }
 const eight=[2001,2002,2003,2004,2005,2006,2007,2008];
 const eightTimes=[1201,1215,1230,1244,1260,1275,1290,1305];
 
 test('an ordinary race checks in 8 runners and records 8 places through finishing order and times',async()=>{
-  const {volunteer}=await start();
-  const checked=await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight});
-  expect(checked.statusCode).toBe(200);
-  const race=checked.json().race;expect(race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual(eight);
-  const finish=await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:eight,didNotFinish:[],didNotRun:[],added:[]});
-  expect(finish.statusCode).toBe(200);
-  const times=await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:eightTimes});
-  expect(times.statusCode).toBe(200);
-  expect(times.json().race.recording.results.map((row:any)=>[row.wristband,row.place,row.time])).toEqual(eight.map((number,index)=>[number,index+1,eightTimes[index]]));
+  const {volunteer,setup,read}=await start();
+  const race=await setup.checkIn(volunteer,'R4',eight);
+  expect(race.parts.runners.value!.map(runner=>runner.wristband)).toEqual(eight);
+  await setup.order(volunteer,'R4',eight);await setup.times(volunteer,'R4',eightTimes);await setup.submit(volunteer,'R4');
+  expect((await read(race.id!)).recording.results.map((row:any)=>[row.wristband,row.place,row.time])).toEqual(eight.map((number,index)=>[number,index+1,eightTimes[index]]));
 });
 
 test('a times save still checks each value when there are more than 6 places',async()=>{
-  const {volunteer}=await start();
-  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight})).json().race;
-  const refused=await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:[...eightTimes.slice(0,7),-1]});
-  expect(refused.statusCode).toBe(400);expect(refused.json().message).toBe('Enter whole hundredths or No finisher for every place');
+  const {volunteer,setup}=await start();
+  await setup.checkIn(volunteer,'R4',eight);
+  const race=await setup.order(volunteer,'R4',eight);
+  const refused=await call(volunteer,'/api/race-screen/R4/times',{raceId:race.id,version:0,places:[...eightTimes.slice(0,7),-1],keptWrong:[]});
+  expect(refused.statusCode).toBe(400);expect(refused.json().message).toBe('Enter whole hundredths for every place');
 });
 
 test('a lead rules on 8 times and keeps warnings for more than 6 numbers in the race',async()=>{
-  const {volunteer,lead}=await start();
-  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight})).json().race;
+  const {volunteer,lead,setup,read:leadRead}=await start();
+  const race=await setup.checkIn(volunteer,'R4',eight);
   const ruled=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places:eightTimes});
   expect(ruled.statusCode).toBe(200);
-  const read=(await call(volunteer,`/api/races/${race.id}`)).json();expect(read.parts.times.value.places).toEqual(eightTimes);
+  const read=(await leadRead(race.id!));expect(read.parts.times.value.places).toEqual(eightTimes);
   const runners=read.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}));
   const kept=await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version,finishVersion:read.parts.finish.version,runners:[...runners,{wristband:2009}],keptWarnings:[...eight,2009]});
   expect(kept.statusCode).toBe(200);
-  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.runners.value).toHaveLength(9);
+  expect((await leadRead(race.id!)).parts.runners.value).toHaveLength(9);
   const stranger=await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version+1,finishVersion:read.parts.finish.version,runners:[...runners,{wristband:2009}],keptWarnings:[3001]});
   expect(stranger.statusCode).toBe(400);expect(stranger.json().message).toBe('Choose Keep for a wristband number in this race');
 });
 
 test('a lead times correction refuses more places than the race has runners and still checks each value',async()=>{
-  const {volunteer,lead}=await start();
-  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight})).json().race;
+  const {volunteer,lead,setup,read:leadRead}=await start();
+  const race=await setup.checkIn(volunteer,'R4',eight);
   for(const places of [[...eightTimes,1320],[...eightTimes,null]]) {
     const refused=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places});
     expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('This race has 8 runners - enter no more places than that');
   }
   const invalid=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:0,places:[...eightTimes.slice(0,7),-1]});
   expect(invalid.statusCode).toBe(400);expect(invalid.json().message).toBe('Enter whole hundredths or No finisher for every place');
-  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.times.value).toBeNull();
+  expect((await leadRead(race.id!)).parts.times.value).toBeNull();
 });
 
 test('a lead trims leftover times beyond the runners after a runner is removed',async()=>{
-  const {volunteer,lead}=await start();
-  const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:eight})).json().race;
-  expect((await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:eightTimes})).statusCode).toBe(200);
-  let read=(await call(volunteer,`/api/races/${race.id}`)).json();
+  const {volunteer,lead,setup,read:leadRead}=await start();
+  const race=await setup.checkIn(volunteer,'R4',eight);
+  await setup.order(volunteer,'R4',eight);await setup.times(volunteer,'R4',eightTimes);
+  let read=(await leadRead(race.id!));
   const seven=read.parts.runners.value.slice(0,7).map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}));
   expect((await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version,finishVersion:read.parts.finish.version,runners:seven})).statusCode).toBe(200);
-  read=(await call(volunteer,`/api/races/${race.id}`)).json();expect(read.parts.times.value.places).toEqual(eightTimes);
+  read=(await leadRead(race.id!));expect(read.parts.times.value.places).toEqual(eightTimes);
   const leftover=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:eightTimes});
   expect(leftover.statusCode).toBe(409);expect(leftover.json().message).toBe('This race has 7 runners - enter no more places than that');
   const trimmed=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:eightTimes.slice(0,7)});
   expect(trimmed.statusCode).toBe(200);
-  expect((await call(volunteer,`/api/races/${race.id}`)).json().parts.times.value.places).toEqual(eightTimes.slice(0,7));
+  expect((await leadRead(race.id!)).parts.times.value.places).toEqual(eightTimes.slice(0,7));
 });
 
 /** Heats of 8 and 6: the fastest 6 overall in seed order are 1023,1066,1088,1005,1012,1110; 1135 is 7th. */
@@ -82,9 +81,7 @@ async function finalWithHeats() {
   const heats=[[1023,1088,1012,1135,1047,1101,1150,1160],[1066,1005,1110,1031,1092,1170]];
   const times=[[901,925,948,977,990,1024,1100,1110],[912,939,961,1003,1048,1120]];
   for(const [index,runners] of heats.entries()) {
-    const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R3',runners})).json().race;
-    expect((await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]})).statusCode).toBe(200);
-    expect((await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places:times[index]})).statusCode).toBe(200);
+    await tokens.setup.record(volunteer,'R3',runners,times[index]);
   }
   const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);
   return {...tokens,results:complete.json().results};
@@ -96,14 +93,14 @@ test('a final is seeded with exactly the 6 fastest qualifiers in seed order',asy
 });
 
 test('a final accepts a 7th runner added by a lead through finishing order, results and the day export',async()=>{
-  const {owner,volunteer,lead,results}=await finalWithHeats();const id=results.finalResults.raceId;
-  let race=(await call(volunteer,`/api/races/${id}`)).json();
+  const {owner,volunteer,lead,results,setup}=await finalWithHeats();const id=results.finalResults.raceId;
+  let race:any=(await setup.screen(volunteer,'R3')).race;expect(race.id).toBe(id);
   const added=await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband})),{wristband:1135}],comment:'Tie for 6th'});
   expect(added.statusCode).toBe(200);
-  race=(await call(volunteer,`/api/races/${id}`)).json();expect(race.final.entries).toHaveLength(7);
+  race=(await setup.screen(volunteer,'R3')).race;expect(race.final.entries).toHaveLength(7);
   expect(race.parts.runners.value).toHaveLength(7);
   const order=[1135,1023,1066,1088,1005,1012,1110];
-  expect((await call(volunteer,`/api/races/${id}/finish`,{baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order,didNotFinish:[],didNotRun:[],added:[]})).statusCode).toBe(200);
+  await setup.order(volunteer,'R3',order);await setup.submit(volunteer,'R3');
   const done=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'});expect(done.statusCode).toBe(200);
   expect(done.json().results.finalResults.leaderboard.map((row:any)=>[row.position,row.wristband])).toEqual(order.map((number,index)=>[index+1,number]));
   expect(done.json().results.inputRunning).toEqual({eventCode:'R3',first:1135,second:1023,third:1066});

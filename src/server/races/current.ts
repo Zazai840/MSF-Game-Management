@@ -13,10 +13,10 @@ export async function currentRaces(db:Database,dayId:string,events:readonly DayE
   return new Map(events.map((event):[string,CurrentRace]=>{
     const kind=event.format==='timed'?'race':stages.some(stage=>stage.eventId===event.id && stage.stage==='heats')?'final':'heat';
     const own=races.filter(race=>race.event.id===event.id && race.kind===kind).sort((a,b)=>a.number-b.number);
-    // A race is saved once it counts (the shared counting rule); an event's one final stays current once run.
-    const stored=own.filter(race=>!race.recording.readyForRanking).at(-1) ?? (kind==='final'?own.at(-1):undefined);
-    if(stored) {const {id,number,parts,final}=jobRace(stored);return [event.id,{id,kind,number,parts,...(final?{final}:{})}];}
+    // An event's one final stays current once saved.
+    const stored=own.filter(race=>race.state!=='saved').at(-1) ?? (kind==='final'?own.at(-1):undefined);
+    if(stored) {const {id,number,state,parts,final}=jobRace(stored);return [event.id,{id,kind,number,state,parts,...(final?{final}:{})}];}
     const last=counters.find(counter=>counter.event_id===event.id && counter.kind===kind)?.last_number??0;
-    return [event.id,{id:null,kind,number:last+1,parts:emptyParts}];
+    return [event.id,{id:null,kind,number:last+1,state:'in progress',parts:emptyParts}];
   }));
 }

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`},...(body===undefined?{}:{payload:body as object})});
 afterEach(async()=>{await app?.close();});
@@ -22,14 +23,15 @@ test('Scoring downloads four value-only sheets and records its exact day revisio
  await call(owner,'/api/day/export',{});expect((await call(owner,'/api/day')).json().revision).toBe(before.revision);
  await call(owner,'/api/day/events/R4/rename',{name:'Changed'});const changed=(await call(owner,'/api/day')).json();expect(changed.revision).toBeGreaterThan(changed.exportedRevision);
 });
-async function race(token:string,eventCode:string,runners:number[],places?:Array<number|null>,dnf:number[]=[]) {
- const response=await call(token,'/api/races/check-in',{eventCode,runners,keptWarnings:runners});expect(response.statusCode).toBe(200);const created=response.json().race;
- if(places){expect((await call(token,`/api/races/${created.id}/finish`,{baseVersion:0,runnersVersion:1,order:runners.filter(n=>!dnf.includes(n)),didNotFinish:dnf,didNotRun:[],added:[]})).statusCode).toBe(200);expect((await call(token,`/api/races/${created.id}/times`,{baseVersion:0,places})).statusCode).toBe(200);}
+/** A race on the race screen, every warning kept: saved when it has places (the `dnf` runners Did not finish), else left checked in. */
+async function race(token:string,eventCode:string,runners:number[],places?:number[],dnf:number[]=[]) {
+ const setup=raceSetup(app),created:any=await setup.checkIn(token,eventCode,runners,runners);
+ if(places){await setup.order(token,eventCode,runners.filter(n=>!dnf.includes(n)),{didNotFinish:dnf});await setup.times(token,eventCode,places);await setup.submit(token,eventCode);}
  return created;
 }
 test('the workbook keeps completed podium columns, every recorded/pending/deleted runner, rulings and literal audit text',async()=>{
  const {owner,lead,volunteer}=await start();
- const first=await race(volunteer,'R7',[101,102,103,104,1005],[900,950,1000,1100,null],[104]);
+ const first=await race(volunteer,'R7',[101,102,103,104,1005],[900,950,1000,1100],[104]);
  const other=await race(volunteer,'R7',[105,101],[970,980]);await race(volunteer,'R7',[106],[950]);
  const deleted=await race(volunteer,'R7',[107],[800]);await call(lead,`/api/lead/races/${deleted.id}/delete`,{permanent:false,comment:'Wrong race'});
  await race(volunteer,'R8',[108]);
@@ -47,20 +49,21 @@ test('the workbook keeps completed podium columns, every recorded/pending/delete
  const row=(n:number,raceLabel='Race 1',code='R7')=>all.find(values=>values[0]===code&&values[3]===raceLabel&&values[4]===n)!;
  expect(row(101).slice(5,9)).toEqual([9,1,1,'1st']);expect(row(106,'Race 3')[8]).toContain('Tie settled');expect(row(104).slice(5,9)).toEqual([null,null,null,'Did not finish']);
  expect(row(103)[8]).toContain('Disqualified: Obstruction');expect(row(103)[10]).toContain('=1+1');expect(row(1005)[9]).toContain('Checked:');expect(row(1005)[10]).toContain('Checked wristband < & >');
- expect(row(101,'Race 2')[8]).toContain('Not counted');expect(row(107,'Race 4').slice(5,9)).toEqual([8,1,null,'Deleted race; Finished']);expect(row(108,'Race 1','R8')[8]).toContain('checked in');
+ expect(row(101,'Race 2')[8]).toContain('Not counted');expect(row(107,'Race 4').slice(5,9)).toEqual([8,1,null,'Deleted race; Finished']);expect(row(108,'Race 1','R8')[8]).toContain('in progress');
  expect(sheets[3].data.some(values=>values[0]===null&&String(values[3]).includes('Changed the lead code'))).toBe(true);expect(sheets[3].data.some(values=>values[4]==='=1+1')).toBe(true);
  expect(other.id).not.toBe(first.id);
 });
 test('final export preserves absent seeds, sourced callups, corrected numbers, typed additions and deleted final generations',async()=>{
  const {owner,lead,volunteer}=await start();await race(volunteer,'R3',[1023,1066,1088,1005,1012,1110],[900,910,920,930,940,950]);await race(volunteer,'R3',[1135,1047],[960,970]);
  const completed=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(completed.statusCode).toBe(200);const id=completed.json().results.finalResults.raceId;
- let final=(await call(volunteer,`/api/races/${id}`)).json();
+ const setup=raceSetup(app),current=async()=>(await setup.screen(volunteer,'R3')).race as any;
+ let final=await current();expect(final.id).toBe(id);
  await call(volunteer,'/api/race-screen/R3/hold',{job:'check-in'});await call(volunteer,'/api/race-screen/R3/absent',{raceId:id,version:final.parts.runners.version,absent:[final.parts.runners.value.find((r:any)=>r.wristband===1066).id]});
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect((await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:detail.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
- final=(await call(volunteer,`/api/races/${id}`)).json();const correctedId=final.parts.runners.value.find((r:any)=>r.wristband===1023).id;
- await call(lead,`/api/lead/races/${id}/runners/${correctedId}/correct-number`,{expectedWristband:1023,wristband:1050});final=(await call(volunteer,`/api/races/${id}`)).json();
- expect((await call(volunteer,`/api/races/${id}/finish`,{baseVersion:final.parts.finish.version,runnersVersion:final.parts.runners.version,order:[1135,1050,1005,1012,1110],didNotFinish:[1001],didNotRun:[1088],added:[1001]})).statusCode).toBe(200);
- final=(await call(volunteer,`/api/races/${id}`)).json();await call(lead,`/api/lead/races/${id}/runners/${final.parts.runners.value.find((r:any)=>r.wristband===1135).id}/disqualify`,{reason:'Two false starts'});
+ final=await current();const correctedId=final.parts.runners.value.find((r:any)=>r.wristband===1023).id;
+ await call(lead,`/api/lead/races/${id}/runners/${correctedId}/correct-number`,{expectedWristband:1023,wristband:1050});final=await current();
+ final=await setup.order(volunteer,'R3',[1135,1050,1005,1012,1110],{didNotFinish:[1001],didNotRun:[1088],added:[1001]});await setup.submit(volunteer,'R3');
+ await call(lead,`/api/lead/races/${id}/runners/${final.parts.runners.value.find((r:any)=>r.wristband===1135).id}/disqualify`,{reason:'Two false starts'});
  expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
  let sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);expect(sheets[0].data[1]).toEqual(['R3',null,null,null,null,null,null,null,null,1050,null,null,1005,null,null,1012]);
  const rows=sheets[1].data;expect(rows).toHaveLength(9);expect(rows[0]).toEqual(['Event code','Event','Section','Final','Seed','Wristband number','Final position','Attendance / role','Source heat','Heat rank','Original heat wristband','Replaces']);expect(rows.find(row=>row[5]===1135)?.[11]).toBe('1066 (seed 2)');expect(rows.find(row=>row[5]===1066)?.slice(4,11)).toEqual([2,1066,null,'Absent; Qualifier','Heat 1',2,1066]);

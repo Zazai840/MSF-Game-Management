@@ -2,6 +2,7 @@ import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -10,11 +11,8 @@ async function start() {
   const people=await signInOwner(app,'runner-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
-  async function race(numbers:number[],places:number[]) {
-    const race=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners:numbers,keptWarnings:numbers})).json().race;
-    await call(volunteer,`/api/races/${race.id}/finish`,{baseVersion:0,runnersVersion:1,order:numbers,didNotFinish:[],didNotRun:[],added:[]});
-    await call(volunteer,`/api/races/${race.id}/times`,{baseVersion:0,places});return race;
-  }
+  const setup=raceSetup(app);
+  const race=(numbers:number[],places:number[]):Promise<any>=>setup.record(volunteer,'R4',numbers,places,{keptWarnings:numbers});
   const first=await race([2001,3045],[1100,1200]),second=await race([2001],[1300]);
   const path=(race:any,number:number)=>`/api/lead/races/${race.id}/runners/${race.parts.runners.value.find((runner:any)=>runner.wristband===number).id}`;
   return {owner:owner.token as string,lead,volunteer,first,second,path,read:async()=>(await call(lead,'/api/lead/events/R4/results')).json()};
@@ -33,7 +31,7 @@ test('correcting a number retains the stable entry, finishing place and time, re
   const saved=await call(lead,path(first,3045)+'/correct-number',{expectedWristband:3045,wristband:2003});expect(saved.statusCode).toBe(200);
   const row=saved.json().results.leaderboard.find((row:any)=>row.wristband===2003);
   expect(row).toMatchObject({entryId:first.parts.runners.value[1].id,place:2,time:1200,flags:[],hasNote:true});
-  const race=(await call(volunteer,`/api/races/${first.id}`)).json();
+  const race=(await call(lead,`/api/lead/races/${first.id}`)).json().race;
   expect(race.parts.runners.value[1]).toMatchObject({id:row.entryId,wristband:2003});expect(race.parts.runners.version).toBe(2);
   expect(race.parts.finish.value.order).toEqual(first.parts.runners.value.map((runner:any)=>runner.id));expect(race.parts.times.value.places).toEqual([1100,1200]);
   const duplicateFixed=await call(lead,path(second,2001)+'/correct-number',{expectedWristband:2001,wristband:2004});expect(duplicateFixed.statusCode).toBe(200);
@@ -71,6 +69,6 @@ test('runner rulings refuse volunteers and malformed corrections without audit c
   const saved=await call(lead,path(second,2001)+'/disqualify',{reason:'Two false starts'});expect(saved.statusCode).toBe(200);
   expect(saved.json().results.leaderboard.flatMap((row:any)=>row.flags).some((flag:any)=>flag.kind==='ran-twice')).toBe(false);
   expect((await call(lead,path(second,2001)+'/count-result',{})).statusCode).toBe(409);
-  expect((await call(lead,'/api/jobs/finish-order')).statusCode).toBe(200);expect((await call(lead,'/api/jobs/times')).statusCode).toBe(200);
+  expect((await call(lead,'/api/race-screen/R4')).statusCode).toBe(200);
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
 });

@@ -16,8 +16,6 @@ import { runnerRulingRoutes } from './rulings/runners.js';
 import { rulingRoutes } from './rulings/routes.js';
 import { tieRoutes } from './rulings/ties.js';
 import { resultsRoutes } from './results/routes.js';
-import { timesRoutes } from './races/times.js';
-import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
 import { raceScreenRoutes } from './races/race-screen.js';
 import { liveRoutes } from './live/routes.js';
@@ -64,8 +62,6 @@ export async function createApp(settings: AppSettings) {
   homeRoutes(app, pool);
   raceRoutes(app,pool);
   raceScreenRoutes(app,pool);
-  finishOrderRoutes(app,pool);
-  timesRoutes(app,pool);
   resultsRoutes(app,pool);
   rulingRoutes(app,pool);
   clashRoutes(app,pool);

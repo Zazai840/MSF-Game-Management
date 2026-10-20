@@ -3,7 +3,7 @@ import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 const event={code:'R4',name:'60m',section:'Girl Cubs' as const,format:'heats' as const};
 function race(id:string,numbers:number[],times:Array<number|null>,kind:'heat'|'race'='heat'):ResultsRace {
   const runners=numbers.map(wristband=>({id:`${id}-${wristband}`,wristband}));
-  return {id,number:Number(id.replace(/\D/g,''))||1,kind,deleted:false,checkedInAt:'2026-10-12T10:00:00Z',runners,finish:{order:runners.slice(0,times.filter(time=>time!==null).length).map(runner=>runner.id),didNotFinish:runners.slice(times.filter(time=>time!==null).length).map(runner=>runner.id)},times:{places:times,outOfOrder:false}};
+  return {id,number:Number(id.replace(/\D/g,''))||1,kind,deleted:false,saved:true,checkedInAt:'2026-10-12T10:00:00Z',runners,finish:{order:runners.slice(0,times.filter(time=>time!==null).length).map(runner=>runner.id),didNotFinish:runners.slice(times.filter(time=>time!==null).length).map(runner=>runner.id)},times:{places:times,outOfOrder:false}};
 }
 test('a newly listed event has no ranked runners or open lead items',()=>{
   expect(eventResults({event,races:[]})).toMatchObject({leaderboard:[],qualifiers:[],medalPlaces:[],ties:[],notRankedYet:[],needsYou:[],status:'Not started',raceCount:0,provisional:true});

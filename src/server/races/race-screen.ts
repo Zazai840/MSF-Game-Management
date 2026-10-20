@@ -3,7 +3,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import type { RacePartName } from '../../shared/race-clashes.js';
-import { currentRaceLabel,jobWords,raceJobs,type RaceJob,type RaceScreenRead } from '../../shared/race-screen.js';
+import { currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
 import type { FinishingOrder,Runner } from '../../shared/races.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
@@ -19,7 +19,7 @@ import { raceChange,readRace,type Database } from './records.js';
 import { publishPart,rememberRace,sameRunnerSnapshot } from './versions.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** The race part each job writes. */
-const jobParts:Record<RaceJob,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
+const jobParts:Record<Job,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
 /** Every event's holds, by event id. Holds belong to the event, so they carry over to its next heat or race by themselves. */
 export async function readHolds(db:Database,dayId:string):Promise<Map<string,RaceScreenRead['holds']>> {
   const rows=(await db.query('SELECT h.event_id,h.job,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1',[dayId])).rows;
@@ -31,40 +31,66 @@ export async function readHolds(db:Database,dayId:string):Promise<Map<string,Rac
 export async function clearHolds(client:pg.PoolClient,signInId:string) {
   await client.query('DELETE FROM job_holds WHERE sign_in_id=$1',[signInId]);
 }
-/** One event's race screen: the event, its current race and who holds its jobs. */
+/**
+ * One event's race screen: the event, its current race, who holds its jobs, who is asked to press Submit Race and who
+ * has, and the event's last saved race.
+ */
 export async function raceScreenRead(db:Database,dayId:string,code:string):Promise<RaceScreenRead> {
   const event=(await db.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
   if(!event) throw new Refusal(404,'Event not found');
   const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
   const race=(await currentRaces(db,dayId,[event])).get(event.id)!,stage=stageForRace({kind:race.kind,event});
   const stageComplete=(await readCompletedStages(db,dayId)).some(item=>item.eventId===event.id && item.stage===stage);
-  return {revision,event,race,stageComplete,holds:(await readHolds(db,dayId)).get(event.id)||{}};
+  const holds=(await readHolds(db,dayId)).get(event.id)||{},open=race.id!==null && race.state!=='saved';
+  const pressed:Holder[]=open?(await db.query('SELECT s.id,s.name FROM submit_presses p JOIN sign_ins s ON s.id=p.sign_in_id WHERE p.race_id=$1 ORDER BY p.pressed_at,s.name',[race.id])).rows:[];
+  const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
+  return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null};
 }
-function requestedJob(body:unknown):RaceJob {
+/** Who must press Submit Race: the holder of each job that has entries on this race, each person once. Watchers are not asked. */
+function askedToSubmit(race:CurrentRace,holds:RaceScreenRead['holds']):Holder[] {
+  const asked:Holder[]=[];
+  for(const job of jobs) {
+    const holder=holds[job],value=race.parts[jobParts[job]].value;
+    if(holder && value!==null && (!Array.isArray(value) || value.length) && !asked.some(other=>other.id===holder.id)) asked.push(holder);
+  }
+  return asked;
+}
+function requestedJob(body:unknown):Job {
   const job=(body as {job?:unknown}|null)?.job;
-  if(!raceJobs.includes(job as RaceJob)) throw new Refusal(400,'Choose check-in, the order or the times');
-  return job as RaceJob;
+  if(!jobs.includes(job as Job)) throw new Refusal(400,'Choose check-in, the order or the times');
+  return job as Job;
 }
 /** A job that can be held now: its stage is open, and a final has no times. */
-function requireJob(screen:RaceScreenRead,job:RaceJob) {
+function requireJob(screen:RaceScreenRead,job:Job) {
   if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
   if(job==='times' && screen.race.kind==='final') throw new Refusal(409,'A final has no times');
 }
-const takeHold=(client:pg.PoolClient,screen:RaceScreenRead,job:RaceJob,phone:Phone)=>client.query('INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,$2,$3) ON CONFLICT(event_id,job) DO UPDATE SET sign_in_id=EXCLUDED.sign_in_id',[screen.event.id,job,phone.id]);
+const takeHold=(client:pg.PoolClient,screen:RaceScreenRead,job:Job,phone:Phone)=>client.query('INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,$2,$3) ON CONFLICT(event_id,job) DO UPDATE SET sign_in_id=EXCLUDED.sign_in_id',[screen.event.id,job,phone.id]);
 /**
- * The volunteer write rules, in the order they refuse: stage complete, race deleted, race saved, not the job's
- * holder, version behind. `raceId` and `version` are the race and part version the phone last saw (null and 0 for
- * the empty next race). Writing a job nobody holds takes it, as opening its card would.
+ * The race a write was made on (`raceId`, null for the empty next race) as it stands now: refused when a lead deleted
+ * it, or when it is saved. Only the current race can be submitted.
  */
-async function requireWrite(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,job:RaceJob,raceId:string|null,version:number) {
-  requireJob(screen,job);
+async function requireUnsaved(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,raceId:string|null) {
+  let race:Pick<CurrentRace,'kind'|'number'|'state'>=screen.race;
   if(raceId!==null && raceId!==screen.race.id) {
     // A race deleted permanently is gone, so its name is too.
-    const race=await readRace(client,phone.dayId,raceId).catch(error=>{if(error instanceof Refusal) return null;throw error;});
-    if(!race || race.event.id!==screen.event.id) throw new Refusal(409,'A lead deleted this race');
-    if(race.deleted) throw new Refusal(409,`A lead deleted ${currentRaceLabel(race)}`);
-    if(race.recording.readyForRanking) throw new Refusal(409,`${currentRaceLabel(race)} is saved - ask a lead to change it`);
+    const seen=await readRace(client,phone.dayId,raceId).catch(error=>{if(error instanceof Refusal) return null;throw error;});
+    if(!seen || seen.event.id!==screen.event.id) throw new Refusal(409,'A lead deleted this race');
+    if(seen.deleted) throw new Refusal(409,`A lead deleted ${currentRaceLabel(seen)}`);
+    race=seen;
   }
+  if(race.state==='saved') throw new Refusal(409,`${currentRaceLabel(race)} is saved - ask a lead to change it`);
+  return race;
+}
+/**
+ * The volunteer write rules, in the order they refuse: stage complete, race deleted, race saved, race submitted, not
+ * the job's holder, version behind. `raceId` and `version` are the race and part version the phone last saw (null and
+ * 0 for the empty next race). Writing a job nobody holds takes it, as opening its card would.
+ */
+async function requireWrite(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,job:Job,raceId:string|null,version:number) {
+  requireJob(screen,job);
+  const race=await requireUnsaved(client,phone,screen,raceId);
+  if(race.state==='submitted') throw new Refusal(409,`${currentRaceLabel(race)} is submitted - tap Not yet to change it`);
   const holder=screen.holds[job];
   if(holder && holder.id!==phone.id) throw new Refusal(409,`${holder.name} took over ${jobWords[job]}`);
   if(raceId!==screen.race.id || version!==screen.race.parts[jobParts[job]].version) throw new Refusal(409,'Not saved - check your entries and enter it again');
@@ -99,6 +125,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       const from=screen.holds[job];
       if(from?.id===phone.id) {unchanged();return;}
       await takeHold(client,screen,job,phone);
+      // While submitted, the old holder's press goes: the new holder must press.
+      if(from && screen.race.id) await client.query('DELETE FROM submit_presses WHERE race_id=$1 AND sign_in_id=$2',[screen.race.id,from.id]);
       if(from) await writeAuditNote(client,phone,screen.event.id,{action:'take-over',message:`${phone.name} took over ${jobWords[job]} from ${from.name} on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:screen.race.id?[{raceId:screen.race.id}]:[]});
     });
   });
@@ -207,6 +235,52 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
     });
   });
+  // Submit Race: the first press (once nothing blocks it) moves the race to submitted; the last of those asked saves it.
+  action('POST','/api/race-screen/:code/submit','Volunteer',(request,_reply,phone)=>{
+    const raceId=tappedRace(request.body);
+    return write(phone,code(request),async(client,screen,unchanged)=>{
+      if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+      await requireUnsaved(client,phone,screen,raceId);
+      if(raceId!==screen.race.id) throw new Refusal(409,'Not saved - check your entries and enter it again');
+      const blocker=submitBlocker(screen.race);
+      if(blocker) throw new Refusal(409,blocker);
+      const pressed=[...screen.pressed.map(holder=>holder.id),phone.id];
+      if(screen.asked.every(holder=>pressed.includes(holder.id))) {await saveRace(client,phone,screen);return;}
+      const press=await client.query('INSERT INTO submit_presses(race_id,sign_in_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[raceId,phone.id]);
+      if(screen.race.state==='in progress') await client.query("UPDATE races SET state='submitted' WHERE id=$1",[raceId]);
+      else if(!press.rowCount) unchanged();
+    });
+  });
+  // Not yet: anyone sends a submitted race back to in progress, clearing every press, so everyone confirms again.
+  action('POST','/api/race-screen/:code/not-yet','Volunteer',(request,_reply,phone)=>{
+    const raceId=tappedRace(request.body);
+    return write(phone,code(request),async(client,screen,unchanged)=>{
+      if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+      await requireUnsaved(client,phone,screen,raceId);
+      if(raceId!==screen.race.id || screen.race.state!=='submitted') {unchanged();return;}
+      await client.query("UPDATE races SET state='in progress' WHERE id=$1",[raceId]);
+      await client.query('DELETE FROM submit_presses WHERE race_id=$1',[raceId]);
+      await writeAuditNote(client,phone,screen.event.id,{action:'not-yet',message:`${phone.name} tapped Not yet on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
+    });
+  });
+}
+/** The race a Submit Race or Not yet was tapped on: null for the empty next race. */
+function tappedRace(body:unknown) {
+  const raceId=(body as {raceId?:unknown}|null)?.raceId;
+  if(raceId!==null && typeof raceId!=='string') throw new Refusal(400,'Choose a race');
+  return raceId;
+}
+/**
+ * Saves the current race: its saved mark (who pressed last, and when), and a history row per part recording who held
+ * each job then. The event's next race shows next, with the same holders.
+ */
+async function saveRace(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead) {
+  const race=screen.race,runners=JSON.stringify(race.parts.runners.value||[]);
+  await client.query("UPDATE races SET state='saved',saved_at=clock_timestamp(),saved_by=$2 WHERE id=$1",[race.id,phone.name]);
+  for(const job of jobs) {
+    const part=jobParts[job],{version,value}=race.parts[part];
+    await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,held_by) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(race_id,part,version) DO UPDATE SET held_by=EXCLUDED.held_by',[race.id,part,version,JSON.stringify(value),runners,screen.holds[job]?.name??null]);
+  }
 }
 /** The race and part version a write was made on: null and 0 for the empty next race. */
 function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {

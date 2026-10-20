@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { raceSetup } from './support/races.js';
 import { createApp } from '../src/server/app.js';
 let app: FastifyInstance;
 const post = (url: string, payload: object, remoteAddress?: string) => app.inject({method:'POST', url, payload, remoteAddress});
@@ -119,8 +120,9 @@ test('race parts saved by a signed-in profile name its author, and tapping the n
   await app.inject({method:'POST', url:'/api/day/confirm-events', headers:auth(scoring.token), payload:{}});
   const {profile} = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   const {token, phone} = (await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json();
-  const race = (await app.inject({method:'POST', url:'/api/races/check-in', headers:auth(token), payload:{eventCode:'R4', runners:[2001,2002]}})).json().race;
-  expect((await app.inject({method:'POST', url:`/api/races/${race.id}/times`, headers:auth(token), payload:{baseVersion:0, places:[1200,1300]}})).json().status).toBe('saved');
+  const setup = raceSetup(app), race = await setup.checkIn(token, 'R4', [2001,2002]);
+  await setup.order(token, 'R4', [2001,2002]);
+  await setup.times(token, 'R4', [1200,1300]);
   const read = (await app.inject({url:`/api/lead/races/${race.id}`, headers:auth(scoring.token)})).json();
   expect(read.history.filter((save: {part:string}) => save.part === 'times').map((save: {author:string|null}) => save.author)).toEqual([null, 'Sam Patel']);
   expect((await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json().phone.id).toBe(phone.id);
