@@ -12,7 +12,9 @@ test('Home\'s poll answers who the phone is and a lead\'s To check count; its ev
   const volunteer=(await people.volunteer('Sam')).token,lead=(await people.lead('Alex')).token;
   const home=(await call(volunteer,'/api/home')).json();
   expect(home.phone).toMatchObject({name:'Sam',level:'Volunteer'});
-  for(const gone of ['waiting','needsYou','events']) expect(home).not.toHaveProperty(gone);
+  for(const gone of ['needsYou','events']) expect(home).not.toHaveProperty(gone);
+  // An older build still open at the switch-over reads `waiting[job]`: an empty one keeps its Home from going white.
+  expect(home.waiting).toEqual({});
   // A kept warning reaches the lead's To check count once its race is saved.
   await setup.checkIn(volunteer,'R16',[3045],[3045]);
   expect((await call(lead,'/api/home')).json().needsYou).toBe(0);
