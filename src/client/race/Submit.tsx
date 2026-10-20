@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,jobs,submitBlocker,type RaceScreenRead } from '../../shared/race-screen.js';
+import { andList,jobs,submitBlocker,waitingOn,type RaceScreenRead } from '../../shared/race-screen.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { TakeOver,useRaceWrite,type Offer } from './Hold.js';
@@ -48,7 +48,7 @@ export function SubmitDock({screen,phoneId,lead,offer}:{screen:RaceScreenRead;ph
     if(!asking && !blocked && !error) return null;
     return <ActionBar stacked>{error && <p role="alert">{error}</p>}{blocked && <p className="race-blocked">{blocked}</p>}{submit(!!blocked)}</ActionBar>;
   }
-  const waiting=asked.filter(holder=>!pressed.some(other=>other.id===holder.id)),mine=pressed.some(holder=>holder.id===phoneId);
+  const waiting=waitingOn(asked,pressed),mine=pressed.some(holder=>holder.id===phoneId);
   // A lead saves without the presses still missing from others; their own is Submit Race.
   const others=waiting.filter(holder=>holder.id!==phoneId).map(holder=>holder.name);
   return <ActionBar stacked>{error && <p role="alert">{error}</p>}

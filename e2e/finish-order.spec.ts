@@ -1,4 +1,4 @@
-import { lookProblems,deleteCurrentRace,dragTo,enterWristband,expect,live,openRaceScreen,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
+import { lookProblems,deleteCurrentRace,dragTo,enterWristband,expect,live,openRaceScreen,ownEvent,readRaceScreen,signInThroughApi,startDrag,takeJob,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
 /** The finishing order being dragged, and its rows. */
 const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
 const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Drag to move ${number}`,exact:true});
@@ -121,5 +121,28 @@ test('dragging near the edge of the screen scrolls the finishing order',async({o
   await expect(orderRows(page).filter({hasText:String(runners[0])})).not.toContainText(/^1st/);
   await drag.drop();
   await expect(orderRows(page).first()).not.toContainText(String(runners[0]));
+  await deleteCurrentRace(request,code);
+});
+
+test('quick taps on a slow link: taps made while a write is on its way show at once and go in one next write, the latest winning',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`FQ-${project.toUpperCase()}`,name=`Finish queue ${project}`;
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(`Finish queue ${project}`);
+  await writeCheckIn(request,token,code,[2031,2032,2033]);await takeJob(request,token,code,'order');
+  await openRaceScreen(page,name);await orderCard(page).click();
+  // The first write is held on its way until the other two taps are made.
+  const sent:Array<{order:string[];version:number}>=[];
+  let release=()=>{};const held=new Promise<void>(resolve=>{release=resolve;});
+  await page.route('**/api/race-screen/*/order',async route=>{sent.push(route.request().postDataJSON());if(sent.length===1) await held;await route.continue();});
+  for(const number of [2031,2032,2033]) await page.getByRole('button',{name:String(number),exact:true}).click();
+  await expect(tableRows(page)).toHaveText([/^Place/,/^1st\s*2031/,/^2nd\s*2032/,/^3rd\s*2033/]);
+  expect(sent).toHaveLength(1);
+  release();
+  await expect.poll(async()=>(await readRaceScreen(request,token,code)).race.parts.finish.value?.order.length).toBe(3);
+  // One more write carries both later taps, at the version the first one was answered with.
+  expect(sent).toHaveLength(2);
+  expect(sent[0].order).toHaveLength(1);expect(sent[1].order).toHaveLength(3);
+  expect(sent[1].version).toBe(sent[0].version+1);
+  await expect(tableRows(page)).toHaveText([/^Place/,/^1st\s*2031/,/^2nd\s*2032/,/^3rd\s*2033/]);
   await deleteCurrentRace(request,code);
 });

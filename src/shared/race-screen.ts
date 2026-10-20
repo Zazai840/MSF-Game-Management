@@ -1,6 +1,6 @@
 import type { DayEvent } from './day.js';
 import { ordinal } from './ordinal.js';
-import { raceLabel,type RaceRead } from './races.js';
+import { raceLabel,type FinishingOrder,type RaceRead,type Runner } from './races.js';
 import { wrongTimes } from './wrong-times.js';
 /** An event's current race: its latest race not yet saved or deleted, or else the next one, not stored until its first check-in (id null, empty parts). */
 export type CurrentRace=Pick<RaceRead,'kind'|'number'|'state'|'parts'|'final'> & {id:string|null};
@@ -57,6 +57,13 @@ export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>):string|null
   if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no wristband`;
   const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
+}
+/** Those asked to press Submit Race who have not pressed yet. */
+export const waitingOn=(asked:readonly Holder[],pressed:readonly Pick<Holder,'id'>[])=>asked.filter(holder=>!pressed.some(other=>other.id===holder.id));
+/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
+export function onlyRunners(finish:FinishingOrder,runners:readonly Runner[]):FinishingOrder {
+  const on=(id:string)=>runners.some(runner=>runner.id===id);
+  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
 }
 /** "Sam", "Sam and Jo", "Sam, Priya and Jo". */
 export const andList=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`;

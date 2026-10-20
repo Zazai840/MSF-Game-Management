@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import type { RaceScreenRead } from '../../shared/race-screen.js';
+import { onlyRunners,type RaceScreenRead } from '../../shared/race-screen.js';
 import type { Runner } from '../../shared/races.js';
 import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits } from '../../shared/time-entry.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
@@ -45,7 +45,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   const finish=race.parts.finish.value,shown:OrderColumn=pending||{order:finish?.order||[],didNotFinish:finish?.didNotFinish||[],didNotRun:[]};
   const runners=(race.parts.runners.value||[]).filter(runner=>!shown.didNotRun.includes(runner.id)),byId=new Map(runners.map(runner=>[runner.id,runner]));
   // A runner check-in has just taken off drops out, and later places move up, as the server does.
-  const order=shown.order.filter(id=>byId.has(id)),didNotFinish=shown.didNotFinish.filter(id=>byId.has(id));
+  const {order,didNotFinish}=onlyRunners(shown,runners);
   const unplaced=runners.filter(runner=>!order.includes(runner.id) && !didNotFinish.includes(runner.id));
   const change=(next:Partial<OrderColumn>)=>void send({order,didNotFinish,didNotRun:shown.didNotRun,...next});
   // A No finisher mark (only ever at the bottom, from the old Times job or a lead) is no time here.

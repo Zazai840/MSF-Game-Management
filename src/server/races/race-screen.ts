@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { andList,currentRaceLabel,jobWords,jobs,submitBlocker,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
-import type { FinishingOrder,RacePartName,Runner } from '../../shared/races.js';
+import { andList,currentRaceLabel,jobWords,jobs,onlyRunners,submitBlocker,waitingOn,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
+import type { RacePartName,Runner } from '../../shared/races.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
@@ -53,9 +53,9 @@ export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
   const presses=(await db.query("SELECT p.race_id,p.sign_in_id FROM submit_presses p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1 AND r.state='submitted'",[dayId])).rows;
   return {revision,events:events.map(event=>{
     const race=current.get(event.id)!,own=holds.get(event.id)||{},stage=stageForRace({kind:race.kind,event});
-    const waitingOn=race.state==='submitted'?askedToSubmit(race,own).filter(holder=>!presses.some(press=>press.race_id===race.id && press.sign_in_id===holder.id)).map(holder=>holder.name):[];
+    const waiting=race.state==='submitted'?waitingOn(askedToSubmit(race,own),presses.filter(press=>press.race_id===race.id).map(press=>({id:press.sign_in_id}))).map(holder=>holder.name):[];
     return {code:event.code,name:event.name,section:event.section,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
-      started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn,done:stages.some(item=>item.eventId===event.id && item.stage===stage)};
+      started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn:waiting,done:stages.some(item=>item.eventId===event.id && item.stage===stage)};
   })};
 }
 const hasEntries=(race:CurrentRace,job:Job)=>{const value=race.parts[jobParts[job]].value;return value!==null && (!Array.isArray(value) || value.length>0);};
@@ -254,8 +254,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await requireSubmittable(client,phone,screen,raceId);
       // Watchers (and a lead holding nothing) are not asked; with nobody left to ask, anyone's press saves it.
       if(screen.asked.length && !screen.asked.some(holder=>holder.id===phone.id)) throw new Refusal(409,"Only the people doing this race's jobs submit it");
-      const pressed=[...screen.pressed.map(holder=>holder.id),phone.id];
-      if(screen.asked.every(holder=>pressed.includes(holder.id))) {await saveRace(client,phone,screen);return;}
+      if(!waitingOn(screen.asked,[...screen.pressed,phone]).length) {await saveRace(client,phone,screen);return;}
       const press=await client.query('INSERT INTO submit_presses(race_id,sign_in_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[raceId,phone.id]);
       if(screen.race.state==='in progress') await client.query("UPDATE races SET state='submitted' WHERE id=$1",[raceId]);
       else if(!press.rowCount) unchanged();
@@ -267,7 +266,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     const raceId=tappedRace(request.body);
     return write(phone,code(request),async(client,screen)=>{
       await requireSubmittable(client,phone,screen,raceId);
-      const waiting=screen.asked.filter(holder=>holder.id!==phone.id && !screen.pressed.some(other=>other.id===holder.id));
+      const waiting=waitingOn(screen.asked,[...screen.pressed,phone]);
       await saveRace(client,phone,screen);
       await client.query('DELETE FROM job_holds WHERE event_id=$1 AND sign_in_id=ANY($2)',[screen.event.id,waiting.map(holder=>holder.id)]);
       await writeAuditNote(client,phone,screen.event.id,{action:'save-as-lead',message:`Saved by ${phone.name}${waiting.length?` without ${andList(waiting.map(holder=>holder.name))}'s Submit`:''} on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
@@ -325,9 +324,4 @@ function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {
 async function dropFromOrder(client:pg.PoolClient,screen:RaceScreenRead,runners:readonly Runner[]) {
   const finish=screen.race.parts.finish.value,left=finish && onlyRunners(finish,runners);
   if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),screen.race.id]);
-}
-/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
-function onlyRunners(finish:FinishingOrder,runners:readonly Runner[]):FinishingOrder {
-  const on=(id:string)=>runners.some(runner=>runner.id===id);
-  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
 }
