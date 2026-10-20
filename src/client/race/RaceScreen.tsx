@@ -10,7 +10,7 @@ import './race.css';
  * The race screen: an event's current race, live from its stream, worked together. Once submitted, the cards give
  * way to its results. Once saved, the event's next race shows here with "Heat 1 saved" over it.
  */
-export function RaceScreen({eventCode,phoneId}:{eventCode:string;phoneId:string}) {
+export function RaceScreen({eventCode,phoneId,lead}:{eventCode:string;phoneId:string;lead:boolean}) {
   const {snapshot,error,offer}=useLive<RaceScreenRead>(`live/race-screen/${encodeURIComponent(eventCode)}`);
   if(!snapshot) return error?<p role="alert">{error}</p>:<p>Opening…</p>;
   const {event,race,lastSaved}=snapshot;
@@ -25,6 +25,6 @@ export function RaceScreen({eventCode,phoneId}:{eventCode:string;phoneId:string}
       <OrderAndTimesCard screen={snapshot} phoneId={phoneId} offer={offer}/>
     </div>
     {race.state!=='in progress' && <ResultsCard screen={snapshot} phoneId={phoneId} offer={offer}/>}
-    {!snapshot.stageComplete && race.state!=='saved' && <SubmitDock screen={snapshot} phoneId={phoneId} offer={offer}/>}
+    {!snapshot.stageComplete && race.state!=='saved' && <SubmitDock screen={snapshot} phoneId={phoneId} lead={lead} offer={offer}/>}
   </section>;
 }

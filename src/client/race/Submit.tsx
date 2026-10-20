@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,jobs,submitBlocker,type RaceScreenRead } from '../../shared/race-screen.js';
 import { formatTime } from '../../shared/time-entry.js';
@@ -32,18 +33,26 @@ export function ResultsCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneI
 /**
  * Submit Race, docked at the bottom of the screen. In progress, it shows why it is blocked under it. Once submitted it
  * says who it is waiting on, with Submit Race for those still to press and Not yet for anyone. The last press saves.
+ * A lead also has Save as lead, which saves after a confirm without the presses still missing.
  */
-export function SubmitDock({screen,phoneId,offer}:{screen:RaceScreenRead;phoneId:string;offer:Offer}) {
+export function SubmitDock({screen,phoneId,lead,offer}:{screen:RaceScreenRead;phoneId:string;lead:boolean;offer:Offer}) {
   const {race,asked,pressed}=screen;
   const {busy,error,write}=useRaceWrite(screen.event.code,offer);
+  const [confirming,setConfirming]=useState(false);
   const submit=(blocked=false)=><button disabled={busy || blocked} onClick={()=>void write('submit',{raceId:race.id})}>Submit Race</button>;
   if(race.state==='in progress') {
     const blocked=submitBlocker(race);
     return <ActionBar stacked>{error && <p role="alert">{error}</p>}{blocked && <p className="race-blocked">{blocked}</p>}{submit(!!blocked)}</ActionBar>;
   }
   const waiting=asked.filter(holder=>!pressed.some(other=>other.id===holder.id)),mine=pressed.some(holder=>holder.id===phoneId);
+  // A lead saves without the presses still missing from others; their own is Submit Race.
+  const others=waiting.filter(holder=>holder.id!==phoneId).map(holder=>holder.name);
   return <ActionBar stacked>{error && <p role="alert">{error}</p>}
     <p className="race-waiting" role="status">{waiting.length?`${mine?'You submitted. ':''}Waiting on ${andList(waiting.map(holder=>holder.id===phoneId?'you':holder.name))}`:'Nobody else to wait on: Submit Race saves it'}</p>
     <div className="race-dock-row">{(!mine || !waiting.length) && submit()}<button className="button-secondary" disabled={busy} onClick={()=>void write('not-yet',{raceId:race.id})}>Not yet</button></div>
+    {lead && others.length>0 && (confirming?<div className="warning-box">
+      <p>{andList(others)} {others.length===1?"hasn't":"haven't"} submitted. Save anyway?</p>
+      <div className="warning-actions"><button disabled={busy} onClick={()=>{setConfirming(false);void write('save-as-lead',{raceId:race.id});}}>Save anyway</button><button className="button-secondary" onClick={()=>setConfirming(false)}>Cancel</button></div>
+    </div>:<button className="button-secondary" disabled={busy} onClick={()=>setConfirming(true)}>Save as lead</button>)}
   </ActionBar>;
 }

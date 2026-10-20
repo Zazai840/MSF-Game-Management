@@ -79,12 +79,15 @@ test('typed final additions and corrected numbers keep actual eligibility warnin
  const entry=detail.results.finalResults.leaderboard[0];const corrected=await call(lead,`/api/lead/races/${id}/runners/${entry.entryId}/correct-number`,{expectedWristband:1023,wristband:2010,keepWarnings:true});expect(corrected.statusCode).toBe(200);expect(corrected.json().results.checkSheet.worthALook).toHaveLength(2);expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
 });
 test('authoritative final runner publications keep absence aligned through lead removal and Didn\'t run',async()=>{
- const {lead,volunteer,setup}=await start([[1023,1088]]);const detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json();const id=detail.results.finalResults.raceId;let race=(await finalRead(volunteer));
- const removed=race.parts.runners.value[1];await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[{entryId:race.parts.runners.value[0].id,wristband:1023}]});race=(await finalRead(volunteer));expect(race.final.entries.find((entry:any)=>entry.finalEntryId===removed.id).absent).toBe(true);
- // Marked Here again, then the order holder says 1088 didn't run: the final's line-up shows them absent.
- await markAbsent(volunteer,[]);
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json();const id=detail.results.finalResults.raceId;
+ // The order holder says 1088 didn't run: the final's line-up shows them absent, until marked Here again.
  await setup.order(volunteer,'R3',[1023],{didNotRun:[1088]});expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.entries[1].absent).toBe(true);
  await markAbsent(volunteer,[]);expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.entries[1].absent).toBe(false);
+ // Once the final is saved, a lead taking a runner off marks them absent too.
+ await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
+ const race=(await call(lead,`/api/lead/races/${id}`)).json().race,removed=race.parts.runners.value[1];
+ expect((await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[{entryId:race.parts.runners.value[0].id,wristband:1023}]})).statusCode).toBe(200);
+ expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.entries.find((entry:any)=>entry.finalEntryId===removed.id).absent).toBe(true);
 });
 test('a stale Here / Absent list is not saved, and a lead\'s corrected number stays through Absent and back to Here',async()=>{
  const {lead,volunteer}=await start([[1023,1088]]);const detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json(),id=detail.results.finalResults.raceId;

@@ -14,6 +14,10 @@ import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { raceLabel } from '../../shared/races.js';
+/** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
+function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
+  if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
+}
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('POST','/api/lead/races/:id/times','Lead',async(request,_reply,phone)=>{
@@ -25,6 +29,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
       const count=race.parts.runners.value?.length||0;
@@ -77,6 +82,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
       const runners=race.parts.runners.value.map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
@@ -105,6 +111,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=race.parts.runners.value||[],otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
       const changed:string[]=[];
@@ -146,6 +153,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
       if(value.baseVersion!==race.parts.finish.version || value.runnersVersion!==race.parts.runners.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
       if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(runner=>runner.wristband===number))) throw new Refusal(400,unclassified);

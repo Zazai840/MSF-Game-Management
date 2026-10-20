@@ -1,4 +1,4 @@
-import { lookProblems,recordRace,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
+import { lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -100,4 +100,25 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
   await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expect(saved(page)).toBeVisible();
   await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2127'})).toHaveText(/^2nd\s*2127\s*13\.10$/);
+});
+
+test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
+  const code=`IP-${info.project.name.slice(0,3).toUpperCase()}`,token=process.env.E2E_SCORING_TOKEN!;
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  await writeCheckIn(page.request,token,code,[2131,2132]);
+  const {race}=await writeOrder(page.request,token,code,[2131,2132]);
+  created.push(race.id!);
+  await openRace(page,code,`In progress lead ${info.project.name}`,race.number);
+  await expect(page.getByText('In progress - open the race screen',{exact:true})).toBeVisible();
+  for(const tool of ['Correct times','Correct finishing order','Correct runner list','Re-run race']) await expect(page.getByRole('button',{name:tool,exact:true})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-in-progress.png'),fullPage:true});
+  await page.getByRole('button',{name:'Runner 2132',exact:true}).click();
+  await page.getByRole('button',{name:'Disqualify',exact:true}).click();
+  await page.getByLabel('Reason',{exact:true}).selectOption({index:1});
+  await page.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(saved(page)).toBeVisible();
+  await page.getByRole('button',{name:'Delete race',exact:true}).click();
+  await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();
 });
