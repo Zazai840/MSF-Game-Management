@@ -136,7 +136,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     </div>}
     {timing && (typing?<div className="race-order">
       <h3 className="race-question">{ordinal(target+1)} place time?</h3>
-      <NumberEntry label="Place time" placeholder="Digits only, e.g. 1234" value={padDigits} held={held} onChange={digits=>setPad(digits,retype)} onNext={sendTime}
+      <NumberEntry inline label="Place time" placeholder="Digits only, e.g. 1234" value={padDigits} held={held} onChange={digits=>setPad(digits,retype)} onNext={sendTime}
         selectKey={`${race.id}:${target}:${retype===null?'next':'retype'}`} display={<p className="time-shows">Shows as <strong>{formatTimeDigits(padDigits)}</strong></p>}
         extraAction={retype!==null && <button className="button-secondary" onClick={()=>setPad('',null)}>Cancel</button>}/>
       {held && <div className="warning-box" role="alert">

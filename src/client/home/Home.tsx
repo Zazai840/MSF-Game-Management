@@ -1,28 +1,18 @@
 import type { ReactNode } from 'react';
-import type { Job, WaitingCounts } from '../../shared/domain.js';
 import { currentRaceLabel,type HomeEvent } from '../../shared/race-screen.js';
 
 const icon=(paths:ReactNode)=><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
-/** What each job is called on screen; the internal job names stay Start line, Finish order and Times. */
-const jobs:{job:Job;title:string;explanation:string;counted:boolean;icon:ReactNode}[]=[
-  {job:'Start line',title:'Check in runners',explanation:"Type each runner's wristband number before the race starts",counted:false,icon:icon(<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>)},
-  {job:'Finish order',title:'Record the finishing order',explanation:'Tap runners in the order they crossed the line',counted:true,icon:icon(<><path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></>)},
-  {job:'Times',title:'Enter times',explanation:"Type each place's time from the timer",counted:true,icon:icon(<><circle cx="12" cy="14" r="7"/><path d="M12 14l3-2"/><path d="M10 3h4"/><path d="M12 3v4"/></>)}
-];
-export const racesReady=(count:number)=>`${count} ${count===1?'race':'races'} ready`;
 
-/** Home: the day's switched-on events, one heading per event name in programme order, a tile per Section opening its race screen. The job buttons stay below until Submit Race retires the job screens. */
-export function Home({events,waiting,onEvent,onJob}:{events:HomeEvent[];waiting:WaitingCounts;onEvent:(code:string)=>void;onJob:(job:Job)=>void}) {
+/** Home: the day's switched-on events, one heading per event name in programme order, a tile per Section opening its race screen. */
+export function Home({events,onEvent}:{events:HomeEvent[];onEvent:(code:string)=>void}) {
   return <section className="home"><h1>Which event are you at?</h1>
     {[...new Set(events.map(event=>event.name))].map(name=><section className="event-sections" key={name} aria-label={name}><h2>{name}</h2><div className="section-choices">
       {events.filter(event=>event.name===name).map(event=><button key={event.code} aria-label={`${name} ${event.section} · ${currentRaceLabel(event.race)}`} onClick={()=>onEvent(event.code)}>{event.section}<small>{currentRaceLabel(event.race)}</small></button>)}
     </div></section>)}
-    <h2 className="home-jobs-title">What's your job for this race?</h2><div className="jobs">
-    {jobs.map(({job,title,explanation,counted,icon})=><JobButton key={job} icon={icon} title={title} explanation={explanation} badge={counted && waiting[job]>0?<span className="badge">{racesReady(waiting[job])}</span>:null} onClick={()=>onJob(job)}/>)}
-  </div></section>;
+  </section>;
 }
 
-/** A big menu button: icon tile, title, one line of explanation, optional badge, chevron. Home jobs and the Dashboard menu share it. */
+/** A big menu button: icon tile, title, one line of explanation, optional badge, chevron. The Dashboard menu uses it. */
 export function JobButton({icon,title,explanation,badge,onClick}:{icon:ReactNode;title:string;explanation:string;badge?:ReactNode;onClick:()=>void}) {
   return <button className="job-button" onClick={onClick}>
     <span className="job-icon" aria-hidden="true">{icon}</span>

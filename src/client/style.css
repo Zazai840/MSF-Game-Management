@@ -26,9 +26,8 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 .section-choices {display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;}
 .section-choices button {display:flex; flex-direction:column; align-items:flex-start; gap:2px; background:var(--surface); color:var(--navy); border-color:var(--surface); text-align:left;}
 .section-choices small {color:var(--muted); font-weight:700;}
-.home-jobs-title {margin:1.75rem 0 0;}
 
-/* Home job buttons (also the look of the Dashboard menu): icon, title, one line of explanation, optional badge, chevron. */
+/* Menu buttons (the Dashboard menu): icon, title, one line of explanation, optional badge, chevron. */
 .home h1 {margin-bottom:4px;}
 .jobs {display:grid; gap:14px; margin-top:14px;}
 .job-button {display:flex; align-items:center; gap:14px; width:100%; padding:18px 16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface); border-radius:var(--radius-card);}

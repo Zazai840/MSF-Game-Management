@@ -1,6 +1,6 @@
 import { useRef,useState } from 'react';
 import { ApiFailure,api } from '../api.js';
-import { jobWords,type RaceJob,type RaceScreenRead } from '../../shared/race-screen.js';
+import { jobWords,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
 /** Hands a write's answer (the race screen as it then stands) to the screen, which keeps the newest. */
 export type Offer=(next:RaceScreenRead)=>void;
 /**
@@ -46,7 +46,7 @@ export function useColumnWrites<Column extends object>(write:ReturnType<typeof u
   return {pending,sending,send};
 }
 /** Take over beside a job's holder. It confirms inline in the card first. */
-export function TakeOver({job,holder,busy,onConfirm}:{job:RaceJob;holder:string;busy:boolean;onConfirm:()=>void}) {
+export function TakeOver({job,holder,busy,onConfirm}:{job:Job;holder:string;busy:boolean;onConfirm:()=>void}) {
   const [asking,setAsking]=useState(false);
   if(!asking) return <button className="button-quiet race-take-over" disabled={busy} onClick={()=>setAsking(true)}>Take over {jobWords[job]}</button>;
   return <div className="warning-box">

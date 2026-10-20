@@ -46,7 +46,7 @@ export const phoneStorage = {
   /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
   waiting:():Waiting|null=>{try {return JSON.parse(localStorage.getItem(`${prefix}waiting`)||'null');} catch {return null;}},
   rememberWaiting:(waiting:Waiting|null)=>waiting?localStorage.setItem(`${prefix}waiting`,JSON.stringify(waiting)):localStorage.removeItem(`${prefix}waiting`),
-  /** A new session drops the old one's drafts but keeps the pass and profiles. */
+  /** A new session drops what the old one kept but keeps the pass and profiles. */
   signIn:(signedInToken:string,profileId:string|null)=>{
     erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);
     if(profileId) localStorage.setItem(`${prefix}profile`,profileId);
@@ -68,7 +68,7 @@ export const phoneStorage = {
     if(reason==='moved' && profile) forgetProfile(profile);
     epoch++;
   },
-  /** Sign out: the pass, session and drafts go, the profiles stay, and every tab goes to the password screen. */
+  /** Sign out: the pass and session go, the profiles stay, and every tab goes to the password screen. */
   signOut:()=>{erase(keptAfter['signed-out']);changed(false);}
 };
 // Tabs share this app's storage. A changed session marker also invalidates
@@ -117,7 +117,7 @@ export async function apiDownload(path:string):Promise<{blob:Blob;filename:strin
 }
 export async function startNewDay(confirmation:string) {
   // A lost reply still means the server may have committed. Invalidate already
-  // pending responses before sending, while retaining drafts until confirmed.
+  // pending responses before sending, while keeping the session until confirmed.
   if(resetPending) throw new StaleRequest();
   epoch++;resetPending=true;
   try {

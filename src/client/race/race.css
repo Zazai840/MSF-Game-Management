@@ -1,5 +1,6 @@
 /* The race screen: the race heading, then its cards, each opened by a side arrow. Tokens and shared pieces come from theme.css. */
-.race-screen {display:flex; flex-direction:column; gap:14px;}
+.race-screen,.race-cards {display:flex; flex-direction:column; gap:14px;}
+.race-cards[hidden] {display:none;}
 .race-heading {display:flex; flex-direction:column; gap:2px;}
 .race-heading h1 {margin:0;}
 .race-line {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:700;}
@@ -22,10 +23,7 @@
 .race-chips button {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border:0; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-variant-numeric:tabular-nums;}
 .race-chips .kept-dot {width:9px; height:9px; border-radius:50%; background:var(--amber-line); flex:none;}
 .race-hint {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
-.race-card-body .warning-box p {margin:0 0 10px;}
 .race-card-body .warning-box p:last-child,.race-card-body p[role=alert] {margin:0;}
-.race-card-body .warning-actions {display:flex; gap:10px;}
-.race-card-body .warning-actions button {flex:1;}
 .race-take-over {align-self:flex-start;}
 
 /* Check-in on a final: one row per seeded runner, Here or Absent. An absent runner's number is struck through. */
@@ -90,5 +88,14 @@
 .race-table th:first-child {width:64px;}
 .race-time {display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:calc(100% + 24px); min-height:50px; margin:0 -12px; padding:0 12px; border:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; text-align:left;}
 .race-time:disabled {opacity:1; cursor:default;}
-.race-card-body .time-shows {margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted);}
-.race-card-body .time-shows strong {color:var(--text); font-variant-numeric:tabular-nums;}
+
+/* Submit Race: the dock at the bottom, the results card while submitted, and the note once a race is saved. */
+.race-saved {margin:0; padding:10px 14px; border-radius:var(--radius); background:var(--green-fill); color:var(--green-text); font-size:var(--text-small); font-weight:800;}
+.race-results h2 {margin:0;}
+.race-results .race-card-body {padding-top:16px;}
+.race-blocked,.race-waiting {margin:0; text-align:center; font-size:var(--text-small); font-weight:700;}
+.race-blocked {color:var(--muted);}
+.race-waiting {color:var(--navy);}
+.race-dock-row {display:flex; gap:10px;}
+.race-dock-row > * {flex:1; min-width:0;}
+.action-bar p[role=alert] {margin:0;}

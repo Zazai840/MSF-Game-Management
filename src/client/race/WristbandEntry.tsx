@@ -42,7 +42,7 @@ export function WristbandEntry({event,raceId,taken,busy,label='Wristband number'
   const fix=()=>{setCurrent('');setPending([]);setRefused('');};
   return <>
     {error && <p role="alert">{error}</p>}
-    <NumberEntry label={label} placeholder="e.g. 205" value={current} held={held} busy={busy || checking} extraAction={extraAction} onChange={digits=>{setCurrent(digits);setError('');}} onNext={()=>void next()}/>
+    <NumberEntry inline label={label} placeholder="e.g. 205" value={current} held={held} busy={busy || checking} extraAction={extraAction} onChange={digits=>{setCurrent(digits);setError('');}} onNext={()=>void next()}/>
     {held && <div className="warning-box" role="alert">
       {refused?<p>{refused}</p>:pending.map(warning=><p key={warning.kind}>{plainWristbandWarning(warning,Number(current),event.section)}</p>)}
       <div className="warning-actions"><button onClick={fix}>Fix number</button>{!refused && <button className="button-secondary" disabled={busy} onClick={()=>void save(true)}>Keep</button>}</div>

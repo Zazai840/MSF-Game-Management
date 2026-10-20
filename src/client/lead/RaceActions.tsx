@@ -12,7 +12,6 @@ import { ordinal } from '../../shared/ordinal.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
-import '../jobs/jobs.css';
 import './race-page.css';
 export interface RaceActionsProps {race:LeadRaceRead['race'];onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void|Promise<void>;onRemoved:()=>void}
 export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps) {
