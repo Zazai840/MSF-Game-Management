@@ -1,5 +1,5 @@
 import { raceRecording } from '../../shared/recording.js';
-import type { LeadRaceRead } from '../../shared/race-clashes.js';
+import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';
@@ -34,7 +34,7 @@ export function RaceActions({race,onSaved,onRefresh,onRemoved}:RaceActionsProps)
 }
 function RaceLifecycle({action,race,busy,onSave,onClose}:{action:'delete'|'restore'|'re-run';race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown,permanent?:boolean)=>void;onClose:()=>void}) {
   const [comment,setComment]=useState('');
-  return <div className="sheet-stack">{action==='re-run'?<p>Call a re-run as a last resort. This record moves to Deleted races; a new {race.kind==='heat'?'heat':race.kind==='final'?'final':'race'} appears at the start line with the same runners.</p>:action==='restore'?<p>Restore {raceLabel(race)} and include its record in this event again?</p>:<p>{race.deleted?'Delete this record permanently?':'Move this race to Deleted races, or delete it permanently?'} Permanent deletion cannot be undone. Audit notes remain.</p>}
+  return <div className="sheet-stack">{action==='re-run'?<p>Call a re-run as a last resort. This record moves to Deleted races; a new {race.kind==='heat'?'heat':race.kind==='final'?'final':'race'} becomes the event's current race on the race screen, with the same runners checked in.</p>:action==='restore'?<p>Restore {raceLabel(race)} and include its record in this event again?</p>:<p>{race.deleted?'Delete this record permanently?':'Move this race to Deleted races, or delete it permanently?'} Permanent deletion cannot be undone. Audit notes remain.</p>}
     <label>Comment (optional)<textarea maxLength={1000} disabled={busy} value={comment} onChange={event=>setComment(event.target.value)}/></label>
     {action==='delete'?<>{!race.deleted && <button disabled={busy} onClick={()=>onSave({permanent:false,comment})}>Move to Deleted races</button>}<button disabled={busy} onClick={()=>onSave({permanent:true,comment},true)}>Confirm permanent deletion</button></>:<button disabled={busy} onClick={()=>onSave({comment})}>{action==='re-run'?'Confirm re-run':'Confirm restore'}</button>}
     <button className="button-secondary" disabled={busy} onClick={onClose}>Keep current record</button>

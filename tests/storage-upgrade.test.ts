@@ -17,14 +17,28 @@ test('the boot script starts on a database an older build left, competing saves 
   const old=new pg.Client({connectionString:databaseUrl});await old.connect();
   await old.query('DROP TABLE submit_presses');
   await old.query('ALTER TABLE races DROP COLUMN state, DROP COLUMN saved_at, DROP COLUMN saved_by');
-  await old.query('ALTER TABLE race_part_history DROP COLUMN held_by');
+  await old.query('ALTER TABLE race_part_history DROP COLUMN held_by, DROP COLUMN IF EXISTS saved_at, DROP COLUMN IF EXISTS corrected_by');
+  await old.query(`CREATE TABLE IF NOT EXISTS race_part_saves (
+    id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+    race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE, part text NOT NULL,
+    base_version integer NOT NULL, version integer NOT NULL, author_name text, saved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    value jsonb, runners jsonb NOT NULL, before_runners jsonb NOT NULL, active boolean NOT NULL DEFAULT true)`);
+  await old.query(`INSERT INTO race_part_history(race_id,part,version,value,runners) SELECT race_id,part,version,value,'[]' FROM race_parts WHERE race_id=$1 ON CONFLICT DO NOTHING`,[race.id]);
   await old.query(`INSERT INTO race_part_saves(id,race_id,part,base_version,version,author_name,value,runners,before_runners) VALUES(gen_random_uuid(),$1,'times',0,1,'Jo','{"places":[1200,1300],"outOfOrder":false}','[]','[]'),(gen_random_uuid(),$1,'times',0,1,'Ali','{"places":[1250,1300],"outOfOrder":false}','[]','[]')`,[race.id]);
   await old.end();
   app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
   try {
     const setup=raceSetup(app),screen=await setup.screen(owner,'R4');
     expect(screen.race).toMatchObject({id:race.id,state:'in progress'});
+    // The competing saves are gone with their table; the older build's history rows stay, with no time or author.
+    const db=new pg.Client({connectionString:databaseUrl});await db.connect();
+    try {expect((await db.query("SELECT to_regclass('race_part_saves') AS saves")).rows).toEqual([{saves:null}]);} finally {await db.end();}
+    const lead=await app.inject({url:`/api/lead/races/${race.id}`,headers:{authorization:`Bearer ${owner}`}});
+    expect(lead.statusCode).toBe(200);expect(lead.json()).not.toHaveProperty('clashes');
+    expect(lead.json().history).toContainEqual({part:'runners',version:1,author:null,at:null});
     await setup.order(owner,'R4',[2001,2002]);await setup.times(owner,'R4',[1200,1300]);
     expect(await setup.submit(owner,'R4')).toMatchObject({race:{id:null,number:2},lastSaved:{number:1,by:'Aisha'}});
+    const history=(await app.inject({url:`/api/lead/races/${race.id}`,headers:{authorization:`Bearer ${owner}`}})).json().history;
+    expect(history.filter((row:{at:string|null})=>row.at).map(({part,author}:{part:string;author:string})=>[part,author])).toEqual([['runners','Aisha'],['finish','Aisha'],['times','Aisha']]);
   } finally {await app.close();}
 });

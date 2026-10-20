@@ -73,6 +73,12 @@ test('a lead corrects a number on the phone number pad: digits only, Enter check
   await sheet.getByRole('button',{name:'Save correction',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expect(saved(page)).toBeVisible();
   await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
+  // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
+  await page.getByText('Saved versions (4)',{exact:true}).click();
+  const versions=page.locator('.race-page details li');
+  await expect(versions.nth(3)).toContainText(`Number lead ${info.project.name} · Runners · `);
+  expect(await versions.allTextContents()).toEqual(expect.arrayContaining([expect.stringMatching(/ · Finishing order · \d/),expect.stringMatching(/ · Times · \d/)]));
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('saved-versions.png'),fullPage:true});
 });
 
 test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{

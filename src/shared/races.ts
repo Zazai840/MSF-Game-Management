@@ -5,7 +5,11 @@ import type { WristbandWarning } from './wristband-checks.js';
 export interface Runner { id:string; wristband:number; addedAtFinish?:boolean; warnings?:Array<WristbandWarning & {kept:boolean}> }
 export interface FinishingOrder { order:string[]; didNotFinish:string[] }
 export interface RaceRecording { countMismatch:string|null; readyForRanking:boolean; results:Array<{entryId:string;wristband:number;place:number|null;time:number|null}> }
-export interface RacePart<T> { version:number; value:T|null; clash?:true }
+export interface RacePart<T> { version:number; value:T|null }
+export const raceParts=['runners','finish','times'] as const;
+export type RacePartName=typeof raceParts[number];
+export type PartValue=Runner[]|FinishingOrder|RaceTimes|null;
+export const partLabel=(part:RacePartName)=>part==='runners'?'Runners':part==='finish'?'Finishing order':'Times';
 /** A race moves in progress -> submitted (the first Submit press) -> saved (the last required press). Only saved races count. */
 export type RaceState='in progress'|'submitted'|'saved';
 export interface RaceRead {

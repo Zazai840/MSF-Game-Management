@@ -83,16 +83,12 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     );
     -- Set on the rows written when a race is saved: who held the part's job then.
     ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS held_by text;
-    CREATE TABLE IF NOT EXISTS race_part_saves (
-      id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
-      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
-      part text NOT NULL CHECK (part IN ('runners','finish','times')),
-      base_version integer NOT NULL, version integer NOT NULL,
-      author_name text, saved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-      value jsonb, runners jsonb NOT NULL, before_runners jsonb NOT NULL, active boolean NOT NULL DEFAULT true
-    );
-    ALTER TABLE race_part_saves ADD COLUMN IF NOT EXISTS before_runners jsonb NOT NULL DEFAULT '[]';
-    CREATE INDEX IF NOT EXISTS race_part_candidates ON race_part_saves(race_id,part) WHERE active;
+    -- Lead corrections name the lead. Rows an older build kept per tap have no time.
+    ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS corrected_by text;
+    ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS saved_at timestamptz;
+    ALTER TABLE race_part_history ALTER COLUMN saved_at SET DEFAULT clock_timestamp();
+    -- One writer per job leaves no competing saves: older builds kept them here (ADR 0001).
+    DROP TABLE IF EXISTS race_part_saves;
     CREATE TABLE IF NOT EXISTS runner_rulings (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       entry_id text NOT NULL, disqualification jsonb,

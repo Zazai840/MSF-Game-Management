@@ -113,7 +113,7 @@ test('repeated wrong Olympics or owner passwords from one IP are slowed down', a
   expect((await post('/api/password', {password:'sign-in-owner'}, '192.0.2.1')).statusCode).toBe(200);
 });
 
-test('race parts saved by a signed-in profile name its author, and tapping the name again keeps the same sign-in row', async () => {
+test('the history of a saved race names who held each job, and tapping the name again keeps the same sign-in row', async () => {
   await start();
   const scoring = await owner();
   const pass = await olympicsPass(scoring.token);
@@ -123,8 +123,11 @@ test('race parts saved by a signed-in profile name its author, and tapping the n
   const setup = raceSetup(app), race = await setup.checkIn(token, 'R4', [2001,2002]);
   await setup.order(token, 'R4', [2001,2002]);
   await setup.times(token, 'R4', [1200,1300]);
-  const read = (await app.inject({url:`/api/lead/races/${race.id}`, headers:auth(scoring.token)})).json();
-  expect(read.history.filter((save: {part:string}) => save.part === 'times').map((save: {author:string|null}) => save.author)).toEqual([null, 'Sam Patel']);
+  const history = async () => (await app.inject({url:`/api/lead/races/${race.id}`, headers:auth(scoring.token)})).json().history;
+  // Taps before saving are not kept: the race's history starts when it is saved, naming who held each job.
+  expect(await history()).toEqual([]);
+  await setup.submit(token, 'R4');
+  expect((await history()).map(({part, author}: {part:string; author:string|null}) => [part, author])).toEqual([['runners','Sam Patel'],['finish','Sam Patel'],['times','Sam Patel']]);
   expect((await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json().phone.id).toBe(phone.id);
 });
 
