@@ -1,4 +1,4 @@
-import { deleteCurrentRace,enterWristband,expect,live,openRaceScreen,ownEvent,setHidden,test,writeCheckIn,type Page } from './fixtures.js';
+import { deleteCurrentRace,enterWristband,expect,goHome,live,lookProblems,openRaceScreen,ownEvent,setHidden,test,writeCheckIn,type Page } from './fixtures.js';
 const checkInCard=(page:Page)=>page.getByRole('button',{name:/^Check-in Wristbands/});
 const checkedIn=(page:Page)=>page.getByRole('list',{name:'Checked in'}).getByRole('listitem');
 /** On a slow network every "the other phone sees it" check waits this long. */
@@ -21,8 +21,24 @@ test('signal drop: once back online, phone B shows what phone A checked in while
   await b.context.setOffline(true);
   await writeCheckIn(request,a.token,code,[2101,2102]);
   await failures;
+  // B keeps what it last had, with a calm note that it is reconnecting.
+  await expect(b.page.getByRole('status').filter({hasText:'Connection lost - trying again'})).toBeVisible();
+  await expect(checkedIn(b.page)).toHaveText(['2101']);
+  await b.page.screenshot({path:info.outputPath('race-screen-connection-lost.png'),fullPage:true});
+  expect(await lookProblems(b.page)).toEqual([]);
   await b.context.setOffline(false);
   await expect(checkedIn(b.page)).toHaveText(['2101','2102'],live);
+  await expect(b.page.getByText('Connection lost - trying again',{exact:true})).toHaveCount(0);
+  // Home says so too.
+  await goHome(b.page);
+  await expect(b.page.getByRole('button',{name:new RegExp(`^${name} Girl Cubs · `)})).toBeVisible();
+  const homeFailure=b.page.waitForEvent('requestfailed',request=>request.url().includes('/api/live/home'));
+  await b.context.setOffline(true);await homeFailure;
+  await expect(b.page.getByRole('status').filter({hasText:'Connection lost - trying again'})).toBeVisible();
+  await b.page.screenshot({path:info.outputPath('home-connection-lost.png'),fullPage:true});
+  expect(await lookProblems(b.page)).toEqual([]);
+  await b.context.setOffline(false);
+  await expect(b.page.getByText('Connection lost - trying again',{exact:true})).toHaveCount(0,live);
   await deleteCurrentRace(request,code);
 });
 

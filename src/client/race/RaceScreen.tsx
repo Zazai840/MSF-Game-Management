@@ -17,6 +17,7 @@ export function RaceScreen({eventCode,phoneId,lead}:{eventCode:string;phoneId:st
   const saved=race.state==='saved'?race:race.id===null && lastSaved?.kind===race.kind && lastSaved.number===race.number-1?lastSaved:null;
   return <section className="race-screen">
     <div className="race-heading"><p className="race-line">{currentRaceLabel(race)} · {runnersText(race.parts.runners.value?.length||0)}</p><h1>{event.name} {event.section}</h1></div>
+    {error && <p role="status" className="calm-note">{error}</p>}
     {snapshot.stageComplete && <p role="status" className="warning-box">Stage complete - ask a lead</p>}
     {saved && <p role="status" className="race-saved">{currentRaceLabel(saved)} saved</p>}
     {/* Hidden, not gone, while the results show: each card stays as this phone left it for the next race. */}

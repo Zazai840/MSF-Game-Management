@@ -31,6 +31,8 @@ export function useLive<T extends {revision:number}>(path:string) {
       try {
         arm();
         const reader=(await apiResponse(path,undefined,mine.signal)).body!.pipeThrough(new TextDecoderStream()).getReader();
+        // Connected again: the note goes even if nothing changed meanwhile.
+        setError('');
         let rest='';
         for(;;) {
           const {value,done}=await reader.read();
@@ -41,14 +43,15 @@ export function useLive<T extends {revision:number}>(path:string) {
             if(data===null) continue;
             const next=JSON.parse(data) as T&{build?:string};
             if(!onThisBuild(next.build)) return;
-            if(newerSnapshot(held.current,next)) {held.current=next;failures=0;setSnapshot(next);setError('');}
+            if(newerSnapshot(held.current,next)) {held.current=next;failures=0;setSnapshot(next);}
           }
         }
       } catch(failure) {
         // A 401 has already sent the phone to sign in, and a changed session ends this screen; other refusals say why and stop.
         if(failure instanceof StaleRequest) return;
         if(failure instanceof ApiFailure && failure.status<500) {if(failure.status!==401) setError(failure.message);return;}
-        if(!mine.signal.aborted) setError('Could not connect - trying again');
+        // A phone holding a snapshot keeps showing it, with a calm note that it is reconnecting.
+        if(!mine.signal.aborted) setError(held.current?'Connection lost - trying again':'Could not connect - trying again');
       } finally {
         clearTimeout(watchdog);
         if(controller===mine) controller=null;

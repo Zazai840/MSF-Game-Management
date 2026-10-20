@@ -12,7 +12,7 @@ export function Home({onEvent}:{onEvent:(code:string)=>void}) {
   const {snapshot,error}=useLive<HomeSnapshot>('live/home');
   const events=snapshot?.events||[];
   return <section className="home"><h1>Which event are you at?</h1>
-    {!snapshot && (error?<p role="alert">{error}</p>:<p>Opening…</p>)}
+    {!snapshot?error?<p role="alert">{error}</p>:<p>Opening…</p>:error && <p role="status" className="calm-note">{error}</p>}
     {[...new Set(events.map(event=>event.name))].map(name=><section className="event-sections" key={name} aria-label={name}><h2>{name}</h2><div className="section-choices">
       {events.filter(event=>event.name===name).map(event=>{const status=homeStatus(event);return <button key={event.code} aria-label={`${name} ${event.section} · ${status}`} onClick={()=>onEvent(event.code)}>{event.section}<small>{status}</small></button>;})}
     </div></section>)}
