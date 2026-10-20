@@ -1,4 +1,4 @@
-import { checkIn,deleteCurrentRace,enterWristband,expect,live,lookProblems,openRaceScreen,ownEvent,recordFinishingOrder,recordTimes,setHidden,signInThroughApi,takeJob,test,writeCheckIn,type Page } from './fixtures.js';
+import { deleteCurrentRace,enterTime,enterWristband,expect,live,lookProblems,openRaceScreen,ownEvent,readRaceScreen,setHidden,signInThroughApi,submitRace,takeJob,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
 const checkInCard=(page:Page)=>page.getByRole('button',{name:/^Check-in Wristbands/});
 const orderCard=(page:Page)=>page.getByRole('button',{name:/^Order and Times/});
 const checkedIn=(page:Page)=>page.getByRole('list',{name:'Checked in'}).getByRole('listitem');
@@ -146,6 +146,8 @@ test('a phone on the race screen shows the check-in, order and times another pho
   const project=info.project.name,code=`LS-${project.toUpperCase()}`,name=`Live sprint ${project}`,scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   expect((await request.post('/api/day/events',{headers:scoring,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
   const sam=await openPhone(`Sam live ${project}`),jo=await signInThroughApi(request,`Jo live ${project}`);
+  // Jo does every job, so Sam only watches.
+  for(const job of ['check-in','order','times'] as const) await takeJob(request,jo,code,job);
   const page=sam.page;
   await page.getByRole('region',{name,exact:true}).getByRole('button',{name:`${name} Girl Cubs · Heat 1`,exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
@@ -156,23 +158,129 @@ test('a phone on the race screen shows the check-in, order and times another pho
   await expect(page.getByText('No runners checked in yet',{exact:true})).toBeVisible();
   let loads=0;page.on('load',()=>loads++);
 
-  const race=await checkIn(request,jo,code,[2041,2042]);
+  await writeCheckIn(request,jo,code,[2041,2042]);
   await expect(page.getByText('Heat 1 · 2 runners',{exact:true})).toBeVisible(live);
   await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2041','2042'],live);
-  await recordFinishingOrder(request,jo,race,{order:[2042,2041]});
+  await writeOrder(request,jo,code,[2042,2041]);
   const table=page.getByRole('table',{name:'Order and times'});
   await expect(table.getByRole('row')).toHaveText([/^Place\s*Wristband\s*Time$/,/^1st\s*2042\s*$/,/^2nd\s*2041\s*$/],live);
-  // One time for two finishers does not count yet, so Heat 1 stays on the screen.
-  await recordTimes(request,jo,race,[1234]);
+  // A placed wristband with no time blocks Submit Race, with the reason under it.
+  await writeTimes(request,jo,code,[1234]);
   await expect(table.getByRole('row')).toHaveText([/^Place/,/^1st\s*2042\s*12\.34$/,/^2nd\s*2041\s*$/],live);
+  await expect(page.getByText('Place 2 has no time',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toBeDisabled();
   await page.screenshot({path:info.outputPath('race-screen-live.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
-  // Once Heat 1 counts the event moves on: Heat 2 with empty cards.
-  await recordTimes(request,jo,race,[1234,1301],1);
-  await expect(page.getByText('Heat 2 · 0 runners',{exact:true})).toBeVisible(live);
+  // Once Heat 1 is saved the event moves on: Heat 2 with empty cards.
+  await writeTimes(request,jo,code,[1234,1301]);
+  await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled(live);
+  await submitRace(request,jo,code);
+  await expect(page.getByText('Heat 1 saved',{exact:true})).toBeVisible(live);
+  await expect(page.getByText('Heat 2 · 0 runners',{exact:true})).toBeVisible();
   await expect(page.getByText('No runners checked in yet',{exact:true})).toBeVisible();
   await expect(page.getByText('Places appear here once runners are checked in',{exact:true})).toBeVisible();
   expect(loads).toBe(0);
   await page.getByRole('button',{name:'Back to Home',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+  // Heat 1 is saved and Heat 2 is not stored yet, so there is nothing to delete.
+  await deleteCurrentRace(request,code);
+});
+
+/** Three phones worked one heat by API: Sam checked 2091 and 2092 in, Priya placed them, Jo timed them. */
+async function workedHeat(request:Parameters<typeof writeCheckIn>[0],code:string,sam:string,priya:string,jo:string) {
+  await writeCheckIn(request,sam,code,[2091,2092]);
+  await writeOrder(request,priya,code,[2091,2092]);
+  await writeTimes(request,jo,code,[1295,1312]);
+}
+const dockSays=(page:Page,text:string)=>expect(page.getByRole('status').filter({hasText:text})).toHaveText(text,live);
+
+test('Submit Race waits for every holder: once two have pressed, every phone shows "Waiting on Jo", and the results replace the cards',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`SW-${project.toUpperCase()}`,name=`Submit sprint ${project}`,jo=`Jo submit ${project}`;
+  await ownEvent(request,code,name);
+  const sam=await openPhone(`Sam submit ${project}`),priya=await openPhone(`Priya submit ${project}`),timer=await openPhone(jo),ali=await openPhone(`Ali submit ${project}`);
+  await writeCheckIn(request,sam.token,code,[2091,2092]);
+  await writeOrder(request,priya.token,code,[2091,2092]);
+  for(const phone of [sam,priya,timer,ali]) await openRaceScreen(phone.page,name);
+  // Blocked: the reason shows under Submit Race until the times are in.
+  await expect(sam.page.getByText('Place 1 has no time',{exact:true})).toBeVisible();
+  await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toBeDisabled();
+  await writeTimes(request,timer.token,code,[1295,1312]);
+  await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled(live);
+  await sam.page.getByRole('button',{name:'Submit Race',exact:true}).click();
+  await priya.page.getByRole('button',{name:'Submit Race',exact:true}).click();
+  await dockSays(sam.page,`You submitted. Waiting on ${jo}`);
+  await dockSays(priya.page,`You submitted. Waiting on ${jo}`);
+  await dockSays(ali.page,`Waiting on ${jo}`);
+  await dockSays(timer.page,'Waiting on you');
+  for(const phone of [sam,priya,timer,ali]) {
+    await expect(phone.page.getByRole('table',{name:'Results'}).getByRole('row')).toHaveText([/^Place\s*Wristband\s*Time$/,/^1st\s*2091\s*12\.95$/,/^2nd\s*2092\s*13\.12$/],live);
+    await expect(phone.page.getByRole('button',{name:/^Check-in Wristbands/})).toBeHidden();
+  }
+  // Those who pressed keep only Not yet; Jo and the watcher still have Submit Race.
+  await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
+  await expect(sam.page.getByRole('button',{name:'Not yet',exact:true})).toBeVisible();
+  await expect(timer.page.getByRole('button',{name:'Submit Race',exact:true})).toBeVisible();
+  await sam.page.screenshot({path:info.outputPath('submitted-waiting.png'),fullPage:true});
+  expect(await lookProblems(sam.page)).toEqual([]);
+  await timer.page.screenshot({path:info.outputPath('submitted-asked.png'),fullPage:true});
+  expect(await lookProblems(timer.page)).toEqual([]);
+  // Jo's press is the last one asked for, so the heat is saved on every phone.
+  await timer.page.getByRole('button',{name:'Submit Race',exact:true}).click();
+  for(const phone of [sam,priya,timer,ali]) {
+    await expect(phone.page.getByText('Heat 1 saved',{exact:true})).toBeVisible(live);
+    await expect(phone.page.getByText('Heat 2 · 0 runners',{exact:true})).toBeVisible();
+  }
+  await deleteCurrentRace(request,code);
+});
+
+test('Not yet sends the race back for changes and clears every press; only a column\'s holder changes it',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`NT-${project.toUpperCase()}`,name=`Not yet sprint ${project}`;
+  await ownEvent(request,code,name);
+  const sam=await signInThroughApi(request,`Sam not yet ${project}`),priya=await signInThroughApi(request,`Priya not yet ${project}`);
+  const timer=await openPhone(`Jo not yet ${project}`),ali=await openPhone(`Ali not yet ${project}`);
+  await workedHeat(request,code,sam,priya,timer.token);
+  await submitRace(request,sam,code);await submitRace(request,priya,code);
+  await openRaceScreen(timer.page,name);await openRaceScreen(ali.page,name);
+  await dockSays(timer.page,'Waiting on you');
+  // Anyone may tap Not yet: Ali holds nothing.
+  await ali.page.getByRole('button',{name:'Not yet',exact:true}).click();
+  for(const page of [ali.page,timer.page]) {
+    await expect(page.getByRole('button',{name:/^Order and Times/})).toBeVisible(live);
+    await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toBeEnabled();
+  }
+  expect((await readRaceScreen(request,sam,code)).pressed).toEqual([]);
+  // Ali watches the columns, with Take over and no time pad; Jo retypes the 2nd time and Ali sees it.
+  await ali.page.getByRole('button',{name:/^Order and Times/}).click();
+  await expect(ali.page.getByRole('button',{name:'Take over the times',exact:true})).toBeVisible();
+  await expect(ali.page.getByLabel('Place time',{exact:true})).toHaveCount(0);
+  await timer.page.getByRole('button',{name:/^Order and Times/}).click();
+  await timer.page.getByRole('button',{name:/^2nd place · 13\.12/}).click();
+  await enterTime(timer.page,1320);
+  await expect(ali.page.getByRole('table',{name:'Order and times'}).getByRole('row')).toHaveText([/^Place/,/^1st\s*2091\s*12\.95$/,/^2nd\s*2092\s*13\.20$/],live);
+  await ali.page.screenshot({path:info.outputPath('after-not-yet.png'),fullPage:true});
+  expect(await lookProblems(ali.page)).toEqual([]);
+  await deleteCurrentRace(request,code);
+});
+
+test('once a heat is saved the same screen shows "Heat 1 saved" and the empty next heat, and the holder carries on checking in',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`HN-${project.toUpperCase()}`,name=`Next heat sprint ${project}`;
+  await ownEvent(request,code,name);
+  const sam=await openPhone(`Sam next heat ${project}`);
+  await openRaceScreen(sam.page,name);
+  await expect(sam.page.getByText('Nobody is checked in yet',{exact:true})).toBeVisible();
+  await sam.page.getByRole('button',{name:/^Check-in Wristbands/}).click();
+  await enterWristband(sam.page,2101);
+  await expect(sam.page.getByText('2101 has no place yet',{exact:true})).toBeVisible();
+  await writeOrder(request,sam.token,code,[2101]);await writeTimes(request,sam.token,code,[1400]);
+  // Sam holds every job, so one press saves the heat.
+  await sam.page.getByRole('button',{name:'Submit Race',exact:true}).click();
+  await expect(sam.page.getByText('Heat 1 saved',{exact:true})).toBeVisible();
+  await expect(sam.page.getByText('Heat 2 · 0 runners',{exact:true})).toBeVisible();
+  await expect(sam.page.getByRole('button',{name:/^Check-in Wristbands/})).toHaveAccessibleName(/You are checking in · 0 in$/);
+  await sam.page.screenshot({path:info.outputPath('heat-saved.png'),fullPage:true});
+  expect(await lookProblems(sam.page)).toEqual([]);
+  await enterWristband(sam.page,2102);
+  await expect(sam.page.getByText('Heat 2 · 1 runner',{exact:true})).toBeVisible();
+  await expect(sam.page.getByText('Heat 1 saved',{exact:true})).toHaveCount(0);
+  await deleteCurrentRace(request,code);
 });

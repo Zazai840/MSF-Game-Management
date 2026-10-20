@@ -1,4 +1,4 @@
-import { goHome,timesOpened,back,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,lookProblems,typePassword,expect,createProfile,test,type Locator,type Page } from './fixtures.js';
+import { goHome,back,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,lookProblems,typePassword,expect,createProfile,test,type Locator,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the job screens. */
 async function expectDocked(page:Page,button:Locator) {
@@ -33,13 +33,13 @@ test('a new phone types the Olympics password once, creates a profile, stays sig
   const name=`Ahmed Sign ${info.project.name}`;
   await page.getByLabel('Full name').fill(`  Ahmed   Sign ${info.project.name} `);
   await page.getByRole('button',{name:'Create profile',exact:true}).click();
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   await expect(page.getByRole('banner').getByText(name,{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem('e2e:persist'))).toBe('asked');
   await page.reload();
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
-  await jobButton(page,'Times').click();
-  await timesOpened(page);
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
+  await page.getByRole('region',{name:'60m',exact:true}).getByRole('button').first().click();
+  await expect(page.getByRole('button',{name:/^Check-in Wristbands/})).toBeVisible();
   await goHome(page);
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
   // The session ends (as after a new day) but the phone keeps its Olympics password and profile.
@@ -50,9 +50,9 @@ test('a new phone types the Olympics password once, creates a profile, stays sig
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('profiles.png')});
   await page.getByRole('button',{name,exact:true}).click();
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   await becomeLead(page);
   await expect(dashboardButton(page)).toBeVisible();
   await openDashboard(page,'Results');
@@ -63,7 +63,7 @@ test('a new phone types the Olympics password once, creates a profile, stays sig
 test('Create profile refuses a name already taken, keeping what was typed',async({page,browser},info)=>{
   const name=`Amina Taken ${info.project.name}`;
   await page.goto('/');await createProfile(page,name);
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   const second=await browser.newContext({...info.project.use});
   try {
     const other=await second.newPage();await other.goto('/');await createProfile(other,name.toLowerCase());

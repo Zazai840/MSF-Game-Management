@@ -2,7 +2,7 @@ import { createProfile,expect,lookProblems,test,type Page } from './fixtures.js'
 const profilesHeading=(page:Page)=>page.getByRole('heading',{level:1,name:"Who's using this phone?"});
 /** Ends the session as a new day would, so the phone shows its profile screen. */
 async function backToProfiles(page:Page) {
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   await page.evaluate(()=>localStorage.removeItem('msf:token'));await page.reload();
   await expect(profilesHeading(page)).toBeVisible();
 }

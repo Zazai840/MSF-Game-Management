@@ -1,4 +1,4 @@
-import { checkIn,dashboardButton,goHome,jobButton,expect,createProfile,openDashboard,pickRace,test } from './fixtures.js';
+import { dashboardButton,deleteCurrentRace,expect,createProfile,openDashboard,openRaceScreen,ownEvent,test,writeCheckIn,writeOrder,writeTimes } from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -11,14 +11,14 @@ test('the volunteer app reopens from its shell cache without caching race reads 
   expect(scripts.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
   // A real successful race-data read must not become available from the shell cache.
   const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-  const read=await page.evaluate(async headers=>(await fetch('/api/jobs/times',{headers})).ok,headers);
+  const read=await page.evaluate(async headers=>(await fetch('/api/race-screen/R4',{headers})).ok,headers);
   expect(read).toBe(true);
   await context.setOffline(true);
   const navigation=await page.reload();
   expect(navigation?.fromServiceWorker()).toBe(true);
   await expect(page.getByLabel('Olympics password',{exact:true})).toBeVisible();
   const offlineRead=await page.evaluate(async headers=>{
-    try {await fetch('/api/jobs/times',{headers});return 'cached';} catch {return 'unavailable';}
+    try {await fetch('/api/race-screen/R4',{headers});return 'cached';} catch {return 'unavailable';}
   },headers);
   expect(offlineRead).toBe('unavailable');
   expect(scripts.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
@@ -40,14 +40,11 @@ test('old phones see the browser message before the application opens',async({br
   }
 });
 
-test('a deployed version reloads the phone by itself and keeps an unfinished Start line entry',async({page},info)=>{
+test('a deployed version reloads the phone by itself',async({page},info)=>{
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await page.goto('/');
   await createProfile(page,`Update ${info.project.name}`);
-  await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  await page.getByLabel('Wristband number',{exact:true}).fill('21');
+  await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   const workerPath=resolve('dist/web/sw.js');
   const previous=await readFile(workerPath,'utf8');
@@ -65,8 +62,6 @@ test('a deployed version reloads the phone by itself and keeps an unfinished Sta
     await expect(page.getByRole('button',{name:'New version, tap to reload'})).toHaveCount(0);
     // The phone now matches the server: the next Home read does not reload it again.
     await page.waitForResponse('**/api/home');
-    await jobButton(page,'Start line').click();
-    await expect(page.getByLabel('Wristband number')).toHaveValue('21');
     expect(loads).toBe(1);
   } finally {await writeFile(workerPath,previous);}
 });
@@ -98,46 +93,20 @@ test('a failed load of the Lead area reloads the app instead of leaving a blank 
   expect(loads).toBe(1);
 });
 
-test('all three unfinished jobs survive reload and are dropped when the phone is removed',async({page},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,'R4',[2401,2402]);
-  const raceName=`60m Girl Cubs (R4) · Heat ${race.number}`;
-  await page.goto('/');
-  await createProfile(page,`Recovery ${info.project.name}`);
-
-  await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+test('a reload shows everything entered from the server, and a half-typed number is not kept on the phone',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`RL-${project.toUpperCase()}`,name=`Reload sprint ${project}`;
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(`Reload ${project}`);
+  await writeCheckIn(request,token,code,[2401,2402,2403]);await writeOrder(request,token,code,[2402,2401]);await writeTimes(request,token,code,[1234]);
+  await openRaceScreen(page,name);
+  await page.getByRole('button',{name:/^Check-in Wristbands/}).click();await page.getByRole('button',{name:/^Order and Times/}).click();
   await page.getByLabel('Wristband number',{exact:true}).fill('25');
-  await page.reload();
-  await jobButton(page,'Start line').click();
-  await expect(page.getByLabel('Wristband number')).toHaveValue('25');
-
-  await goHome(page);
-  await jobButton(page,'Finish order').click();
-  await pickRace(page,'Finishing order',raceName);
-  await page.getByRole('button',{name:'2402',exact:true}).click();
-  await page.reload();
-  await jobButton(page,'Finish order').click();
-  await expect(page.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'1st: 2402',exact:true})).toBeVisible();
-
-  await goHome(page);
-  await jobButton(page,'Times').click();
-  await pickRace(page,'Times',raceName);
-  await page.getByLabel('Place time').fill('123');
-  await page.reload();
-  await jobButton(page,'Times').click();
-  await expect(page.getByLabel('Place time')).toHaveValue('123');
-  await expect(page.getByText('Shows as 1.23',{exact:true})).toBeVisible();
-  await page.screenshot({path:info.outputPath('restored-times-entry.png'),fullPage:true});
-
-  // Simulate a new Olympics day at the HTTP boundary.
-  await page.route('**/api/home',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'A new Olympics day has started. Tap your name to sign in.',reason:'new-day'})}));
-  await page.reload();
-  // Drafts go; the Olympics password pass and the profile stay on the phone.
-  await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();
-  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:new-day','msf:pass','msf:profiles']);
-  await page.request.post(`/api/races/${race.id}/delete`,{headers,data:{permanent:true}});
+  await page.reload();await openRaceScreen(page,name);
+  await page.getByRole('button',{name:/^Check-in Wristbands/}).click();await page.getByRole('button',{name:/^Order and Times/}).click();
+  await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2401','2402','2403']);
+  await expect(page.getByRole('table',{name:'Order and times'}).getByRole('row')).toHaveText([/^Place/,/^1st\s*2402\s*12\.34$/,/^2nd\s*2401\s*Next$/,/^3rd\s*Next\s*$/]);
+  await expect(page.getByLabel('Wristband number',{exact:true})).toHaveValue('');
+  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:draft:')))).toEqual([]);
+  await page.screenshot({path:info.outputPath('reloaded-race-screen.png'),fullPage:true});
+  await deleteCurrentRace(request,code);
 });

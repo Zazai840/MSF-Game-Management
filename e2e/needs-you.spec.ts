@@ -1,4 +1,4 @@
-import { lookProblems,checkIn,recordFinishingOrder,recordTimes,recordRace,timesOpened,goHome,back,toCheckItem,openDashboard,dashboardMenuButton,jobButton,dashboardButton,becomeLead,expect,createProfile,test } from './fixtures.js';
+import { lookProblems,recordRace,back,toCheckItem,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,expect,createProfile,submitRace,test,writeCheckIn,writeOrder,writeTimes } from './fixtures.js';
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
   const code=`NY-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
@@ -14,11 +14,14 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   await page.goto('/');await createProfile(page,`Queue lead ${info.project.name}`);await becomeLead(page);await count();
   await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await back(page,'Home');
   await page.request.post('/api/day/events',{headers,data:{code,name:'Needs you sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const token=process.env.E2E_SCORING_TOKEN!,kept=(runners:number[])=>checkIn(page.request,token,code,runners,runners);
-  const first=await kept([3045,2001]),second=await kept([2001]);
-  await recordFinishingOrder(page.request,token,first,{order:[3045,2001,2002],added:[2002]});
+  // Race 1: a kept wrong-section warning and a runner added at the finish. Race 2: 2001 again. Both saved, so both on To check.
+  const token=process.env.E2E_SCORING_TOKEN!;
+  await writeCheckIn(page.request,token,code,[3045,2001],[3045,2001]);
+  await writeOrder(page.request,token,code,[3045,2001,2002],{added:[2002]});
+  const {race:first}=await writeTimes(page.request,token,code,[1200,1300,1400]);
+  await submitRace(page.request,token,code);
+  const second=await recordRace(page.request,token,code,[2001],[1250],[2001]);
   await count();
-  await jobButton(page,'Times').click();await timesOpened(page);await goHome(page);await count();
   await openDashboard(page);
   await toCheckItem(page,new RegExp(`${code}.*3045 is not a Girl Cubs number`)).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('heading',{name:'Runner 3045',exact:true})).toBeVisible();
@@ -29,7 +32,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   await toCheckItem(page,new RegExp(`${code}.*2002 crossed the line but was not checked in`)).click();
   await sheet.getByRole('button',{name:'Mark addition checked',exact:true}).click();await expect(sheet).toHaveCount(0);await menuCount();
   await toCheckItem(page,new RegExp(`${code}.*2001 has a result in more than one race`)).first().click();await sheet.getByRole('button',{name:'Choose which result counts',exact:true}).click();
-  await expect(sheet.getByLabel('Count Race 2',{exact:true})).toBeVisible();await expect(sheet.getByText('Race 2 · Not recorded yet',{exact:true})).toBeVisible();await sheet.getByLabel('Count Race 2',{exact:true}).check();await page.screenshot({path:info.outputPath('pending-duplicate-choice.png'),fullPage:true});await sheet.getByRole('button',{name:'Save counted result',exact:true}).click();await expect(sheet).toHaveCount(0);await menuCount();
+  await expect(sheet.getByLabel('Count Race 2',{exact:true})).toBeVisible();await expect(sheet.getByText('Race 2 · 12.50',{exact:true})).toBeVisible();await sheet.getByLabel('Count Race 2',{exact:true}).check();await page.screenshot({path:info.outputPath('pending-duplicate-choice.png'),fullPage:true});await sheet.getByRole('button',{name:'Save counted result',exact:true}).click();await expect(sheet).toHaveCount(0);await menuCount();
   await dashboardMenuButton(page,'Results').click();await expect(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).not.toContainText(/to check|needing you/i);
   await back(page,'Dashboard');await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();await expect(toCheckItem(page,new RegExp(`${code}.*more than one race`))).toHaveCount(0);await page.screenshot({path:info.outputPath('needs-you-cleared.png'),fullPage:true});
   for(const race of [first,second]) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
@@ -40,14 +43,13 @@ test('queue items open their race or tie directly and clear after the lead settl
   const races:any[]=[];
   const token=process.env.E2E_SCORING_TOKEN!;
   async function recorded(numbers:number[],places:number[]) {const race=await recordRace(page.request,token,code,numbers,places);races.push(race);return race;}
-  await recorded([2001,2002],[1700,1600]);const clash=await recorded([2003],[1400]);await recordTimes(page.request,token,clash,[1500]);await recorded([2004],[2000]);await recorded([2005],[2000]);
+  await recorded([2001,2002],[1700,1600]);await recorded([2003],[1400]);await recorded([2004],[2000]);await recorded([2005],[2000]);
   await page.goto('/');await createProfile(page,`Race queue lead ${info.project.name}`);await becomeLead(page);await openDashboard(page);
-  const wrongTime=toCheckItem(page,new RegExp(`${code}.*A time looks wrong`)),versions=toCheckItem(page,new RegExp(`${code}.*Two different sets of times were saved`)),tie=toCheckItem(page,new RegExp(`${code}.*Runners tied on time`));
+  const wrongTime=toCheckItem(page,new RegExp(`${code}.*A time looks wrong`)),tie=toCheckItem(page,new RegExp(`${code}.*Runners tied on time`));
   await expect(page.getByRole('list',{name:'To check'})).toBeVisible();await expect(wrongTime).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('needs-you-races.png'),fullPage:true});
   await wrongTime.click();await expect(page.getByRole('button',{name:'Correct times',exact:true})).toBeVisible();await page.getByRole('button',{name:'Correct times',exact:true}).click();const sheet=page.getByRole('dialog');await sheet.getByLabel('Accept these out-of-order times',{exact:true}).check();await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await back(page,'Dashboard');await expect(versions).toBeVisible();await expect(wrongTime).toHaveCount(0);await versions.click();await page.getByRole('radio').last().check();await page.getByRole('button',{name:'Use chosen Times version',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Saved'})).toBeVisible();
-  await back(page,'Dashboard');await expect(tie).toBeVisible();await expect(versions).toHaveCount(0);await tie.click();await expect(sheet.getByRole('heading',{name:'Tie at 20.00',exact:true})).toBeVisible();await sheet.getByRole('button',{name:'No run-off needed',exact:true}).click();await sheet.getByRole('button',{name:'Save tie',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await back(page,'Dashboard');await expect(wrongTime).toHaveCount(0);await expect(tie).toBeVisible();await tie.click();await expect(sheet.getByRole('heading',{name:'Tie at 20.00',exact:true})).toBeVisible();await sheet.getByRole('button',{name:'No run-off needed',exact:true}).click();await sheet.getByRole('button',{name:'Save tie',exact:true}).click();await expect(sheet).toHaveCount(0);
   await back(page,'Dashboard');await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();await expect(tie).toHaveCount(0);
   for(const race of races) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

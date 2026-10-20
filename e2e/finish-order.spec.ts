@@ -1,17 +1,9 @@
-import { lookProblems,checkIn,deleteCurrentRace,dragTo,enterWristband,expect,goHome,jobButton,createProfile,live,openRaceScreen,ownEvent,pickRace,recordTimes,signInThroughApi,startDrag,test,writeCheckIn,writeOrder,type Page } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
-async function signInAs(page:Page,name:string) {
-  await page.goto('/');await createProfile(page,name);
-}
+import { lookProblems,deleteCurrentRace,dragTo,enterWristband,expect,live,openRaceScreen,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
 /** The finishing order being dragged, and its rows. */
 const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
 const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Drag to move ${number}`,exact:true});
 const orderCard=(page:Page)=>page.getByRole('button',{name:/^Order and Times/});
 const tableRows=(page:Page)=>page.getByRole('table',{name:'Order and times'}).getByRole('row');
-/** Opens one race from the Finish order race picker (reached with the back arrow). */
-async function openRace(page:Page,race:{number:number}) {
-  await pickRace(page,'Finishing order',new RegExp(`\\(R4\\) · Heat ${race.number}$`));
-}
 /** On the race screen with the order already this phone's: its card open, the order ready to drag. */
 async function changeTheOrder(page:Page,name:string) {
   await openRaceScreen(page,name);await orderCard(page).click();
@@ -81,7 +73,7 @@ test('dragging the handle reorders the finishing order with live places while ti
   const {page,token}=await openPhone(`Drag finish ${project}`);
   await writeCheckIn(request,await signInThroughApi(request,`Drag start ${project}`),code,[a,b,c,d]);
   const {race}=await writeOrder(request,token,code,[a,b,c,d]);
-  await recordTimes(request,token,{id:race.id!},[1234,1301]);
+  await writeTimes(request,await signInThroughApi(request,`Drag timer ${project}`),code,[1234,1301]);
   await changeTheOrder(page,name);
   await expect(orderRows(page)).toHaveText([`1st12.34${a}`,`2nd13.01${b}`,`3rd${c}`,`4th${d}`]);
   await expect(handle(page,a)).toBeVisible();
@@ -130,48 +122,4 @@ test('dragging near the edge of the screen scrolls the finishing order',async({o
   await drag.drop();
   await expect(orderRows(page).first()).not.toContainText(String(runners[0]));
   await deleteCurrentRace(request,code);
-});
-
-test('Finish order preserves its draft versions while polling and reload expose a changed runner list',async({page},info)=>{
-  const race=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,'R4',[2101,2102]);
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  await signInAs(page,`Draft finish ${info.project.name}`);await jobButton(page,'Finish order').click();
-  await openRace(page,race);
-  await page.getByRole('button',{name:'2102',exact:true}).click();await page.getByRole('button',{name:'2101',exact:true}).click();
-  await page.getByRole('button',{name:'Check the order',exact:true}).click();
-  await page.request.post(`/api/races/${race.id}/runners`,{headers:headers(),data:{baseVersion:1,runners:[2101,2102,2103]}});
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
-  await page.reload();await jobButton(page,'Finish order').click();
-  await expect(orderRows(page).first()).toContainText('2102');
-  await expect(orderRows(page)).toHaveCount(2);
-  const saving=page.waitForRequest(request=>request.url().endsWith(`/api/races/${race.id}/finish`) && request.method()==='POST');
-  await page.getByRole('button',{name:'Save',exact:true}).click();
-  expect((await saving).postDataJSON()).toMatchObject({baseVersion:0,runnersVersion:1,order:[2102,2101]});
-  await expect(page.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();
-  const retained=await (await page.request.get(`/api/lead/races/${race.id}`,{headers:headers()})).json();
-  expect(retained.clashes.find((clash:any)=>clash.part==='finish').candidates.some((candidate:any)=>candidate.value?.order[0]===race.parts.runners.value![1].id)).toBe(true);
-  await goHome(page);await jobButton(page,'Finish order').click();
-  await openRace(page,race);
-  for(const number of [2101,2102,2103]) await page.getByRole('button',{name:String(number),exact:true}).click();
-  await page.getByRole('button',{name:'Check the order',exact:true}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByText('Two versions - zone lead to check',{exact:true})).toBeVisible();
-  const latest=await (await page.request.get(`/api/lead/races/${race.id}`,{headers:headers()})).json();
-  const chosen=latest.clashes.find((clash:any)=>clash.part==='finish').candidates.at(-1);
-  await page.request.post(`/api/lead/races/${race.id}/clashes/finish`,{headers:headers(),data:{candidateId:chosen.id}});
-});
-
-test('on a narrow phone a long race name still leaves the back arrow in sight',async({page},info)=>{
-  const code=`L49${info.project.name.toUpperCase()}`,name=`Under 11s obstacle sprint ${info.project.name}`;
-  await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Girl Cubs',format:'heats'}});
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const race=await checkIn(page.request,process.env.E2E_SCORING_TOKEN!,code,[2501,2502]);
-  await signInAs(page,`Long name ${info.project.name}`);await jobButton(page,'Finish order').click();
-  await pickRace(page,'Finishing order',new RegExp(`\\(${code}\\) · Heat ${race.number}$`));
-  await expect(page.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible();
-  const arrow=page.getByRole('button',{name:'Back to Finishing order',exact:true});
-  await expect(arrow).toBeInViewport();
-  await page.screenshot({path:info.outputPath('finish-order-long-name.png')});
-  await arrow.click();
-  await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
-  await page.request.post(`/api/races/${race.id}/delete`,{headers:headers(),data:{permanent:true}});
 });

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { becomeLead,dashboardMenuButton,expect,jobButton,createProfile,lookProblems,openDashboard,test,type Page } from '../fixtures.js';
+import { becomeLead,dashboardMenuButton,expect,createProfile,lookProblems,openDashboard,test,type Page } from '../fixtures.js';
 
 // Runs only under playwright.test-build.config.ts, which starts the server as a test build of this commit.
 const commit=process.env.E2E_TEST_BUILD_COMMIT!;
@@ -28,17 +28,17 @@ async function expectHeaderReports(page:Page,screen:string) {
   expect(overlaps).toEqual([]);
 }
 
-test('a test build shows its commit and a Report a bug link on the Olympics password screen, Home and inside a job',async({page},info)=>{
+test('a test build shows its commit and a Report a bug link on the Olympics password screen, Home and the race screen',async({page},info)=>{
   await page.goto('/');
   await expectHeaderReports(page,'Olympics password');
   await createProfile(page,`Tester Marker ${info.project.name} With A Long Full Name`);
-  await expect(jobButton(page,'Start line')).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
   await expectHeaderReports(page,'Home');
   await page.screenshot({path:info.outputPath('home.png')});
-  await jobButton(page,'Start line').click();
+  await page.getByRole('region',{name:'60m',exact:true}).getByRole('button').first().click();
   await expect(page.getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
-  await expectHeaderReports(page,'Start line');
-  await page.screenshot({path:info.outputPath('job.png')});
+  await expectHeaderReports(page,'Race screen');
+  await page.screenshot({path:info.outputPath('race-screen.png')});
 });
 
 test('inside the Dashboard the Report a bug link names the Dashboard screen shown',async({page},info)=>{

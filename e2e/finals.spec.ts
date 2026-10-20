@@ -1,4 +1,4 @@
-import { lookProblems,recordRace,openDashboard,becomeLead,expect,createProfile,test,live,openRaceScreen,ownEvent,writeOrder,deleteCurrentRace,type Page } from './fixtures.js';
+import { lookProblems,recordRace,openDashboard,becomeLead,expect,createProfile,test,live,openRaceScreen,ownEvent,submitRace,writeOrder,deleteCurrentRace,type Page } from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await createProfile(page,name);
  if(lead) {await becomeLead(page);}
@@ -45,10 +45,13 @@ test('a final on the race screen: Absent hides a runner from the order holder li
  for(const number of [1015,1011,1017,1013,1018,1014]) await priya.getByRole('button',{name:String(number),exact:true}).click();
  await expect(priya.getByText('Everyone has a place',{exact:true})).toBeVisible();
  expect(await lookProblems(priya)).toEqual([]);await priya.screenshot({path:info.outputPath('final-finishing-order.png'),fullPage:true});
+ // Sam holds check-in and Priya the order: the final is saved once both press Submit Race.
+ await sam.getByRole('button',{name:'Submit Race',exact:true}).click();await priya.getByRole('button',{name:'Submit Race',exact:true}).click();
+ for(const phone of [sam,priya]) await expect(phone.getByText('Final saved',{exact:true})).toBeVisible(live);
  await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText('1015');await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText('1st: 1015');await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('1015');await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await expect(priya.getByText('Stage complete - ask a lead',{exact:true})).toBeVisible(live);
  await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('already run');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(final).toContainText('1015');
- // The run final counts, so it waits on no picker; with heats reopened the current race is an empty heat, never stored, so there is nothing to delete.
+ // The final is saved, and with heats reopened the current race is an empty heat, never stored, so there is nothing to delete.
 });
 test('short fields show lines, and an unrun final rebuilt after a heat correction shows its new line-up live, everyone Here and nobody holding check-in',async({page,openPhone},info)=>{
  const project=info.project.name,code=`S37${project.toUpperCase()}`,name=`Short sprint ${project}`;
@@ -62,11 +65,11 @@ test('short fields show lines, and an unrun final rebuilt after a heat correctio
  // The rebuilt final is a new line-up: 1042 is now the top seed, everyone is Here, and its holds were cleared.
  await expect(attendance(sam.page)).toHaveText([/1st seed\s*1042\s*Here/,/2nd seed\s*1041\s*Here/],live);
  await expect(checkInCard(sam.page)).toHaveAccessibleName(/Nobody yet · open to start$/,live);
- await writeOrder(page.request,sam.token,code,[1041,1042]);
+ await writeOrder(page.request,sam.token,code,[1041,1042]);await submitRace(page.request,sam.token,code);
  const finalId=(await (await page.request.get(`/api/lead/events/${code}/results`,{headers})).json()).results.finalResults.raceId;
  const finalRace=(await (await page.request.get(`/api/lead/races/${finalId}`,{headers})).json()).race;
  const disqualified=finalRace.parts.runners.value.find((r:any)=>r.wristband===1041);await page.request.post(`/api/lead/races/${finalId}/runners/${disqualified.id}/disqualify`,{headers,data:{reason:'Two false starts'}});await page.getByRole('button',{name:'Refresh',exact:true}).click();const finalList=page.getByRole('list',{name:'Final leaderboard'});await expect(finalList.locator('li').first()).toContainText('1042');await expect(finalList.locator('li').first()).toContainText('Medal line');await expect(finalList.locator('li').last()).toContainText('Disqualified');await page.screenshot({path:info.outputPath('short-final-medal-line.png'),fullPage:true});
- // The final counts once every runner is placed, so it waits on no picker and stays the current race: nothing is left to delete.
+ // The final is saved and stays the current race: nothing is left to delete.
 });
 test('Here / Absent on one phone is read-only on another, which can take over check-in',async({openPhone,request},info)=>{
  const project=info.project.name,code=`FR-${project.toUpperCase()}`,name=`Final read ${project}`;

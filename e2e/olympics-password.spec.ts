@@ -1,5 +1,5 @@
 import { createProfile,expect,lookProblems,openDashboard,signScoringTeamBackIn,test,typePassword,type Page } from './fixtures.js';
-const home=(page:Page)=>expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+const home=(page:Page)=>expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
 const passwordScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:'Welcome to the Running Zone'})).toBeVisible({timeout:10000});
 test('changing the Olympics password sends both phones to the password screen with their profiles kept',async({page,browser,baseURL},info)=>{
   const original=process.env.E2E_OLYMPICS_PASSWORD!,changed=`fresh-${info.project.name}-${Date.now()}`;

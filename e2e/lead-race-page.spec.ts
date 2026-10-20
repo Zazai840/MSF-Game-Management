@@ -4,7 +4,7 @@ const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times. */
-async function recordedRace(page:Page,code:string,runners:number[],places:Array<number|null>) {
+async function recordedRace(page:Page,code:string,runners:number[],places:number[]) {
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,places);

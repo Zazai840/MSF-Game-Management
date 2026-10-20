@@ -1,15 +1,17 @@
-import { back,openDashboard,dashboardMenuButton,enterWristband,jobButton,dashboardButton,expect,createProfile,typePassword,test,type Page } from './fixtures.js';
+import { back,openDashboard,dashboardMenuButton,dashboardButton,expect,createProfile,typePassword,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 async function scoring(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
   await page.goto('/');await openDashboard(page,'Day setup');
   await expect(page.getByRole('button',{name:/^Events \d+ events · /})).toBeVisible();
 }
+/** From Home: opens the first 60m tile's race screen (60m Boy Beavers). */
+const firstRaceScreen=(page:Page)=>page.getByRole('region',{name:'60m',exact:true}).getByRole('button').first().click();
 async function exportDay(page:Page) {
   const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
   await expect(page.getByRole('region',{name:'Day export'})).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
 }
-test('new day shows fresh codes, retains its scoring phone and returns other phones to their profiles with cleared drafts',async({page,browser,baseURL,context},info)=>{
+test('new day shows fresh codes, retains its scoring phone and returns other phones to their profiles with their holds cleared',async({page,browser,baseURL,context},info)=>{
   // Safari15.0–15.3 supports the app, but has no crypto.randomUUID.
   const olderCrypto=()=>Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined,configurable:true});
   await context.addInitScript(olderCrypto);
@@ -18,7 +20,7 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
   const otherContext=await browser.newContext({baseURL});await otherContext.addInitScript(olderCrypto);const other=await otherContext.newPage();
   try {
     await other.goto('/');await createProfile(other,`Reset helper ${info.project.name}`);
-    await jobButton(other,'Start line').click();await other.getByRole('button',{name:'60m',exact:true}).click();await other.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();await other.getByLabel('Wristband number',{exact:true}).fill('21');await expect(other.getByLabel('Wristband number')).toHaveValue('21');
+    await firstRaceScreen(other);await other.getByRole('button',{name:/^Check-in Wristbands/}).click();await expect(other.getByRole('button',{name:/^Check-in Wristbands You are checking in/})).toBeVisible();
     await scoring(page);await exportDay(page);
     await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
     await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Events \d+ events · not confirmed yet$/})).toBeVisible();
@@ -31,7 +33,7 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
     await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible({timeout:10000});await expect(newDayLine).toBeVisible();
     expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')).sort())).toEqual(['msf:new-day','msf:pass','msf:profiles']);
     await other.reload();await expect(newDayLine).toBeVisible();await other.screenshot({path:info.outputPath('new-day-line.png')});
-    await other.getByRole('button',{name:`Reset helper ${info.project.name}`,exact:true}).click();await jobButton(other,'Start line').click();await expect(other.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();await expect(other.getByText('Ask the scoring team to confirm the event list',{exact:true})).toBeVisible();
+    await other.getByRole('button',{name:`Reset helper ${info.project.name}`,exact:true}).click();await firstRaceScreen(other);await expect(other.getByRole('button',{name:'Check-in Wristbands Nobody yet · open to start',exact:true})).toBeVisible();
     await back(other,'Home');await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible();await expect(newDayLine).toHaveCount(0);
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
     await back(page,'Home');await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
@@ -73,7 +75,7 @@ test('a lost reset reply recovers the fresh Day through Home and discards an old
   await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toHaveCount(0);
 });
 test('an actual old removed-phone 401 cannot sign out a newly signed-in phone',async({page},info)=>{
-  await page.goto('/');await createProfile(page,`Delayed ${info.project.name}`);await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await page.goto('/');await createProfile(page,`Delayed ${info.project.name}`);await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   const oldToken=await page.evaluate(()=>localStorage.getItem('msf:token'));const phone=await (await page.request.get('/api/me',{headers:{authorization:`Bearer ${oldToken}`}})).json();
   await page.request.post(`/api/day/phones/${phone.id}/remove`,{headers:headers(),data:{}});
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
@@ -81,34 +83,21 @@ test('an actual old removed-phone 401 cannot sign out a newly signed-in phone',a
   await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;const response=await route.fetch();expect(response.status()).toBe(401);seen();await held;await route.fulfill({response});delivered();});
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
   // Removed means signed out: the phone goes back to the password screen and keeps its profile.
-  await jobButton(page,'Times').click();await typePassword(page);
-  await page.getByRole('button',{name:`Delayed ${info.project.name}`,exact:true}).click();await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await firstRaceScreen(page);await typePassword(page);
+  await page.getByRole('button',{name:`Delayed ${info.project.name}`,exact:true}).click();await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   const freshToken=await page.evaluate(()=>localStorage.getItem('msf:token'));expect(freshToken).not.toBe(oldToken);
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);
 });
 test('a stale successful Create profile cannot replace a newer signed-in phone in shared browser storage',async({page,context},info)=>{
   await page.goto('/');let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});
   await page.route('**/api/profiles',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);seen();await held;await route.fulfill({response});delivered();});
   await createProfile(page,`Old sign-in ${info.project.name}`);await captured;
-  const newer=await context.newPage();await newer.goto('/');await createProfile(newer,`New sign-in ${info.project.name}`);await expect(newer.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
-  const freshToken=await newer.evaluate(()=>localStorage.getItem('msf:token'));await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  const newer=await context.newPage();await newer.goto('/');await createProfile(newer,`New sign-in ${info.project.name}`);await expect(newer.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
+  const freshToken=await newer.evaluate(()=>localStorage.getItem('msf:token'));await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByText(`New sign-in ${info.project.name}`,{exact:true})).toBeVisible();await newer.close();
-});
-test('an old successful job save cannot restore an old draft after Home discovers a reset',async({page})=>{
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});await scoring(page);await back(page,'Home');await jobButton(page,'Start line').click();await page.getByRole('button',{name:'60m',exact:true}).click();await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  await enterWristband(page,2001);await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  let release!:()=>void,seen!:()=>void,delivered!:()=>void;
-  const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});
-  await page.route('**/api/races/check-in',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);seen();await held;await route.fulfill({response});delivered();});
-  await page.getByRole('button',{name:'Save',exact:true}).click();await captured;
-  await page.request.post('/api/day/export',{headers:headers(),data:{}});expect((await page.request.post('/api/day/start-new',{headers:headers(),data:{confirmation:'NEW DAY'}})).ok()).toBe(true);
-  const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
-  release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:draft:')))).toEqual([]);await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
-  await back(page,'Home');await jobButton(page,'Start line').click();await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
 });
 test('a lost reply from Start new day keeps the retained phone safe from a previously pending 401 until Home recovers',async({page})=>{
   await scoring(page);await exportDay(page);

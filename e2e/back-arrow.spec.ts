@@ -1,4 +1,4 @@
-import { back,recordRace,toCheckItem,openDashboard,dashboardMenuButton,jobButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import { back,recordRace,toCheckItem,openDashboard,dashboardMenuButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const row=(page:Page)=>page.getByRole('navigation',{name:'Back',exact:true});
@@ -13,7 +13,7 @@ async function arrowGoesBackTo(page:Page,to:string) {
   await expect(page.getByRole('navigation',{name:'Steps'})).toHaveCount(0);
 }
 async function onHome(page:Page) {
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   await expect(row(page)).toHaveCount(0);
   await expect(page.getByRole('navigation',{name:'Steps'})).toHaveCount(0);
 }
@@ -30,12 +30,12 @@ test("Home has no back arrow and keeps I'm a zone lead on the right; every volun
   await page.screenshot({path:info.outputPath('become-lead.png'),fullPage:true});
   await back(page,'Home');await onHome(page);
 
-  for(const job of ['Start line','Finish order','Times'] as const) {
-    await jobButton(page,job).click();
-    await arrowGoesBackTo(page,'Home');
-    await page.screenshot({path:info.outputPath(`${job}.png`),fullPage:true});
-    await back(page,'Home');await onHome(page);
-  }
+  // A race screen, opened from the first 60m tile.
+  await page.getByRole('region',{name:'60m',exact:true}).getByRole('button').first().click();
+  await expect(page.getByRole('button',{name:/^Check-in Wristbands/})).toBeVisible();
+  await arrowGoesBackTo(page,'Home');
+  await page.screenshot({path:info.outputPath('race-screen.png'),fullPage:true});
+  await back(page,'Home');await onHome(page);
 });
 
 test('on lead screens the back arrow goes up one level: event results to Results, Results and a To check race to the Dashboard, the Dashboard to Home',async({page},info)=>{

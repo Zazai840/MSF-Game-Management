@@ -1,9 +1,9 @@
-import { createProfile,dashboardButton,openDashboard,jobButton,lookProblems,expect,test } from './fixtures.js';
+import { createProfile,dashboardButton,openDashboard,lookProblems,expect,test } from './fixtures.js';
 test('Signed in today: Make lead reaches the other phone, and Remove sends it to the password screen with its profile kept',async({page,browser},info)=>{
   const name=`Signed lead ${info.project.name}`;
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
   await other.goto('/');await createProfile(other,name);
-  await expect(jobButton(other,'Start line')).toBeVisible();await expect(dashboardButton(other)).toHaveCount(0);
+  await expect(other.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();await expect(dashboardButton(other)).toHaveCount(0);
 
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);await page.reload();
   await openDashboard(page,'Day setup');
@@ -25,13 +25,6 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it to
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('signed-in-today.png'),fullPage:true});
   // The other phone's Home picks up today's new role on its next refresh.
   await expect(dashboardButton(other)).toBeVisible({timeout:10000});
-
-  await jobButton(other,'Start line').click();
-  await other.getByRole('button',{name:'60m',exact:true}).click();
-  await other.getByRole('button',{name:'Boy Beavers · R1',exact:true}).click();
-  await other.getByLabel('Wristband number',{exact:true}).fill('1');
-  const drafts=()=>other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:draft:')));
-  await expect.poll(async()=>(await drafts()).length).toBeGreaterThan(0);
 
   await row.getByRole('button',{name:'Remove',exact:true}).click();
   await expect(row).toHaveCount(0);await expect(page.locator('.dashboard-saved')).toHaveText('Saved');

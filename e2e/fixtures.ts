@@ -1,6 +1,6 @@
 import { test as base,expect,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
-import type { RaceRead } from '../src/shared/races.js';
-import type { RaceJob,RaceScreenRead } from '../src/shared/race-screen.js';
+import type { Job,RaceScreenRead } from '../src/shared/race-screen.js';
+import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
 /** Every "the other phone sees it" check waits this long, so a fall back to 5 s polling fails. Everything else keeps the 5 s default. */
@@ -94,43 +94,23 @@ export async function back(page:Page,to:string) {
   }
   throw new Error(`No way back to ${to}`);
 }
-// Race setup: every spec that needs a race recorded before it starts goes through these, so they are
-// the one place that knows how a race is entered and saved. Each acts as the phone whose token it is given.
-/** Saves one race write as that phone and returns the race as saved. */
-async function saveRace(request:APIRequestContext,token:string,path:string,data:object) {
-  const response=await request.post(path,{headers:{authorization:`Bearer ${token}`},data});
-  expect(response.ok(),`${path}: ${await response.text()}`).toBe(true);
-  return (await response.json()).race as RaceRead;
-}
-/** Checks runners in to the event's next race; `keptWarnings` are the wristbands whose warnings the starter kept. */
-export function checkIn(request:APIRequestContext,token:string,eventCode:string,runners:number[],keptWarnings?:number[]) {
-  return saveRace(request,token,'/api/races/check-in',{eventCode,runners,keptWarnings});
-}
-/**
- * Records a race's finishing order: every runner goes in `order`, `didNotFinish` or `didNotRun`, and `added` names
- * finishers who were not checked in. The versions it was opened at default to the first save on the first runner list.
- */
-export function recordFinishingOrder(request:APIRequestContext,token:string,race:{id:string},{order,didNotFinish=[],didNotRun=[],added=[],baseVersion=0,runnersVersion=1}:{order:number[];didNotFinish?:number[];didNotRun?:number[];added?:number[];baseVersion?:number;runnersVersion?:number}) {
-  return saveRace(request,token,`/api/races/${race.id}/finish`,{baseVersion,runnersVersion,order,didNotFinish,didNotRun,added});
-}
-/** Records a race's times in place order, in hundredths (null for No finisher at the bottom). */
-export function recordTimes(request:APIRequestContext,token:string,race:{id:string},places:readonly (number|null)[],baseVersion=0) {
-  return saveRace(request,token,`/api/races/${race.id}/times`,{baseVersion,places});
-}
-/** A fully recorded race: checks the runners in, records them finishing in that order, then records their times. */
-export async function recordRace(request:APIRequestContext,token:string,eventCode:string,runners:number[],places:readonly (number|null)[],keptWarnings?:number[]) {
-  const race=await checkIn(request,token,eventCode,runners,keptWarnings);
-  await recordFinishingOrder(request,token,race,{order:runners});
-  return recordTimes(request,token,race,places);
-}
+// Race setup: every spec that needs a race entered or saved before it starts goes through these, so they are
+// the one place that knows how a race is entered and saved. Each acts as the phone whose token it is given, on the
+// event's race screen: it takes the job as opening its card does, then writes the whole column at the version it sees.
 /** One race screen write as that phone; fails unless the server accepts it, and returns the race screen as it then stands. */
 async function raceScreenWrite(request:APIRequestContext,token:string,eventCode:string,what:string,data:object) {
   const response=await request.post(`/api/race-screen/${eventCode}/${what}`,{headers:{authorization:`Bearer ${token}`},data});
   expect(response.ok(),`${what}: ${await response.text()}`).toBe(true);
   return await response.json() as RaceScreenRead;
 }
+/** The event's race screen as that phone sees it now. */
+export async function readRaceScreen(request:APIRequestContext,token:string,eventCode:string) {
+  const response=await request.get(`/api/race-screen/${eventCode}`,{headers:{authorization:`Bearer ${token}`}});
+  expect(response.ok(),await response.text()).toBe(true);
+  return await response.json() as RaceScreenRead;
+}
 /** Takes a job's hold on the event's race screen as that phone, as opening the job's card does (nothing changes if someone holds it). */
-export function takeJob(request:APIRequestContext,token:string,eventCode:string,job:RaceJob) {
+export function takeJob(request:APIRequestContext,token:string,eventCode:string,job:Job) {
   return raceScreenWrite(request,token,eventCode,'hold',{job});
 }
 /** Checks runners in on the race screen as that phone: takes check-in, then writes the whole list at the version it sees. */
@@ -140,24 +120,52 @@ export async function writeCheckIn(request:APIRequestContext,token:string,eventC
   const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
   return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners:runners.map(entry),keptWarnings});
 }
-/** Writes the finishing order on the race screen as that phone, by wristband: takes the order, then writes the whole column at the version it sees. */
-export async function writeOrder(request:APIRequestContext,token:string,eventCode:string,order:number[],didNotFinish:number[]=[]) {
-  const {race}=await takeJob(request,token,eventCode,'order');
+/**
+ * Writes the finishing order on the race screen as that phone, by wristband: takes the order, then writes the whole
+ * column at the version it sees. Every runner goes in `order`, `didNotFinish` or `didNotRun`; `added` are runners
+ * not on the list, typed at the finish (placed by naming them in `order` too).
+ */
+export async function writeOrder(request:APIRequestContext,token:string,eventCode:string,order:number[],{didNotFinish=[],didNotRun=[],added=[],keptWarnings=[]}:{didNotFinish?:number[];didNotRun?:number[];added?:number[];keptWarnings?:number[]}={}) {
+  let {race}=await takeJob(request,token,eventCode,'order');
+  // A runner typed at the finish has no entry until a write adds it, as on the card: added first, then placed.
+  if(added.length) race=(await raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added,keptWarnings})).race;
   const id=(wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
-  return raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:[],added:[]});
+  return raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[]});
+}
+/** Writes the times on the race screen as that phone, in hundredths by place; `keptWrong` are the places (0-based) whose wrong time it kept. */
+export async function writeTimes(request:APIRequestContext,token:string,eventCode:string,places:number[],keptWrong:number[]=[]) {
+  const {race}=await takeJob(request,token,eventCode,'times');
+  return raceScreenWrite(request,token,eventCode,'times',{raceId:race.id,version:race.parts.times.version,places,keptWrong});
+}
+/** Presses Submit Race on the event's current race as that phone. The race is saved once everyone asked has pressed. */
+export async function submitRace(request:APIRequestContext,token:string,eventCode:string) {
+  return raceScreenWrite(request,token,eventCode,'submit',{raceId:(await readRaceScreen(request,token,eventCode)).race.id});
+}
+/**
+ * A saved race, as one phone doing every job: checks the runners in, places them in that order (those beyond the
+ * times Did not finish), types the times, keeping any wrong one, then presses Submit Race. Returns the race as it
+ * was saved. `keptWarnings` are the wristbands whose warnings the starter kept.
+ */
+export async function recordRace(request:APIRequestContext,token:string,eventCode:string,runners:number[],places:number[],keptWarnings?:number[]) {
+  await writeCheckIn(request,token,eventCode,runners,keptWarnings);
+  await writeOrder(request,token,eventCode,runners.slice(0,places.length),{didNotFinish:runners.slice(places.length)});
+  const {race}=await writeTimes(request,token,eventCode,places,wrongTimes(places).map(wrong=>wrong.index));
+  expect((await submitRace(request,token,eventCode)).race.id,'the race is saved').not.toBe(race.id);
+  return race as RaceScreenRead['race'] & {id:string};
 }
 /** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
   expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
 }
 /**
- * Deletes the event's current race for good, as a lead does a race opened by mistake. Until the job screens go,
- * a race left unfinished shows on their pickers as waiting, so every test ends by deleting the one it left.
+ * Deletes the event's current race for good, as a lead does a race opened by mistake, so no race a test left
+ * unsaved lingers on the shared test day. Every race screen test ends with it. A saved race stays, and an empty
+ * next race has nothing to delete.
  */
 export async function deleteCurrentRace(request:APIRequestContext,code:string) {
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-  const {race}=await (await request.get(`/api/race-screen/${code}`,{headers})).json() as RaceScreenRead;
-  expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}})).ok()).toBe(true);
+  const {race}=await readRaceScreen(request,process.env.E2E_SCORING_TOKEN!,code);
+  if(race.id===null || race.state==='saved') return;
+  expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{permanent:true}})).ok()).toBe(true);
 }
 /** From Home: taps the event's tile and waits for its race screen. */
 export async function openRaceScreen(page:Page,name:string,section='Girl Cubs') {
@@ -168,30 +176,17 @@ export async function openRaceScreen(page:Page,name:string,section='Girl Cubs') 
 export async function setHidden(page:Page,hidden:boolean) {
   await page.evaluate(hidden=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>hidden?'hidden':'visible'});document.dispatchEvent(new Event('visibilitychange'));},hidden);
 }
-/** Types one wristband into the phone number input and taps Next, as a volunteer would. */
+/** The Next button beside a number box on the race screen, found by the box's label. */
+export function nextBeside(page:Page,label:string) {
+  return page.locator('.number-entry-row',{has:page.getByLabel(label,{exact:true})}).getByRole('button',{name:'Next',exact:true});
+}
+/** Types one wristband into the phone number input and taps the Next beside it, as a volunteer would. */
 export async function enterWristband(page:Page,number:number|string,label='Wristband number') {
   await page.getByLabel(label,{exact:true}).fill(String(number));
-  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await nextBeside(page,label).click();
 }
 /** Goes to Home the way a person would: back along the back arrow. Wait for the screen to settle first. */
 export async function goHome(page:Page) {await back(page,'Home');}
-/**
- * Opens a race from a job's race picker, reached back along the back arrow when a race is already open,
- * for example pickRace(page,'Finishing order',/R4.*Heat 2$/) or pickRace(page,'Times','60m Girl Cubs (R4) · Heat 2').
- * Waits for the job to finish opening first.
- */
-export async function pickRace(page:Page,jobStep:string,race:string|RegExp) {
-  await expect(page.getByText('Opening…',{exact:true})).toHaveCount(0);
-  const picker=page.getByRole('heading',{name:'Which race is it?',exact:true});
-  await expect(picker.or(page.getByRole('navigation',{name:'Back',exact:true})).first()).toBeVisible();
-  if(!await picker.isVisible()) await back(page,jobStep);
-  await page.getByRole('main').getByRole('button',typeof race==='string'?{name:race,exact:true}:{name:race}).first().click();
-}
-/** The race named on the saved confirmation, for example "Heat 2". */
-export async function savedRaceLabel(page:Page) {
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
-  return (await page.getByTestId('saved-race').innerText()).match(/(Heat|Race|Final) \d+/)![0];
-}
 /** From Home: taps I'm a zone lead and gives the lead code (or the owner password). */
 export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:"I'm a zone lead",exact:true}).click();
@@ -216,11 +211,6 @@ export async function openDashboard(page:Page,section?:keyof typeof dashboardTit
 /** A To check item, found by any text on it (event code, wristband, title); tapping it opens the race. */
 export function toCheckItem(page:Page,text:RegExp) {
   return page.getByRole('list',{name:'To check'}).getByRole('button',{name:text});
-}
-const jobTitles={'Start line':'Check in runners','Finish order':'Record the finishing order',Times:'Enter times'} as const;
-/** The Home button for a job, named as in the code (Start line, Finish order, Times); the button itself shows the job's title. */
-export function jobButton(page:Page,job:keyof typeof jobTitles) {
-  return page.getByRole('button',{name:new RegExp(`^${jobTitles[job]}`)});
 }
 /**
  * Starts dragging from `from` the way a person would: a real finger on the phone projects
@@ -258,14 +248,10 @@ export async function startDrag(page:Page,from:Locator) {
 export async function dragTo(page:Page,from:Locator,to:Locator) {
   const drag=await startDrag(page,from);await drag.over(to);await drag.drop();
 }
-/** Waits until the Times job has loaded: the race picker, a place to type, or the check screen. */
-export async function timesOpened(page:Page) {
-  await expect(page.getByRole('heading',{name:/^Which race is it\?$|place time\?$|^Check the times$/})).toBeVisible();
-}
-/** Types one place's time (digits only, as a timer would) into the phone number input and taps Next. */
+/** Types one place's time (digits only, as a timer would) into the phone number input and taps the Next beside it. */
 export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
-  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await nextBeside(page,'Place time').click();
 }
 /** Every rule of the v2 look that can be measured on the screen currently shown. */
 export async function lookProblems(page:Page) {

@@ -1,19 +1,4 @@
-import { deleteCurrentRace,lookProblems,back,expect,jobButton,createProfile,openRaceScreen,ownEvent,savedRaceLabel,test,type Page } from './fixtures.js';
-const scoring=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
-async function openGirlCubs(page:Page,name:string) {
-  await page.request.post('/api/day/events/R4/rename',{headers:scoring(),data:{name:'60m'}});
-  await page.request.post('/api/day/confirm-events',{headers:scoring(),data:{}});
-  await page.goto('/');
-  await createProfile(page,name);
-  await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-}
-async function deleteRaces(page:Page,wristband:number) {
-  const read=await (await page.request.get('/api/jobs/start-line',{headers:scoring()})).json();
-  for(const race of read.waiting.filter((item:any)=>item.parts.runners.value?.some((runner:any)=>runner.wristband===wristband))) await page.request.post(`/api/races/${race.id}/delete`,{headers:scoring(),data:{permanent:true}});
-}
-
+import { deleteCurrentRace,lookProblems,expect,nextBeside,openRaceScreen,ownEvent,test } from './fixtures.js';
 test('wristband numbers go in through the phone keyboard on the race screen and the input keeps focus between runners',async({openPhone,request},info)=>{
   const project=info.project.name,code=`KB-${project.toUpperCase()}`,name=`Keyboard sprint ${project}`;
   await ownEvent(request,code,name);
@@ -34,7 +19,7 @@ test('wristband numbers go in through the phone keyboard on the race screen and 
   await expect(input).toHaveValue('');
   await expect(input).toBeFocused();
   await input.pressSequentially('2002');
-  const next=page.getByRole('button',{name:'Next',exact:true});
+  const next=nextBeside(page,'Wristband number');
   await expect(next).toBeInViewport();
   await next.click();
   await expect(page.getByRole('button',{name:'Change runner 2002',exact:true})).toBeVisible();
@@ -78,61 +63,4 @@ test('wristband numbers go in through the phone keyboard on the race screen and 
   await page.getByRole('button',{name:/^Check-in Wristbands You are checking in · 4 in$/}).click();
   await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2001','2002','2004','3046']);
   await deleteCurrentRace(request,code);
-});
-
-test('the back arrow goes back to earlier steps without losing typed entries',async({page},info)=>{
-  await openGirlCubs(page,`Back arrow ${info.project.name}`);
-  const input=page.getByLabel('Wristband number',{exact:true});
-  for(const number of ['2011','2012']) {await input.fill(number);await input.press('Enter');}
-  await input.fill('20');
-  // The back arrow replaces the separate Home and Other race buttons.
-  await expect(page.getByRole('button',{name:'Home',exact:true})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:/^(Other race|Choose another race)$/})).toHaveCount(0);
-  await back(page,'Check in runners');
-  await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Back to Check in runners',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Remove runner 2011',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Remove runner 2012',exact:true})).toBeVisible();
-  await expect(input).toHaveValue('20');
-  await input.fill('');
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Check the runners',exact:true})).toBeVisible();
-  await back(page,'Runners (2)');
-  await expect(page.getByRole('heading',{name:'Runner 3: wristband number?',exact:true})).toBeVisible();
-  await back(page,'Check in runners');
-  await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
-  await back(page,'Home');
-  await jobButton(page,'Start line').click();
-  await page.getByRole('button',{name:'Carry on with 60m Girl Cubs · 2 runners',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Remove runner 2012',exact:true})).toBeVisible();
-});
-
-test('a confirmed save shows the thank-you screen with the race, the next race and Home',async({page},info)=>{
-  await openGirlCubs(page,`Saved ${info.project.name}`);
-  const input=page.getByLabel('Wristband number',{exact:true});
-  for(const number of ['2021','2022']) {await input.fill(number);await input.press('Enter');}
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await page.getByRole('button',{name:'Save',exact:true}).click();
-  const label=await savedRaceLabel(page);
-  await expect(page.getByTestId('saved-race')).toHaveText(`60m Girl Cubs · ${label} · 2 runners`);
-  await expect(page.getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Check in the next race',exact:true})).toBeVisible();
-  await expect(page.getByRole('main').getByRole('button',{name:'Home',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Edit runners',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Delete this race',exact:true})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('check-in-saved.png'),fullPage:true});
-  await page.getByRole('button',{name:'Check in the next race',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:`60m Girl Cubs (R4) · ${label}`,exact:true}).click();
-  await expect(page.getByText(`60m · Girl Cubs · ${label}`,{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Remove runner 2021',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Thank you. Your responses have been saved.',exact:true})).toBeVisible();
-  await page.getByRole('main').getByRole('button',{name:'Home',exact:true}).click();
-  await expect(jobButton(page,'Start line')).toBeVisible();
-  await deleteRaces(page,2021);
 });
