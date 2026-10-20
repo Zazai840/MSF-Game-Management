@@ -315,3 +315,40 @@ test('once a heat is saved the same screen shows "Heat 1 saved" and the empty ne
   await expect(sam.page.getByText('Heat 1 saved',{exact:true})).toHaveCount(0);
   await deleteCurrentRace(request,code);
 });
+
+test('a full heat keeps every row of Order and Times one line high at phone width: a runner added at the finish, two-digit places, a wrong 11th time, Did not finish and a long holder name',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`RT-${project.toUpperCase()}`,name=`Full table sprint ${project}`;
+  await ownEvent(request,code,name);
+  await writeCheckIn(request,await signInThroughApi(request,`Sam full table ${project}`),code,[2101,2102,2103,2104,2105,2106,2107,2108,2109,2110,2111,2112]);
+  const {page,token}=await openPhone(`Priya full table ${project}`);
+  await writeOrder(request,token,code,[2101,3045,2102,2103,2104,2105,2106,2107,2108,2109,2110,2111],{added:[3045],keptWarnings:[3045],didNotFinish:[2112]});
+  const timer=`Wilhelmina Cholmondeley-Warner ${project}`;
+  // 11th is faster than 10th, and kept: the longest reason a heat shows.
+  await writeTimes(request,await signInThroughApi(request,timer),code,[1201,1250,1302,1345,1388,1402,1455,1499,1560,1580,1570],[10]);
+  await openRaceScreen(page,name);await orderCard(page).click();
+  const table=page.getByRole('table',{name:'Order and times',exact:true});
+  await expect(table.getByRole('row')).toHaveCount(13);
+  const lines=(element:Element)=>Math.round(element.getBoundingClientRect().height/parseFloat(getComputedStyle(element).lineHeight));
+  // The runner added at the finish is marked in one line, so its row is no taller than the rest.
+  await expect(table.getByRole('row').nth(2)).toHaveText(/^2nd\s*3045At finish\s*12.50$/);
+  expect(await table.locator('tbody small').first().evaluate(lines)).toBe(1);
+  expect(new Set(await table.locator('tbody tr').evaluateAll(rows=>rows.map(row=>Math.round(row.getBoundingClientRect().height))))).toEqual(new Set([50]));
+  // "Faster than 10th place" stays inside the Time cell's padding.
+  const reason=table.getByText('Faster than 10th place',{exact:true});
+  expect(await reason.evaluate(element=>{const cell=element.closest('td')!;return element.getBoundingClientRect().right<=cell.getBoundingClientRect().right-parseFloat(getComputedStyle(cell).paddingRight);})).toBe(true);
+  // Did not finish sits on one line beside Give a place.
+  const noPlace=page.getByRole('list',{name:'No place',exact:true});
+  await expect(noPlace).toHaveText(['2112Did not finishGive a place']);
+  expect(await noPlace.getByText('Did not finish',{exact:true}).evaluate(lines)).toBe(1);
+  // A long holder name stays beside its column's label, with Take over below it.
+  const timesRow=page.locator('.race-column',{hasText:timer});
+  const [label,holder]=await Promise.all([timesRow.getByText('Times',{exact:true}).boundingBox(),timesRow.getByText(timer,{exact:true}).boundingBox()]);
+  expect(holder!.y).toBeLessThan(label!.y+label!.height);
+  // Notes in the card keep the card's own spacing, with no paragraph margins on top.
+  const kept=page.getByText('Kept as typed. A zone lead will check it.',{exact:true});
+  expect(await kept.evaluate(element=>getComputedStyle(element).marginTop+' '+getComputedStyle(element).marginBottom)).toBe('0px 0px');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('full-table.png'),fullPage:true});
+  expect(await lookProblems(page)).toEqual([]);
+  await deleteCurrentRace(request,code);
+});

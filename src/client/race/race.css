@@ -23,7 +23,7 @@
 .race-chips button {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border:0; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-variant-numeric:tabular-nums;}
 .race-chips .kept-dot {width:9px; height:9px; border-radius:50%; background:var(--amber-line); flex:none;}
 .race-hint {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
-.race-card-body .warning-box p:last-child,.race-card-body p[role=alert] {margin:0;}
+.race-card-body .warning-box p:last-child,.race-card-body p[role=alert],.race-card-body .calm-note {margin:0;}
 .race-take-over {align-self:flex-start;}
 
 /* Check-in on a final: one row per seeded runner, Here or Absent. An absent runner's number is struck through. */
@@ -41,12 +41,12 @@
 
 /* Order and Times: one row per place, rows told apart by tone. */
 .race-table {width:100%; border-collapse:separate; border-spacing:0 6px; margin:-6px 0; font-variant-numeric:tabular-nums;}
-.race-table th {padding:0 12px; text-align:left; font-size:var(--text-small); font-weight:800; color:var(--muted);}
-.race-table td {height:50px; padding:0 12px; background:var(--ground); font-size:21px; font-weight:800; color:var(--text);}
+.race-table th {padding:0 10px; text-align:left; font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.race-table td {height:50px; padding:0 10px; background:var(--ground); font-size:21px; font-weight:800; color:var(--text);}
 .race-table td:first-child {border-radius:var(--radius) 0 0 var(--radius); font-size:16px; color:var(--navy);}
 .race-table td:last-child {border-radius:0 var(--radius) var(--radius) 0;}
 .race-no-place {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
-.race-no-place li {display:flex; align-items:center; gap:12px; min-height:44px; padding:0 14px; border-radius:var(--radius); background:var(--tint); font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-no-place li {display:flex; align-items:center; gap:10px; min-height:44px; padding:0 10px; border-radius:var(--radius); background:var(--tint); font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .race-no-place strong {font-size:18px; color:var(--text); font-variant-numeric:tabular-nums;}
 .race-no-place li span {flex:1;}
 .race-no-place li:has(> button) {padding-right:6px;}
@@ -58,11 +58,12 @@
 .race-fixing button {flex:1;}
 .race-chips button[aria-pressed=true] {background:var(--navy); color:#fff;}
 
-/* Who holds each column, one row each; Take over's confirm drops onto its own line below. */
+/* Who holds each column, one row each; Take over's confirm drops onto its own line below. A long name stays beside
+   its label (it starts as narrow as its longest word), and Take over moves below it instead. */
 .race-columns {display:flex; flex-direction:column; gap:6px;}
 .race-column {display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-height:var(--tap);}
 .race-column-name {width:64px; flex:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
-.race-column-who {flex:1 1 auto; min-width:0; font-size:var(--text-body); font-weight:800; color:var(--text); overflow-wrap:break-word;}
+.race-column-who {flex:1 1 auto; width:min-content; min-width:0; font-size:var(--text-body); font-weight:800; color:var(--text); overflow-wrap:break-word;}
 .race-column-you {color:var(--navy);}
 .race-column > button {margin-left:auto;}
 .race-column .warning-box {flex-basis:100%;}
@@ -84,13 +85,14 @@
 /* The times column: the timer taps a time to retype it; a wrong one is amber with its reason, on every phone. */
 .race-table td.time-wrong {background:var(--amber-fill); box-shadow:inset 0 0 0 2px var(--amber-line);}
 /* Fixed columns, so Wristband and Time line up the same in every race whatever is in them. Place and Wristband take
-   what "10th" and a four-digit wristband need, so a wrong time's "Faster than 3rd place" fits on one line at 360 px. */
+   what "10th" and the "Wristband" heading need, so a wrong time's "Faster than 10th place" fits on one line inside
+   the cell's padding at 360 px. */
 .race-table {table-layout:fixed;}
-.race-table th:first-child {width:52px;}
-.race-table th:nth-child(2) {width:88px;}
+.race-table th:first-child {width:48px;}
+.race-table th:nth-child(2) {width:84px;}
 .race-table th {white-space:nowrap;}
 .race-table .wrong-time-reason {white-space:nowrap;}
-.race-time {display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:calc(100% + 24px); min-height:50px; margin:0 -12px; padding:0 12px; border:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; text-align:left;}
+.race-time {display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:calc(100% + 20px); min-height:50px; margin:0 -10px; padding:0 10px; border:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; text-align:left;}
 .race-time:disabled {opacity:1; cursor:default;}
 
 /* Submit Race: the dock at the bottom, the results card while submitted, and the note once a race is saved. */

@@ -47,7 +47,7 @@ test('two phones: check-in on one, the order on the other, with a runner not on 
   await expect(finish.getByRole('heading',{name:'2014 has no place. What happened?',exact:true})).toBeVisible();
   await finish.getByRole('button',{name:"Didn't run",exact:true}).click();
   await expect(finish.getByText('Everyone has a place',{exact:true})).toBeVisible();
-  await expect(tableRows(finish)).toHaveText([/^Place/,/^1st\s*2011\s*$/,/^2nd\s*3045Added at the finish\s*$/,/^3rd\s*2012\s*$/]);
+  await expect(tableRows(finish)).toHaveText([/^Place/,/^1st\s*2011\s*$/,/^2nd\s*3045At finish\s*$/,/^3rd\s*2012\s*$/]);
   await expect(finish.getByRole('list',{name:'No place'})).toHaveText(['2013Did not finishGive a place']);
   // Didn't run takes 2014 off the race, and the runner added at the finish is in it: check-in can't type 3045 again.
   await expect(checkedIn).toHaveText(['2011','2012','2013','3045'],live);
@@ -56,9 +56,9 @@ test('two phones: check-in on one, the order on the other, with a runner not on 
   // Dragging moves the wristband; the other phone shows the new order live.
   await finish.getByRole('button',{name:'Change the order',exact:true}).click();
   await expect(finish.getByText('Drag a wristband to its place: times stay by place.',{exact:true})).toBeVisible();
-  await expect(orderRows(finish)).toHaveText(['1st2011','2nd3045Added at the finish','3rd2012']);
+  await expect(orderRows(finish)).toHaveText(['1st2011','2nd3045At finish','3rd2012']);
   await dragTo(finish,handle(finish,3045),orderRows(finish).first());
-  await expect(orderRows(finish)).toHaveText(['1st3045Added at the finish','2nd2011','3rd2012']);
+  await expect(orderRows(finish)).toHaveText(['1st3045At finish','2nd2011','3rd2012']);
   expect(await lookProblems(finish)).toEqual([]);await finish.screenshot({path:info.outputPath('finish-order-review.png'),fullPage:true});
   await finish.getByRole('button',{name:'Done',exact:true}).click();
   await start.getByRole('button',{name:/^Order and Times/}).click();

@@ -15,8 +15,8 @@ import { WristbandEntry } from './WristbandEntry.js';
 type OrderColumn={order:string[];didNotFinish:string[];didNotRun:string[]};
 type Column='order'|'times';
 const columnNames:Record<Column,string>={order:'Order',times:'Times'};
-/** A wristband as the order shows it, with "Added at the finish" under one typed at the finish. */
-const Wristband=({runner}:{runner:Runner})=><>{runner.wristband}{runner.addedAtFinish && <small>Added at the finish</small>}</>;
+/** A wristband as the order shows it, with "At finish" under one typed at the finish: short enough for one line in the Wristband column. */
+const Wristband=({runner}:{runner:Runner})=><>{runner.wristband}{runner.addedAtFinish && <small>At finish</small>}</>;
 
 /**
  * Order and Times ("Finishing order" on a final, with no times): one table by place, Place | Wristband | Time, with
@@ -136,7 +136,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     </div>}
     {timing && (typing?<div className="race-order">
       <h3 className="race-question">{ordinal(target+1)} place time?</h3>
-      <NumberEntry inline label="Place time" placeholder="Digits only, e.g. 1234" value={padDigits} held={held} onChange={digits=>setPad(digits,retype)} onNext={sendTime}
+      <NumberEntry inline label="Place time" placeholder="e.g. 1234" value={padDigits} held={held} onChange={digits=>setPad(digits,retype)} onNext={sendTime}
         selectKey={`${race.id}:${target}:${retype===null?'next':'retype'}`} display={<p className="time-shows">Shows as <strong>{formatTimeDigits(padDigits)}</strong></p>}
         extraAction={retype!==null && <button className="button-secondary" onClick={()=>setPad('',null)}>Cancel</button>}/>
       {held && <div className="warning-box" role="alert">

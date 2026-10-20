@@ -24,6 +24,12 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await expect(page.getByRole('heading',{name:'1st place time?',exact:true})).toBeVisible();
   const input=page.getByLabel('Place time',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
+  // The box's hint fits beside Next, even at phone width.
+  expect(await input.evaluate((box:HTMLInputElement)=>{
+    const style=getComputedStyle(box),context=document.createElement('canvas').getContext('2d')!;
+    context.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return context.measureText(box.placeholder).width<=box.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+  })).toBe(true);
   await input.click();await input.pressSequentially('12.44');await expect(input).toHaveValue('1244');
   await expect(page.getByText('Shows as 12.44',{exact:true})).toBeVisible();
   await input.press('Enter');await expect(input).toBeFocused();await expect(input).toHaveValue('');
