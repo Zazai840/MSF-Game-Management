@@ -1,4 +1,14 @@
-/* The lead's race page and its correction sheets. Rows reuse the Times screens' look (jobs.css, flow.css); tokens from theme.css. */
+/* The lead's race page and its correction sheets. Wrong-time amber comes from flow.css; tokens from theme.css. */
+
+/* Correct times: one row per place, tapped to retype its time. */
+.time-rows {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+.time-row {width:100%; display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 14px; border-radius:var(--radius); background:var(--surface); color:var(--text); border:1.5px solid var(--surface); text-align:left; font-weight:800;}
+.time-place {width:46px; flex:none; font-size:16px; font-weight:800; color:var(--navy);}
+.time-value {flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0;}
+.time-value strong {font-size:22px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;}
+.time-edit {flex:none; color:var(--faint);}
+.time-row-none {background:var(--tint); border-color:var(--tint); color:var(--muted);}
+.time-row-none .time-value {font-size:var(--text-small); font-weight:700; color:var(--muted);}
 
 /* Current record: one row per runner, a wrong time in amber with its reason. */
 .race-page .time-count {margin:0 0 8px;}
@@ -38,3 +48,17 @@
 .race-page > p:not([role]) {margin:0 0 8px; color:var(--muted); font-size:var(--text-small); font-weight:600;}
 .race-page h4 {margin:8px 0 4px; font-size:var(--text-body); color:var(--navy);}
 .race-action-choices > button {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); font-size:16px;}
+
+/* Correct finishing order: each row's time stays with its place; No place asks what happened below the list. */
+.lead-order .sortable-row {gap:10px; padding:0 4px 0 12px; background:var(--ground);}
+.lead-order-place {width:60px; flex:none; display:flex; flex-direction:column; gap:2px;}
+.lead-order-place small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.lead-order .row-runner {flex:1;}
+.lead-no-place {flex:none;}
+.lead-order-ask {display:grid; gap:10px; padding:12px 14px; border-radius:var(--radius); background:var(--tint);}
+.lead-order-ask p {margin:0;}
+.lead-order-choices {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.lead-order-others {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.lead-order-others li {display:flex; align-items:center; gap:12px; min-height:52px; padding:0 8px 0 14px; border-radius:var(--radius); background:var(--tint);}
+.lead-order-others strong {font-size:18px; font-weight:800; font-variant-numeric:tabular-nums;}
+.lead-order-others span {flex:1; font-size:var(--text-small); font-weight:700; color:var(--muted);}

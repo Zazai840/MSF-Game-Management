@@ -7,13 +7,15 @@ import type { WristbandWarning } from './wristband-checks.js';
 import type { FinishingOrder,Runner } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
-import { timesOutOfOrder } from './time-entry.js';
+import { notCountedReasons } from './race-counts.js';
 import { eventTies,type TieSettlement } from './ties.js';
 export type Section = 'Boy Beavers' | 'Girl Beavers' | 'Boy Cubs' | 'Girl Cubs' | 'Boy Scouts' | 'Girl Scouts';
 export interface Event { code:string; name:string; section:Section; format:'heats'|'timed' }
 export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:number; checkedInAt:string }
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
-export interface ResultsRace extends RaceReference { deleted:boolean; clash?:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|'clash'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
+export interface ResultsRace extends RaceReference { deleted:boolean;
+  /** Saved through Submit Race (or Save as lead): only a saved race counts. */
+  saved:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[] }
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
 
@@ -22,22 +24,19 @@ export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }
-export type NotRankedReason='two versions, lead to check'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
+export type NotRankedReason='in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
 export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
-/** One version of a race part saved while another was also active: who saved it and when. */
-export interface ClashSaver { name:string|null; at:string }
 /**
  * A lead queue item. `message` is v1's terse line; the optional facts beside it let the
  * To check list explain the item in plain English (see src/shared/to-check.ts).
  */
 export interface LeadItem {
-  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'clash'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
+  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
   wristband?:number; warningKinds?:WristbandWarning['kind'][];
   wrongTime?:{ place:number; time:number; earlierPlace:number; earlierTime:number };
   tie?:{ time:number; wristbands:number[] };
-  clash?:Array<{ part:'runners'|'finish'|'times'; savers:ClashSaver[] }>;
 }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {
@@ -55,26 +54,21 @@ export function eventResults(state:EventState):EventResults {
   const recordingReasons=new Map<string,NotRankedReason[]>();
   const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
   const reference=(race:ResultsRace):RaceReference=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt});
+  // Ran twice counts saved races only, as To check does.
   const appearances=new Map<number,Set<string>>();
-  for(const race of active) for(const runner of race.runners) {
+  for(const race of active.filter(race=>race.saved)) for(const runner of race.runners) {
     const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
     if(ruling?.disqualification || ruling?.notCounted) continue;
     const races=appearances.get(runner.wristband)||new Set<string>();races.add(race.id);appearances.set(runner.wristband,races);
   }
   for(const race of state.races) {
-    const reasons:NotRankedReason[]=[];
-    if(race.clash) reasons.push('two versions, lead to check');
-    if(!race.finish) reasons.push(race.times?'awaiting finishing order':'checked in');
-    if(race.kind==='final' && !race.final?.presenceConfirmed) reasons.push('checked in');
-    if(race.kind!=='final' && race.finish && !race.times) reasons.push('awaiting times');
-    if(race.kind!=='final' && race.times && timesOutOfOrder(race.times.places) && race.times.acceptedByLead!==true) reasons.push('times out of order');
-    if(race.kind!=='final' && race.finish && race.times && race.finish.order.length!==race.times.places.filter(time=>time!==null).length) reasons.push("finishers and times don't agree");
+    const reasons=notCountedReasons(race);
     recordingReasons.set(race.id,reasons);
     if(reasons.length && !race.deleted && race.kind!=='final') notRankedYet.push({race:reference(race),reasons});
     for(const runner of race.runners) {
       const index=race.finish?.order.indexOf(runner.id)??-1,isFinisher=index>=0;
       const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
-      const repeated=!race.deleted && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && (appearances.get(runner.wristband)?.size||0)>1;
+      const repeated=!race.deleted && race.saved && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && (appearances.get(runner.wristband)?.size||0)>1;
       const row:LeaderboardRow={...leaderboardRowFacts(state,race,runner,ruling,repeated),place:isFinisher?index+1:null,time:isFinisher?race.times?.places[index]??null:null,status:reasons.length?'Pending':isFinisher?'Finished':'Did not finish',...(reasons.length?{recordingPending:true as const}:{})};
       publishedRows.push(row);
       if(race.deleted) continue;

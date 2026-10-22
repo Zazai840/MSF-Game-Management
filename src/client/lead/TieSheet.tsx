@@ -6,7 +6,6 @@ import type { EventResultsRead } from '../../shared/lead-results.js';
 import { keepsSameRaceOrder,tieEntryKey,type TieOutcome } from '../../shared/ties.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { SortableList } from '../flow/SortableList.js';
-import '../jobs/jobs.css';
 import { formatTime } from '../../shared/time-entry.js';
 import './ties.css';
 export function TieSheet({code,tie,onSaved,onClose}:{code:string;tie:ResultTie;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {

@@ -3,7 +3,7 @@ import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 import type { TieSettlement } from '../src/shared/ties.js';
 const heats={code:'R4',name:'60m',section:'Girl Cubs' as const,format:'heats' as const};
 function races(times:number[]):ResultsRace[] {
-  return times.map((time,index)=>({id:`race${index+1}`,kind:'heat',number:index+1,deleted:false,checkedInAt:'2026-10-12T10:00:00Z',runners:[{id:`entry${index+1}`,wristband:2001+index}],finish:{order:[`entry${index+1}`],didNotFinish:[]},times:{places:[time],outOfOrder:false}}));
+  return times.map((time,index)=>({id:`race${index+1}`,kind:'heat',number:index+1,deleted:false,saved:true,checkedInAt:'2026-10-12T10:00:00Z',runners:[{id:`entry${index+1}`,wristband:2001+index}],finish:{order:[`entry${index+1}`],didNotFinish:[]},times:{places:[time],outOfOrder:false}}));
 }
 test('equal times across heats open a tie for every member when it touches the top eight',()=>{
   const result=eventResults({event:heats,races:races([900,1000,1100,1200,1300,1400,1500,1600,1600])});

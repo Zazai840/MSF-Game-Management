@@ -3,7 +3,6 @@ import { finalRoutes } from './rulings/finals.js';
 import { resetRoutes } from './day/reset.js';
 import { stageRoutes } from './rulings/stages.js';
 import { raceRulingRoutes } from './rulings/races.js';
-import { clashRoutes } from './rulings/clashes.js';
 import Fastify from 'fastify';
 import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
@@ -16,15 +15,19 @@ import { runnerRulingRoutes } from './rulings/runners.js';
 import { rulingRoutes } from './rulings/routes.js';
 import { tieRoutes } from './rulings/ties.js';
 import { resultsRoutes } from './results/routes.js';
-import { timesRoutes } from './races/times.js';
-import { finishOrderRoutes } from './races/finish.js';
 import { raceRoutes } from './races/routes.js';
+import { raceScreenRoutes } from './races/race-screen.js';
+import { liveRoutes } from './live/routes.js';
 export interface AppSettings {
   databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number;
   // Turns on request logging (JSON lines); codes and the owner password only travel in bodies, which Fastify never logs.
   logTo?: NodeJS.WritableStream;
   /** Marks a public test deployment; its commit is shown to testers and carried into bug reports. */
   testBuild?: {commit?: string};
+  /** Live streams: how often an idle stream sends a heartbeat (Railway cuts a stream after 5 minutes of silence), and when each stream ends (Railway's hard cap is 15 minutes). */
+  streamHeartbeatMs?: number; streamLimitMs?: number;
+  /** The web build this server serves, sent on every response and live snapshot; a phone running another build reloads. */
+  buildId?: string;
 }
 const bugReportUrl = 'https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml';
 export async function createApp(settings: AppSettings) {
@@ -45,6 +48,8 @@ export async function createApp(settings: AppSettings) {
     app.log.error(error);
     return reply.code(500).send({message:'Something went wrong - please try again'});
   });
+  // Set on the raw response so hijacked live streams carry it too.
+  if (settings.buildId) app.addHook('onRequest', async (_request, reply) => { reply.raw.setHeader('x-build-id', settings.buildId!); });
   const testBuild = settings.testBuild && {commit:settings.testBuild.commit || 'unknown', reportUrl:bugReportUrl};
   app.get('/api/health', () => testBuild ? {ok:true, testBuild} : {ok:true});
   accessRoutes(app, pool, settings.ownerPassword);
@@ -55,15 +60,14 @@ export async function createApp(settings: AppSettings) {
   exportRoutes(app,pool);
   homeRoutes(app, pool);
   raceRoutes(app,pool);
-  finishOrderRoutes(app,pool);
-  timesRoutes(app,pool);
+  raceScreenRoutes(app,pool);
   resultsRoutes(app,pool);
   rulingRoutes(app,pool);
-  clashRoutes(app,pool);
   runnerRulingRoutes(app,pool);
   raceRulingRoutes(app,pool);
   tieRoutes(app,pool);
   stageRoutes(app,pool);
   finalRoutes(app,pool);
+  liveRoutes(app,pool,{heartbeatMs:settings.streamHeartbeatMs ?? 15_000,limitMs:settings.streamLimitMs ?? 600_000,buildId:settings.buildId});
   return app;
 }

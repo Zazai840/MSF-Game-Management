@@ -9,15 +9,17 @@ export const digitsOnly=(value:string)=>value.replace(/\D/g,'');
  * Enter, the keyboard's Next/Go key and the Next button all call onNext.
  * While `held` (a warning is waiting for Fix or Keep) the keyboard closes; when released it opens again.
  */
-export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,nextLabel='Next',placeholder,display,extraAction,selectKey}:{
+export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,nextLabel='Next',placeholder,display,extraAction,selectKey,inline=false}:{
   label:string; value:string; onChange:(digits:string)=>void; onNext:()=>void;
   held?:boolean; busy?:boolean; nextLabel?:string; placeholder?:string;
   /** Shown under the input as you type, for example "Shows as 12.95". */
   display?:ReactNode;
-  /** A button beside Next in the bar above the keyboard, for example That's everyone. */
+  /** A button beside Next, for example Cancel while retyping a time. */
   extraAction?:ReactNode;
   /** Changing this selects whatever is in the input, so the first digit typed replaces it (retyping a time). */
   selectKey?:string|number;
+  /** Next sits beside the input instead of in the bar above the keyboard: the race screen's bar is its Submit Race dock. */
+  inline?:boolean;
 }) {
   const input=useRef<HTMLInputElement>(null);
   const wasHeld=useRef(held);
@@ -31,15 +33,19 @@ export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,n
   useLayoutEffect(()=>{if(selectKey!==undefined && !held) input.current?.select();},[selectKey]);
   const ready=!held && !busy && value!=='';
   function next() {input.current?.focus();if(ready) onNext();}
+  const field=<input ref={input} className={held?'number-input number-input-held':'number-input'} type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" spellCheck={false}
+    placeholder={placeholder} value={value} readOnly={busy || held}
+    onChange={event=>onChange(digitsOnly(event.target.value))}
+    onKeyDown={event=>{if(event.key==='Enter' && !event.nativeEvent.isComposing) {event.preventDefault();next();}}}/>;
+  // Keep focus in the input on tap, so the keyboard stays open between entries.
+  const nextButton=<button type="button" className="action-next" disabled={!ready} onMouseDown={event=>event.preventDefault()} onClick={next}>{busy?'Checking…':nextLabel}</button>;
+  if(inline) return <div className="number-entry">
+    <div className="number-entry-row"><label>{label}{field}</label>{nextButton}</div>
+    {display}{extraAction}
+  </div>;
   return <div className="number-entry">
-    <label>{label}<input ref={input} className={held?'number-input number-input-held':'number-input'} type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" spellCheck={false}
-      placeholder={placeholder} value={value} readOnly={busy || held}
-      onChange={event=>onChange(digitsOnly(event.target.value))}
-      onKeyDown={event=>{if(event.key==='Enter' && !event.nativeEvent.isComposing) {event.preventDefault();next();}}}/></label>
+    <label>{label}{field}</label>
     {display}
-    <ActionBar>{extraAction}
-      {/* Keep focus in the input on tap, so the keyboard stays open between entries. */}
-      <button type="button" className="action-next" disabled={!ready} onMouseDown={event=>event.preventDefault()} onClick={next}>{busy?'Checking…':nextLabel}</button>
-    </ActionBar>
+    <ActionBar>{extraAction}{nextButton}</ActionBar>
   </div>;
 }

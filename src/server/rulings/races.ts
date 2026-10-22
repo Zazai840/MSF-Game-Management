@@ -1,4 +1,5 @@
 import { createRace } from '../races/create.js';
+import { requireCurrentUnstarted } from '../races/current.js';
 import type { Runner,FinishingOrder } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -8,14 +9,19 @@ import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions,Refusal } from '../access/permissions.js';
 import { readRace,withReplacement } from '../races/records.js';
-import { publishPart } from '../races/versions.js';
-import { readEventResults } from '../results/read.js';
+import { correctPart,leadRace } from '../races/versions.js';
+import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { raceLabel } from '../../shared/races.js';
+/** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
+function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
+  if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
+}
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
+  action('GET','/api/lead/races/:id','Lead',(request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>leadRace(db,phone.dayId,(request.params as {id:string}).id)));
   action('POST','/api/lead/races/:id/times','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),places=value.places;
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0) throw new Refusal(400,'Open the race before correcting its times');
@@ -25,13 +31,14 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
       const count=race.parts.runners.value?.length||0;
       if(places.length>count) throw new Refusal(409,`This race has ${count} ${count===1?'runner':'runners'} - enter no more places than that`);
       if(places.length<count) throw new Refusal(409,'The runner list has changed - open the race again');
       const currentPlaces=places,outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
-      await publishPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});
+      await correctPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});
       await writeAuditNote(client,current,race.event.id,{action:acceptedByLead?'accept-times':'correct-times',comment,message:`${current.name} ${acceptedByLead?'accepted out-of-order times':'corrected the times'} for ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
@@ -66,6 +73,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(!race.deleted) throw new Refusal(409,'This race is already in the event');
       if(race.deleteReason==='re-run') throw new Refusal(409,'This race was replaced by a re-run and cannot be restored');
+      if(race.state!=='saved') await requireCurrentUnstarted(client,current.dayId,race.event,'restore');
       await client.query('UPDATE races SET deleted=false,delete_reason=null WHERE id=$1',[race.id]);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
@@ -78,6 +86,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
+      await requireCurrentUnstarted(client,current.dayId,race.event,'re-run');
+      requireSaved(race);
       const runners=race.parts.runners.value.map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
       const {id,number}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id});
@@ -85,7 +95,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const ids=new Map(race.final.entries.map(entry=>[entry.finalEntryId,runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.finalEntryId)]?.id||randomUUID()]));
         const entries=race.final.entries.map(entry=>({...entry,finalEntryId:ids.get(entry.finalEntryId)!,...(entry.runner?{runner:{...entry.runner,id:ids.get(entry.finalEntryId)!}}:{}),...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
         const additionalEntries=(race.final.additionalEntries||[]).map(entry=>({...entry,runner:{...entry.runner,id:runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.runner.id)]?.id||randomUUID()}}));
-        await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,presence_confirmed,generation) VALUES($1,$2,$3,false,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
+        await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,generation) VALUES($1,$2,$3,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
         await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[race.event.id]);
       }
       await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)} as ${raceLabel({...race,number})}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
@@ -105,6 +115,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=race.parts.runners.value||[],otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
       const changed:string[]=[];
@@ -130,12 +141,32 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const keptIds=new Set(runners.map(runner=>runner.id));
         finish={order:finish.order.filter(id=>keptIds.has(id)),didNotFinish:finish.didNotFinish.filter(id=>keptIds.has(id))};
       }
-      await publishPart(client,current,race,'runners',runners,runners);
-      if(JSON.stringify(finish)!==JSON.stringify(race.parts.finish.value)) await publishPart(client,current,race,'finish',finish,runners);
+      await correctPart(client,current,race,'runners',runners,runners);
+      if(JSON.stringify(finish)!==JSON.stringify(race.parts.finish.value)) await correctPart(client,current,race,'finish',finish,runners);
       for(const entryId of changed) await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[race.id,entryId,'[]']);
       await writeAuditNote(client,current,race.event.id,{action:'correct-runners',comment,message:`${current.name} corrected the runners for ${raceLabel(race)}: ${numbers.join(', ')||'none'}${finish===null && race.parts.finish.value?'; Finish order must be recorded again':''}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
-
+  /** Correct finishing order: wristbands move between places while times stay by place; Didn't run takes the runner off the race. */
+  action('POST','/api/lead/races/:id/finish-order','Lead',async(request,_reply,phone)=>{
+    const {value,comment}=rulingDetails(request.body,false),unclassified="Choose a place, Did not finish or Didn't run for every runner";
+    if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0 || !Number.isSafeInteger(value.runnersVersion) || Number(value.runnersVersion)<1) throw new Refusal(400,'Open the race before correcting its finishing order');
+    const numbers=(list:unknown)=>{if(!Array.isArray(list) || list.some(number=>!Number.isSafeInteger(number))) throw new Refusal(400,unclassified);return list as number[];};
+    const order=numbers(value.order),didNotFinish=numbers(value.didNotFinish),didNotRun=numbers(value.didNotRun);
+    return rulingChange(pool,phone,async(client,current)=>{
+      const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
+      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireSaved(race);
+      if(value.baseVersion!==race.parts.finish.version || value.runnersVersion!==race.parts.runners.version) throw new Refusal(409,'This race has changed - open it again');
+      const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
+      if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(runner=>runner.wristband===number))) throw new Refusal(400,unclassified);
+      const idFor=(number:number)=>previous.find(runner=>runner.wristband===number)!.id,runners=previous.filter(runner=>!didNotRun.includes(runner.wristband));
+      if(didNotRun.length) await correctPart(client,current,race,'runners',runners,runners);
+      await correctPart(client,current,race,'finish',{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},runners);
+      const details=[order.join(', ')||'no places',...(didNotFinish.length?[`Did not finish ${didNotFinish.join(', ')}`]:[]),...(didNotRun.length?[`Didn't run ${didNotRun.join(', ')}`]:[])].join('; ');
+      await writeAuditNote(client,current,race.event.id,{action:'correct-finish-order',comment,message:`${current.name} corrected the finishing order for ${raceLabel(race)}: ${details}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
+      return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
+    });
+  });
 }

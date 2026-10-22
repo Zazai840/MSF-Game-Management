@@ -2,6 +2,7 @@ import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
+import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -12,12 +13,10 @@ async function start(mixed=false) {
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');
   await call(lead,'/api/become-lead',{code:day.leadCode});
+  const setup=raceSetup(app);
   async function race(number:number|number[],time:number) {
     const runners=Array.isArray(number)?number:[number];
-    const checked=(await call(volunteer,'/api/races/check-in',{eventCode:'R4',runners})).json().race;
-    await call(volunteer,`/api/races/${checked.id}/finish`,{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]});
-    await call(volunteer,`/api/races/${checked.id}/times`,{baseVersion:0,places:runners.map(()=>time)});
-    return checked;
+    return setup.record(volunteer,'R4',runners,runners.map(()=>time));
   }
   await race(mixed?[2001,2003]:2001,1000);await race(2002,1000);
   const results=(await call(lead,'/api/lead/events/R4/results')).json();
@@ -59,7 +58,6 @@ test('volunteers, missing comments, incomplete orders and stale ties are refused
   expect(saved.statusCode).toBe(200);
   expect((await call(lead,path,{tieId:tie.id,outcome:'run-off',order:tie.entries})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R4/results')).json().auditNotes).toHaveLength(1);
-  for(const job of ['start-line','finish-order','times']) expect((await call(lead,`/api/jobs/${job}`)).statusCode).toBe(200);
 });
 test.each(['run-off','decided'] as const)('%s orders the tied runners without changing times or creating a race',async outcome=>{
   const {lead,tie}=await start();

@@ -55,9 +55,15 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       delete_reason text, request_id text, original_runners jsonb,
       UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
     );
+    -- A race moves in progress -> submitted (the first Submit press) -> saved (the last press), which is who and when.
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','submitted','saved'));
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS saved_at timestamptz;
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS saved_by text;
     CREATE TABLE IF NOT EXISTS race_finals (
-      race_id uuid PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE, entries jsonb NOT NULL, presence_confirmed boolean NOT NULL DEFAULT false
+      race_id uuid PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE, entries jsonb NOT NULL
     );
+    -- Attendance is now a live Here / Absent list with no confirm step; older builds stored that confirm here.
+    ALTER TABLE race_finals DROP COLUMN IF EXISTS presence_confirmed;
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS generation text NOT NULL DEFAULT '';
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS additional_entries jsonb NOT NULL DEFAULT '[]';
     CREATE TABLE IF NOT EXISTS race_counters (
@@ -75,16 +81,14 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL,
       value jsonb, runners jsonb NOT NULL, PRIMARY KEY(race_id,part,version)
     );
-    CREATE TABLE IF NOT EXISTS race_part_saves (
-      id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
-      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
-      part text NOT NULL CHECK (part IN ('runners','finish','times')),
-      base_version integer NOT NULL, version integer NOT NULL,
-      author_name text, saved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-      value jsonb, runners jsonb NOT NULL, before_runners jsonb NOT NULL, active boolean NOT NULL DEFAULT true
-    );
-    ALTER TABLE race_part_saves ADD COLUMN IF NOT EXISTS before_runners jsonb NOT NULL DEFAULT '[]';
-    CREATE INDEX IF NOT EXISTS race_part_candidates ON race_part_saves(race_id,part) WHERE active;
+    -- Set on the rows written when a race is saved: who held the part's job then.
+    ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS held_by text;
+    -- Lead corrections name the lead. Rows an older build kept per tap have no time.
+    ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS corrected_by text;
+    ALTER TABLE race_part_history ADD COLUMN IF NOT EXISTS saved_at timestamptz;
+    ALTER TABLE race_part_history ALTER COLUMN saved_at SET DEFAULT clock_timestamp();
+    -- One writer per job leaves no competing saves: older builds kept them here (ADR 0001).
+    DROP TABLE IF EXISTS race_part_saves;
     CREATE TABLE IF NOT EXISTS runner_rulings (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       entry_id text NOT NULL, disqualification jsonb,
@@ -103,6 +107,20 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     CREATE TABLE IF NOT EXISTS event_stages (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE, stage text NOT NULL,
       PRIMARY KEY(event_id,stage)
+    );
+    -- Holds: at most one signed-in phone per event and job. They belong to the event, so they carry over to its next race.
+    CREATE TABLE IF NOT EXISTS job_holds (
+      event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      job text NOT NULL CHECK (job IN ('check-in','order','times')),
+      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
+      PRIMARY KEY(event_id,job)
+    );
+    -- Submit presses on a race: who pressed and when. Not yet clears them; Take over removes the old holder's.
+    CREATE TABLE IF NOT EXISTS submit_presses (
+      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
+      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
+      pressed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+      PRIMARY KEY(race_id,sign_in_id)
     );
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,

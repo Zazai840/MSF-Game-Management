@@ -1,17 +1,15 @@
-import { lookProblems,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
+import { lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times. */
-async function recordedRace(page:Page,code:string,runners:number[],places:Array<number|null>) {
+async function recordedRace(page:Page,code:string,runners:number[],places:number[]) {
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const race=(await (await page.request.post('/api/races/check-in',{headers:headers(),data:{eventCode:code,runners}})).json()).race;
-  expect((await page.request.post(`/api/races/${race.id}/finish`,{headers:headers(),data:{baseVersion:0,runnersVersion:1,order:runners,didNotFinish:[],didNotRun:[],added:[]}})).ok()).toBe(true);
-  expect((await page.request.post(`/api/races/${race.id}/times`,{headers:headers(),data:{baseVersion:0,places}})).ok()).toBe(true);
+  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,places);
   created.push(race.id);
-  return race as {id:string;number:number};
+  return race;
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await createProfile(page,name);await becomeLead(page);await openDashboard(page,'Results');
@@ -75,6 +73,12 @@ test('a lead corrects a number on the phone number pad: digits only, Enter check
   await sheet.getByRole('button',{name:'Save correction',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expect(saved(page)).toBeVisible();
   await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
+  // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
+  await page.getByText('Saved versions (4)',{exact:true}).click();
+  const versions=page.locator('.race-page details li');
+  await expect(versions.nth(3)).toContainText(`Number lead ${info.project.name} · Runners · `);
+  expect(await versions.allTextContents()).toEqual(expect.arrayContaining([expect.stringMatching(/ · Finishing order · \d/),expect.stringMatching(/ · Times · \d/)]));
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('saved-versions.png'),fullPage:true});
 });
 
 test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{
@@ -102,4 +106,25 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
   await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expect(saved(page)).toBeVisible();
   await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2127'})).toHaveText(/^2nd\s*2127\s*13\.10$/);
+});
+
+test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
+  const code=`IP-${info.project.name.slice(0,3).toUpperCase()}`,token=process.env.E2E_SCORING_TOKEN!;
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  await writeCheckIn(page.request,token,code,[2131,2132]);
+  const {race}=await writeOrder(page.request,token,code,[2131,2132]);
+  created.push(race.id!);
+  await openRace(page,code,`In progress lead ${info.project.name}`,race.number);
+  await expect(page.getByText('In progress - open the race screen',{exact:true})).toBeVisible();
+  for(const tool of ['Correct times','Correct finishing order','Correct runner list','Re-run race']) await expect(page.getByRole('button',{name:tool,exact:true})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-in-progress.png'),fullPage:true});
+  await page.getByRole('button',{name:'Runner 2132',exact:true}).click();
+  await page.getByRole('button',{name:'Disqualify',exact:true}).click();
+  await page.getByLabel('Reason',{exact:true}).selectOption({index:1});
+  await page.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(saved(page)).toBeVisible();
+  await page.getByRole('button',{name:'Delete race',exact:true}).click();
+  await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();
 });

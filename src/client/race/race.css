@@ -1,0 +1,108 @@
+/* The race screen: the race heading, then its cards, each opened by a side arrow. Tokens and shared pieces come from theme.css. */
+.race-screen,.race-cards {display:flex; flex-direction:column; gap:14px;}
+.race-cards[hidden] {display:none;}
+.race-heading {display:flex; flex-direction:column; gap:2px;}
+.race-heading h1 {margin:0;}
+.race-line {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:700;}
+.race-empty {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
+
+.race-card {background:var(--surface); border-radius:var(--radius-card); overflow:hidden;}
+.race-card-head {width:100%; display:flex; align-items:center; gap:12px; min-height:68px; padding:12px 14px 12px 16px; text-align:left; background:var(--surface); color:var(--text); border:0; border-radius:0;}
+.race-card-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.race-card-title {font-size:var(--text-h3); font-weight:800; color:var(--navy);}
+.race-card-status {font-size:var(--text-small); font-weight:600; color:var(--muted); text-wrap:pretty;}
+.race-card-arrow {flex:none; width:40px; height:40px; border-radius:50%; background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center; transition:transform .15s;}
+.race-card-head[aria-expanded=true] .race-card-arrow {transform:rotate(90deg);}
+@media (prefers-reduced-motion:reduce) {.race-card-arrow {transition:none;}}
+.race-card-body {padding:4px 16px 16px; display:flex; flex-direction:column; gap:14px;}
+
+/* Checked-in wristbands: chips, read-only for everyone but the holder, who taps one to take it off. An amber dot marks a kept warning. */
+.race-chips {list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px;}
+.race-chips li {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-weight:800; font-variant-numeric:tabular-nums;}
+.race-chips li:has(> button) {padding:0;}
+.race-chips button {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border:0; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-variant-numeric:tabular-nums;}
+.race-chips .kept-dot {width:9px; height:9px; border-radius:50%; background:var(--amber-line); flex:none;}
+.race-hint {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
+.race-card-body .warning-box p:last-child,.race-card-body p[role=alert],.race-card-body .calm-note {margin:0;}
+.race-take-over {align-self:flex-start;}
+
+/* Check-in on a final: one row per seeded runner, Here or Absent. An absent runner's number is struck through. */
+.race-attendance {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.race-attendance li {display:flex; align-items:center; gap:10px; min-height:56px; padding:6px 6px 6px 14px; border-radius:var(--radius); background:var(--ground);}
+.race-attendance strong {min-width:52px; font-size:21px; font-weight:800; font-variant-numeric:tabular-nums;}
+.race-attendance li.is-absent strong {color:var(--muted); text-decoration:line-through;}
+.race-seed {width:74px; flex:none; white-space:nowrap; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-attend-pair {margin-left:auto; display:flex; gap:6px;}
+.race-attend-pair button {min-height:var(--tap); padding:0 12px; border-radius:var(--radius-small); font-size:15px;}
+.race-attend-pair .race-absent-on {background:var(--amber-fill); color:var(--amber-text); border:2px solid var(--amber-line);}
+.race-here,.race-absent {margin-left:auto; padding-right:8px; font-size:var(--text-small); font-weight:800;}
+.race-here {color:var(--green-text);}
+.race-absent {color:var(--amber-text);}
+
+/* Order and Times: one row per place, rows told apart by tone. */
+.race-table {width:100%; border-collapse:separate; border-spacing:0 6px; margin:-6px 0; font-variant-numeric:tabular-nums;}
+.race-table th {padding:0 10px; text-align:left; font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.race-table td {height:50px; padding:0 10px; background:var(--ground); font-size:21px; font-weight:800; color:var(--text);}
+.race-table td:first-child {border-radius:var(--radius) 0 0 var(--radius); font-size:16px; color:var(--navy);}
+.race-table td:last-child {border-radius:0 var(--radius) var(--radius) 0;}
+.race-no-place {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.race-no-place li {display:flex; align-items:center; gap:10px; min-height:44px; padding:0 10px; border-radius:var(--radius); background:var(--tint); font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-no-place strong {font-size:18px; color:var(--text); font-variant-numeric:tabular-nums;}
+.race-no-place li span {flex:1;}
+.race-no-place li:has(> button) {padding-right:6px;}
+.race-table small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
+.race-next {display:inline-flex; align-items:center; min-height:32px; padding:0 12px; border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small);}
+
+/* Fixing a checked-in number: take it off or cancel, side by side under the number pad. */
+.race-fixing {display:flex; gap:10px;}
+.race-fixing button {flex:1;}
+.race-chips button[aria-pressed=true] {background:var(--navy); color:#fff;}
+
+/* Who holds each column, one row each; Take over's confirm drops onto its own line below. A long name stays beside
+   its label (it starts as narrow as its longest word), and Take over moves below it instead. */
+.race-columns {display:flex; flex-direction:column; gap:6px;}
+.race-column {display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-height:var(--tap);}
+.race-column-name {width:64px; flex:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.race-column-who {flex:1 1 auto; width:min-content; min-width:0; font-size:var(--text-body); font-weight:800; color:var(--text); overflow-wrap:break-word;}
+.race-column-you {color:var(--navy);}
+.race-column > button {margin-left:auto;}
+.race-column .warning-box {flex-basis:100%;}
+
+/* The order holder's controls: tap runners in the order they crossed the line. */
+.race-order {display:flex; flex-direction:column; gap:12px;}
+.race-question {margin:0;}
+.race-numbers {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;}
+.race-numbers button {min-height:72px; font-size:28px; background:var(--ground); color:var(--text); border-color:var(--ground); font-variant-numeric:tabular-nums;}
+.race-pair {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.race-order-more {display:flex; flex-wrap:wrap; gap:10px;}
+.race-order-more button {flex:1 1 auto;}
+.race-card-body .sortable-row {background:var(--ground);}
+.race-move-place {width:64px; flex:none; display:flex; flex-direction:column; gap:2px; font-size:16px; font-weight:800; color:var(--navy);}
+.race-move-place small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.race-move-runner {flex:1; min-width:0; font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+.race-move-runner small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
+
+/* The times column: the timer taps a time to retype it; a wrong one is amber with its reason, on every phone. */
+.race-table td.time-wrong {background:var(--amber-fill); box-shadow:inset 0 0 0 2px var(--amber-line);}
+/* Fixed columns, so Wristband and Time line up the same in every race whatever is in them. Place and Wristband take
+   what "10th" and the "Wristband" heading need, so a wrong time's "Faster than 10th place" fits on one line inside
+   the cell's padding at 360 px. */
+.race-table {table-layout:fixed;}
+.race-table th:first-child {width:48px;}
+/* A final has no Time column, so Wristband takes the rest of the row instead of the spare width going to Place. */
+.race-table th:nth-child(2):not(:last-child) {width:84px;}
+.race-table th {white-space:nowrap;}
+.race-table .wrong-time-reason {white-space:nowrap;}
+.race-time {display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:calc(100% + 20px); min-height:50px; margin:0 -10px; padding:0 10px; border:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; text-align:left;}
+.race-time:disabled {opacity:1; cursor:default;}
+
+/* Submit Race: the dock at the bottom, the results card while submitted, and the note once a race is saved. */
+.race-saved {margin:0; padding:10px 14px; border-radius:var(--radius); background:var(--green-fill); color:var(--green-text); font-size:var(--text-small); font-weight:800;}
+.race-results h2 {margin:0;}
+.race-results .race-card-body {padding-top:16px;}
+.race-blocked,.race-waiting {margin:0; text-align:center; font-size:var(--text-small); font-weight:700;}
+.race-blocked {color:var(--muted);}
+.race-waiting {color:var(--navy);}
+.race-dock-row {display:flex; gap:10px;}
+.race-dock-row > * {flex:1; min-width:0;}
+.action-bar p[role=alert] {margin:0;}

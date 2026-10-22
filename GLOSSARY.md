@@ -53,7 +53,7 @@ The 6 qualifiers for a final in seed order, fastest heat time first, produced wh
 _Avoid_: Finalists list, running heats sheet, start list
 
 **Absent finalist**:
-A child in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. Before a final the start line asks "Is everyone here?" and the volunteer taps anyone absent.
+A child in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in lists the line-up and the volunteer marks each child Here or Absent.
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
@@ -61,7 +61,7 @@ A lead bringing the next-ranked heat runner (7th, then 8th) into a final in plac
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
-Recording, at the start line and before the whistle, which children or relay teams are running in a race. Check-in is what creates a race.
+Recording, at the start line and before the whistle, which children or relay teams are running in a race. The first check-in on an event's current race is what creates it.
 _Avoid_: Registration, sign-in, line-up
 
 **Relay team**:
@@ -72,17 +72,25 @@ _Avoid_: Squad, relay entry, team registration
 A race removed from an event's results but kept so it can be restored, for example one created by mistake.
 _Avoid_: Cancelled race, deleted game, void race
 
+**Current race**:
+The one race of an event being worked on now: its latest race that is neither saved nor deleted, or else the next heat (or race) waiting for its first check-in. Once a race is saved the next one becomes current by itself; once the heats are complete it is the final.
+_Avoid_: Active race, open race, next race
+
+**Submit Race**:
+A volunteer's confirmation that the results of the current race are right. Everyone holding a job with entries on the race must submit; any of them can tap Not yet to send the race back for changes, which clears every submission.
+_Avoid_: Confirm, sign off, check step
+
+**Saved race**:
+A race whose results count: everyone it asked has submitted it, or a lead saved it without them. Only saved races reach results, To check and the day export, and only a lead can change one.
+_Avoid_: Finished race, complete race, closed race
+
 **Finishing order**:
 The order in which a race's children crossed the line, recorded as wristband numbers from 1st to last. It gives each child who finished their place in the race.
 _Avoid_: Results, placings, positions list
 
 **Time**:
-How long a place in a race took, to a hundredth of a second, read from the photo finish in place order without knowing who held it. A child's time is the time of the place the finishing order gives them, so correcting either list re-pairs them.
+How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so correcting either list re-pairs them.
 _Avoid_: Result, score, split
-
-**Clash**:
-Two different versions of the same part of a race (its runners, finishing order or times), saved by different people without seeing each other's. The zone lead decides which stands.
-_Avoid_: Conflict, duplicate, mismatch
 
 **Tie**:
 Two or more children (or relay teams) of the same event with exactly the same time from different races. Equal times within one race are not a tie: the finishing order separates them.
@@ -109,15 +117,15 @@ A child who was checked in to a race but never started it. They are taken off th
 _Avoid_: DNS, no-show, absent, scratched
 
 **No finisher**:
-A place at the bottom of a race's times that no child crossed the line for, as seen by the timer. It names no child: who did not finish or didn't run comes from the finishing order, and the race counts once both agree on how many finished.
+A place at the bottom of a saved race's times that no child holds, marked by a lead when a correction leaves more times than finishers. It names no child: who did not finish or didn't run comes from the finishing order, and the race counts once both agree on how many finished. Volunteers never mark it, since every place in the finishing order needs a time.
 _Avoid_: Blank time, empty place, DNF time
 
 **Wrong time**:
-A time that looks wrong for its race: a later place faster than an earlier one, or a count of times that disagrees with the number of finishers. It is shown in amber wherever times appear; a volunteer can retype a place or keep its time as typed, and a kept out-of-order time goes to To check for a lead.
+A time that looks wrong for its race: a later place faster than an earlier one. It is shown in amber wherever times appear; the volunteer holding the times can retype a place or keep its time as typed, and a kept wrong time goes to To check for a lead.
 _Avoid_: Error, invalid time, bad time
 
 **Audit note**:
-A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and their comment.
+A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification, or of a race changing hands, such as a take over: what, who, when, and any comment.
 _Avoid_: Log entry, comment, history
 
 **Warning**:
@@ -135,7 +143,7 @@ A person helping run races in the Running Zone, often an Explorer aged 16 to 18.
 _Avoid_: Official, marshal, operator
 
 **Zone lead**:
-The volunteer in charge of the Running Zone on the day, who settles clashes, disputes and exceptions. More than one person can act as zone lead. Every zone lead is a lead.
+The volunteer in charge of the Running Zone on the day, who settles disputes and exceptions. More than one person can act as zone lead. Every zone lead is a lead.
 _Avoid_: Admin, race manager, supervisor
 
 **Lead**:
@@ -147,7 +155,7 @@ A lead's own screen, opened from Home. It shows To check, with ways into Results
 _Avoid_: Lead area, admin panel, control panel
 
 **To check**:
-The list of race problems that need a lead to decide, such as a clash, a tie, a warning or a kept wrong time, each opening its race. Its count shows as "N to check" on the Dashboard button.
+The list of race problems that need a lead to decide, such as a tie, a warning or a kept wrong time, each opening its race. Its count shows as "N to check" on the Dashboard button.
 _Avoid_: Needs you, inbox, alerts
 
 **Scoring team**:
@@ -174,9 +182,21 @@ _Avoid_: Admin password, lead PIN
 The app owner's master password, typed where the Olympics password goes, that makes the person scoring team. It never changes, so the scoring team can always get back in after the Olympics password changes, and it never clears an Olympics day by itself.
 _Avoid_: Admin password, master code
 
+**Race screen**:
+The one screen where volunteers work an event's current race together, opened from Home by tapping the event. Every job is on it, and each phone sees the others' entries as they are made.
+_Avoid_: Job screen, race page (the lead's), entry screen
+
 **Job**:
-One of the three pieces of work on a race that any volunteer can take on: Start line, Finish order or Times.
-_Avoid_: Role, station, duty
+One of the three pieces of work on a race that any volunteer can take on: check-in, the finishing order or the times. One volunteer holds each job at a time; a final has no times job.
+_Avoid_: Role, station, duty, section
+
+**Hold**:
+Being the one volunteer who may enter a job's part of an event's races. Opening a job on the race screen takes its hold when nobody has it; everyone else sees that job read-only. A hold carries on to the event's next heat or race, but not to its final.
+_Avoid_: Claim, lock, owner
+
+**Take over**:
+Taking a job's hold from the volunteer who has it, after a confirm, carrying on from what they had already entered. It is how a job changes hands when its holder is gone or stuck.
+_Avoid_: Steal, release, reassign
 
 ### Testing
 

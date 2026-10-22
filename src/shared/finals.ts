@@ -1,15 +1,16 @@
 import { leaderboardRowFacts } from './leaderboard-row.js';
+import { raceCounts } from './race-counts.js';
 import type { FinishingOrder,Runner } from './races.js';
 import type { EventState,LeaderboardRow,ResultsRace } from './results-rules.js';
 /** Immutable heat provenance. An absent qualifier remains here when a replacement is called up. */
 export interface FinalEntry { finalEntryId:string; heatRaceId:string; heatEntryId:string; heatWristband:number; seed:number; heatRank:number; kind:'qualifier'|'call-up'; absent:boolean; runner?:Runner; replacesEntryId?:string }
 export interface FinalAddition { runner:Runner; absent:boolean }
-export interface FinalField { generation:string; entries:FinalEntry[]; additionalEntries?:FinalAddition[]; presenceConfirmed:boolean; hasRun:boolean; heatsComplete:boolean }
-export interface FinalPresence { generation:string; presenceConfirmed:boolean;hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number;seed:number|null;absent:boolean}> }
+export interface FinalField { generation:string; entries:FinalEntry[]; additionalEntries?:FinalAddition[]; hasRun:boolean; heatsComplete:boolean }
+export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number;seed:number|null;absent:boolean;calledUp:boolean}> }
 export interface FinalResults extends FinalField { raceId:string; runners:readonly Runner[]; leaderboard:LeaderboardRow[]; nextCallUp:LeaderboardRow|null; vacancy:FinalEntry|null }
 export function finalRows(state:EventState,race:ResultsRace):LeaderboardRow[] {
-  if(race.clash || !race.finish || !race.final?.presenceConfirmed) return [];
-  const finish:FinishingOrder=race.finish;
+  if(!raceCounts(race)) return [];
+  const finish:FinishingOrder=race.finish!;
   const rows=race.runners.map((runner:Runner):LeaderboardRow=>{
     const index=finish.order.indexOf(runner.id),ruling=state.rulings?.find(item=>item.raceId===race.id && item.entryId===runner.id);
     const disqualification=ruling?.disqualification??null,notCounted=ruling?.notCounted??false;

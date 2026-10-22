@@ -2,7 +2,7 @@ import { createProfile,dashboardButton,expect,leadSignIn,lookProblems,test } fro
 test('Lead sign-in with an unknown name creates the profile as a lead, and the profile screen tags it',async({page},info)=>{
   const name=`Bilal Lead ${info.project.name}`;
   await page.goto('/');await createProfile(page,`Other Person ${info.project.name}`);
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   await page.evaluate(()=>localStorage.removeItem('msf:token'));await page.reload();
   const toggle=page.getByRole('button',{name:'Lead today? Sign in'});
   await expect(toggle).toHaveAttribute('aria-expanded','false');
@@ -37,7 +37,7 @@ test('Lead sign-in with an unknown name creates the profile as a lead, and the p
 test('Lead sign-in with a name taken on another phone signs in with the lowest free number',async({page,browser},info)=>{
   const name=`Sara Taken Lead ${info.project.name}`;
   await page.goto('/');await createProfile(page,name);
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   const second=await browser.newContext({...info.project.use});
   try {
     const other=await second.newPage();await other.goto('/');

@@ -119,3 +119,6 @@ input[type=checkbox],input[type=radio] {min-height:0; width:24px; height:24px; a
   color:var(--amber-text); padding:12px 14px; font-weight:700;
 }
 .warning-box button {min-height:var(--tap); border-radius:var(--radius-small); font-size:16px;}
+.warning-box p {margin:0 0 10px;}
+.warning-actions {display:flex; gap:10px;}
+.warning-actions button {flex:1;}

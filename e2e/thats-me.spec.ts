@@ -1,6 +1,6 @@
 import type { Browser } from '@playwright/test';
 import { becomeLead,createProfile,dashboardButton,expect,lookProblems,openDashboard,test,type Page } from './fixtures.js';
-const home=(page:Page)=>expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+const home=(page:Page)=>expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
 const profilesHeading=(page:Page)=>page.getByRole('heading',{level:1,name:"Who's using this phone?"});
 const taken=(name:string)=>`${name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`;
 /** Another phone of the same size, for the lead or the person's new phone. */
@@ -55,7 +55,7 @@ test("That's me moves a profile to a new phone once a lead approves, and the old
   await expect(request).toHaveCount(0);
 
   // The new phone notices by itself on its next check (every 5 seconds) and signs in as a volunteer.
-  await expect(newPhone.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible({timeout:15000});
+  await expect(newPhone.getByRole('heading',{name:'Which event are you at?'})).toBeVisible({timeout:15000});
   await expect(newPhone.getByRole('banner').getByText(name,{exact:true})).toBeVisible();
   await expect(newPhone.getByRole('button',{name:"I'm a zone lead",exact:true})).toBeVisible();
   // The old phone is signed out of it and forgets it, staying past the Olympics password.

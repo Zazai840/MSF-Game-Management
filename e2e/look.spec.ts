@@ -1,6 +1,6 @@
-import { lookProblems,timesOpened,trailBack,dashboardMenuButton,openDashboard,goHome,jobButton,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
+import { lookProblems,back,dashboardMenuButton,deleteCurrentRace,enterWristband,openDashboard,openRaceScreen,ownEvent,goHome,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
 
-const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)',ground='rgb(233, 237, 244)';
+const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)';
 
 async function joinAs(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
 
@@ -32,8 +32,9 @@ test('a navy header shows Running Zone and the signed-in person, in self-hosted 
 });
 
 test('volunteer and lead screens meet the touch, text size and contrast rules',async({page},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},code=`LK-${info.project.name.toUpperCase()}`,name=`Look sprint ${info.project.name}`;
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await ownEvent(page.request,code,name);
   await joinAs(page,`Look lead ${info.project.name}`);
   await expect(page.getByRole('heading',{level:1})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
@@ -49,23 +50,27 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
   await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
   await expect(dashboardButton(page)).toBeVisible();
-  await expect(page.getByRole('heading',{name:"What's your job for this race?"})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await jobButton(page,'Start line').click();
-  await expect(page.getByRole('heading',{name:'Which race is it?',exact:true})).toBeVisible();
+  // The race screen: check-in with its number pad, the order and times with this phone holding both, and the dock.
+  await openRaceScreen(page,name);
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:'60m',exact:true}).click();
-  await page.getByRole('button',{name:'Girl Cubs · R4',exact:true}).click();
+  await page.getByRole('button',{name:/^Check-in Wristbands/}).click();
+  await enterWristband(page,2091);
   const wristband=page.getByLabel('Wristband number',{exact:true});
-  await wristband.fill('2091');
-  await expect(wristband).toHaveValue('2091');
+  await wristband.fill('2092');
+  await expect(wristband).toHaveValue('2092');
   expect(await wristband.evaluate(element=>getComputedStyle(element).fontVariantNumeric)).toBe('tabular-nums');
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('start-line-entry.png'),fullPage:true});
-  await goHome(page);
-  await jobButton(page,'Times').click();
-  await timesOpened(page);
+  await page.screenshot({path:info.outputPath('check-in-entry.png'),fullPage:true});
+  await page.getByRole('button',{name:/^Order and Times/}).click();
+  await page.getByRole('button',{name:'Do the order',exact:true}).click();
+  await page.getByRole('button',{name:'Do the times',exact:true}).click();
+  await page.getByRole('button',{name:'2091',exact:true}).click();
+  await expect(page.getByLabel('Place time',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('order-and-times.png'),fullPage:true});
+  await deleteCurrentRace(page.request,code);
   await goHome(page);
   await openDashboard(page);
   expect(await lookProblems(page)).toEqual([]);
@@ -73,7 +78,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-results.png'),fullPage:true});
-  await trailBack(page,'Dashboard');
+  await back(page,'Dashboard');
   await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });
@@ -86,7 +91,7 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   await page.getByRole('button',{name:/^Phones /}).click();
   await expect(page.getByRole('article',{name:'E2E Scoring',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await trailBack(page,'Day setup');
+  await back(page,'Day setup');
   await page.getByRole('button',{name:/^Events /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
