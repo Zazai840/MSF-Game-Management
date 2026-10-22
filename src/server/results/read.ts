@@ -9,7 +9,7 @@ import type { EventState,ResultsRace } from '../../shared/results-rules.js';
 import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
 import type { DayEvent } from '../../shared/day.js';
-import type { RaceRead,Runner } from '../../shared/races.js';
+import type { Runner } from '../../shared/races.js';
 import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';

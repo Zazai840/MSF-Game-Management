@@ -85,6 +85,8 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+`npm run verify` runs lint (`npm run lint`), the unit and API tests, typecheck and the production build. GitHub Actions runs these same steps on every push (`.github/workflows/verify.yml`).
+
 The default test database connection is local Postgres on port 5432 using your operating-system username. Set `PG_ADMIN_URL` to a Postgres connection with database-creation permission if yours differs. If using the Compose database from the host, it is `postgresql://running:YOUR_URL_ENCODED_DATABASE_PASSWORD@localhost:5433/postgres`.
 
 `npm test` creates a fresh process-specific Postgres database, runs HTTP API tests in-process against it and plain results-rule unit tests, then drops that generated database. Different worktrees can run tests concurrently. `TEST_DATABASE_URL` or `TEST_DATABASE_NAME` selects a retained test database; only names matching `msf_spec22_<digits>_test` or `msf_spec22_<digits>_e2e` may be cleared. Never use an application database for tests. Test files run sequentially because each HTTP test resets its isolated day's state.

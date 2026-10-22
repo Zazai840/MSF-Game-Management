@@ -78,7 +78,6 @@ test('an event code already in the programme is refused plainly',async()=>{
 });
 test('a switched-off event stays on Day and disappears from volunteer event choices',async()=>{
   const token = await start();
-  const day = (await call(token,'/api/day')).json();
   const volunteer = await people.volunteer('Ahmed');
   const saved = await call(token,'/api/day/events/R4/enabled',{enabled:false});
   expect(saved.statusCode).toBe(200);
