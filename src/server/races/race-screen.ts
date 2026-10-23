@@ -13,6 +13,7 @@ import { resultsSnapshot } from '../results/read.js';
 import { writeAuditNote } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { readEvents } from '../day/events.js';
+import { readTeamLists } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
@@ -20,9 +21,12 @@ import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** The race part each job writes. */
 const jobParts:Record<Job,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
-/** Every event's holds, by event id. Holds belong to the event, so they carry over to its next heat or race by themselves. */
+/**
+ * Every event's race job holds, by event id. Holds belong to the event, so they carry over to its next heat or race by
+ * themselves. A relay's teams hold is not a race job: the Teams screen reads it with the team list.
+ */
 export async function readHolds(db:Database,dayId:string):Promise<Map<string,RaceScreenRead['holds']>> {
-  const rows=(await db.query('SELECT h.event_id,h.job,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1',[dayId])).rows;
+  const rows=(await db.query("SELECT h.event_id,h.job,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1 AND h.job<>'teams'",[dayId])).rows;
   const holds=new Map<string,RaceScreenRead['holds']>();
   for(const row of rows) holds.set(row.event_id,{...holds.get(row.event_id),[row.job]:{id:row.id,name:row.name}});
   return holds;
@@ -46,16 +50,17 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
   const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
   return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null};
 }
-/** Home: every switched-on event's status line inputs, read for the whole day at once. */
+/** Home: every switched-on event's status line inputs, and each relay's team list with its teams holder, read for the whole day at once. */
 export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
   const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
-  const events=await readEvents(db,true,dayId),current=await currentRaces(db,dayId,events),stages=await readCompletedStages(db,dayId),holds=await readHolds(db,dayId);
+  const events=await readEvents(db,true,dayId),current=await currentRaces(db,dayId,events),stages=await readCompletedStages(db,dayId),holds=await readHolds(db,dayId),teamLists=await readTeamLists(db,dayId);
   const presses=(await db.query("SELECT p.race_id,p.sign_in_id FROM submit_presses p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1 AND r.state='submitted'",[dayId])).rows;
   return {revision,events:events.map(event=>{
     const race=current.get(event.id)!,own=holds.get(event.id)||{},stage=stageForRace({kind:race.kind,event});
     const waiting=race.state==='submitted'?waitingOn(askedToSubmit(race,own),presses.filter(press=>press.race_id===race.id).map(press=>({id:press.sign_in_id}))).map(holder=>holder.name):[];
     return {code:event.code,name:event.name,section:event.section,relay:event.relay,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
-      started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn:waiting,done:stages.some(item=>item.eventId===event.id && item.stage===stage)};
+      started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn:waiting,done:stages.some(item=>item.eventId===event.id && item.stage===stage),
+      ...(event.relay?{teams:teamLists.get(event.id)!.teams,teamsHolder:teamLists.get(event.id)!.holder}:{})};
   })};
 }
 const hasEntries=(race:CurrentRace,job:Job)=>{const value=race.parts[jobParts[job]].value;return value!==null && (!Array.isArray(value) || value.length>0);};
