@@ -129,7 +129,7 @@ async function openCheckIn(page:Page) {
 }
 
 test('two phones check in one relay heat at once: ticks and here marks from both land, live, with the amber 3 of 4 here and Cancel',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay check-in ${project}`,code=`RC-${project.toUpperCase()}`;
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay check-in ${project}`,code=`RCI-${project.toUpperCase()}`;
   // The test day is shared: each project types its own wristbands.
   const n=(number:number)=>number+at*200;
   await ownRelay(code,name,'Girl Cubs');
@@ -187,7 +187,7 @@ test('two phones check in one relay heat at once: ticks and here marks from both
 });
 
 test('a relay with no teams says where they are typed, and the Teams screen shows a team in the heat read-only',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay in heat ${project}`,code=`RH-${project.toUpperCase()}`;
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay in heat ${project}`,code=`RIH-${project.toUpperCase()}`;
   await ownRelay(code,name,'Boy Cubs');
   const sam=await openPhone(`Sam Patel in heat ${project}`),priya=await openPhone(`Priya Shah in heat ${project}`);
   await openRelay(sam.page,name,'Boy Cubs');
