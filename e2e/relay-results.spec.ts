@@ -5,7 +5,7 @@ test('To check names relay teams: a kept wrong-Section number, a child in two re
   const name=`To check relay ${project}`;
   await ownRelay(cubs,name,'Girl Cubs');await ownRelay(scouts,name,'Girl Scouts');
   // The test day is shared: each project's children use wristbands no other relay test types.
-  const cub=(n:number)=>2620+at*16+n,scout=(n:number)=>4340+at*16+n,borrowed=1740+at,shared=cub(7);
+  const cub=(n:number)=>2620+at*16+n,scout=(n:number)=>4500+at*16+n,borrowed=1740+at,shared=cub(7);
   const token=await signInThroughApi(request,`To check relay volunteer ${project}`);
   await writeTeam(request,token,cubs,[cub(1),borrowed,cub(2),cub(3)],{keptWarnings:[borrowed]});
   await writeTeam(request,token,cubs,[cub(4),cub(5),cub(6),shared]);
