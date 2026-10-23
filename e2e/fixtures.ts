@@ -1,5 +1,5 @@
 import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
-import { isRunner } from '../src/shared/races.js';
+import { isRunner,isTeamEntry } from '../src/shared/races.js';
 import pg from 'pg';
 import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
@@ -210,6 +210,15 @@ export function tickTeam(request:APIRequestContext,token:string,relayCode:string
 /** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
 export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
   return checkInTap(request,token,relayCode,'here',number,{leg:leg-1,here});
+}
+/**
+ * Writes a relay heat's finishing order as that phone, naming teams by their number: takes the order, then writes the
+ * whole column at the version it sees. Every ticked team goes in `order`, `didNotFinish` or `didNotRun`.
+ */
+export async function writeTeamOrder(request:APIRequestContext,token:string,relayCode:string,order:number[],{didNotFinish=[],didNotRun=[]}:{didNotFinish?:number[];didNotRun?:number[]}={}) {
+  const {race}=await takeJob(request,token,relayCode,'order');
+  const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
+  return raceScreenWrite(request,token,relayCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[]});
 }
 /** From Home: the Relays tab, then the Teams button, and waits for the Teams screen. */
 export async function openTeams(page:Page) {

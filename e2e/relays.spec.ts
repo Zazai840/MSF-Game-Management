@@ -1,4 +1,4 @@
-import { expect,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,test,tickTeam,writeTeam,type Page } from './fixtures.js';
+import { expect,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
 
 /** A relay's card on the Teams screen, by its distance heading and Section. */
 const card=(page:Page,name:string,section:string)=>page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${section}`)});
@@ -297,4 +297,88 @@ test('Remove team, after its confirm, takes a team off the list for good: the li
   await samPhone.page.getByLabel('New team 1st leg',{exact:true}).fill(String(n(24)));
   await samPhone.page.getByRole('button',{name:'Done',exact:true}).click();
   await expect(names(priyaPhone.page)).toHaveText(['Team 1','Team 2','Team 4'],live);
+});
+
+test('a relay heat on three phones: check-in on one, the order by 4th-leg buttons on another, times on a third; Submit Race by the two holders saves it and the next heat offers only the teams still to run',async({openPhone,request},info)=>{
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay order ${project}`,code=`ROT-${project.toUpperCase()}`;
+  await ownRelay(code,name,'Girl Cubs');
+  const sam=await openPhone(`Sam Patel order ${project}`),priyaName=`Priya Shah order ${project}`,joName=`Jo Evans order ${project}`;
+  const priya=await openPhone(priyaName),jo=await openPhone(joName),ali=await openPhone(`Ali Khan order ${project}`);
+  // The test day is shared: each project types its own wristbands, keeping any warning another test's relay gives them.
+  const n=(number:number)=>number+at*200,team=(legs:Array<number|null>)=>writeTeam(request,sam.token,code,legs,{keptWarnings:legs.filter((leg):leg is number=>leg!==null)});
+  await team([n(2101),n(2134),n(2187),n(2150)]);await team([n(2201),n(2202),n(2203),null]);await team([n(2301),n(2302),n(2303),n(2304)]);
+  // Ali watches Home: the relay's tile follows the heat live.
+  await ali.page.getByRole('tab',{name:'Relays',exact:true}).click();
+  const tile=ali.page.getByRole('region',{name,exact:true}).getByRole('button');
+  await expect(tile).toHaveText('Girl CubsHeat 1 · 3 teams to run');
+  // Sam checks Teams 1 and 2 in.
+  await openRelay(sam.page,name,'Girl Cubs');await openCheckIn(sam.page);
+  await sam.page.getByRole('button',{name:/^Team 1 /}).click();
+  await expect(sam.page.locator('.race-line')).toHaveText('Heat 1 · 1 team');
+  await sam.page.getByRole('button',{name:/^Team 2 /}).click();
+  await expect(sam.page.locator('.race-line')).toHaveText('Heat 1 · 2 teams');
+  // Priya does the order; then the times are the one free column, so opening the card gives them to Jo.
+  const orderCard=(page:Page)=>page.getByRole('button',{name:/^Order and Times/});
+  for(const phone of [priya,jo]) await openRelay(phone.page,name,'Girl Cubs');
+  await orderCard(priya.page).click();
+  await priya.page.getByRole('button',{name:'Do the order',exact:true}).click();
+  await expect(orderCard(jo.page)).toHaveAccessibleName(`Order and Times Order: ${priyaName} · Times: Nobody`,live);
+  await orderCard(jo.page).click();
+  await expect(orderCard(jo.page)).toHaveAccessibleName(`Order and Times Order: ${priyaName} · Times: You`);
+  await orderCard(sam.page).click();
+  await expect(tile).toHaveText(`Girl CubsHeat 1 · Order and times · ${priyaName}, ${joName}`,live);
+  // Submit Race is blocked in team words.
+  await expect(priya.page.locator('.race-blocked')).toHaveText('2 teams have no place yet',live);
+  // The order holder taps each team as its 4th leg crosses: the 4th-leg wristband large, "Team N" small under it.
+  await expect(priya.page.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible(live);
+  const team1=priya.page.locator('.race-numbers').getByRole('button',{name:new RegExp(`^${n(2150)}\\s*Team 1$`)});
+  const team2=priya.page.locator('.race-numbers').getByRole('button',{name:/^Team 2\s*no 4th leg$/});
+  await expect(team1).toBeVisible();await expect(team2).toBeVisible();
+  expect(await lookProblems(priya.page)).toEqual([]);
+  // Above the docked Submit Race, so the buttons show in the picture.
+  await team2.evaluate(button=>button.scrollIntoView({block:'center'}));
+  await priya.page.screenshot({path:info.outputPath('relay-order-buttons.png')});
+  await team2.click();
+  await expect(priya.page.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
+  await expect(priya.page.locator('.race-blocked')).toHaveText('Team 1 has no place yet');
+  // Once the order has entries its holder is asked; Sam, who only checked teams in, is not.
+  await expect(sam.page.locator('.race-blocked')).toHaveText('Team 1 has no place yet',live);
+  await expect(sam.page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
+  await team1.click();
+  // The table, Place | Team | Time, fills live on every phone; the Team cell matches the button.
+  const rows=(page:Page)=>page.getByRole('table',{name:'Order and times'}).getByRole('row');
+  for(const phone of [sam,priya,jo]) await expect(rows(phone.page)).toHaveText([/^Place\s*Team\s*Time$/,/^1st\s*Team 2\s*no 4th leg\s*(Next)?$/,new RegExp(`^2nd\\s*${n(2150)}\\s*Team 1\\s*$`)],live);
+  // One time per team, on today's pad.
+  await expect(jo.page.getByText(/^One time per team: the start to the 4th leg crossing\./)).toBeVisible();
+  for(const time of ['1520','1610']) {await jo.page.getByLabel('Place time',{exact:true}).fill(time);await jo.page.getByRole('button',{name:'Next',exact:true}).click();}
+  for(const phone of [sam,priya]) await expect(rows(phone.page)).toHaveText([/^Place/,/^1st\s*Team 2\s*no 4th leg\s*15\.20$/,new RegExp(`^2nd\\s*${n(2150)}\\s*Team 1\\s*16\\.10$`)],live);
+  expect(await lookProblems(jo.page)).toEqual([]);
+  await jo.page.screenshot({path:info.outputPath('relay-order-times.png'),fullPage:true});
+  // Change the order drags teams.
+  await priya.page.getByRole('button',{name:'Change the order',exact:true}).click();
+  await expect(priya.page.getByText('Drag a team to its place: times stay by place.',{exact:true})).toBeVisible();
+  await expect(priya.page.getByRole('list',{name:'Finishing order'}).getByRole('listitem')).toHaveText([/Team 2\s*no 4th leg/,new RegExp(`${n(2150)}\\s*Team 1`)]);
+  await priya.page.screenshot({path:info.outputPath('relay-change-order.png'),fullPage:true});
+  await priya.page.getByRole('button',{name:'Done',exact:true}).click();
+  // Submit Race by the two holders: Priya first, then Jo saves it.
+  await priya.page.getByRole('button',{name:'Submit Race',exact:true}).click();
+  await expect(jo.page.locator('.race-waiting')).toHaveText('Waiting on you',live);
+  await expect(tile).toHaveText(`Girl CubsHeat 1 · Waiting on 1 to submit · ${joName}`,live);
+  await expect(sam.page.getByRole('table',{name:'Results'}).getByRole('row')).toHaveText([/^Place\s*Team\s*Time$/,/^1st\s*Team 2\s*no 4th leg\s*15\.20$/,new RegExp(`^2nd\\s*${n(2150)}\\s*Team 1\\s*16\\.10$`)],live);
+  expect(await lookProblems(sam.page)).toEqual([]);
+  await sam.page.screenshot({path:info.outputPath('relay-results.png'),fullPage:true});
+  await jo.page.getByRole('button',{name:'Submit Race',exact:true}).click();
+  for(const phone of [sam,priya,jo]) {
+    await expect(phone.page.getByText('Heat 1 saved',{exact:true})).toBeVisible(live);
+    await expect(phone.page.locator('.race-line')).toHaveText('Heat 2 · 0 teams');
+  }
+  // Heat 2's check-in offers only Team 3: Teams 1 and 2 have run.
+  await expect(sam.page.locator('.ci-list').getByRole('button')).toHaveText([/^Team 3/]);
+  await expect(tile).toHaveText('Girl CubsHeat 2 · 1 team to run',live);
+  // Once Team 3 has run too, the tile says the heats are done.
+  await tickTeam(request,sam.token,code,3);
+  await writeTeamOrder(request,priya.token,code,[3]);
+  await writeTimes(request,jo.token,code,[1490]);
+  await submitRace(request,priya.token,code);await submitRace(request,jo.token,code);
+  await expect(tile).toHaveText('Girl CubsHeats done · Final next',live);
 });

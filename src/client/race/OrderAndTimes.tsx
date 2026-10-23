@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import { onlyRunners,type RaceScreenRead } from '../../shared/race-screen.js';
-import { entryName,runnersOf,type RaceEntry } from '../../shared/races.js';
+import { onlyRunners,placeHolder,type RaceScreenRead } from '../../shared/race-screen.js';
+import { entryName,isTeamEntry,runnersOf,type RaceEntry } from '../../shared/races.js';
 import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits } from '../../shared/time-entry.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
@@ -15,8 +15,15 @@ import { WristbandEntry } from './WristbandEntry.js';
 type OrderColumn={order:string[];didNotFinish:string[];didNotRun:string[]};
 type Column='order'|'times';
 const columnNames:Record<Column,string>={order:'Order',times:'Times'};
-/** A wristband as the order shows it, with "At finish" under one typed at the finish: short enough for one line in the Wristband column. */
-const Wristband=({runner}:{runner:RaceEntry})=><>{entryName(runner)}{runner.addedAtFinish && <small>At finish</small>}</>;
+/**
+ * An entry as the order shows it, short enough for one line in the Wristband column: a wristband, or a relay team's
+ * 4th-leg wristband (the child the order holder sees cross) with "Team 3" small under it ("Team 3" with "no 4th leg"
+ * when that box is empty). "At finish" goes under one added at the finish.
+ */
+export function EntryLabel({entry}:{entry:RaceEntry}) {
+  const last=isTeamEntry(entry)?entry.legs[3]?.wristband??null:null;
+  return <>{!isTeamEntry(entry)?entryName(entry):last!==null?<>{last}<small>{entryName(entry)}</small></>:<>{entryName(entry)}<small>no 4th leg</small></>}{entry.addedAtFinish && <small>At finish</small>}</>;
+}
 
 /**
  * Order and Times ("Finishing order" on a final, with no times): one table by place, Place | Wristband | Time, with
@@ -28,7 +35,7 @@ const Wristband=({runner}:{runner:RaceEntry})=><>{entryName(runner)}{runner.adde
  * which shows amber on every phone. Each change sends the whole column at once.
  */
 export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneId:string;offer:Offer}) {
-  const {event,race,stageComplete,holds}=screen,final=race.kind==='final';
+  const {event,race,stageComplete,holds}=screen,final=race.kind==='final',place=placeHolder(event.relay);
   const columns:Column[]=final?['order']:['order','times'];
   const {busy,error,write}=useRaceWrite(event.code,offer);
   const {pending,sending,send:sendOrder}=useColumnWrites<OrderColumn&{raceId:string|null;added:number[];keptWarnings:number[]}>(write,'order',race.parts.finish.version);
@@ -90,15 +97,15 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       </div>;
     })}</div>
     {ordering && step==='move'?<>
-      <p className="race-hint">Drag a wristband to its place: times stay by place.</p>
+      <p className="race-hint">Drag a {place} to its place: times stay by place.</p>
       <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>entryName(byId.get(id)!)} onReorder={moved=>change({order:moved})}
-        renderItem={(id,place)=><><span className="race-move-place">{ordinal(place)}{time(place) && <small>{time(place)}</small>}</span><span className="race-move-runner"><Wristband runner={byId.get(id)!}/></span></>}/>
-    </>:runners.length?<table className="race-table" aria-label={final?'Finishing order':'Order and times'}>
-      <thead><tr><th>Place</th><th>Wristband</th>{!final && <th>Time</th>}</tr></thead>
+        renderItem={(id,place)=><><span className="race-move-place">{ordinal(place)}{time(place) && <small>{time(place)}</small>}</span><span className="race-move-runner"><EntryLabel entry={byId.get(id)!}/></span></>}/>
+    </>:runners.length?<table className={event.relay?'race-table race-teams':'race-table'} aria-label={final?'Finishing order':'Order and times'}>
+      <thead><tr><th>Place</th><th>{event.relay?'Team':'Wristband'}</th>{!final && <th>Time</th>}</tr></thead>
       <tbody>{Array.from({length:rows},(_,index)=>{
         const runner=byId.get(order[index]);
         return <tr key={index}><td>{ordinal(index+1)}</td>
-          <td>{runner?<Wristband runner={runner}/>:index===next?<span className="race-next">Next</span>:''}</td>
+          <td>{runner?<EntryLabel entry={runner}/>:index===next?<span className="race-next">Next</span>:''}</td>
           {!final && <td className={wrong.has(index)?'time-wrong':undefined}>{places[index]===undefined?index===target && typing && <span className="race-next">Next</span>
             // The timer taps a placed time to retype it; a time left at a place with no wristband stays for a lead.
             :timing && index<order.length?<button className="race-time" disabled={held} aria-label={`${ordinal(index+1)} place · ${time(index+1)}${wrong.has(index)?` · ${wrong.get(index)!.reason}`:''}`}
@@ -106,7 +113,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
             :<>{time(index+1)}<WrongTimeReason wrong={wrong.get(index)}/></>}</td>}
         </tr>;
       })}</tbody>
-    </table>:<p className="race-empty">Places appear here once runners are checked in</p>}
+    </table>:<p className="race-empty">Places appear here once {event.relay?'teams':'runners'} are checked in</p>}
     {didNotFinish.length>0 && <ul className="race-no-place" aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{entryName(byId.get(id)!)}</strong><span>Did not finish</span>
       {ordering && <button className="button-small button-secondary" aria-label={`Give a place to ${entryName(byId.get(id)!)}`} onClick={()=>change({order:[...order,id],didNotFinish:didNotFinish.filter(other=>other!==id)})}>Give a place</button>}
     </li>)}</ul>}
@@ -118,19 +125,20 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
     </>}
     {ordering && (step==='place' || step==='no-place') && <div className="race-order">
-      {!runners.length?<p className="race-hint">Runners to tap appear here as they are checked in.</p>
-      :!unplaced.length?<p className="calm-note" role="status">Everyone has a place</p>
+      {!runners.length?<p className="race-hint">{event.relay?'Teams':'Runners'} to tap appear here as they are checked in.</p>
+      :!unplaced.length?<p className="calm-note" role="status">{event.relay?'Every team has a place':'Everyone has a place'}</p>
       :step==='no-place'?<>
         <h3 className="race-question">{entryName(unplaced[0])} has no place. What happened?</h3>
         <div className="race-pair"><button className="button-secondary" onClick={()=>change({didNotFinish:[...didNotFinish,unplaced[0].id]})}>Did not finish</button><button className="button-secondary" onClick={()=>change({didNotRun:[...shown.didNotRun,unplaced[0].id]})}>Didn't run</button></div>
         <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
       </>:<>
         <h3 className="race-question">Who came {ordinal(order.length+1)}?</h3>
-        <div className="race-numbers">{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{entryName(runner)}</button>)}</div>
+        <div className={event.relay?'race-numbers race-teams':'race-numbers'}>{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}><EntryLabel entry={runner}/></button>)}</div>
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
       {runners.length>0 && <div className="race-order-more">
-        <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>+ Runner not on the list</button>
+        {/* shortcut: a relay has no "+ Team not on the list" yet; it comes with the team pick list. */}
+        {!event.relay && <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>+ Runner not on the list</button>}
         {order.length>1 && <button className="button-quiet" onClick={()=>setStep('move')}>Change the order</button>}
       </div>}
     </div>}
@@ -144,15 +152,15 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         <div className="warning-actions"><button onClick={()=>setPad('',unkept!.index)}>Fix time</button>
           <button className="button-secondary" onClick={()=>void timesWrites.send({raceId:race.id,places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></div>
       </div>}
-      {!held && <p className="race-hint">Type digits only: 1234 shows as 12.34, 13240 as 1:32.40. Tap a time to retype it.</p>}
+      {!held && <p className="race-hint">{event.relay && 'One time per team: the start to the 4th leg crossing. '}Type digits only: 1234 shows as 12.34, 13240 as 1:32.40. Tap a time to retype it.</p>}
     </div>
     // A runner came off the order after the times were in: Submit Race waits until the timer removes the time left over.
     :places.length>order.length?<div className="race-order">
-      <p className="calm-note">{ordinal(order.length+1)} place has a time but no wristband.</p>
+      <p className="calm-note">{ordinal(order.length+1)} place has a time but no {place}.</p>
       <button className="button-secondary" disabled={timesWrites.sending} onClick={()=>void timesWrites.send({raceId:race.id,places:places.slice(0,order.length),keptWrong:keptWrong.filter(index=>index<order.length)})}>
         {places.length-order.length===1?`Remove ${ordinal(order.length+1)} place's time`:`Remove the ${places.length-order.length} times with no wristband`}</button>
     </div>
     :runners.length && !unplaced.length?<p className="calm-note" role="status">Every place has a time</p>
-    :<p className="race-hint">The next time goes in once {ordinal(places.length+1)} place has a wristband.</p>)}
+    :<p className="race-hint">The next time goes in once {ordinal(places.length+1)} place has a {place}.</p>)}
   </RaceCard>;
 }
