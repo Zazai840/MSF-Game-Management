@@ -1,6 +1,7 @@
 import type { Runner,TeamEntry } from './races.js';
 import type { RunnerRuling } from './rulings.js';
-import type { ResultFlag,WarningKind } from './results-rules.js';
+import type { EventState,ResultFlag,WarningKind } from './results-rules.js';
+import { listed } from './to-check.js';
 /** Already-ran is settled by correcting, excluding or disqualifying, never Mark checked. */
 export function isOpenEligibilityWarning(flag:ResultFlag):boolean {
   return flag.kind==='warning' && flag.warningKind!=='already-ran' && !flag.checked;
@@ -11,9 +12,16 @@ export function runnerWarningFlags(runner:Runner,ruling:RunnerRuling|undefined,r
   return (runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message,warningKind:warning.kind,checked:warning.kind==='already-ran'?!repeated:settled(warning,ruling)}));
 }
 /**
- * A relay team's children's kept wristband warnings. A kept "also in another relay's team" is left out: whether a
- * child is in two relays is worked out from the team lists when To check is read, kept or not.
+ * A relay team's warnings in one race: its children's kept wristband warnings, then each child also on another relay's
+ * team list ("2134 is in Girl Cubs Team 3 and Girl Scouts Team 2."). That one is worked out from the team lists, kept
+ * or not, so a kept "also in another relay's team" is left out.
  */
-export function teamWarningFlags(entry:TeamEntry,ruling:RunnerRuling|undefined):ResultFlag[] {
-  return entry.legs.flatMap(leg=>leg.warnings.filter(warning=>warning.kind!=='other-relay').map(warning=>({kind:'warning' as const,message:warning.message,warningKind:warning.kind,checked:settled(warning,ruling)})));
+export function teamWarningFlags(state:Pick<EventState,'event'|'relays'>,entry:TeamEntry,ruling:RunnerRuling|undefined):ResultFlag[] {
+  const flag=(warning:{kind:WarningKind;message:string}):ResultFlag=>({kind:'warning',message:warning.message,warningKind:warning.kind,checked:settled(warning,ruling)});
+  const kept=entry.legs.flatMap(leg=>leg.warnings.filter(warning=>warning.kind!=='other-relay').map(flag));
+  const twoRelays=entry.legs.flatMap(({wristband})=>{
+    const others=(state.relays||[]).filter(relay=>relay.code!==state.event.code).flatMap(relay=>relay.teams.filter(team=>team.legs.some(leg=>leg.wristband===wristband)).map(team=>`${relay.section} Team ${team.number}`));
+    return wristband!==null && others.length?[flag({kind:'other-relay',message:`${wristband} is in ${listed([`${state.event.section} Team ${entry.team.number}`,...others])}.`})]:[];
+  });
+  return [...kept,...twoRelays];
 }

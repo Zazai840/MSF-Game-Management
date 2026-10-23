@@ -1,7 +1,8 @@
-import { resultHolder,resultName,type EventState,type LeaderboardRow,type ResultTie,type LeadItem,type ResultsRace } from './results-rules.js';
+import { resultHolder,resultName,type EventState,type LeaderboardRow,type ResultTie,type LeadItem,type ResultsRace,type WarningKind } from './results-rules.js';
 import { isOpenEligibilityWarning } from './runner-rulings.js';
 import { formatTime } from './time-entry.js';
 import { notCountedReasons } from './race-counts.js';
+const teamItems:Partial<Record<WarningKind,'two-relays'|'ran-short'>>={'other-relay':'two-relays','ran-short':'ran-short'};
 const latest=(dates:readonly string[])=>dates.reduce((a,b)=>a>b?a:b,'');
 /** The first place whose time is faster than an earlier place's, and that earlier place. */
 function firstWrongTime(places:readonly(number|null)[]):LeadItem['wrongTime'] {
@@ -29,8 +30,14 @@ export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],t
   }
   for(const row of rows) {
     const race=active.find(race=>race.id===row.raceId);if(!race) continue;
-    const warnings=row.flags.filter(isOpenEligibilityWarning);
-    if(warnings.length) items.push({id:`warning:${row.raceId}:${row.entryId}`,kind:'warning',raceId:row.raceId,entryId:row.entryId,at:changed(race,'runners',row.entryId,['correct-number','correct-runners','lift-disqualification'],race.leadTimes?.[`warning:${row.entryId}`]),message:`${resultName(row)}: ${warnings.map(flag=>flag.message).join('; ')}`,wristband:row.wristband??undefined,warningKinds:warnings.flatMap(flag=>flag.warningKind?[flag.warningKind]:[]),
+    const open=row.flags.filter(isOpenEligibilityWarning),warnings=open.filter(flag=>!teamItems[flag.warningKind!]);
+    const warned=changed(race,'runners',row.entryId,['correct-number','correct-runners','lift-disqualification'],race.leadTimes?.[`warning:${row.entryId}`]);
+    // A relay team's own questions are items of their own: a child in two relays, a team that ran short.
+    for(const [warningKind,kind] of Object.entries(teamItems)) {
+      const flags=open.filter(flag=>flag.warningKind===warningKind);
+      if(flags.length) items.push({id:`${kind}:${row.raceId}:${row.entryId}`,kind,raceId:row.raceId,entryId:row.entryId,at:warned,message:flags.map(flag=>flag.message).join(' '),team:row.team?.number});
+    }
+    if(warnings.length) items.push({id:`warning:${row.raceId}:${row.entryId}`,kind:'warning',raceId:row.raceId,entryId:row.entryId,at:warned,message:`${resultName(row)}: ${warnings.map(flag=>flag.message).join('; ')}`,wristband:row.wristband??undefined,warningKinds:warnings.flatMap(flag=>flag.warningKind?[flag.warningKind]:[]),
       ...(row.team?{team:row.team.number,warnings:warnings.map(flag=>flag.message)}:{})});
     if(row.flags.some(flag=>flag.kind==='added-at-finish' && !flag.checked)) items.push({id:`added:${row.raceId}:${row.entryId}`,kind:'added-at-finish',raceId:row.raceId,entryId:row.entryId,at:changed(race,'finish',row.entryId,[],race.leadTimes?.[`added:${row.entryId}`]),message:`${resultName(row)}: Added at the finish`,wristband:row.wristband??undefined});
     if(row.flags.some(flag=>flag.kind==='ran-twice')) {

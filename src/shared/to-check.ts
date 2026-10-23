@@ -4,7 +4,8 @@ import { formatTime } from './time-entry.js';
 import { raceLabel } from './races.js';
 import { ordinal } from './ordinal.js';
 export interface ToCheckWording { race:string; title:string; explanation:string }
-const listed=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names[names.length-1]}`;
+/** "2004", "2004 and 2005", "2004, 2005 and 2006". */
+export const listed=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names[names.length-1]}`;
 function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
   switch(item.kind) {
     case 'times-out-of-order': {
@@ -19,6 +20,10 @@ function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
       const plain=wristband!==undefined && item.warningKinds?.length?item.warningKinds.map(kind=>plainWristbandWarning({kind:kind as WristbandWarning['kind']},wristband,item.event.section)).join(' '):null;
       return {title:'A wristband number needs checking',explanation:plain?`${plain} Correct it or mark it checked.`:item.message};
     }
+    case 'two-relays':
+      return {title:'A child is in two relays',explanation:item.message};
+    case 'ran-short':
+      return {title:'A team ran short',explanation:item.message};
     case 'added-at-finish':
       return {title:'A runner was added at the finish',explanation:item.wristband!==undefined?`${item.wristband} crossed the line but was not checked in at the start. Check they ran in this race.`:item.message};
     case 'ran-twice':

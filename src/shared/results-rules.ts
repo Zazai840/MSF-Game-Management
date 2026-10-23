@@ -4,7 +4,7 @@ import { timedCheckSheet,heatsCheckSheet,finalCheckSheet,type Stage,type StageCh
 import { eventLeadItems } from './lead-items.js';
 import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
-import type { TeamWarning } from './teams.js';
+import type { RelayTeam,TeamRelay,TeamWarning } from './teams.js';
 import type { FinishingOrder,RaceEntry } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
@@ -17,7 +17,9 @@ export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:n
 export interface ResultsRace extends RaceReference { deleted:boolean;
   /** Saved through Submit Race (or Save as lead): only a saved race counts. */
   saved:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|`warning:${string}`|`added:${string}`,string>>; runners:readonly RaceEntry[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
-export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[] }
+export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[];
+  /** On a relay: the day's switched-on relays' team lists, for "A child is in two relays". */
+  relays?:ReadonlyArray<Pick<TeamRelay,'code'|'section'> & {teams:ReadonlyArray<Pick<RelayTeam,'number'|'legs'>>}> }
 /** What a warning flag is about: a child's wristband, a child in two relays (`other-relay`), or a team that ran short. */
 export type WarningKind=WristbandWarning['kind']|TeamWarning['kind']|'ran-short';
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean }
@@ -43,7 +45,7 @@ export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impa
  * To check list explain the item in plain English (see src/shared/to-check.ts).
  */
 export interface LeadItem {
-  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
+  id:string; kind:'warning'|'two-relays'|'ran-short'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
   wristband?:number; warningKinds?:WarningKind[];
   /** On a relay: the team's number, and its children's warnings as the lead reads them. */
   team?:number; warnings?:string[];
