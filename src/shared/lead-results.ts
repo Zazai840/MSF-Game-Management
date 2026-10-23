@@ -9,7 +9,8 @@ export interface EventSummary { needsYou:number; event:DayEvent; status:EventRes
 /** A waiting That's me request: a day-level To check item that opens no race. */
 export interface ProfileRequest { id:string; name:string; at:string }
 export interface ResultsRead { needsYou:DayLeadItem[]; profileRequests:ProfileRequest[]; eventsConfirmed:boolean; groups:Array<{name:string;events:EventSummary[]}> }
-export interface EventResultsRead { event:DayEvent; results:EventResults; auditNotes:AuditNote[] }
+/** A relay's also carries its team list, which a lead picks a team to add to its Final from. */
+export interface EventResultsRead { event:DayEvent; results:EventResults; auditNotes:AuditNote[]; teams?:RelayTeam[] }
 /**
  * One row of a race's history: a part as it stood when the race was saved (by the job's holder then) or after a lead
  * correction (by that lead). Rows an older build kept have no time or author.

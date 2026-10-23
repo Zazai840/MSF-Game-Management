@@ -145,3 +145,4 @@
 .pick-list {display:flex; flex-direction:column; gap:6px;}
 .pick-list button {display:flex; flex-direction:column; align-items:flex-start; min-height:56px; padding:6px 14px; text-align:left; background:var(--ground); color:var(--navy); border-color:var(--ground); font-size:17px;}
 .pick-list button small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.ci-row.is-absent {background:var(--ground); border-style:dashed;}
