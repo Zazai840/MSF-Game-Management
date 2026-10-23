@@ -4,6 +4,8 @@ import { resetRoutes } from './day/reset.js';
 import { stageRoutes } from './rulings/stages.js';
 import { raceRulingRoutes } from './rulings/races.js';
 import Fastify from 'fastify';
+import type { IncomingMessage } from 'node:http';
+import type { Socket } from 'node:net';
 import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
 import { accessRoutes } from './access/routes.js';
@@ -40,6 +42,11 @@ export async function createApp(settings: AppSettings) {
   });
   const pool = await openDatabase(settings.databaseUrl, settings.resetTestDay);
   app.addHook('onClose', async () => { await pool.end(); });
+  // Node 22's close never ends a connection that has not sent a request yet (a browser's spare one), so shutdown would wait on it; closing it loses nothing.
+  const unused = new Set<Socket>();
+  app.server.on('connection', (socket: Socket) => { unused.add(socket); socket.once('close', () => unused.delete(socket)); });
+  app.server.on('request', (request: IncomingMessage) => { unused.delete(request.socket); });
+  app.addHook('preClose', async () => { for (const socket of unused) socket.destroy(); });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof Refusal) return reply.code(error.statusCode).send({...error.details, message:error.message});
     if (typeof error === 'object' && error !== null && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500) {

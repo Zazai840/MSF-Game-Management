@@ -26,7 +26,7 @@ test('a lead marks an eligibility warning checked without changing the ranking; 
   expect((await read()).auditNotes).toHaveLength(1);
 });
 test('correcting a number retains the stable entry, finishing place and time, reruns checks and reopens new warnings',async()=>{
-  const {lead,volunteer,first,second,path,read}=await start();
+  const {lead,first,second,path,read}=await start();
   await call(lead,path(first,3045)+'/mark-warning-checked',{});
   const saved=await call(lead,path(first,3045)+'/correct-number',{expectedWristband:3045,wristband:2003});expect(saved.statusCode).toBe(200);
   const row=saved.json().results.leaderboard.find((row:any)=>row.wristband===2003);
