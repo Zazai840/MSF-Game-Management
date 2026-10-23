@@ -51,25 +51,28 @@ export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:Ho
   return line();
 }
 /**
- * Why Submit Race cannot be pressed yet, or null: nobody checked in (on a final, everyone Absent), a runner with no
- * place (nor Did not finish), a placed wristband with no time, a time at a place with no wristband (left when a runner
- * came off the order), or a wrong time neither kept nor retyped. Kept wristband warnings never block it. The phone shows it under the button; the server refuses a press with it.
+ * Why Submit Race cannot be pressed yet, or null: nobody checked in (on a relay, no team ticked; on a final, everyone
+ * Absent), a runner or team with no place (nor Did not finish), a placed wristband with no time, a time at a place with
+ * no wristband (left when a runner came off the order), or a wrong time neither kept nor retyped. Kept wristband
+ * warnings, and relay teams short of four here, never block it. The phone shows it under the button; the server refuses a press with it.
  */
-export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>):string|null {
+export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>,relay=false):string|null {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?'Everyone is marked Absent':'Nobody is checked in yet';
+  if(!runners.length) return race.kind==='final'?'Everyone is marked Absent':relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} runners have no place yet`;
+  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${relay?'teams':'runners'} have no place yet`;
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
   if(untimed>=0) return `Place ${untimed+1} has no time`;
   // Finishers and times disagree only after a lead's correction, never on a saved race.
   const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
-  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no wristband`;
+  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${placeHolder(relay)}`;
   const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }
+/** What fills a place in the order: a wristband, or on a relay a team. */
+export const placeHolder=(relay:boolean)=>relay?'team':'wristband';
 /** Those asked to press Submit Race who have not pressed yet. */
 export const waitingOn=(asked:readonly Holder[],pressed:readonly Pick<Holder,'id'>[])=>asked.filter(holder=>!pressed.some(other=>other.id===holder.id));
 /** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */

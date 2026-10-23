@@ -45,7 +45,7 @@ export function SubmitDock({screen,phoneId,lead,offer}:{screen:RaceScreenRead;ph
   const asking=!asked.length || asked.some(holder=>holder.id===phoneId);
   const submit=(blocked=false)=>asking && <button disabled={busy || blocked} onClick={()=>void write('submit',{raceId:race.id})}>Submit Race</button>;
   if(race.state==='in progress') {
-    const blocked=submitBlocker(race);
+    const blocked=submitBlocker(race,screen.event.relay);
     if(!asking && !blocked && !error) return null;
     return <ActionBar stacked>{error && <p role="alert">{error}</p>}{blocked && <p className="race-blocked">{blocked}</p>}{submit(!!blocked)}</ActionBar>;
   }

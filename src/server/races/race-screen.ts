@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { andList,currentRaceLabel,jobWords,jobs,onlyRunners,submitBlocker,waitingOn,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
+import { andList,currentRaceLabel,jobWords,jobs,onlyRunners,placeHolder,submitBlocker,waitingOn,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
 import { isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import { changingName,stillToRun,type RelayTeam } from '../../shared/teams.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
@@ -296,7 +296,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(raceId===null) throw new Refusal(409,'Check runners in before the times');
       const placed=screen.race.parts.finish.value?.order.length||0,stored=screen.race.parts.times.value;
       const unplaced=places.findIndex((time,index)=>index>=placed && time!==stored?.places[index]);
-      if(unplaced>=0) throw new Refusal(409,`Place ${unplaced+1} has no wristband yet`);
+      if(unplaced>=0) throw new Refusal(409,`Place ${unplaced+1} has no ${placeHolder(screen.event.relay)} yet`);
       const wrong=wrongTimes(places).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
       await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
     });
@@ -368,7 +368,7 @@ async function requireSubmittable(client:pg.PoolClient,phone:Phone,screen:RaceSc
   if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
   await requireUnsaved(client,phone,screen,raceId);
   if(raceId!==screen.race.id) throw new Refusal(409,'Not saved - check your entries and enter it again');
-  const blocker=submitBlocker(screen.race);
+  const blocker=submitBlocker(screen.race,screen.event.relay);
   if(blocker) throw new Refusal(409,blocker);
 }
 /** The race a Submit Race or Not yet was tapped on: null for the empty next race. */
