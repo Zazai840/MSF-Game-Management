@@ -107,12 +107,12 @@ function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   type Order={order:number[];didNotFinish:number[];didNotRun:number[]};
   // Entries go by the number the server takes: a child's wristband, or a team's number shown as "Team 3".
   const entries=race.parts.runners.value||[],relay=race.event.relay;
-  const wristband=(id:string)=>{const entry=entries.find(entry=>entry.id===id);return entry?entryNumber(entry):0;};
+  const numberOf=(id:string)=>{const entry=entries.find(entry=>entry.id===id);return entry?entryNumber(entry):0;};
   const name=(number:number)=>{const entry=entries.find(entry=>entryNumber(entry)===number);return entry?entryName(entry):String(number);};
   const finish=race.parts.finish.value!,places=race.kind==='final'?null:race.parts.times.value?.places;
   // A change being saved shows at once; the race read after the save replaces it.
   const [saving,setSaving]=useState<Order|null>(null),[asking,setAsking]=useState<number|null>(null);
-  const shown=saving||{order:finish.order.map(wristband),didNotFinish:finish.didNotFinish.map(wristband),didNotRun:[]};
+  const shown=saving||{order:finish.order.map(numberOf),didNotFinish:finish.didNotFinish.map(numberOf),didNotRun:[]};
   async function save(next:Order) {setAsking(null);setSaving(next);await onSave({baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,...next});setSaving(null);}
   const without=(list:number[],number:number)=>list.filter(other=>other!==number);
   const time=(place:number)=>{const value=places?.[place-1];return value===undefined?null:value===null?'No time':formatTime(value);};
