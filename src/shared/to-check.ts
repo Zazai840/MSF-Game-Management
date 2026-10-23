@@ -1,5 +1,5 @@
 import type { DayLeadItem } from './lead-results.js';
-import { plainWristbandWarning } from './wristband-checks.js';
+import { plainWristbandWarning,type WristbandWarning } from './wristband-checks.js';
 import { formatTime } from './time-entry.js';
 import { raceLabel } from './races.js';
 import { ordinal } from './ordinal.js';
@@ -12,8 +12,11 @@ function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
       return {title:'A time looks wrong',explanation:wrong?`${ordinal(wrong.place)} place (${formatTime(wrong.time)}) is faster than ${ordinal(wrong.earlierPlace)} (${formatTime(wrong.earlierTime)}). The timer kept it as typed.`:item.message};
     }
     case 'warning': {
+      // A team's children's warnings are kept in the volunteer's words already.
+      if(item.team!==undefined && item.warnings) return {title:'A wristband number needs checking',explanation:`In Team ${item.team}: ${item.warnings.join(' ')} Correct it or mark it checked.`};
       const wristband=item.wristband;
-      const plain=wristband!==undefined && item.warningKinds?.length?item.warningKinds.map(kind=>plainWristbandWarning({kind},wristband,item.event.section)).join(' '):null;
+      // A child's warnings are only ever about its wristband.
+      const plain=wristband!==undefined && item.warningKinds?.length?item.warningKinds.map(kind=>plainWristbandWarning({kind:kind as WristbandWarning['kind']},wristband,item.event.section)).join(' '):null;
       return {title:'A wristband number needs checking',explanation:plain?`${plain} Correct it or mark it checked.`:item.message};
     }
     case 'added-at-finish':

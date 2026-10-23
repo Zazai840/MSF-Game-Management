@@ -1,4 +1,4 @@
-import { runnerWarningFlags,isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
+import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { correctPart } from '../races/versions.js';
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
@@ -7,7 +7,7 @@ import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandRaces } from '../races/warnings.js';
 import { readRace,listRaces } from '../races/records.js';
-import { raceLabel,runnersOf } from '../../shared/races.js';
+import { entryName,raceLabel,runnersOf } from '../../shared/races.js';
 import { readEventResults } from '../results/read.js';
 import { readRulings,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
@@ -34,15 +34,16 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
+      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
-      const open=runnerWarningFlags(runner,previous,false).filter(isOpenEligibilityWarning);
-      const warnings=(runner.warnings||[]).filter(warning=>open.some(flag=>flag.warningKind===warning.kind && flag.message===warning.message));
+      // The row's open warnings as To check shows them: on a relay these include the ones worked out from the team lists.
+      const row=(await readEventResults(client,current.dayId,race.event.code)).results.actionableRunners.find(row=>row.raceId===raceId && row.entryId===entryId);
+      const warnings=(row?.flags||[]).filter(isOpenEligibilityWarning).map(flag=>({kind:flag.warningKind!,message:flag.message}));
       if(!warnings.length) throw new Refusal(409,'There is no open eligibility warning to check');
-      const checks=[...(previous?.warningChecks||[]),...warnings.map(({kind,message})=>({kind,message}))];
+      const checks=[...(previous?.warningChecks||[]),...warnings];
       await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks) VALUES($1,$2,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks',[raceId,entryId,JSON.stringify(checks)]);
-      await writeAuditNote(client,current,race.event.id,{action:'mark-warning-checked',comment,message:`${current.name} checked the warning for ${runner.wristband} (${raceLabel(race)}): ${warnings.map(warning=>warning.message).join('; ')}${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
+      await writeAuditNote(client,current,race.event.id,{action:'mark-warning-checked',comment,message:`${current.name} checked the warning for ${entryName(runner)} (${raceLabel(race)}): ${warnings.map(warning=>warning.message).join('; ')}${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });

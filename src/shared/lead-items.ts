@@ -30,7 +30,8 @@ export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],t
   for(const row of rows) {
     const race=active.find(race=>race.id===row.raceId);if(!race) continue;
     const warnings=row.flags.filter(isOpenEligibilityWarning);
-    if(warnings.length) items.push({id:`warning:${row.raceId}:${row.entryId}`,kind:'warning',raceId:row.raceId,entryId:row.entryId,at:changed(race,'runners',row.entryId,['correct-number','correct-runners','lift-disqualification'],race.leadTimes?.[`warning:${row.entryId}`]),message:`${resultName(row)}: ${warnings.map(flag=>flag.message).join('; ')}`,wristband:row.wristband??undefined,warningKinds:warnings.flatMap(flag=>flag.warningKind?[flag.warningKind]:[])});
+    if(warnings.length) items.push({id:`warning:${row.raceId}:${row.entryId}`,kind:'warning',raceId:row.raceId,entryId:row.entryId,at:changed(race,'runners',row.entryId,['correct-number','correct-runners','lift-disqualification'],race.leadTimes?.[`warning:${row.entryId}`]),message:`${resultName(row)}: ${warnings.map(flag=>flag.message).join('; ')}`,wristband:row.wristband??undefined,warningKinds:warnings.flatMap(flag=>flag.warningKind?[flag.warningKind]:[]),
+      ...(row.team?{team:row.team.number,warnings:warnings.map(flag=>flag.message)}:{})});
     if(row.flags.some(flag=>flag.kind==='added-at-finish' && !flag.checked)) items.push({id:`added:${row.raceId}:${row.entryId}`,kind:'added-at-finish',raceId:row.raceId,entryId:row.entryId,at:changed(race,'finish',row.entryId,[],race.leadTimes?.[`added:${row.entryId}`]),message:`${resultName(row)}: Added at the finish`,wristband:row.wristband??undefined});
     if(row.flags.some(flag=>flag.kind==='ran-twice')) {
       const copies=rows.filter(other=>resultHolder(other)===resultHolder(row) && other.flags.some(flag=>flag.kind==='ran-twice') && active.some(race=>race.id===other.raceId));
