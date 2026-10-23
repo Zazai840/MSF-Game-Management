@@ -107,5 +107,5 @@ test('a final accepts a 7th runner added by a lead through finishing order, resu
   expect(done.json().results.inputRunning).toEqual({eventCode:'R3',first:1135,second:1023,third:1066});
   const sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);
   const finalRows=sheets[1].data.filter(row=>row[0]==='R3' && row[3]==='Final 1');
-  expect(finalRows).toHaveLength(7);expect(finalRows.find(row=>row[5]===1135)?.[6]).toBe(1);
+  expect(finalRows).toHaveLength(7);expect(finalRows.find(row=>row[5]===1135)?.[8]).toBe(1);
 });
