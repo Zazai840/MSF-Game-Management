@@ -7,6 +7,10 @@ test('a relay card\'s status line says who is entering, how many teams and the f
   expect(teamsStatus({teams:[],teamsHolder:null},'s')).toBe('No teams yet · open to start');
   expect(teamsStatus({teams:[1,2,3,4].map(full).concat(team(5,1,2,null,4)),teamsHolder:sam},'s')).toBe('You are entering · 5 teams · Team 5 is 3 of 4');
   expect(teamsStatus({teams:[1,2,3,4,5].map(full),teamsHolder:sam},'other')).toBe('Sam Patel is entering · 5 teams');
+  // Only the holder is told which team is not complete.
+  const short=[1,2,3,4].map(full).concat(team(5,1,2,null,4));
+  expect(teamsStatus({teams:short,teamsHolder:sam},'other')).toBe('Sam Patel is entering · 5 teams');
+  expect(teamsStatus({teams:short,teamsHolder:null},'s')).toBe('5 teams');
   expect(teamsStatus({teams:[full(1)],teamsHolder:null},'s')).toBe('1 team');
   expect(teamsStatus({teams:[],teamsHolder:sam},'s')).toBe('You are entering · No teams yet');
 });

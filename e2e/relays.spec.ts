@@ -68,7 +68,9 @@ test('a team typed on one phone reaches the others on Done; Cancel leaves nothin
   await expect(legs(samPhone,name,1)).toHaveText([n(2101),n(2134),'-',n(2150)]);
   await expect(samPhone.getByText('Tap a team to change it.',{exact:true})).toBeVisible();
   await expect(legs(priyaPhone,name,1)).toHaveText([n(2101),n(2134),'-',n(2150)],live);
-  await expect(card(priyaPhone,name,'Girl Cubs')).toContainText(`${sam} is entering · 1 team · Team 1 is 3 of 4`);
+  // Only the holder is told which team is not complete.
+  await expect(card(samPhone,name,'Girl Cubs').locator('.race-card-status')).toHaveText('You are entering · 1 team · Team 1 is 3 of 4');
+  await expect(card(priyaPhone,name,'Girl Cubs').locator('.race-card-status')).toHaveText(`${sam} is entering · 1 team`);
   // A number already in another team of the relay is refused as it is typed: only Fix number.
   await add.click();
   await box('New team','1st').fill(n(2134));
@@ -92,7 +94,8 @@ test('a team typed on one phone reaches the others on Done; Cancel leaves nothin
   await box('Team 1','3rd').fill(n(2187));
   await done.click();
   await expect(legs(priyaPhone,name,1)).toHaveText([n(2101),n(2134),n(2187),n(2150)],live);
-  await expect(card(priyaPhone,name,'Girl Cubs')).toContainText(`${sam} is entering · 2 teams · Team 2 is 2 of 4`);
+  await expect(card(samPhone,name,'Girl Cubs').locator('.race-card-status')).toHaveText('You are entering · 2 teams · Team 2 is 2 of 4');
+  await expect(card(priyaPhone,name,'Girl Cubs').locator('.race-card-status')).toHaveText(`${sam} is entering · 2 teams`);
 });
 
 test('the Teams button on Home\'s Relays tab counts every team and those not complete, live',async({openPhone,request},info)=>{

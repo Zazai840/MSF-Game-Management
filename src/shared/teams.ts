@@ -29,8 +29,9 @@ export const changingName=(team:Pick<RelayTeam,'changing'>)=>team.changing?.name
 export const teamCount=(count:number)=>`${count} ${count===1?'team':'teams'}`;
 /** A relay card's status line on the Teams screen: "You are entering · 5 teams · Team 5 is 3 of 4", "Sam Patel is entering · 5 teams", "5 teams" or "No teams yet · open to start". */
 export function teamsStatus({teams,teamsHolder}:{teams:readonly RelayTeam[];teamsHolder:{id:string;name:string}|null},phoneId:string) {
-  const short=teams.find(team=>filledLegs(team)<4);
-  return [teamsHolder?(teamsHolder.id===phoneId?'You are entering':`${teamsHolder.name} is entering`):'',teams.length?teamCount(teams.length):'No teams yet',
+  // Only the holder is told which team is not complete.
+  const mine=teamsHolder?.id===phoneId,short=mine?teams.find(team=>filledLegs(team)<4):undefined;
+  return [teamsHolder?(mine?'You are entering':`${teamsHolder.name} is entering`):'',teams.length?teamCount(teams.length):'No teams yet',
     short?`Team ${short.number} is ${filledLegs(short)} of 4`:'',!teamsHolder && !teams.length?'open to start':''].filter(Boolean).join(' · ');
 }
 /** The Teams button's badge: every relay's teams, then how many are not complete; empty with no teams. */
