@@ -44,3 +44,35 @@ test('storing the Final copies each seeded team\'s four children from its team l
   expect(finalTeams(final)).toEqual([2,5,1,6,3,7]);
   expect((final.race.parts.runners.value||[]).filter(isTeamEntry).find(entry=>entry.team.number===2)!.legs.map(leg=>[leg.wristband,leg.here])).toEqual([[2201,false],[2202,false],[2299,false],[2204,false]]);
 });
+
+test('anyone marks a Final team Absent with one tap, freeing its seed, and tapping again brings it back with its children as they were',async()=>{
+  const {sam,priya,relays}=await start();
+  const seen=await relays.screen(sam,'R22'),teamId=(number:number)=>seen.teams!.find(team=>team.number===number)!.id;
+  const absent=(token:string,number:number,isAbsent:boolean,raceId=seen.race.id)=>call(token,'/api/race-screen/R22/absent-team',{raceId,teamId:teamId(number),absent:isAbsent});
+  await relays.here(priya,'R22',5,0);
+  // The order holder has placed Team 5 already: marked Absent, it leaves the order and later places move up.
+  const order=(await relays.post<RaceScreenRead>(priya,'/api/race-screen/R22/take-over',{job:'order'})).race,entry=(number:number)=>order.parts.runners.value!.filter(isTeamEntry).find(item=>item.team.number===number)!.id;
+  await relays.post(priya,'/api/race-screen/R22/order',{raceId:order.id,version:order.parts.finish.version,order:[entry(5),entry(2)],didNotFinish:[],didNotRun:[],added:[]});
+  const marked=await absent(sam,5,true);
+  expect(marked.statusCode,marked.body).toBe(200);
+  const away=marked.json() as RaceScreenRead;
+  expect(finalTeams(away)).toEqual([2,1,6,3,7]);
+  expect(away.race.parts.finish.value!.order).toEqual([entry(2)]);
+  expect(away.race.final!.entries.map(item=>[item.team?.number,item.seed,item.absent])).toEqual([[2,1,false],[5,2,true],[1,3,false],[6,4,false],[3,5,false],[7,6,false]]);
+  // A repeated tap changes nothing.
+  expect(((await absent(priya,5,true)).json() as RaceScreenRead).revision).toBe(away.revision);
+  const back=(await absent(priya,5,false)).json() as RaceScreenRead;
+  expect(finalTeams(back)).toEqual([2,1,6,3,7,5]);
+  expect(back.race.parts.runners.value!.filter(isTeamEntry).find(item=>item.team.number===5)!.legs.map(leg=>leg.here)).toEqual([true,false,false,false]);
+  expect(back.race.final!.entries.every(item=>!item.absent)).toBe(true);
+  // Take off is for a heat's teams; Absent is for a Final's.
+  expect((await call(sam,'/api/race-screen/R22/take-off',{raceId:seen.race.id,teamId:teamId(7)})).json()).toEqual({message:'Mark the final\'s teams Here or Absent'});
+  expect((await absent(sam,4,true)).json()).toEqual({message:'Team 4 is not in the Final'});
+});
+
+test('Absent is only for a Final\'s teams',async()=>{
+  const {sam,relays}=await start({complete:false});
+  await relays.team(sam,'R22',legs(8));
+  const ticked=await relays.tick(sam,'R22',8);
+  expect((await call(sam,'/api/race-screen/R22/absent-team',{raceId:ticked.race.id,teamId:ticked.teams!.find(team=>team.number===8)!.id,absent:true})).json()).toEqual({message:'Only a final has Here / Absent'});
+});
