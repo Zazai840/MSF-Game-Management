@@ -281,8 +281,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
   // The order: the holder's whole finishing order by entry, with Did not finish, Didn't run (which takes the runner
   // off the race) and runners added at the finish. Runners check-in has since taken off are dropped, later places moving up.
+  // On a relay "+ Team not on the list" names teams on its team list instead, each taking the next place.
   action('POST','/api/race-screen/:code/order','Volunteer',(request,_reply,phone)=>{
-    const body=(request.body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown};
+    const body=(request.body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown;addedTeams?:unknown};
     const {raceId,version}=seenRace(body,'Open the race before saving its finishing order');
     const unclassified="Choose a place, Did not finish or Didn't run for each runner";
     const entryIds=(value:unknown)=>{
@@ -295,19 +296,22 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     const added=body.added as number[],addedRefusal=added.length?runnerListRefusal(added):null;
     if(addedRefusal) throw new Refusal(400,addedRefusal);
     const kept=keptWarningNumbers(body,added);
+    const addedTeams=body.addedTeams??[];
+    if(!Array.isArray(addedTeams) || addedTeams.some(id=>typeof id!=='string') || new Set(addedTeams).size!==addedTeams.length) throw new Refusal(400,'Choose each team once');
     return write(phone,code(request),async(client,screen)=>{
       await requireWrite(client,phone,screen,'order',raceId,version);
       if(raceId===null) throw new Refusal(409,'Check runners in before the order');
-      // shortcut: a team crossing the line unticked can't be added yet; "+ Team not on the list" adds it by team.
-      if(screen.event.relay && added.length) throw new Refusal(409,'Tick the team at check-in');
+      // Teams are never made at the finish: a team not on any list is added on the Teams screen first.
+      if(screen.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
+      if(!screen.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
       const previous=screen.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
       const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
       if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
-      const staying=previous.filter(runner=>!didNotRun.includes(runner.id));
+      const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(screen,teamId as string));
       // A team keeps the warnings its team list gave it. A final's runners all ran in its heats, so "already ran in this event" does not apply.
-      const runners=screen.event.relay?staying:await annotateRunners(client,phone.dayId,screen.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),screen.race.kind==='final');
+      const runners=screen.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,screen.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),screen.race.kind==='final');
       if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
-      const finish=onlyRunners({order,didNotFinish},runners);
+      const finish=onlyRunners({order:[...order,...atFinish.map(entry=>entry.id)],didNotFinish},runners);
       await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
     });
   });
@@ -367,6 +371,18 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await writeAuditNote(client,phone,screen.event.id,{action:'not-yet',message:`${phone.name} tapped Not yet on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
     });
   });
+}
+/**
+ * A team added at the finish ("+ Team not on the list"): a copy of its four children and their kept warnings, those on
+ * the list marked here since they crossed the line. Only a team still to run that nobody is changing can be added.
+ */
+function addedAtFinish(screen:RaceScreenRead,teamId:string):TeamEntry {
+  const team=screen.teams!.find(item=>item.id===teamId);
+  if(!team) throw new Refusal(404,'Team not found');
+  if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
+  const changer=changingName(team);
+  if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
+  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null})),addedAtFinish:true};
 }
 /** A check-in tap's body: the race the phone saw (null for the empty next heat) and the team tapped. */
 function tappedTeam(body:unknown) {
