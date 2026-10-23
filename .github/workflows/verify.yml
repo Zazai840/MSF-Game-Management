@@ -6,8 +6,8 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # The e2e suite runs one worker across three viewports and takes about an hour.
-    timeout-minutes: 90
+    # The whole job takes about 30 minutes; the e2e suite runs one worker across three viewports.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:17-alpine
