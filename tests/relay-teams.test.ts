@@ -1,7 +1,8 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
-import type { HomeSnapshot } from '../src/shared/race-screen.js';
+import type { HomeEvent,HomeSnapshot } from '../src/shared/race-screen.js';
+import type { RelayTeam } from '../src/shared/teams.js';
 import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
@@ -19,7 +20,8 @@ async function teams(token:string,code:string,what:string,body:object={}):Promis
   expect(response.statusCode,response.body).toBe(200);
   return response.json();
 }
-const relay=(home:HomeSnapshot,code:string)=>home.events.find(event=>event.code===code)!;
+/** A relay on Home, with its team list. */
+const relay=(home:HomeSnapshot,code:string)=>home.events.find(event=>event.code===code) as HomeEvent & {teams:RelayTeam[]};
 
 test('opening a relay\'s card takes its teams hold, two phones hold two relays at once, and the day revision rises',async()=>{
   const {sam,ali,priya,samId,aliId}=await start();
@@ -88,4 +90,42 @@ test('sign-out clears the teams hold, and the stage complete refuses team writes
   expect((await call(owner,'/api/lead/events/R19/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   expect((await call(ali,'/api/teams/R19/done',{legs:[101,null,null,null]})).json()).toEqual({message:'Stage complete - ask a lead'});
   expect((await call(ali,'/api/teams/R19/hold',{})).json()).toEqual({message:'Stage complete - ask a lead'});
+});
+test('a wristband already in the team or another team of the relay is refused',async()=>{
+  const {sam}=await start();
+  await teams(sam,'R22','done',{legs:[2101,2134,null,null]});
+  const team2=relay(await teams(sam,'R22','done',{legs:[2201,null,null,null]}),'R22').teams[1];
+  const refused=async(body:object)=>(await call(sam,'/api/teams/R22/done',body)).json();
+  expect(await refused({legs:[2301,2134,null,null]})).toEqual({message:'2134 is already in Team 1. Check the wristband.'});
+  expect(await refused({teamId:team2.id,legs:[2201,2202,2202,null]})).toEqual({message:'2202 is already in this team. Check the wristband.'});
+  // A team keeps its own numbers when it is changed.
+  expect(relay(await teams(sam,'R22','done',{teamId:team2.id,legs:[2201,2202,null,null]}),'R22').teams[1].legs[1].wristband).toBe(2202);
+  // Another relay's teams are a warning, not a refusal.
+  expect((await call(sam,'/api/teams/R21/done',{legs:[2134,null,null,null],keptWarnings:[2134]})).statusCode).toBe(200);
+});
+test('a number that looks wrong needs Keep, and Done stores its kept warnings on the team',async()=>{
+  const {sam,ali}=await start();
+  await teams(ali,'R28','done',{legs:[4001,4002,4003,2134],keptWarnings:[2134]});
+  const refused=async(body:object)=>(await call(sam,'/api/teams/R22/done',body)).json();
+  expect(await refused({legs:[6100,null,null,null]})).toEqual({message:'6100 needs Fix number or Keep'});
+  const kept=relay(await teams(sam,'R22','done',{legs:[6100,1045,2134,2150],keptWarnings:[6100,1045,2134]}),'R22').teams[0];
+  expect(kept.legs).toEqual([
+    {wristband:6100,warnings:[{kind:'unknown-number',message:'6100 is not a wristband number. Wristbands are 1 to 4999.',kept:true}]},
+    {wristband:1045,warnings:[{kind:'wrong-section',message:'1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.',kept:true}]},
+    {wristband:2134,warnings:[{kind:'other-relay',message:'2134 is also in Team 1 of 4x100m Relay Girl Scouts.',kept:true}]},
+    {wristband:2150,warnings:[]}
+  ]);
+  // Any Beaver number is in range for both Beaver relays.
+  expect((await call(sam,'/api/teams/R19/done',{legs:[101,601,null,null]})).statusCode).toBe(200);
+  expect((await call(sam,'/api/teams/R19/done',{legs:[102,null,null,null],keptWarnings:[103]})).json()).toEqual({message:'Choose Keep for a wristband number in this team'});
+});
+test('Start new day clears every team list and teams hold with the day',async()=>{
+  const {owner,sam}=await start();
+  await teams(owner,'R22','done',{legs:[2101,null,null,null]});
+  await teams(sam,'R21','hold');
+  expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
+  expect((await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(200);
+  const fresh=await teams(owner,'R20','hold');
+  expect(relay(fresh,'R22')).toMatchObject({teams:[],teamsHolder:null});
+  expect(relay(fresh,'R21')).toMatchObject({teams:[],teamsHolder:null});
 });
