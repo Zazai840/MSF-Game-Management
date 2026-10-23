@@ -203,7 +203,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await requireWrite(client,phone,screen,'check-in',raceId,version);
       if(raceId===null || screen.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
       const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=runnersOf(race.parts.runners.value);
-      const lineup=[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
+      const lineup=runnersOf([...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)]);
       if(absent.some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
       const runners=lineup.filter(runner=>!absent.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
       if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
@@ -238,7 +238,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     await createRace(client,[entry],{dayId:phone.dayId,eventId:screen.event.id,kind:race.kind,savedBy:phone.id});
   }));
   // Take off (Cancel on a team just ticked): only while none of its children is marked here.
-  action('POST','/api/race-screen/:code/take-off','Volunteer',(request,_reply,phone)=>tap(request,phone,async({team,entries,entry},unchanged)=>{
+  action('POST','/api/race-screen/:code/take-off','Volunteer',(request,_reply,phone)=>tap(request,phone,async({race,team,entries,entry},unchanged)=>{
+    if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
     if(!entry) {unchanged();return;}
     if(entry.legs.some(leg=>leg.here)) throw new Refusal(409,`Team ${team.number} has children marked here - unmark them first`);
     return entries.filter(other=>other!==entry);
@@ -253,6 +254,20 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(entry.legs[index].wristband===null) throw new Refusal(400,'Choose a child in this team');
       if(entry.legs[index].here===here) {unchanged();return;}
       return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
+    });
+  });
+  // Absent on a Final's team: one tap from anyone frees its seed, the team leaving the race and so the order holder's
+  // list. Tapped again, the team comes back as it was when it left. As on any final, the runner list is the attendance.
+  action('POST','/api/race-screen/:code/absent-team','Volunteer',(request,_reply,phone)=>{
+    const absent=((request.body||{}) as {absent?:unknown}).absent;
+    if(typeof absent!=='boolean') throw new Refusal(400,'Choose whether the team is absent');
+    return tap(request,phone,async({client,race,team,entries,entry},unchanged)=>{
+      if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
+      const final=(await readRace(client,phone.dayId,race.id!)).final!;
+      const left=[...final.entries.map(item=>item.runner),...(final.additionalEntries||[]).map(item=>item.runner)].find((item):item is TeamEntry=>item!==undefined && isTeamEntry(item) && item.team.id===team.id);
+      if(!left) throw new Refusal(409,`Team ${team.number} is not in the Final`);
+      if(absent===!entry) {unchanged();return;}
+      return absent?entries.filter(other=>other!==entry):[...entries,left];
     });
   });
   // Edit on a team ticked into the race opens its four boxes, marking it as this phone's as on the Teams screen.
