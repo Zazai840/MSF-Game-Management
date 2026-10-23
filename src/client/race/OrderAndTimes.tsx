@@ -80,6 +80,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   const ordering=holds.order?.id===phoneId && !stageComplete;
   // "+ Team not on the list" offers the relay's teams still to run that nobody is changing: never a new team.
   const addable=(screen.teams||[]).filter(team=>stillToRun(team) && !changingName(team));
+  // A relay Final's teams are its seeds, call-ups and a lead's additions: none is added at the finish.
+  const addAtFinish=!(event.relay && final);
   const next=ordering && step==='place' && unplaced.length?order.length:-1;
   const rows=Math.max(runners.length-didNotFinish.length,order.length,places.length);
   const time=(place:number)=>places[place-1]==null?'':formatTime(places[place-1]!);
@@ -151,8 +153,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         <div className={event.relay?'race-numbers race-teams':'race-numbers'}>{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{event.relay?<EntryLabel entry={runner}/>:entryName(runner)}</button>)}</div>
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
-      {runners.length>0 && <div className="race-order-more">
-        <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>{event.relay?'+ Team not on the list':'+ Runner not on the list'}</button>
+      {runners.length>0 && (addAtFinish || order.length>1) && <div className="race-order-more">
+        {addAtFinish && <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>{event.relay?'+ Team not on the list':'+ Runner not on the list'}</button>}
         {order.length>1 && <button className="button-quiet" onClick={()=>setStep('move')}>Change the order</button>}
       </div>}
     </div>}

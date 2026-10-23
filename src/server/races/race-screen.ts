@@ -319,6 +319,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       // Teams are never made at the finish: a team not on any list is added on the Teams screen first.
       if(screen.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
       if(!screen.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
+      // A relay Final's teams are its seeds, call-ups and a lead's additions.
+      if(screen.race.kind==='final' && addedTeams.length) throw new Refusal(409,'Ask a lead to add a team to the Final');
       const previous=screen.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
       const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
       if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
