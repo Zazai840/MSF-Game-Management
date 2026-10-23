@@ -15,7 +15,8 @@
     A  One long list        - segmented tabs; Teams is one long scroll of all six relays; check-in adds teams from a list under the heat's teams
     B  One relay at a time  - edge-to-edge underline tabs; Teams shows one relay at a time with one number pad; check-in is two steps (choose teams, then tick children)
     C  Cards that open      - two big tab tiles with counts; Teams is six cards that open like the race screen's; check-in is one list with a tick per team
-  Order and Times by team is the same in all three: it was decided in issue 131.
+    D  Your pick            - the owner's choice (23 Oct): tabs from A, Teams and check-in from C, and every add or edit has Cancel
+  Order and Times by team is the same in all of them: it was decided in issue 131.
   The phone screens use the app's own stylesheets (theme.css, style.css, flow.css, race.css), scoped under .ph.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -356,6 +357,15 @@ body {margin:0; background:var(--desk); color:var(--desk-text); font-family:var(
 .ph .team-warn {margin-left:68px; padding:10px 12px;}
 .ph .team-warn p {margin:0 0 8px; font-size:var(--text-small);}
 .ph .add-team {align-self:flex-start;}
+/* Layout D: a team is read-only until tapped; the one being changed sits on a tint with Cancel and Done. */
+.ph button.team-row-tap {width:calc(100% + 12px); min-height:56px; margin:0 -6px; padding:4px 6px; background:transparent; color:inherit; border:0; border-radius:var(--radius); text-align:left; font-size:inherit;}
+.ph button.team-row-tap:active {background:var(--ground);}
+.ph .team-edit {display:flex; flex-direction:column; gap:10px; margin:0 -8px; padding:10px 8px; border-radius:var(--radius); background:var(--tint);}
+.ph .team-edit .team-warn {margin-left:0;}
+.ph .ci-team .team-edit {margin:0; background:var(--ground);}
+.ph .team-edit input.leg-box {background:var(--surface);}
+.ph .team-row-bare {grid-template-columns:repeat(4,minmax(0,1fr));}
+.ph .edit-actions {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 .ph .relay-chips {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
 .ph .relay-chips button {display:flex; align-items:baseline; justify-content:space-between; gap:6px; min-height:var(--tap); padding:6px 12px; text-align:left; background:var(--surface); color:var(--navy); border:2px solid var(--surface); font-size:16px;}
 .ph .relay-chips button small {font-size:13px; font-weight:700; color:var(--muted);}
@@ -435,14 +445,17 @@ body {margin:0; background:var(--desk); color:var(--desk-text); font-family:var(
 </div>
 <script>
 'use strict';
-const VARIANTS={A:'One long list',B:'One relay at a time',C:'Cards that open'};
+const VARIANTS={A:'One long list',B:'One relay at a time',C:'Cards that open',D:'Your pick'};
 const BLURBS={
   A:'<strong>A, One long list.</strong> Segmented tabs at the top of Home. Teams is one long scroll of all six relays, every box editable in place. Check-in shows the heat\'s teams, with the teams still to run listed under them to add.',
   B:'<strong>B, One relay at a time.</strong> Edge-to-edge tabs straight under the header. Teams shows one relay at a time, picked from six buttons, typed on one number pad that moves box to box like check-in today. Check-in is two steps: choose the heat\'s teams, then tick each child by leg.',
-  C:'<strong>C, Cards that open.</strong> Two big tab tiles saying what is under each. Teams is six cards that open like the race screen\'s cards (opening one makes you its holder). Check-in is one list of the teams still to run, each with a tick: ticked teams open to show their four children.'
+  C:'<strong>C, Cards that open.</strong> Two big tab tiles saying what is under each. Teams is six cards that open like the race screen\'s cards (opening one makes you its holder). Check-in is one list of the teams still to run, each with a tick: ticked teams open to show their four children.',
+  D:'<strong>D, Your pick (owner, 23 Oct).</strong> Tabs from A; Teams and check-in from C. Every add or edit can be backed out of: <strong>Cancel</strong> puts things back as they were before you started. On Teams, tap a team to change it (Cancel or Done); "+ Add team" opens the new team, and Cancel removes it. At check-in, a team just ticked has Cancel, and Edit has Cancel or Done. At the finish, "+ Team not on the list" and "has no place" have Cancel.'
 };
 const KEYS=Object.keys(VARIANTS);
-let variant=KEYS.includes(location.hash.slice(1))?location.hash.slice(1):'A';
+let variant=KEYS.includes(location.hash.slice(1))?location.hash.slice(1):'D';
+/** Which layout each part follows: D takes its tabs from A and its Teams screen and check-in from C. */
+const look=part=>variant!=='D'?variant:part==='tabs'?'A':'C';
 let homeOpens='last';
 
 const RELAYS=[
@@ -522,7 +535,7 @@ function seed(kind){
   if(kind!=='fresh') r19.holds.checkin='Priya Shah';
   if(kind==='checked' || kind==='finish') {r19.picked=[1,2,3,4];r19.present={1:[1,1,1,1],2:[1,1,1,1],3:[1,0,1,1],4:[1,1,1,1]};}
   if(kind==='finish') {r19.holds.order='Jo Evans';r19.holds.times='Jo Evans';r19.order=[2,4];r19.times=['1102','1180'];}
-  const at=(i,screen,extra={})=>Object.assign(ui[i],{screen,code:'R19',tab:'relays',lastTab:'relays',open:{},teamsOpen:{},drafts:{},typing:null,step:'place',pad:'',ciMode:null,editing:null,target:null,entry:'',teamsRelay:'R19',note:''},extra);
+  const at=(i,screen,extra={})=>Object.assign(ui[i],{screen,code:'R19',tab:'relays',lastTab:'relays',open:{},teamsOpen:{},drafts:{},typing:null,step:'place',pad:'',ciMode:null,teamEdit:null,target:null,entry:'',teamsRelay:'R19',note:''},extra);
   at(0,kind==='fresh'?'home':'teams',kind==='fresh'?{tab:'races',lastTab:'races'}:{teamsOpen:{R19:true}});
   at(1,kind==='fresh'?'home':'race',{open:{checkin:kind!=='fresh'},tab:kind==='fresh'?'races':'relays',lastTab:kind==='fresh'?'races':'relays'});
   at(2,kind==='checked'||kind==='finish'?'race':'home',{open:{order:kind==='checked'||kind==='finish'}});
@@ -536,8 +549,8 @@ function back(to){return `<nav class="app-nav" aria-label="Back"><button type="b
 
 function tabs(u){
   const t=[['races','Races &amp; Hurdles',`${RACE_EVENTS.reduce((a,e)=>a+e[1].length,0)} events`],['relays','Relays','6 relays']];
-  const b=([k,label,count])=>`<button role="tab" aria-selected="${u.tab===k}" data-act="tab" data-v="${k}">${variant==='C'?`${label}<small>${count}</small>`:label}</button>`;
-  const cls={A:'tabs-seg',B:'tabs-line',C:'tabs-tiles'}[variant];
+  const b=([k,label,count])=>`<button role="tab" aria-selected="${u.tab===k}" data-act="tab" data-v="${k}">${look('tabs')==='C'?`${label}<small>${count}</small>`:label}</button>`;
+  const cls={A:'tabs-seg',B:'tabs-line',C:'tabs-tiles'}[look('tabs')];
   return `<div class="${cls}" role="tablist" aria-label="Events">${t.map(b).join('')}</div>`;
 }
 function homeScreen(p,u){
@@ -573,8 +586,21 @@ function teamProblems(p,u,r,t,editable){
   });
   return out;
 }
+const editingTeam=(u,r,n)=>!!u.teamEdit && u.teamEdit.code===r.code && u.teamEdit.n===n;
+/** One team open for changing: its four boxes, then Cancel (puts it back as it was) and Done. */
+function editRow(p,u,r,t,named=true){
+  return `<div class="team-edit"><div class="team-row${named?'':' team-row-bare'}">${named?`<span class="team-name">Team ${t.n}${teamNote(r,t)}</span>`:''}${t.legs.map((_,i)=>boxCell(p,u,r,t,i,true)).join('')}</div>${teamProblems(p,u,r,t,true)}
+    <div class="edit-actions"><button class="button-secondary" data-act="editcancel">Cancel</button><button data-act="editdone">Done</button></div></div>`;
+}
 function teamRows(p,u,r,{forceEdit=false}={}){
   const mine=!r.holder || r.holder===p.name;
+  // D: teams are read-only until tapped, one at a time, so every change can be cancelled.
+  if(variant==='D' && !forceEdit) return r.teams.map(t=>{
+    const can=mine && !lockedHeat(r,t);
+    if(can && editingTeam(u,r,t.n)) return editRow(p,u,r,t);
+    const row=`<span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((_,i)=>boxCell(p,u,r,t,i,false)).join('')}`;
+    return (can && !u.teamEdit?`<button class="team-row team-row-tap" data-act="teamedit" data-code="${r.code}" data-n="${t.n}" aria-label="Change Team ${t.n}">${row}</button>`:`<div class="team-row">${row}</div>`)+teamProblems(p,u,r,t,false);
+  }).join('');
   return r.teams.map(t=>{const editable=forceEdit || (mine && !lockedHeat(r,t));
     return `<div class="team-row"><span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((_,i)=>boxCell(p,u,r,t,i,editable)).join('')}</div>${teamProblems(p,u,r,t,editable)}`;}).join('');
 }
@@ -590,12 +616,13 @@ function takeOver(u,key,what,holder){
 }
 function relayBlock(p,u,r,heading=true){
   const mine=!r.holder || r.holder===p.name;
-  return `<section class="relay-block${heading?' card':''}">${heading?`<h3>${r.section}</h3>`:''}${holderLine(p,u,r)}${teamRows(p,u,r)}${mine && r.teams.length<6?`<button class="button-secondary button-small add-team" data-act="addteam" data-code="${r.code}">+ Add team</button>`:''}</section>`;
+  const hint=variant==='D' && mine && r.teams.length && !u.teamEdit?'<p class="race-hint">Tap a team to change it.</p>':'';
+  return `<section class="relay-block${heading?' card':''}">${heading?`<h3>${r.section}</h3>`:''}${holderLine(p,u,r)}${hint}${teamRows(p,u,r)}${mine && r.teams.length<6 && !(variant==='D' && u.teamEdit)?`<button class="button-secondary button-small add-team" data-act="addteam" data-code="${r.code}">+ Add team</button>`:''}</section>`;
 }
 function teamsScreen(p,u){
   const head=`<div class="teams-head"><h1>Teams</h1><p class="race-hint">Type each child's wristband in running order, 1st leg first. It saves as you type, on every phone.</p></div>`;
-  if(variant==='A') return `${back('Home')}<main><section class="race-screen">${head}${DISTANCES.map(d=>`<div class="teams-group"><h2>${d}</h2>${S.relays.filter(r=>r.name===d).map(r=>relayBlock(p,u,r)).join('')}</div>`).join('')}</section></main>`;
-  if(variant==='C') return `${back('Home')}<main><section class="race-screen">${head}${DISTANCES.map(d=>`<div class="teams-group"><h2>${d}</h2>${S.relays.filter(r=>r.name===d).map(r=>{
+  if(look('teams')==='A') return `${back('Home')}<main><section class="race-screen">${head}${DISTANCES.map(d=>`<div class="teams-group"><h2>${d}</h2>${S.relays.filter(r=>r.name===d).map(r=>relayBlock(p,u,r)).join('')}</div>`).join('')}</section></main>`;
+  if(look('teams')==='C') return `${back('Home')}<main><section class="race-screen">${head}${DISTANCES.map(d=>`<div class="teams-group"><h2>${d}</h2>${S.relays.filter(r=>r.name===d).map(r=>{
     const short=r.teams.find(t=>filled(t)<4),status=[r.holder?(r.holder===p.name?'You are entering':`${r.holder} is entering`):'',r.teams.length?`${r.teams.length} ${r.teams.length===1?'team':'teams'}`:'No teams yet',short?`Team ${short.n} is ${filled(short)} of 4`:'',!r.holder&&!r.teams.length?'open to start':''].filter(Boolean).join(' · ');
     return card(u,`teams:${r.code}`,r.section,status,relayBlock(p,u,r,false),u.teamsOpen[r.code]);}).join('')}</div>`).join('')}</section></main>`;
   // B: one relay at a time, one number pad moving box to box.
@@ -643,25 +670,26 @@ function checkInCard(p,u,r){
     return card(u,'checkin','Check-in Teams',status,body,u.open.checkin);
   }
   const legs=(n,t)=>`<div class="ci-legs">${t.legs.map((l,i)=>l?`<button aria-pressed="${!!race.present[n]?.[i]}" aria-label="${l} here" data-act="present" data-n="${n}" data-i="${i}">${l}${race.present[n]?.[i]?'<small>Here</small>':''}</button>`:`<span class="is-empty">–</span>`).join('')}</div>`;
-  const short=n=>{const c=presentCount(race,n);return c<4?`<p class="ci-short">${c} of 4 here. A team can run short: a lead sees it in To check.</p>`:'';};
-  const edit=(n)=>`<div class="ci-edit">${teamRows(p,u,{...r,teams:[team(r,n)]},{forceEdit:true})}<button class="button-secondary button-small" data-act="editdone">Done</button></div>`;
-  const headBtns=n=>`<button class="button-quiet" data-act="edit" data-n="${n}">Edit</button>${variant==='A'?`<button class="button-quiet" data-act="unpick" data-n="${n}">Take off</button>`:''}`;
-  const pickedBlock=(n,cls='')=>{const t=team(r,n);return `<div class="ci-team ${cls}"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${u.editing===n?edit(n):legs(n,t)}${short(n)}</div>`;};
+  // Short only once ticking has started: a team just added has nobody ticked yet.
+  const short=n=>{const c=presentCount(race,n);return c && c<4?`<p class="ci-short">${c} of 4 here. A team can run short: a lead sees it in To check.</p>`:'';};
+  const edit=n=>editRow(p,u,r,team(r,n),false);
+  const headBtns=n=>editingTeam(u,r,n)?'':`<button class="button-quiet" data-act="edit" data-n="${n}">Edit</button>${variant==='A'?`<button class="button-quiet" data-act="unpick" data-n="${n}">Take off</button>`:''}`;
+  const pickedBlock=(n,cls='')=>{const t=team(r,n);return `<div class="ci-team ${cls}"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${editingTeam(u,r,n)?edit(n):legs(n,t)}${short(n)}</div>`;};
   const left=pool(r);
-  if(variant==='A') {
+  if(look('checkin')==='A') {
     body=(race.picked.length?race.picked.map(n=>pickedBlock(n)).join(''):'<p class="race-empty">No teams in this heat yet</p>')
       +(left.length?`<h3 class="race-question">Add a team to heat ${race.heat}</h3><div class="ci-rows">${left.map(t=>`<button class="ci-row" data-act="pick" data-n="${t.n}"><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${nums(t)}${filled(t)<4?` · ${filled(t)} of 4`:''}</span></span><span class="ci-plus" aria-hidden="true">+</span></button>`).join('')}</div>`:'<p class="race-hint">Every other team has run.</p>')
       +(race.picked.length?'<p class="race-hint">Tap each child as they arrive. Edit swaps a child or changes the running order.</p>':'');
-  } else if(variant==='B') {
+  } else if(look('checkin')==='B') {
     const choosing=u.ciMode==='choose' || (!race.picked.length && u.ciMode!=='mark');
     if(choosing) body=`<h3 class="race-question">Which teams run in heat ${race.heat}?</h3><div class="ci-choose">${[...race.picked.map(n=>team(r,n)),...left].sort((a,b)=>a.n-b.n).map(t=>`<button aria-pressed="${race.picked.includes(t.n)}" data-act="${race.picked.includes(t.n)?'unpick':'pick'}" data-n="${t.n}">Team ${t.n}<small>${nums(t)}</small></button>`).join('')}</div>
       <button ${race.picked.length?'':'disabled'} data-act="cimode" data-v="mark">Next: who is here</button>`;
-    else body=race.picked.map(n=>{const t=team(r,n);return `<div class="ci-team"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${u.editing===n?edit(n):`<div class="ci-legrows">${t.legs.map((l,i)=>l?`<button aria-pressed="${!!race.present[n]?.[i]}" data-act="present" data-n="${n}" data-i="${i}"><span class="ci-leg-n">${ordinal(i+1)}</span><span class="ci-leg-w">${l}</span><span class="ci-leg-here">${race.present[n]?.[i]?'Here':'Tap when here'}</span></button>`:`<div><span class="ci-leg-n">${ordinal(i+1)}</span><span class="ci-leg-w" style="color:var(--faint)">–</span></div>`).join('')}</div>`}${short(n)}</div>`;}).join('')
+    else body=race.picked.map(n=>{const t=team(r,n);return `<div class="ci-team"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${editingTeam(u,r,n)?edit(n):`<div class="ci-legrows">${t.legs.map((l,i)=>l?`<button aria-pressed="${!!race.present[n]?.[i]}" data-act="present" data-n="${n}" data-i="${i}"><span class="ci-leg-n">${ordinal(i+1)}</span><span class="ci-leg-w">${l}</span><span class="ci-leg-here">${race.present[n]?.[i]?'Here':'Tap when here'}</span></button>`:`<div><span class="ci-leg-n">${ordinal(i+1)}</span><span class="ci-leg-w" style="color:var(--faint)">–</span></div>`).join('')}</div>`}${short(n)}</div>`;}).join('')
       +`<button class="button-secondary" data-act="cimode" data-v="choose">Change the heat's teams</button>`;
   } else {
     const list=[...race.picked.map(n=>team(r,n)),...left].sort((a,b)=>a.n-b.n);
     body=`<p class="race-hint">Tick the teams running heat ${race.heat}, then tap each child as they arrive.</p><div class="ci-list">${list.map(t=>{const on=race.picked.includes(t.n);
-      return on?`<div class="ci-team in-list"><div class="ci-head"><button class="ci-row" style="border:0;padding:0;min-height:var(--tap);flex:1" aria-pressed="true" data-act="unpick" data-n="${t.n}"><span class="ci-tick">${tick}</span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${presentCount(race,t.n)} of 4 here</span></span></button><button class="button-quiet" data-act="edit" data-n="${t.n}">Edit</button></div>${u.editing===t.n?edit(t.n):legs(t.n,t)}${short(t.n)}</div>`
+      return on?`<div class="ci-team in-list"><div class="ci-head"><button class="ci-row" style="border:0;padding:0;min-height:var(--tap);flex:1" aria-pressed="true" data-act="unpick" data-n="${t.n}"><span class="ci-tick">${tick}</span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${presentCount(race,t.n)} of 4 here</span></span></button>${editingTeam(u,r,t.n)?'':`${variant==='D' && !presentCount(race,t.n)?`<button class="button-quiet" data-act="unpick" data-n="${t.n}">Cancel</button>`:''}<button class="button-quiet" data-act="edit" data-n="${t.n}">Edit</button>`}</div>${editingTeam(u,r,t.n)?edit(t.n):legs(t.n,t)}${short(t.n)}</div>`
         :`<button class="ci-row" aria-pressed="false" data-act="pick" data-n="${t.n}"><span class="ci-tick"></span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${nums(t)}${filled(t)<4?` · ${filled(t)} of 4`:''}</span></span></button>`;}).join('')}</div>`;
   }
   return card(u,'checkin','Check-in Teams',status,body,u.open.checkin);
@@ -683,11 +711,11 @@ function orderCard(p,u,r){
   if(ordering) {
     let c='';
     if(u.step==='add') {const left=pool(r);
-      c=`<h3 class="race-question">Which team crossed the line?</h3><p class="race-hint">Teams that haven't run a heat. A team not here is added on the Teams screen first.</p>${left.length?`<div class="pick-list">${left.map(t=>`<button data-act="atfinish" data-n="${t.n}">Team ${t.n}<small>${nums(t)}</small></button>`).join('')}</div>`:'<p class="calm-note">Every team has run or is in this heat.</p>'}<button class="button-quiet" data-act="step" data-v="place">Back to the order</button>`;}
+      c=`<h3 class="race-question">Which team crossed the line?</h3><p class="race-hint">Teams that haven't run a heat. A team not here is added on the Teams screen first.</p>${left.length?`<div class="pick-list">${left.map(t=>`<button data-act="atfinish" data-n="${t.n}">Team ${t.n}<small>${nums(t)}</small></button>`).join('')}</div>`:'<p class="calm-note">Every team has run or is in this heat.</p>'}<button class="button-quiet" data-act="step" data-v="place">${backWord()}</button>`;}
     else if(!picked.length) c='<p class="race-hint">Teams to tap appear here as they are checked in.</p>';
     else if(!unplaced.length) c='<p class="calm-note" role="status">Every team has a place</p>';
     else if(u.step==='no-place') {const t=unplaced[0];
-      c=`<h3 class="race-question">Team ${t.n} (4th leg ${leg4(t)}) has no place. What happened?</h3><div class="race-pair"><button class="button-secondary" data-act="dnf" data-n="${t.n}">Did not finish</button><button class="button-secondary" data-act="dnr" data-n="${t.n}">Didn't run</button></div><p class="race-hint">Didn't run puts the team back with those still to run, for the next heat.</p><button class="button-quiet" data-act="step" data-v="place">Back to the order</button>`;}
+      c=`<h3 class="race-question">Team ${t.n} (4th leg ${leg4(t)}) has no place. What happened?</h3><div class="race-pair"><button class="button-secondary" data-act="dnf" data-n="${t.n}">Did not finish</button><button class="button-secondary" data-act="dnr" data-n="${t.n}">Didn't run</button></div><p class="race-hint">Didn't run puts the team back with those still to run, for the next heat.</p><button class="button-quiet" data-act="step" data-v="place">${backWord()}</button>`;}
     else c=`<h3 class="race-question">Who came ${ordinal(race.order.length+1)}?</h3><div class="race-numbers">${unplaced.map(t=>`<button data-act="place" data-n="${t.n}">${leg4(t)}<small>Team ${t.n}</small></button>`).join('')}</div><button class="button-secondary" data-act="step" data-v="no-place">Nobody else crossed the line</button>`;
     if(u.step!=='add' && picked.length) c+=`<div class="race-order-more"><button class="button-quiet" data-act="step" data-v="add">+ Team not on the list</button>${race.order.length>1?'<button class="button-quiet" data-act="inert">Change the order</button>':''}</div>`;
     body+=`<div class="race-order">${c}</div>`;
@@ -696,6 +724,7 @@ function orderCard(p,u,r){
     :picked.length && !unplaced.length?'<p class="calm-note" role="status">Every place has a time</p>':`<p class="race-hint">The next time goes in once ${ordinal(timed+1)} place has a team.</p>`;
   return card(u,'order','Order and Times',status,body,u.open.order);
 }
+const backWord=()=>variant==='D'?'Cancel':'Back to the order';
 function blocker(r){const race=r.race;
   if(!race.picked.length) return 'Nobody is checked in yet';
   const un=race.picked.filter(n=>!race.order.includes(n)&&!race.dnf.includes(n));
@@ -713,7 +742,7 @@ const actions={
   inert(p,u){u.note='Not part of this prototype: Races &amp; Hurdles and the lead area are unchanged.';},
   tab(p,u,d){u.tab=d.v;u.lastTab=d.v;u.note='';},
   teams(p,u){u.screen='teams';},
-  race(p,u,d){u.screen='race';u.code=d.code;u.open={};u.step='place';u.ciMode=null;u.editing=null;},
+  race(p,u,d){u.screen='race';u.code=d.code;u.open={};u.step='place';u.ciMode=null;u.teamEdit=null;},
   home(p,u){u.screen='home';u.asking='';u.note='';},
   reopen(p,u){u.screen='home';u.tab=homeOpens==='races'?'races':u.lastTab;u.note='';},
   card(p,u,d){
@@ -727,7 +756,12 @@ const actions={
   takeover(p,u,d){u.asking='';
     if(d.k.startsWith('teams:')) relay(d.k.slice(6)).holder=p.name; else relay(u.code).race.holds[d.k]=p.name;},
   addteam(p,u,d){const r=relay(d.code);if(r.teams.length>=6) return;r.holder=r.holder||p.name;const n=Math.max(0,...r.teams.map(t=>t.n))+1;r.teams.push({n,legs:['','','',''],kept:[]});
-    if(variant==='B') {u.target={n,i:0};u.entry='';u.bRefused='';} else focusLater(p,`${r.code}:${n}:0`);},
+    if(variant==='B') {u.target={n,i:0};u.entry='';u.bRefused='';} else if(variant==='D') startEdit(p,u,r,n,true); else focusLater(p,`${r.code}:${n}:0`);},
+  teamedit(p,u,d){const r=relay(d.code);takeHold0(r,p.name);startEdit(p,u,r,Number(d.n),false);},
+  // Cancel puts the team back as it was when the change began; a team just added goes again.
+  editcancel(p,u){const e=u.teamEdit;if(!e) return;const r=relay(e.code);
+    if(e.isNew) r.teams=r.teams.filter(t=>t.n!==e.n); else Object.assign(team(r,e.n),{legs:e.before,kept:e.kept});
+    clearDrafts(u,e);u.teamEdit=null;},
   fix(p,u,d){delete u.drafts[d.k];const [code,n,i]=d.k.split(':');team(relay(code),Number(n)).legs[i]='';
     if(variant==='B' && u.screen==='teams') {u.target={n:Number(n),i:Number(i)};u.entry='';} else focusLater(p,d.k);},
   keep(p,u,d){team(relay(d.code),Number(d.n)).kept.push(d.v);},
@@ -742,10 +776,10 @@ const actions={
     const k=order.findIndex(x=>x.n===t0.n&&x.i===t0.i);u.target=order[(k+1)%order.length];u.entry=team(r,u.target.n).legs[u.target.i];u.bRefused='';},
   bfix(p,u){u.entry='';u.bRefused='';focusLater(p,'entry');},
   pick(p,u,d){const r=relay(u.code);takeHold(r,'checkin',p.name);if(variant==='B') u.ciMode='choose';const n=Number(d.n);if(!r.race.picked.includes(n)) r.race.picked.push(n);r.race.picked.sort((a,b)=>a-b);r.race.present[n]=r.race.present[n]||[0,0,0,0];},
-  unpick(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.picked=race.picked.filter(x=>x!==n);delete race.present[n];race.order=race.order.filter(x=>x!==n);race.dnf=race.dnf.filter(x=>x!==n);if(u.editing===n) u.editing=null;},
+  unpick(p,u,d){const r=relay(u.code),race=r.race,n=Number(d.n);race.picked=race.picked.filter(x=>x!==n);delete race.present[n];race.order=race.order.filter(x=>x!==n);race.dnf=race.dnf.filter(x=>x!==n);if(editingTeam(u,r,n)) u.teamEdit=null;},
   present(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.present[n][d.i]=race.present[n][d.i]?0:1;},
-  edit(p,u,d){u.editing=u.editing===Number(d.n)?null:Number(d.n);},
-  editdone(p,u){u.editing=null;},
+  edit(p,u,d){startEdit(p,u,relay(u.code),Number(d.n),false);},
+  editdone(p,u){if(u.teamEdit) clearDrafts(u,u.teamEdit);u.teamEdit=null;},
   cimode(p,u,d){u.ciMode=d.v;},
   step(p,u,d){u.step=d.v;},
   place(p,u,d){relay(u.code).race.order.push(Number(d.n));},
@@ -757,9 +791,13 @@ const actions={
   submit(p,u){const r=relay(u.code),race=r.race;if(blocker(r)) return;
     race.saved.push({heat:race.heat,teams:[...race.picked],order:[...race.order],times:[...race.times]});
     race.ran.push(...race.picked);Object.assign(race,{heat:race.heat+1,picked:[],present:{},order:[],dnf:[],atFinish:[],times:[]});
-    ui.forEach(x=>{x.step='place';x.ciMode=null;x.editing=null;});},
+    ui.forEach(x=>{x.step='place';x.ciMode=null;x.teamEdit=null;});},
 };
 function takeHold0(r,name){if(!r.holder) r.holder=name;}
+function startEdit(p,u,r,n,isNew){const t=team(r,n);
+  u.teamEdit={code:r.code,n,before:[...t.legs],kept:[...t.kept],isNew};
+  focusLater(p,`${r.code}:${n}:${Math.max(0,t.legs.findIndex(l=>!l))}`);}
+function clearDrafts(u,e){for(const k of Object.keys(u.drafts)) if(k.startsWith(`${e.code}:${e.n}:`)) delete u.drafts[k];}
 let pendingFocus=null;
 function focusLater(p,key){pendingFocus={p:PHONES.indexOf(p),key};}
 
@@ -821,7 +859,7 @@ document.addEventListener('click',e=>{
   const o=e.target.closest('[data-opens]');if(o){homeOpens=o.dataset.opens;render();return;}
   const j=e.target.closest('[data-jump]');if(j) seed(j.dataset.jump);
 });
-function setVariant(k){variant=k;history.replaceState(null,'',`#${k}`);ui.forEach(u=>{u.asking='';u.target=null;u.bRefused='';u.ciMode=null;});render();}
+function setVariant(k){variant=k;history.replaceState(null,'',`#${k}`);ui.forEach(u=>{u.asking='';u.target=null;u.bRefused='';u.ciMode=null;u.teamEdit=null;});render();}
 const cycle=d=>setVariant(KEYS[(KEYS.indexOf(variant)+d+KEYS.length)%KEYS.length]);
 document.getElementById('prev').onclick=()=>cycle(-1);
 document.getElementById('next').onclick=()=>cycle(1);
