@@ -1,7 +1,7 @@
 import { expect,test } from 'vitest';
 import { homeStatus,type HomeEvent } from '../src/shared/race-screen.js';
 const sam={id:'s',name:'Sam'},jo={id:'j',name:'Jo'};
-const event=(change:Partial<HomeEvent>):HomeEvent=>({code:'R1',name:'60m',section:'Boy Cubs',race:{kind:'heat',number:2,state:'in progress'},holds:{},started:false,waitingOn:[],done:false,...change});
+const event=(change:Partial<HomeEvent>):HomeEvent=>({code:'R1',name:'60m',section:'Boy Cubs',relay:false,race:{kind:'heat',number:2,state:'in progress'},holds:{},started:false,waitingOn:[],done:false,...change});
 test('a tile\'s status line names the race, what is happening on it and who is on it',()=>{
   expect(homeStatus(event({}))).toBe('Heat 2');
   expect(homeStatus(event({holds:{'check-in':sam}}))).toBe('Heat 2 · Checking in · Sam');

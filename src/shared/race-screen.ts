@@ -22,7 +22,7 @@ export interface RaceScreenRead { revision:number; event:DayEvent; race:CurrentR
  * A switched-on event as Home lists it: what its tile's status line is made of. `started` is the order or times
  * having entries, `waitingOn` the names of those asked to press Submit Race who have not, and `done` its stage complete.
  */
-export interface HomeEvent { code:string; name:string; section:DayEvent['section']; race:Pick<CurrentRace,'kind'|'number'|'state'>;
+export interface HomeEvent { code:string; name:string; section:DayEvent['section']; relay:boolean; race:Pick<CurrentRace,'kind'|'number'|'state'>;
   holds:RaceScreenRead['holds']; started:boolean; waitingOn:string[]; done:boolean }
 /** One snapshot of Home, versioned by the day revision: the day's switched-on events in programme order. */
 export interface HomeSnapshot { revision:number; events:HomeEvent[] }

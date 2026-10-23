@@ -12,7 +12,7 @@ export function jobRace(race:StoredRace):RaceRead {
   return {...rest,...(final?{final:{generation:final.generation,hasRun:final.hasRun,heatsComplete:final.heatsComplete,entries:[...final.entries.map(({finalEntryId,heatWristband,seed,absent,runner,kind})=>({finalEntryId,wristband:race.parts.runners.value?.find(current=>current.id===finalEntryId)?.wristband??runner?.wristband??heatWristband,seed,absent,calledUp:kind==='call-up'})),...(final.additionalEntries||[]).map(({runner,absent})=>({finalEntryId:runner.id,wristband:runner.wristband,seed:null,absent,calledUp:false}))]}}:{})};
 }
 export type Database=pg.Pool|pg.PoolClient;
-const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=r.event_id AND s.stage=CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END) AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
+const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,e.relay,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=r.event_id AND s.stage=CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END) AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
 const finalRowsQuery=`SELECT f.race_id,f.entries,f.additional_entries,f.generation,
   EXISTS(SELECT 1 FROM event_stages WHERE event_id=r.event_id AND stage='heats') AS heats_complete
   FROM race_finals f JOIN races r ON r.id=f.race_id`;
@@ -47,7 +47,7 @@ function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],finalRow?:pg.
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value}]));
   // A final has run once it is saved.
   const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:row.state==='saved',heatsComplete:finalRow.heats_complete}:undefined;
-  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
+  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {

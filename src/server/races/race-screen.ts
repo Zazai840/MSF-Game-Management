@@ -54,7 +54,7 @@ export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
   return {revision,events:events.map(event=>{
     const race=current.get(event.id)!,own=holds.get(event.id)||{},stage=stageForRace({kind:race.kind,event});
     const waiting=race.state==='submitted'?waitingOn(askedToSubmit(race,own),presses.filter(press=>press.race_id===race.id).map(press=>({id:press.sign_in_id}))).map(holder=>holder.name):[];
-    return {code:event.code,name:event.name,section:event.section,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
+    return {code:event.code,name:event.name,section:event.section,relay:event.relay,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
       started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn:waiting,done:stages.some(item=>item.eventId===event.id && item.stage===stage)};
   })};
 }
