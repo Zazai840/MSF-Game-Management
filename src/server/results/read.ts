@@ -13,6 +13,7 @@ import { runnersOf,type Runner } from '../../shared/races.js';
 import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
+import { readTeamLists } from '../relays/teams.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
   return (await db.query('SELECT id,code,name,section,format,enabled,relay FROM events WHERE day_id=$1 ORDER BY programme_order,code',[dayId])).rows;
 }
@@ -44,7 +45,8 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   const auditNotes=(await readAuditNotes(db,dayId)).filter(note=>note.eventId===event.id);
   const tieSettlements=(await readTieSettlements(db,dayId)).filter(settlement=>settlement.eventId===event.id);
   const stages=(await readCompletedStages(db,dayId)).filter(stage=>stage.eventId===event.id).map(stage=>stage.stage);
-  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId)))};
+  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId))),
+    ...(event.relay?{teams:(await readTeamLists(db,dayId)).get(event.id)!.teams}:{})};
 }
 
 /** Reuse persisted part and history times; queue ordering never depends on poll time. */

@@ -22,8 +22,10 @@ import { rulingDetails } from './validation.js';
 function finalist(teams:readonly RelayTeam[],row:LeaderboardRow,id:string):RaceEntry {
   if(!row.team) return {id,wristband:row.wristband!};
   // A team that has been in a race is never removed, so its team list row is there.
-  return {id,team:{id:row.team.id,number:row.team.number},legs:teams.find(team=>team.id===row.team!.id)!.legs.map(leg=>({...leg,here:false}))};
+  return teamEntry(teams.find(team=>team.id===row.team!.id)!,id);
 }
+/** A relay team joining the final with its four children as its team list has them now, none here yet. */
+const teamEntry=(team:RelayTeam,id:string):RaceEntry=>({id,team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:false}))});
 /** The relay's team list, or none for an event that is not a relay. */
 const relayTeams=async(client:pg.PoolClient,dayId:string,eventId:string)=>(await readTeamLists(client,dayId)).get(eventId)?.teams??[];
 /** Reuses the sole active unrun final; fresh entry IDs invalidate obsolete Here / Absent and Finish writes. */
@@ -65,6 +67,26 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       // An absent child is named by the wristband seeded; an absent team by its number, from its copy kept when it left.
       const absent=final.vacancy.heatWristband??(final.vacancy.runner?entryName(final.vacancy.runner):'');
       await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${resultName(next)} (heat rank ${next.position}) for absent ${absent}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
+      return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
+    });
+  });
+  // Adding a team to a relay's Final: picked from its team list, it joins with its four children as they stand now,
+  // none here yet, and check-in shows it as Added.
+  action('POST','/api/lead/events/:code/add-team','Lead',async(request,_reply,phone)=>{
+    const {value,comment}=rulingDetails(request.body,false);
+    if(typeof value.teamId!=='string') throw new Refusal(400,'Choose a team');
+    return rulingChange(pool,phone,async(client,current)=>{
+      const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults;
+      if(!detail.event.relay) throw new Refusal(400,'Only a relay has teams');
+      const team=detail.teams!.find(item=>item.id===value.teamId);
+      if(!team) throw new Refusal(404,'Team not found');
+      if(!final || !final.heatsComplete || final.hasRun) throw new Refusal(409,'There is no final to add a team to');
+      const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
+      const lineup=[...race.parts.runners.value||[],...final.entries.flatMap(entry=>entry.runner?[entry.runner]:[]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
+      if(lineup.some(entry=>isTeamEntry(entry) && entry.team.id===team.id)) throw new Refusal(409,`Team ${team.number} is already in the Final`);
+      const entry=teamEntry(team,randomUUID());
+      await publishPart(client,current,race,'runners',[...race.parts.runners.value||[],entry]);
+      await writeAuditNote(client,current,detail.event.id,{action:'add-team',comment,message:`${current.name} added Team ${team.number} to the Final${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
     });
   });

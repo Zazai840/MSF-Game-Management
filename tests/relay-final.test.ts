@@ -88,6 +88,26 @@ test('a lead\'s call-up for an absent team names the next-ranked team, which app
   expect(read.race.final!.entries.map(item=>[item.team?.number,item.seed,item.absent,item.calledUp])).toEqual([[2,1,false,false],[5,2,true,false],[1,3,false,false],[6,4,false,false],[3,5,false,false],[7,6,false,false],[4,2,false,true]]);
 });
 
+test('a lead adds a team to the Final by picking it from the relay\'s teams: it shows as Added, ticked on the race screen',async()=>{
+  const {sam,lead,relays}=await start();
+  const detail=(await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead;
+  // The lead's pick list is the relay's team list.
+  expect(detail.teams!.map(team=>[team.number,team.legs.map(leg=>leg.wristband)])).toEqual([1,2,3,4,5,6,7].map(number=>[number,legs(number)]));
+  const teamId=(number:number)=>detail.teams!.find(team=>team.number===number)!.id;
+  const added=await call(lead,'/api/lead/events/R22/add-team',{teamId:teamId(4)});
+  expect(added.statusCode,added.body).toBe(200);
+  expect((added.json() as EventResultsRead).auditNotes.find(note=>note.action==='add-team')!.message).toBe('Jo Evans added Team 4 to the Final');
+  const read=await relays.screen(sam,'R22');
+  expect(finalTeams(read)).toEqual([2,5,1,6,3,7,4]);
+  expect(read.race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===4)!.legs.map(leg=>[leg.wristband,leg.here])).toEqual(legs(4).map(wristband=>[wristband,false]));
+  expect(read.race.final!.entries.at(-1)).toMatchObject({team:{number:4},seed:null,absent:false,calledUp:false});
+  // A team already in the Final, Absent or not, is not added twice.
+  expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:teamId(4)})).json()).toEqual({message:'Team 4 is already in the Final'});
+  await call(sam,'/api/race-screen/R22/absent-team',{raceId:read.race.id,teamId:teamId(2),absent:true});
+  expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:teamId(2)})).json()).toEqual({message:'Team 2 is already in the Final'});
+  expect((await call(lead,'/api/lead/events/R4/add-team',{teamId:teamId(2)})).json()).toEqual({message:'Only a relay has teams'});
+});
+
 test('Absent is only for a Final\'s teams',async()=>{
   const {sam,relays}=await start({complete:false});
   await relays.team(sam,'R22',legs(8));

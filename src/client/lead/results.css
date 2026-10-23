@@ -104,3 +104,4 @@
 .final-panel .result-detail {grid-column:2;}
 /* The position and its medal mark stay beside a team's name, its children and its status. */
 .final-panel .result-position {grid-row:span 3;}
+.final-add {display:grid; gap:8px; margin:8px 0;}
