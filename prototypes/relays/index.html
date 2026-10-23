@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relay Screens Prototype</title>
+<!--
+  PROTOTYPE - throwaway. Answers "What do the Races and Relays tabs and a relay race screen look like on a phone?"
+  (issue 132 on the "Relays in the Running Zone" map, issue 127). Not production code: no tests, in-memory state
+  only, no server. Lives on branch prototype/relay-screens, never merged.
+
+  Plan: three phones (Sam at the prep area, Priya at the start line, Jo at the finish) share one in-memory relay
+  day, so a tap on one phone shows on the others at once. Three layouts, switchable from the bottom bar, the left /
+  right arrow keys, or #A #B #C in the URL. They differ where the decisions so far leave room:
+    A  One long list        - segmented tabs; Teams is one long scroll of all six relays; check-in adds teams from a list under the heat's teams
+    B  One relay at a time  - edge-to-edge underline tabs; Teams shows one relay at a time with one number pad; check-in is two steps (choose teams, then tick children)
+    C  Cards that open      - two big tab tiles with counts; Teams is six cards that open like the race screen's; check-in is one list with a tick per team
+  Order and Times by team is the same in all three: it was decided in issue 131.
+  The phone screens use the app's own stylesheets (theme.css, style.css, flow.css, race.css), scoped under .ph.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap">
+<style>
+/* ---------- The app's own stylesheets (theme, style, flow, race), scoped to the phone screens ---------- */
+.ph {
+  --navy:#1b2a51;
+  --red:#ac3036;
+  --on-dark-muted:#c5cde2;
+  --ground:#e9edf4;
+  --surface:#ffffff;
+  --tint:#dce3ef;
+  --text:#18213b;
+  --muted:#4a5470;
+  --faint:#8a93ab;
+  --line:#d6dbe6;
+  --line-strong:#c3cad9;
+  --divider:#dfe3ec;
+  --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;
+  --green-fill:#e3f1e8; --green-line:#2f6b47; --green-text:#2f6b47; --green-title:#1f4d33;
+  --idle-fill:#e9ecf2; --idle-line:#c3cad9; --idle-text:#3a4360;
+  --focus:#d78800;
+  --text-body:17px;
+  --text-small:15px;
+  --text-badge:13px;
+  --text-h1:26px; --text-h2:22px; --text-h3:19px;
+  --tap:44px;
+  --tap-primary:52px;
+  --radius:12px; --radius-small:10px; --radius-card:16px; --radius-box:14px;
+  font-family:Nunito,system-ui,sans-serif; font-weight:500; font-size:var(--text-body); line-height:1.4;
+  color:var(--text); background:var(--ground);
+  -webkit-text-size-adjust:100%;
+}
+.ph * {box-sizing:border-box;}
+.ph {margin:0; min-height:100vh; background:var(--ground); font-family:Nunito,system-ui,sans-serif;}
+.ph h1,.ph h2,.ph h3 {color:var(--navy); font-weight:800; line-height:1.2; margin:0 0 .5rem;}
+.ph h1 {font-size:var(--text-h1);}
+.ph h2 {font-size:var(--text-h2);}
+.ph h3 {font-size:var(--text-h3);}
+.ph p {margin:.75rem 0;}
+.ph small {font-size:var(--text-small);}
+.ph a {color:var(--navy); font-weight:700;}
+.ph input,.ph time,.ph .code {font-variant-numeric:tabular-nums;}
+.ph summary {padding:12px 0; color:var(--navy); font-weight:800; cursor:pointer;}
+.ph button {
+  font:inherit; font-size:17px; font-weight:800; line-height:1.2;
+  min-height:var(--tap-primary); padding:.75rem 1rem; border-radius:var(--radius);
+  border:1.5px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.ph button:disabled {opacity:.55; cursor:not-allowed;}
+.ph button:focus-visible,.ph input:focus-visible,.ph select:focus-visible,.ph textarea:focus-visible,.ph a:focus-visible {outline:3px solid var(--focus); outline-offset:3px;}
+.ph .button-secondary {background:var(--surface); color:var(--navy);}
+.ph .button-small {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); font-size:15px;}
+.ph .button-quiet {min-height:var(--tap); padding:0 14px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:var(--line-strong); font-size:15px; font-weight:700;}
+.ph .button-danger {background:var(--surface); color:var(--red); border-color:var(--red);}
+.ph [aria-pressed=true] {background:var(--navy); color:#fff; border-color:var(--navy);}
+.ph form {display:grid; gap:1rem;}
+.ph label {display:grid; gap:6px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.ph input,.ph select,.ph textarea {
+  font:inherit; font-size:18px; font-weight:700; color:var(--text);
+  min-height:var(--tap-primary); padding:.7rem 14px; width:100%; min-width:0;
+  background:var(--surface); border:2px solid var(--navy); border-radius:var(--radius-box);
+}
+.ph input[type=checkbox],.ph input[type=radio] {min-height:0; width:24px; height:24px; accent-color:var(--navy);}
+.ph .badge {display:inline-block; padding:3px 10px; border-radius:999px; background:var(--navy); color:#fff; font-size:var(--text-badge); font-weight:800; line-height:1.3;}
+.ph .badge-attention {background:var(--red);}
+.ph .chip {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); border:1.5px solid var(--tint); color:var(--navy); font-size:17px; font-weight:800; font-variant-numeric:tabular-nums;}
+.ph .card {background:var(--surface); border-radius:var(--radius-card); padding:16px;}
+.ph .calm-note {padding:10px 14px; border-radius:var(--radius); background:var(--tint); color:var(--navy); font-size:var(--text-small); font-weight:700;}
+.ph .done {background:var(--green-fill); border-color:var(--green-line); color:var(--green-text);}
+.ph .warning-box,.ph [role=alert] {
+  background:var(--amber-fill); border-radius:var(--radius-box);
+  color:var(--amber-text); padding:12px 14px; font-weight:700;
+}
+.ph .warning-box button {min-height:var(--tap); border-radius:var(--radius-small); font-size:16px;}
+.ph .warning-box p {margin:0 0 10px;}
+.ph .warning-actions {display:flex; gap:10px;}
+.ph .warning-actions button {flex:1;}
+
+.ph {min-height:100vh; display:flex; flex-direction:column;}
+.ph main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; display:flex; flex-direction:column;}
+.ph .app-header {background:var(--navy); color:#fff; padding:14px 16px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;}
+.ph .app-header-title {flex:none; display:flex; flex-direction:column; min-width:0;}
+.ph .app-header-title strong {font-size:19px; font-weight:800; white-space:nowrap;}
+.ph .app-header-title span {font-size:13px; font-weight:600; color:var(--on-dark-muted);}
+.ph .app-header-person {flex:0 1 auto; display:flex; align-items:center; gap:8px; min-width:0; min-height:var(--tap); margin:-5px -8px; padding:0 8px; background:transparent; color:#fff; border:0; border-radius:var(--radius-small); font-size:15px; font-weight:700;}
+.ph .app-header-person > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.ph .app-header-test {flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-2px 0 -12px; font-size:15px; font-weight:700; color:var(--on-dark-muted);}
+.ph .app-header-test a {min-height:44px; display:inline-flex; align-items:center; color:#fff;}
+.ph .avatar {flex:none; width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;}
+.ph .app-nav {width:100%; max-width:48rem; margin:0 auto; padding:16px 16px 0; display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px;}
+.ph .app-nav button {min-height:var(--tap); padding:0 16px; font-size:16px;}
+.ph .app-nav-home {justify-content:flex-end;}
+.ph .lead-entry {display:inline-flex; align-items:center; gap:10px;}
+.ph .lead-entry .badge {padding:3px 9px;}
+.ph .event-sections h2 {margin:1.25rem 0 .5rem;}
+.ph .section-choices {display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;}
+.ph .section-choices button {display:flex; flex-direction:column; align-items:flex-start; gap:2px; background:var(--surface); color:var(--navy); border-color:var(--surface); text-align:left;}
+.ph .section-choices small {color:var(--muted); font-weight:700;}
+.ph .home h1 {margin-bottom:4px;}
+.ph .jobs {display:grid; gap:14px; margin-top:14px;}
+.ph .job-button {display:flex; align-items:center; gap:14px; width:100%; padding:18px 16px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface); border-radius:var(--radius-card);}
+.ph .job-icon {flex:none; width:28px; display:flex; align-items:center; justify-content:center; color:var(--navy);}
+.ph .job-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.ph .job-title {font-size:19px; font-weight:800; color:var(--navy);}
+.ph .job-explanation {font-size:var(--text-small); font-weight:500; color:var(--muted); line-height:1.35;}
+.ph .job-text .badge {align-self:flex-start; margin-top:6px;}
+.ph .job-chevron {flex:none; color:var(--faint);}
+.ph footer {margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:var(--text-small); font-weight:600; color:var(--muted);}
+.ph footer button {min-height:var(--tap); padding:0 6px; border-radius:var(--radius-small); background:transparent; color:var(--navy); border-color:transparent; font-size:15px; font-weight:800; text-decoration:underline; text-underline-offset:3px;}
+.ph .code {font-size:32px; font-weight:800; letter-spacing:3px; color:var(--navy); margin-left:0;}
+@media(min-width:800px) {.ph main {padding:28px 24px;} .ph .app-nav {padding:16px 24px 0;} }
+.ph nav {display:flex; flex-wrap:wrap; gap:10px;}
+.ph .app-header {order:-1;}
+.ph nav + h1 {margin-top:20px;}
+
+.ph .app-nav .back-arrow {
+  display:inline-flex; align-items:center; justify-content:center; width:var(--tap); min-height:var(--tap); padding:0; margin-left:-14px;
+  border:0; border-radius:var(--radius-small); background:transparent; color:var(--navy);
+}
+@media(min-width:800px) {
+  .ph .action-bar {padding-left:24px; padding-right:24px;}
+  .ph .action-bar-inner {max-width:calc(48rem - 48px);}
+}
+.ph .number-entry {display:grid; gap:12px;}
+.ph .number-entry-row {display:flex; align-items:flex-end; gap:10px;}
+.ph .number-entry-row label {flex:1; min-width:0;}
+.ph .number-entry-row .action-next {flex:none; min-width:96px; min-height:60px;}
+.ph .time-shows {margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.ph .time-shows strong {color:var(--text); font-variant-numeric:tabular-nums;}
+.ph .number-input {height:60px; padding:0 16px; font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.02em;}
+.ph .number-input::placeholder {color:var(--muted); font-weight:600; font-size:20px;}
+.ph .number-input:focus-visible {outline:none; box-shadow:inset 0 0 0 1.5px var(--navy);}
+.ph .number-input-held {border-color:var(--amber-line); background:var(--amber-fill); color:var(--amber-text);}
+.ph .action-bar {position:fixed; left:0; right:0; z-index:10; background:var(--surface); padding:10px 16px calc(10px + env(safe-area-inset-bottom));}
+.ph .action-bar-inner {max-width:calc(48rem - 32px); margin:0 auto; display:flex; gap:10px;}
+.ph .action-bar-inner > * {flex:1; min-width:0;}
+.ph .action-bar-inner > .button-secondary {font-size:16px;}
+.ph .action-bar-stacked .action-bar-inner {flex-direction:column;}
+.ph main {padding-bottom:calc(20px + var(--action-bar-height, 0px));}
+.ph {scroll-padding-bottom:calc(12px + var(--action-bar-height, 0px));}
+@media(min-width:800px) {.ph main {padding-bottom:calc(28px + var(--action-bar-height, 0px));}}
+.ph .sortable-list {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+.ph .sortable-row {position:relative; display:flex; align-items:center; gap:12px; min-height:56px; padding:0 14px; background:var(--surface); border-radius:var(--radius); font-size:var(--text-body); line-height:1.2;}
+.ph .sortable-row[data-dragging] {z-index:2; border:2px solid var(--navy); padding:0 12px; box-shadow:0 10px 24px rgba(27,42,81,.28);}
+.ph .sortable-handle {flex:none; width:48px; height:48px; min-height:48px; margin:0 -8px 0 auto; padding:0; display:flex; align-items:center; justify-content:center; border:0; border-radius:var(--radius-small); background:transparent; color:var(--muted); touch-action:none; cursor:grab;}
+.ph .sortable-row[data-dragging] .sortable-handle,.ph .sortable-handle[aria-pressed=true] {cursor:grabbing; background:var(--tint); color:var(--navy);}
+.ph .sortable-handle:disabled {cursor:default; opacity:.5;}
+.ph .row-place {width:46px; flex:none; font-size:16px; font-weight:800; color:var(--navy);}
+.ph .row-runner {display:flex; flex-direction:column; gap:2px; min-width:0;}
+.ph .row-runner strong {font-size:22px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;}
+.ph .time-wrong,.ph button.time-wrong {background:var(--amber-fill); border:2px solid var(--amber-line); color:var(--text);}
+.ph .wrong-time-reason {display:block; font-size:13px; font-weight:800; line-height:1.25; color:var(--amber-text);}
+.ph .wrong-time-icon {flex:none; color:var(--amber-line);}
+.ph .time-count {display:inline-flex; align-items:center; gap:4px; margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums;}
+.ph .time-count-agree {color:var(--green-text);}
+.ph .time-count-mismatch {color:var(--amber-text);}
+
+.ph .race-screen,.ph .race-cards {display:flex; flex-direction:column; gap:14px;}
+.ph .race-cards[hidden] {display:none;}
+.ph .race-heading {display:flex; flex-direction:column; gap:2px;}
+.ph .race-heading h1 {margin:0;}
+.ph .race-line {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:700;}
+.ph .race-empty {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
+.ph .race-card {background:var(--surface); border-radius:var(--radius-card); overflow:hidden;}
+.ph .race-card-head {width:100%; display:flex; align-items:center; gap:12px; min-height:68px; padding:12px 14px 12px 16px; text-align:left; background:var(--surface); color:var(--text); border:0; border-radius:0;}
+.ph .race-card-text {flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.ph .race-card-title {font-size:var(--text-h3); font-weight:800; color:var(--navy);}
+.ph .race-card-status {font-size:var(--text-small); font-weight:600; color:var(--muted); text-wrap:pretty;}
+.ph .race-card-arrow {flex:none; width:40px; height:40px; border-radius:50%; background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center; transition:transform .15s;}
+.ph .race-card-head[aria-expanded=true] .race-card-arrow {transform:rotate(90deg);}
+@media (prefers-reduced-motion:reduce) {.ph .race-card-arrow {transition:none;}}
+.ph .race-card-body {padding:4px 16px 16px; display:flex; flex-direction:column; gap:14px;}
+.ph .race-chips {list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px;}
+.ph .race-chips li {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-weight:800; font-variant-numeric:tabular-nums;}
+.ph .race-chips li:has(> button) {padding:0;}
+.ph .race-chips button {display:inline-flex; align-items:center; gap:6px; min-height:var(--tap); padding:0 14px; border:0; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-body); font-variant-numeric:tabular-nums;}
+.ph .race-chips .kept-dot {width:9px; height:9px; border-radius:50%; background:var(--amber-line); flex:none;}
+.ph .race-hint {margin:0; color:var(--muted); font-size:var(--text-small); font-weight:600;}
+.ph .race-card-body .warning-box p:last-child,.ph .race-card-body p[role=alert],.ph .race-card-body .calm-note {margin:0;}
+.ph .race-take-over {align-self:flex-start;}
+.ph .race-attendance {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.ph .race-attendance li {display:flex; align-items:center; gap:10px; min-height:56px; padding:6px 6px 6px 14px; border-radius:var(--radius); background:var(--ground);}
+.ph .race-attendance strong {min-width:52px; font-size:21px; font-weight:800; font-variant-numeric:tabular-nums;}
+.ph .race-attendance li.is-absent strong {color:var(--muted); text-decoration:line-through;}
+.ph .race-seed {width:74px; flex:none; white-space:nowrap; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.ph .race-attend-pair {margin-left:auto; display:flex; gap:6px;}
+.ph .race-attend-pair button {min-height:var(--tap); padding:0 12px; border-radius:var(--radius-small); font-size:15px;}
+.ph .race-attend-pair .race-absent-on {background:var(--amber-fill); color:var(--amber-text); border:2px solid var(--amber-line);}
+.ph .race-here,.ph .race-absent {margin-left:auto; padding-right:8px; font-size:var(--text-small); font-weight:800;}
+.ph .race-here {color:var(--green-text);}
+.ph .race-absent {color:var(--amber-text);}
+.ph .race-table {width:100%; border-collapse:separate; border-spacing:0 6px; margin:-6px 0; font-variant-numeric:tabular-nums;}
+.ph .race-table th {padding:0 10px; text-align:left; font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.ph .race-table td {height:50px; padding:0 10px; background:var(--ground); font-size:21px; font-weight:800; color:var(--text);}
+.ph .race-table td:first-child {border-radius:var(--radius) 0 0 var(--radius); font-size:16px; color:var(--navy);}
+.ph .race-table td:last-child {border-radius:0 var(--radius) var(--radius) 0;}
+.ph .race-no-place {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.ph .race-no-place li {display:flex; align-items:center; gap:10px; min-height:44px; padding:0 10px; border-radius:var(--radius); background:var(--tint); font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.ph .race-no-place strong {font-size:18px; color:var(--text); font-variant-numeric:tabular-nums;}
+.ph .race-no-place li span {flex:1;}
+.ph .race-no-place li:has(> button) {padding-right:6px;}
+.ph .race-table small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
+.ph .race-next {display:inline-flex; align-items:center; min-height:32px; padding:0 12px; border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small);}
+.ph .race-fixing {display:flex; gap:10px;}
+.ph .race-fixing button {flex:1;}
+.ph .race-chips button[aria-pressed=true] {background:var(--navy); color:#fff;}
+.ph .race-columns {display:flex; flex-direction:column; gap:6px;}
+.ph .race-column {display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-height:var(--tap);}
+.ph .race-column-name {width:64px; flex:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.ph .race-column-who {flex:1 1 auto; width:min-content; min-width:0; font-size:var(--text-body); font-weight:800; color:var(--text); overflow-wrap:break-word;}
+.ph .race-column-you {color:var(--navy);}
+.ph .race-column > button {margin-left:auto;}
+.ph .race-column .warning-box {flex-basis:100%;}
+.ph .race-order {display:flex; flex-direction:column; gap:12px;}
+.ph .race-question {margin:0;}
+.ph .race-numbers {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;}
+.ph .race-numbers button {min-height:72px; font-size:28px; background:var(--ground); color:var(--text); border-color:var(--ground); font-variant-numeric:tabular-nums;}
+.ph .race-pair {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.ph .race-order-more {display:flex; flex-wrap:wrap; gap:10px;}
+.ph .race-order-more button {flex:1 1 auto;}
+.ph .race-card-body .sortable-row {background:var(--ground);}
+.ph .race-move-place {width:64px; flex:none; display:flex; flex-direction:column; gap:2px; font-size:16px; font-weight:800; color:var(--navy);}
+.ph .race-move-place small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.ph .race-move-runner {flex:1; min-width:0; font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+.ph .race-move-runner small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
+.ph .race-table td.time-wrong {background:var(--amber-fill); box-shadow:inset 0 0 0 2px var(--amber-line);}
+.ph .race-table {table-layout:fixed;}
+.ph .race-table th:first-child {width:48px;}
+.ph .race-table th:nth-child(2):not(:last-child) {width:84px;}
+.ph .race-table th {white-space:nowrap;}
+.ph .race-table .wrong-time-reason {white-space:nowrap;}
+.ph .race-time {display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:calc(100% + 20px); min-height:50px; margin:0 -10px; padding:0 10px; border:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; text-align:left;}
+.ph .race-time:disabled {opacity:1; cursor:default;}
+.ph .race-saved {margin:0; padding:10px 14px; border-radius:var(--radius); background:var(--green-fill); color:var(--green-text); font-size:var(--text-small); font-weight:800;}
+.ph .race-results h2 {margin:0;}
+.ph .race-results .race-card-body {padding-top:16px;}
+.ph .race-blocked,.ph .race-waiting {margin:0; text-align:center; font-size:var(--text-small); font-weight:700;}
+.ph .race-blocked {color:var(--muted);}
+.ph .race-waiting {color:var(--navy);}
+.ph .race-dock-row {display:flex; gap:10px;}
+.ph .race-dock-row > * {flex:1; min-width:0;}
+.ph .action-bar p[role=alert] {margin:0;}
+
+
+
+/* ---------- Prototype desk (not part of the design) ---------- */
+:root {
+  --desk:#d5dbe7; --desk-text:#18213b; --desk-muted:#4a5470; --frame:#1b2133;
+  --proto-bg:#11151f; --proto-fg:#f4f6fa; --proto-line:#3a4258;
+  --desk-font:Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk:#0c101a; --desk-text:#eef1f6; --desk-muted:#a8b0c2; --frame:#2f3854;
+  --proto-bg:#eef1f6; --proto-fg:#11151f; --proto-line:#c3cad9; color-scheme:dark;
+} }
+:root[data-theme="dark"] {
+  --desk:#0c101a; --desk-text:#eef1f6; --desk-muted:#a8b0c2; --frame:#2f3854;
+  --proto-bg:#eef1f6; --proto-fg:#11151f; --proto-line:#c3cad9; color-scheme:dark;
+}
+* {box-sizing:border-box;}
+[hidden] {display:none !important;}
+body {margin:0; background:var(--desk); color:var(--desk-text); font-family:var(--desk-font); font-weight:500; font-size:16px; line-height:1.45;
+  padding:20px 16px 110px;}
+.top {max-width:1200px; margin:0 auto 20px; display:flex; flex-direction:column; gap:12px;}
+.proto-eyebrow {margin:0; font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--desk-muted);}
+.top h1 {margin:0; font-size:24px; font-weight:800; line-height:1.2; text-wrap:balance;}
+.top p {margin:0; max-width:75ch; color:var(--desk-muted);}
+.top p strong {color:var(--desk-text);}
+.controls {display:flex; flex-direction:column; gap:10px;}
+.pctl {display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+.ctl-label {min-width:110px; font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--desk-muted);}
+.pbtn {font:inherit; font-size:14px; font-weight:700; min-height:36px; padding:0 12px; border-radius:999px; cursor:pointer;
+  background:transparent; color:var(--desk-text); border:1.5px solid var(--desk-muted);}
+.pbtn[aria-pressed=true] {background:var(--proto-bg); color:var(--proto-fg); border-color:var(--proto-bg);}
+.pbtn:focus-visible {outline:3px solid #d78800; outline-offset:2px;}
+.phones {display:flex; flex-wrap:wrap; justify-content:center; gap:24px; max-width:1240px; margin:0 auto;}
+.phone {width:395px; max-width:100%; display:flex; flex-direction:column; gap:8px;}
+.phone-label {display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:36px;}
+.phone-label span {font-weight:800;}
+.phone-label small {font-size:14px; font-weight:600; color:var(--desk-muted);}
+/* 375 px of screen inside the frame, like a small iPhone. */
+.frame {width:395px; max-width:100%; height:780px; border:10px solid var(--frame); border-radius:34px; overflow:hidden; background:#e9edf4;}
+.state {max-width:1200px; margin:24px auto 0;}
+.state summary {cursor:pointer; font-weight:800;}
+.state pre {white-space:pre-wrap; font-size:13px; line-height:1.5; background:var(--proto-bg); color:var(--proto-fg); padding:14px; border-radius:12px; overflow:auto;}
+.switcher {position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:50; display:flex; align-items:center; gap:4px;
+  padding:6px; border-radius:999px; background:var(--proto-bg); color:var(--proto-fg); box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:calc(100vw - 32px);}
+.switcher button {font:inherit; font-size:20px; font-weight:800; width:44px; height:44px; border-radius:50%; border:0; background:transparent; color:inherit; cursor:pointer;}
+.switcher span {padding:0 8px; font-size:15px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+@media (max-width:440px) {body {padding:16px 0 110px;} .top,.state {padding:0 16px;} .frame {border-width:0; border-radius:0; height:auto; min-height:640px;} .phone-label {padding:0 16px;}}
+
+/* ---------- The phone screen: the app's own look, plus the new relay pieces ---------- */
+.ph {height:100%; min-height:0; overflow-y:auto; display:flex; flex-direction:column; overscroll-behavior:contain; scrollbar-width:none;}
+.ph main {flex:1 0 auto; padding-bottom:20px;}
+.ph .action-bar {position:sticky; bottom:0; margin:auto -16px -20px; box-shadow:0 -1px 0 var(--divider);}
+.ph .proto-note {margin:0; padding:10px 14px; border-radius:var(--radius); background:var(--tint); color:var(--muted); font-size:var(--text-small); font-weight:700;}
+
+/* Layout A: segmented tabs at the top of Home. */
+.ph .tabs-seg {display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; margin-bottom:18px; background:var(--tint); border-radius:var(--radius);}
+.ph .tabs-seg button {min-height:var(--tap); padding:0 8px; background:transparent; color:var(--navy); border-color:transparent; border-radius:var(--radius-small); font-size:16px;}
+.ph .tabs-seg button[aria-selected=true] {background:var(--surface); box-shadow:0 1px 3px rgba(27,42,81,.2);}
+/* Layout B: edge-to-edge underline tabs straight under the header. */
+.ph .tabs-line {display:grid; grid-template-columns:1fr 1fr; background:var(--surface); box-shadow:0 1px 0 var(--divider);}
+.ph .tabs-line button {min-height:52px; padding:0 8px; background:transparent; color:var(--muted); border:0; border-bottom:4px solid transparent; border-radius:0; font-size:16px;}
+.ph .tabs-line button[aria-selected=true] {color:var(--navy); border-bottom-color:var(--navy);}
+/* Layout C: two big tab tiles with what is under each. */
+.ph .tabs-tiles {display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;}
+.ph .tabs-tiles button {display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:12px 14px; text-align:left; background:var(--surface); color:var(--navy); border:2px solid var(--surface); border-radius:var(--radius-card);}
+.ph .tabs-tiles button[aria-selected=true] {border-color:var(--navy); background:var(--surface); color:var(--navy);}
+.ph .tabs-tiles small {font-size:13px; color:var(--muted); font-weight:700;}
+.ph .home .job-button {margin-top:14px;}
+.ph .section-choices button[data-inert] {opacity:1;}
+
+/* Teams: a relay's teams, "Team N" then its four wristband boxes in running order. */
+.ph .relay-block {display:flex; flex-direction:column; gap:10px;}
+.ph .relay-block.card {gap:12px;}
+.ph .relay-block h3 {margin:0;}
+.ph .relay-who {display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.ph .relay-who strong {color:var(--navy);}
+.ph .relay-who .button-quiet {margin-left:auto;}
+.ph .relay-who .warning-box {flex-basis:100%;}
+.ph .team-row {display:grid; grid-template-columns:62px repeat(4,minmax(0,1fr)); gap:6px; align-items:center;}
+.ph .team-name {display:flex; flex-direction:column; font-size:16px; font-weight:800; color:var(--navy); line-height:1.15;}
+.ph .team-name small {font-size:13px; font-weight:700; color:var(--muted);}
+.ph .team-name small.is-short {color:var(--amber-text);}
+.ph input.leg-box {height:48px; min-height:48px; padding:0 2px; text-align:center; font-size:18px; border:2px solid var(--line-strong); border-radius:var(--radius-small);}
+.ph input.leg-box:focus {border-color:var(--navy); outline:none; box-shadow:inset 0 0 0 1px var(--navy);}
+.ph .leg-box.is-amber {border-color:var(--amber-line); background:var(--amber-fill); color:var(--amber-text);}
+.ph .leg-ro {height:48px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-small); background:var(--ground); font-size:18px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;}
+.ph .leg-ro.is-empty {color:var(--faint);}
+.ph .leg-ro.is-amber {background:var(--amber-fill); color:var(--amber-text); box-shadow:inset 0 0 0 2px var(--amber-line);}
+.ph button.leg-ro {width:100%; min-height:48px; padding:0; border:2px solid transparent; font-size:18px;}
+.ph button.leg-ro.is-target {border-color:var(--navy); background:var(--surface); color:var(--navy);}
+.ph .team-warn {margin-left:68px; padding:10px 12px;}
+.ph .team-warn p {margin:0 0 8px; font-size:var(--text-small);}
+.ph .add-team {align-self:flex-start;}
+.ph .relay-chips {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+.ph .relay-chips button {display:flex; align-items:baseline; justify-content:space-between; gap:6px; min-height:var(--tap); padding:6px 12px; text-align:left; background:var(--surface); color:var(--navy); border:2px solid var(--surface); font-size:16px;}
+.ph .relay-chips button small {font-size:13px; font-weight:700; color:var(--muted);}
+.ph .relay-chips button[aria-pressed=true] {border-color:var(--navy); background:var(--surface); color:var(--navy);}
+.ph .teams-entry {display:flex; flex-direction:column; gap:10px; padding:16px; background:var(--surface); border-radius:var(--radius-card);}
+.ph .teams-entry .race-question {font-size:var(--text-h3);}
+.ph .teams-head p {margin:4px 0 0;}
+.ph .teams-group {display:flex; flex-direction:column; gap:12px;}
+.ph .teams-group h2 {margin:8px 0 0;}
+
+/* Check-in by team: a heat's teams, each child tapped as present. */
+.ph .ci-team {display:flex; flex-direction:column; gap:8px; padding:10px 12px 12px; border-radius:var(--radius); background:var(--ground);}
+.ph .ci-head {display:flex; align-items:center; gap:8px; min-height:var(--tap);}
+.ph .ci-head .team-name {flex:1;}
+.ph .ci-head .button-small,.ph .ci-head .button-quiet {padding:0 12px;}
+.ph .ci-legs {display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px;}
+.ph .ci-legs > * {min-height:52px; padding:0 2px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; border-radius:var(--radius-small); background:var(--surface); color:var(--navy); border:2px solid var(--line-strong); font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1;}
+.ph .ci-legs > * small {font-size:12px; font-weight:800;}
+.ph .ci-legs > [aria-pressed=true],.ph .ci-legs > .is-here {background:var(--navy); color:#fff; border-color:var(--navy);}
+.ph .ci-legs > .is-empty {color:var(--faint); border-style:dashed;}
+.ph .ci-list {display:flex; flex-direction:column; gap:8px;}
+.ph .ci-rows {display:flex; flex-direction:column; gap:6px;}
+.ph .ci-row {display:flex; align-items:center; gap:12px; min-height:56px; padding:6px 12px; border-radius:var(--radius); background:var(--surface); border:2px solid var(--line-strong); color:var(--text); text-align:left; font-size:16px;}
+.ph .ci-row[aria-pressed=true] {background:var(--surface); color:var(--text); border-color:var(--navy);}
+.ph .ci-row .ci-row-text {flex:1; min-width:0; display:flex; flex-direction:column;}
+.ph .ci-row .ci-row-text span {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.ph .ci-row .ci-plus {flex:none; width:32px; height:32px; border-radius:50%; background:var(--tint); color:var(--navy); display:flex; align-items:center; justify-content:center; font-size:20px;}
+.ph .ci-tick {flex:none; width:28px; height:28px; border-radius:8px; border:2px solid var(--line-strong); display:flex; align-items:center; justify-content:center; color:#fff;}
+.ph .ci-row[aria-pressed=true] .ci-tick {background:var(--navy); border-color:var(--navy);}
+.ph .ci-team.in-list {background:var(--surface); border:2px solid var(--navy);}
+.ph .ci-choose {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+.ph .ci-choose button {display:flex; flex-direction:column; align-items:flex-start; min-height:64px; padding:8px 12px; text-align:left; background:var(--surface); color:var(--navy); border:2px solid var(--line-strong); font-size:17px;}
+.ph .ci-choose button small {font-size:13px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.ph .ci-choose button[aria-pressed=true] {background:var(--navy); color:#fff; border-color:var(--navy);}
+.ph .ci-choose button[aria-pressed=true] small {color:var(--on-dark-muted);}
+.ph .ci-legrows {display:flex; flex-direction:column; gap:6px;}
+.ph .ci-legrows button,.ph .ci-legrows > div {display:flex; align-items:center; gap:12px; min-height:52px; padding:0 12px; border-radius:var(--radius-small); background:var(--surface); color:var(--text); border:2px solid var(--line-strong); font-size:20px; text-align:left;}
+.ph .ci-legrows .ci-leg-n {width:34px; font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.ph .ci-legrows .ci-leg-w {flex:1; font-variant-numeric:tabular-nums;}
+.ph .ci-legrows .ci-leg-here {font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.ph .ci-legrows [aria-pressed=true] {background:var(--surface); color:var(--text); border-color:var(--navy);}
+.ph .ci-legrows [aria-pressed=true] .ci-leg-here {color:var(--navy);}
+.ph .ci-short {margin:0; padding:8px 12px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); font-size:var(--text-small); font-weight:700;}
+.ph .ci-edit {display:flex; flex-direction:column; gap:8px;}
+
+/* Order by team: the 4th-leg wristband large, "Team N" small under it. */
+.ph .race-numbers button {display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1;}
+.ph .race-numbers button small {font-size:13px; font-weight:800; color:var(--muted);}
+.ph .race-table td small {display:block;}
+.ph .pick-list {display:flex; flex-direction:column; gap:6px;}
+.ph .pick-list button {display:flex; flex-direction:column; align-items:flex-start; min-height:56px; padding:6px 14px; text-align:left; background:var(--ground); color:var(--navy); border-color:var(--ground); font-size:17px;}
+.ph .pick-list button small {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+</style>
+</head>
+<body>
+<div class="top">
+  <p class="proto-eyebrow">Prototype · throwaway · issue 132 on the Relays map (issue 127)</p>
+  <h1>What do the Races and Relays tabs and a relay race screen look like on a phone?</h1>
+  <p>Three phones share one in-memory relay day, so a tap on one shows on the others at once. <strong>Sam</strong> enters teams at the prep area, <strong>Priya</strong> checks teams in at the start line, <strong>Jo</strong> does the order and times at the finish. Flip layouts with the bar at the bottom or the arrow keys. Order and Times by team is the same in every layout: it was decided in "How are a relay race's finishing order and times recorded?".</p>
+  <p id="variant-blurb"></p>
+  <div class="controls">
+    <div class="pctl"><span class="ctl-label">Layout</span><span id="ctl-variant" class="pctl"></span></div>
+    <div class="pctl"><span class="ctl-label">Home opens on</span>
+      <button class="pbtn" data-opens="races">Races &amp; Hurdles, every time</button>
+      <button class="pbtn" data-opens="last">The last tab this phone used</button></div>
+    <div class="pctl"><span class="ctl-label">Jump to</span>
+      <button class="pbtn" data-jump="fresh">Start of day</button>
+      <button class="pbtn" data-jump="teams">Teams entered</button>
+      <button class="pbtn" data-jump="checked">Heat 1 checked in</button>
+      <button class="pbtn" data-jump="finish">Heat 1 at the finish</button></div>
+  </div>
+</div>
+<div class="phones" id="phones"></div>
+<details class="state"><summary>Shared state (what every phone is reading)</summary><pre id="state"></pre></details>
+<div class="switcher" role="group" aria-label="Prototype layout">
+  <button id="prev" aria-label="Previous layout">‹</button><span id="variant-label"></span><button id="next" aria-label="Next layout">›</button>
+</div>
+<script>
+'use strict';
+const VARIANTS={A:'One long list',B:'One relay at a time',C:'Cards that open'};
+const BLURBS={
+  A:'<strong>A, One long list.</strong> Segmented tabs at the top of Home. Teams is one long scroll of all six relays, every box editable in place. Check-in shows the heat\'s teams, with the teams still to run listed under them to add.',
+  B:'<strong>B, One relay at a time.</strong> Edge-to-edge tabs straight under the header. Teams shows one relay at a time, picked from six buttons, typed on one number pad that moves box to box like check-in today. Check-in is two steps: choose the heat\'s teams, then tick each child by leg.',
+  C:'<strong>C, Cards that open.</strong> Two big tab tiles saying what is under each. Teams is six cards that open like the race screen\'s cards (opening one makes you its holder). Check-in is one list of the teams still to run, each with a tick: ticked teams open to show their four children.'
+};
+const KEYS=Object.keys(VARIANTS);
+let variant=KEYS.includes(location.hash.slice(1))?location.hash.slice(1):'A';
+let homeOpens='last';
+
+const RELAYS=[
+  {code:'R19',name:'4x50m Relay',section:'Boy Beavers'},{code:'R20',name:'4x50m Relay',section:'Girl Beavers'},
+  {code:'R21',name:'4x50m Relay',section:'Boy Cubs'},{code:'R22',name:'4x50m Relay',section:'Girl Cubs'},
+  {code:'R27',name:'4x100m Relay',section:'Boy Scouts'},{code:'R28',name:'4x100m Relay',section:'Girl Scouts'}];
+const DISTANCES=['4x50m Relay','4x100m Relay'];
+const SECTIONS=['Boy Beavers','Girl Beavers','Boy Cubs','Girl Cubs','Boy Scouts','Girl Scouts'];
+// Races & Hurdles: today's Home, unchanged; tiles are inert here.
+const RACE_EVENTS=[
+  ['60m',SECTIONS,['Heat 3 · Checking in · Ali Khan','Heat 2','Heat 2 · Order and times · Mo Reid','Heat 1','Final','Final · Finishing order · Kit Lam']],
+  ['60m Hurdles',SECTIONS,['Done','Done','Heat 2','Heat 1','Heat 1','Heat 1']],
+  ['200m',SECTIONS,['Heat 1','Heat 1','Heat 1','Heat 1','Heat 1','Heat 1']],
+  ['400m',['Boy Scouts','Girl Scouts'],['Heat 1','Heat 1']]];
+const PHONES=[{name:'Sam Patel',where:'at the prep area'},{name:'Priya Shah',where:'at the start line'},{name:'Jo Evans',where:'at the finish'}];
+
+let S; // shared state: relays with teams, and each relay's current race
+const ui=PHONES.map(()=>({}));
+const relay=code=>S.relays.find(r=>r.code===code);
+const team=(r,n)=>r.teams.find(t=>t.n===n);
+
+/* ---------- Helpers ---------- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ordinal=n=>{const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+function fmtTime(d){if(!d) return '';d=d.replace(/^0+(?=\d)/,'');const h=d.slice(-2).padStart(2,'0'),rest=d.slice(0,-2)||'0';
+  if(rest.length<=2) return `${Number(rest)}.${h}`;return `${Number(rest.slice(0,-2))}:${rest.slice(-2)}.${h}`;}
+const filled=t=>t.legs.filter(Boolean).length;
+const leg4=t=>t.legs[3]||'–';
+const nums=t=>t.legs.map(l=>l||'–').join(' ');
+const pool=r=>r.teams.filter(t=>!r.race.ran.includes(t.n) && !r.race.picked.includes(t.n));
+const icon=(d,size=24)=>`<svg aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const chevron='<svg class="job-chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+const tick=icon('<path d="M5 12.5l4.5 4.5L19 7.5"/>',18);
+function sectionOf(n){if(!(n>=1&&n<5000)) return null;if(n<1000) return 'Beavers';if(n<2000) return 'Boy Cubs';if(n<3000) return 'Girl Cubs';if(n<4000) return 'Boy Scouts';return 'Girl Scouts';}
+const RANGES={'Beavers':['Beaver','1 to 999'],'Boy Cubs':['Boy Cubs','1000 to 1999'],'Girl Cubs':['Girl Cubs','2000 to 2999'],'Boy Scouts':['Boy Scouts','3000 to 3999'],'Girl Scouts':['Girl Scouts','4000 to 4999']};
+/** A number already in this relay (refused), or null. */
+function refusal(r,n,i,value){
+  for(const t of r.teams) t.legs.forEach((l,j)=>{if(l===value && !(t.n===n && j===i)) refusal.found=t.n===n?'this team':`Team ${t.n}`;});
+  const found=refusal.found;refusal.found=null;
+  return value && found?`${value} is already in ${found}. Check the wristband.`:null;
+}
+/** Warnings on a saved number: Keep allowed, never blocks. */
+function warnings(r,value){
+  const n=Number(value),found=sectionOf(n),out=[];
+  if(!found) out.push(`${value} is not a wristband number. Wristbands are 1 to 4999.`);
+  else if(!(found==='Beavers'?r.section.endsWith('Beavers'):found===r.section)){const [name,range]=RANGES[r.section.endsWith('Beavers')?'Beavers':r.section];out.push(`${value} is not a ${r.section} number. ${name} wristbands are ${range}.`);}
+  for(const other of S.relays) if(other!==r) for(const t of other.teams) if(t.legs.includes(value)) out.push(`${value} is also in Team ${t.n} of ${other.name} ${other.section}.`);
+  return out;
+}
+const lockedHeat=(r,t)=>r.race.picked.includes(t.n)?r.race.heat:null;
+function relayStatus(r){
+  const race=r.race;if(!r.teams.length) return 'No teams yet';
+  const left=pool(r).length,label=`Heat ${race.heat}`;
+  if(!left && !race.picked.length) return 'Heats done · Final next';
+  const order=[race.holds.order,race.holds.times].filter(Boolean);
+  if(order.length || race.order.length) return [label,'Order and times',[...new Set(order)].join(', ')].filter(Boolean).join(' · ');
+  if(race.holds.checkin) return `${label} · Checking in · ${race.holds.checkin}`;
+  return `${label} · ${left} ${left===1?'team':'teams'} to run`;
+}
+
+/* ---------- Shared state: the moments "Jump to" sets up ---------- */
+function newRace(){return {heat:1,picked:[],present:{},holds:{checkin:null,order:null,times:null},order:[],dnf:[],atFinish:[],times:[],ran:[],saved:[]};}
+function seed(kind){
+  const T=(...lists)=>lists.map((legs,i)=>({n:i+1,legs:legs.map(String).concat(['','','','']).slice(0,4),kept:[]}));
+  S={relays:RELAYS.map(r=>({...r,holder:null,teams:[],race:newRace()}))};
+  if(kind!=='fresh') {
+    relay('R19').teams=T([101,102,103,104],[115,116,117,118],[122,123,124,125],[131,132,133,134],[140,141,142]);
+    relay('R20').teams=T([201,202,203,204],[210,211,212,213],[220,221,222,223],[230,231,232,233]);
+    relay('R21').teams=T([1101,1102,1103,1104],[1110,1111,1112,1113],[1120,1121,1122,1123],[1130,1131,1132,1133],[1140,1141,1142,1143],[1150,1151,1152,1153]);
+    relay('R22').teams=T([2101,2102,2103,2104],[2110,1160,2112,2113],[2120,2121,2122,2123]);
+    relay('R22').teams[1].kept=['1160'];
+    relay('R27').teams=T([3101,3102,3103,3104],[3110,3111,3112,3113],[3120,3121,3122,3123],[3130,3131,3132,3133]);
+    relay('R19').holder='Sam Patel';
+  }
+  const r19=relay('R19').race;
+  // Priya's check-in card is open, and opening it took the hold.
+  if(kind!=='fresh') r19.holds.checkin='Priya Shah';
+  if(kind==='checked' || kind==='finish') {r19.picked=[1,2,3,4];r19.present={1:[1,1,1,1],2:[1,1,1,1],3:[1,0,1,1],4:[1,1,1,1]};}
+  if(kind==='finish') {r19.holds.order='Jo Evans';r19.holds.times='Jo Evans';r19.order=[2,4];r19.times=['1102','1180'];}
+  const at=(i,screen,extra={})=>Object.assign(ui[i],{screen,code:'R19',tab:'relays',lastTab:'relays',open:{},teamsOpen:{},drafts:{},typing:null,step:'place',pad:'',ciMode:null,editing:null,target:null,entry:'',teamsRelay:'R19',note:''},extra);
+  at(0,kind==='fresh'?'home':'teams',kind==='fresh'?{tab:'races',lastTab:'races'}:{teamsOpen:{R19:true}});
+  at(1,kind==='fresh'?'home':'race',{open:{checkin:kind!=='fresh'},tab:kind==='fresh'?'races':'relays',lastTab:kind==='fresh'?'races':'relays'});
+  at(2,kind==='checked'||kind==='finish'?'race':'home',{open:{order:kind==='checked'||kind==='finish'}});
+  render();
+}
+
+/* ---------- Screens ---------- */
+function header(p){const ini=p.name.split(' ').map(w=>w[0]).join('');
+  return `<header class="app-header"><div class="app-header-title"><strong>Running Zone</strong></div><button class="app-header-person" data-act="none"><span>${p.name}</span><span class="avatar" aria-hidden="true">${ini}</span></button></header>`;}
+function back(to){return `<nav class="app-nav" aria-label="Back"><button type="button" class="back-arrow" aria-label="Back to ${to}" data-act="home">${icon('<path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/>',26)}</button></nav>`;}
+
+function tabs(u){
+  const t=[['races','Races &amp; Hurdles',`${RACE_EVENTS.reduce((a,e)=>a+e[1].length,0)} events`],['relays','Relays','6 relays']];
+  const b=([k,label,count])=>`<button role="tab" aria-selected="${u.tab===k}" data-act="tab" data-v="${k}">${variant==='C'?`${label}<small>${count}</small>`:label}</button>`;
+  const cls={A:'tabs-seg',B:'tabs-line',C:'tabs-tiles'}[variant];
+  return `<div class="${cls}" role="tablist" aria-label="Events">${t.map(b).join('')}</div>`;
+}
+function homeScreen(p,u){
+  let body='';
+  if(u.tab==='races') body=RACE_EVENTS.map(([name,secs,st])=>`<section class="event-sections"><h2>${name}</h2><div class="section-choices">${secs.map((s,i)=>`<button data-act="inert">${s}<small>${st[i]}</small></button>`).join('')}</div></section>`).join('');
+  else {
+    const all=S.relays.flatMap(r=>r.teams),short=all.filter(t=>filled(t)<4).length;
+    body=`<button class="job-button" data-act="teams"><span class="job-icon" aria-hidden="true">${icon('<circle cx="9" cy="8" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c2.6-.4 5 1.4 5 4.3"/>')}</span><span class="job-text"><span class="job-title">Teams</span><span class="job-explanation">Type each relay's teams at the prep area</span>${all.length?`<span class="badge">${all.length} teams${short?` · ${short} not complete`:''}</span>`:''}</span>${chevron}</button>`
+      +DISTANCES.map(d=>`<section class="event-sections"><h2>${d}</h2><div class="section-choices">${S.relays.filter(r=>r.name===d).map(r=>`<button data-act="race" data-code="${r.code}">${r.section}<small>${relayStatus(r)}</small></button>`).join('')}</div></section>`).join('');
+  }
+  return `${variant==='B'?tabs(u):''}<nav class="app-nav app-nav-home" aria-label="Running Zone"><button class="button-secondary lead-entry" data-act="inert">I'm a zone lead</button></nav>
+    <main><section class="home">${variant!=='B'?tabs(u):''}<h1>Which event are you at?</h1>${u.note?`<p class="proto-note">${u.note}</p>`:''}${body}</section>
+    <footer><span>Updated at 10:42</span><button data-act="none">Refresh</button></footer></main>`;
+}
+
+/* A relay's teams: "Team N" then four boxes. Editable for its holder (or anyone while nobody holds it). */
+function boxCell(p,u,r,t,i,editable){
+  const key=`${r.code}:${t.n}:${i}`,draft=u.drafts[key],value=draft??t.legs[i];
+  const amber=draft!==undefined || (t.legs[i] && u.typing!==key && warnings(r,t.legs[i]).length && !t.kept.includes(t.legs[i]))||t.kept.includes(t.legs[i]);
+  if(editable) return `<input class="leg-box${amber?' is-amber':''}" inputmode="numeric" autocomplete="off" aria-label="Team ${t.n} ${ordinal(i+1)} leg" data-box="${key}" data-fk="${key}" value="${esc(value||'')}">`;
+  return `<span class="leg-ro${value?'':' is-empty'}${amber?' is-amber':''}">${value||'–'}</span>`;
+}
+function teamNote(r,t){const heat=lockedHeat(r,t);
+  if(heat) return `<small>In heat ${heat}</small>`;
+  if(r.race.ran.includes(t.n)) return `<small>Ran heat ${r.race.saved.find(s=>s.teams.includes(t.n))?.heat}</small>`;
+  const f=filled(t);return f<4?`<small class="is-short">${f} of 4</small>`:'';}
+function teamProblems(p,u,r,t,editable){
+  let out='';
+  t.legs.forEach((l,i)=>{const key=`${r.code}:${t.n}:${i}`;
+    if(u.drafts[key]!==undefined) out+=`<div class="warning-box team-warn" role="alert"><p>${esc(refusal(relay(r.code),t.n,i,u.drafts[key])||'')}</p><div class="warning-actions"><button data-act="fix" data-k="${key}">Fix number</button></div></div>`;
+    else if(l && u.typing!==key && !t.kept.includes(l)) {const w=warnings(r,l);
+      if(w.length) out+=`<div class="warning-box team-warn" role="alert">${w.map(x=>`<p>${esc(x)}</p>`).join('')}${editable?`<div class="warning-actions"><button data-act="fix" data-k="${key}">Fix number</button><button class="button-secondary" data-act="keep" data-code="${r.code}" data-n="${t.n}" data-v="${l}">Keep</button></div>`:''}</div>`;}
+  });
+  return out;
+}
+function teamRows(p,u,r,{forceEdit=false}={}){
+  const mine=!r.holder || r.holder===p.name;
+  return r.teams.map(t=>{const editable=forceEdit || (mine && !lockedHeat(r,t));
+    return `<div class="team-row"><span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((_,i)=>boxCell(p,u,r,t,i,editable)).join('')}</div>${teamProblems(p,u,r,t,editable)}`;}).join('');
+}
+function holderLine(p,u,r){
+  if(!r.holder) return r.teams.length?'':`<p class="race-hint">No teams yet. Add the first one.</p>`;
+  // Layout C's card status already says so.
+  if(r.holder===p.name) return variant==='C'?'':`<p class="relay-who"><span><strong>You</strong> are entering this relay's teams</span></p>`;
+  return `<div class="relay-who"><span><strong>${r.holder}</strong> is entering. You see it read-only.</span>${takeOver(u,`teams:${r.code}`,'the teams',r.holder)}</div>`;
+}
+function takeOver(u,key,what,holder){
+  if(u.asking!==key) return `<button class="button-quiet" data-act="ask" data-k="${key}">Take over</button>`;
+  return `<div class="warning-box"><p>Take over ${what} from ${holder}? ${holder}'s phone shows it read-only from now on. Everything already entered stays.</p><div class="warning-actions"><button data-act="takeover" data-k="${key}">Take over</button><button class="button-secondary" data-act="ask" data-k="">Cancel</button></div></div>`;
+}
+function relayBlock(p,u,r,heading=true){
+  const mine=!r.holder || r.holder===p.name;
+  return `<section class="relay-block${heading?' card':''}">${heading?`<h3>${r.section}</h3>`:''}${holderLine(p,u,r)}${teamRows(p,u,r)}${mine && r.teams.length<6?`<button class="button-secondary button-small add-team" data-act="addteam" data-code="${r.code}">+ Add team</button>`:''}</section>`;
+}
+function teamsScreen(p,u){
+  const head=`<div class="teams-head"><h1>Teams</h1><p class="race-hint">Type each child's wristband in running order, 1st leg first. It saves as you type, on every phone.</p></div>`;
+  if(variant==='A') return `${back('Home')}<main><section class="race-screen">${head}${DISTANCES.map(d=>`<div class="teams-group"><h2>${d}</h2>${S.relays.filter(r=>r.name===d).map(r=>relayBlock(p,u,r)).join('')}</div>`).join('')}</section></main>`;
+  if(variant==='C') return `${back('Home')}<main><section class="race-screen">${head}${DISTANCES.map(d=>`<div class="teams-group"><h2>${d}</h2>${S.relays.filter(r=>r.name===d).map(r=>{
+    const short=r.teams.find(t=>filled(t)<4),status=[r.holder?(r.holder===p.name?'You are entering':`${r.holder} is entering`):'',r.teams.length?`${r.teams.length} ${r.teams.length===1?'team':'teams'}`:'No teams yet',short?`Team ${short.n} is ${filled(short)} of 4`:'',!r.holder&&!r.teams.length?'open to start':''].filter(Boolean).join(' · ');
+    return card(u,`teams:${r.code}`,r.section,status,relayBlock(p,u,r,false),u.teamsOpen[r.code]);}).join('')}</div>`).join('')}</section></main>`;
+  // B: one relay at a time, one number pad moving box to box.
+  const r=relay(u.teamsRelay),mine=!r.holder || r.holder===p.name;
+  const chips=`<div class="relay-chips">${S.relays.map(x=>`<button aria-pressed="${x.code===r.code}" data-act="pickrelay" data-code="${x.code}">${x.section}<small>${x.teams.length}</small></button>`).join('')}</div>`;
+  const target=mine?bTarget(u,r):null;
+  const rows=r.teams.map(t=>`<div class="team-row"><span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((l,i)=>{
+    const amber=l && warnings(r,l).length;const on=target && target.n===t.n && target.i===i;
+    return mine && !lockedHeat(r,t)?`<button class="leg-ro${l?'':' is-empty'}${amber?' is-amber':''}${on?' is-target':''}" aria-label="Team ${t.n} ${ordinal(i+1)} leg" data-act="target" data-n="${t.n}" data-i="${i}">${on?'…':l||'–'}</button>`:`<span class="leg-ro${l?'':' is-empty'}${amber?' is-amber':''}">${l||'–'}</span>`;}).join('')}</div>${teamProblems(p,{...u,drafts:{}},r,t,mine && !lockedHeat(r,t))}`).join('');
+  const refusalBox=u.bRefused?`<div class="warning-box" role="alert"><p>${esc(u.bRefused)}</p><div class="warning-actions"><button data-act="bfix">Fix number</button></div></div>`:'';
+  const entry=mine?(target?`<div class="teams-entry"><h3 class="race-question">Team ${target.n} · ${ordinal(target.i+1)} leg</h3>${refusalBox}
+      <div class="number-entry"><div class="number-entry-row"><label>Wristband number<input class="number-input${u.bRefused?' number-input-held':''}" inputmode="numeric" autocomplete="off" placeholder="e.g. 205" data-entry="1" data-fk="entry" value="${esc(u.entry)}"></label><button class="action-next" data-act="bnext">Next</button></div></div>
+      <div class="race-order-more">${r.teams.length<6?`<button class="button-quiet" data-act="addteam" data-code="${r.code}">+ Add team</button>`:''}<button class="button-quiet" data-act="bskip">Skip this box</button></div></div>`
+    :`<div class="teams-entry">${r.teams.length<6?`<button data-act="addteam" data-code="${r.code}">+ Add team</button>`:'<p class="calm-note">6 teams: the most a relay takes.</p>'}</div>`):'';
+  return `${back('Home')}<main><section class="race-screen">${head}${chips}<h2 style="margin:4px 0 0">${r.name} ${r.section}</h2>${holderLine(p,u,r)}${rows?`<div class="relay-block card">${rows}</div>`:''}${entry}</section></main>`;
+}
+function bTarget(u,r){
+  const free=r.teams.filter(t=>!lockedHeat(r,t));
+  if(u.target && free.some(t=>t.n===u.target.n)) return u.target;
+  for(const t of free){const i=t.legs.findIndex(l=>!l);if(i>=0) return {n:t.n,i};}
+  return null;
+}
+
+function card(u,key,title,status,body,open){
+  return `<section class="race-card"><button class="race-card-head" aria-expanded="${!!open}" data-act="card" data-k="${key}"><span class="race-card-text"><span class="race-card-title">${title}</span><span class="race-card-status">${status}</span></span><span class="race-card-arrow" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></button>${open?`<div class="race-card-body">${body}</div>`:''}</section>`;
+}
+
+/* ---------- Relay race screen ---------- */
+function raceScreen(p,u){
+  const r=relay(u.code),race=r.race,last=race.saved[race.saved.length-1];
+  const heading=`<div class="race-heading"><p class="race-line">Heat ${race.heat} · ${race.picked.length} ${race.picked.length===1?'team':'teams'}</p><h1>${r.name} ${r.section}</h1></div>`;
+  const savedNote=last && last.heat===race.heat-1?`<p role="status" class="race-saved">Heat ${last.heat} saved</p>`:'';
+  if(!r.teams.length) return `${back('Home')}<main><section class="race-screen">${heading}<p class="calm-note">No teams yet. They are typed on the Teams screen at the prep area.</p></section></main>`;
+  if(!pool(r).length && !race.picked.length) return `${back('Home')}<main><section class="race-screen">${heading}${savedNote}<p class="calm-note">Every team has run a heat. Next is the final, from the 6 fastest teams (not in this prototype).</p></section></main>`;
+  return `${back('Home')}<main><section class="race-screen">${heading}${savedNote}<div class="race-cards">${checkInCard(p,u,r)}${orderCard(p,u,r)}</div></section>${dock(p,u,r)}</main>`;
+}
+function presentCount(race,n){return (race.present[n]||[]).filter(Boolean).length;}
+function checkInCard(p,u,r){
+  const race=r.race,holder=race.holds.checkin,mine=holder===p.name,count=`${race.picked.length} ${race.picked.length===1?'team':'teams'} in`;
+  const status=holder?`${mine?'You are':`${holder} is`} checking in · ${count}`:race.picked.length?count:'Nobody yet · open to start';
+  let body='';
+  if(!mine) {
+    body=race.picked.length?race.picked.map(n=>{const t=team(r,n);return `<div class="ci-team"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span></div><div class="ci-legs">${t.legs.map((l,i)=>`<span class="${race.present[n]?.[i]?'is-here':l?'':'is-empty'}">${l||'–'}${race.present[n]?.[i]?'<small>Here</small>':''}</span>`).join('')}</div></div>`;}).join(''):'<p class="race-empty">No teams checked in yet</p>';
+    if(holder) body+=`<div class="race-take-over">${takeOver(u,'checkin','check-in',holder)}</div>`;
+    return card(u,'checkin','Check-in Teams',status,body,u.open.checkin);
+  }
+  const legs=(n,t)=>`<div class="ci-legs">${t.legs.map((l,i)=>l?`<button aria-pressed="${!!race.present[n]?.[i]}" aria-label="${l} here" data-act="present" data-n="${n}" data-i="${i}">${l}${race.present[n]?.[i]?'<small>Here</small>':''}</button>`:`<span class="is-empty">–</span>`).join('')}</div>`;
+  const short=n=>{const c=presentCount(race,n);return c<4?`<p class="ci-short">${c} of 4 here. A team can run short: a lead sees it in To check.</p>`:'';};
+  const edit=(n)=>`<div class="ci-edit">${teamRows(p,u,{...r,teams:[team(r,n)]},{forceEdit:true})}<button class="button-secondary button-small" data-act="editdone">Done</button></div>`;
+  const headBtns=n=>`<button class="button-quiet" data-act="edit" data-n="${n}">Edit</button>${variant==='A'?`<button class="button-quiet" data-act="unpick" data-n="${n}">Take off</button>`:''}`;
+  const pickedBlock=(n,cls='')=>{const t=team(r,n);return `<div class="ci-team ${cls}"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${u.editing===n?edit(n):legs(n,t)}${short(n)}</div>`;};
+  const left=pool(r);
+  if(variant==='A') {
+    body=(race.picked.length?race.picked.map(n=>pickedBlock(n)).join(''):'<p class="race-empty">No teams in this heat yet</p>')
+      +(left.length?`<h3 class="race-question">Add a team to heat ${race.heat}</h3><div class="ci-rows">${left.map(t=>`<button class="ci-row" data-act="pick" data-n="${t.n}"><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${nums(t)}${filled(t)<4?` · ${filled(t)} of 4`:''}</span></span><span class="ci-plus" aria-hidden="true">+</span></button>`).join('')}</div>`:'<p class="race-hint">Every other team has run.</p>')
+      +(race.picked.length?'<p class="race-hint">Tap each child as they arrive. Edit swaps a child or changes the running order.</p>':'');
+  } else if(variant==='B') {
+    const choosing=u.ciMode==='choose' || (!race.picked.length && u.ciMode!=='mark');
+    if(choosing) body=`<h3 class="race-question">Which teams run in heat ${race.heat}?</h3><div class="ci-choose">${[...race.picked.map(n=>team(r,n)),...left].sort((a,b)=>a.n-b.n).map(t=>`<button aria-pressed="${race.picked.includes(t.n)}" data-act="${race.picked.includes(t.n)?'unpick':'pick'}" data-n="${t.n}">Team ${t.n}<small>${nums(t)}</small></button>`).join('')}</div>
+      <button ${race.picked.length?'':'disabled'} data-act="cimode" data-v="mark">Next: who is here</button>`;
+    else body=race.picked.map(n=>{const t=team(r,n);return `<div class="ci-team"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${u.editing===n?edit(n):`<div class="ci-legrows">${t.legs.map((l,i)=>l?`<button aria-pressed="${!!race.present[n]?.[i]}" data-act="present" data-n="${n}" data-i="${i}"><span class="ci-leg-n">${ordinal(i+1)}</span><span class="ci-leg-w">${l}</span><span class="ci-leg-here">${race.present[n]?.[i]?'Here':'Tap when here'}</span></button>`:`<div><span class="ci-leg-n">${ordinal(i+1)}</span><span class="ci-leg-w" style="color:var(--faint)">–</span></div>`).join('')}</div>`}${short(n)}</div>`;}).join('')
+      +`<button class="button-secondary" data-act="cimode" data-v="choose">Change the heat's teams</button>`;
+  } else {
+    const list=[...race.picked.map(n=>team(r,n)),...left].sort((a,b)=>a.n-b.n);
+    body=`<p class="race-hint">Tick the teams running heat ${race.heat}, then tap each child as they arrive.</p><div class="ci-list">${list.map(t=>{const on=race.picked.includes(t.n);
+      return on?`<div class="ci-team in-list"><div class="ci-head"><button class="ci-row" style="border:0;padding:0;min-height:var(--tap);flex:1" aria-pressed="true" data-act="unpick" data-n="${t.n}"><span class="ci-tick">${tick}</span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${presentCount(race,t.n)} of 4 here</span></span></button><button class="button-quiet" data-act="edit" data-n="${t.n}">Edit</button></div>${u.editing===t.n?edit(t.n):legs(t.n,t)}${short(t.n)}</div>`
+        :`<button class="ci-row" aria-pressed="false" data-act="pick" data-n="${t.n}"><span class="ci-tick"></span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${nums(t)}${filled(t)<4?` · ${filled(t)} of 4`:''}</span></span></button>`;}).join('')}</div>`;
+  }
+  return card(u,'checkin','Check-in Teams',status,body,u.open.checkin);
+}
+function orderCard(p,u,r){
+  const race=r.race,{holds}=race,picked=race.picked.map(n=>team(r,n));
+  const unplaced=picked.filter(t=>!race.order.includes(t.n)&&!race.dnf.includes(t.n));
+  const who=c=>!holds[c]?'Nobody':holds[c]===p.name?'You':holds[c];
+  const timed=race.times.length;
+  const status=holds.order||holds.times?`Order: ${who('order')} · Times: ${who('times')}`:race.order.length||timed?`${race.order.length} placed · ${timed} ${timed===1?'time':'times'}`:'Nobody yet · open to start';
+  const ordering=holds.order===p.name,timing=holds.times===p.name;
+  const cols=['order','times'].map(c=>`<div class="race-column"><span class="race-column-name">${c==='order'?'Order':'Times'}</span>${!holds[c]?`<button class="button-small" data-act="hold" data-v="${c}">${c==='order'?'Do the order':'Do the times'}</button>`:holds[c]===p.name?'<span class="race-column-who race-column-you">You</span>':`<span class="race-column-who">${holds[c]}</span>${takeOver(u,c,c==='order'?'the order':'the times',holds[c])}`}</div>`).join('');
+  const rows=Math.max(picked.length-race.dnf.length,race.order.length);
+  const next=ordering && u.step==='place' && unplaced.length?race.order.length:-1,target=timing && timed<race.order.length?timed:-1;
+  const cell=n=>{const t=team(r,n);return `${leg4(t)}<small>Team ${n}</small>${race.atFinish.includes(n)?'<small>At finish</small>':''}`;};
+  let body=`<div class="race-columns">${cols}</div>`;
+  body+=picked.length?`<table class="race-table" aria-label="Order and times"><thead><tr><th>Place</th><th>Team</th><th>Time</th></tr></thead><tbody>${Array.from({length:rows},(_,i)=>`<tr><td>${ordinal(i+1)}</td><td>${race.order[i]?cell(race.order[i]):i===next?'<span class="race-next">Next</span>':''}</td><td>${race.times[i]?fmtTime(race.times[i]):i===target?'<span class="race-next">Next</span>':''}</td></tr>`).join('')}</tbody></table>`:'<p class="race-empty">Places appear here once teams are checked in</p>';
+  if(race.dnf.length) body+=`<ul class="race-no-place" aria-label="No place">${race.dnf.map(n=>`<li><strong>Team ${n}</strong><span>Did not finish</span>${ordering?`<button class="button-small button-secondary" data-act="giveplace" data-n="${n}">Give a place</button>`:''}</li>`).join('')}</ul>`;
+  if(ordering) {
+    let c='';
+    if(u.step==='add') {const left=pool(r);
+      c=`<h3 class="race-question">Which team crossed the line?</h3><p class="race-hint">Teams that haven't run a heat. A team not here is added on the Teams screen first.</p>${left.length?`<div class="pick-list">${left.map(t=>`<button data-act="atfinish" data-n="${t.n}">Team ${t.n}<small>${nums(t)}</small></button>`).join('')}</div>`:'<p class="calm-note">Every team has run or is in this heat.</p>'}<button class="button-quiet" data-act="step" data-v="place">Back to the order</button>`;}
+    else if(!picked.length) c='<p class="race-hint">Teams to tap appear here as they are checked in.</p>';
+    else if(!unplaced.length) c='<p class="calm-note" role="status">Every team has a place</p>';
+    else if(u.step==='no-place') {const t=unplaced[0];
+      c=`<h3 class="race-question">Team ${t.n} (4th leg ${leg4(t)}) has no place. What happened?</h3><div class="race-pair"><button class="button-secondary" data-act="dnf" data-n="${t.n}">Did not finish</button><button class="button-secondary" data-act="dnr" data-n="${t.n}">Didn't run</button></div><p class="race-hint">Didn't run puts the team back with those still to run, for the next heat.</p><button class="button-quiet" data-act="step" data-v="place">Back to the order</button>`;}
+    else c=`<h3 class="race-question">Who came ${ordinal(race.order.length+1)}?</h3><div class="race-numbers">${unplaced.map(t=>`<button data-act="place" data-n="${t.n}">${leg4(t)}<small>Team ${t.n}</small></button>`).join('')}</div><button class="button-secondary" data-act="step" data-v="no-place">Nobody else crossed the line</button>`;
+    if(u.step!=='add' && picked.length) c+=`<div class="race-order-more"><button class="button-quiet" data-act="step" data-v="add">+ Team not on the list</button>${race.order.length>1?'<button class="button-quiet" data-act="inert">Change the order</button>':''}</div>`;
+    body+=`<div class="race-order">${c}</div>`;
+  }
+  if(timing) body+=target>=0?`<div class="race-order"><h3 class="race-question">${ordinal(target+1)} place time?</h3><div class="number-entry"><div class="number-entry-row"><label>Place time<input class="number-input" inputmode="numeric" autocomplete="off" placeholder="e.g. 1234" data-pad="1" data-fk="pad" value="${esc(u.pad)}"></label><button class="action-next" data-act="time">Next</button></div><p class="time-shows">Shows as <strong>${fmtTime(u.pad)||'–'}</strong></p></div><p class="race-hint">One time per team: the start signal to the 4th leg crossing. Type digits only: 1234 shows as 12.34.</p></div>`
+    :picked.length && !unplaced.length?'<p class="calm-note" role="status">Every place has a time</p>':`<p class="race-hint">The next time goes in once ${ordinal(timed+1)} place has a team.</p>`;
+  return card(u,'order','Order and Times',status,body,u.open.order);
+}
+function blocker(r){const race=r.race;
+  if(!race.picked.length) return 'Nobody is checked in yet';
+  const un=race.picked.filter(n=>!race.order.includes(n)&&!race.dnf.includes(n));
+  if(un.length) return un.length===1?`Team ${un[0]} has no place yet`:`${un.length} teams have no place yet`;
+  const i=race.order.findIndex((_,k)=>!race.times[k]);return i>=0?`Place ${i+1} has no time`:null;}
+function dock(p,u,r){const h=r.race.holds,holders=Object.values(h).filter(Boolean);
+  if(holders.length && !holders.includes(p.name)) return '';
+  const b=blocker(r);
+  return `<div class="action-bar action-bar-stacked"><div class="action-bar-inner">${b?`<p class="race-blocked">${b}</p>`:''}<button ${b?'disabled':''} data-act="submit">Submit Race</button></div></div>`;}
+
+/* ---------- Actions ---------- */
+function takeHold(r,c,name){if(!r.race.holds[c]) r.race.holds[c]=name;}
+const actions={
+  none(){},
+  inert(p,u){u.note='Not part of this prototype: Races &amp; Hurdles and the lead area are unchanged.';},
+  tab(p,u,d){u.tab=d.v;u.lastTab=d.v;u.note='';},
+  teams(p,u){u.screen='teams';},
+  race(p,u,d){u.screen='race';u.code=d.code;u.open={};u.step='place';u.ciMode=null;u.editing=null;},
+  home(p,u){u.screen='home';u.asking='';u.note='';},
+  reopen(p,u){u.screen='home';u.tab=homeOpens==='races'?'races':u.lastTab;u.note='';},
+  card(p,u,d){
+    if(d.k.startsWith('teams:')) {const code=d.k.slice(6),open=!u.teamsOpen[code];u.teamsOpen[code]=open;if(open) takeHold0(relay(code),p.name);return;}
+    const open=!u.open[d.k];u.open[d.k]=open;const r=relay(u.code);
+    if(open && d.k==='checkin') takeHold(r,'checkin',p.name);
+    if(open && d.k==='order') {const free=['order','times'].filter(c=>!r.race.holds[c]);if(free.length===1 && !Object.values(r.race.holds).includes(p.name)) takeHold(r,free[0],p.name);}
+  },
+  hold(p,u,d){takeHold(relay(u.code),d.v,p.name);},
+  ask(p,u,d){u.asking=d.k;},
+  takeover(p,u,d){u.asking='';
+    if(d.k.startsWith('teams:')) relay(d.k.slice(6)).holder=p.name; else relay(u.code).race.holds[d.k]=p.name;},
+  addteam(p,u,d){const r=relay(d.code);if(r.teams.length>=6) return;r.holder=r.holder||p.name;const n=Math.max(0,...r.teams.map(t=>t.n))+1;r.teams.push({n,legs:['','','',''],kept:[]});
+    if(variant==='B') {u.target={n,i:0};u.entry='';u.bRefused='';} else focusLater(p,`${r.code}:${n}:0`);},
+  fix(p,u,d){delete u.drafts[d.k];const [code,n,i]=d.k.split(':');team(relay(code),Number(n)).legs[i]='';
+    if(variant==='B' && u.screen==='teams') {u.target={n:Number(n),i:Number(i)};u.entry='';} else focusLater(p,d.k);},
+  keep(p,u,d){team(relay(d.code),Number(d.n)).kept.push(d.v);},
+  pickrelay(p,u,d){u.teamsRelay=d.code;u.target=null;u.entry='';u.bRefused='';},
+  target(p,u,d){const r=relay(u.teamsRelay);takeHold0(r,p.name);u.target={n:Number(d.n),i:Number(d.i)};u.entry=team(r,u.target.n).legs[u.target.i];u.bRefused='';focusLater(p,'entry');},
+  bnext(p,u){const r=relay(u.teamsRelay),t0=bTarget(u,r);if(!t0||!u.entry) return;takeHold0(r,p.name);
+    const why=refusal(r,t0.n,t0.i,u.entry);if(why){u.bRefused=why;return;}
+    team(r,t0.n).legs[t0.i]=u.entry;u.entry='';u.bRefused='';u.target=null;
+    const t=team(r,t0.n),nextI=t.legs.findIndex(l=>!l);if(nextI>=0) u.target={n:t.n,i:nextI};
+    focusLater(p,'entry');},
+  bskip(p,u){const r=relay(u.teamsRelay),t0=bTarget(u,r);if(!t0) return;const order=r.teams.flatMap(t=>lockedHeat(r,t)?[]:t.legs.map((_,i)=>({n:t.n,i})));
+    const k=order.findIndex(x=>x.n===t0.n&&x.i===t0.i);u.target=order[(k+1)%order.length];u.entry=team(r,u.target.n).legs[u.target.i];u.bRefused='';},
+  bfix(p,u){u.entry='';u.bRefused='';focusLater(p,'entry');},
+  pick(p,u,d){const r=relay(u.code);takeHold(r,'checkin',p.name);if(variant==='B') u.ciMode='choose';const n=Number(d.n);if(!r.race.picked.includes(n)) r.race.picked.push(n);r.race.picked.sort((a,b)=>a-b);r.race.present[n]=r.race.present[n]||[0,0,0,0];},
+  unpick(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.picked=race.picked.filter(x=>x!==n);delete race.present[n];race.order=race.order.filter(x=>x!==n);race.dnf=race.dnf.filter(x=>x!==n);if(u.editing===n) u.editing=null;},
+  present(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.present[n][d.i]=race.present[n][d.i]?0:1;},
+  edit(p,u,d){u.editing=u.editing===Number(d.n)?null:Number(d.n);},
+  editdone(p,u){u.editing=null;},
+  cimode(p,u,d){u.ciMode=d.v;},
+  step(p,u,d){u.step=d.v;},
+  place(p,u,d){relay(u.code).race.order.push(Number(d.n));},
+  dnf(p,u,d){relay(u.code).race.dnf.push(Number(d.n));u.step='place';},
+  dnr(p,u,d){actions.unpick(p,u,d);u.step='place';},
+  giveplace(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.dnf=race.dnf.filter(x=>x!==n);race.order.push(n);},
+  atfinish(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.picked.push(n);race.present[n]=[1,1,1,1];race.atFinish.push(n);race.order.push(n);u.step='place';},
+  time(p,u){if(!u.pad) return;relay(u.code).race.times.push(u.pad);u.pad='';focusLater(p,'pad');},
+  submit(p,u){const r=relay(u.code),race=r.race;if(blocker(r)) return;
+    race.saved.push({heat:race.heat,teams:[...race.picked],order:[...race.order],times:[...race.times]});
+    race.ran.push(...race.picked);Object.assign(race,{heat:race.heat+1,picked:[],present:{},order:[],dnf:[],atFinish:[],times:[]});
+    ui.forEach(x=>{x.step='place';x.ciMode=null;x.editing=null;});},
+};
+function takeHold0(r,name){if(!r.holder) r.holder=name;}
+let pendingFocus=null;
+function focusLater(p,key){pendingFocus={p:PHONES.indexOf(p),key};}
+
+/* ---------- Render ---------- */
+function screenOf(i){const p=PHONES[i],u=ui[i];
+  const body=u.screen==='teams'?teamsScreen(p,u):u.screen==='race'?raceScreen(p,u):homeScreen(p,u);
+  return header(p)+body;}
+function render(){
+  const active=document.activeElement,fk=active?.dataset?.fk,fp=active?.closest?.('[data-p]')?.dataset.p,sel=active?.selectionStart;
+  document.querySelectorAll('.ph').forEach((el,i)=>{const top=el.scrollTop;el.innerHTML=screenOf(i);el.scrollTop=top;});
+  const want=pendingFocus||(fk?{p:Number(fp),key:fk}:null);pendingFocus=null;
+  if(want){const el=document.querySelector(`.ph[data-p="${want.p}"] [data-fk="${CSS.escape(want.key)}"]`);if(el){el.focus({preventScroll:fk===want.key});if(fk===want.key && sel!=null) try{el.setSelectionRange(sel,sel);}catch{}}}
+  document.getElementById('variant-label').textContent=`${variant} (${VARIANTS[variant]})`;
+  document.getElementById('variant-blurb').innerHTML=BLURBS[variant];
+  document.getElementById('ctl-variant').innerHTML=KEYS.map(k=>`<button class="pbtn" data-variant="${k}" aria-pressed="${k===variant}">${k} · ${VARIANTS[k]}</button>`).join('');
+  document.querySelectorAll('[data-opens]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.opens===homeOpens));
+  document.getElementById('state').textContent=stateText();
+}
+function stateText(){
+  return S.relays.map(r=>{const race=r.race;
+    return `${r.code} ${r.name} ${r.section}  ·  Teams screen holder: ${r.holder||'nobody'}\n`
+      +(r.teams.length?r.teams.map(t=>`   Team ${t.n}: ${nums(t)}${t.kept.length?`  (kept: ${t.kept.join(', ')})`:''}`).join('\n'):'   no teams')+'\n'
+      +`   Heat ${race.heat}: in heat ${race.picked.map(n=>`T${n} (${presentCount(race,n)}/4 here)`).join(', ')||'none'} · holds ${Object.entries(race.holds).filter(e=>e[1]).map(([k,v])=>`${k}=${v}`).join(', ')||'none'}\n`
+      +`   order ${race.order.map(n=>`T${n}${race.atFinish.includes(n)?' (at finish)':''}`).join(', ')||'-'} · times ${race.times.map(fmtTime).join(', ')||'-'} · did not finish ${race.dnf.map(n=>`T${n}`).join(', ')||'-'}\n`
+      +`   ran a saved heat: ${race.ran.map(n=>`T${n}`).join(', ')||'-'} · saved heats ${race.saved.map(s=>s.heat).join(', ')||'-'}`;}).join('\n\n')
+    +`\n\nPhones: ${PHONES.map((p,i)=>`${p.name} on ${ui[i].screen}${ui[i].screen==='home'?` (${ui[i].tab} tab)`:ui[i].screen==='race'?` (${ui[i].code})`:''}`).join(' · ')}`;
+}
+
+/* ---------- Wiring ---------- */
+const phonesEl=document.getElementById('phones');
+phonesEl.innerHTML=PHONES.map((p,i)=>`<div class="phone"><div class="phone-label"><span>${p.name} <small>${p.where}</small></span><button class="pbtn" data-reopen="${i}">Reopen the app</button></div><div class="frame"><div class="ph" data-p="${i}"></div></div></div>`).join('');
+phonesEl.addEventListener('click',e=>{
+  const re=e.target.closest('[data-reopen]');if(re){actions.reopen(PHONES[re.dataset.reopen],ui[re.dataset.reopen]);render();return;}
+  const el=e.target.closest('[data-act]'),ph=e.target.closest('.ph');if(!el||!ph||el.disabled) return;
+  const i=Number(ph.dataset.p);actions[el.dataset.act](PHONES[i],ui[i],el.dataset);render();
+});
+phonesEl.addEventListener('input',e=>{
+  const el=e.target,ph=el.closest('.ph');if(!ph) return;const i=Number(ph.dataset.p),p=PHONES[i],u=ui[i];
+  const digits=el.value.replace(/\D/g,'').slice(0,5);
+  if(el.dataset.pad) u.pad=digits.slice(0,6);
+  else if(el.dataset.entry) {u.entry=digits.slice(0,4);u.bRefused='';}
+  else if(el.dataset.box) {const [code,n,idx]=el.dataset.box.split(':'),r=relay(code),t=team(r,Number(n)),v=digits.slice(0,4);
+    u.typing=el.dataset.box;
+    // The first edit on the Teams screen makes you the relay's holder; check-in's Edit is the check-in holder's.
+    if(u.screen==='teams') takeHold0(r,p.name);
+    if(v && refusal(r,t.n,Number(idx),v)) {u.drafts[el.dataset.box]=v;t.legs[idx]='';}
+    else {delete u.drafts[el.dataset.box];t.legs[idx]=v;}}
+  render();
+});
+// A typed box shows its warnings once you move on. Deferred so a tap on a button still lands.
+phonesEl.addEventListener('change',e=>{const ph=e.target.closest('.ph');if(!ph||!e.target.dataset.box) return;const u=ui[Number(ph.dataset.p)];setTimeout(()=>{if(u.typing===e.target.dataset.box){u.typing=null;render();}},250);});
+phonesEl.addEventListener('focusin',e=>{const ph=e.target.closest('.ph');if(!ph) return;const u=ui[Number(ph.dataset.p)],k=e.target.dataset.box||null;if(u.typing!==k && u.typing){u.typing=k;setTimeout(render,0);}else u.typing=k;});
+phonesEl.addEventListener('keydown',e=>{if(e.key!=='Enter') return;const ph=e.target.closest('.ph');if(!ph) return;const i=Number(ph.dataset.p);
+  if(e.target.dataset.pad){actions.time(PHONES[i],ui[i]);render();}
+  else if(e.target.dataset.entry){actions.bnext(PHONES[i],ui[i]);render();}
+  else if(e.target.dataset.box){const all=[...ph.querySelectorAll('input[data-box]')],k=all.indexOf(e.target);(all[k+1]||e.target).focus();}});
+document.addEventListener('click',e=>{
+  const v=e.target.closest('[data-variant]');if(v){setVariant(v.dataset.variant);return;}
+  const o=e.target.closest('[data-opens]');if(o){homeOpens=o.dataset.opens;render();return;}
+  const j=e.target.closest('[data-jump]');if(j) seed(j.dataset.jump);
+});
+function setVariant(k){variant=k;history.replaceState(null,'',`#${k}`);ui.forEach(u=>{u.asking='';u.target=null;u.bRefused='';u.ciMode=null;});render();}
+const cycle=d=>setVariant(KEYS[(KEYS.indexOf(variant)+d+KEYS.length)%KEYS.length]);
+document.getElementById('prev').onclick=()=>cycle(-1);
+document.getElementById('next').onclick=()=>cycle(1);
+document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,[contenteditable]')) return;if(e.key==='ArrowLeft') cycle(-1);if(e.key==='ArrowRight') cycle(1);});
+window.addEventListener('hashchange',()=>{const k=location.hash.slice(1);if(KEYS.includes(k)&&k!==variant) setVariant(k);});
+seed('teams');
+</script>
+</body>
+</html>
