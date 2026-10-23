@@ -1,5 +1,6 @@
 import { afterEach,expect,test } from 'vitest';
-import type { AddressInfo } from 'node:net';
+import { once } from 'node:events';
+import { connect as connectSocket,type AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { createApp,type AppSettings } from '../src/server/app.js';
 import { frameData,newerSnapshot,splitFrames } from '../src/shared/live.js';
@@ -151,6 +152,15 @@ async function homeLine(stream:Awaited<ReturnType<typeof openStream>>,code:strin
     if(homeStatus(next.events.find(event=>event.code===code)!)===line) return next;
   }
 }
+test('shutting down does not wait on a connection that never sent a request, such as a browser\'s spare one',async()=>{
+  await start();
+  const {port}=app.server.address() as AddressInfo;
+  // Shutting down resets it.
+  const accepted=once(app.server,'connection');
+  connectSocket({port,host:'127.0.0.1'}).on('error',()=>{});await accepted;
+  const started=Date.now();await app.close();
+  expect(Date.now()-started).toBeLessThan(1000);
+});
 test('the Home stream sends every switched-on event first, in programme order, each with its status line',async()=>{
   const {owner,volunteer,other}=await start(),setup=raceSetup(app);
   await call(owner,'/api/day/events/R5/enabled',{enabled:false});
