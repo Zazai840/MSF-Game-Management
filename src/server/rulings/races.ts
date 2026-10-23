@@ -15,6 +15,7 @@ import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { entryCount } from '../../shared/teams.js';
 import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 /** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
@@ -43,8 +44,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       requireSaved(race);
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
-      const count=race.parts.runners.value?.length||0,entries=race.event.relay?(count===1?'team':'teams'):count===1?'runner':'runners';
-      if(places.length>count) throw new Refusal(409,`This race has ${count} ${entries} - enter no more places than that`);
+      const count=race.parts.runners.value?.length||0;
+      if(places.length>count) throw new Refusal(409,`This race has ${entryCount(count,race.event.relay)} - enter no more places than that`);
       if(places.length<count) throw new Refusal(409,race.event.relay?'The teams in this race have changed - open the race again':'The runner list has changed - open the race again');
       const currentPlaces=places,outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
       await correctPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});

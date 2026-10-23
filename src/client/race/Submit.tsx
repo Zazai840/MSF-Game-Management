@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,jobs,submitBlocker,waitingOn,type RaceScreenRead } from '../../shared/race-screen.js';
 import { entryName } from '../../shared/races.js';
+import { capitalised,entryWord } from '../../shared/teams.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { TakeOver,useRaceWrite,type Offer } from './Hold.js';
@@ -20,7 +21,7 @@ export function ResultsCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneI
   return <section className="race-card race-results"><div className="race-card-body">
     <div><h2>{final && saved?'Final results':'Results'}</h2><p className="race-hint">{saved?'Saved. Corrections go through a zone lead.':'Check them. Spot a mistake? Tap Not yet.'}</p></div>
     {error && <p role="alert">{error}</p>}
-    <table className={screen.event.relay?'race-table race-teams':'race-table'} aria-label="Results"><thead><tr><th>Place</th><th>{screen.event.relay?'Team':'Wristband'}</th>{!final && <th>Time</th>}</tr></thead>
+    <table className={screen.event.relay?'race-table race-teams':'race-table'} aria-label="Results"><thead><tr><th>Place</th><th>{capitalised(entryWord(screen.event.relay))}</th>{!final && <th>Time</th>}</tr></thead>
       <tbody>{(finish?.order||[]).map((id,index)=><tr key={id}><td>{ordinal(index+1)}</td><td>{screen.event.relay?entry(id) && <EntryLabel entry={entry(id)!}/>:wristband(id)}</td>{!final && <td>{places[index]==null?'':formatTime(places[index]!)}</td>}</tr>)}</tbody></table>
     {!!finish?.didNotFinish.length && <ul className="race-no-place" aria-label="No place">{finish.didNotFinish.map(id=><li key={id}><strong>{wristband(id)}</strong><span>Did not finish</span></li>)}</ul>}
     {!saved && <div className="race-columns">{jobs.filter(job=>holds[job]).map(job=>{

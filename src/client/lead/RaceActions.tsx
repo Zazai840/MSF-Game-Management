@@ -10,6 +10,7 @@ import { entryName,entryNumber,raceLabel,replacedByRerun,runnersOf } from '../..
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
+import { entryCount,entryWord } from '../../shared/teams.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
@@ -82,7 +83,7 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const rowLabel=(index:number,value:string)=>`${ordinal(index+1)} place · ${value?formatTimeDigits(value):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
   return <form className="sheet-stack" onSubmit={event=>{event.preventDefault();onSave({baseVersion,places:places.slice(0,runnerCount),acceptOutOfOrder:accepted,comment});}}>
     {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
-    {leftover && <p className="sheet-hint">This race has {runnerCount} {race.event.relay?(runnerCount===1?'team':'teams'):runnerCount===1?'runner':'runners'}. Choose No finisher for every place after {ordinal(runnerCount)} to save.</p>}
+    {leftover && <p className="sheet-hint">This race has {entryCount(runnerCount,!!race.event.relay)}. Choose No finisher for every place after {ordinal(runnerCount)} to save.</p>}
     <p className="sheet-hint">Read times in place order from the SprintTimer recording. Tap a place to retype its time.</p>
     <ol ref={rows} className="time-rows" aria-label="Times">{digits.map((value,index)=><li key={index} className="lead-time-place">
       {value!==null && editing===index?<div className="lead-editing">
@@ -118,7 +119,7 @@ function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const without=(list:number[],number:number)=>list.filter(other=>other!==number);
   const time=(place:number)=>{const value=places?.[place-1];return value===undefined?null:value===null?'No time':formatTime(value);};
   return <div className="sheet-stack lead-order">
-    <p className="sheet-hint">Drag a {relay?'team':'wristband'} to its place: times stay by place. Each change saves at once.</p>
+    <p className="sheet-hint">Drag a {entryWord(!!relay)} to its place: times stay by place. Each change saves at once.</p>
     <SortableList label="Finishing order" items={shown.order} itemKey={number=>number} itemName={name} disabled={busy} onReorder={order=>void save({...shown,order})}
       renderItem={(number,place)=><><span className="lead-order-place"><span className="row-place">{ordinal(place)}</span>{places && <small>{time(place)}</small>}</span><span className="row-runner"><strong>{name(number)}</strong></span>
         <button type="button" className="button-small button-secondary lead-no-place" disabled={busy} aria-label={`No place for ${name(number)}`} onClick={()=>setAsking(number)}>No place</button></>}/>

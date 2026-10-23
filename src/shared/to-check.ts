@@ -3,6 +3,7 @@ import { plainWristbandWarning,type WristbandWarning } from './wristband-checks.
 import { formatTime } from './time-entry.js';
 import { raceLabel } from './races.js';
 import { ordinal } from './ordinal.js';
+import { capitalised,entryNoun } from './teams.js';
 export interface ToCheckWording { race:string; title:string; explanation:string }
 /** "2004", "2004 and 2005", "2004, 2005 and 2006". */
 export const listed=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names[names.length-1]}`;
@@ -29,10 +30,10 @@ function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
       return {title:'A runner was added at the finish',explanation:item.wristband!==undefined?`${item.wristband} crossed the line but was not checked in at the start. Check they ran in this race.`:item.message};
     case 'ran-twice': {
       const name=item.team!==undefined?`Team ${item.team}`:item.wristband;
-      return {title:item.team!==undefined?'A team ran twice':'A runner ran twice',explanation:name!==undefined?`${name} has a result in more than one race of this event. Choose which result counts.`:item.message};
+      return {title:`A ${entryNoun(item.team!==undefined)} ran twice`,explanation:name!==undefined?`${name} has a result in more than one race of this event. Choose which result counts.`:item.message};
     }
     case 'tie':
-      return {title:item.event.relay?'Teams tied on time':'Runners tied on time',explanation:item.tie?`${listed(item.tie.names)} ${item.tie.names.length===2?'both':'all'} have ${formatTime(item.tie.time)}. Decide whether a run-off is needed.`:item.message};
+      return {title:`${capitalised(entryNoun(item.event.relay))}s tied on time`,explanation:item.tie?`${listed(item.tie.names)} ${item.tie.names.length===2?'both':'all'} have ${formatTime(item.tie.time)}. Decide whether a run-off is needed.`:item.message};
   }
 }
 /** How the To check list words one lead queue item: where it is, what went wrong, and what the lead decides. */

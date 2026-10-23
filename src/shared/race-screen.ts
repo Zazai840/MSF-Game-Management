@@ -2,7 +2,7 @@ import type { DayEvent } from './day.js';
 import { ordinal } from './ordinal.js';
 import { entryName,raceLabel,type FinishingOrder,type RaceEntry,type RaceRead } from './races.js';
 import { wrongTimes } from './wrong-times.js';
-import { stillToRun,teamCount,type RelayTeam,type TeamList } from './teams.js';
+import { entryNoun,entryWord,stillToRun,teamCount,type RelayTeam,type TeamList } from './teams.js';
 /** An event's current race: its latest race not yet saved or deleted, or else the next one, not stored until its first check-in (id null, empty parts). */
 export type CurrentRace=Pick<RaceRead,'kind'|'number'|'state'|'parts'|'final'> & {id:string|null};
 /** The three jobs on a race (the glossary's Job). A final has no times. */
@@ -63,7 +63,7 @@ export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>,relay=false)
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
   if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${relay?'teams':'runners'} have no place yet`;
+  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${entryNoun(relay)}s have no place yet`;
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
@@ -74,8 +74,6 @@ export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>,relay=false)
   const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }
-/** What fills a place in the order: a wristband, or on a relay a team. */
-export const entryWord=(relay:boolean)=>relay?'team':'wristband';
 /** Those asked to press Submit Race who have not pressed yet. */
 export const waitingOn=(asked:readonly Holder[],pressed:readonly Pick<Holder,'id'>[])=>asked.filter(holder=>!pressed.some(other=>other.id===holder.id));
 /** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */

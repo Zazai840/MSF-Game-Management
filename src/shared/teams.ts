@@ -25,8 +25,16 @@ export const unsavedRace=(team:Pick<RelayTeam,'races'>)=>team.races.find(race=>r
  * ticked into a race, and other phones see "Priya Shah is changing this team" under it.
  */
 export const changingName=(team:Pick<RelayTeam,'changing'>)=>team.changing?.name??null;
+/** What a race entry is: a runner, or on a relay a team ("This team is already disqualified"). */
+export const entryNoun=(relay:boolean)=>relay?'team':'runner';
+/** What fills a place in the order: a wristband, or on a relay a team. */
+export const entryWord=(relay:boolean)=>relay?'team':'wristband';
+/** "1 runner", "5 runners"; on a relay "1 team", "5 teams". */
+export const entryCount=(count:number,relay:boolean)=>`${count} ${entryNoun(relay)}${count===1?'':'s'}`;
 /** "1 team", "5 teams". */
-export const teamCount=(count:number)=>`${count} ${count===1?'team':'teams'}`;
+export const teamCount=(count:number)=>entryCount(count,true);
+/** A word as it starts a sentence or a column: "Team", "Runners". */
+export const capitalised=(word:string)=>word[0].toUpperCase()+word.slice(1);
 /** A relay card's status line on the Teams screen: "You are entering · 5 teams · Team 5 is 3 of 4", "Sam Patel is entering · 5 teams", "5 teams" or "No teams yet · open to start". */
 export function teamsStatus({teams,teamsHolder}:{teams:readonly RelayTeam[];teamsHolder:{id:string;name:string}|null},phoneId:string) {
   // Only the holder is told which team is not complete.

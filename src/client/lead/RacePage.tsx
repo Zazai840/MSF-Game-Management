@@ -8,6 +8,7 @@ import { resultEntry } from '../../shared/leaderboard-row.js';
 import { ResultName,resultLabel } from './ResultName.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
+import { capitalised,entryNoun } from '../../shared/teams.js';
 import type { WrongTime } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
@@ -29,7 +30,7 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {clock(read.race.checkedInAt)}</p>
     <RaceActions race={read.race} relay={read} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
     {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
-    <h4>Current record</h4><p>{read.race.event.relay?'Teams':'Runners'}: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
+    <h4>Current record</h4><p>{capitalised(entryNoun(read.race.event.relay))}s: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
     <CurrentRecord race={read.race} actionable={entryId=>actionableRunners.some(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;
