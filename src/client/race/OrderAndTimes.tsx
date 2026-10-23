@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { onlyRunners,entryWord,type RaceScreenRead } from '../../shared/race-screen.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry } from '../../shared/races.js';
+import { changingName,stillToRun } from '../../shared/teams.js';
 import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits } from '../../shared/time-entry.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
@@ -15,6 +16,8 @@ import { WristbandEntry } from './WristbandEntry.js';
 type OrderColumn={order:string[];didNotFinish:string[];didNotRun:string[]};
 type Column='order'|'times';
 const columnNames:Record<Column,string>={order:'Order',times:'Times'};
+/** The entry the no-place question asks about: a wristband, or a team by its 4th leg, "Team 3 (4th leg 2150)". */
+const noPlaceName=(entry:RaceEntry)=>!isTeamEntry(entry)?entryName(entry):`${entryName(entry)} (${entry.legs[3]?.wristband!=null?`4th leg ${entry.legs[3].wristband}`:'no 4th leg'})`;
 /**
  * An entry as the order shows it, short enough for one line in the Wristband column: a wristband, or a relay team's
  * 4th-leg wristband (the child the order holder sees cross) with "Team 3" small under it ("Team 3" with "no 4th leg"
@@ -38,7 +41,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   const {event,race,stageComplete,holds}=screen,final=race.kind==='final',place=entryWord(event.relay);
   const columns:Column[]=final?['order']:['order','times'];
   const {busy,error,write}=useRaceWrite(event.code,offer);
-  const {pending,sending,send:sendOrder}=useColumnWrites<OrderColumn&{raceId:string|null;added:number[];keptWarnings:number[]}>(write,'order',race.parts.finish.version);
+  const {pending,sending,send:sendOrder}=useColumnWrites<OrderColumn&{raceId:string|null;added:number[];keptWarnings:number[];addedTeams:string[]}>(write,'order',race.parts.finish.version);
   const timesWrites=useColumnWrites<{raceId:string|null;places:number[];keptWrong:number[]}>(write,'times',race.parts.times.version);
   type Step='place'|'no-place'|'add'|'move';
   // The card stays open as the event moves on to its next race, which starts at placing again.
@@ -47,8 +50,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   /** The time pad: the digits typed, and the place being retyped (none: the next place). It starts afresh on the next race. */
   const [padOf,setPadOf]=useState<{raceId:string|null;typed:string;retype:number|null}>({raceId:race.id,typed:'',retype:null});
   const pad=padOf.raceId===race.id?padOf:{typed:'',retype:null},setPad=(typed:string,retype:number|null)=>setPadOf({raceId:race.id,typed,retype});
-  /** Sends the order holder's latest column. */
-  const send=(column:OrderColumn,added:number[]=[],kept:number[]=[])=>sendOrder({raceId:race.id,...column,added,keptWarnings:kept});
+  /** Sends the order holder's latest column, with any runners (or on a relay, teams by id) added at the finish. */
+  const send=(column:OrderColumn,added:number[]=[],kept:number[]=[],addedTeams:string[]=[])=>sendOrder({raceId:race.id,...column,added,keptWarnings:kept,addedTeams});
   const finish=race.parts.finish.value,shown:OrderColumn=pending||{order:finish?.order||[],didNotFinish:finish?.didNotFinish||[],didNotRun:[]};
   const runners=(race.parts.runners.value||[]).filter(runner=>!shown.didNotRun.includes(runner.id)),byId=new Map(runners.map(runner=>[runner.id,runner]));
   // A runner check-in has just taken off drops out, and later places move up, as the server does.
@@ -75,6 +78,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     setPad('',null);
   }
   const ordering=holds.order?.id===phoneId && !stageComplete;
+  // "+ Team not on the list" offers the relay's teams still to run that nobody is changing: never a new team.
+  const addable=(screen.teams||[]).filter(team=>stillToRun(team) && !changingName(team));
   const next=ordering && step==='place' && unplaced.length?order.length:-1;
   const rows=Math.max(runners.length-didNotFinish.length,order.length,places.length);
   const time=(place:number)=>places[place-1]==null?'':formatTime(places[place-1]!);
@@ -119,7 +124,16 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     </li>)}</ul>}
     {wrong.size>0 && !unkept && <p className="calm-note">Kept as typed. A zone lead will check it.</p>}
     {ordering && step==='move' && <button className="button-secondary" onClick={()=>setStep('place')}>Done</button>}
-    {ordering && step==='add' && <>
+    {ordering && step==='add' && event.relay && <div className="race-order">
+      <h3 className="race-question">Which team crossed the line?</h3>
+      <p className="race-hint">Teams that haven't run a heat. A team not here is added on the Teams screen first.</p>
+      {addable.length?<div className="pick-list">{addable.map(team=><button key={team.id} disabled={sending}
+        onClick={async()=>{if(typeof await send({order,didNotFinish,didNotRun:shown.didNotRun},[],[],[team.id])==='object') setStep('place');}}>
+        Team {team.number}<small>{team.legs.map(leg=>leg.wristband??'-').join(' · ')}</small></button>)}</div>
+      :<p className="calm-note">Every team has run or is in this heat.</p>}
+      <button className="button-quiet" onClick={()=>setStep('place')}>Cancel</button>
+    </div>}
+    {ordering && step==='add' && !event.relay && <>
       <WristbandEntry event={event} raceId={race.id} busy={busy || sending} label="Runner not on the list: wristband number" taken={runnersOf(runners).map(runner=>runner.wristband)}
         onSave={async(wristband,kept)=>{const sent=await send({order,didNotFinish,didNotRun:shown.didNotRun},[wristband],kept?[wristband]:[]);if(typeof sent==='object') setStep('place');return sent;}}/>
       <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
@@ -128,17 +142,17 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       {!runners.length?<p className="race-hint">{event.relay?'Teams':'Runners'} to tap appear here as they are checked in.</p>
       :!unplaced.length?<p className="calm-note" role="status">{event.relay?'Every team has a place':'Everyone has a place'}</p>
       :step==='no-place'?<>
-        <h3 className="race-question">{entryName(unplaced[0])} has no place. What happened?</h3>
+        <h3 className="race-question">{noPlaceName(unplaced[0])} has no place. What happened?</h3>
         <div className="race-pair"><button className="button-secondary" onClick={()=>change({didNotFinish:[...didNotFinish,unplaced[0].id]})}>Did not finish</button><button className="button-secondary" onClick={()=>change({didNotRun:[...shown.didNotRun,unplaced[0].id]})}>Didn't run</button></div>
-        <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
+        {event.relay && <p className="race-hint">Didn't run puts the team back with those still to run, for the next heat.</p>}
+        <button className="button-quiet" onClick={()=>setStep('place')}>{event.relay?'Cancel':'Back to the order'}</button>
       </>:<>
         <h3 className="race-question">Who came {ordinal(order.length+1)}?</h3>
         <div className={event.relay?'race-numbers race-teams':'race-numbers'}>{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{event.relay?<EntryLabel entry={runner}/>:entryName(runner)}</button>)}</div>
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
       {runners.length>0 && <div className="race-order-more">
-        {/* shortcut: a relay has no "+ Team not on the list" yet; it comes with the team pick list. */}
-        {!event.relay && <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>+ Runner not on the list</button>}
+        <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>{event.relay?'+ Team not on the list':'+ Runner not on the list'}</button>
         {order.length>1 && <button className="button-quiet" onClick={()=>setStep('move')}>Change the order</button>}
       </div>}
     </div>}
