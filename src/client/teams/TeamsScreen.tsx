@@ -1,8 +1,8 @@
 import { useRef,useState } from 'react';
 import { api } from '../api.js';
 import { ordinal } from '../../shared/ordinal.js';
-import type { HomeEvent,HomeSnapshot,Holder } from '../../shared/race-screen.js';
-import { filledLegs,legRefusal,legWarnings,teamsStatus,type RelayTeam } from '../../shared/teams.js';
+import { currentRaceLabel,type HomeEvent,type HomeSnapshot,type Holder } from '../../shared/race-screen.js';
+import { filledLegs,legRefusal,legWarnings,teamsStatus,unsavedRace,type RelayTeam } from '../../shared/teams.js';
 import { useLive } from '../live.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
 import { RaceCard } from '../race/RaceCard.js';
@@ -57,19 +57,22 @@ function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phon
     {error && <p role="alert">{error}</p>}
     {holder && !mine && <div className="relay-who"><span><strong>{holder.name}</strong> is entering. You see it read-only.</span>
       <TakeOver job="teams" holder={holder.name} busy={busy} onConfirm={()=>void write('take-over',{})}/></div>}
-    {mine && relay.teams.length>0 && open===null && <p className="race-hint">Tap a team to change it.</p>}
+    {mine && open===null && relay.teams.some(team=>!unsavedRace(team)) && <p className="race-hint">Tap a team to change it.</p>}
     {relay.teams.map(team=>open===team.id?edit(team)
-      :mine && open===null?<button key={team.id} className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} onClick={()=>setEditing(team.id)}><TeamCells team={team}/></button>
+      :mine && open===null && !unsavedRace(team)?<button key={team.id} className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} onClick={()=>setEditing(team.id)}><TeamCells team={team}/></button>
       :<div key={team.id} className="team-row"><TeamCells team={team}/></div>)}
     {open==='new' && edit(null)}
     {mine && open===null && <button className="button-secondary button-small add-team" onClick={()=>setEditing('new')}>+ Add team</button>}
   </RaceCard>;
 }
 
-/** A team read-only: "Team 3" ("3 of 4" under it when not complete), then its four wristbands, "-" for an empty box and amber for a kept warning. */
+/**
+ * A team read-only: "Team 3" ("3 of 4" under it when not complete, or "In heat 2" while an unsaved race holds it), then its
+ * four wristbands, "-" for an empty box and amber for a kept warning.
+ */
 function TeamCells({team}:{team:RelayTeam}) {
-  const filled=filledLegs(team);
-  return <><span className="team-name"><span>Team {team.number}</span>{filled<4 && <small className="is-short">{filled} of 4</small>}</span>
+  const filled=filledLegs(team),race=unsavedRace(team);
+  return <><span className="team-name"><span>Team {team.number}</span>{race?<small>In {currentRaceLabel(race).toLowerCase()}</small>:filled<4 && <small className="is-short">{filled} of 4</small>}</span>
     {team.legs.map((leg,index)=><span key={index} className={`leg-ro${leg.wristband===null?' is-empty':''}${leg.warnings.length?' is-amber':''}`}>{leg.wristband??'-'}</span>)}</>;
 }
 

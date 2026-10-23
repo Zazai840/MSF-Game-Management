@@ -106,3 +106,26 @@
 .race-dock-row {display:flex; gap:10px;}
 .race-dock-row > * {flex:1; min-width:0;}
 .action-bar p[role=alert] {margin:0;}
+/* Check-in Teams on a relay: one list of teams, each ticked into the heat, then each child tapped as here. */
+.ci-list {display:flex; flex-direction:column; gap:8px;}
+.ci-pick {display:flex; flex-direction:column; gap:4px;}
+.ci-row {display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:6px 12px; border-radius:var(--radius); background:var(--surface); border:2px solid var(--line-strong); color:var(--text); text-align:left; font-size:16px;}
+.ci-row-text {flex:1; min-width:0; display:flex; flex-direction:column; font-size:16px; color:var(--text);}
+.ci-row-text strong {color:var(--navy);}
+.ci-row-text span {font-size:var(--text-small); font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums;}
+.ci-row-text span.is-short {color:var(--amber-text);}
+.ci-tick {flex:none; width:28px; height:28px; border-radius:8px; box-shadow:inset 0 0 0 2px var(--line-strong); display:flex; align-items:center; justify-content:center; color:#fff;}
+.ci-tick.is-ticked {background:var(--navy); box-shadow:none;}
+/* A ticked team sits on a tint, its children's buttons white on it. */
+.ci-team {display:flex; flex-direction:column; gap:8px; padding:8px 12px 12px; border-radius:var(--radius); background:var(--tint);}
+.ci-head {display:flex; align-items:center; gap:12px; min-height:var(--tap);}
+.ci-legrows {display:flex; flex-direction:column; gap:6px;}
+.ci-legrows button,.ci-legrows > div {display:flex; align-items:center; gap:12px; min-height:52px; padding:0 12px; border-radius:var(--radius-small); background:var(--surface); color:var(--text); border:2px solid var(--line-strong); font-size:20px; font-weight:800; text-align:left;}
+.ci-legrows > div {border:0; background:var(--ground);}
+.ci-legrows button[aria-pressed=true] {background:var(--surface); color:var(--text); border-color:var(--navy);}
+.ci-leg-n {width:34px; font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.ci-leg-w {flex:1; font-variant-numeric:tabular-nums;}
+.ci-leg-w.is-empty {color:var(--muted);}
+.ci-leg-here {font-size:var(--text-small); font-weight:800; color:var(--muted);}
+.ci-legrows button[aria-pressed=true] .ci-leg-here {color:var(--navy);}
+.ci-short {margin:0; padding:8px 12px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); font-size:var(--text-small); font-weight:700;}

@@ -192,6 +192,19 @@ export async function writeTeam(request:APIRequestContext,token:string,relayCode
   await takeTeams(request,token,relayCode);
   return teamsWrite(request,token,relayCode,'done',{teamId,legs,keptWarnings});
 }
+/** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
+async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here',number:number,data:object={}) {
+  const seen=await readRaceScreen(request,token,relayCode);
+  return raceScreenWrite(request,token,relayCode,what,{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===number)!.id,...data});
+}
+/** Ticks Team `number` into the relay's current heat as that phone (anyone can: there is no check-in hold on a relay). */
+export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
+  return checkInTap(request,token,relayCode,'tick',number);
+}
+/** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
+export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
+  return checkInTap(request,token,relayCode,'here',number,{leg:leg-1,here});
+}
 /** From Home: the Relays tab, then the Teams button, and waits for the Teams screen. */
 export async function openTeams(page:Page) {
   await page.getByRole('tab',{name:'Relays',exact:true}).click();
