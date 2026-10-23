@@ -121,7 +121,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         </tr>;
       })}</tbody>
     </table>:<p className="race-empty">Places appear here once {event.relay?'teams':'runners'} are checked in</p>}
-    {didNotFinish.length>0 && <ul className="race-no-place" aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{entryName(byId.get(id)!)}</strong><span>Did not finish</span>
+    {didNotFinish.length>0 && <ul className={event.relay?'race-no-place race-teams':'race-no-place'} aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{entryName(byId.get(id)!)}</strong><span>Did not finish</span>
       {ordering && <button className="button-small button-secondary" aria-label={`Give a place to ${entryName(byId.get(id)!)}`} onClick={()=>change({order:[...order,id],didNotFinish:didNotFinish.filter(other=>other!==id)})}>Give a place</button>}
     </li>)}</ul>}
     {wrong.size>0 && !unkept && <p className="calm-note">Kept as typed. A zone lead will check it.</p>}
