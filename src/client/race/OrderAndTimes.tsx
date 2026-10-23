@@ -133,7 +133,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
       </>:<>
         <h3 className="race-question">Who came {ordinal(order.length+1)}?</h3>
-        <div className={event.relay?'race-numbers race-teams':'race-numbers'}>{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}><EntryLabel entry={runner}/></button>)}</div>
+        <div className={event.relay?'race-numbers race-teams':'race-numbers'}>{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{event.relay?<EntryLabel entry={runner}/>:entryName(runner)}</button>)}</div>
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
       {runners.length>0 && <div className="race-order-more">

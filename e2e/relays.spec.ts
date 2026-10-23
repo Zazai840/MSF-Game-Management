@@ -304,9 +304,9 @@ test('a relay heat on three phones: check-in on one, the order by 4th-leg button
   await ownRelay(code,name,'Girl Cubs');
   const sam=await openPhone(`Sam Patel order ${project}`),priyaName=`Priya Shah order ${project}`,joName=`Jo Evans order ${project}`;
   const priya=await openPhone(priyaName),jo=await openPhone(joName),ali=await openPhone(`Ali Khan order ${project}`);
-  // The test day is shared: each project types its own wristbands, keeping any warning another test's relay gives them.
-  const n=(number:number)=>number+at*200,team=(legs:Array<number|null>)=>writeTeam(request,sam.token,code,legs,{keptWarnings:legs.filter((leg):leg is number=>leg!==null)});
-  await team([n(2101),n(2134),n(2187),n(2150)]);await team([n(2201),n(2202),n(2203),null]);await team([n(2301),n(2302),n(2303),n(2304)]);
+  // The test day is shared: each project has its own Girl Cubs wristbands, which no other relay test types.
+  const n=(offset:number)=>2900+at*20+offset,team=(legs:Array<number|null>)=>writeTeam(request,sam.token,code,legs,{keptWarnings:legs.filter((leg):leg is number=>leg!==null)});
+  await team([n(1),n(2),n(3),n(4)]);await team([n(5),n(6),n(7),null]);await team([n(8),n(9),n(10),n(11)]);
   // Ali watches Home: the relay's tile follows the heat live.
   await ali.page.getByRole('tab',{name:'Relays',exact:true}).click();
   const tile=ali.page.getByRole('region',{name,exact:true}).getByRole('button');
@@ -331,7 +331,7 @@ test('a relay heat on three phones: check-in on one, the order by 4th-leg button
   await expect(priya.page.locator('.race-blocked')).toHaveText('2 teams have no place yet',live);
   // The order holder taps each team as its 4th leg crosses: the 4th-leg wristband large, "Team N" small under it.
   await expect(priya.page.getByRole('heading',{name:'Who came 1st?',exact:true})).toBeVisible(live);
-  const team1=priya.page.locator('.race-numbers').getByRole('button',{name:new RegExp(`^${n(2150)}\\s*Team 1$`)});
+  const team1=priya.page.locator('.race-numbers').getByRole('button',{name:new RegExp(`^${n(4)}\\s*Team 1$`)});
   const team2=priya.page.locator('.race-numbers').getByRole('button',{name:/^Team 2\s*no 4th leg$/});
   await expect(team1).toBeVisible();await expect(team2).toBeVisible();
   expect(await lookProblems(priya.page)).toEqual([]);
@@ -347,24 +347,24 @@ test('a relay heat on three phones: check-in on one, the order by 4th-leg button
   await team1.click();
   // The table, Place | Team | Time, fills live on every phone; the Team cell matches the button.
   const rows=(page:Page)=>page.getByRole('table',{name:'Order and times'}).getByRole('row');
-  for(const phone of [sam,priya,jo]) await expect(rows(phone.page)).toHaveText([/^Place\s*Team\s*Time$/,/^1st\s*Team 2\s*no 4th leg\s*(Next)?$/,new RegExp(`^2nd\\s*${n(2150)}\\s*Team 1\\s*$`)],live);
+  for(const phone of [sam,priya,jo]) await expect(rows(phone.page)).toHaveText([/^Place\s*Team\s*Time$/,/^1st\s*Team 2\s*no 4th leg\s*(Next)?$/,new RegExp(`^2nd\\s*${n(4)}\\s*Team 1\\s*$`)],live);
   // One time per team, on today's pad.
   await expect(jo.page.getByText(/^One time per team: the start to the 4th leg crossing\./)).toBeVisible();
   for(const time of ['1520','1610']) {await jo.page.getByLabel('Place time',{exact:true}).fill(time);await jo.page.getByRole('button',{name:'Next',exact:true}).click();}
-  for(const phone of [sam,priya]) await expect(rows(phone.page)).toHaveText([/^Place/,/^1st\s*Team 2\s*no 4th leg\s*15\.20$/,new RegExp(`^2nd\\s*${n(2150)}\\s*Team 1\\s*16\\.10$`)],live);
+  for(const phone of [sam,priya]) await expect(rows(phone.page)).toHaveText([/^Place/,/^1st\s*Team 2\s*no 4th leg\s*15\.20$/,new RegExp(`^2nd\\s*${n(4)}\\s*Team 1\\s*16\\.10$`)],live);
   expect(await lookProblems(jo.page)).toEqual([]);
   await jo.page.screenshot({path:info.outputPath('relay-order-times.png'),fullPage:true});
   // Change the order drags teams.
   await priya.page.getByRole('button',{name:'Change the order',exact:true}).click();
   await expect(priya.page.getByText('Drag a team to its place: times stay by place.',{exact:true})).toBeVisible();
-  await expect(priya.page.getByRole('list',{name:'Finishing order'}).getByRole('listitem')).toHaveText([/Team 2\s*no 4th leg/,new RegExp(`${n(2150)}\\s*Team 1`)]);
+  await expect(priya.page.getByRole('list',{name:'Finishing order'}).getByRole('listitem')).toHaveText([/Team 2\s*no 4th leg/,new RegExp(`${n(4)}\\s*Team 1`)]);
   await priya.page.screenshot({path:info.outputPath('relay-change-order.png'),fullPage:true});
   await priya.page.getByRole('button',{name:'Done',exact:true}).click();
   // Submit Race by the two holders: Priya first, then Jo saves it.
   await priya.page.getByRole('button',{name:'Submit Race',exact:true}).click();
   await expect(jo.page.locator('.race-waiting')).toHaveText('Waiting on you',live);
   await expect(tile).toHaveText(`Girl CubsHeat 1 · Waiting on 1 to submit · ${joName}`,live);
-  await expect(sam.page.getByRole('table',{name:'Results'}).getByRole('row')).toHaveText([/^Place\s*Team\s*Time$/,/^1st\s*Team 2\s*no 4th leg\s*15\.20$/,new RegExp(`^2nd\\s*${n(2150)}\\s*Team 1\\s*16\\.10$`)],live);
+  await expect(sam.page.getByRole('table',{name:'Results'}).getByRole('row')).toHaveText([/^Place\s*Team\s*Time$/,/^1st\s*Team 2\s*no 4th leg\s*15\.20$/,new RegExp(`^2nd\\s*${n(4)}\\s*Team 1\\s*16\\.10$`)],live);
   expect(await lookProblems(sam.page)).toEqual([]);
   await sam.page.screenshot({path:info.outputPath('relay-results.png'),fullPage:true});
   await jo.page.getByRole('button',{name:'Submit Race',exact:true}).click();
