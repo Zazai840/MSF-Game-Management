@@ -46,6 +46,8 @@
 .result-mark {display:inline-block; padding:1px 7px; border-radius:999px; background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800;}
 .result-number,.result-time {font-size:20px; font-weight:800; color:var(--navy); font-variant-numeric:tabular-nums;}
 .result-time {text-align:right;}
+/* A relay team: "Team 3", its four children in leg order on the line under it. */
+.result-legs {display:block; font-size:var(--text-small); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;}
 .result-detail {grid-column:2 / -1; font-size:var(--text-small); font-weight:600; color:var(--muted);}
 .result-flags {display:block; padding:0; margin:6px 0 0;}
 .result-line {display:flex; align-items:center; gap:10px; margin:10px 0; color:var(--navy); font-size:var(--text-small); font-weight:800;}
