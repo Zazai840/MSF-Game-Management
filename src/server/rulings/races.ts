@@ -1,6 +1,6 @@
 import { createRace } from '../races/create.js';
 import { requireCurrentUnstarted } from '../races/current.js';
-import type { Runner,FinishingOrder } from '../../shared/races.js';
+import type { Runner,FinishingOrder,RaceEntry } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { keptWarningNumbers,wristbandRaces } from '../races/warnings.js';
@@ -14,7 +14,7 @@ import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
-import { raceLabel,runnersOf } from '../../shared/races.js';
+import { isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 /** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
   if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
@@ -91,10 +91,10 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
-      requireChildren(race);
       await requireCurrentUnstarted(client,current.dayId,race.event,'re-run');
       requireSaved(race);
-      const runners=runnersOf(race.parts.runners.value).map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
+      // The same children in new entries: a team keeps its four children as they ran, a child their warnings.
+      const runners:RaceEntry[]=race.parts.runners.value!.map(entry=>isTeamEntry(entry)?{id:randomUUID(),team:entry.team,legs:entry.legs}:{id:randomUUID(),wristband:entry.wristband,warnings:(entry.warnings||[]).filter(warning=>warning.kind!=='already-ran')});
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
       const {id,number}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id});
       if(race.final) {
