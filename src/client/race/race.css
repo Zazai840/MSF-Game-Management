@@ -118,7 +118,8 @@
 .ci-tick.is-ticked {background:var(--navy); box-shadow:none;}
 /* A ticked team sits on a tint, its children's buttons white on it. */
 .ci-team {display:flex; flex-direction:column; gap:8px; padding:8px 12px 12px; border-radius:var(--radius); background:var(--tint);}
-.ci-head {display:flex; align-items:center; gap:12px; min-height:var(--tap);}
+.ci-head {display:flex; align-items:center; gap:8px; min-height:var(--tap);}
+.ci-head .button-quiet {padding:0 12px;}
 .ci-legrows {display:flex; flex-direction:column; gap:6px;}
 .ci-legrows button,.ci-legrows > div {display:flex; align-items:center; gap:12px; min-height:52px; padding:0 12px; border-radius:var(--radius-small); background:var(--surface); color:var(--text); border:2px solid var(--line-strong); font-size:20px; font-weight:800; text-align:left;}
 .ci-legrows > div {border:0; background:var(--ground);}
@@ -128,4 +129,7 @@
 .ci-leg-w.is-empty {color:var(--muted);}
 .ci-leg-here {font-size:var(--text-small); font-weight:800; color:var(--muted);}
 .ci-legrows button[aria-pressed=true] .ci-leg-here {color:var(--navy);}
+/* A confirm inside a team: its buttons keep their words on one line, stacking when the phone is too narrow for both. */
+.ci-team .warning-actions {flex-wrap:wrap;}
+.ci-team .warning-actions button {flex:1 1 auto; white-space:nowrap;}
 .ci-short {margin:0; padding:8px 12px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); font-size:var(--text-small); font-weight:700;}

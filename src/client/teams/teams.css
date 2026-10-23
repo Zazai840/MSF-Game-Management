@@ -22,6 +22,7 @@ input.leg-box {height:48px; min-height:48px; padding:0 2px; text-align:center; f
 input.leg-box.is-amber {border-color:var(--amber-line); background:var(--amber-fill); color:var(--amber-text);}
 .team-warn {padding:10px 12px;}
 .team-warn p {margin:0 0 8px; font-size:var(--text-small);}
+.team-row-bare {grid-template-columns:repeat(4,minmax(0,1fr));}
 .edit-actions {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 .add-team {align-self:flex-start;}
 /* A team row, with "Priya Shah is changing this team" or the Change anyway confirm under it. */

@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { RaceScreenRead } from '../src/shared/race-screen.js';
 import type { TeamEntry } from '../src/shared/races.js';
-import { filledLegs } from '../src/shared/teams.js';
+import { filledLegs,legWarnings } from '../src/shared/teams.js';
 import { signInOwner } from './support/sign-in.js';
 import { relaySetup } from './support/relays.js';
 let app:FastifyInstance;
@@ -164,6 +164,15 @@ test('Done on a check-in Edit changes the race entry and the team list together,
   expect(done.teams![0]).toMatchObject({id:team.id,version:team.version+1,changing:null,
     legs:[{wristband:2102,warnings:[]},{wristband:2101,warnings:[]},{wristband:1045,warnings:kept},{wristband:2104,warnings:[]}]});
   expect(done.holds).toEqual({});
+});
+test('a relay\'s race screen carries the day\'s relays and their teams, so an Edit at check-in warns of a child in another relay as it is typed',async()=>{
+  const {sam,relays}=await start();
+  await relays.team(sam,'R21',[2101,2102,2103,2104]);
+  await relays.team(sam,'R22',[2201,2202,2203,2204]);
+  const seen=await relays.screen(sam,'R22');
+  expect([...seen.relays!].sort((a,b)=>a.code.localeCompare(b.code)).map(relay=>[relay.code,relay.name,relay.section,relay.teams.map(team=>team.number)])).toEqual([
+    ['R19','4x50m Relay','Boy Beavers',[]],['R20','4x50m Relay','Girl Beavers',[]],['R21','4x50m Relay','Boy Cubs',[1]],['R22','4x50m Relay','Girl Cubs',[1]],['R27','4x100m Relay','Boy Scouts',[]],['R28','4x100m Relay','Girl Scouts',[]]]);
+  expect(legWarnings(2101,seen.event,seen.relays!).map(warning=>warning.kind)).toContain('other-relay');
 });
 test('a check-in Edit is refused in order: race deleted, submitted or saved, a team not in the race, the mark, the version, then a wristband already in the relay',async()=>{
   const {owner,sam,priya,relays}=await start();
