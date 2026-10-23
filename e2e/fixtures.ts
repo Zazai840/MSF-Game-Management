@@ -1,4 +1,5 @@
-import { test as base,expect,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
+import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
+import pg from 'pg';
 import type { Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
@@ -156,6 +157,21 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
 /** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
   expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
+}
+/**
+ * Makes this test's own relay (its code and name unique to the project), switched on, so its teams and races touch no
+ * other test. A lead can't add a relay, so it goes straight into the e2e test database, switched off, and is switched
+ * on through the API, which tells every open Home.
+ */
+export async function ownRelay(code:string,name:string,section='Girl Cubs') {
+  const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+  try {
+    await db.query(`INSERT INTO events(id,day_id,code,name,section,format,enabled,relay,programme_order)
+      SELECT gen_random_uuid(),d.id,$1,$2,$3,'heats',false,true,(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=d.id) FROM olympics_days d WHERE d.active`,[code,name,section]);
+  } finally {await db.end();}
+  const api=await request.newContext({baseURL:process.env.E2E_BASE_URL});
+  try {expect((await api.post(`/api/day/events/${code}/enabled`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{enabled:true}})).ok()).toBe(true);}
+  finally {await api.dispose();}
 }
 /**
  * Deletes the event's current race for good, as a lead does a race opened by mistake, so no race a test left

@@ -36,7 +36,7 @@ export async function clearHolds(client:pg.PoolClient,signInId:string) {
  * has, and the event's last saved race.
  */
 export async function raceScreenRead(db:Database,dayId:string,code:string):Promise<RaceScreenRead> {
-  const event=(await db.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
+  const event=(await db.query('SELECT id,code,name,section,format,enabled,relay FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
   if(!event) throw new Refusal(404,'Event not found');
   const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
   const race=(await currentRaces(db,dayId,[event])).get(event.id)!,stage=stageForRace({kind:race.kind,event});
