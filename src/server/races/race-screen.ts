@@ -31,9 +31,10 @@ export async function readHolds(db:Database,dayId:string):Promise<Map<string,Rac
   for(const row of rows) holds.set(row.event_id,{...holds.get(row.event_id),[row.job]:{id:row.id,name:row.name}});
   return holds;
 }
-/** A phone that is signed out holds nothing. Run inside the sign-out's change, so the day revision rises with it. */
+/** A phone that is signed out holds nothing, nor is it changing any team. Run inside the sign-out's change, so the day revision rises with it. */
 export async function clearHolds(client:pg.PoolClient,signInId:string) {
   await client.query('DELETE FROM job_holds WHERE sign_in_id=$1',[signInId]);
+  await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE changing_by=$1',[signInId]);
 }
 /**
  * One event's race screen: the event, its current race, who holds its jobs, who is asked to press Submit Race and who
