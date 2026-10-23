@@ -14,10 +14,15 @@ import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
-import { raceLabel } from '../../shared/races.js';
+import { raceLabel,runnersOf } from '../../shared/races.js';
 /** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
   if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
+}
+/** These corrections rewrite a race child by child, so a relay race's teams would be lost. */
+function requireChildren(race:{event:{relay:boolean}}) {
+  // shortcut: relay races are refused until "Correct teams", team order corrections and team re-runs are built.
+  if(race.event.relay) throw new Refusal(409,'A relay race is corrected by team');
 }
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
@@ -86,9 +91,10 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
+      requireChildren(race);
       await requireCurrentUnstarted(client,current.dayId,race.event,'re-run');
       requireSaved(race);
-      const runners=race.parts.runners.value.map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
+      const runners=runnersOf(race.parts.runners.value).map(runner=>({id:randomUUID(),wristband:runner.wristband,warnings:(runner.warnings||[]).filter(warning=>warning.kind!=='already-ran')}));
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
       const {id,number}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id});
       if(race.final) {
@@ -116,8 +122,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       requireSaved(race);
+      requireChildren(race);
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
-      const previous=race.parts.runners.value||[],otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
+      const previous=runnersOf(race.parts.runners.value),otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
       const changed:string[]=[];
       const runners:Runner[]=input.map(entry=>{
         const old=entry.entryId===undefined?undefined:previous.find(runner=>runner.id===entry.entryId);
@@ -158,8 +165,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       requireSaved(race);
+      requireChildren(race);
       if(value.baseVersion!==race.parts.finish.version || value.runnersVersion!==race.parts.runners.version) throw new Refusal(409,'This race has changed - open it again');
-      const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
+      const previous=runnersOf(race.parts.runners.value),classified=[...order,...didNotFinish,...didNotRun];
       if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(runner=>runner.wristband===number))) throw new Refusal(400,unclassified);
       const idFor=(number:number)=>previous.find(runner=>runner.wristband===number)!.id,runners=previous.filter(runner=>!didNotRun.includes(runner.wristband));
       if(didNotRun.length) await correctPart(client,current,race,'runners',runners,runners);

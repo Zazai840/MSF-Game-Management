@@ -1,4 +1,5 @@
 import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
+import { isRunner } from '../src/shared/races.js';
 import pg from 'pg';
 import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
@@ -118,7 +119,7 @@ export function takeJob(request:APIRequestContext,token:string,eventCode:string,
 export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:Array<number|{fix:number;to:number}>,keptWarnings?:number[]) {
   const {race}=await takeJob(request,token,eventCode,'check-in');
   // A fix keeps the entry of the number it replaces, as fixing a number on the card does.
-  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
+  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.filter(isRunner).find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
   return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners:runners.map(entry),keptWarnings});
 }
 /**
@@ -130,7 +131,7 @@ export async function writeOrder(request:APIRequestContext,token:string,eventCod
   let {race}=await takeJob(request,token,eventCode,'order');
   // A runner typed at the finish has no entry until a write adds it, as on the card: added first, then placed.
   if(added.length) race=(await raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added,keptWarnings})).race;
-  const id=(wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+  const id=(wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   return raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[]});
 }
 /** Writes the times on the race screen as that phone, in hundredths by place; `keptWrong` are the places (0-based) whose wrong time it kept. */
@@ -196,6 +197,19 @@ export async function writeTeam(request:APIRequestContext,token:string,relayCode
   await takeTeams(request,token,relayCode);
   const version=teamId?await openTeam(request,token,relayCode,teamId):undefined;
   return teamsWrite(request,token,relayCode,'done',{teamId,version,legs,keptWarnings});
+}
+/** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
+async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here',number:number,data:object={}) {
+  const seen=await readRaceScreen(request,token,relayCode);
+  return raceScreenWrite(request,token,relayCode,what,{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===number)!.id,...data});
+}
+/** Ticks Team `number` into the relay's current heat as that phone (anyone can: there is no check-in hold on a relay). */
+export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
+  return checkInTap(request,token,relayCode,'tick',number);
+}
+/** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
+export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
+  return checkInTap(request,token,relayCode,'here',number,{leg:leg-1,here});
 }
 /** From Home: the Relays tab, then the Teams button, and waits for the Teams screen. */
 export async function openTeams(page:Page) {

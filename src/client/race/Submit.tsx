@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,jobs,submitBlocker,waitingOn,type RaceScreenRead } from '../../shared/race-screen.js';
+import { entryName } from '../../shared/races.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { TakeOver,useRaceWrite,type Offer } from './Hold.js';
@@ -14,7 +15,7 @@ export function ResultsCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneI
   const {race,holds}=screen,final=race.kind==='final',saved=race.state==='saved';
   const {busy,error,write}=useRaceWrite(screen.event.code,offer);
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
-  const wristband=(id:string)=>runners.find(runner=>runner.id===id)?.wristband;
+  const wristband=(id:string)=>{const runner=runners.find(entry=>entry.id===id);return runner && entryName(runner);};
   return <section className="race-card race-results"><div className="race-card-body">
     <div><h2>{final && saved?'Final results':'Results'}</h2><p className="race-hint">{saved?'Saved. Corrections go through a zone lead.':'Check them. Spot a mistake? Tap Not yet.'}</p></div>
     {error && <p role="alert">{error}</p>}

@@ -3,7 +3,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import type { Holder } from '../../shared/race-screen.js';
-import { legRefusal,legWarnings,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
+import { legRefusal,legWarnings,stillToRun,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { homeRead } from '../races/race-screen.js';
@@ -11,26 +11,23 @@ import { raceChange,type Database } from '../races/records.js';
 import { writeAuditNote } from '../rulings/records.js';
 /** A relay's team list as it stands: the relay, its teams not removed (by number) and its teams holder. */
 export type TeamList=TeamRelay & {id:string;enabled:boolean;teams:RelayTeam[];holder:Holder|null};
-/** Every relay of the day with its team list and teams holder, by event id. */
+/**
+ * Every relay of the day with its team list and teams holder, by event id. Each team carries the races holding it,
+ * worked out from the race entries: a team is still to run when no race of its relay holds it, apart from deleted races.
+ */
 export async function readTeamLists(db:Database,dayId:string):Promise<Map<string,TeamList>> {
   const lists=new Map<string,TeamList>();
   for(const relay of (await db.query('SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND relay',[dayId])).rows) lists.set(relay.id,{...relay,teams:[],holder:null});
   const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version,t.changing_since,s.id AS changing_id,s.name AS changing_name FROM relay_teams t JOIN events e ON e.id=t.event_id LEFT JOIN sign_ins s ON s.id=t.changing_by WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
-  const raced=await teamsEverInARace(db,dayId);
-  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,raced:raced.has(team.id),
-    changing:team.changing_id?{id:team.changing_id,name:team.changing_name,since:team.changing_since.toISOString()}:null});
+  const held=(await db.query(`SELECT r.id,r.kind,r.number,r.state,entry->'team'->>'id' AS team_id FROM races r JOIN events e ON e.id=r.event_id JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]' END) entry
+    WHERE e.day_id=$1 AND e.relay AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
+  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,
+    changing:team.changing_id?{id:team.changing_id,name:team.changing_name,since:team.changing_since.toISOString()}:null,
+    races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
   const holders=(await db.query("SELECT h.event_id,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1 AND h.job='teams'",[dayId])).rows;
   for(const holder of holders) lists.get(holder.event_id)!.holder={id:holder.id,name:holder.name};
   return lists;
-}
-/**
- * The day's teams in any race not deleted (run, or in an unsaved heat): those can't be removed. A deleted race's
- * teams are still to run, so they count as never in a race.
- * shortcut: assumes a team's race entry names it as `teamId`; check-in by team (ticket #140) sets that shape, so match it there.
- */
-export async function teamsEverInARace(db:Database,dayId:string):Promise<Set<string>> {
-  const rows=(await db.query("SELECT DISTINCT entry->>'teamId' AS team_id FROM races r JOIN race_parts p ON p.race_id=r.id AND p.part='runners' CROSS JOIN jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]'::jsonb END) entry WHERE r.day_id=$1 AND NOT r.deleted AND entry ? 'teamId'",[dayId])).rows;
-  return new Set(rows.map(row=>row.team_id as string));
 }
 /** One relay as a teams write sees it: its team list, whether its heats are complete, and the day's switched-on relays, which its warnings look through. */
 async function relayRead(db:Database,dayId:string,code:string) {
@@ -125,7 +122,7 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
       await requireHolder(client,relay,phone);
       const team=requestedTeam(relay,teamId);
       await requireMark(client,team,phone,body.version as number);
-      if(team.raced) throw new Refusal(409,`Team ${team.number} has been in a race - it can't be removed`);
+      if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has been in a race - it can't be removed`);
       await client.query('UPDATE relay_teams SET removed=true,version=version+1,changed_by=$2,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,phone.name]);
     });
   });

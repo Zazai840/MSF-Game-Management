@@ -48,7 +48,7 @@ test('Done saves a team in one write: a new team takes the next number, half-typ
   const opened=await teams(sam,'R22','hold');
   const first=await teams(sam,'R22','done',{legs:[2101,2134,null,2150]});
   expect(first.revision).toBeGreaterThan(opened.revision);
-  expect(relay(first,'R22').teams).toEqual([{id:expect.any(String),number:1,version:1,legs:[{wristband:2101,warnings:[]},{wristband:2134,warnings:[]},{wristband:null,warnings:[]},{wristband:2150,warnings:[]}],changing:null,raced:false}]);
+  expect(relay(first,'R22').teams).toEqual([{id:expect.any(String),number:1,version:1,legs:[{wristband:2101,warnings:[]},{wristband:2134,warnings:[]},{wristband:null,warnings:[]},{wristband:2150,warnings:[]}],changing:null,races:[]}]);
   // Two Done presses adding new teams at the same moment both land, with different numbers.
   await Promise.all([teams(sam,'R22','done',{legs:[2201,null,null,null]}),teams(sam,'R22','done',{legs:[2301,null,null,null]})]);
   const added=relay(await teams(priya,'R22','hold'),'R22').teams;
@@ -159,7 +159,7 @@ test('Remove team keeps the team recorded but off the list, and its number is ne
   const {sam,ali}=await start();
   for(const wristband of [2101,2201,2301]) await teams(sam,'R22','done',{legs:[wristband,null,null,null]});
   const team3=relay(await teams(sam,'R22','hold'),'R22').teams[2];
-  expect(team3.raced).toBe(false);
+  expect(team3.races).toEqual([]);
   // Remove team is part of a team's edit: it needs the team's mark and the version opened, like Done.
   expect((await call(sam,'/api/teams/R22/remove',{teamId:team3.id,version:1})).json()).toEqual({message:'Open the team again'});
   await teams(sam,'R22','open',{teamId:team3.id});

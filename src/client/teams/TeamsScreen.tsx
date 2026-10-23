@@ -1,8 +1,8 @@
 import { useEffect,useRef,useState } from 'react';
 import { ApiFailure,api } from '../api.js';
 import { ordinal } from '../../shared/ordinal.js';
-import type { HomeEvent,HomeSnapshot,Holder } from '../../shared/race-screen.js';
-import { filledLegs,legRefusal,legWarnings,teamsStatus,type RelayTeam } from '../../shared/teams.js';
+import { currentRaceLabel,type HomeEvent,type HomeSnapshot,type Holder } from '../../shared/race-screen.js';
+import { filledLegs,legRefusal,legWarnings,stillToRun,teamsStatus,unsavedRace,type RelayTeam } from '../../shared/teams.js';
 import { useLive } from '../live.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
 import { RaceCard } from '../race/RaceCard.js';
@@ -60,17 +60,17 @@ function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phon
   // A refused Done or Remove closes the team: its row shows the server's copy, to check and open again.
   const finish=async(what:string,body:object)=>{if(await write(what,body)) setEditing(null);};
   const edit=(team:RelayTeam|null)=><TeamEdit key={team?.id||'new'} team={team} relay={relay} relays={relays} busy={busy}
-    onCancel={()=>{if(team) void write('cancel',{teamId:team.id});setEditing(null);}} onDone={done=>void finish('done',done)} onRemove={team && !team.raced?version=>void finish('remove',{teamId:team.id,version}):undefined}/>;
+    onCancel={()=>{if(team) void write('cancel',{teamId:team.id});setEditing(null);}} onDone={done=>void finish('done',done)} onRemove={team && stillToRun(team)?version=>void finish('remove',{teamId:team.id,version}):undefined}/>;
   return <RaceCard title={relay.section} status={teamsStatus(relay,phoneId)} onOpen={()=>{if(!holder) void write('hold',{});}}>
     {error && <p role="alert">{error}</p>}
     {holder && !mine && <div className="relay-who"><span><strong>{holder.name}</strong> is entering. You see it read-only.</span>
       <TakeOver job="teams" holder={holder.name} busy={busy} onConfirm={()=>void write('take-over',{})}/></div>}
-    {mine && relay.teams.length>0 && open===null && <p className="race-hint">Tap a team to change it.</p>}
+    {mine && open===null && relay.teams.some(team=>!unsavedRace(team)) && <p className="race-hint">Tap a team to change it.</p>}
     {relay.teams.map(team=>{
       if(open===team.id) return edit(team);
       const by=team.changing && team.changing.id!==phoneId?team.changing.name:null;
       return <div key={team.id} className="team-item">
-        {mine && open===null?<button className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} disabled={busy} onClick={()=>by?setAsking(team.id):void change(team)}><TeamCells team={team}/></button>
+        {mine && open===null && !unsavedRace(team)?<button className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} disabled={busy} onClick={()=>by?setAsking(team.id):void change(team)}><TeamCells team={team}/></button>
           :<div className="team-row"><TeamCells team={team}/></div>}
         {by && asking!==team.id && <p className="race-hint">{by} is changing this team</p>}
         {by && asking===team.id && mine && <div className="warning-box"><p>{by} is changing this team. Change it anyway? Their changes will be lost.</p>
@@ -82,10 +82,13 @@ function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phon
   </RaceCard>;
 }
 
-/** A team read-only: "Team 3" ("3 of 4" under it when not complete), then its four wristbands, "-" for an empty box and amber for a kept warning. */
+/**
+ * A team read-only: "Team 3" ("3 of 4" under it when not complete, or "In heat 2" while an unsaved race holds it), then its
+ * four wristbands, "-" for an empty box and amber for a kept warning.
+ */
 function TeamCells({team}:{team:RelayTeam}) {
-  const filled=filledLegs(team);
-  return <><span className="team-name"><span>Team {team.number}</span>{filled<4 && <small className="is-short">{filled} of 4</small>}</span>
+  const filled=filledLegs(team),race=unsavedRace(team);
+  return <><span className="team-name"><span>Team {team.number}</span>{race?<small>In {currentRaceLabel(race).toLowerCase()}</small>:filled<4 && <small className="is-short">{filled} of 4</small>}</span>
     {team.legs.map((leg,index)=><span key={index} className={`leg-ro${leg.wristband===null?' is-empty':''}${leg.warnings.length?' is-amber':''}`}>{leg.wristband??'-'}</span>)}</>;
 }
 

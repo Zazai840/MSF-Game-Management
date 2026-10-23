@@ -3,7 +3,7 @@ import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions } from './RaceActions.js';
 import { useEffect,useRef,useState } from 'react';
 import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
-import { partLabel,raceLabel } from '../../shared/races.js';
+import { entryName,partLabel,raceLabel } from '../../shared/races.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
 import type { WrongTime } from '../../shared/wrong-times.js';
@@ -27,7 +27,7 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {clock(read.race.checkedInAt)}</p>
     <RaceActions race={read.race} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
     {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
-    <h4>Current record</h4><p>Runners: {read.race.parts.runners.value?.map(runner=>runner.wristband).join(' · ')||'None'}</p>
+    <h4>Current record</h4><p>Runners: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
     <CurrentRecord race={read.race} actionable={entryId=>actionableRunners.some(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;

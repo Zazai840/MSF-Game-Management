@@ -1,4 +1,5 @@
 import { afterEach,expect,test } from 'vitest';
+import { isRunner } from '../src/shared/races.js';
 import type { FastifyInstance } from 'fastify';
 import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
@@ -21,7 +22,7 @@ const eightTimes=[1201,1215,1230,1244,1260,1275,1290,1305];
 test('an ordinary race checks in 8 runners and records 8 places through finishing order and times',async()=>{
   const {volunteer,setup,read}=await start();
   const race=await setup.checkIn(volunteer,'R4',eight);
-  expect(race.parts.runners.value!.map(runner=>runner.wristband)).toEqual(eight);
+  expect(race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual(eight);
   await setup.order(volunteer,'R4',eight);await setup.times(volunteer,'R4',eightTimes);await setup.submit(volunteer,'R4');
   expect((await read(race.id!)).recording.results.map((row:any)=>[row.wristband,row.place,row.time])).toEqual(eight.map((number,index)=>[number,index+1,eightTimes[index]]));
 });

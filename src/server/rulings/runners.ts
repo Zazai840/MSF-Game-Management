@@ -7,7 +7,7 @@ import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandRaces } from '../races/warnings.js';
 import { readRace,listRaces } from '../races/records.js';
-import { raceLabel } from '../../shared/races.js';
+import { raceLabel,runnersOf } from '../../shared/races.js';
 import { readEventResults } from '../results/read.js';
 import { readRulings,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
@@ -19,7 +19,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
+      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
       if(!runner.addedAtFinish || previous?.addedAtFinishChecked) throw new Refusal(409,'There is no unchecked addition at the finish');
@@ -34,7 +34,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
+      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
       const open=runnerWarningFlags(runner,previous,false).filter(isOpenEligibilityWarning);
@@ -56,11 +56,11 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
+      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       if(value.expectedWristband!==runner.wristband) throw new Refusal(409,'Runner number has changed - open actions again');
       if(value.wristband===runner.wristband) throw new Refusal(409,'Enter the corrected wristband number');
-      const numbers=race.parts.runners.value!.map(entry=>entry.id===entryId?value.wristband:entry.wristband);
+      const numbers=runnersOf(race.parts.runners.value).map(entry=>entry.id===entryId?value.wristband:entry.wristband);
       const duplicate=runnerListRefusal(numbers);if(duplicate) throw new Refusal(400,duplicate);
       const wristband=value.wristband as number;
       const warnings=wristbandWarnings(wristband,race.event.section,await wristbandRaces(client,current.dayId,race.event.id),{currentRaceId:raceId,skipAlreadyRan:race.kind==='final'}).map(warning=>({...warning,kept:value.keepWarnings===true}));
@@ -77,12 +77,12 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
+      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const rulings=await readRulings(client,current.dayId);
       const rulingFor=(raceId:string,entryId:string)=>rulings.find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
       if(race.kind==='final' || rulingFor(raceId,entryId)?.disqualification) throw new Refusal(409,'This result cannot be chosen');
-      const matches=(await listRaces(client,current.dayId)).filter(other=>other.event.id===race.event.id && other.kind!=='final').flatMap(other=>(other.parts.runners.value||[]).filter(entry=>entry.wristband===runner.wristband && !rulingFor(other.id,entry.id)?.disqualification).map(entry=>({race:other,entry})));
+      const matches=(await listRaces(client,current.dayId)).filter(other=>other.event.id===race.event.id && other.kind!=='final').flatMap(other=>runnersOf(other.parts.runners.value).filter(entry=>entry.wristband===runner.wristband && !rulingFor(other.id,entry.id)?.disqualification).map(entry=>({race:other,entry})));
       if(matches.length<2) throw new Refusal(409,'This number has no other result to choose between');
       if(matches.every(match=>!!rulingFor(match.race.id,match.entry.id)?.notCounted===(match.race.id!==raceId || match.entry.id!==entryId))) throw new Refusal(409,'This is already the counted result');
       for(const match of matches) {
