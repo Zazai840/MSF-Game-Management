@@ -13,7 +13,7 @@ import { runnersOf,type Runner } from '../../shared/races.js';
 import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
-import { readTeamLists } from '../relays/teams.js';
+import { readTeamLists,type TeamList } from '../relays/teams.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
   return (await db.query('SELECT id,code,name,section,format,enabled,relay FROM events WHERE day_id=$1 ORDER BY programme_order,code',[dayId])).rows;
 }
@@ -45,10 +45,13 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   const auditNotes=(await readAuditNotes(db,dayId)).filter(note=>note.eventId===event.id);
   const tieSettlements=(await readTieSettlements(db,dayId)).filter(settlement=>settlement.eventId===event.id);
   const stages=(await readCompletedStages(db,dayId)).filter(stage=>stage.eventId===event.id).map(stage=>stage.stage);
-  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),event.relay?await switchedOnRelays(db,dayId):[]))};
+  const lists=event.relay?await readTeamLists(db,dayId):new Map<string,TeamList>();
+  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),switchedOn(lists))),
+    ...(event.relay?{teams:lists.get(event.id)!.teams}:{})};
 }
 /** The day's switched-on relays' team lists: a child on two of them is in two relays. */
-const switchedOnRelays=async(db:Database,dayId:string)=>[...(await readTeamLists(db,dayId)).values()].filter(relay=>relay.enabled);
+const switchedOn=(lists:Map<string,TeamList>)=>[...lists.values()].filter(relay=>relay.enabled);
+const switchedOnRelays=async(db:Database,dayId:string)=>switchedOn(await readTeamLists(db,dayId));
 /** Reuse persisted part and history times; queue ordering never depends on poll time. */
 async function leadTimings(db:Database,dayId:string) {
   const rows=(await db.query('SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1',[dayId])).rows;

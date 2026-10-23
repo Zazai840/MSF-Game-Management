@@ -1,12 +1,12 @@
 import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import { raceCounts } from './race-counts.js';
-import type { FinishingOrder,RaceEntry,Runner } from './races.js';
+import type { FinishingOrder,RaceEntry,TeamEntry } from './races.js';
 import { resultHolder,type EventState,type LeaderboardRow,type ResultsRace } from './results-rules.js';
 /** Immutable heat provenance (a relay team's has no wristband: its heat entry names the team). An absent qualifier remains here when a replacement is called up. */
-export interface FinalEntry { finalEntryId:string; heatRaceId:string; heatEntryId:string; heatWristband:number|null; seed:number; heatRank:number; kind:'qualifier'|'call-up'; absent:boolean; runner?:Runner; replacesEntryId?:string }
-export interface FinalAddition { runner:Runner; absent:boolean }
+export interface FinalEntry { finalEntryId:string; heatRaceId:string; heatEntryId:string; heatWristband:number|null; seed:number; heatRank:number; kind:'qualifier'|'call-up'; absent:boolean; runner?:RaceEntry; replacesEntryId?:string }
+export interface FinalAddition { runner:RaceEntry; absent:boolean }
 export interface FinalField { generation:string; entries:FinalEntry[]; additionalEntries?:FinalAddition[]; hasRun:boolean; heatsComplete:boolean }
-export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number|null;seed:number|null;absent:boolean;calledUp:boolean}> }
+export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number|null;team?:TeamEntry['team'];seed:number|null;absent:boolean;calledUp:boolean}> }
 export interface FinalResults extends FinalField { raceId:string; runners:readonly RaceEntry[]; leaderboard:LeaderboardRow[]; nextCallUp:LeaderboardRow|null; vacancy:FinalEntry|null }
 export function finalRows(state:EventState,race:ResultsRace):LeaderboardRow[] {
   if(!raceCounts(race)) return [];

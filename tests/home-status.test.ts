@@ -52,3 +52,12 @@ test('a relay tile reads Heats done · Final next once no team is still to run a
   // With a team ticked, held jobs read as the order and times.
   expect(homeStatus(relay([team(1,[heat1]),team(2,[heat2])],{race:heat2,holds:{order:jo,times:sam}}))).toBe('Heat 2 · Order and times · Jo, Sam');
 });
+test('a relay Final\'s tile reads Final, then Final · Finishing order · Jo, then the submitted line, then Done',()=>{
+  const final={id:'f',kind:'final',number:1,state:'in progress'} as const,heat1={id:'h1',kind:'heat',number:1,state:'saved'} as const;
+  const team=(number:number):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races:[heat1,final],legs:[{wristband:2101+number,warnings:[]}]});
+  const relay=(change:Partial<HomeEvent>={})=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:final,teams:[1,2,3,4,5,6].map(team),...change});
+  expect(homeStatus(relay())).toBe('Final');
+  expect(homeStatus(relay({holds:{order:jo}}))).toBe('Final · Finishing order · Jo');
+  expect(homeStatus(relay({race:{...final,state:'submitted'},waitingOn:['Jo']}))).toBe('Final · Waiting on 1 to submit · Jo');
+  expect(homeStatus(relay({done:true}))).toBe('Done');
+});
