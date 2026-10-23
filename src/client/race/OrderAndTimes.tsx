@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { onlyRunners,type RaceScreenRead } from '../../shared/race-screen.js';
-import type { Runner } from '../../shared/races.js';
+import { entryName,runnersOf,type RaceEntry } from '../../shared/races.js';
 import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits } from '../../shared/time-entry.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
@@ -16,7 +16,7 @@ type OrderColumn={order:string[];didNotFinish:string[];didNotRun:string[]};
 type Column='order'|'times';
 const columnNames:Record<Column,string>={order:'Order',times:'Times'};
 /** A wristband as the order shows it, with "At finish" under one typed at the finish: short enough for one line in the Wristband column. */
-const Wristband=({runner}:{runner:Runner})=><>{runner.wristband}{runner.addedAtFinish && <small>At finish</small>}</>;
+const Wristband=({runner}:{runner:RaceEntry})=><>{entryName(runner)}{runner.addedAtFinish && <small>At finish</small>}</>;
 
 /**
  * Order and Times ("Finishing order" on a final, with no times): one table by place, Place | Wristband | Time, with
@@ -91,7 +91,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     })}</div>
     {ordering && step==='move'?<>
       <p className="race-hint">Drag a wristband to its place: times stay by place.</p>
-      <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>String(byId.get(id)!.wristband)} onReorder={moved=>change({order:moved})}
+      <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>entryName(byId.get(id)!)} onReorder={moved=>change({order:moved})}
         renderItem={(id,place)=><><span className="race-move-place">{ordinal(place)}{time(place) && <small>{time(place)}</small>}</span><span className="race-move-runner"><Wristband runner={byId.get(id)!}/></span></>}/>
     </>:runners.length?<table className="race-table" aria-label={final?'Finishing order':'Order and times'}>
       <thead><tr><th>Place</th><th>Wristband</th>{!final && <th>Time</th>}</tr></thead>
@@ -107,13 +107,13 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         </tr>;
       })}</tbody>
     </table>:<p className="race-empty">Places appear here once runners are checked in</p>}
-    {didNotFinish.length>0 && <ul className="race-no-place" aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{byId.get(id)!.wristband}</strong><span>Did not finish</span>
-      {ordering && <button className="button-small button-secondary" aria-label={`Give a place to ${byId.get(id)!.wristband}`} onClick={()=>change({order:[...order,id],didNotFinish:didNotFinish.filter(other=>other!==id)})}>Give a place</button>}
+    {didNotFinish.length>0 && <ul className="race-no-place" aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{entryName(byId.get(id)!)}</strong><span>Did not finish</span>
+      {ordering && <button className="button-small button-secondary" aria-label={`Give a place to ${entryName(byId.get(id)!)}`} onClick={()=>change({order:[...order,id],didNotFinish:didNotFinish.filter(other=>other!==id)})}>Give a place</button>}
     </li>)}</ul>}
     {wrong.size>0 && !unkept && <p className="calm-note">Kept as typed. A zone lead will check it.</p>}
     {ordering && step==='move' && <button className="button-secondary" onClick={()=>setStep('place')}>Done</button>}
     {ordering && step==='add' && <>
-      <WristbandEntry event={event} raceId={race.id} busy={busy || sending} label="Runner not on the list: wristband number" taken={runners.map(runner=>runner.wristband)}
+      <WristbandEntry event={event} raceId={race.id} busy={busy || sending} label="Runner not on the list: wristband number" taken={runnersOf(runners).map(runner=>runner.wristband)}
         onSave={async(wristband,kept)=>{const sent=await send({order,didNotFinish,didNotRun:shown.didNotRun},[wristband],kept?[wristband]:[]);if(typeof sent==='object') setStep('place');return sent;}}/>
       <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
     </>}
@@ -121,12 +121,12 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       {!runners.length?<p className="race-hint">Runners to tap appear here as they are checked in.</p>
       :!unplaced.length?<p className="calm-note" role="status">Everyone has a place</p>
       :step==='no-place'?<>
-        <h3 className="race-question">{unplaced[0].wristband} has no place. What happened?</h3>
+        <h3 className="race-question">{entryName(unplaced[0])} has no place. What happened?</h3>
         <div className="race-pair"><button className="button-secondary" onClick={()=>change({didNotFinish:[...didNotFinish,unplaced[0].id]})}>Did not finish</button><button className="button-secondary" onClick={()=>change({didNotRun:[...shown.didNotRun,unplaced[0].id]})}>Didn't run</button></div>
         <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
       </>:<>
         <h3 className="race-question">Who came {ordinal(order.length+1)}?</h3>
-        <div className="race-numbers">{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{runner.wristband}</button>)}</div>
+        <div className="race-numbers">{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{entryName(runner)}</button>)}</div>
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
       {runners.length>0 && <div className="race-order-more">

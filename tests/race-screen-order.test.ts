@@ -1,4 +1,5 @@
 import { afterEach,expect,test } from 'vitest';
+import { isRunner } from '../src/shared/races.js';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { RaceScreenRead } from '../src/shared/race-screen.js';
@@ -28,9 +29,9 @@ async function checkIn(token:string,read:RaceScreenRead,runners:Array<number|{id
 }
 const order=(token:string,body:object,code='R4')=>call(token,`/api/race-screen/${code}/order`,{order:[],didNotFinish:[],didNotRun:[],added:[],...body});
 /** The entry id of a checked-in wristband. */
-const idOf=(read:RaceScreenRead,wristband:number)=>read.race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+const idOf=(read:RaceScreenRead,wristband:number)=>read.race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
 /** The finishing order as wristbands, place by place. */
-const placed=(read:RaceScreenRead)=>(read.race.parts.finish.value?.order||[]).map(id=>read.race.parts.runners.value!.find(runner=>runner.id===id)?.wristband??id);
+const placed=(read:RaceScreenRead)=>(read.race.parts.finish.value?.order||[]).map(id=>read.race.parts.runners.value!.filter(isRunner).find(runner=>runner.id===id)?.wristband??id);
 
 test('the order holder writes the order by entry, and a runner check-in removes drops out with later places moving up, even from an order sent before the removal',async()=>{
   const {sam,priya}=await start();
@@ -72,7 +73,7 @@ test('Did not finish stays in the race, Didn\'t run takes the runner off, and a 
   const response=await order(priya,{raceId:checked.race.id,version:1,order:[idOf(checked,2001),idOf(added,3045)],didNotFinish:[idOf(checked,2002)],didNotRun:[idOf(checked,2003)]});
   expect(response.statusCode,response.body).toBe(200);
   const settled=response.json() as RaceScreenRead;
-  expect(settled.race.parts.runners.value!.map(runner=>runner.wristband)).toEqual([2001,2002,3045]);
+  expect(settled.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([2001,2002,3045]);
   expect(placed(settled)).toEqual([2001,3045]);
   expect(settled.race.parts.finish.value!.didNotFinish).toEqual([idOf(checked,2002)]);
   expect((await order(priya,{raceId:checked.race.id,version:2,added:[2001]})).json()).toEqual({message:'2001 is already in this race'});

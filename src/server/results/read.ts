@@ -9,7 +9,7 @@ import type { EventState,ResultsRace } from '../../shared/results-rules.js';
 import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
 import type { DayEvent } from '../../shared/day.js';
-import type { Runner } from '../../shared/races.js';
+import { runnersOf,type Runner } from '../../shared/races.js';
 import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
@@ -18,7 +18,7 @@ async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
 }
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
 export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map()):EventState {
-  return {event,rulings,auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,saved:race.state==='saved',final:race.final,leadTimes:timings.get(race.id),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
+  return {event,rulings,auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,saved:race.state==='saved',final:race.final,leadTimes:timings.get(race.id),runners:runnersOf(race.parts.runners.value),finish:race.parts.finish.value,times:race.parts.times.value}))};
 
 }
 export async function readResults(db:Database,dayId:string,providedRaces?:StoredRace[]):Promise<ResultsRead> {
@@ -55,7 +55,7 @@ async function leadTimings(db:Database,dayId:string) {
   // Track the saved fact's introduction (at save, or by a lead correction), so a later change to somebody else never refreshes an old warning.
   const published=(await db.query(`SELECT h.race_id,h.value,h.saved_at FROM race_part_history h JOIN races r ON r.id=h.race_id
     WHERE r.day_id=$1 AND h.part='runners' AND h.saved_at IS NOT NULL ORDER BY h.saved_at`,[dayId])).rows;
-  const current=new Map<string,Runner[]>(rows.filter(row=>row.part==='runners').map(row=>[row.race_id,row.value||[]]));
+  const current=new Map<string,Runner[]>(rows.filter(row=>row.part==='runners').map(row=>[row.race_id,runnersOf(row.value)]));
   for(const saved of published) for(const runner of current.get(saved.race_id)||[]) {
     const old=(saved.value as Runner[]|null)?.find(entry=>entry.id===runner.id);if(!old) continue;
     const times=map.get(saved.race_id)!,at=saved.saved_at.toISOString();

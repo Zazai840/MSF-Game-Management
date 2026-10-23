@@ -11,12 +11,19 @@ import { raceChange,type Database } from '../races/records.js';
 import { writeAuditNote } from '../rulings/records.js';
 /** A relay's team list as it stands: the relay, its teams not removed (by number) and its teams holder. */
 export type TeamList=TeamRelay & {id:string;enabled:boolean;teams:RelayTeam[];holder:Holder|null};
-/** Every relay of the day with its team list and teams holder, by event id. */
+/**
+ * Every relay of the day with its team list and teams holder, by event id. Each team carries the races holding it,
+ * worked out from the race entries: a team is still to run when no race of its relay holds it, apart from deleted races.
+ */
 export async function readTeamLists(db:Database,dayId:string):Promise<Map<string,TeamList>> {
   const lists=new Map<string,TeamList>();
   for(const relay of (await db.query('SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND relay',[dayId])).rows) lists.set(relay.id,{...relay,teams:[],holder:null});
   const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version FROM relay_teams t JOIN events e ON e.id=t.event_id WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
-  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version});
+  const held=(await db.query(`SELECT r.id,r.kind,r.number,r.state,entry->'team'->>'id' AS team_id FROM races r JOIN events e ON e.id=r.event_id JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]' END) entry
+    WHERE e.day_id=$1 AND e.relay AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
+  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,
+    races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
   const holders=(await db.query("SELECT h.event_id,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1 AND h.job='teams'",[dayId])).rows;
   for(const holder of holders) lists.get(holder.event_id)!.holder={id:holder.id,name:holder.name};
   return lists;

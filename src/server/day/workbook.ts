@@ -7,7 +7,7 @@ import { readCompletedStages } from '../rulings/stages.js';
 import { readTieSettlements } from '../rulings/ties.js';
 import { eventState } from '../results/read.js';
 import { eventResults } from '../../shared/results-rules.js';
-import { raceLabel } from '../../shared/races.js';
+import { raceLabel,runnersOf } from '../../shared/races.js';
 /** All reads use the export transaction's day lock, including records omitted by live queues. */
 export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
  const events=await readEvents(client,false,dayId),races:StoredRace[]=[];
@@ -27,7 +27,7 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
    const place=(id:string)=>field.leaderboard.find(row=>row.entryId===id)?.position??null;
    const label=(absent:boolean,kind:string)=>`${race.deleted?'Deleted race; ':''}${absent?'Absent; ':''}${kind}`;
    for(const entry of field.entries){
-    const current=race.parts.runners.value?.find(runner=>runner.id===entry.finalEntryId)??entry.runner;
+    const current=runnersOf(race.parts.runners.value).find(runner=>runner.id===entry.finalEntryId)??entry.runner;
     const source=races.find(race=>race.id===entry.heatRaceId);
     const replaced=field.entries.find(other=>other.finalEntryId===entry.replacesEntryId);
     finals.push([event.code,event.name,event.section,raceLabel(race),entry.seed,current?.wristband??entry.heatWristband,entry.absent?null:place(entry.finalEntryId),label(entry.absent,entry.kind==='call-up'?'Call-up':'Qualifier'),source?raceLabel(source):'Heat no longer stored',entry.heatRank,entry.heatWristband,replaced?`${replaced.heatWristband} (seed ${replaced.seed})`:null]);

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { disqualificationReasons,type Disqualification } from '../../shared/rulings.js';
-import { raceLabel } from '../../shared/races.js';
+import { entryName,raceLabel } from '../../shared/races.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readRace } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
@@ -26,7 +26,7 @@ export function rulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         if(!lifting && previous) throw new Refusal(409,'This runner is already disqualified');
         const disqualification:Disqualification|null=lifting?null:{reason:reason!,comment};
         await client.query('INSERT INTO runner_rulings(race_id,entry_id,disqualification) VALUES($1,$2,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET disqualification=EXCLUDED.disqualification',[race.id,entryId,disqualification===null?null:JSON.stringify(disqualification)]);
-        const message=lifting?`${current.name} lifted the disqualification of ${runner.wristband} (${raceLabel(race)}): ${comment}`:`${current.name} disqualified ${runner.wristband} (${raceLabel(race)}): ${reason}${comment?` - ${comment}`:''}`;
+        const message=lifting?`${current.name} lifted the disqualification of ${entryName(runner)} (${raceLabel(race)}): ${comment}`:`${current.name} disqualified ${entryName(runner)} (${raceLabel(race)}): ${reason}${comment?` - ${comment}`:''}`;
         await writeAuditNote(client,current,race.event.id,{action:command,message,comment,touches:[{raceId:race.id,entryId}]});
         return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
       });

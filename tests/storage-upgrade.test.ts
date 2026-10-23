@@ -1,4 +1,5 @@
 import { afterEach,expect,test } from 'vitest';
+import { isRunner } from '../src/shared/races.js';
 import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import { raceSetup } from './support/races.js';
@@ -71,7 +72,7 @@ test('the boot script adds the relay mark, the team store and the teams job to a
     expect(day.events.every((event:{relay:boolean})=>event.relay===false)).toBe(true);
     const screen=await raceSetup(app).screen(owner,'R4');
     expect(screen.race).toMatchObject({id:race.id,state:'in progress'});
-    expect(screen.race.parts.runners.value?.map(runner=>runner.wristband)).toEqual([2001,2002]);
+    expect(screen.race.parts.runners.value?.filter(isRunner).map(runner=>runner.wristband)).toEqual([2001,2002]);
     expect(screen.holds['check-in']?.name).toBe('Aisha');
     const db=new pg.Client({connectionString:databaseUrl});await db.connect();
     try {

@@ -5,7 +5,7 @@ import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';
 import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
-import { raceLabel,replacedByRerun } from '../../shared/races.js';
+import { raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
@@ -105,7 +105,7 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
  */
 function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>Promise<void>;onClose:()=>void}) {
   type Order={order:number[];didNotFinish:number[];didNotRun:number[]};
-  const wristband=(id:string)=>race.parts.runners.value?.find(runner=>runner.id===id)?.wristband??0;
+  const wristband=(id:string)=>runnersOf(race.parts.runners.value).find(runner=>runner.id===id)?.wristband??0;
   const finish=race.parts.finish.value!,places=race.kind==='final'?null:race.parts.times.value?.places;
   // A change being saved shows at once; the race read after the save replaces it.
   const [saving,setSaving]=useState<Order|null>(null),[asking,setAsking]=useState<number|null>(null);
@@ -134,7 +134,7 @@ function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
  */
 function RaceRunnersEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
   const [original]=useState(race);
-  const [entries,setEntries]=useState(()=>((race.parts.runners.value||[]).map(runner=>({entryId:runner.id as string|undefined,number:String(runner.wristband)}))));
+  const [entries,setEntries]=useState(()=>(runnersOf(race.parts.runners.value).map(runner=>({entryId:runner.id as string|undefined,number:String(runner.wristband)}))));
   const [editing,setEditing]=useState<number|null>(null);
   const rows=useInSight(editing);
   const [step,setStep]=useState<'input'|'warnings'|'review'>('input');
@@ -156,7 +156,7 @@ function RaceRunnersEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race']
     try {
       const warnings:Array<{number:number;message:string}>=[];
       for(const entry of entries) {
-        const number=Number(entry.number),old=original.parts.runners.value?.find(runner=>runner.id===entry.entryId);
+        const number=Number(entry.number),old=runnersOf(original.parts.runners.value).find(runner=>runner.id===entry.entryId);
         if(old?.wristband===number) continue;
         const data=await api<{warnings:WristbandWarning[]}>('wristband-check',{eventCode:original.event.code,wristband:number,raceId:original.id});
         for(const warning of data.warnings.filter(warning=>original.kind!=='final'||warning.kind!=='already-ran')) warnings.push({number,message:warning.message});

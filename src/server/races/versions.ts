@@ -1,7 +1,7 @@
 import { publishFinalRunners } from './final-field.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import type { Runner,RacePartName,PartValue } from '../../shared/races.js';
+import { runnersOf,type RaceEntry,type RacePartName,type PartValue } from '../../shared/races.js';
 import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { readRace,withReplacement,type Database,type StoredRace } from './records.js';
 function canonical(value:unknown):string {
@@ -9,15 +9,16 @@ function canonical(value:unknown):string {
   return JSON.stringify(ordered(value));
 }
 /** Unlike answer equality, applying a coherent snapshot must preserve every entry ID. */
-export const sameRunnerSnapshot=(left:readonly Runner[],right:readonly Runner[])=>canonical(left)===canonical(right);
+export const sameRunnerSnapshot=(left:readonly RaceEntry[],right:readonly RaceEntry[])=>canonical(left)===canonical(right);
 /** Writes a part's new value at the next version. Taps before saving are not kept: history is written at save and by `correctPart`. */
 export async function publishPart(client:pg.PoolClient,phone:Phone,race:StoredRace,part:RacePartName,value:PartValue) {
   const version=(await client.query('UPDATE race_parts SET value=$1,version=version+1,saved_at=clock_timestamp(),saved_by=$2 WHERE race_id=$3 AND part=$4 RETURNING version',[JSON.stringify(value),phone.id,race.id,part])).rows[0].version as number;
-  if(part==='runners') await publishFinalRunners(client,race,value as Runner[]||[]);
+  // shortcut: a final's attendance follows its children only; a relay final's teams join it when relay finals are built.
+  if(part==='runners') await publishFinalRunners(client,race,runnersOf(value as RaceEntry[]|null));
   return version;
 }
 /** A lead correction: the part's new value, kept in the race's history with the lead's name and the race's runners then. */
-export async function correctPart(client:pg.PoolClient,lead:Phone,race:StoredRace,part:RacePartName,value:PartValue,runners:Runner[]=race.parts.runners.value||[]) {
+export async function correctPart(client:pg.PoolClient,lead:Phone,race:StoredRace,part:RacePartName,value:PartValue,runners:RaceEntry[]=race.parts.runners.value||[]) {
   const version=await publishPart(client,lead,race,part,value);
   await client.query('INSERT INTO race_part_history(race_id,part,version,value,runners,corrected_by) VALUES($1,$2,$3,$4,$5,$6)',[race.id,part,version,JSON.stringify(value),JSON.stringify(runners),lead.name]);
 }

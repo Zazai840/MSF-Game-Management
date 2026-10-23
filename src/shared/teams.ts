@@ -4,13 +4,28 @@ import { plainWristbandWarning,wristbandWarnings } from './wristband-checks.js';
 export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-relay'; message:string; kept:boolean }
 /** One leg of a relay team: its child's wristband (null while the box is empty) and that child's kept warnings. */
 export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
-/** A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order. */
-export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number }
+/** A race holding a relay team: one of its relay's races that is not deleted. */
+export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number; state:'in progress'|'submitted'|'saved' }
+/**
+ * A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order, and the races holding it
+ * (worked out from the races, never stored), oldest first. `changing` is who has it open to change, if anyone.
+ */
+export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; races:TeamRace[]; changing?:{id:string;name:string}|null }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
 export interface TeamRelay { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
 export const filledLegs=(team:Pick<RelayTeam,'legs'>)=>team.legs.filter(leg=>leg.wristband!==null).length;
-const teamCount=(count:number)=>`${count} ${count===1?'team':'teams'}`;
+/** Still to run: no race of its relay holds the team, apart from deleted races. Removed teams are not on the list at all. */
+export const stillToRun=(team:Pick<RelayTeam,'races'>)=>!team.races.length;
+/** The unsaved race holding the team, if any: on the Teams screen it reads "In heat 2" and can't be changed there. */
+export const unsavedRace=(team:Pick<RelayTeam,'races'>)=>team.races.find(race=>race.state!=='saved')??null;
+/**
+ * Who is changing the team now, or null: the name on its "being changed by" marker. A team being changed can't be
+ * ticked into a race, and other phones see "Priya Shah is changing this team" under it.
+ */
+export const changingName=(team:Pick<RelayTeam,'changing'>)=>team.changing?.name??null;
+/** "1 team", "5 teams". */
+export const teamCount=(count:number)=>`${count} ${count===1?'team':'teams'}`;
 /** A relay card's status line on the Teams screen: "You are entering · 5 teams · Team 5 is 3 of 4", "Sam Patel is entering · 5 teams", "5 teams" or "No teams yet · open to start". */
 export function teamsStatus({teams,teamsHolder}:{teams:readonly RelayTeam[];teamsHolder:{id:string;name:string}|null},phoneId:string) {
   const short=teams.find(team=>filledLegs(team)<4);

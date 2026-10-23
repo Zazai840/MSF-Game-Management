@@ -1,4 +1,5 @@
 import { afterEach,expect,test } from 'vitest';
+import { isRunner } from '../src/shared/races.js';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
@@ -21,9 +22,9 @@ test('a re-run becomes the current race with its check-in pre-filled and Order a
   const rerun=await call(lead,`/api/lead/races/${heat1.id}/re-run`,{comment:'False start'});expect(rerun.statusCode,rerun.body).toBe(200);
   const current=(await screen()).race;
   expect(current).toMatchObject({id:rerun.json().newRaceId,number:2,state:'in progress',parts:{finish:{value:null},times:{value:null}}});
-  expect(current.parts.runners.value!.map(runner=>runner.wristband)).toEqual([1001,1002,1003]);
+  expect(current.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([1001,1002,1003]);
   // The check-in holder can change the pre-filled list.
-  expect((await setup.checkIn(jo,'R1',[1001,1002])).parts.runners.value!.map(runner=>runner.wristband)).toEqual([1001,1002]);
+  expect((await setup.checkIn(jo,'R1',[1001,1002])).parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([1001,1002]);
   await setup.order(jo,'R1',[1002,1001]);await setup.times(jo,'R1',[1000,1100]);await setup.submit(jo,'R1');
   expect((await screen()).race).toMatchObject({id:null,number:3});
 });
@@ -34,7 +35,7 @@ test('Re-run is refused while the current race has check-ins, and changes nothin
   const refused=await call(lead,`/api/lead/races/${heat1.id}/re-run`,{});
   expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe("Heat 2 is in progress - re-run after it's saved");
   expect(await revision()).toBe(before);
-  expect((await screen()).race.parts.runners.value!.map(runner=>runner.wristband)).toEqual([1004]);
+  expect((await screen()).race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([1004]);
   // A race not saved yet is the current race, so it is refused the same way.
   const current=(await screen()).race.id!;
   expect((await call(lead,`/api/lead/races/${current}/re-run`,{})).json().message).toBe("Heat 2 is in progress - re-run after it's saved");
@@ -47,7 +48,7 @@ test('race numbers are never reused: delete an unsaved Heat 2 and Heat 3 shows n
   const restored=await call(lead,`/api/lead/races/${heat2.id}/restore`,{});expect(restored.statusCode,restored.body).toBe(200);
   const current=(await screen()).race;
   expect(current).toMatchObject({id:heat2.id,number:2,state:'in progress'});
-  expect(current.parts.runners.value!.map(runner=>runner.wristband)).toEqual([1004,1005]);
+  expect(current.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([1004,1005]);
   expect(current.parts.finish.value?.order).toEqual([current.parts.runners.value![1].id]);
   await setup.order(jo,'R1',[1005,1004]);await setup.times(jo,'R1',[1000,1100]);await setup.submit(jo,'R1');
   expect((await screen()).race).toMatchObject({id:null,number:3});
@@ -83,7 +84,7 @@ test('Heats complete waits on a heat with check-ins, ignores an empty current he
   expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=(await screen()).race;
   expect(final).toMatchObject({kind:'final',state:'in progress'});
-  expect(final.parts.runners.value!.map(runner=>runner.wristband).sort()).toEqual([1001,1002,1003]);
+  expect(final.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband).sort()).toEqual([1001,1002,1003]);
 });
 test('Heats complete with the empty next heat never stored',async()=>{
   const {lead,screen}=await start();

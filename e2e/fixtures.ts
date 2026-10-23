@@ -1,4 +1,5 @@
 import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
+import { isRunner } from '../src/shared/races.js';
 import pg from 'pg';
 import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
@@ -118,7 +119,7 @@ export function takeJob(request:APIRequestContext,token:string,eventCode:string,
 export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:Array<number|{fix:number;to:number}>,keptWarnings?:number[]) {
   const {race}=await takeJob(request,token,eventCode,'check-in');
   // A fix keeps the entry of the number it replaces, as fixing a number on the card does.
-  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
+  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.filter(isRunner).find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
   return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners:runners.map(entry),keptWarnings});
 }
 /**
@@ -130,7 +131,7 @@ export async function writeOrder(request:APIRequestContext,token:string,eventCod
   let {race}=await takeJob(request,token,eventCode,'order');
   // A runner typed at the finish has no entry until a write adds it, as on the card: added first, then placed.
   if(added.length) race=(await raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added,keptWarnings})).race;
-  const id=(wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+  const id=(wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   return raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[]});
 }
 /** Writes the times on the race screen as that phone, in hundredths by place; `keptWrong` are the places (0-based) whose wrong time it kept. */
