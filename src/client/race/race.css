@@ -50,6 +50,9 @@
 .race-no-place strong {font-size:18px; color:var(--text); font-variant-numeric:tabular-nums;}
 .race-no-place li span {flex:1;}
 .race-no-place li:has(> button) {padding-right:6px;}
+/* A team's row is too wide for one line on a 360px phone: "Team 2" over "Did not finish", Give a place beside both. */
+.race-no-place.race-teams li:has(> button) {display:grid; grid-template-columns:1fr auto; column-gap:10px; align-content:center; padding-block:6px; line-height:1.25;}
+.race-no-place.race-teams li > button {grid-row:1 / span 2; grid-column:2;}
 .race-table small {display:block; font-size:13px; font-weight:700; color:var(--muted);}
 .race-next {display:inline-flex; align-items:center; min-height:32px; padding:0 12px; border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small);}
 

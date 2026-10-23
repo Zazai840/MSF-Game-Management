@@ -13,7 +13,7 @@ export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number
  */
 export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changing:{id:string;name:string;since:string}|null; races:TeamRace[] }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
-export interface TeamRelay { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
+export interface TeamList { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
 export const filledLegs=(team:Pick<RelayTeam,'legs'>)=>team.legs.filter(leg=>leg.wristband!==null).length;
 /** Still to run: no race of its relay holds the team, apart from deleted races. Removed teams are not on the list at all. */
@@ -25,12 +25,21 @@ export const unsavedRace=(team:Pick<RelayTeam,'races'>)=>team.races.find(race=>r
  * ticked into a race, and other phones see "Priya Shah is changing this team" under it.
  */
 export const changingName=(team:Pick<RelayTeam,'changing'>)=>team.changing?.name??null;
+/** What a race entry is: a runner, or on a relay a team ("This team is already disqualified"). */
+export const entryNoun=(relay:boolean)=>relay?'team':'runner';
+/** What fills a place in the order: a wristband, or on a relay a team. */
+export const entryWord=(relay:boolean)=>relay?'team':'wristband';
+/** "1 runner", "5 runners"; on a relay "1 team", "5 teams". */
+export const entryCount=(count:number,relay:boolean)=>`${count} ${entryNoun(relay)}${count===1?'':'s'}`;
 /** "1 team", "5 teams". */
-export const teamCount=(count:number)=>`${count} ${count===1?'team':'teams'}`;
+export const teamCount=(count:number)=>entryCount(count,true);
+/** A word as it starts a sentence or a column: "Team", "Runners". */
+export const capitalised=(word:string)=>word[0].toUpperCase()+word.slice(1);
 /** A relay card's status line on the Teams screen: "You are entering · 5 teams · Team 5 is 3 of 4", "Sam Patel is entering · 5 teams", "5 teams" or "No teams yet · open to start". */
 export function teamsStatus({teams,teamsHolder}:{teams:readonly RelayTeam[];teamsHolder:{id:string;name:string}|null},phoneId:string) {
-  const short=teams.find(team=>filledLegs(team)<4);
-  return [teamsHolder?(teamsHolder.id===phoneId?'You are entering':`${teamsHolder.name} is entering`):'',teams.length?teamCount(teams.length):'No teams yet',
+  // Only the holder is told which team is not complete.
+  const mine=teamsHolder?.id===phoneId,short=mine?teams.find(team=>filledLegs(team)<4):undefined;
+  return [teamsHolder?(mine?'You are entering':`${teamsHolder.name} is entering`):'',teams.length?teamCount(teams.length):'No teams yet',
     short?`Team ${short.number} is ${filledLegs(short)} of 4`:'',!teamsHolder && !teams.length?'open to start':''].filter(Boolean).join(' · ');
 }
 /** The Teams button's badge: every relay's teams, then how many are not complete; empty with no teams. */
@@ -50,7 +59,7 @@ export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:re
  * What looks wrong about a leg's number, for Fix number or Keep: no Section uses it, it is another Section's (any
  * Beaver number is in range for both Beaver relays), or the child is already in a team of another relay.
  */
-export function legWarnings(number:number,relay:Pick<TeamRelay,'code'|'section'>,relays:readonly TeamRelay[]):Array<Omit<TeamWarning,'kept'>> {
+export function legWarnings(number:number,relay:Pick<TeamList,'code'|'section'>,relays:readonly TeamList[]):Array<Omit<TeamWarning,'kept'>> {
   const warnings=wristbandWarnings(number,relay.section,[],{skipAlreadyRan:true}).map(warning=>({kind:warning.kind as TeamWarning['kind'],message:plainWristbandWarning(warning,number,relay.section)}));
   for(const other of relays) if(other.code!==relay.code) for(const team of other.teams) if(team.legs.some(leg=>leg.wristband===number)) warnings.push({kind:'other-relay',message:`${number} is also in Team ${team.number} of ${other.name} ${other.section}.`});
   return warnings;

@@ -11,19 +11,18 @@ import { actions,Refusal } from '../access/permissions.js';
 import { readRace,withReplacement } from '../races/records.js';
 import { correctPart,leadRace } from '../races/versions.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
-import { rulingChange,writeAuditNote } from './records.js';
+import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
-import { stillToRun } from '../../shared/teams.js';
-import { correctTeam,readTeamLists } from '../relays/teams.js';
-import { relayLists } from '../races/race-screen.js';
+import { entryCount } from '../../shared/teams.js';
+import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 /** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
   if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
 }
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
-function requireChildren(race:{event:{relay:boolean}}) {
+function requireNotRelay(race:{event:{relay:boolean}}) {
   if(race.event.relay) throw new Refusal(409,'A relay race is corrected by team');
 }
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -45,8 +44,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       requireSaved(race);
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
-      const count=race.parts.runners.value?.length||0,entries=race.event.relay?(count===1?'team':'teams'):count===1?'runner':'runners';
-      if(places.length>count) throw new Refusal(409,`This race has ${count} ${entries} - enter no more places than that`);
+      const count=race.parts.runners.value?.length||0;
+      if(places.length>count) throw new Refusal(409,`This race has ${entryCount(count,race.event.relay)} - enter no more places than that`);
       if(places.length<count) throw new Refusal(409,race.event.relay?'The teams in this race have changed - open the race again':'The runner list has changed - open the race again');
       const currentPlaces=places,outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
       await correctPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});
@@ -128,7 +127,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       requireSaved(race);
-      requireChildren(race);
+      requireNotRelay(race);
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=runnersOf(race.parts.runners.value),otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
       const changed:string[]=[];
@@ -156,7 +155,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       }
       await correctPart(client,current,race,'runners',runners,runners);
       if(JSON.stringify(finish)!==JSON.stringify(race.parts.finish.value)) await correctPart(client,current,race,'finish',finish,runners);
-      for(const entryId of changed) await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[race.id,entryId,'[]']);
+      for(const entryId of changed) await reopenEntryChecks(client,race.id,entryId);
       await writeAuditNote(client,current,race.event.id,{action:'correct-runners',comment,message:`${current.name} corrected the runners for ${raceLabel(race)}: ${numbers.join(', ')||'none'}${finish===null && race.parts.finish.value?'; Finish order must be recorded again':''}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
@@ -169,8 +168,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/lead/races/:id/teams','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),input=value.teams;
     if(!Array.isArray(input) || input.some(item=>!item || typeof item!=='object' || Array.isArray(item) || (typeof item.entryId==='string')===(typeof item.teamId==='string'))) throw new Refusal(400,'Choose the teams');
-    const boxes=(legs:unknown)=>Array.isArray(legs) && legs.length===4 && legs.every(leg=>leg===null || (Number.isSafeInteger(leg) && leg>=0)) && legs.some(leg=>leg!==null);
-    if(input.some(item=>item.legs!==undefined && (!item.entryId || !boxes(item.legs)))) throw new Refusal(400,'Enter the four wristband boxes');
+    if(input.some(item=>item.legs!==undefined && (!item.entryId || !fourBoxes(item.legs) || item.legs.every((leg:number|null)=>leg===null)))) throw new Refusal(400,'Enter the four wristband boxes');
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<1 || !Number.isSafeInteger(value.finishVersion) || Number(value.finishVersion)<0) throw new Refusal(400,'Open the race before correcting its teams');
     const kept=Array.isArray(value.keptWarnings)?value.keptWarnings:[];
     return rulingChange(pool,phone,async(client,current)=>{
@@ -188,10 +186,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         if(!old && !team) throw new Refusal(404,'Team not found');
         const teamId=old?.team.id??team!.id;
         if(runners.some(entry=>entry.team.id===teamId)) throw new Refusal(400,'Choose each team once');
-        if(team) {
-          if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
-          runners.push({id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null}))});
-        } else if(item.legs && item.legs.some((wristband,index)=>wristband!==old!.legs[index].wristband)) {
+        // A lead's correction is not held back by a volunteer's open change.
+        if(team) runners.push(joiningTeam(team,{here:true,evenIfChanging:true}));
+        else if(item.legs && item.legs.some((wristband,index)=>wristband!==old!.legs[index].wristband)) {
           runners.push(await correctTeam(client,current,race,old!,item.legs,kept));changed.push(old!.id);
         } else runners.push(old!);
       }
@@ -201,7 +198,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const next={order:[...finish.order.filter(id=>ids.has(id)),...added.map(entry=>entry.id)],didNotFinish:finish.didNotFinish.filter(id=>ids.has(id))};
         if(JSON.stringify(next)!==JSON.stringify(finish)) await correctPart(client,current,race,'finish',next,runners);
       }
-      for(const entryId of changed) await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[race.id,entryId,'[]']);
+      for(const entryId of changed) await reopenEntryChecks(client,race.id,entryId);
       await writeAuditNote(client,current,race.event.id,{action:'correct-runners',comment,message:`${current.name} corrected the teams for ${raceLabel(race)}: ${runners.map(entryName).join(', ')||'none'}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });

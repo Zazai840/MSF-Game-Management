@@ -12,7 +12,7 @@ import { correctTeam } from '../relays/teams.js';
 import { readEventResults } from '../results/read.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
 import { resultHolder,resultName } from '../../shared/results-rules.js';
-import { readRulings,rulingChange,writeAuditNote } from './records.js';
+import { readRulings,reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
@@ -72,7 +72,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const corrected=await correctTeam(client,current,race,entry,wristbands,[...wristbands.filter((_,at)=>at!==leg),...(value.keepWarnings===true?[wristband]:[])]);
         const runners=race.parts.runners.value!.map(other=>other.id===entryId?corrected:other);
         await correctPart(client,current,race,'runners',runners,runners);
-        await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[raceId,entryId,'[]']);
+        await reopenEntryChecks(client,raceId,entryId);
         await writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} corrected ${was} to ${wristband} in Team ${entry.team.number} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
         return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
       }
@@ -86,7 +86,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const warnings=wristbandWarnings(wristband,race.event.section,await wristbandRaces(client,current.dayId,race.event.id),{currentRaceId:raceId,skipAlreadyRan:race.kind==='final'}).map(warning=>({...warning,kept:value.keepWarnings===true}));
       const runners=race.parts.runners.value!.map(entry=>entry.id===entryId?{...entry,wristband,warnings}:entry);
       await correctPart(client,current,race,'runners',runners,runners);
-      await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[raceId,entryId,'[]']);
+      await reopenEntryChecks(client,raceId,entryId);
       await writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} corrected ${runner.wristband} to ${wristband} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });

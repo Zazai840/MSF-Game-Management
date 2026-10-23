@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import { onlyRunners,entryWord,type RaceScreenRead } from '../../shared/race-screen.js';
+import { onlyRunners,type RaceScreenRead } from '../../shared/race-screen.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry } from '../../shared/races.js';
-import { changingName,stillToRun } from '../../shared/teams.js';
+import { capitalised,changingName,entryNoun,entryWord,stillToRun } from '../../shared/teams.js';
 import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits } from '../../shared/time-entry.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
@@ -80,6 +80,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
   const ordering=holds.order?.id===phoneId && !stageComplete;
   // "+ Team not on the list" offers the relay's teams still to run that nobody is changing: never a new team.
   const addable=(screen.teams||[]).filter(team=>stillToRun(team) && !changingName(team));
+  // A relay Final's teams are its seeds, call-ups and a lead's additions: none is added at the finish.
+  const addAtFinish=!(event.relay && final);
   const next=ordering && step==='place' && unplaced.length?order.length:-1;
   const rows=Math.max(runners.length-didNotFinish.length,order.length,places.length);
   const time=(place:number)=>places[place-1]==null?'':formatTime(places[place-1]!);
@@ -106,7 +108,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>entryName(byId.get(id)!)} onReorder={moved=>change({order:moved})}
         renderItem={(id,place)=><><span className="race-move-place">{ordinal(place)}{time(place) && <small>{time(place)}</small>}</span><span className="race-move-runner"><EntryLabel entry={byId.get(id)!}/></span></>}/>
     </>:runners.length?<table className={event.relay?'race-table race-teams':'race-table'} aria-label={final?'Finishing order':'Order and times'}>
-      <thead><tr><th>Place</th><th>{event.relay?'Team':'Wristband'}</th>{!final && <th>Time</th>}</tr></thead>
+      <thead><tr><th>Place</th><th>{capitalised(place)}</th>{!final && <th>Time</th>}</tr></thead>
       <tbody>{Array.from({length:rows},(_,index)=>{
         const runner=byId.get(order[index]);
         return <tr key={index}><td>{ordinal(index+1)}</td>
@@ -118,8 +120,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
             :<>{time(index+1)}<WrongTimeReason wrong={wrong.get(index)}/></>}</td>}
         </tr>;
       })}</tbody>
-    </table>:<p className="race-empty">Places appear here once {event.relay?'teams':'runners'} are checked in</p>}
-    {didNotFinish.length>0 && <ul className="race-no-place" aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{entryName(byId.get(id)!)}</strong><span>Did not finish</span>
+    </table>:<p className="race-empty">Places appear here once {entryNoun(event.relay)}s are checked in</p>}
+    {didNotFinish.length>0 && <ul className={event.relay?'race-no-place race-teams':'race-no-place'} aria-label="No place">{didNotFinish.map(id=><li key={id}><strong>{entryName(byId.get(id)!)}</strong><span>Did not finish</span>
       {ordering && <button className="button-small button-secondary" aria-label={`Give a place to ${entryName(byId.get(id)!)}`} onClick={()=>change({order:[...order,id],didNotFinish:didNotFinish.filter(other=>other!==id)})}>Give a place</button>}
     </li>)}</ul>}
     {wrong.size>0 && !unkept && <p className="calm-note">Kept as typed. A zone lead will check it.</p>}
@@ -139,7 +141,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
       <button className="button-quiet" onClick={()=>setStep('place')}>Back to the order</button>
     </>}
     {ordering && (step==='place' || step==='no-place') && <div className="race-order">
-      {!runners.length?<p className="race-hint">{event.relay?'Teams':'Runners'} to tap appear here as they are checked in.</p>
+      {!runners.length?<p className="race-hint">{capitalised(entryNoun(event.relay))}s to tap appear here as they are checked in.</p>
       :!unplaced.length?<p className="calm-note" role="status">{event.relay?'Every team has a place':'Everyone has a place'}</p>
       :step==='no-place'?<>
         <h3 className="race-question">{noPlaceName(unplaced[0])} has no place. What happened?</h3>
@@ -151,8 +153,8 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         <div className={event.relay?'race-numbers race-teams':'race-numbers'}>{unplaced.map(runner=><button key={runner.id} onClick={()=>change({order:[...order,runner.id]})}>{event.relay?<EntryLabel entry={runner}/>:entryName(runner)}</button>)}</div>
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
-      {runners.length>0 && <div className="race-order-more">
-        <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>{event.relay?'+ Team not on the list':'+ Runner not on the list'}</button>
+      {runners.length>0 && (addAtFinish || order.length>1) && <div className="race-order-more">
+        {addAtFinish && <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>+ {capitalised(entryNoun(event.relay))} not on the list</button>}
         {order.length>1 && <button className="button-quiet" onClick={()=>setStep('move')}>Change the order</button>}
       </div>}
     </div>}

@@ -2,7 +2,7 @@ import { useEffect,useRef,useState } from 'react';
 import { ApiFailure,api } from '../api.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { currentRaceLabel,type HomeEvent,type HomeSnapshot,type Holder } from '../../shared/race-screen.js';
-import { filledLegs,legRefusal,legWarnings,stillToRun,teamsStatus,unsavedRace,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
+import { filledLegs,legRefusal,legWarnings,stillToRun,teamsStatus,unsavedRace,type RelayTeam,type TeamList } from '../../shared/teams.js';
 import { useLive } from '../live.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
 import { RaceCard } from '../race/RaceCard.js';
@@ -102,7 +102,7 @@ export function TeamCells({team}:{team:RelayTeam}) {
  * looks wrong shows amber once its box is left, with Fix number or Keep. Done needs each fixed or kept. At check-in
  * the boxes sit `bare` under the team's own heading, without its name beside them.
  */
-export function TeamEdit({team,relay,relays,busy,bare=false,onCancel,onDone,onRemove}:{team:RelayTeam|null;relay:TeamRelay;relays:readonly TeamRelay[];busy:boolean;bare?:boolean;onCancel:()=>void;onDone:(done:Done)=>void;onRemove?:(version:number)=>void}) {
+export function TeamEdit({team,relay,relays,busy,bare=false,onCancel,onDone,onRemove}:{team:RelayTeam|null;relay:TeamList;relays:readonly TeamList[];busy:boolean;bare?:boolean;onCancel:()=>void;onDone:(done:Done)=>void;onRemove?:(version:number)=>void}) {
   /** The version this team was opened at: Done and Remove send it, so a change made meanwhile refuses them. */
   const [version]=useState(team?.version),[removing,setRemoving]=useState(false);
   const [boxes,setBoxes]=useState(()=>(team?.legs.map(leg=>leg.wristband===null?'':String(leg.wristband))||['','','','']));

@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { andList,currentRaceLabel,jobWords,jobs,onlyRunners,entryWord,submitBlocker,waitingOn,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
+import { andList,currentRaceLabel,jobWords,jobs,onlyRunners,submitBlocker,waitingOn,type CurrentRace,type HomeSnapshot,type Holder,type Job,type RaceScreenRead } from '../../shared/race-screen.js';
 import { isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
-import { changingName,stillToRun,type RelayTeam } from '../../shared/teams.js';
+import { entryWord,type RelayTeam } from '../../shared/teams.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
@@ -14,7 +14,7 @@ import { resultsSnapshot } from '../results/read.js';
 import { writeAuditNote } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { readEvents } from '../day/events.js';
-import { cancelTeam,openTeam,readTeamLists,relayRead,requestedDone,requestedId,writeTeam } from '../relays/teams.js';
+import { cancelTeam,joiningTeam,openTeam,readTeamLists,relayLists,requestedDone,requestedId,teamsWriteRead,writeTeam } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
@@ -52,11 +52,6 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
   const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
   return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null,
     ...(event.relay?await relayLists(db,dayId,event.id):{})};
-}
-/** A relay's race screen carries its team list, and every switched-on relay's, which a check-in Edit's warnings look through. */
-export async function relayLists(db:Database,dayId:string,eventId:string) {
-  const lists=await readTeamLists(db,dayId);
-  return {teams:lists.get(eventId)!.teams,relays:[...lists.values()].filter(relay=>relay.enabled).map(({code,name,section,teams})=>({code,name,section,teams}))};
 }
 /** Home: every switched-on event's status line inputs, and each relay's team list with its teams holder, read for the whole day at once. */
 export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
@@ -229,10 +224,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/race-screen/:code/tick','Volunteer',(request,_reply,phone)=>tap(request,phone,async({client,screen,race,team,entries,entry:ticked},unchanged)=>{
     if(ticked) {unchanged();return;}
     if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
-    if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
-    const changer=changingName(team);
-    if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
-    const entry:TeamEntry={id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:false}))};
+    const entry=joiningTeam(team);
     if(race.id) return [...entries,entry];
     if(!screen.event.enabled) throw new Refusal(409,'This event is switched off');
     await createRace(client,[entry],{dayId:phone.dayId,eventId:screen.event.id,kind:race.kind,savedBy:phone.id});
@@ -249,8 +241,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     const body=(request.body||{}) as {leg?:unknown;here?:unknown};
     if(!Number.isInteger(body.leg) || Number(body.leg)<0 || Number(body.leg)>3 || typeof body.here!=='boolean') throw new Refusal(400,'Choose a child and whether they are here');
     const index=Number(body.leg),here=body.here;
-    return tap(request,phone,async({race,team,entries,entry},unchanged)=>{
-      if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
+    return tap(request,phone,async(tapped,unchanged)=>{
+      const {entries}=tapped,entry=tickedEntry(tapped);
       if(entry.legs[index].wristband===null) throw new Refusal(400,'Choose a child in this team');
       if(entry.legs[index].here===here) {unchanged();return;}
       return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
@@ -271,8 +263,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     });
   });
   // Edit on a team ticked into the race opens its four boxes, marking it as this phone's as on the Teams screen.
-  action('POST','/api/race-screen/:code/edit-open','Volunteer',(request,_reply,phone)=>tap(request,phone,async({client,race,team,entry},unchanged)=>{
-    if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
+  action('POST','/api/race-screen/:code/edit-open','Volunteer',(request,_reply,phone)=>tap(request,phone,async(tapped,unchanged)=>{
+    const {client,team}=tapped;
+    tickedEntry(tapped);
     await openTeam(client,team,phone,(request.body as {changeAnyway?:unknown}).changeAnyway,unchanged);
   }));
   // Cancel on an Edit clears this phone's mark, whatever has become of the race since.
@@ -288,9 +281,9 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   // here mark, whichever leg they moved to; a child swapped in starts unmarked.
   action('POST','/api/race-screen/:code/edit-done','Volunteer',(request,_reply,phone)=>{
     const done=requestedDone(request.body);
-    return tap(request,phone,async({client,screen,race,team,entries,entry})=>{
-      if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
-      const legs=await writeTeam(client,await relayRead(client,phone.dayId,screen.event.code),team,phone,done);
+    return tap(request,phone,async tapped=>{
+      const {client,screen,team,entries}=tapped,entry=tickedEntry(tapped);
+      const legs=await writeTeam(client,await teamsWriteRead(client,phone.dayId,screen.event.code),team,phone,done);
       return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:entry.legs.some(was=>was.here && was.wristband===leg.wristband)}))}:other);
     });
   });
@@ -319,6 +312,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       // Teams are never made at the finish: a team not on any list is added on the Teams screen first.
       if(screen.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
       if(!screen.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
+      // A relay Final's teams are its seeds, call-ups and a lead's additions.
+      if(screen.race.kind==='final' && addedTeams.length) throw new Refusal(409,'Ask a lead to add a team to the Final');
       const previous=screen.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
       const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
       if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
@@ -370,7 +365,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await requireSubmittable(client,phone,screen,raceId);
       const waiting=waitingOn(screen.asked,[...screen.pressed,phone]);
       await saveRace(client,phone,screen);
-      await client.query('DELETE FROM job_holds WHERE event_id=$1 AND sign_in_id=ANY($2)',[screen.event.id,waiting.map(holder=>holder.id)]);
+      // Only the race jobs: a relay's teams hold never makes anyone waited on.
+      await client.query("DELETE FROM job_holds WHERE event_id=$1 AND sign_in_id=ANY($2) AND job<>'teams'",[screen.event.id,waiting.map(holder=>holder.id)]);
       await writeAuditNote(client,phone,screen.event.id,{action:'save-as-lead',message:`Saved by ${phone.name}${waiting.length?` without ${andList(waiting.map(holder=>holder.name))}'s Submit`:''} on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
     });
   });
@@ -394,10 +390,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
 function addedAtFinish(screen:RaceScreenRead,teamId:string):TeamEntry {
   const team=screen.teams!.find(item=>item.id===teamId);
   if(!team) throw new Refusal(404,'Team not found');
-  if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
-  const changer=changingName(team);
-  if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
-  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null})),addedAtFinish:true};
+  return joiningTeam(team,{here:true,addedAtFinish:true});
 }
 /** A check-in tap's body: the race the phone saw (null for the empty next heat) and the team tapped. */
 function tappedTeam(body:unknown) {
@@ -422,6 +415,11 @@ async function requireTap(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead
   if(!team) throw new Refusal(404,'Team not found');
   const entries=race.parts.runners.value||[];
   return {client,screen,race,team,entries,entry:entries.find((entry):entry is TeamEntry=>isTeamEntry(entry) && entry.team.id===team.id)};
+}
+/** The tapped team's entry in the race: refused once check-in has taken the team off. */
+function tickedEntry({race,team,entry}:Tapped):TeamEntry {
+  if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
+  return entry;
 }
 /** A race Submit Race (or Save as lead) can save: the current race, its stage open, not saved, and nothing blocking it. */
 async function requireSubmittable(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,raceId:string|null) {
