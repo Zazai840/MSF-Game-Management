@@ -24,3 +24,6 @@ input.leg-box.is-amber {border-color:var(--amber-line); background:var(--amber-f
 .team-warn p {margin:0 0 8px; font-size:var(--text-small);}
 .edit-actions {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 .add-team {align-self:flex-start;}
+/* A team row, with "Priya Shah is changing this team" or the Change anyway confirm under it. */
+.team-item {display:flex; flex-direction:column; gap:6px;}
+.remove-team {align-self:flex-start;}

@@ -127,6 +127,10 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       number integer NOT NULL, legs jsonb NOT NULL, removed boolean NOT NULL DEFAULT false, version integer NOT NULL DEFAULT 1,
       UNIQUE(event_id,number)
     );
+    -- Who is changing a team (the "is changing this team" mark) and since when, and who last changed it, named in a late Done's refusal.
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_since timestamptz;
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by text;
     -- Submit presses on a race: who pressed and when. Not yet clears them; Take over removes the old holder's.
     CREATE TABLE IF NOT EXISTS submit_presses (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,

@@ -1,4 +1,4 @@
-import { expect,live,lookProblems,markHere,openRaceScreen,openTeams,ownRelay,test,tickTeam,writeTeam,type Page } from './fixtures.js';
+import { expect,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,test,tickTeam,writeTeam,type Page } from './fixtures.js';
 
 /** A relay's card on the Teams screen, by its distance heading and Section. */
 const card=(page:Page,name:string,section:string)=>page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${section}`)});
@@ -193,8 +193,8 @@ test('a relay with no teams says where they are typed, and the Teams screen show
   await openRelay(sam.page,name,'Boy Cubs');
   await openCheckIn(sam.page);
   await expect(sam.page.getByText('No teams yet. They are typed on the Teams screen at the prep area.',{exact:true})).toBeVisible();
-  const legs=[1101,1102,1103,1104].map(number=>number+at*10);
-  await writeTeam(request,priya.token,code,legs,{keptWarnings:legs});
+  const wristbands=[1101,1102,1103,1104].map(number=>number+at*10);
+  await writeTeam(request,priya.token,code,wristbands,{keptWarnings:wristbands});
   await expect(sam.page.getByRole('button',{name:/^Team 1 /})).toBeVisible(live);
   await tickTeam(request,sam.token,code,1);
   await expect(sam.page.getByText('Every other team has run.',{exact:true})).toBeVisible(live);
@@ -206,4 +206,95 @@ test('a relay with no teams says where they are typed, and the Teams screen show
   await expect(priya.page.getByRole('button',{name:'Change Team 1',exact:true})).toHaveCount(0);
   expect(await lookProblems(priya.page)).toEqual([]);
   await priya.page.screenshot({path:info.outputPath('teams-in-heat.png'),fullPage:true});
+});
+
+/** Wristbands for the "is changing" tests: Girl Cubs numbers no other test or project uses, so no Keep is needed. */
+const changingWristband=(project:string,offset:number)=>2700+['iPhone','Android','desktop'].indexOf(project)*40+offset;
+/** The ids of a relay's teams, in number order, from the Home snapshot a team write answers. */
+const teamIds=(home:Awaited<ReturnType<typeof writeTeam>>,code:string)=>home.events.find(event=>event.code===code)!.teams!.map(team=>team.id);
+
+test('a team being changed shows who is changing it on other phones, live, and Take over closes it on the old holder\'s phone',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`TMC-${project.toUpperCase()}`,name=`Teams changing ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
+  await ownRelay(code,name,'Girl Cubs');
+  const priya=`Priya Shah changing ${project}`,sam=`Sam Patel changing ${project}`;
+  const priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
+  await writeTeam(request,priyaPhone.token,code,[Number(n(1)),Number(n(2)),null,null]);
+  for(const {page} of [priyaPhone,samPhone]) await openTeams(page);
+  await card(priyaPhone.page,name,'Girl Cubs').click();
+  await card(samPhone.page,name,'Girl Cubs').click();
+  await priyaPhone.page.getByRole('button',{name:'Change Team 1',exact:true}).click();
+  await expect(priyaPhone.page.getByLabel('Team 1 1st leg',{exact:true})).toHaveValue(n(1));
+  // Sam sees Priya is changing Team 1, and can't open it.
+  await expect(samPhone.page.getByText(`${priya} is changing this team`,{exact:true})).toBeVisible(live);
+  await expect(samPhone.page.getByRole('button',{name:'Change Team 1',exact:true})).toHaveCount(0);
+  expect(await lookProblems(samPhone.page)).toEqual([]);
+  await samPhone.page.screenshot({path:info.outputPath('teams-is-changing.png'),fullPage:true});
+  // Take over of the teams closes Priya's open team and clears her mark.
+  await samPhone.page.getByRole('button',{name:'Take over the teams',exact:true}).click();
+  await samPhone.page.getByRole('button',{name:'Take over',exact:true}).click();
+  await expect(samPhone.page.getByText(`${priya} is changing this team`,{exact:true})).toHaveCount(0);
+  await expect(priyaPhone.page.getByLabel('Team 1 1st leg',{exact:true})).toHaveCount(0,live);
+  await expect(legs(priyaPhone.page,name,1)).toHaveText([n(1),n(2),'-','-']);
+});
+
+test('Change anyway after its confirm opens the team with what was last saved, and a Done overtaken by another change snaps back to the server\'s copy',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`TMA-${project.toUpperCase()}`,name=`Teams change anyway ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
+  await ownRelay(code,name,'Girl Cubs');
+  const priya=`Priya Shah anyway ${project}`,sam=`Sam Patel anyway ${project}`;
+  const priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
+  const [team1]=teamIds(await writeTeam(request,samPhone.token,code,[Number(n(11)),Number(n(12)),null,null]),code);
+  await openTeams(samPhone.page);
+  await card(samPhone.page,name,'Girl Cubs').click();
+  // Priya left Team 1 open (here through the API, as an Edit at check-in would).
+  await openTeam(request,priyaPhone.token,code,team1);
+  await expect(samPhone.page.getByText(`${priya} is changing this team`,{exact:true})).toBeVisible(live);
+  await samPhone.page.getByRole('button',{name:'Change Team 1',exact:true}).click();
+  await expect(samPhone.page.getByText(`${priya} is changing this team. Change it anyway? Their changes will be lost.`,{exact:true})).toBeVisible();
+  expect(await lookProblems(samPhone.page)).toEqual([]);
+  await samPhone.page.screenshot({path:info.outputPath('teams-change-anyway.png'),fullPage:true});
+  await samPhone.page.getByRole('button',{name:'Change anyway',exact:true}).click();
+  const box=(leg:string)=>samPhone.page.getByLabel(`Team 1 ${leg} leg`,{exact:true});
+  await expect(box('1st')).toHaveValue(n(11));
+  await expect(box('2nd')).toHaveValue(n(12));
+  await expect(samPhone.page.getByText(`${priya} is changing this team`,{exact:true})).toHaveCount(0);
+  // Meanwhile Team 1 is changed and saved elsewhere, so this Done is refused and the boxes snap back.
+  await box('3rd').fill(n(13));
+  await writeTeam(request,samPhone.token,code,[Number(n(11)),Number(n(14)),null,null],{teamId:team1});
+  await samPhone.page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(samPhone.page.getByRole('alert')).toHaveText(`${sam} changed this team - check it and enter it again`);
+  await expect(box('1st')).toHaveCount(0);
+  await expect(legs(samPhone.page,name,1)).toHaveText([n(11),n(14),'-','-']);
+  // Opening it again carries on from the server's copy.
+  await samPhone.page.getByRole('button',{name:'Change Team 1',exact:true}).click();
+  await box('3rd').fill(n(13));
+  await samPhone.page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(legs(samPhone.page,name,1)).toHaveText([n(11),n(14),n(13),'-']);
+});
+
+test('Remove team, after its confirm, takes a team off the list for good: the list reads Team 1, 2, 4',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`TMR-${project.toUpperCase()}`,name=`Teams remove ${project}`,n=(offset:number)=>changingWristband(project,offset);
+  await ownRelay(code,name,'Girl Cubs');
+  const samPhone=await openPhone(`Sam Patel remove ${project}`),priyaPhone=await openPhone(`Priya Shah remove ${project}`);
+  for(const offset of [21,22,23]) await writeTeam(request,samPhone.token,code,[n(offset),null,null,null]);
+  for(const {page} of [samPhone,priyaPhone]) await openTeams(page);
+  await card(samPhone.page,name,'Girl Cubs').click();
+  await card(priyaPhone.page,name,'Girl Cubs').click();
+  // A new team being added has nothing to remove.
+  await samPhone.page.getByRole('button',{name:'+ Add team',exact:true}).click();
+  await expect(samPhone.page.getByRole('button',{name:'Remove team',exact:true})).toHaveCount(0);
+  await samPhone.page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await samPhone.page.getByRole('button',{name:'Change Team 3',exact:true}).click();
+  await samPhone.page.screenshot({path:info.outputPath('teams-edit.png'),fullPage:true});
+  await samPhone.page.getByRole('button',{name:'Remove team',exact:true}).click();
+  await expect(samPhone.page.getByText('Remove Team 3? Its number won\'t be used again.',{exact:true})).toBeVisible();
+  expect(await lookProblems(samPhone.page)).toEqual([]);
+  await samPhone.page.screenshot({path:info.outputPath('teams-remove.png'),fullPage:true});
+  await samPhone.page.getByRole('button',{name:'Remove',exact:true}).click();
+  const names=(page:Page)=>page.getByRole('region',{name,exact:true}).locator('.team-name > span');
+  await expect(names(samPhone.page)).toHaveText(['Team 1','Team 2']);
+  await expect(names(priyaPhone.page)).toHaveText(['Team 1','Team 2'],live);
+  await samPhone.page.getByRole('button',{name:'+ Add team',exact:true}).click();
+  await samPhone.page.getByLabel('New team 1st leg',{exact:true}).fill(String(n(24)));
+  await samPhone.page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(names(priyaPhone.page)).toHaveText(['Team 1','Team 2','Team 4'],live);
 });

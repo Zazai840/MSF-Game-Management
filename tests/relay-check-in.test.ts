@@ -117,3 +117,32 @@ test('a relay never gets a check-in hold, and only a relay takes team taps',asyn
   expect((await relays.screen(sam,'R19')).holds).toEqual({});
   expect((await call(sam,'/api/race-screen/R4/tick',{raceId:null,teamId:'x'})).json()).toEqual({message:'Only a relay has teams'});
 });
+test('a team being changed can\'t be ticked until its change is done',async()=>{
+  const {sam,priya,relays}=await start();
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  const teamId=(await relays.screen(sam,'R22')).teams![0].id;
+  await relays.post(sam,'/api/teams/R22/open',{teamId});
+  const seen=await relays.screen(priya,'R22');
+  expect(seen.teams![0].changing).toMatchObject({name:'Sam Patel'});
+  expect((await call(priya,'/api/race-screen/R22/tick',{raceId:null,teamId})).json()).toEqual({message:'Sam Patel is changing Team 1'});
+  await relays.post(sam,'/api/teams/R22/cancel',{teamId});
+  expect((await relays.tick(priya,'R22',1)).race.parts.runners.value).toHaveLength(1);
+});
+test('Remove team is refused for a team in a race, run or not, and allowed again once its race is deleted',async()=>{
+  const {owner,sam,priya,relays}=await start();
+  for(const wristband of [2101,2201,2301,2401]) await relays.team(sam,'R22',[wristband,null,null,null]);
+  const remove=async(number:number)=>{
+    const team=(await relays.screen(sam,'R22')).teams!.find(item=>item.number===number)!;
+    await relays.post(sam,'/api/teams/R22/open',{teamId:team.id});
+    return call(sam,'/api/teams/R22/remove',{teamId:team.id,version:team.version}).then(response=>response.json());
+  };
+  // Team 4 in the unsaved heat, then Team 1 in a saved one.
+  await relays.tick(priya,'R22',1);
+  await relays.save(priya,'R22',[1],[1500]);
+  const heat2=await relays.tick(priya,'R22',4);
+  expect(await remove(4)).toEqual({message:'Team 4 has been in a race - it can\'t be removed'});
+  expect(await remove(1)).toEqual({message:'Team 1 has been in a race - it can\'t be removed'});
+  // A deleted race holds nobody: Team 4 is still to run again, so it can go.
+  expect((await call(owner,`/api/lead/races/${heat2.race.id}/delete`,{permanent:false})).statusCode).toBe(200);
+  expect((await remove(4)).events.find((event:{code:string})=>event.code==='R22').teams.map((team:{number:number})=>team.number)).toEqual([1,2,3]);
+});

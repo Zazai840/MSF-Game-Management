@@ -184,13 +184,19 @@ async function teamsWrite(request:APIRequestContext,token:string,relayCode:strin
 export function takeTeams(request:APIRequestContext,token:string,relayCode:string) {
   return teamsWrite(request,token,relayCode,'take-over',{});
 }
+/** Opens a team to change it as that phone, as tapping it does ("Priya Shah is changing this team" elsewhere); returns the version it opened. */
+export async function openTeam(request:APIRequestContext,token:string,relayCode:string,teamId:string,changeAnyway=false) {
+  const home=await teamsWrite(request,token,relayCode,'open',{teamId,changeAnyway});
+  return home.events.find(event=>event.code===relayCode)!.teams!.find(team=>team.id===teamId)!.version;
+}
 /**
- * Writes a team as that phone, as its Done does: takes the relay's teams hold, then sends the four boxes (null for
- * an empty box) and the wristbands whose warnings it kept. With no `teamId` it adds a new team.
+ * Writes a team as that phone, as its Done does: takes the relay's teams hold, opens the team (with no `teamId`, a new
+ * team), then sends the four boxes (null for an empty box) and the wristbands whose warnings it kept.
  */
 export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{teamId,keptWarnings=[]}:{teamId?:string;keptWarnings?:number[]}={}) {
   await takeTeams(request,token,relayCode);
-  return teamsWrite(request,token,relayCode,'done',{teamId,legs,keptWarnings});
+  const version=teamId?await openTeam(request,token,relayCode,teamId):undefined;
+  return teamsWrite(request,token,relayCode,'done',{teamId,version,legs,keptWarnings});
 }
 /** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
 async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here',number:number,data:object={}) {

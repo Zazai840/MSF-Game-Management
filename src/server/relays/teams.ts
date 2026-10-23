@@ -3,7 +3,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import type { Holder } from '../../shared/race-screen.js';
-import { legRefusal,legWarnings,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
+import { legRefusal,legWarnings,stillToRun,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { homeRead } from '../races/race-screen.js';
@@ -18,11 +18,12 @@ export type TeamList=TeamRelay & {id:string;enabled:boolean;teams:RelayTeam[];ho
 export async function readTeamLists(db:Database,dayId:string):Promise<Map<string,TeamList>> {
   const lists=new Map<string,TeamList>();
   for(const relay of (await db.query('SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND relay',[dayId])).rows) lists.set(relay.id,{...relay,teams:[],holder:null});
-  const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version FROM relay_teams t JOIN events e ON e.id=t.event_id WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
+  const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version,t.changing_since,s.id AS changing_id,s.name AS changing_name FROM relay_teams t JOIN events e ON e.id=t.event_id LEFT JOIN sign_ins s ON s.id=t.changing_by WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
   const held=(await db.query(`SELECT r.id,r.kind,r.number,r.state,entry->'team'->>'id' AS team_id FROM races r JOIN events e ON e.id=r.event_id JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]' END) entry
     WHERE e.day_id=$1 AND e.relay AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
   for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,
+    changing:team.changing_id?{id:team.changing_id,name:team.changing_name,since:team.changing_since.toISOString()}:null,
     races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
   const holders=(await db.query("SELECT h.event_id,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1 AND h.job='teams'",[dayId])).rows;
   for(const holder of holders) lists.get(holder.event_id)!.holder={id:holder.id,name:holder.name};
@@ -47,6 +48,24 @@ async function requireHolder(client:pg.PoolClient,relay:Relay,phone:Phone) {
   if(relay.holder && relay.holder.id!==phone.id) throw new Refusal(409,`${relay.holder.name} took over the teams`);
   if(!relay.holder) await takeHold(client,relay,phone);
 }
+function requestedId(teamId:unknown) {
+  if(typeof teamId!=='string') throw new Refusal(400,'Choose a team');
+  return teamId;
+}
+function requestedTeam(relay:Relay,teamId:string) {
+  const team=relay.teams.find(item=>item.id===teamId);
+  if(!team) throw new Refusal(404,'Team not found');
+  return team;
+}
+/** A change to a team is the phone's only while it holds the team's mark and sends the version it opened. */
+async function requireMark(client:pg.PoolClient,team:RelayTeam,phone:Phone,version:number) {
+  if(team.changing && team.changing.id!==phone.id) throw new Refusal(409,`${team.changing.name} is changing this team`);
+  if(version!==team.version) {
+    const by=(await client.query('SELECT changed_by FROM relay_teams WHERE id=$1',[team.id])).rows[0].changed_by;
+    throw new Refusal(409,`${by||'Someone'} changed this team - check it and enter it again`);
+  }
+  if(!team.changing) throw new Refusal(409,'Open the team again');
+}
 /**
  * The Teams screen's writes, one relay each. Each runs under the day lock, raises the day revision when it changes
  * anything, and answers with Home as it then stands: the Teams screen reads Home's day-wide stream.
@@ -69,13 +88,50 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
     const from=relay.holder;
     if(from?.id===phone.id) {unchanged();return;}
     await takeHold(client,relay,phone);
+    // The old holder's open teams close: their marks go, and a Done they send later is refused.
+    if(from) await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE event_id=$1 AND changing_by=$2',[relay.id,from.id]);
     if(from) await writeAuditNote(client,phone,relay.id,{action:'take-over',message:`${phone.name} took over the teams from ${from.name} on ${relay.name} ${relay.section}`,comment:null,touches:[]});
   }));
+  // Opening a team to change it marks it as this phone's ("Priya Shah is changing this team"). Someone else's mark
+  // refuses it unless the phone chose Change anyway, which moves the mark: the other phone's Done is then refused.
+  action('POST','/api/teams/:code/open','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {teamId?:unknown;changeAnyway?:unknown},teamId=requestedId(body.teamId);
+    return write(phone,code(request),async(client,relay,unchanged)=>{
+      requireOpen(relay);
+      const team=requestedTeam(relay,teamId);
+      if(team.changing?.id===phone.id) {unchanged();return;}
+      if(team.changing && body.changeAnyway!==true) throw new Refusal(409,`${team.changing.name} is changing this team`);
+      await client.query('UPDATE relay_teams SET changing_by=$2,changing_since=clock_timestamp() WHERE id=$1',[team.id,phone.id]);
+    });
+  });
+  // Cancel puts the team back as it was saved and clears this phone's mark; a mark that moved on is left alone.
+  action('POST','/api/teams/:code/cancel','Volunteer',(request,_reply,phone)=>{
+    const teamId=requestedId(((request.body||{}) as {teamId?:unknown}).teamId);
+    return write(phone,code(request),async(client,relay,unchanged)=>{
+      if(requestedTeam(relay,teamId).changing?.id!==phone.id) {unchanged();return;}
+      await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE id=$1',[teamId]);
+    });
+  });
+  // Remove team, from inside a team's edit: only for a team never in a race. The row stays, removed, so an audit
+  // note can still name it and its number is never used again.
+  action('POST','/api/teams/:code/remove','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {teamId?:unknown;version?:unknown},teamId=requestedId(body.teamId);
+    if(!Number.isSafeInteger(body.version)) throw new Refusal(400,'Open the team again');
+    return write(phone,code(request),async(client,relay)=>{
+      requireOpen(relay);
+      await requireHolder(client,relay,phone);
+      const team=requestedTeam(relay,teamId);
+      await requireMark(client,team,phone,body.version as number);
+      if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has been in a race - it can't be removed`);
+      await client.query('UPDATE relay_teams SET removed=true,version=version+1,changed_by=$2,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,phone.name]);
+    });
+  });
   // Done: the team's four boxes in one write, with the wristbands whose warnings were kept. A new team (no id) takes
   // one more than the highest number the relay has ever used; the day lock serialises Dones, so two never clash.
   action('POST','/api/teams/:code/done','Volunteer',(request,_reply,phone)=>{
-    const body=(request.body||{}) as {teamId?:unknown;legs?:unknown;keptWarnings?:unknown};
+    const body=(request.body||{}) as {teamId?:unknown;version?:unknown;legs?:unknown;keptWarnings?:unknown};
     if(body.teamId!==undefined && typeof body.teamId!=='string') throw new Refusal(400,'Choose a team');
+    if(body.teamId!==undefined && !Number.isSafeInteger(body.version)) throw new Refusal(400,'Open the team again');
     if(!Array.isArray(body.legs) || body.legs.length!==4 || body.legs.some(leg=>leg!==null && (!Number.isSafeInteger(leg) || leg<0))) throw new Refusal(400,'Enter the four wristband boxes');
     const wristbands=body.legs as Array<number|null>,teamId=body.teamId as string|undefined,kept=body.keptWarnings??[];
     if(wristbands.every(wristband=>wristband===null)) throw new Refusal(400,'Enter at least one wristband number');
@@ -83,16 +139,16 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
     return write(phone,code(request),async(client,relay)=>{
       requireOpen(relay);
       await requireHolder(client,relay,phone);
-      const team=teamId===undefined?null:relay.teams.find(item=>item.id===teamId);
-      if(team===undefined) throw new Refusal(404,'Team not found');
+      const team=teamId===undefined?null:requestedTeam(relay,teamId);
+      if(team) await requireMark(client,team,phone,body.version as number);
       const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,teamId??null,wristbands,index)).find(Boolean);
       if(refusal) throw new Refusal(409,refusal);
       // A warning is stored only once kept: Done needs each one fixed or kept.
       const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays).map(warning=>({...warning,kept:true}))}));
       const unkept=legs.find(leg=>leg.warnings.length && !kept.includes(leg.wristband));
       if(unkept) throw new Refusal(409,`${unkept.wristband} needs Fix number or Keep`);
-      if(team) await client.query('UPDATE relay_teams SET legs=$2,version=version+1 WHERE id=$1',[team.id,JSON.stringify(legs)]);
-      else await client.query('INSERT INTO relay_teams(id,event_id,number,legs) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3 FROM relay_teams WHERE event_id=$2',[randomUUID(),relay.id,JSON.stringify(legs)]);
+      if(team) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name]);
+      else await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4 FROM relay_teams WHERE event_id=$2',[randomUUID(),relay.id,JSON.stringify(legs),phone.name]);
     });
   });
 }

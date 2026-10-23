@@ -25,7 +25,7 @@ test('a relay with no teams reads No teams yet',()=>{
 });
 test('a relay tile counts the teams still to run, then the teams ticked while checking in',()=>{
   const heat1={id:'h1',kind:'heat',number:1,state:'saved'} as const,heat2={id:'h2',kind:'heat',number:2,state:'in progress'} as const;
-  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,races,legs:[{wristband:2101+number,warnings:[]}]});
+  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races,legs:[{wristband:2101+number,warnings:[]}]});
   const relay=(teams:RelayTeam[],change:Partial<HomeEvent>={})=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{id:null,kind:'heat',number:1,state:'in progress'},teams,...change});
   expect(homeStatus(relay([1,2,3,4,5].map(number=>team(number))))).toBe('Heat 1 · 5 teams to run');
   expect(homeStatus(relay([team(1)]))).toBe('Heat 1 · 1 team to run');
