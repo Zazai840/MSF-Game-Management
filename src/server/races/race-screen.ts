@@ -353,7 +353,8 @@ interface Tapped { client:pg.PoolClient; screen:RaceScreenRead; race:Pick<Curren
  */
 async function requireTap(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,raceId:string|null,teamId:string):Promise<Tapped> {
   if(!screen.event.relay) throw new Refusal(409,'Only a relay has teams');
-  if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  // Once the final is current, a tap on another race is a tap on a heat, whose stage is complete.
+  if(screen.stageComplete || (screen.race.kind==='final' && raceId!==null && raceId!==screen.race.id)) throw new Refusal(409,'Stage complete - ask a lead');
   const race=await requireUnsaved(client,phone,screen,raceId);
   if(race.state==='submitted') throw new Refusal(409,`${currentRaceLabel(race)} is submitted - tap Not yet to change it`);
   const team=screen.teams!.find(item=>item.id===teamId);

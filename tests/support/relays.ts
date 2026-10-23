@@ -32,5 +32,17 @@ export function relaySetup(app:FastifyInstance) {
   const takeOff=(token:string,code:string,number:number)=>tap(token,code,'take-off',number);
   /** Marks the child on leg `leg` (0 for the 1st) of Team `number` here, or not here. */
   const here=(token:string,code:string,number:number,leg:number,isHere=true)=>tap(token,code,'here',number,{leg,here:isHere});
-  return {screen,team,tick,takeOff,here,post};
+  /**
+   * Saves the relay's current heat as one phone doing the order and the times: the teams placed in the order given
+   * (by number), each timed in hundredths, then Submit Race.
+   */
+  async function save(token:string,code:string,placed:number[],times:number[]) {
+    const race=(await post<RaceScreenRead>(token,`/api/race-screen/${code}/take-over`,{job:'order'})).race;
+    const id=(number:number)=>race.parts.runners.value!.find(entry=>'team' in entry && entry.team.number===number)!.id;
+    await post(token,`/api/race-screen/${code}/order`,{raceId:race.id,version:race.parts.finish.version,order:placed.map(id),didNotFinish:[],didNotRun:[],added:[]});
+    const timed=(await post<RaceScreenRead>(token,`/api/race-screen/${code}/take-over`,{job:'times'})).race;
+    await post(token,`/api/race-screen/${code}/times`,{raceId:timed.id,version:timed.parts.times.version,places:times,keptWrong:[]});
+    return post<RaceScreenRead>(token,`/api/race-screen/${code}/submit`,{raceId:race.id});
+  }
+  return {screen,team,tick,takeOff,here,save,post};
 }
