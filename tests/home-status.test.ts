@@ -40,3 +40,15 @@ test('a relay tile counts the teams still to run, then the teams ticked while ch
   expect(homeStatus(relay([team(2,[heat2])],{race:{...heat2,state:'submitted'},waitingOn:['Jo']}))).toBe('Heat 2 · Waiting on 1 to submit · Jo');
   expect(homeStatus(relay([team(2,[heat2])],{...current,done:true}))).toBe('Done');
 });
+test('a relay tile reads Heats done · Final next once no team is still to run and the current heat is empty, whoever still holds the order',()=>{
+  const heat1={id:'h1',kind:'heat',number:1,state:'saved'} as const,heat2={id:'h2',kind:'heat',number:2,state:'in progress'} as const;
+  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races,legs:[{wristband:2101+number,warnings:[]}]});
+  const relay=(teams:RelayTeam[],change:Partial<HomeEvent>={})=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{id:null,kind:'heat',number:2,state:'in progress'},teams,...change});
+  // The order and times holders keep their holds into the next heat: an empty heat still reads by its teams.
+  expect(homeStatus(relay([team(1,[heat1]),team(2)],{holds:{order:jo,times:sam}}))).toBe('Heat 2 · 1 team to run');
+  expect(homeStatus(relay([team(1,[heat1]),team(2,[heat1])],{holds:{order:jo,times:sam}}))).toBe('Heats done · Final next');
+  // A heat whose last team was taken off is empty too.
+  expect(homeStatus(relay([team(1,[heat1])],{race:heat2}))).toBe('Heats done · Final next');
+  // With a team ticked, held jobs read as the order and times.
+  expect(homeStatus(relay([team(1,[heat1]),team(2,[heat2])],{race:heat2,holds:{order:jo,times:sam}}))).toBe('Heat 2 · Order and times · Jo, Sam');
+});

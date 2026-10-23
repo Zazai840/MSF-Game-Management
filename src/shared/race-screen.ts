@@ -33,7 +33,8 @@ export interface HomeSnapshot { revision:number; events:HomeEvent[] }
 export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':raceLabel(race);
 /**
  * A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" ("Heat 2 · Ready to save" with nobody left to wait on) or "Done".
- * A relay reads "No teams yet", then "Heat 1 · 5 teams to run" (still to run) until a team is ticked, then "Heat 1 · Checking in · 2 teams".
+ * A relay reads "No teams yet", then "Heat 1 · 5 teams to run" (still to run) until a team is ticked, then "Heat 1 · Checking in · 2 teams",
+ * and "Heats done · Final next" once no team is still to run and the current heat is empty, until a lead marks heats complete.
  */
 export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:HomeEvent) {
   const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
@@ -41,12 +42,12 @@ export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:Ho
   if(relay && !teams.length && race.id===null) return 'No teams yet';
   const holders=[...new Map(jobs.flatMap(job=>holds[job]?[[holds[job].id,holds[job].name] as const]:[])).values()].join(', ');
   if(race.state==='submitted') return waitingOn.length?line(`Waiting on ${waitingOn.length} to submit`,waitingOn.join(', ')):line('Ready to save');
+  const ticked=teams.filter(team=>team.races.some(held=>held.id===race.id)).length,toRun=teams.filter(stillToRun).length;
+  // The order and times holders keep their holds into the next heat, so an empty heat reads by its teams.
+  if(relay && !final && !ticked) return toRun?line(`${teamCount(toRun)} to run`):'Heats done · Final next';
   if(started || holds.order || holds.times) return line(final?'Finishing order':'Order and times',holders);
   if(holds['check-in']) return line(final?'Checking who is here':'Checking in',holders);
-  if(relay) {
-    const ticked=teams.filter(team=>team.races.some(held=>held.id===race.id)).length;
-    return ticked?line('Checking in',teamCount(ticked)):line(`${teamCount(teams.filter(stillToRun).length)} to run`);
-  }
+  if(relay) return ticked?line('Checking in',teamCount(ticked)):line(`${teamCount(toRun)} to run`);
   return line();
 }
 /**
