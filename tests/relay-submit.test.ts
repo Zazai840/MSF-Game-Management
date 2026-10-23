@@ -28,7 +28,7 @@ async function start() {
     return call(token,`/api/race-screen/${code}/times`,{raceId:race.id,version:race.parts.times.version,places,keptWrong});
   }
   const submit=async(token:string,code:string)=>call(token,`/api/race-screen/${code}/submit`,{raceId:(await relays.screen(token,code)).race.id});
-  return {sam:sam.token,priya:priya.token,jo:jo.token,ali:ali.token,relays,order,times,submit};
+  return {owner:people.owner.token,sam:sam.token,priya:priya.token,jo:jo.token,ali:ali.token,relays,order,times,submit};
 }
 
 test('Submit Race on a relay asks only the order and times holders, and the saved heat\'s teams are no longer still to run',async()=>{
@@ -90,4 +90,21 @@ test('Didn\'t run takes a team off the heat, so it neither blocks Submit Race no
   const saved=(await submit(priya,'R22')).json() as RaceScreenRead;
   expect(saved.lastSaved).toMatchObject({kind:'heat',number:1});
   expect(saved.teams!.map(team=>[team.number,team.races.length])).toEqual([[1,1],[2,0]]);
+});
+test('Save as lead takes the race holds of those it waited on but leaves the relay\'s teams hold and the team its holder has open',async()=>{
+  const {owner,sam,ali,relays,order,times}=await start();
+  // Ali types the teams, keeps one open, and does the order and the times too.
+  for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204]]) await relays.team(ali,'R22',legs);
+  await relays.tick(ali,'R22',1);
+  const team2=(await relays.screen(ali,'R22')).teams!.find(team=>team.number===2)!;
+  await relays.post(ali,'/api/teams/R22/open',{teamId:team2.id});
+  await order(ali,'R22',[1]);
+  await times(ali,'R22',[1520]);
+  const saved=await relays.post<RaceScreenRead>(owner,'/api/race-screen/R22/save-as-lead',{raceId:(await relays.screen(ali,'R22')).race.id});
+  expect(saved.holds).toEqual({});
+  // Sam opening the relay's card on the Teams screen finds Ali still entering.
+  const home=await relays.post<{events:Array<{code:string}>}>(sam,'/api/teams/R22/hold',{});
+  const relay:any=home.events.find((event:{code:string})=>event.code==='R22');
+  expect(relay.teamsHolder).toMatchObject({name:'Ali Khan'});
+  expect(relay.teams.find((team:{id:string})=>team.id===team2.id).changing).toMatchObject({name:'Ali Khan'});
 });

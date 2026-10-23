@@ -370,7 +370,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await requireSubmittable(client,phone,screen,raceId);
       const waiting=waitingOn(screen.asked,[...screen.pressed,phone]);
       await saveRace(client,phone,screen);
-      await client.query('DELETE FROM job_holds WHERE event_id=$1 AND sign_in_id=ANY($2)',[screen.event.id,waiting.map(holder=>holder.id)]);
+      // Only the race jobs: a relay's teams hold never makes anyone waited on.
+      await client.query("DELETE FROM job_holds WHERE event_id=$1 AND sign_in_id=ANY($2) AND job<>'teams'",[screen.event.id,waiting.map(holder=>holder.id)]);
       await writeAuditNote(client,phone,screen.event.id,{action:'save-as-lead',message:`Saved by ${phone.name}${waiting.length?` without ${andList(waiting.map(holder=>holder.name))}'s Submit`:''} on ${screen.event.name} ${screen.event.section} ${currentRaceLabel(screen.race)}`,comment:null,touches:[{raceId:screen.race.id!}]});
     });
   });
