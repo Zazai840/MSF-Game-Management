@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { disqualificationReasons,type Disqualification } from '../../shared/rulings.js';
-import { entryName,raceLabel } from '../../shared/races.js';
+import { entryName,isTeamEntry,raceLabel } from '../../shared/races.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readRace } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
@@ -22,8 +22,9 @@ export function rulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
         if(!runner) throw new Refusal(404,'Runner not found in this race');
         const previous=(await client.query('SELECT disqualification FROM runner_rulings WHERE race_id=$1 AND entry_id=$2',[race.id,entryId])).rows[0]?.disqualification;
-        if(lifting && !previous) throw new Refusal(409,'This runner is not disqualified');
-        if(!lifting && previous) throw new Refusal(409,'This runner is already disqualified');
+        const who=isTeamEntry(runner)?'team':'runner';
+        if(lifting && !previous) throw new Refusal(409,`This ${who} is not disqualified`);
+        if(!lifting && previous) throw new Refusal(409,`This ${who} is already disqualified`);
         const disqualification:Disqualification|null=lifting?null:{reason:reason!,comment};
         await client.query('INSERT INTO runner_rulings(race_id,entry_id,disqualification) VALUES($1,$2,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET disqualification=EXCLUDED.disqualification',[race.id,entryId,disqualification===null?null:JSON.stringify(disqualification)]);
         const message=lifting?`${current.name} lifted the disqualification of ${entryName(runner)} (${raceLabel(race)}): ${comment}`:`${current.name} disqualified ${entryName(runner)} (${raceLabel(race)}): ${reason}${comment?` - ${comment}`:''}`;

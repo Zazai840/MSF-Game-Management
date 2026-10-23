@@ -14,7 +14,7 @@ import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
-import { entryName,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { stillToRun } from '../../shared/teams.js';
 import { correctTeam,readTeamLists } from '../relays/teams.js';
 import { relayLists } from '../races/race-screen.js';
@@ -24,7 +24,6 @@ function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:strin
 }
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
 function requireChildren(race:{event:{relay:boolean}}) {
-  // shortcut: Correct finishing order is refused on relay races until team order corrections are built (#146).
   if(race.event.relay) throw new Refusal(409,'A relay race is corrected by team');
 }
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -46,9 +45,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       requireSaved(race);
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
-      const count=race.parts.runners.value?.length||0;
-      if(places.length>count) throw new Refusal(409,`This race has ${count} ${count===1?'runner':'runners'} - enter no more places than that`);
-      if(places.length<count) throw new Refusal(409,'The runner list has changed - open the race again');
+      const count=race.parts.runners.value?.length||0,entries=race.event.relay?(count===1?'team':'teams'):count===1?'runner':'runners';
+      if(places.length>count) throw new Refusal(409,`This race has ${count} ${entries} - enter no more places than that`);
+      if(places.length<count) throw new Refusal(409,race.event.relay?'The teams in this race have changed - open the race again':'The runner list has changed - open the race again');
       const currentPlaces=places,outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
       await correctPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});
       await writeAuditNote(client,current,race.event.id,{action:acceptedByLead?'accept-times':'correct-times',comment,message:`${current.name} ${acceptedByLead?'accepted out-of-order times':'corrected the times'} for ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
@@ -207,7 +206,10 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
-  /** Correct finishing order: wristbands move between places while times stay by place; Didn't run takes the runner off the race. */
+  /**
+   * Correct finishing order: wristbands (on a relay, team numbers) move between places while times stay by place; Didn't
+   * run takes the entry off the race, so a relay team is still to run again.
+   */
   action('POST','/api/lead/races/:id/finish-order','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),unclassified="Choose a place, Did not finish or Didn't run for every runner";
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0 || !Number.isSafeInteger(value.runnersVersion) || Number(value.runnersVersion)<1) throw new Refusal(400,'Open the race before correcting its finishing order');
@@ -217,14 +219,14 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       requireSaved(race);
-      requireChildren(race);
       if(value.baseVersion!==race.parts.finish.version || value.runnersVersion!==race.parts.runners.version) throw new Refusal(409,'This race has changed - open it again');
-      const previous=runnersOf(race.parts.runners.value),classified=[...order,...didNotFinish,...didNotRun];
-      if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(runner=>runner.wristband===number))) throw new Refusal(400,unclassified);
-      const idFor=(number:number)=>previous.find(runner=>runner.wristband===number)!.id,runners=previous.filter(runner=>!didNotRun.includes(runner.wristband));
+      const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
+      if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(entry=>entryNumber(entry)===number))) throw new Refusal(400,unclassified);
+      const entryFor=(number:number)=>previous.find(entry=>entryNumber(entry)===number)!,idFor=(number:number)=>entryFor(number).id;
+      const runners=previous.filter(entry=>!didNotRun.includes(entryNumber(entry))),names=(list:number[])=>list.map(number=>entryName(entryFor(number))).join(', ');
       if(didNotRun.length) await correctPart(client,current,race,'runners',runners,runners);
       await correctPart(client,current,race,'finish',{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},runners);
-      const details=[order.join(', ')||'no places',...(didNotFinish.length?[`Did not finish ${didNotFinish.join(', ')}`]:[]),...(didNotRun.length?[`Didn't run ${didNotRun.join(', ')}`]:[])].join('; ');
+      const details=[names(order)||'no places',...(didNotFinish.length?[`Did not finish ${names(didNotFinish)}`]:[]),...(didNotRun.length?[`Didn't run ${names(didNotRun)}`]:[])].join('; ');
       await writeAuditNote(client,current,race.event.id,{action:'correct-finish-order',comment,message:`${current.name} corrected the finishing order for ${raceLabel(race)}: ${details}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
