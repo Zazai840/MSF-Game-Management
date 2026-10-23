@@ -115,3 +115,33 @@ test('Correct number on a team refuses a wristband already in the relay and need
   expect([leg.wristband,leg.warnings.map(warning=>[warning.kind,warning.kept])]).toEqual([1060,[['wrong-section',true]]]);
   expect((await teamList())[0].wristbands).toEqual([2101,1060,2103,2104]);
 });
+
+test('Correct teams on a saved heat takes a team off (still to run again), adds a team still to run, and edits a team\'s four children through to the team list',async()=>{
+  const {sam,lead,relays,teams,heat,race,teamEntries,teamList}=await start();
+  await teams(4);
+  const first=await heat([1,2,3]);
+  const entries=await teamEntries(first),entryOf=(number:number)=>entries.find(entry=>entry.team.number===number)!;
+  const teamId=async(number:number)=>(await relays.screen(sam,'R22')).teams!.find(team=>team.number===number)!.id;
+  const saved=await race(first),versions={baseVersion:saved.parts.runners.version,finishVersion:saved.parts.finish.version};
+  const correct=(body:object)=>call(lead,`/api/lead/races/${first}/teams`,{...versions,...body});
+  const kept={entryId:entryOf(1).id},edited={entryId:entryOf(2).id,legs:[2201,2202,2299,2204]};
+  // The team-entry refusals and warnings apply.
+  const refused=async(body:object)=>{const response=await correct(body);return [response.statusCode,response.json().message];};
+  expect(await refused({teams:[kept,{entryId:entryOf(2).id,legs:[2201,2202,2101,2204]}]})).toEqual([409,'2101 is already in Team 1. Check the wristband.']);
+  expect(await refused({teams:[kept,{entryId:entryOf(2).id,legs:[2201,2202,1060,2204]}]})).toEqual([409,'1060 needs Fix number or Keep']);
+  expect(await refused({teams:[kept,{teamId:await teamId(1)}]})).toEqual([400,'Choose each team once']);
+  const response=await correct({teams:[kept,edited,{teamId:await teamId(4)}],comment:'Team 3 never ran'});
+  expect(response.statusCode).toBe(200);
+  const now=await race(first),after=await teamEntries(first);
+  expect(after.map(entry=>[entry.team.number,wristbandsOf(entry)])).toEqual([[1,legs(1)],[2,[2201,2202,2299,2204]],[4,legs(4)]]);
+  // Team 1 and Team 2 keep their places; Team 4 joins with no place, for Correct finishing order to place it.
+  expect(now.parts.finish.value).toEqual({order:[after[0].id,after[1].id],didNotFinish:[after[2].id]});
+  expect(await teamList()).toEqual([
+    {number:1,wristbands:legs(1),heats:[1]},{number:2,wristbands:[2201,2202,2299,2204],heats:[1]},{number:3,wristbands:legs(3),heats:[]},{number:4,wristbands:legs(4),heats:[1]}
+  ]);
+  expect((response.json() as EventResultsRead).auditNotes[0].message).toBe('Jo Evans corrected the teams for Heat 1: Team 1, Team 2, Team 4 - Team 3 never ran');
+  // The race has changed since it was opened, and a team that has run since can't be added.
+  expect(await refused({teams:[kept]})).toEqual([409,'This race has changed - open it again']);
+  await relays.tick(sam,'R22',3);
+  expect((await call(lead,`/api/lead/races/${first}/teams`,{baseVersion:now.parts.runners.version,finishVersion:now.parts.finish.version,teams:[...after.map(entry=>({entryId:entry.id})),{teamId:await teamId(3)}]})).json().message).toBe('Team 3 has already run');
+});
