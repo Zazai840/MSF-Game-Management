@@ -44,3 +44,39 @@ test('a lead disqualifies a whole team and lifts it: the team leaves the ranking
   const liftAgain=await call(lead,`${path}/lift-disqualification`,{comment:'Again'});
   expect([liftAgain.statusCode,liftAgain.json().message]).toEqual([409,'This team is not disqualified']);
 });
+
+/** Eight teams over two heats: Team 4 and Team 7 share 6th place at 17.00, so one of them misses the final. */
+async function tiedAtSixth() {
+  const started=await start();
+  await started.teams(8);
+  await started.heat([1,2,3,4],[1400,1500,1600,1700]);
+  await started.heat([5,6,7,8],[1450,1550,1700,1800]);
+  return {...started,tie:(await started.read()).results.ties[0]};
+}
+const settle=(lead:string,body:object)=>call(lead,'/api/lead/events/R22/settle-tie',body);
+
+test('an open tie between teams blocks Heats complete until the lead settles it: No run-off needed',async()=>{
+  const {lead,tie,row}=await tiedAtSixth();
+  const blocked=await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'});
+  expect(blocked.statusCode).toBe(409);
+  const settled=await settle(lead,{tieId:tie.id,outcome:'no-run-off',comment:''});
+  expect(settled.statusCode).toBe(200);
+  const read=settled.json() as EventResultsRead;
+  expect(read.results.ties).toEqual([]);
+  expect(read.auditNotes[0].message).toBe('Jo Evans settled the tie at 17.00 (Team 4, Team 7): No run-off needed');
+  expect((await row(4)).flags.map(flag=>flag.kind)).toEqual(['tie-settled']);
+  expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+});
+
+test('a run-off or a decision puts the tied teams in the order the lead gives, and the first takes the last final place',async()=>{
+  for(const [outcome,comment,message] of [['run-off','','Jo Evans recorded a run-off at 17.00: Team 7 then Team 4'],['decided','Judges agreed','Jo Evans decided the tie at 17.00 without a run-off: Team 7 then Team 4 - Judges agreed']]) {
+    const {lead,tie,row}=await tiedAtSixth();
+    const team4=await row(4),team7=await row(7);
+    const settled=await settle(lead,{tieId:tie.id,outcome,comment,order:[team7,team4].map(({raceId,entryId})=>({raceId,entryId}))});
+    expect(settled.statusCode).toBe(200);
+    const read=settled.json() as EventResultsRead;
+    expect(read.auditNotes[0].message).toBe(message);
+    expect(read.results.qualifiers.map(row=>row.team?.number)).toEqual([1,5,2,6,3,7]);
+    await app.close();
+  }
+});
