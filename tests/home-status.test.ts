@@ -19,3 +19,6 @@ test('on a Final, check-in is checking who is here and the order is the finishin
   expect(homeStatus(event({race:final,holds:{'check-in':sam}}))).toBe('Final · Checking who is here · Sam');
   expect(homeStatus(event({race:final,holds:{'check-in':sam,order:jo}}))).toBe('Final · Finishing order · Sam, Jo');
 });
+test('a relay with no teams reads No teams yet',()=>{
+  expect(homeStatus(event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{kind:'heat',number:1,state:'in progress'}}))).toBe('No teams yet');
+});

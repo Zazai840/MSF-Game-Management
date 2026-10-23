@@ -29,7 +29,9 @@ export interface HomeSnapshot { revision:number; events:HomeEvent[] }
 /** "Heat 2", "Race 3", or just "Final": an event has one final. */
 export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':raceLabel(race);
 /** A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" ("Heat 2 · Ready to save" with nobody left to wait on) or "Done". */
-export function homeStatus({race,holds,started,waitingOn,done}:HomeEvent) {
+export function homeStatus({relay,race,holds,started,waitingOn,done}:HomeEvent) {
+  // shortcut: relays have no teams to read yet, so every relay tile says so; the team list tickets add the other lines.
+  if(relay) return 'No teams yet';
   if(done) return 'Done';
   const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
   const holders=[...new Map(jobs.flatMap(job=>holds[job]?[[holds[job].id,holds[job].name] as const]:[])).values()].join(', ');
