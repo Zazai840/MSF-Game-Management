@@ -27,7 +27,7 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>{request.current++;clearInterval(timer);};},[raceId]);
   return <section className="race-page">{error && <p role="alert">{error}</p>}{!read?<p>Opening race…</p>:<>
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {clock(read.race.checkedInAt)}</p>
-    <RaceActions race={read.race} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
+    <RaceActions race={read.race} relay={read} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
     {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
     <h4>Current record</h4><p>{read.race.event.relay?'Teams':'Runners'}: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
     <CurrentRecord race={read.race} actionable={entryId=>actionableRunners.some(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
