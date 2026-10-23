@@ -41,6 +41,21 @@ test('a kept wrong-Section number in a team that ran is a To check item naming t
   expect(await toCheck()).toEqual([]);
 });
 
+test('a team that ran with fewer than four children marked here is a To check item, cleared by Mark checked or by Disqualify',async()=>{
+  const {sam,lead,relays,heat,toCheck}=await start();
+  for(const number of [1,2,3]) await relays.team(sam,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
+  await heat('R22',[1,2,3],{2:3,3:0});
+  const items=await toCheck();
+  expect(items.map(({kind,title,explanation})=>({kind,title,explanation})).sort((a,b)=>a.explanation.localeCompare(b.explanation))).toEqual([
+    {kind:'ran-short',title:'A team ran short',explanation:'Team 2 ran with 3 of 4 children marked here.'},
+    {kind:'ran-short',title:'A team ran short',explanation:'Team 3 ran with 0 of 4 children marked here.'}
+  ]);
+  const [team2,team3]=['Team 2','Team 3'].map(name=>items.find(item=>item.explanation.startsWith(name))!);
+  expect((await call(lead,`/api/lead/races/${team2.raceId}/runners/${team2.entryId}/mark-warning-checked`,{})).statusCode).toBe(200);
+  expect((await call(lead,`/api/lead/races/${team3.raceId}/runners/${team3.entryId}/disqualify`,{reason:'Baton'})).statusCode).toBe(200);
+  expect(await toCheck()).toEqual([]);
+});
+
 test('a child in two relays\' teams is a To check item on the team that ran, kept or not, cleared by fixing the team list or Mark checked',async()=>{
   const {sam,lead,relays,heat,toCheck}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
