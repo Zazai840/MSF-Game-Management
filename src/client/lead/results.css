@@ -88,7 +88,7 @@
 .not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
 .not-counted-reason {display:block;font-weight:800;margin-top:4px;color:var(--text);}
 .runner-action-choices {display:grid;gap:.6rem;}
-.count-choice {display:flex;align-items:center;gap:.6rem;}
+.count-choice {display:flex;align-items:center;gap:.6rem;min-height:var(--tap);}
 .count-choice input {width:auto;}
 
 .race-action-choices {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
