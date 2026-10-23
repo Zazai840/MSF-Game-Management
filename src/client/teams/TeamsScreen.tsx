@@ -1,5 +1,5 @@
-import { useRef,useState } from 'react';
-import { api } from '../api.js';
+import { useEffect,useRef,useState } from 'react';
+import { ApiFailure,api } from '../api.js';
 import { ordinal } from '../../shared/ordinal.js';
 import type { HomeEvent,HomeSnapshot,Holder } from '../../shared/race-screen.js';
 import { filledLegs,legRefusal,legWarnings,teamsStatus,type RelayTeam } from '../../shared/teams.js';
@@ -12,8 +12,8 @@ import './teams.css';
 
 /** A relay as Home's snapshot carries it: with its team list and teams holder. */
 type Relay=HomeEvent & {teams:RelayTeam[];teamsHolder:Holder|null};
-/** What Done sends: the four boxes in leg order (null when empty) and the wristbands whose warnings were kept. */
-interface Done { teamId?:string; legs:Array<number|null>; keptWarnings:number[] }
+/** What Done sends: the team and the version it opened (none for a new team), the four boxes in leg order (null when empty) and the wristbands whose warnings were kept. */
+interface Done { teamId?:string; version?:number; legs:Array<number|null>; keptWarnings:number[] }
 
 /**
  * The Teams screen: every switched-on relay's team list, live from Home's day-wide stream, one card per relay grouped
@@ -33,13 +33,13 @@ export function TeamsScreen({phoneId}:{phoneId:string}) {
   </section>;
 }
 
-/** One relay's Teams writes. Each answers with Home as it then stands; a refusal shows on the card. Answers true once the server has it. */
+/** One relay's Teams writes. Each answers with Home as it then stands; a refusal shows on the card. Answers true once the server has it, 'refused' when it said no, false when it could not be sent. */
 function useTeamsWrite(code:string,offer:(next:HomeSnapshot)=>void) {
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function write(what:string,body:object) {
+  async function write(what:string,body:object):Promise<boolean|'refused'> {
     setBusy(true);setError('');
     try {offer(await api<HomeSnapshot>(`teams/${encodeURIComponent(code)}/${what}`,body));return true;}
-    catch(failure) {setError(failure instanceof Error?failure.message:'Could not connect - please try again');return false;}
+    catch(failure) {setError(failure instanceof Error?failure.message:'Could not connect - please try again');return failure instanceof ApiFailure?'refused':false;}
     finally {setBusy(false);}
   }
   return {busy,error,write};
@@ -48,19 +48,35 @@ function useTeamsWrite(code:string,offer:(next:HomeSnapshot)=>void) {
 function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phoneId:string;offer:(next:HomeSnapshot)=>void}) {
   const holder=relay.teamsHolder,mine=!holder || holder.id===phoneId;
   const {busy,error,write}=useTeamsWrite(relay.code,offer);
-  /** The team this phone is changing ('new' for + Add team), shown only while this phone may change the list. */
-  const [editing,setEditing]=useState<string|null>(null);
+  /** The team this phone is changing ('new' for + Add team), and the team someone else is changing that it asks to change anyway. */
+  const [editing,setEditing]=useState<string|null>(null),[asking,setAsking]=useState<string|null>(null);
+  // Once someone takes over the teams, this phone's open team closes: the server cleared its mark.
+  useEffect(()=>{if(!mine) {setEditing(null);setAsking(null);}},[mine]);
   const open=mine?editing:null;
+  async function change(team:RelayTeam,changeAnyway=false) {
+    setAsking(null);
+    if(await write('open',{teamId:team.id,changeAnyway})===true) setEditing(team.id);
+  }
+  // A refused Done or Remove closes the team: its row shows the server's copy, to check and open again.
+  const finish=async(what:string,body:object)=>{if(await write(what,body)) setEditing(null);};
   const edit=(team:RelayTeam|null)=><TeamEdit key={team?.id||'new'} team={team} relay={relay} relays={relays} busy={busy}
-    onCancel={()=>setEditing(null)} onDone={async done=>{if(await write('done',done)) setEditing(null);}}/>;
+    onCancel={()=>{if(team) void write('cancel',{teamId:team.id});setEditing(null);}} onDone={done=>void finish('done',done)} onRemove={team && !team.raced?version=>void finish('remove',{teamId:team.id,version}):undefined}/>;
   return <RaceCard title={relay.section} status={teamsStatus(relay,phoneId)} onOpen={()=>{if(!holder) void write('hold',{});}}>
     {error && <p role="alert">{error}</p>}
     {holder && !mine && <div className="relay-who"><span><strong>{holder.name}</strong> is entering. You see it read-only.</span>
       <TakeOver job="teams" holder={holder.name} busy={busy} onConfirm={()=>void write('take-over',{})}/></div>}
     {mine && relay.teams.length>0 && open===null && <p className="race-hint">Tap a team to change it.</p>}
-    {relay.teams.map(team=>open===team.id?edit(team)
-      :mine && open===null?<button key={team.id} className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} onClick={()=>setEditing(team.id)}><TeamCells team={team}/></button>
-      :<div key={team.id} className="team-row"><TeamCells team={team}/></div>)}
+    {relay.teams.map(team=>{
+      if(open===team.id) return edit(team);
+      const by=team.changing && team.changing.id!==phoneId?team.changing.name:null;
+      return <div key={team.id} className="team-item">
+        {mine && open===null?<button className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} disabled={busy} onClick={()=>by?setAsking(team.id):void change(team)}><TeamCells team={team}/></button>
+          :<div className="team-row"><TeamCells team={team}/></div>}
+        {by && asking!==team.id && <p className="race-hint">{by} is changing this team</p>}
+        {by && asking===team.id && mine && <div className="warning-box"><p>{by} is changing this team. Change it anyway? Their changes will be lost.</p>
+          <div className="warning-actions"><button disabled={busy} onClick={()=>void change(team,true)}>Change anyway</button><button className="button-secondary" onClick={()=>setAsking(null)}>Cancel</button></div></div>}
+      </div>;
+    })}
     {open==='new' && edit(null)}
     {mine && open===null && <button className="button-secondary button-small add-team" onClick={()=>setEditing('new')}>+ Add team</button>}
   </RaceCard>;
@@ -78,7 +94,9 @@ function TeamCells({team}:{team:RelayTeam}) {
  * A number already in this team or another team of the relay is refused as it is typed (Fix number only); one that
  * looks wrong shows amber once its box is left, with Fix number or Keep. Done needs each fixed or kept.
  */
-function TeamEdit({team,relay,relays,busy,onCancel,onDone}:{team:RelayTeam|null;relay:Relay;relays:Relay[];busy:boolean;onCancel:()=>void;onDone:(done:Done)=>void}) {
+function TeamEdit({team,relay,relays,busy,onCancel,onDone,onRemove}:{team:RelayTeam|null;relay:Relay;relays:Relay[];busy:boolean;onCancel:()=>void;onDone:(done:Done)=>void;onRemove?:(version:number)=>void}) {
+  /** The version this team was opened at: Done and Remove send it, so a change made meanwhile refuses them. */
+  const [version]=useState(team?.version),[removing,setRemoving]=useState(false);
   const [boxes,setBoxes]=useState(()=>(team?.legs.map(leg=>leg.wristband===null?'':String(leg.wristband))||['','','','']));
   const [kept,setKept]=useState(()=>team?.legs.flatMap(leg=>leg.wristband!==null && leg.warnings.length?[leg.wristband]:[])||[]);
   /** The box being typed in: its warnings wait until it is left. */
@@ -101,7 +119,10 @@ function TeamEdit({team,relay,relays,busy,onCancel,onDone}:{team:RelayTeam|null;
     {legs.map((number,index)=>refusals[index]?<div key={index} className="warning-box team-warn" role="alert"><p>{refusals[index]}</p><div className="warning-actions"><button onClick={()=>fix(index)}>Fix number</button></div></div>
       :amber(index)?<div key={index} className="warning-box team-warn" role="alert">{warnings[index].map(warning=><p key={warning.message}>{warning.message}</p>)}
         <div className="warning-actions"><button onClick={()=>fix(index)}>Fix number</button><button className="button-secondary" onClick={()=>setKept([...kept,number!])}>Keep</button></div></div>:null)}
-    <div className="edit-actions"><button className="button-secondary" onClick={onCancel}>Cancel</button>
-      <button disabled={!ready} onClick={()=>onDone({...(team?{teamId:team.id}:{}),legs,keptWarnings:kept.filter(number=>legs.includes(number))})}>Done</button></div>
+    {removing?<div className="warning-box"><p>Remove {name}? Its number won't be used again.</p>
+      <div className="warning-actions"><button disabled={busy} onClick={()=>onRemove!(version!)}>Remove</button><button className="button-secondary" onClick={()=>setRemoving(false)}>Cancel</button></div></div>
+    :<div className="edit-actions"><button className="button-secondary" onClick={onCancel}>Cancel</button>
+      <button disabled={!ready} onClick={()=>onDone({...(team?{teamId:team.id,version}:{}),legs,keptWarnings:kept.filter(number=>legs.includes(number))})}>Done</button></div>}
+    {onRemove && !removing && <button className="button-quiet remove-team" onClick={()=>setRemoving(true)}>Remove team</button>}
   </div>;
 }

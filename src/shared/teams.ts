@@ -4,8 +4,12 @@ import { plainWristbandWarning,wristbandWarnings } from './wristband-checks.js';
 export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-relay'; message:string; kept:boolean }
 /** One leg of a relay team: its child's wristband (null while the box is empty) and that child's kept warnings. */
 export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
-/** A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order. */
-export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number }
+/**
+ * A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order, who has it open to
+ * change ("Priya Shah is changing this team") since when, or null, and whether it has ever been in a race (then it
+ * can't be removed).
+ */
+export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changing:{id:string;name:string;since:string}|null; raced:boolean }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
 export interface TeamRelay { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
