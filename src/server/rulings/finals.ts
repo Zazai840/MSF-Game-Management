@@ -5,12 +5,13 @@ import type { Phone } from '../../shared/domain.js';
 import type { DayEvent } from '../../shared/day.js';
 import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
 import type { FinalEntry } from '../../shared/finals.js';
-import { isTeamEntry,type RaceEntry } from '../../shared/races.js';
+import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { readTeamLists } from '../relays/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readRace,requireStageOpen,listRaces } from '../races/records.js';
 import { publishPart } from '../races/versions.js';
+import { publishFinalRunners } from '../races/final-field.js';
 import { readEventResults } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
@@ -44,6 +45,8 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
     for(const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,clock_timestamp())',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,phone.id]);
   }
   await client.query("INSERT INTO race_finals(race_id,entries,generation) VALUES($1,$2,$3) ON CONFLICT(race_id) DO UPDATE SET entries=EXCLUDED.entries,additional_entries='[]',generation=EXCLUDED.generation",[id,JSON.stringify(entries),randomUUID()]);
+  // Each entry keeps a copy of itself from the start, so one marked Absent is still named and comes back as it was.
+  await publishFinalRunners(client,{id,kind:'final'},runners);
 }
 export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
@@ -59,8 +62,9 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       const runners=[...(race.parts.runners.value||[]),finalist(await relayTeams(client,current.dayId,detail.event.id),next,entry.finalEntryId)];
       await client.query('UPDATE race_finals SET entries=$1 WHERE race_id=$2',[JSON.stringify([...final.entries,entry]),race.id]);
       await publishPart(client,current,race,'runners',runners);
-      // shortcut: the absent finalist is named by wristband, so on a relay it reads "null"; #145 names the absent team.
-      await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${resultName(next)} (heat rank ${next.position}) for absent ${final.vacancy.heatWristband}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
+      // An absent child is named by the wristband seeded; an absent team by its number, from its copy kept when it left.
+      const absent=final.vacancy.heatWristband??(final.vacancy.runner?entryName(final.vacancy.runner):'');
+      await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${resultName(next)} (heat rank ${next.position}) for absent ${absent}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
     });
   });

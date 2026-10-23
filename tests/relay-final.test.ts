@@ -70,6 +70,24 @@ test('anyone marks a Final team Absent with one tap, freeing its seed, and tappi
   expect((await absent(sam,4,true)).json()).toEqual({message:'Team 4 is not in the Final'});
 });
 
+test('a lead\'s call-up for an absent team names the next-ranked team, which appears ticked on the race screen',async()=>{
+  const {sam,lead,relays,results}=await start();
+  const seen=await relays.screen(sam,'R22');
+  const marked=await call(sam,'/api/race-screen/R22/absent-team',{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===5)!.id,absent:true});
+  expect(marked.statusCode,marked.body).toBe(200);
+  const next=(await results()).finalResults!.nextCallUp!;
+
+  expect([next.team?.number,next.position]).toEqual([4,7]);
+  const calledUp=await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:next.entryId});
+  expect(calledUp.statusCode,calledUp.body).toBe(200);
+  expect((calledUp.json() as EventResultsRead).auditNotes.find(note=>note.action==='call-up')!.message).toBe('Jo Evans called up Team 4 (heat rank 7) for absent Team 5');
+  const read=await relays.screen(sam,'R22');
+  expect(read.revision).toBeGreaterThan(seen.revision);
+  expect(finalTeams(read)).toEqual([2,1,6,3,7,4]);
+  expect(read.race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===4)!.legs.map(leg=>[leg.wristband,leg.here])).toEqual(legs(4).map(wristband=>[wristband,false]));
+  expect(read.race.final!.entries.map(item=>[item.team?.number,item.seed,item.absent,item.calledUp])).toEqual([[2,1,false,false],[5,2,true,false],[1,3,false,false],[6,4,false,false],[3,5,false,false],[7,6,false,false],[4,2,false,true]]);
+});
+
 test('Absent is only for a Final\'s teams',async()=>{
   const {sam,relays}=await start({complete:false});
   await relays.team(sam,'R22',legs(8));
