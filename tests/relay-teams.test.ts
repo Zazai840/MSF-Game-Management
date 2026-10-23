@@ -194,7 +194,7 @@ test('Remove team keeps the team recorded but off the list, and its number is ne
   for(const [body,message] of [[{version:1},'Choose a team'],[{teamId:team3.id},'Open the team again']] as const) expect((await call(sam,'/api/teams/R22/remove',body)).json()).toEqual({message});
 });
 test('a late Done is refused once the team moved on, and sign-out and Take over of the teams clear the old phone\'s marks',async()=>{
-  const {sam,ali,priya}=await start();
+  const {ali,priya}=await start();
   const team1=relay(await teams(priya,'R22','done',{legs:[2101,null,null,null]}),'R22').teams[0];
   const team2=relay(await teams(priya,'R22','done',{legs:[2201,null,null,null]}),'R22').teams[1];
   // Two screens on Priya's phone open Team 1 at version 1; the first Done moves it on, so the second is refused.
