@@ -40,6 +40,7 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 .job-title {font-size:19px; font-weight:800; color:var(--navy);}
 .job-explanation {font-size:var(--text-small); font-weight:500; color:var(--muted); line-height:1.35;}
 .job-text .badge {align-self:flex-start; margin-top:6px;}
+.home .job-button {margin-top:14px;}
 .job-chevron {flex:none; color:var(--faint);}
 
 footer {margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:var(--text-small); font-weight:600; color:var(--muted);}

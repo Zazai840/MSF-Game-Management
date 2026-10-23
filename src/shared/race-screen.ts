@@ -2,6 +2,7 @@ import type { DayEvent } from './day.js';
 import { ordinal } from './ordinal.js';
 import { raceLabel,type FinishingOrder,type RaceRead,type Runner } from './races.js';
 import { wrongTimes } from './wrong-times.js';
+import type { RelayTeam } from './teams.js';
 /** An event's current race: its latest race not yet saved or deleted, or else the next one, not stored until its first check-in (id null, empty parts). */
 export type CurrentRace=Pick<RaceRead,'kind'|'number'|'state'|'parts'|'final'> & {id:string|null};
 /** The three jobs on a race (the glossary's Job). A final has no times. */
@@ -21,19 +22,20 @@ export interface RaceScreenRead { revision:number; event:DayEvent; race:CurrentR
 /**
  * A switched-on event as Home lists it: what its tile's status line is made of. `started` is the order or times
  * having entries, `waitingOn` the names of those asked to press Submit Race who have not, and `done` its stage complete.
+ * A relay also carries its team list and who holds its teams job, which the Teams screen reads.
  */
 export interface HomeEvent { code:string; name:string; section:DayEvent['section']; relay:boolean; race:Pick<CurrentRace,'kind'|'number'|'state'>;
-  holds:RaceScreenRead['holds']; started:boolean; waitingOn:string[]; done:boolean }
+  holds:RaceScreenRead['holds']; started:boolean; waitingOn:string[]; done:boolean; teams?:RelayTeam[]; teamsHolder?:Holder|null }
 /** One snapshot of Home, versioned by the day revision: the day's switched-on events in programme order. */
 export interface HomeSnapshot { revision:number; events:HomeEvent[] }
 /** "Heat 2", "Race 3", or just "Final": an event has one final. */
 export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':raceLabel(race);
 /** A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" ("Heat 2 · Ready to save" with nobody left to wait on) or "Done". */
-export function homeStatus({relay,race,holds,started,waitingOn,done}:HomeEvent) {
-  // shortcut: relays have no teams to read yet, so every relay tile says so; the team list tickets add the other lines.
-  if(relay) return 'No teams yet';
-  if(done) return 'Done';
+export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:HomeEvent) {
   const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
+  // shortcut: relays have no races yet, so every team is still to run; the relay check-in ticket adds the race lines.
+  if(relay) return teams.length?line(`${teams.length} ${teams.length===1?'team':'teams'} to run`):'No teams yet';
+  if(done) return 'Done';
   const holders=[...new Map(jobs.flatMap(job=>holds[job]?[[holds[job].id,holds[job].name] as const]:[])).values()].join(', ');
   if(race.state==='submitted') return waitingOn.length?line(`Waiting on ${waitingOn.length} to submit`,waitingOn.join(', ')):line('Ready to save');
   if(started || holds.order || holds.times) return line(final?'Finishing order':'Order and times',holders);

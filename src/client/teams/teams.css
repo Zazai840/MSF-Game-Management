@@ -1,0 +1,26 @@
+/* The Teams screen: one card per relay, each team "Team N" then its four wristbands in leg order. Race cards come from race.css. */
+.teams-head {display:flex; flex-direction:column; gap:4px;}
+.teams-head h1 {margin:0;}
+.teams-group {display:flex; flex-direction:column; gap:12px;}
+.teams-group h2 {margin:8px 0 0;}
+.relay-who {display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.relay-who strong {color:var(--navy);}
+.relay-who .warning-box {flex-basis:100%;}
+.team-row {display:grid; grid-template-columns:62px repeat(4,minmax(0,1fr)); gap:6px; align-items:center;}
+.team-name {display:flex; flex-direction:column; font-size:16px; font-weight:800; color:var(--navy); line-height:1.15;}
+.team-name small {font-size:13px; font-weight:700; color:var(--muted);}
+.team-name small.is-short {color:var(--amber-text);}
+.leg-ro {height:48px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-small); background:var(--ground); font-size:18px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;}
+.leg-ro.is-empty {color:var(--muted);}
+.leg-ro.is-amber {background:var(--amber-fill); color:var(--amber-text); box-shadow:inset 0 0 0 2px var(--amber-line);}
+/* The holder taps a read-only team to change it. */
+button.team-row-tap {width:calc(100% + 12px); min-height:56px; margin:0 -6px; padding:4px 6px; background:transparent; color:inherit; border:0; border-radius:var(--radius); text-align:left; font-size:inherit; font-weight:inherit;}
+button.team-row-tap:active {background:var(--ground);}
+/* The team being changed sits on a tint, with Cancel and Done under its boxes. */
+.team-edit {display:flex; flex-direction:column; gap:10px; margin:0 -8px; padding:10px 8px; border-radius:var(--radius); background:var(--tint);}
+input.leg-box {height:48px; min-height:48px; padding:0 2px; text-align:center; font-size:18px; border:2px solid var(--line-strong); border-radius:var(--radius-small); background:var(--surface);}
+input.leg-box.is-amber {border-color:var(--amber-line); background:var(--amber-fill); color:var(--amber-text);}
+.team-warn {padding:10px 12px;}
+.team-warn p {margin:0 0 8px; font-size:var(--text-small);}
+.edit-actions {display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.add-team {align-self:flex-start;}
