@@ -1,4 +1,5 @@
-import { expect,lookProblems,openDashboard,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes } from './fixtures.js';
+import type { APIRequestContext,TestInfo } from '@playwright/test';
+import { back,dragTo,expect,lookProblems,openDashboard,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes } from './fixtures.js';
 
 test('a lead sees a relay\'s two saved heats as team rows with four wristbands and the qualifying line, the race page lists teams, and Heats complete seeds the six fastest',async({openPhone,request},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay results ${project}`,code=`RRS-${project.toUpperCase()}`;
@@ -57,4 +58,111 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await expect(page.getByRole('table',{name:'Input - Running',exact:true}).locator('tbody td')).toHaveText([code,...[3,2,5].map(number=>`Team ${number}${legs(number).join('')}`)]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-final-panel.png'),fullPage:true});
+});
+
+/**
+ * A Boy Scouts relay for this project with `count` teams typed by a volunteer. The test day is shared, so each test
+ * and project types its own Boy Scouts wristbands (3200 to 3499, from `first`) that no other test types.
+ */
+async function scoutsRelay(request:APIRequestContext,info:TestInfo,prefix:string,title:string,count:number,first:number) {
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`${prefix}-${project.toUpperCase()}`,name=`${title} ${project}`;
+  await ownRelay(code,name,'Boy Scouts');
+  const legs=(team:number)=>[1,2,3,4].map(leg=>3200+at*100+first+(team-1)*4+leg);
+  const token=await signInThroughApi(request,`${title} volunteer ${project}`);
+  for(let team=1;team<=count;team++) await writeTeam(request,token,code,legs(team));
+  /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+  async function heat(placed:number[],times:number[]) {
+    for(const team of placed) await tickTeam(request,token,code,team);
+    await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);
+  }
+  return {code,name,legs,heat};
+}
+
+test('a lead disqualifies a whole team for a handover outside the zone, and lifts it',async({openPhone,request},info)=>{
+  const {code,legs,heat}=await scoutsRelay(request,info,'RDQ','Relay disqualify',3,0);
+  await heat([1,2,3],[1400,1500,1600]);
+  const {page}=await openPhone(`Relay disqualify lead ${info.project.name}`,{lead:true});
+  await openDashboard(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
+  const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
+  const team1=board.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat 1`,exact:true});
+  await team1.click();
+  const sheet=page.getByRole('dialog',{name:'Actions for Team 1',exact:true});
+  await sheet.getByRole('button',{name:'Disqualify Team 1',exact:true}).click();
+  // A handover outside the zone goes under Other, with a comment.
+  await sheet.getByLabel('Reason',{exact:true}).selectOption('Other');
+  await sheet.getByLabel('Comment',{exact:true}).fill('Handover outside the zone');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-disqualify.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Save disqualification',exact:true}).click();
+  await expect(team1).toContainText('Disqualified: Other - Handover outside the zone');
+  await expect(board.locator(':scope > li').first()).toContainText('Team 2');
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('disqualified Team 1 (Heat 1): Other - Handover outside the zone');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-disqualified.png'),fullPage:true});
+  await team1.click();
+  await expect(sheet.getByRole('button',{name:'Disqualify Team 1',exact:true})).toHaveCount(0);
+  await sheet.getByRole('button',{name:'Lift disqualification',exact:true}).click();
+  await sheet.getByLabel('Comment',{exact:true}).fill('Judge saw the baton inside the zone');
+  await sheet.getByRole('button',{name:'Save lift',exact:true}).click();
+  await expect(team1).not.toContainText('Disqualified');
+  await expect(board.locator(':scope > li').first()).toContainText('Team 1');
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('lifted the disqualification of Team 1 (Heat 1)');
+});
+
+test('a lead settles a tie between two teams on the tie sheet: a run-off puts Team 7 through',async({openPhone,request},info)=>{
+  const {code,legs,heat}=await scoutsRelay(request,info,'RTIE','Relay tie',8,20);
+  await heat([1,2,3,4],[1400,1500,1600,1700]);
+  await heat([5,6,7,8],[1450,1550,1700,1800]);
+  const {page}=await openPhone(`Relay tie lead ${info.project.name}`,{lead:true});
+  await openDashboard(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
+  // Team 4 and Team 7 share 6th place at 17.00: one of them misses the final.
+  await page.getByRole('button',{name:'TIE at 17.00 for Team 4',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'Tie at 17.00',exact:true});
+  await expect(sheet).toContainText('Team 4, Team 7 have the same time in different races.');
+  await sheet.getByRole('button',{name:'Run-off held',exact:true}).click();
+  const order=sheet.getByRole('list',{name:'Tie order',exact:true});
+  await expect(order.getByRole('listitem')).toHaveText([`1stTeam 4${legs(4).join(' · ')}`,`2ndTeam 7${legs(7).join(' · ')}`]);
+  await dragTo(page,order.getByRole('button',{name:'Drag to move Team 7',exact:true}),order.getByRole('listitem').first());
+  await expect(order.getByRole('listitem').first()).toContainText('Team 7');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-tie-sheet.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Save tie',exact:true}).click();
+  await expect(sheet).toHaveCount(0);
+  const rows=page.getByRole('list',{name:'Provisional leaderboard',exact:true}).locator(':scope > li');
+  await expect(rows.nth(5)).toContainText('Team 7');await expect(rows.nth(6)).toHaveText('Qualifying line');
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('recorded a run-off at 17.00: Team 7 then Team 4');
+  // Settled, the tie no longer holds Heats complete back.
+  await page.getByRole('button',{name:'Heats complete',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Heats complete',exact:true})).toContainText('Nothing to settle');
+});
+
+test('a lead corrects a relay heat\'s finishing order by dragging teams, and Didn\'t run makes a team still to run again',async({openPhone,request},info)=>{
+  const {code,name,heat}=await scoutsRelay(request,info,'RCFO','Relay order fix',3,60);
+  await heat([1,2,3],[1400,1500,1600]);
+  const {page}=await openPhone(`Relay order fix lead ${info.project.name}`,{lead:true});
+  await openDashboard(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
+  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();
+  const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
+  await expect(rows).toHaveText(['1st14.00Team 1No place','2nd15.00Team 2No place','3rd16.00Team 3No place']);
+  // Times stay by place: Team 2 dragged to 1st takes 1st place's time.
+  await dragTo(page,sheet.getByRole('button',{name:'Drag to move Team 2',exact:true}),rows.first());
+  await expect(rows).toHaveText(['1st14.00Team 2No place','2nd15.00Team 1No place','3rd16.00Team 3No place']);
+  await sheet.getByRole('button',{name:'No place for Team 3',exact:true}).click();
+  await expect(sheet.getByText('Team 3 has no place. What happened?',{exact:true})).toBeVisible();
+  await expect(sheet.getByText('Didn\'t run takes Team 3 off this race: it is still to run again.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-order-no-place.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Didn\'t run',exact:true}).click();
+  await expect(rows).toHaveText(['1st14.00Team 2No place','2nd15.00Team 1No place']);
+  // Taken off the race, Team 3 has no row left in it.
+  await expect(sheet.getByRole('list',{name:'No place',exact:true})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-order-corrected.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await back(page,`${name} Boy Scouts`);
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('corrected the finishing order for Heat 1: Team 2, Team 1; Didn\'t run Team 3');
 });

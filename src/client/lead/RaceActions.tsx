@@ -5,7 +5,7 @@ import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';
 import { ActionSheet } from './ActionSheet.js';
 import { api } from '../api.js';
-import { raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
+import { entryName,entryNumber,raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
@@ -81,7 +81,7 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const rowLabel=(index:number,value:string)=>`${ordinal(index+1)} place · ${value?formatTimeDigits(value):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
   return <form className="sheet-stack" onSubmit={event=>{event.preventDefault();onSave({baseVersion,places:places.slice(0,runnerCount),acceptOutOfOrder:accepted,comment});}}>
     {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
-    {leftover && <p className="sheet-hint">This race has {runnerCount} {runnerCount===1?'runner':'runners'}. Choose No finisher for every place after {ordinal(runnerCount)} to save.</p>}
+    {leftover && <p className="sheet-hint">This race has {runnerCount} {race.event.relay?(runnerCount===1?'team':'teams'):runnerCount===1?'runner':'runners'}. Choose No finisher for every place after {ordinal(runnerCount)} to save.</p>}
     <p className="sheet-hint">Read times in place order from the SprintTimer recording. Tap a place to retype its time.</p>
     <ol ref={rows} className="time-rows" aria-label="Times">{digits.map((value,index)=><li key={index} className="lead-time-place">
       {value!==null && editing===index?<div className="lead-editing">
@@ -100,12 +100,15 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   </form>;
 }
 /**
- * The lead's finishing order correction on a saved race: dragging a wristband moves it to another place while
- * times stay by place, and No place marks Did not finish or Didn't run. Each change saves at once.
+ * The lead's finishing order correction on a saved race: dragging a wristband (on a relay, a team) moves it to another
+ * place while times stay by place, and No place marks Did not finish or Didn't run. Each change saves at once.
  */
 function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>Promise<void>;onClose:()=>void}) {
   type Order={order:number[];didNotFinish:number[];didNotRun:number[]};
-  const wristband=(id:string)=>runnersOf(race.parts.runners.value).find(runner=>runner.id===id)?.wristband??0;
+  // Entries go by the number the server takes: a child's wristband, or a team's number shown as "Team 3".
+  const entries=race.parts.runners.value||[],relay=race.event.relay;
+  const wristband=(id:string)=>{const entry=entries.find(entry=>entry.id===id);return entry?entryNumber(entry):0;};
+  const name=(number:number)=>{const entry=entries.find(entry=>entryNumber(entry)===number);return entry?entryName(entry):String(number);};
   const finish=race.parts.finish.value!,places=race.kind==='final'?null:race.parts.times.value?.places;
   // A change being saved shows at once; the race read after the save replaces it.
   const [saving,setSaving]=useState<Order|null>(null),[asking,setAsking]=useState<number|null>(null);
@@ -114,16 +117,16 @@ function RaceOrderEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const without=(list:number[],number:number)=>list.filter(other=>other!==number);
   const time=(place:number)=>{const value=places?.[place-1];return value===undefined?null:value===null?'No time':formatTime(value);};
   return <div className="sheet-stack lead-order">
-    <p className="sheet-hint">Drag a wristband to its place: times stay by place. Each change saves at once.</p>
-    <SortableList label="Finishing order" items={shown.order} itemKey={number=>number} itemName={String} disabled={busy} onReorder={order=>void save({...shown,order})}
-      renderItem={(number,place)=><><span className="lead-order-place"><span className="row-place">{ordinal(place)}</span>{places && <small>{time(place)}</small>}</span><span className="row-runner"><strong>{number}</strong></span>
-        <button type="button" className="button-small button-secondary lead-no-place" disabled={busy} aria-label={`No place for ${number}`} onClick={()=>setAsking(number)}>No place</button></>}/>
-    {asking!==null && <div className="lead-order-ask"><p><strong>{asking} has no place. What happened?</strong></p>
+    <p className="sheet-hint">Drag a {relay?'team':'wristband'} to its place: times stay by place. Each change saves at once.</p>
+    <SortableList label="Finishing order" items={shown.order} itemKey={number=>number} itemName={name} disabled={busy} onReorder={order=>void save({...shown,order})}
+      renderItem={(number,place)=><><span className="lead-order-place"><span className="row-place">{ordinal(place)}</span>{places && <small>{time(place)}</small>}</span><span className="row-runner"><strong>{name(number)}</strong></span>
+        <button type="button" className="button-small button-secondary lead-no-place" disabled={busy} aria-label={`No place for ${name(number)}`} onClick={()=>setAsking(number)}>No place</button></>}/>
+    {asking!==null && <div className="lead-order-ask"><p><strong>{name(asking)} has no place. What happened?</strong></p>
       <div className="lead-order-choices"><button autoFocus disabled={busy} onClick={()=>void save({...shown,order:without(shown.order,asking),didNotFinish:[...shown.didNotFinish,asking]})}>Did not finish</button><button disabled={busy} onClick={()=>void save({...shown,order:without(shown.order,asking),didNotRun:[...shown.didNotRun,asking]})}>Didn't run</button></div>
-      <p className="sheet-hint">Didn't run takes {asking} off this race.</p><button className="button-secondary" disabled={busy} onClick={()=>setAsking(null)}>Keep {asking}'s place</button></div>}
+      <p className="sheet-hint">Didn't run takes {name(asking)} off this race{relay?': it is still to run again':''}.</p><button className="button-secondary" disabled={busy} onClick={()=>setAsking(null)}>Keep {name(asking)}'s place</button></div>}
     {shown.didNotFinish.length+shown.didNotRun.length>0 && <ul className="lead-order-others" aria-label="No place">
-      {shown.didNotFinish.map(number=><li key={number}><strong>{number}</strong><span>Did not finish</span><button className="button-small button-secondary" disabled={busy} aria-label={`Give a place to ${number}`} onClick={()=>void save({...shown,order:[...shown.order,number],didNotFinish:without(shown.didNotFinish,number)})}>Give a place</button></li>)}
-      {shown.didNotRun.map(number=><li key={number}><strong>{number}</strong><span>Didn't run · taken off this race</span></li>)}
+      {shown.didNotFinish.map(number=><li key={number}><strong>{name(number)}</strong><span>Did not finish</span><button className="button-small button-secondary" disabled={busy} aria-label={`Give a place to ${name(number)}`} onClick={()=>void save({...shown,order:[...shown.order,number],didNotFinish:without(shown.didNotFinish,number)})}>Give a place</button></li>)}
+      {shown.didNotRun.map(number=><li key={number}><strong>{name(number)}</strong><span>Didn't run · taken off this race</span></li>)}
     </ul>}
     <button className="button-secondary" disabled={busy} onClick={onClose}>Done</button>
   </div>;
