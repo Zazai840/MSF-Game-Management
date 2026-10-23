@@ -124,7 +124,7 @@ const changingWristband=(project:string,offset:number)=>2700+['iPhone','Android'
 const teamIds=(home:Awaited<ReturnType<typeof writeTeam>>,code:string)=>home.events.find(event=>event.code===code)!.teams!.map(team=>team.id);
 
 test('a team being changed shows who is changing it on other phones, live, and Take over closes it on the old holder\'s phone',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TC-${project.toUpperCase()}`,name=`Teams changing ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
+  const project=info.project.name,code=`TMC-${project.toUpperCase()}`,name=`Teams changing ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
   await ownRelay(code,name,'Girl Cubs');
   const priya=`Priya Shah changing ${project}`,sam=`Sam Patel changing ${project}`;
   const priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
@@ -148,7 +148,7 @@ test('a team being changed shows who is changing it on other phones, live, and T
 });
 
 test('Change anyway after its confirm opens the team with what was last saved, and a Done overtaken by another change snaps back to the server\'s copy',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TA-${project.toUpperCase()}`,name=`Teams change anyway ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
+  const project=info.project.name,code=`TMA-${project.toUpperCase()}`,name=`Teams change anyway ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
   await ownRelay(code,name,'Girl Cubs');
   const priya=`Priya Shah anyway ${project}`,sam=`Sam Patel anyway ${project}`;
   const priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
@@ -182,7 +182,7 @@ test('Change anyway after its confirm opens the team with what was last saved, a
 });
 
 test('Remove team, after its confirm, takes a team off the list for good: the list reads Team 1, 2, 4',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TR-${project.toUpperCase()}`,name=`Teams remove ${project}`,n=(offset:number)=>changingWristband(project,offset);
+  const project=info.project.name,code=`TMR-${project.toUpperCase()}`,name=`Teams remove ${project}`,n=(offset:number)=>changingWristband(project,offset);
   await ownRelay(code,name,'Girl Cubs');
   const samPhone=await openPhone(`Sam Patel remove ${project}`),priyaPhone=await openPhone(`Priya Shah remove ${project}`);
   for(const offset of [21,22,23]) await writeTeam(request,samPhone.token,code,[n(offset),null,null,null]);
