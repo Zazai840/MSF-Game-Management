@@ -50,7 +50,8 @@ export interface LeadItem {
   /** On a relay: the team's number, and its children's warnings as the lead reads them. */
   team?:number; warnings?:string[];
   wrongTime?:{ place:number; time:number; earlierPlace:number; earlierTime:number };
-  tie?:{ time:number; wristbands:number[] };
+  /** The tied children's wristbands, or teams ("Team 3"). */
+  tie?:{ time:number; names:string[] };
 }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {

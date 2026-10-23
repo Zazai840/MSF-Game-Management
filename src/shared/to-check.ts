@@ -25,11 +25,14 @@ function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
     case 'ran-short':
       return {title:'A team ran short',explanation:item.message};
     case 'added-at-finish':
+      if(item.team!==undefined) return {title:'A team was added at the finish',explanation:`Team ${item.team} crossed the line but was not checked in at the start. Check it ran in this race.`};
       return {title:'A runner was added at the finish',explanation:item.wristband!==undefined?`${item.wristband} crossed the line but was not checked in at the start. Check they ran in this race.`:item.message};
-    case 'ran-twice':
-      return {title:'A runner ran twice',explanation:item.wristband!==undefined?`${item.wristband} has a result in more than one race of this event. Choose which result counts.`:item.message};
+    case 'ran-twice': {
+      const name=item.team!==undefined?`Team ${item.team}`:item.wristband;
+      return {title:item.team!==undefined?'A team ran twice':'A runner ran twice',explanation:name!==undefined?`${name} has a result in more than one race of this event. Choose which result counts.`:item.message};
+    }
     case 'tie':
-      return {title:'Runners tied on time',explanation:item.tie?`${listed(item.tie.wristbands.map(String))} ${item.tie.wristbands.length===2?'both':'all'} have ${formatTime(item.tie.time)}. Decide whether a run-off is needed.`:item.message};
+      return {title:item.event.relay?'Teams tied on time':'Runners tied on time',explanation:item.tie?`${listed(item.tie.names)} ${item.tie.names.length===2?'both':'all'} have ${formatTime(item.tie.time)}. Decide whether a run-off is needed.`:item.message};
   }
 }
 /** How the To check list words one lead queue item: where it is, what went wrong, and what the lead decides. */

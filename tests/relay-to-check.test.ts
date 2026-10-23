@@ -3,6 +3,9 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { ResultsRead } from '../src/shared/lead-results.js';
 import { toCheckWording } from '../src/shared/to-check.js';
+import type { RaceScreenRead } from '../src/shared/race-screen.js';
+import { isTeamEntry,type TeamEntry } from '../src/shared/races.js';
+import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 import { signInOwner } from './support/sign-in.js';
 import { relaySetup } from './support/relays.js';
 let app:FastifyInstance;
@@ -54,6 +57,45 @@ test('a team that ran with fewer than four children marked here is a To check it
   expect((await call(lead,`/api/lead/races/${team2.raceId}/runners/${team2.entryId}/mark-warning-checked`,{})).statusCode).toBe(200);
   expect((await call(lead,`/api/lead/races/${team3.raceId}/runners/${team3.entryId}/disqualify`,{reason:'Baton'})).statusCode).toBe(200);
   expect(await toCheck()).toEqual([]);
+});
+
+test('a team added at the finish is a To check item cleared by Mark addition checked, and its children\'s wristband warnings show like any team\'s',async()=>{
+  const {sam,lead,relays,toCheck}=await start();
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  await relays.team(sam,'R22',[1045,2202,2203,2204]);
+  await relays.tick(sam,'R22',1);
+  for(const leg of [0,1,2,3]) await relays.here(sam,'R22',1,leg);
+  // Team 2 was never checked in: the order adds it with "+ Team not on the list".
+  const race=(await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/take-over',{job:'order'})).race,teams=(await relays.screen(sam,'R22')).teams!;
+  const team1=race.parts.runners.value!.find(entry=>isTeamEntry(entry) && entry.team.number===1)!.id;
+  const ordered=await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/order',{raceId:race.id,version:race.parts.finish.version,order:[team1],didNotFinish:[],didNotRun:[],added:[],addedTeams:[teams.find(team=>team.number===2)!.id]});
+  const timed=(await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/take-over',{job:'times'})).race;
+  await relays.post(sam,'/api/race-screen/R22/times',{raceId:timed.id,version:timed.parts.times.version,places:[1400,1500],keptWrong:[]});
+  await relays.post(sam,'/api/race-screen/R22/submit',{raceId:race.id});
+  const items=await toCheck();
+  expect(items.map(({kind,title,explanation})=>({kind,title,explanation})).sort((a,b)=>a.kind.localeCompare(b.kind))).toEqual([
+    {kind:'added-at-finish',title:'A team was added at the finish',explanation:'Team 2 crossed the line but was not checked in at the start. Check it ran in this race.'},
+    {kind:'warning',title:'A wristband number needs checking',explanation:'In Team 2: 1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.'}
+  ]);
+  const added=items.find(item=>item.kind==='added-at-finish')!;
+  expect(added.entryId).toBe(ordered.race.parts.runners.value!.find(entry=>isTeamEntry(entry) && entry.team.number===2)!.id);
+  expect((await call(lead,`/api/lead/races/${added.raceId}/runners/${added.entryId}/mark-added-checked`,{})).statusCode).toBe(200);
+  expect((await toCheck()).map(item=>item.kind)).toEqual(['warning']);
+  expect((await call(lead,`/api/lead/races/${added.raceId}/runners/${added.entryId}/mark-warning-checked`,{})).statusCode).toBe(200);
+  expect(await toCheck()).toEqual([]);
+});
+
+test('a time out of order, teams tied on time and a team ran twice are today\'s items worded with "team", and "already ran" never applies to a relay',()=>{
+  const at='2026-10-23T10:00:00Z',event={id:'r22',code:'R22',name:'4x50m Relay',section:'Girl Cubs' as const,format:'heats' as const,enabled:true,relay:true};
+  const team=(id:string,number:number):TeamEntry=>({id,team:{id:`team-${number}`,number},legs:[1,2,3,4].map(leg=>({wristband:2000+number*100+leg,warnings:[],here:true}))});
+  const heat=(id:string,number:number,entries:TeamEntry[],places:number[]):ResultsRace=>({id,kind:'heat',number,checkedInAt:at,deleted:false,saved:true,runners:entries,finish:{order:entries.map(entry=>entry.id),didNotFinish:[]},times:{places,outOfOrder:places.some((time,index)=>index>0 && time<places[index-1])}});
+  // Team 1 ran in both heats (a restored heat); Team 2 and Team 3 tie on 15.00; Heat 3's times are out of order.
+  const races=[heat('h1',1,[team('a',1),team('b',2)],[1400,1500]),heat('h2',2,[team('c',1),team('d',3)],[1450,1500]),heat('h3',3,[team('e',4),team('f',5)],[1700,1600])];
+  const items=eventResults({event,races}).needsYou.map(item=>({kind:item.kind,...toCheckWording({...item,event})}));
+  expect(items.map(item=>item.kind).sort()).toEqual(['ran-twice','ran-twice','tie','times-out-of-order']);
+  expect(items.find(item=>item.kind==='ran-twice')).toMatchObject({title:'A team ran twice',explanation:'Team 1 has a result in more than one race of this event. Choose which result counts.'});
+  expect(items.find(item=>item.kind==='tie')).toMatchObject({title:'Teams tied on time',explanation:'Team 2 and Team 3 both have 15.00. Decide whether a run-off is needed.'});
+  expect(items.find(item=>item.kind==='times-out-of-order')).toMatchObject({title:'A time looks wrong',explanation:'2nd place (16.00) is faster than 1st (17.00). The timer kept it as typed.'});
 });
 
 test('a child in two relays\' teams is a To check item on the team that ran, kept or not, cleared by fixing the team list or Mark checked',async()=>{

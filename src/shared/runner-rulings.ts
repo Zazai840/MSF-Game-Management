@@ -23,8 +23,8 @@ export function teamWarningFlags(state:Pick<EventState,'event'|'relays'>,race:Pi
     const others=(state.relays||[]).filter(relay=>relay.code!==state.event.code).flatMap(relay=>relay.teams.filter(team=>team.legs.some(leg=>leg.wristband===wristband)).map(team=>`${relay.section} Team ${team.number}`));
     return wristband!==null && others.length?[flag({kind:'other-relay',message:`${wristband} is in ${listed([`${state.event.section} Team ${entry.team.number}`,...others])}.`})]:[];
   });
-  // A team that ran with fewer than four children marked here (one added at the finish was never checked in), settled by Mark checked or any disqualification.
+  // Settled by Mark checked or by any disqualification. A team added at the finish has its children with a wristband marked here.
   const here=entry.legs.filter(leg=>leg.here).length,ranShort={kind:'ran-short' as const,message:`Team ${entry.team.number} ran with ${here} of 4 children marked here.`};
-  const short=race.saved && !entry.addedAtFinish && here<4?[{...flag(ranShort),checked:!!ruling?.disqualification || settled(ranShort,ruling)}]:[];
+  const short=race.saved && here<4?[{...flag(ranShort),checked:!!ruling?.disqualification || settled(ranShort,ruling)}]:[];
   return [...kept,...twoRelays,...short];
 }

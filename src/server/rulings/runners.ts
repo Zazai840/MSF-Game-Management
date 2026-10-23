@@ -19,12 +19,12 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
+      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
       if(!runner.addedAtFinish || previous?.addedAtFinishChecked) throw new Refusal(409,'There is no unchecked addition at the finish');
       await client.query('INSERT INTO runner_rulings(race_id,entry_id,added_at_finish_checked) VALUES($1,$2,true) ON CONFLICT(race_id,entry_id) DO UPDATE SET added_at_finish_checked=true',[raceId,entryId]);
-      await writeAuditNote(client,current,race.event.id,{action:'mark-added-checked',comment,message:`${current.name} checked ${runner.wristband} added at the finish (${raceLabel(race)})${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
+      await writeAuditNote(client,current,race.event.id,{action:'mark-added-checked',comment,message:`${current.name} checked ${entryName(runner)} added at the finish (${raceLabel(race)})${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
