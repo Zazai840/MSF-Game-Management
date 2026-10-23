@@ -51,3 +51,25 @@ test('the boot script starts on a database an older build left, competing saves 
     expect(history.filter((row:{at:string|null})=>row.at).map(({part,author}:{part:string;author:string})=>[part,author])).toEqual([['runners',null],['finish','Aisha'],['times','Aisha']]);
   } finally {await app.close();}
 });
+test('the boot script adds the relay mark to a day the current build started, leaving its events, holds and races as they were and adding no relays',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const owner=(await app.inject({method:'POST',url:'/api/owner-sign-in',payload:{password:'upgrade-owner',name:'Aisha',profiles:[]}})).json().token as string;
+  const race=await raceSetup(app).checkIn(owner,'R4',[2001,2002]);
+  await app.close();
+  // The current build: its day has the 20 individual events and no relay mark.
+  const current=new pg.Client({connectionString:databaseUrl});await current.connect();
+  await current.query("DELETE FROM events WHERE code IN ('R19','R20','R21','R22','R27','R28')");
+  await current.query('ALTER TABLE events DROP COLUMN relay');
+  await current.end();
+  app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+  try {
+    const day=(await app.inject({url:'/api/day',headers:{authorization:`Bearer ${owner}`}})).json();
+    expect(day.events).toHaveLength(20);
+    expect(day.events.every((event:{relay:boolean})=>event.relay===false)).toBe(true);
+    const screen=await raceSetup(app).screen(owner,'R4');
+    expect(screen.race).toMatchObject({id:race.id,state:'in progress'});
+    expect(screen.race.parts.runners.value?.map(runner=>runner.wristband)).toEqual([2001,2002]);
+    expect(screen.holds['check-in']?.name).toBe('Aisha');
+  } finally {await app.close();}
+});

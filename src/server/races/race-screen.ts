@@ -36,7 +36,7 @@ export async function clearHolds(client:pg.PoolClient,signInId:string) {
  * has, and the event's last saved race.
  */
 export async function raceScreenRead(db:Database,dayId:string,code:string):Promise<RaceScreenRead> {
-  const event=(await db.query('SELECT id,code,name,section,format,enabled FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
+  const event=(await db.query('SELECT id,code,name,section,format,enabled,relay FROM events WHERE day_id=$1 AND code=$2',[dayId,code])).rows[0];
   if(!event) throw new Refusal(404,'Event not found');
   const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
   const race=(await currentRaces(db,dayId,[event])).get(event.id)!,stage=stageForRace({kind:race.kind,event});
@@ -54,7 +54,7 @@ export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
   return {revision,events:events.map(event=>{
     const race=current.get(event.id)!,own=holds.get(event.id)||{},stage=stageForRace({kind:race.kind,event});
     const waiting=race.state==='submitted'?waitingOn(askedToSubmit(race,own),presses.filter(press=>press.race_id===race.id).map(press=>({id:press.sign_in_id}))).map(holder=>holder.name):[];
-    return {code:event.code,name:event.name,section:event.section,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
+    return {code:event.code,name:event.name,section:event.section,relay:event.relay,race:{kind:race.kind,number:race.number,state:race.state},holds:own,
       started:hasEntries(race,'order') || hasEntries(race,'times'),waitingOn:waiting,done:stages.some(item=>item.eventId===event.id && item.stage===stage)};
   })};
 }

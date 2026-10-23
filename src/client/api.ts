@@ -6,9 +6,12 @@ let resetPending=false;
 const kept=[`${prefix}pass`,`${prefix}profiles`];
 /** What each 401 reason leaves on the phone. With no known reason, everything goes. */
 const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],moved:kept};
+/** Home's last tab belongs to the phone, not the session, so it outlasts sign-ins. */
+const homeTabKey=`${prefix}home-tab`;
+export type HomeTab='races'|'relays';
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
-  for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session`) localStorage.removeItem(key);
+  for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session` && key!==homeTabKey) localStorage.removeItem(key);
   localStorage.removeItem(`${prefix}session`);
 };
 const token=()=>localStorage.getItem(`${prefix}token`);
@@ -46,6 +49,9 @@ export const phoneStorage = {
   /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
   waiting:():Waiting|null=>{try {return JSON.parse(localStorage.getItem(`${prefix}waiting`)||'null');} catch {return null;}},
   rememberWaiting:(waiting:Waiting|null)=>waiting?localStorage.setItem(`${prefix}waiting`,JSON.stringify(waiting)):localStorage.removeItem(`${prefix}waiting`),
+  /** The Home tab this phone used last: Races & Hurdles on a phone that never switched, or when storage fails. */
+  homeTab:():HomeTab=>{try {return localStorage.getItem(homeTabKey)==='relays'?'relays':'races';} catch {return 'races';}},
+  rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},
   /** A new session drops what the old one kept but keeps the pass and profiles. */
   signIn:(signedInToken:string,profileId:string|null)=>{
     erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);

@@ -26,6 +26,10 @@ main {width:100%; max-width:48rem; margin:0 auto; padding:20px 16px; flex:1; dis
 .section-choices {display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;}
 .section-choices button {display:flex; flex-direction:column; align-items:flex-start; gap:2px; background:var(--surface); color:var(--navy); border-color:var(--surface); text-align:left;}
 .section-choices small {color:var(--muted); font-weight:700;}
+/* Home's Races & Hurdles | Relays tabs: two equal halves on a tinted track, the chosen one raised on white. */
+.tabs-seg {display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; margin-bottom:18px; background:var(--tint); border-radius:var(--radius);}
+.tabs-seg button {min-height:var(--tap); padding:0 8px; background:transparent; color:var(--navy); border-color:transparent; border-radius:var(--radius-small); font-size:16px;}
+.tabs-seg button[aria-selected=true] {background:var(--surface); box-shadow:0 1px 3px rgba(27,42,81,.2);}
 
 /* Menu buttons (the Dashboard menu): icon, title, one line of explanation, optional badge, chevron. */
 .home h1 {margin-bottom:4px;}

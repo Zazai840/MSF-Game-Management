@@ -48,6 +48,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       enabled boolean NOT NULL DEFAULT true, programme_order integer NOT NULL,
       UNIQUE(day_id,code)
     );
+    -- A relay is run by relay teams. Only a new day's seeded relays have the mark: the add-event route never sets it.
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS relay boolean NOT NULL DEFAULT false;
     CREATE TABLE IF NOT EXISTS races (
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), event_id uuid NOT NULL REFERENCES events(id),
       kind text NOT NULL CHECK (kind IN ('heat','final','race')), number integer NOT NULL,

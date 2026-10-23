@@ -170,8 +170,10 @@ test('the Home stream sends every switched-on event first, in programme order, e
   expect(stream.response.headers.get('content-type')).toBe('text/event-stream');
   const first=await stream.snapshot<HomeSnapshot>();
   expect(first.revision).toEqual(expect.any(Number));
-  expect(first.events.map(event=>event.code)).toEqual(['R1','R2','R3','R4','R6','R7','R8','R9','R10','R11','R12','R13','R14','R15','R16','R17','R18','R23','R24']);
-  expect(first.events[0]).toMatchObject({code:'R1',name:'60m',section:'Boy Beavers'});
+  expect(first.events.map(event=>event.code)).toEqual(['R1','R2','R3','R4','R6','R7','R8','R9','R10','R11','R12','R13','R14','R15','R16','R17','R18','R23','R24','R19','R20','R21','R22','R27','R28']);
+  // The relay mark says which tab of Home shows the event.
+  expect(first.events[0]).toMatchObject({code:'R1',name:'60m',section:'Boy Beavers',relay:false});
+  expect(first.events.find(event=>event.code==='R27')).toMatchObject({name:'4x100m Relay',section:'Boy Scouts',relay:true});
   const line=(code:string)=>homeStatus(first.events.find(event=>event.code===code)!);
   expect(line('R1')).toBe('Heat 1');
   // Heat 1 is saved; Sam's holds carry over to Heat 2.

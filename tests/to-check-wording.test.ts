@@ -1,7 +1,7 @@
 import { describe,expect,it } from 'vitest';
 import { toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
-const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true};
+const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true,relay:false};
 const race={id:'r',kind:'heat' as const,number:2,checkedInAt:'2026-10-14T10:00:00Z'};
 const item=(fields:Partial<DayLeadItem>&Pick<DayLeadItem,'kind'|'message'>):DayLeadItem=>({id:'i',at:'2026-10-14T10:05:00Z',event,race,raceId:'r',...fields});
 describe('To check wording',()=>{

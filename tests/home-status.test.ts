@@ -1,7 +1,7 @@
 import { expect,test } from 'vitest';
 import { homeStatus,type HomeEvent } from '../src/shared/race-screen.js';
 const sam={id:'s',name:'Sam'},jo={id:'j',name:'Jo'};
-const event=(change:Partial<HomeEvent>):HomeEvent=>({code:'R1',name:'60m',section:'Boy Cubs',race:{kind:'heat',number:2,state:'in progress'},holds:{},started:false,waitingOn:[],done:false,...change});
+const event=(change:Partial<HomeEvent>):HomeEvent=>({code:'R1',name:'60m',section:'Boy Cubs',relay:false,race:{kind:'heat',number:2,state:'in progress'},holds:{},started:false,waitingOn:[],done:false,...change});
 test('a tile\'s status line names the race, what is happening on it and who is on it',()=>{
   expect(homeStatus(event({}))).toBe('Heat 2');
   expect(homeStatus(event({holds:{'check-in':sam}}))).toBe('Heat 2 · Checking in · Sam');
@@ -18,4 +18,7 @@ test('on a Final, check-in is checking who is here and the order is the finishin
   const final={kind:'final',number:1,state:'in progress'} as const;
   expect(homeStatus(event({race:final,holds:{'check-in':sam}}))).toBe('Final · Checking who is here · Sam');
   expect(homeStatus(event({race:final,holds:{'check-in':sam,order:jo}}))).toBe('Final · Finishing order · Sam, Jo');
+});
+test('a relay with no teams reads No teams yet',()=>{
+  expect(homeStatus(event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{kind:'heat',number:1,state:'in progress'}}))).toBe('No teams yet');
 });
