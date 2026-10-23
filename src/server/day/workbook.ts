@@ -6,8 +6,18 @@ import { readAuditNotes,readRulings } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { readTieSettlements } from '../rulings/ties.js';
 import { eventState } from '../results/read.js';
-import { eventResults } from '../../shared/results-rules.js';
+import { eventResults,type ResultTeam,type Section } from '../../shared/results-rules.js';
+import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { raceLabel,runnersOf } from '../../shared/races.js';
+/**
+ * A medal team as the scoring database takes it: for J, M or P the first child in leg order whose wristband is the
+ * relay's own Section (any Beaver number on a Beaver relay), else the 1st leg so the export is never blocked; then
+ * the other three in leg order.
+ */
+function medalTeam(team:ResultTeam,section:Section) {
+ const own=Math.max(0,team.wristbands.findIndex(wristband=>wristband!==null && !wristbandWarnings(wristband,section,[],{skipAlreadyRan:true}).length));
+ return {scored:team.wristbands[own],teammates:team.wristbands.filter((_,leg)=>leg!==own)};
+}
 /** All reads use the export transaction's day lock, including records omitted by live queues. */
 export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
  const events=await readEvents(client,false,dayId),races:StoredRace[]=[];
@@ -20,7 +30,13 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
  for(const event of events){
   const state=eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),ties.filter(tie=>tie.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage));
   const results=eventResults(state),podium=results.inputRunning;
-  if(podium) input.push([podium.eventCode,null,null,null,null,null,null,null,null,podium.first,null,null,podium.second,null,null,podium.third]);
+  if(podium?.teams) {
+   // J, M and P for the 1st, 2nd and 3rd team; their teammates in U-W, AA-AC and AG-AI.
+   const row:Array<string|number|null>=[podium.eventCode,...Array(34).fill(null)];
+   podium.teams.forEach((team,index)=>{if(!team) return;const {scored,teammates}=medalTeam(team,event.section);row[9+index*3]=scored;row.splice(20+index*6,3,...teammates);});
+   input.push(row);
+  }
+  else if(podium) input.push([podium.eventCode,null,null,null,null,null,null,null,null,podium.first,null,null,podium.second,null,null,podium.third]);
   for(const row of results.allResults) all.push([event.code,event.name,event.section,raceLabel(row.race),row.wristband,row.time===null?null:{value:row.time/100,format:'0.00'},row.place,row.position,row.statuses.join('; '),row.warning||null,row.note||null]);
   for(const field of results.finalRecords){
    const race=races.find(race=>race.id===field.race.id)!;
@@ -37,7 +53,7 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
  }
  const audit:SheetData=[['Event code','Time','Who','Action','Comment'],...notes.slice().reverse().map(note=>[events.find(event=>event.id===note.eventId)?.code??null,note.at,note.actor,note.message,note.comment])];
  return writeExcelFile([
-  {sheet:'Input - Running',data:input,widths:Array(16).fill(12)},
+  {sheet:'Input - Running',data:input,widths:Array(35).fill(12)},
   {sheet:'Finals',data:finals,widths:[12,22,20,12,8,18,15,24,24,12,22,24]},
   {sheet:'All results',data:all,widths:[12,22,20,12,18,12,15,15,40,55,85]},
   {sheet:'Audit notes',data:audit,widths:[12,28,22,85,65]}
