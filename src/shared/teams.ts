@@ -13,7 +13,7 @@ export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number
  */
 export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changing:{id:string;name:string;since:string}|null; races:TeamRace[] }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
-export interface TeamRelay { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
+export interface TeamList { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
 export const filledLegs=(team:Pick<RelayTeam,'legs'>)=>team.legs.filter(leg=>leg.wristband!==null).length;
 /** Still to run: no race of its relay holds the team, apart from deleted races. Removed teams are not on the list at all. */
@@ -51,7 +51,7 @@ export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:re
  * What looks wrong about a leg's number, for Fix number or Keep: no Section uses it, it is another Section's (any
  * Beaver number is in range for both Beaver relays), or the child is already in a team of another relay.
  */
-export function legWarnings(number:number,relay:Pick<TeamRelay,'code'|'section'>,relays:readonly TeamRelay[]):Array<Omit<TeamWarning,'kept'>> {
+export function legWarnings(number:number,relay:Pick<TeamList,'code'|'section'>,relays:readonly TeamList[]):Array<Omit<TeamWarning,'kept'>> {
   const warnings=wristbandWarnings(number,relay.section,[],{skipAlreadyRan:true}).map(warning=>({kind:warning.kind as TeamWarning['kind'],message:plainWristbandWarning(warning,number,relay.section)}));
   for(const other of relays) if(other.code!==relay.code) for(const team of other.teams) if(team.legs.some(leg=>leg.wristband===number)) warnings.push({kind:'other-relay',message:`${number} is also in Team ${team.number} of ${other.name} ${other.section}.`});
   return warnings;

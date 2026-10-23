@@ -16,14 +16,13 @@ import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { stillToRun } from '../../shared/teams.js';
-import { correctTeam,readTeamLists } from '../relays/teams.js';
-import { relayLists } from '../races/race-screen.js';
+import { correctTeam,readTeamLists,relayLists } from '../relays/teams.js';
 /** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
   if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
 }
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
-function requireChildren(race:{event:{relay:boolean}}) {
+function requireNotRelay(race:{event:{relay:boolean}}) {
   if(race.event.relay) throw new Refusal(409,'A relay race is corrected by team');
 }
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -128,7 +127,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       requireSaved(race);
-      requireChildren(race);
+      requireNotRelay(race);
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=runnersOf(race.parts.runners.value),otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
       const changed:string[]=[];

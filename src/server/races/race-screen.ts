@@ -14,7 +14,7 @@ import { resultsSnapshot } from '../results/read.js';
 import { writeAuditNote } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { readEvents } from '../day/events.js';
-import { cancelTeam,openTeam,readTeamLists,relayRead,requestedDone,requestedId,writeTeam } from '../relays/teams.js';
+import { cancelTeam,openTeam,readTeamLists,relayLists,requestedDone,requestedId,teamsWriteRead,writeTeam } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
@@ -52,11 +52,6 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
   const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
   return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null,
     ...(event.relay?await relayLists(db,dayId,event.id):{})};
-}
-/** A relay's race screen carries its team list, and every switched-on relay's, which a check-in Edit's warnings look through. */
-export async function relayLists(db:Database,dayId:string,eventId:string) {
-  const lists=await readTeamLists(db,dayId);
-  return {teams:lists.get(eventId)!.teams,relays:[...lists.values()].filter(relay=>relay.enabled).map(({code,name,section,teams})=>({code,name,section,teams}))};
 }
 /** Home: every switched-on event's status line inputs, and each relay's team list with its teams holder, read for the whole day at once. */
 export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
@@ -290,7 +285,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     const done=requestedDone(request.body);
     return tap(request,phone,async({client,screen,race,team,entries,entry})=>{
       if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
-      const legs=await writeTeam(client,await relayRead(client,phone.dayId,screen.event.code),team,phone,done);
+      const legs=await writeTeam(client,await teamsWriteRead(client,phone.dayId,screen.event.code),team,phone,done);
       return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:entry.legs.some(was=>was.here && was.wristband===leg.wristband)}))}:other);
     });
   });

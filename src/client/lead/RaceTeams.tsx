@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { isTeamEntry,raceLabel,type TeamEntry } from '../../shared/races.js';
-import { stillToRun,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
+import { stillToRun,type RelayTeam,type TeamList } from '../../shared/teams.js';
 import { TeamCells,TeamEdit } from '../teams/TeamsScreen.js';
 import '../teams/teams.css';
 import './race-page.css';
@@ -14,7 +14,7 @@ const asTeam=(entry:TeamEntry):RelayTeam=>({id:entry.team.id,number:entry.team.n
  * place and time, and on the team's latest race the Teams screen changes too), take a team off the race (it is still to
  * run again) or add a team still to run. Each change saves at once, checked as the Teams screen checks a team.
  */
-export function RaceTeamsEditor({race,teams,relays,busy,onSave,onClose}:{race:LeadRaceRead['race'];teams:readonly RelayTeam[];relays:readonly TeamRelay[];busy:boolean;onSave:(body:unknown)=>Promise<void>;onClose:()=>void}) {
+export function RaceTeamsEditor({race,teams,relays,busy,onSave,onClose}:{race:LeadRaceRead['race'];teams:readonly RelayTeam[];relays:readonly TeamList[];busy:boolean;onSave:(body:unknown)=>Promise<void>;onClose:()=>void}) {
   const entries=(race.parts.runners.value||[]).filter(isTeamEntry),label=raceLabel(race);
   const [editing,setEditing]=useState<string|null>(null),[removing,setRemoving]=useState<string|null>(null),[adding,setAdding]=useState(false);
   const relay={code:race.event.code,name:race.event.name,section:race.event.section,teams},available=teams.filter(stillToRun);
