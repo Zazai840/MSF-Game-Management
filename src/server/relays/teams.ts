@@ -3,7 +3,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { currentRaceLabel,type Holder } from '../../shared/race-screen.js';
-import { legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
+import { changingName,legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { homeRead } from '../races/race-screen.js';
@@ -93,14 +93,27 @@ export async function cancelTeam(client:pg.PoolClient,team:RelayTeam,phone:Phone
   if(team.changing?.id!==phone.id) {unchanged();return;}
   await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id]);
 }
+/**
+ * A team joining a race from its team list (ticked at check-in, added at the finish, or by a lead's Correct teams):
+ * only a team still to run, and one nobody is changing unless `evenIfChanging`. The race takes a copy of its four
+ * children and their kept warnings, each child on the list marked here when `here` (they crossed the line).
+ */
+export function joiningTeam(team:RelayTeam,{here=false,addedAtFinish=false,evenIfChanging=false}={}):TeamEntry {
+  if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
+  const changer=evenIfChanging?null:changingName(team);
+  if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
+  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:here && leg.wristband!==null})),...(addedAtFinish?{addedAtFinish:true}:{})};
+}
+/** Four wristband boxes in leg order, each a wristband number or null for an empty box. */
+export const fourBoxes=(legs:unknown):legs is Array<number|null>=>Array.isArray(legs) && legs.length===4 && legs.every(leg=>leg===null || (Number.isSafeInteger(leg) && leg>=0));
 /** What a Done sends: the team (none for a new one) and the version it opened, the four boxes in leg order and the wristbands whose warnings were kept. */
 export interface TeamDone { teamId?:string; version?:number; wristbands:Array<number|null>; kept:unknown[] }
 export function requestedDone(body:unknown):TeamDone {
   const {teamId,version,legs,keptWarnings}=(body||{}) as {teamId?:unknown;version?:unknown;legs?:unknown;keptWarnings?:unknown};
   if(teamId!==undefined && typeof teamId!=='string') throw new Refusal(400,'Choose a team');
   if(teamId!==undefined && !Number.isSafeInteger(version)) throw new Refusal(400,'Open the team again');
-  if(!Array.isArray(legs) || legs.length!==4 || legs.some(leg=>leg!==null && (!Number.isSafeInteger(leg) || leg<0))) throw new Refusal(400,'Enter the four wristband boxes');
-  const wristbands=legs as Array<number|null>,kept=keptWarnings??[];
+  if(!fourBoxes(legs)) throw new Refusal(400,'Enter the four wristband boxes');
+  const wristbands=legs,kept=keptWarnings??[];
   if(wristbands.every(wristband=>wristband===null)) throw new Refusal(400,'Enter at least one wristband number');
   if(!Array.isArray(kept) || kept.some(number=>number===null || !wristbands.includes(number))) throw new Refusal(400,'Choose Keep for a wristband number in this team');
   return {teamId,version:version as number|undefined,wristbands,kept};
