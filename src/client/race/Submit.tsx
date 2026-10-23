@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,jobs,submitBlocker,waitingOn,type RaceScreenRead } from '../../shared/race-screen.js';
 import { entryName } from '../../shared/races.js';
-import { EntryLabel } from './OrderAndTimes.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { TakeOver,useRaceWrite,type Offer } from './Hold.js';
+import { EntryLabel } from './OrderAndTimes.js';
 
 const jobNames={'check-in':'Check-in',order:'Order',times:'Times'} as const;
 /**

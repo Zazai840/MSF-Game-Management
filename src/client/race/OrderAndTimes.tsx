@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import { onlyRunners,placeHolder,type RaceScreenRead } from '../../shared/race-screen.js';
+import { onlyRunners,entryWord,type RaceScreenRead } from '../../shared/race-screen.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry } from '../../shared/races.js';
 import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits } from '../../shared/time-entry.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
@@ -35,7 +35,7 @@ export function EntryLabel({entry}:{entry:RaceEntry}) {
  * which shows amber on every phone. Each change sends the whole column at once.
  */
 export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneId:string;offer:Offer}) {
-  const {event,race,stageComplete,holds}=screen,final=race.kind==='final',place=placeHolder(event.relay);
+  const {event,race,stageComplete,holds}=screen,final=race.kind==='final',place=entryWord(event.relay);
   const columns:Column[]=final?['order']:['order','times'];
   const {busy,error,write}=useRaceWrite(event.code,offer);
   const {pending,sending,send:sendOrder}=useColumnWrites<OrderColumn&{raceId:string|null;added:number[];keptWarnings:number[]}>(write,'order',race.parts.finish.version);
@@ -158,7 +158,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     :places.length>order.length?<div className="race-order">
       <p className="calm-note">{ordinal(order.length+1)} place has a time but no {place}.</p>
       <button className="button-secondary" disabled={timesWrites.sending} onClick={()=>void timesWrites.send({raceId:race.id,places:places.slice(0,order.length),keptWrong:keptWrong.filter(index=>index<order.length)})}>
-        {places.length-order.length===1?`Remove ${ordinal(order.length+1)} place's time`:`Remove the ${places.length-order.length} times with no wristband`}</button>
+        {places.length-order.length===1?`Remove ${ordinal(order.length+1)} place's time`:`Remove the ${places.length-order.length} times with no ${place}`}</button>
     </div>
     :runners.length && !unplaced.length?<p className="calm-note" role="status">Every place has a time</p>
     :<p className="race-hint">The next time goes in once {ordinal(places.length+1)} place has a {place}.</p>)}

@@ -67,12 +67,12 @@ export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>,relay=false)
   if(untimed>=0) return `Place ${untimed+1} has no time`;
   // Finishers and times disagree only after a lead's correction, never on a saved race.
   const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
-  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${placeHolder(relay)}`;
+  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
   const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }
 /** What fills a place in the order: a wristband, or on a relay a team. */
-export const placeHolder=(relay:boolean)=>relay?'team':'wristband';
+export const entryWord=(relay:boolean)=>relay?'team':'wristband';
 /** Those asked to press Submit Race who have not pressed yet. */
 export const waitingOn=(asked:readonly Holder[],pressed:readonly Pick<Holder,'id'>[])=>asked.filter(holder=>!pressed.some(other=>other.id===holder.id));
 /** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
