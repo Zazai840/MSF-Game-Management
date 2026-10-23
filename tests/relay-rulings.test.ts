@@ -94,3 +94,23 @@ test('Correct times on a relay heat retimes its teams by place, refusing more pl
   const stale=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1400,1500]});
   expect([stale.statusCode,stale.json().message]).toEqual([409,'These times have changed - open the race again']);
 });
+
+test('Correct finishing order on a relay heat moves teams by number while times stay by place; Didn\'t run makes a team still to run again',async()=>{
+  const {sam,lead,relays,teams,heat,read,row,leadRace}=await start();
+  await teams(3);
+  await heat([1,2,3],[1400,1500,1600]);
+  const raceId=(await row(1)).raceId,versions=async()=>{const race=await leadRace(raceId);return {baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version};};
+  const moved=await call(lead,`/api/lead/races/${raceId}/finish-order`,{...await versions(),order:[2,1,3],didNotFinish:[],didNotRun:[],comment:'Photo checked'});
+  expect(moved.statusCode).toBe(200);
+  expect((await read()).results.leaderboard.map(row=>[row.team?.number,row.time])).toEqual([[2,1400],[1,1500],[3,1600]]);
+  expect((await read()).auditNotes[0].message).toBe('Jo Evans corrected the finishing order for Heat 1: Team 2, Team 1, Team 3 - Photo checked');
+  // A child's wristband is not a team in this race.
+  expect((await call(lead,`/api/lead/races/${raceId}/finish-order`,{...await versions(),order:[2101,2201,2301],didNotFinish:[],didNotRun:[]})).statusCode).toBe(400);
+  const stillToRun=async()=>(await relays.screen(sam,'R22')).teams!.filter(team=>!team.races.length).map(team=>team.number);
+  expect(await stillToRun()).toEqual([]);
+  const tookOff=await call(lead,`/api/lead/races/${raceId}/finish-order`,{...await versions(),order:[2],didNotFinish:[1],didNotRun:[3]});
+  expect(tookOff.statusCode).toBe(200);
+  expect((await read()).auditNotes[0].message).toBe('Jo Evans corrected the finishing order for Heat 1: Team 2; Did not finish Team 1; Didn\'t run Team 3');
+  expect((await leadRace(raceId)).parts.runners.value.map((entry:any)=>entry.team.number)).toEqual([1,2]);
+  expect(await stillToRun()).toEqual([3]);
+});

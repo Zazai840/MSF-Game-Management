@@ -23,6 +23,8 @@ export const isRunner=(entry:RaceEntry):entry is Runner=>!isTeamEntry(entry);
 export const runnersOf=(entries:readonly RaceEntry[]|null|undefined)=>(entries||[]).filter(isRunner);
 /** An entry as a volunteer reads it: a child's wristband, or "Team 3". */
 export const entryName=(entry:RaceEntry)=>isTeamEntry(entry)?`Team ${entry.team.number}`:String(entry.wristband);
+/** The number a finishing order correction names an entry by: a child's wristband, or on a relay the team's number. */
+export const entryNumber=(entry:RaceEntry)=>isTeamEntry(entry)?entry.team.number:entry.wristband;
 export interface FinishingOrder { order:string[]; didNotFinish:string[] }
 export interface RaceRecording { countMismatch:string|null; readyForRanking:boolean; results:Array<{entryId:string;wristband:number|null;place:number|null;time:number|null}> }
 export interface RacePart<T> { version:number; value:T|null }
