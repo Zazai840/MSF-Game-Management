@@ -108,6 +108,34 @@ test('a lead adds a team to the Final by picking it from the relay\'s teams: it 
   expect((await call(lead,'/api/lead/events/R4/add-team',{teamId:teamId(2)})).json()).toEqual({message:'Only a relay has teams'});
 });
 
+test('a relay Final takes the finishing order only: Submit Race asks only the order holder, an Edit\'s swapped child runs it, and Absent teams leave it when saved',async()=>{
+  const {sam,priya,relays,results}=await start();
+  const seen=await relays.screen(sam,'R22'),team=(number:number)=>seen.teams!.find(item=>item.number===number)!;
+  await relays.post(sam,'/api/race-screen/R22/absent-team',{raceId:seen.race.id,teamId:team(7).id,absent:true});
+  // Team 2's 3rd leg is swapped at check-in: the child who runs the Final gets the medal, with no flag.
+  await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:seen.race.id,teamId:team(2).id});
+  await relays.post(sam,'/api/race-screen/R22/edit-done',{raceId:seen.race.id,teamId:team(2).id,version:team(2).version,legs:[2201,2202,2299,2204],keptWarnings:[]});
+  for(const number of [2,5,1,6,3]) for(const leg of [0,1,2,3]) await relays.here(sam,'R22',number,leg);
+  const race=(await relays.post<RaceScreenRead>(priya,'/api/race-screen/R22/take-over',{job:'order'})).race,id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
+  expect(finalTeams({race} as RaceScreenRead)).toEqual([2,5,1,6,3]);
+  const ordered=await relays.post<RaceScreenRead>(priya,'/api/race-screen/R22/order',{raceId:race.id,version:race.parts.finish.version,order:[3,2,5,1,6].map(id),didNotFinish:[],didNotRun:[],added:[]});
+  // Sam ticked and edited teams but holds no job, so only Priya is asked.
+  expect(ordered.asked.map(holder=>holder.name)).toEqual(['Priya Shah']);
+  const saved=await relays.post<RaceScreenRead>(priya,'/api/race-screen/R22/submit',{raceId:race.id});
+  expect(saved.race.state).toBe('saved');
+  const final=(await results()).finalResults!;
+  expect(final.leaderboard.map(row=>[row.position,row.medalPlace,row.team?.number,row.team?.wristbands,row.flags])).toEqual([
+    [1,1,3,legs(3),[]],[2,2,2,[2201,2202,2299,2204],[]],[3,3,5,legs(5),[]],[4,null,1,legs(1),[]],[5,null,6,legs(6),[]]
+  ]);
+});
+
+test('Submit Race on a relay Final is blocked while every team is Absent',async()=>{
+  const {sam,relays}=await start();
+  const seen=await relays.screen(sam,'R22');
+  for(const team of seen.teams!.filter(item=>[2,5,1,6,3,7].includes(item.number))) await relays.post(sam,'/api/race-screen/R22/absent-team',{raceId:seen.race.id,teamId:team.id,absent:true});
+  expect((await call(sam,'/api/race-screen/R22/submit',{raceId:seen.race.id})).json()).toEqual({message:'Every team is marked Absent'});
+});
+
 test('Absent is only for a Final\'s teams',async()=>{
   const {sam,relays}=await start({complete:false});
   await relays.team(sam,'R22',legs(8));
