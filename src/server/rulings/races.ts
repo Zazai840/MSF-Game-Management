@@ -17,6 +17,7 @@ import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { entryName,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { stillToRun } from '../../shared/teams.js';
 import { correctTeam,readTeamLists } from '../relays/teams.js';
+import { relayLists } from '../races/race-screen.js';
 /** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
   if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
@@ -28,7 +29,11 @@ function requireChildren(race:{event:{relay:boolean}}) {
 }
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
-  action('GET','/api/lead/races/:id','Lead',(request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>leadRace(db,phone.dayId,(request.params as {id:string}).id)));
+  // A relay race's page carries the team list, and every switched-on relay's, which Correct teams checks against.
+  action('GET','/api/lead/races/:id','Lead',(request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,async db=>{
+    const read=await leadRace(db,phone.dayId,(request.params as {id:string}).id);
+    return read.race.event.relay?{...read,...await relayLists(db,phone.dayId,read.race.event.id)}:read;
+  }));
   action('POST','/api/lead/races/:id/times','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),places=value.places;
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0) throw new Refusal(400,'Open the race before correcting its times');
@@ -159,8 +164,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
   /**
    * Correct teams, the relay's "Correct runner list": the race's teams as they should be. A team left out comes off
-   * the race (and is still to run again); one named by team id joins it from the team list with no place, its children
-   * here; one sent with four boxes has its children corrected as a team write is, through to the team list on its latest race.
+   * the race (and is still to run again); one named by team id joins it from the team list, its children here, taking
+   * the next place as a team added at the finish does; one sent with four boxes has its children corrected as a team write is, through to the team list on its latest race.
    */
   action('POST','/api/lead/races/:id/teams','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),input=value.teams;
@@ -194,7 +199,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const ids=new Set(runners.map(entry=>entry.id)),finish=race.parts.finish.value,added=runners.filter(entry=>!previous.includes(entry) && !changed.includes(entry.id));
       await correctPart(client,current,race,'runners',runners,runners);
       if(finish) {
-        const next={order:finish.order.filter(id=>ids.has(id)),didNotFinish:[...finish.didNotFinish.filter(id=>ids.has(id)),...added.map(entry=>entry.id)]};
+        const next={order:[...finish.order.filter(id=>ids.has(id)),...added.map(entry=>entry.id)],didNotFinish:finish.didNotFinish.filter(id=>ids.has(id))};
         if(JSON.stringify(next)!==JSON.stringify(finish)) await correctPart(client,current,race,'finish',next,runners);
       }
       for(const entryId of changed) await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[race.id,entryId,'[]']);

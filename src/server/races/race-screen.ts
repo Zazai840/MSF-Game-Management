@@ -54,7 +54,7 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
     ...(event.relay?await relayLists(db,dayId,event.id):{})};
 }
 /** A relay's race screen carries its team list, and every switched-on relay's, which a check-in Edit's warnings look through. */
-async function relayLists(db:Database,dayId:string,eventId:string) {
+export async function relayLists(db:Database,dayId:string,eventId:string) {
   const lists=await readTeamLists(db,dayId);
   return {teams:lists.get(eventId)!.teams,relays:[...lists.values()].filter(relay=>relay.enabled).map(({code,name,section,teams})=>({code,name,section,teams}))};
 }

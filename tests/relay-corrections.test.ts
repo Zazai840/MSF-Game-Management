@@ -134,8 +134,8 @@ test('Correct teams on a saved heat takes a team off (still to run again), adds 
   expect(response.statusCode).toBe(200);
   const now=await race(first),after=await teamEntries(first);
   expect(after.map(entry=>[entry.team.number,wristbandsOf(entry)])).toEqual([[1,legs(1)],[2,[2201,2202,2299,2204]],[4,legs(4)]]);
-  // Team 1 and Team 2 keep their places; Team 4 joins with no place, for Correct finishing order to place it.
-  expect(now.parts.finish.value).toEqual({order:[after[0].id,after[1].id],didNotFinish:[after[2].id]});
+  // Team 1 and Team 2 keep their places; Team 4 takes the next place, as a team added at the finish does.
+  expect(now.parts.finish.value).toEqual({order:after.map(entry=>entry.id),didNotFinish:[]});
   expect(await teamList()).toEqual([
     {number:1,wristbands:legs(1),heats:[1]},{number:2,wristbands:[2201,2202,2299,2204],heats:[1]},{number:3,wristbands:legs(3),heats:[]},{number:4,wristbands:legs(4),heats:[1]}
   ]);
