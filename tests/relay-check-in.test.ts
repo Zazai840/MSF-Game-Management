@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { RaceScreenRead } from '../src/shared/race-screen.js';
 import type { TeamEntry } from '../src/shared/races.js';
+import { filledLegs,legWarnings } from '../src/shared/teams.js';
 import { signInOwner } from './support/sign-in.js';
 import { relaySetup } from './support/relays.js';
 let app:FastifyInstance;
@@ -133,16 +134,116 @@ test('Remove team is refused for a team in a race, run or not, and allowed again
   for(const wristband of [2101,2201,2301,2401]) await relays.team(sam,'R22',[wristband,null,null,null]);
   const remove=async(number:number)=>{
     const team=(await relays.screen(sam,'R22')).teams!.find(item=>item.number===number)!;
-    await relays.post(sam,'/api/teams/R22/open',{teamId:team.id});
+    if(!team.races.some(race=>race.state!=='saved')) await relays.post(sam,'/api/teams/R22/open',{teamId:team.id});
     return call(sam,'/api/teams/R22/remove',{teamId:team.id,version:team.version}).then(response=>response.json());
   };
-  // Team 4 in the unsaved heat, then Team 1 in a saved one.
+  // Team 4 in the unsaved heat is changed at check-in, never removed; Team 1 ran in a saved one.
   await relays.tick(priya,'R22',1);
   await relays.save(priya,'R22',[1],[1500]);
   const heat2=await relays.tick(priya,'R22',4);
-  expect(await remove(4)).toEqual({message:'Team 4 has been in a race - it can\'t be removed'});
+  expect(await remove(4)).toEqual({message:'Team 4 is in Heat 2 - change it at check-in'});
   expect(await remove(1)).toEqual({message:'Team 1 has been in a race - it can\'t be removed'});
   // A deleted race holds nobody: Team 4 is still to run again, so it can go.
   expect((await call(owner,`/api/lead/races/${heat2.race.id}/delete`,{permanent:false})).statusCode).toBe(200);
   expect((await remove(4)).events.find((event:{code:string})=>event.code==='R22').teams.map((team:{number:number})=>team.number)).toEqual([1,2,3]);
+});
+test('Done on a check-in Edit changes the race entry and the team list together, and a swapped child starts unmarked',async()=>{
+  const {sam,priya,relays}=await start();
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  const ticked=await relays.tick(priya,'R22',1),team=ticked.teams![0],entryId=ticked.race.parts.runners.value![0].id;
+  await relays.here(priya,'R22',1,0);
+  await relays.here(priya,'R22',1,1);
+  // Opening the team at check-in marks it as Sam's on every phone, with no hold.
+  await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:ticked.race.id,teamId:team.id});
+  expect((await relays.screen(priya,'R22')).teams![0].changing).toMatchObject({name:'Sam Patel'});
+  // Sam swaps the 1st and 2nd legs, and swaps the 3rd child for a Beaver number he keeps.
+  const done=await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/edit-done',{raceId:ticked.race.id,teamId:team.id,version:team.version,legs:[2102,2101,1045,2104],keptWarnings:[1045]});
+  const kept=[{kind:'wrong-section',message:'1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.',kept:true}];
+  expect(done.race.parts.runners.value).toEqual([{id:entryId,team:{id:team.id,number:1},legs:[
+    {wristband:2102,here:true,warnings:[]},{wristband:2101,here:true,warnings:[]},{wristband:1045,here:false,warnings:kept},{wristband:2104,here:false,warnings:[]}]}]);
+  expect(done.teams![0]).toMatchObject({id:team.id,version:team.version+1,changing:null,
+    legs:[{wristband:2102,warnings:[]},{wristband:2101,warnings:[]},{wristband:1045,warnings:kept},{wristband:2104,warnings:[]}]});
+  expect(done.holds).toEqual({});
+});
+test('a relay\'s race screen carries the day\'s relays and their teams, so an Edit at check-in warns of a child in another relay as it is typed',async()=>{
+  const {sam,relays}=await start();
+  await relays.team(sam,'R21',[2101,2102,2103,2104]);
+  await relays.team(sam,'R22',[2201,2202,2203,2204]);
+  const seen=await relays.screen(sam,'R22');
+  expect([...seen.relays!].sort((a,b)=>a.code.localeCompare(b.code)).map(relay=>[relay.code,relay.name,relay.section,relay.teams.map(team=>team.number)])).toEqual([
+    ['R19','4x50m Relay','Boy Beavers',[]],['R20','4x50m Relay','Girl Beavers',[]],['R21','4x50m Relay','Boy Cubs',[1]],['R22','4x50m Relay','Girl Cubs',[1]],['R27','4x100m Relay','Boy Scouts',[]],['R28','4x100m Relay','Girl Scouts',[]]]);
+  expect(legWarnings(2101,seen.event,seen.relays!).map(warning=>warning.kind)).toContain('other-relay');
+});
+test('a check-in Edit is refused in order: race deleted, submitted or saved, a team not in the race, the mark, the version, then a wristband already in the relay',async()=>{
+  const {owner,sam,priya,relays}=await start();
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  await relays.team(sam,'R22',[2201,2202,2203,2204]);
+  await relays.team(sam,'R22',[2301,2302,2303,2304]);
+  const heat1=await relays.tick(priya,'R22',1),[team1,team2,team3]=heat1.teams!;
+  const edit=(token:string,what:string,body:object)=>call(token,`/api/race-screen/R22/edit-${what}`,{raceId:heat1.race.id,...body}).then(response=>response.json().message);
+  const done=(token:string,team:{id:string;version:number},legs:Array<number|null>)=>edit(token,'done',{teamId:team.id,version:team.version,legs,keptWarnings:[]});
+  // Only a team ticked into the race opens at check-in.
+  expect(await edit(sam,'open',{teamId:team2.id})).toBe('Team 2 is no longer in Heat 1');
+  expect(await done(sam,team2,[2201,2202,2203,2209])).toBe('Team 2 is no longer in Heat 1');
+  // Done needs the mark: none, then Priya's.
+  expect(await done(sam,team1,[2101,2102,2103,2109])).toBe('Open the team again');
+  await relays.post(priya,'/api/race-screen/R22/edit-open',{raceId:heat1.race.id,teamId:team1.id});
+  expect(await edit(sam,'open',{teamId:team1.id})).toBe('Priya Shah is changing this team');
+  expect(await done(sam,team1,[2101,2102,2103,2109])).toBe('Priya Shah is changing this team');
+  // Change anyway moves the mark to Sam; once his Done lands, Priya's late Done is refused.
+  await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:heat1.race.id,teamId:team1.id,changeAnyway:true});
+  expect(await done(priya,team1,[2101,2102,2103,2108])).toBe('Sam Patel is changing this team');
+  await relays.post(sam,'/api/race-screen/R22/edit-done',{raceId:heat1.race.id,teamId:team1.id,version:team1.version,legs:[2101,2102,2103,2109],keptWarnings:[]});
+  await relays.post(priya,'/api/race-screen/R22/edit-open',{raceId:heat1.race.id,teamId:team1.id});
+  expect(await done(priya,team1,[2101,2102,2103,2108])).toBe('Sam Patel changed this team - check it and enter it again');
+  // A wristband already in another team of the relay, even one not in the race; then a warning not kept.
+  const changed={id:team1.id,version:team1.version+1};
+  expect(await done(priya,changed,[2101,2102,2103,2301])).toBe('2301 is already in Team 3. Check the wristband.');
+  expect(await done(priya,changed,[2101,2102,2103,1045])).toBe('1045 needs Fix number or Keep');
+  // Cancel clears Priya's mark; a Cancel from a phone without it changes nothing.
+  const cancelled=await relays.post<RaceScreenRead>(priya,'/api/race-screen/R22/edit-cancel',{teamId:team1.id});
+  expect(cancelled.teams![0].changing).toBeNull();
+  expect((await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/edit-cancel',{teamId:team1.id})).revision).toBe(cancelled.revision);
+  // Submitted, then saved: today's race-screen wordings, before the mark.
+  await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:heat1.race.id,teamId:team1.id});
+  const order=(await relays.post<RaceScreenRead>(priya,'/api/race-screen/R22/take-over',{job:'order'})).race;
+  await relays.post(priya,'/api/race-screen/R22/order',{raceId:order.id,version:order.parts.finish.version,order:[order.parts.runners.value![0].id],didNotFinish:[],didNotRun:[],added:[]});
+  const times=(await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/take-over',{job:'times'})).race;
+  await relays.post(sam,'/api/race-screen/R22/times',{raceId:times.id,version:times.parts.times.version,places:[1234],keptWrong:[]});
+  await relays.post(sam,'/api/race-screen/R22/submit',{raceId:heat1.race.id});
+  expect(await done(sam,changed,[2101,2102,2103,2107])).toBe('Heat 1 is submitted - tap Not yet to change it');
+  expect(await edit(priya,'open',{teamId:team1.id})).toBe('Heat 1 is submitted - tap Not yet to change it');
+  await relays.post(priya,'/api/race-screen/R22/submit',{raceId:heat1.race.id});
+  expect(await done(sam,changed,[2101,2102,2103,2107])).toBe('Heat 1 is saved - ask a lead to change it');
+  // A lead deleted the race; stage complete comes before that.
+  const heat2=await relays.tick(priya,'R22',3);
+  await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:heat2.race.id,teamId:team3.id});
+  expect((await call(owner,`/api/lead/races/${heat2.race.id}/delete`,{permanent:false})).statusCode).toBe(200);
+  const late=()=>call(sam,'/api/race-screen/R22/edit-done',{raceId:heat2.race.id,teamId:team3.id,version:team3.version,legs:[2301,2302,2303,2307],keptWarnings:[]}).then(response=>response.json().message);
+  expect(await late()).toBe('A lead deleted Heat 2');
+  expect((await call(owner,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  expect(await late()).toBe('Stage complete - ask a lead');
+  // Whatever became of the race, Cancel still clears the mark.
+  expect((await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/edit-cancel',{teamId:team3.id})).teams![2].changing).toBeNull();
+});
+test('the Teams screen refuses to change a team in the unsaved heat: it is changed at check-in',async()=>{
+  const {sam,priya,relays}=await start();
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  await relays.team(sam,'R22',[2201,2202,2203,2204]);
+  await relays.team(sam,'R22',[2301,2302,2303,2304]);
+  await relays.tick(priya,'R22',1);
+  await relays.save(priya,'R22',[1],[1500]);
+  const heat2=await relays.tick(priya,'R22',3),team3=heat2.teams![2];
+  const teams=(what:string,body:object)=>call(sam,`/api/teams/R22/${what}`,{teamId:team3.id,...body}).then(response=>response.json().message);
+  expect(await teams('open',{})).toBe('Team 3 is in Heat 2 - change it at check-in');
+  // Opened at check-in, it is still refused on the Teams screen, before the mark.
+  await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:heat2.race.id,teamId:team3.id});
+  expect(await teams('done',{version:team3.version,legs:[2301,2302,2303,2309]})).toBe('Team 3 is in Heat 2 - change it at check-in');
+  expect(await teams('remove',{version:team3.version})).toBe('Team 3 is in Heat 2 - change it at check-in');
+  // A team that ran in a saved heat, and one still to run, change on the Teams screen as before.
+  for(const team of heat2.teams!.slice(0,2)) {
+    await relays.post(sam,'/api/teams/R22/open',{teamId:team.id});
+    await relays.post(sam,'/api/teams/R22/done',{teamId:team.id,version:team.version,legs:[team.legs[0].wristband,null,null,null]});
+  }
+  expect((await relays.screen(sam,'R22')).teams!.map(filledLegs)).toEqual([1,1,4]);
 });

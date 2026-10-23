@@ -2,7 +2,7 @@ import { useEffect,useRef,useState } from 'react';
 import { ApiFailure,api } from '../api.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { currentRaceLabel,type HomeEvent,type HomeSnapshot,type Holder } from '../../shared/race-screen.js';
-import { filledLegs,legRefusal,legWarnings,stillToRun,teamsStatus,unsavedRace,type RelayTeam } from '../../shared/teams.js';
+import { filledLegs,legRefusal,legWarnings,stillToRun,teamsStatus,unsavedRace,type RelayTeam,type TeamRelay } from '../../shared/teams.js';
 import { useLive } from '../live.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
 import { RaceCard } from '../race/RaceCard.js';
@@ -13,7 +13,7 @@ import './teams.css';
 /** A relay as Home's snapshot carries it: with its team list and teams holder. */
 type Relay=HomeEvent & {teams:RelayTeam[];teamsHolder:Holder|null};
 /** What Done sends: the team and the version it opened (none for a new team), the four boxes in leg order (null when empty) and the wristbands whose warnings were kept. */
-interface Done { teamId?:string; version?:number; legs:Array<number|null>; keptWarnings:number[] }
+export interface Done { teamId?:string; version?:number; legs:Array<number|null>; keptWarnings:number[] }
 
 /**
  * The Teams screen: every switched-on relay's team list, live from Home's day-wide stream, one card per relay grouped
@@ -73,8 +73,7 @@ function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phon
         {mine && open===null && !unsavedRace(team)?<button className="team-row team-row-tap" aria-label={`Change Team ${team.number}`} disabled={busy} onClick={()=>by?setAsking(team.id):void change(team)}><TeamCells team={team}/></button>
           :<div className="team-row"><TeamCells team={team}/></div>}
         {by && asking!==team.id && <p className="race-hint">{by} is changing this team</p>}
-        {by && asking===team.id && mine && <div className="warning-box"><p>{by} is changing this team. Change it anyway? Their changes will be lost.</p>
-          <div className="warning-actions"><button disabled={busy} onClick={()=>void change(team,true)}>Change anyway</button><button className="button-secondary" onClick={()=>setAsking(null)}>Cancel</button></div></div>}
+        {by && asking===team.id && mine && <ChangeAnyway by={by} busy={busy} onConfirm={()=>void change(team,true)} onCancel={()=>setAsking(null)}/>}
       </div>;
     })}
     {open==='new' && edit(null)}
@@ -82,6 +81,11 @@ function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phon
   </RaceCard>;
 }
 
+/** The confirm before changing a team someone else has open: their mark moves to this phone, and their Done is refused. */
+export function ChangeAnyway({by,busy,onConfirm,onCancel}:{by:string;busy:boolean;onConfirm:()=>void;onCancel:()=>void}) {
+  return <div className="warning-box"><p>{by} is changing this team. Change it anyway? Their changes will be lost.</p>
+    <div className="warning-actions"><button disabled={busy} onClick={onConfirm}>Change anyway</button><button className="button-secondary" onClick={onCancel}>Cancel</button></div></div>;
+}
 /**
  * A team read-only: "Team 3" ("3 of 4" under it when not complete, or "In heat 2" while an unsaved race holds it), then its
  * four wristbands, "-" for an empty box and amber for a kept warning.
@@ -95,9 +99,10 @@ function TeamCells({team}:{team:RelayTeam}) {
 /**
  * One team open for changing: its four boxes on the number keyboard, the first box the 1st leg, then Cancel and Done.
  * A number already in this team or another team of the relay is refused as it is typed (Fix number only); one that
- * looks wrong shows amber once its box is left, with Fix number or Keep. Done needs each fixed or kept.
+ * looks wrong shows amber once its box is left, with Fix number or Keep. Done needs each fixed or kept. At check-in
+ * the boxes sit `bare` under the team's own heading, without its name beside them.
  */
-function TeamEdit({team,relay,relays,busy,onCancel,onDone,onRemove}:{team:RelayTeam|null;relay:Relay;relays:Relay[];busy:boolean;onCancel:()=>void;onDone:(done:Done)=>void;onRemove?:(version:number)=>void}) {
+export function TeamEdit({team,relay,relays,busy,bare=false,onCancel,onDone,onRemove}:{team:RelayTeam|null;relay:TeamRelay;relays:readonly TeamRelay[];busy:boolean;bare?:boolean;onCancel:()=>void;onDone:(done:Done)=>void;onRemove?:(version:number)=>void}) {
   /** The version this team was opened at: Done and Remove send it, so a change made meanwhile refuses them. */
   const [version]=useState(team?.version),[removing,setRemoving]=useState(false);
   const [boxes,setBoxes]=useState(()=>(team?.legs.map(leg=>leg.wristband===null?'':String(leg.wristband))||['','','','']));
@@ -113,7 +118,7 @@ function TeamEdit({team,relay,relays,busy,onCancel,onDone,onRemove}:{team:RelayT
   const fix=(index:number)=>{setBoxes(current=>current.map((box,at)=>at===index?'':box));inputs.current[index]?.focus();};
   const ready=!busy && legs.some(number=>number!==null) && refusals.every(refusal=>!refusal) && warnings.every(list=>!list.length);
   return <div className="team-edit">
-    <div className="team-row"><span className="team-name"><span>{name}</span></span>
+    <div className={`team-row${bare?' team-row-bare':''}`}>{!bare && <span className="team-name"><span>{name}</span></span>}
       {boxes.map((box,index)=><input key={index} ref={input=>{inputs.current[index]=input;}} className={`leg-box${amber(index)?' is-amber':''}`} type="text" inputMode="numeric" pattern="[0-9]*"
         autoComplete="off" enterKeyHint={index<3?'next':'done'} aria-label={`${name} ${ordinal(index+1)} leg`} value={box} autoFocus={index===Math.max(0,boxes.indexOf(''))}
         onFocus={()=>setTyping(index)} onBlur={()=>setTyping(null)} onChange={event=>{const digits=digitsOnly(event.target.value);setBoxes(current=>current.map((value,at)=>at===index?digits:value));}}

@@ -382,3 +382,81 @@ test('a relay heat on three phones: check-in on one, the order by 4th-leg button
   await submitRace(request,priya.token,code);await submitRace(request,jo.token,code);
   await expect(tile).toHaveText('Girl CubsHeats done · Final next',live);
 });
+
+/** Wristbands for the check-in Edit tests: Girl Cubs numbers no other test or project uses, so no Keep is needed. */
+const editWristband=(project:string,offset:number)=>String(2960+['iPhone','Android','desktop'].indexOf(project)*12+offset);
+/** A ticked team's block in Check-in Teams. */
+const ticked=(page:Page,team:number)=>page.locator('.ci-team').filter({has:page.getByText(`Team ${team}`,{exact:true})});
+
+test('an Edit at check-in shows who is changing the team on the other phone, then the change on the Teams screen after Done, the swapped child unmarked',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`REDIT-${project.toUpperCase()}`,name=`Check-in edit ${project}`,n=(offset:number)=>editWristband(project,offset);
+  await ownRelay(code,name,'Girl Cubs');
+  const sam=`Sam Patel edit ${project}`,samPhone=await openPhone(sam),priyaPhone=await openPhone(`Priya Shah edit ${project}`),joPhone=await openPhone(`Jo Evans edit ${project}`);
+  await writeTeam(request,joPhone.token,code,[0,1,2,3].map(offset=>Number(n(offset))));
+  await tickTeam(request,priyaPhone.token,code,1);
+  await markHere(request,priyaPhone.token,code,1,1);
+  await markHere(request,priyaPhone.token,code,1,2);
+  for(const {page} of [samPhone,priyaPhone]) {await openRelay(page,name,'Girl Cubs');await openCheckIn(page);}
+  // Jo holds the relay on the Teams screen: Team 1 reads In heat 1.
+  await openTeams(joPhone.page);
+  await card(joPhone.page,name,'Girl Cubs').click();
+  await expect(legs(joPhone.page,name,1)).toHaveText([n(0),n(1),n(2),n(3)]);
+  await samPhone.page.getByRole('button',{name:'Edit Team 1',exact:true}).click();
+  const box=(leg:string)=>samPhone.page.getByLabel(`Team 1 ${leg} leg`,{exact:true});
+  await expect(box('1st')).toHaveValue(n(0));
+  await expect(box('4th')).toHaveValue(n(3));
+  // Priya sees Sam is changing Team 1.
+  await expect(ticked(priyaPhone.page,1).getByText(`${sam} is changing this team`,{exact:true})).toBeVisible(live);
+  expect(await lookProblems(samPhone.page)).toEqual([]);
+  await samPhone.page.screenshot({path:info.outputPath('check-in-edit.png'),fullPage:true});
+  expect(await lookProblems(priyaPhone.page)).toEqual([]);
+  await priyaPhone.page.screenshot({path:info.outputPath('check-in-edit-other-phone.png'),fullPage:true});
+  // Sam swaps the 2nd leg's child for another: Done shows it on both phones and on the Teams screen.
+  await box('2nd').fill(n(4));
+  await samPhone.page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(box('1st')).toHaveCount(0);
+  const leg=(page:Page,label:string)=>ticked(page,1).getByRole('button',{name:new RegExp(`^${label} `)});
+  for(const {page} of [samPhone,priyaPhone]) {
+    await expect(leg(page,'2nd')).toHaveText(`2nd${n(4)}Tap when here`,live);
+    await expect(leg(page,'1st')).toHaveText(`1st${n(0)}Here`);
+  }
+  await expect(ticked(priyaPhone.page,1).getByText(`${sam} is changing this team`,{exact:true})).toHaveCount(0);
+  await expect(legs(joPhone.page,name,1)).toHaveText([n(0),n(4),n(2),n(3)],live);
+  await expect(joPhone.page.getByRole('region',{name,exact:true}).locator('.team-row').filter({has:joPhone.page.getByText('Team 1',{exact:true})})).toContainText('In heat 1');
+});
+
+test('Change anyway on a team left open in a check-in Edit, and the first phone\'s late Done is refused and snaps back',async({openPhone,request},info)=>{
+  const project=info.project.name,code=`RANY-${project.toUpperCase()}`,name=`Check-in anyway ${project}`,n=(offset:number)=>editWristband(project,offset);
+  await ownRelay(code,name,'Girl Cubs');
+  const priya=`Priya Shah anyway edit ${project}`,sam=`Sam Patel anyway edit ${project}`,priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
+  await writeTeam(request,samPhone.token,code,[Number(n(6)),Number(n(7)),null,null]);
+  await tickTeam(request,samPhone.token,code,1);
+  for(const {page} of [priyaPhone,samPhone]) {await openRelay(page,name,'Girl Cubs');await openCheckIn(page);}
+  // Priya opens Team 1 and starts typing, then is called away.
+  await priyaPhone.page.getByRole('button',{name:'Edit Team 1',exact:true}).click();
+  await priyaPhone.page.getByLabel('Team 1 3rd leg',{exact:true}).fill(n(8));
+  await expect(ticked(samPhone.page,1).getByText(`${priya} is changing this team`,{exact:true})).toBeVisible(live);
+  await samPhone.page.getByRole('button',{name:'Edit Team 1',exact:true}).click();
+  await expect(samPhone.page.getByText(`${priya} is changing this team. Change it anyway? Their changes will be lost.`,{exact:true})).toBeVisible();
+  expect(await lookProblems(samPhone.page)).toEqual([]);
+  await samPhone.page.screenshot({path:info.outputPath('check-in-change-anyway.png'),fullPage:true});
+  await samPhone.page.getByRole('button',{name:'Change anyway',exact:true}).click();
+  // Sam's boxes hold what was last saved, not Priya's typing.
+  const box=(page:Page,leg:string)=>page.getByLabel(`Team 1 ${leg} leg`,{exact:true});
+  await expect(box(samPhone.page,'2nd')).toHaveValue(n(7));
+  await expect(box(samPhone.page,'3rd')).toHaveValue('');
+  await box(samPhone.page,'3rd').fill(n(9));
+  await samPhone.page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(box(samPhone.page,'3rd')).toHaveCount(0);
+  // Priya's late Done is refused, and her boxes snap back to the server's copy.
+  await priyaPhone.page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(priyaPhone.page.getByRole('alert')).toHaveText(`${sam} changed this team - check it and enter it again`);
+  await expect(box(priyaPhone.page,'3rd')).toHaveCount(0);
+  await expect(ticked(priyaPhone.page,1).locator('.ci-leg-w')).toHaveText([n(6),n(7),n(9),'-']);
+  expect(await lookProblems(priyaPhone.page)).toEqual([]);
+  await priyaPhone.page.screenshot({path:info.outputPath('check-in-late-done.png'),fullPage:true});
+  // Nobody is left changing Team 1: Priya can open it again.
+  await expect(ticked(samPhone.page,1).getByText(/is changing this team/)).toHaveCount(0);
+  await priyaPhone.page.getByRole('button',{name:'Edit Team 1',exact:true}).click();
+  await expect(box(priyaPhone.page,'3rd')).toHaveValue(n(9));
+});

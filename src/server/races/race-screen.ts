@@ -14,7 +14,7 @@ import { resultsSnapshot } from '../results/read.js';
 import { writeAuditNote } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { readEvents } from '../day/events.js';
-import { readTeamLists } from '../relays/teams.js';
+import { cancelTeam,openTeam,readTeamLists,relayRead,requestedDone,requestedId,writeTeam } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
@@ -51,7 +51,12 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
   const pressed:Holder[]=open?(await db.query('SELECT s.id,s.name FROM submit_presses p JOIN sign_ins s ON s.id=p.sign_in_id WHERE p.race_id=$1 ORDER BY p.pressed_at,s.name',[race.id])).rows:[];
   const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
   return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null,
-    ...(event.relay?{teams:(await readTeamLists(db,dayId)).get(event.id)!.teams}:{})};
+    ...(event.relay?await relayLists(db,dayId,event.id):{})};
+}
+/** A relay's race screen carries its team list, and every switched-on relay's, which a check-in Edit's warnings look through. */
+async function relayLists(db:Database,dayId:string,eventId:string) {
+  const lists=await readTeamLists(db,dayId);
+  return {teams:lists.get(eventId)!.teams,relays:[...lists.values()].filter(relay=>relay.enabled).map(({code,name,section,teams})=>({code,name,section,teams}))};
 }
 /** Home: every switched-on event's status line inputs, and each relay's team list with its teams holder, read for the whole day at once. */
 export async function homeRead(db:Database,dayId:string):Promise<HomeSnapshot> {
@@ -248,6 +253,30 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(entry.legs[index].wristband===null) throw new Refusal(400,'Choose a child in this team');
       if(entry.legs[index].here===here) {unchanged();return;}
       return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
+    });
+  });
+  // Edit on a team ticked into the race opens its four boxes, marking it as this phone's as on the Teams screen.
+  action('POST','/api/race-screen/:code/edit-open','Volunteer',(request,_reply,phone)=>tap(request,phone,async({client,race,team,entry},unchanged)=>{
+    if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
+    await openTeam(client,team,phone,(request.body as {changeAnyway?:unknown}).changeAnyway,unchanged);
+  }));
+  // Cancel on an Edit clears this phone's mark, whatever has become of the race since.
+  action('POST','/api/race-screen/:code/edit-cancel','Volunteer',(request,_reply,phone)=>{
+    const teamId=requestedId(((request.body||{}) as {teamId?:unknown}).teamId);
+    return write(phone,code(request),async(client,screen,unchanged)=>{
+      const team=screen.teams?.find(item=>item.id===teamId);
+      if(!team) throw new Refusal(404,'Team not found');
+      await cancelTeam(client,team,phone,unchanged);
+    });
+  });
+  // Done on an Edit writes the team list and the team's race entry together. A child still in the team keeps their
+  // here mark, whichever leg they moved to; a child swapped in starts unmarked.
+  action('POST','/api/race-screen/:code/edit-done','Volunteer',(request,_reply,phone)=>{
+    const done=requestedDone(request.body);
+    return tap(request,phone,async({client,screen,race,team,entries,entry})=>{
+      if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${currentRaceLabel(race)}`);
+      const legs=await writeTeam(client,await relayRead(client,phone.dayId,screen.event.code),team,phone,done);
+      return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:entry.legs.some(was=>was.here && was.wristband===leg.wristband)}))}:other);
     });
   });
   // The order: the holder's whole finishing order by entry, with Did not finish, Didn't run (which takes the runner

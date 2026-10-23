@@ -25,7 +25,7 @@ export function RaceScreen({eventCode,phoneId,lead}:{eventCode:string;phoneId:st
     {saved && <p role="status" className="race-saved">{currentRaceLabel(saved)} saved</p>}
     {/* Hidden, not gone, while the results show: each card stays as this phone left it for the next race. */}
     <div className="race-cards" hidden={race.state!=='in progress'}>
-      {event.relay?<CheckInTeamsCard screen={snapshot} offer={offer}/>:<CheckInCard screen={snapshot} phoneId={phoneId} offer={offer}/>}
+      {event.relay?<CheckInTeamsCard screen={snapshot} phoneId={phoneId} offer={offer}/>:<CheckInCard screen={snapshot} phoneId={phoneId} offer={offer}/>}
       <OrderAndTimesCard screen={snapshot} phoneId={phoneId} offer={offer}/>
     </div>
     {race.state!=='in progress' && <ResultsCard screen={snapshot} phoneId={phoneId} offer={offer}/>}

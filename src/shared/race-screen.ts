@@ -2,7 +2,7 @@ import type { DayEvent } from './day.js';
 import { ordinal } from './ordinal.js';
 import { entryName,raceLabel,type FinishingOrder,type RaceEntry,type RaceRead } from './races.js';
 import { wrongTimes } from './wrong-times.js';
-import { stillToRun,teamCount,type RelayTeam } from './teams.js';
+import { stillToRun,teamCount,type RelayTeam,type TeamRelay } from './teams.js';
 /** An event's current race: its latest race not yet saved or deleted, or else the next one, not stored until its first check-in (id null, empty parts). */
 export type CurrentRace=Pick<RaceRead,'kind'|'number'|'state'|'parts'|'final'> & {id:string|null};
 /** The three jobs on a race (the glossary's Job). A final has no times. */
@@ -16,10 +16,11 @@ export interface Holder { id:string; name:string }
  * One snapshot of a race screen, versioned by the day revision. Holds belong to the event, so they carry over to its
  * next race. `asked` are the holders who must press Submit Race (each job's holder, once the job has entries on this
  * race), `pressed` those who have, and `lastSaved` the event's most recently saved race, who saved it and when. A relay
- * also carries its team list, each team with the races holding it, so its check-in needs no other read.
+ * also carries its team list, each team with the races holding it, so its check-in needs no other read, and the day's
+ * switched-on relays with theirs, for a check-in Edit's "also in another relay's team" warning.
  */
 export interface RaceScreenRead { revision:number; event:DayEvent; race:CurrentRace; stageComplete:boolean; holds:Partial<Record<Job,Holder>>;
-  asked:Holder[]; pressed:Holder[]; lastSaved:(Pick<RaceRead,'kind'|'number'> & {by:string;at:string})|null; teams?:RelayTeam[] }
+  asked:Holder[]; pressed:Holder[]; lastSaved:(Pick<RaceRead,'kind'|'number'> & {by:string;at:string})|null; teams?:RelayTeam[]; relays?:TeamRelay[] }
 /**
  * A switched-on event as Home lists it: what its tile's status line is made of. `started` is the order or times
  * having entries, `waitingOn` the names of those asked to press Submit Race who have not, and `done` its stage complete.
