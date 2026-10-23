@@ -1,5 +1,6 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import type { EventResultsRead } from '../src/shared/lead-results.js';
 import type { HomeSnapshot,RaceScreenRead } from '../src/shared/race-screen.js';
@@ -30,6 +31,26 @@ async function start({complete=true}={}) {
 }
 /** The Final's teams by number, each with its four children and whether each is here. */
 const finalTeams=(read:RaceScreenRead)=>(read.race.parts.runners.value||[]).filter(isTeamEntry).map(entry=>entry.team.number);
+
+test.each(['Heats complete','Call up'])('%s refuses a team missing from the team list without changing the final',async(action)=>{
+  const {sam,lead,relays,results}=await start({complete:action==='Call up'});
+  const seen=await relays.screen(sam,'R22');
+  if(action==='Call up') await relays.post(sam,'/api/race-screen/R22/absent-team',{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===5)!.id,absent:true});
+  const number=action==='Call up'?4:2,team=seen.teams!.find(team=>team.number===number)!;
+  // Simulate an inconsistent team list: public writes never remove a team that has run.
+  const db=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});
+  await db.connect();
+  try {await db.query('UPDATE relay_teams SET removed=true WHERE id=$1',[team.id]);}
+  finally {await db.end();}
+  const before=await results(),screenBefore=await relays.screen(sam,'R22');
+  const response=action==='Call up'
+    ?await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:before.finalResults!.nextCallUp!.entryId})
+    :await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'});
+  expect(response.statusCode,response.body).toBe(409);
+  expect(response.json()).toEqual({message:`Team ${number} is missing from the team list - ask a lead to check it`});
+  expect(await results()).toEqual(before);
+  expect(await relays.screen(sam,'R22')).toEqual(screenBefore);
+});
 
 test('storing the Final copies each seeded team\'s four children from its team list as it stands then',async()=>{
   const {sam,relays,completeHeats}=await start({complete:false});

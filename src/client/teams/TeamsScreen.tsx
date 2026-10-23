@@ -58,7 +58,11 @@ function RelayCard({relay,relays,phoneId,offer}:{relay:Relay;relays:Relay[];phon
     if(await write('open',{teamId:team.id,changeAnyway})===true) setEditing(team.id);
   }
   // A refused Done or Remove closes the team: its row shows the server's copy, to check and open again.
-  const finish=async(what:string,body:object)=>{if(await write(what,body)) setEditing(null);};
+  const finish=async(what:string,body:Done|{teamId:string;version:number})=>{
+    const result=await write(what,body);
+    if(result==='refused' && body.teamId) void api<HomeSnapshot>(`teams/${encodeURIComponent(relay.code)}/cancel`,{teamId:body.teamId}).then(offer).catch(()=>{});
+    if(result) setEditing(null);
+  };
   const edit=(team:RelayTeam|null)=><TeamEdit key={team?.id||'new'} team={team} relay={relay} relays={relays} busy={busy}
     onCancel={()=>{if(team) void write('cancel',{teamId:team.id});setEditing(null);}} onDone={done=>void finish('done',done)} onRemove={team && stillToRun(team)?version=>void finish('remove',{teamId:team.id,version}):undefined}/>;
   return <RaceCard title={relay.section} status={teamsStatus(relay,phoneId)} onOpen={()=>{if(!holder) void write('hold',{});}}>

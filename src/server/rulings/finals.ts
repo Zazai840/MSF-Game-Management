@@ -22,8 +22,9 @@ import { rulingDetails } from './validation.js';
  */
 function finalist(teams:readonly RelayTeam[],row:LeaderboardRow,id:string):RaceEntry {
   if(!row.team) return {id,wristband:row.wristband!};
-  // A team that has been in a race is never removed, so its team list row is there.
-  return teamEntry(teams.find(team=>team.id===row.team!.id)!,id);
+  const team=teams.find(team=>team.id===row.team!.id);
+  if(!team) throw new Refusal(409,`Team ${row.team.number} is missing from the team list - ask a lead to check it`);
+  return teamEntry(team,id);
 }
 /** A relay team joining the final with its four children as its team list has them now, none here yet. */
 const teamEntry=(team:RelayTeam,id:string):RaceEntry=>({id,team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:false}))});

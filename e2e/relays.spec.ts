@@ -216,6 +216,29 @@ const changingWristband=(project:string,offset:number)=>2700+['iPhone','Android'
 /** The ids of a relay's teams, in number order, from the Home snapshot a team write answers. */
 const teamIds=(home:Awaited<ReturnType<typeof writeTeam>>,code:string)=>home.events.find(event=>event.code===code)!.teams!.map(team=>team.id);
 
+for(const action of ['done','remove']) test(`a refused ${action} closes the team, keeps its refusal and clears this phone's mark`,async({openPhone,request},info)=>{
+  const project=info.project.name,code=`TRF-${action.toUpperCase()}-${project.toUpperCase()}`,name=`Teams refused ${action} ${project}`;
+  const sam=`Sam Patel refused ${action} ${project}`,phone=await openPhone(sam);
+  await ownRelay(code,name,'Girl Cubs');
+  const number=2400+['iPhone','Android','desktop'].indexOf(project)*40+(action==='done'?1:2);
+  const home=await writeTeam(request,phone.token,code,[number,null,null,null]),teamId=teamIds(home,code)[0];
+  await openTeams(phone.page);
+  await card(phone.page,name,'Girl Cubs').click();
+  await phone.page.getByRole('button',{name:'Change Team 1',exact:true}).click();
+  await expect(phone.page.getByLabel('Team 1 1st leg',{exact:true})).toHaveValue(String(number));
+  // Make the server refuse a stale version while this phone still holds the mark.
+  await phone.page.route(`**/api/teams/${code}/${action}`,route=>route.continue({postData:JSON.stringify({...route.request().postDataJSON(),version:-1})}));
+  if(action==='remove') await phone.page.getByRole('button',{name:'Remove team',exact:true}).click();
+  const canceled=phone.page.waitForResponse(response=>response.url().endsWith(`/api/teams/${code}/cancel`));
+  await phone.page.getByRole('button',{name:action==='done'?'Done':'Remove',exact:true}).click();
+  const response=await canceled;
+  expect(response.ok()).toBe(true);
+  expect(response.request().postDataJSON()).toEqual({teamId});
+  expect((await response.json()).events.find((event:any)=>event.code===code).teams[0].changing).toBeNull();
+  await expect(phone.page.getByRole('alert')).toHaveText(`${sam} changed this team - check it and enter it again`);
+  await expect(phone.page.getByLabel('Team 1 1st leg',{exact:true})).toHaveCount(0);
+});
+
 test('a team being changed shows who is changing it on other phones, live, and Take over closes it on the old holder\'s phone',async({openPhone,request},info)=>{
   const project=info.project.name,code=`TMC-${project.toUpperCase()}`,name=`Teams changing ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
   await ownRelay(code,name,'Girl Cubs');
