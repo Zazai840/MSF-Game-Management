@@ -133,3 +133,11 @@
 .ci-team .warning-actions {flex-wrap:wrap;}
 .ci-team .warning-actions button {flex:1 1 auto; white-space:nowrap;}
 .ci-short {margin:0; padding:8px 12px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); font-size:var(--text-small); font-weight:700;}
+
+/* Relay order buttons: the 4th-leg wristband large, "Team 3" small under it, two to a row so "Team 12" fits on one
+   line when the 4th box is empty. The Team column takes "Team 12" on one line too. */
+.race-numbers.race-teams {grid-template-columns:repeat(2,minmax(0,1fr));}
+.race-numbers button {display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1;}
+.race-numbers button small {font-size:13px; font-weight:800; color:var(--muted);}
+.race-table.race-teams th:nth-child(2):not(:last-child) {width:104px;}
+.race-table.race-teams td:nth-child(2) {white-space:nowrap;}

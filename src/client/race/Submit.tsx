@@ -5,6 +5,7 @@ import { entryName } from '../../shared/races.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ActionBar } from '../flow/ActionBar.js';
 import { TakeOver,useRaceWrite,type Offer } from './Hold.js';
+import { EntryLabel } from './OrderAndTimes.js';
 
 const jobNames={'check-in':'Check-in',order:'Order',times:'Times'} as const;
 /**
@@ -15,12 +16,12 @@ export function ResultsCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneI
   const {race,holds}=screen,final=race.kind==='final',saved=race.state==='saved';
   const {busy,error,write}=useRaceWrite(screen.event.code,offer);
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
-  const wristband=(id:string)=>{const runner=runners.find(entry=>entry.id===id);return runner && entryName(runner);};
+  const entry=(id:string)=>runners.find(other=>other.id===id),wristband=(id:string)=>{const found=entry(id);return found && entryName(found);};
   return <section className="race-card race-results"><div className="race-card-body">
     <div><h2>{final && saved?'Final results':'Results'}</h2><p className="race-hint">{saved?'Saved. Corrections go through a zone lead.':'Check them. Spot a mistake? Tap Not yet.'}</p></div>
     {error && <p role="alert">{error}</p>}
-    <table className="race-table" aria-label="Results"><thead><tr><th>Place</th><th>Wristband</th>{!final && <th>Time</th>}</tr></thead>
-      <tbody>{(finish?.order||[]).map((id,index)=><tr key={id}><td>{ordinal(index+1)}</td><td>{wristband(id)}</td>{!final && <td>{places[index]==null?'':formatTime(places[index]!)}</td>}</tr>)}</tbody></table>
+    <table className={screen.event.relay?'race-table race-teams':'race-table'} aria-label="Results"><thead><tr><th>Place</th><th>{screen.event.relay?'Team':'Wristband'}</th>{!final && <th>Time</th>}</tr></thead>
+      <tbody>{(finish?.order||[]).map((id,index)=><tr key={id}><td>{ordinal(index+1)}</td><td>{screen.event.relay?entry(id) && <EntryLabel entry={entry(id)!}/>:wristband(id)}</td>{!final && <td>{places[index]==null?'':formatTime(places[index]!)}</td>}</tr>)}</tbody></table>
     {!!finish?.didNotFinish.length && <ul className="race-no-place" aria-label="No place">{finish.didNotFinish.map(id=><li key={id}><strong>{wristband(id)}</strong><span>Did not finish</span></li>)}</ul>}
     {!saved && <div className="race-columns">{jobs.filter(job=>holds[job]).map(job=>{
       const holder=holds[job]!;
@@ -45,7 +46,7 @@ export function SubmitDock({screen,phoneId,lead,offer}:{screen:RaceScreenRead;ph
   const asking=!asked.length || asked.some(holder=>holder.id===phoneId);
   const submit=(blocked=false)=>asking && <button disabled={busy || blocked} onClick={()=>void write('submit',{raceId:race.id})}>Submit Race</button>;
   if(race.state==='in progress') {
-    const blocked=submitBlocker(race);
+    const blocked=submitBlocker(race,screen.event.relay);
     if(!asking && !blocked && !error) return null;
     return <ActionBar stacked>{error && <p role="alert">{error}</p>}{blocked && <p className="race-blocked">{blocked}</p>}{submit(!!blocked)}</ActionBar>;
   }

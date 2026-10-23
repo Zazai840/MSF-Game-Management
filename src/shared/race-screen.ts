@@ -34,7 +34,8 @@ export interface HomeSnapshot { revision:number; events:HomeEvent[] }
 export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':raceLabel(race);
 /**
  * A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" ("Heat 2 · Ready to save" with nobody left to wait on) or "Done".
- * A relay reads "No teams yet", then "Heat 1 · 5 teams to run" (still to run) until a team is ticked, then "Heat 1 · Checking in · 2 teams".
+ * A relay reads "No teams yet", then "Heat 1 · 5 teams to run" (still to run) until a team is ticked, then "Heat 1 · Checking in · 2 teams",
+ * and "Heats done · Final next" once no team is still to run and the current heat is empty, until a lead marks heats complete.
  */
 export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:HomeEvent) {
   const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
@@ -42,34 +43,37 @@ export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:Ho
   if(relay && !teams.length && race.id===null) return 'No teams yet';
   const holders=[...new Map(jobs.flatMap(job=>holds[job]?[[holds[job].id,holds[job].name] as const]:[])).values()].join(', ');
   if(race.state==='submitted') return waitingOn.length?line(`Waiting on ${waitingOn.length} to submit`,waitingOn.join(', ')):line('Ready to save');
+  const ticked=teams.filter(team=>team.races.some(held=>held.id===race.id)).length,toRun=teams.filter(stillToRun).length;
+  // The order and times holders keep their holds into the next heat, so an empty heat reads by its teams.
+  if(relay && !final && !ticked) return toRun?line(`${teamCount(toRun)} to run`):'Heats done · Final next';
   if(started || holds.order || holds.times) return line(final?'Finishing order':'Order and times',holders);
   if(holds['check-in']) return line(final?'Checking who is here':'Checking in',holders);
-  if(relay) {
-    const ticked=teams.filter(team=>team.races.some(held=>held.id===race.id)).length;
-    return ticked?line('Checking in',teamCount(ticked)):line(`${teamCount(teams.filter(stillToRun).length)} to run`);
-  }
+  if(relay) return ticked?line('Checking in',teamCount(ticked)):line(`${teamCount(toRun)} to run`);
   return line();
 }
 /**
- * Why Submit Race cannot be pressed yet, or null: nobody checked in (on a final, everyone Absent), a runner with no
- * place (nor Did not finish), a placed wristband with no time, a time at a place with no wristband (left when a runner
- * came off the order), or a wrong time neither kept nor retyped. Kept wristband warnings never block it. The phone shows it under the button; the server refuses a press with it.
+ * Why Submit Race cannot be pressed yet, or null: nobody checked in (on a relay, no team ticked; on a final, everyone
+ * Absent), a runner or team with no place (nor Did not finish), a placed wristband with no time, a time at a place with
+ * no wristband (left when a runner came off the order), or a wrong time neither kept nor retyped. Kept wristband
+ * warnings, and relay teams short of four here, never block it. The phone shows it under the button; the server refuses a press with it.
  */
-export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>):string|null {
+export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>,relay=false):string|null {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?'Everyone is marked Absent':'Nobody is checked in yet';
+  if(!runners.length) return race.kind==='final'?'Everyone is marked Absent':relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} runners have no place yet`;
+  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${relay?'teams':'runners'} have no place yet`;
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
   if(untimed>=0) return `Place ${untimed+1} has no time`;
   // Finishers and times disagree only after a lead's correction, never on a saved race.
   const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
-  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no wristband`;
+  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
   const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }
+/** What fills a place in the order: a wristband, or on a relay a team. */
+export const entryWord=(relay:boolean)=>relay?'team':'wristband';
 /** Those asked to press Submit Race who have not pressed yet. */
 export const waitingOn=(asked:readonly Holder[],pressed:readonly Pick<Holder,'id'>[])=>asked.filter(holder=>!pressed.some(other=>other.id===holder.id));
 /** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
