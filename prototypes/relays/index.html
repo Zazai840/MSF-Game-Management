@@ -450,7 +450,7 @@ const BLURBS={
   A:'<strong>A, One long list.</strong> Segmented tabs at the top of Home. Teams is one long scroll of all six relays, every box editable in place. Check-in shows the heat\'s teams, with the teams still to run listed under them to add.',
   B:'<strong>B, One relay at a time.</strong> Edge-to-edge tabs straight under the header. Teams shows one relay at a time, picked from six buttons, typed on one number pad that moves box to box like check-in today. Check-in is two steps: choose the heat\'s teams, then tick each child by leg.',
   C:'<strong>C, Cards that open.</strong> Two big tab tiles saying what is under each. Teams is six cards that open like the race screen\'s cards (opening one makes you its holder). Check-in is one list of the teams still to run, each with a tick: ticked teams open to show their four children.',
-  D:'<strong>D, Your pick (owner, 23 Oct).</strong> Tabs from A; Teams and check-in from C. Every add or edit can be backed out of: <strong>Cancel</strong> puts things back as they were before you started. On Teams, tap a team to change it (Cancel or Done); "+ Add team" opens the new team, and Cancel removes it. At check-in, a team just ticked has Cancel, and Edit has Cancel or Done. At the finish, "+ Team not on the list" and "has no place" have Cancel.'
+  D:'<strong>D, Your pick (owner, 23 Oct).</strong> Tabs from A; Teams and check-in from C. Every add or edit can be backed out of with <strong>Cancel</strong>. A change to a team stays on your phone until you press <strong>Done</strong>; until then other phones show "Sam Patel is changing Team 2" and leave that team alone. On Teams, tap a team to change it; "+ Add team" opens a new team that only exists once you press Done. <strong>Anyone</strong> on the race screen can check in: tick teams, tap children, Edit a team (no Take over), since volunteers take children to different holding points. At the finish, "+ Team not on the list" and "has no place" have Cancel.'
 };
 const KEYS=Object.keys(VARIANTS);
 let variant=KEYS.includes(location.hash.slice(1))?location.hash.slice(1):'D';
@@ -492,10 +492,12 @@ const tick=icon('<path d="M5 12.5l4.5 4.5L19 7.5"/>',18);
 function sectionOf(n){if(!(n>=1&&n<5000)) return null;if(n<1000) return 'Beavers';if(n<2000) return 'Boy Cubs';if(n<3000) return 'Girl Cubs';if(n<4000) return 'Boy Scouts';return 'Girl Scouts';}
 const RANGES={'Beavers':['Beaver','1 to 999'],'Boy Cubs':['Boy Cubs','1000 to 1999'],'Girl Cubs':['Girl Cubs','2000 to 2999'],'Boy Scouts':['Boy Scouts','3000 to 3999'],'Girl Scouts':['Girl Scouts','4000 to 4999']};
 /** A number already in this relay (refused), or null. */
-function refusal(r,n,i,value){
-  for(const t of r.teams) t.legs.forEach((l,j)=>{if(l===value && !(t.n===n && j===i)) refusal.found=t.n===n?'this team':`Team ${t.n}`;});
-  const found=refusal.found;refusal.found=null;
-  return value && found?`${value} is already in ${found}. Check the wristband.`:null;
+/** `draft`: the four boxes of team n as this phone is changing them (layout D), in place of what is saved. */
+function refusal(r,n,i,value,draft){
+  if(!value) return null;
+  const teams=draft && !r.teams.some(t=>t.n===n)?[...r.teams,{n,legs:draft}]:r.teams;
+  const hit=teams.find(t=>(draft && t.n===n?draft:t.legs).some((l,j)=>l===value && !(t.n===n && j===i)));
+  return hit?`${value} is already in ${hit.n===n?'this team':`Team ${hit.n}`}. Check the wristband.`:null;
 }
 /** Warnings on a saved number: Keep allowed, never blocks. */
 function warnings(r,value){
@@ -512,7 +514,9 @@ function relayStatus(r){
   if(!left && !race.picked.length) return 'Heats done · Final next';
   const order=[race.holds.order,race.holds.times].filter(Boolean);
   if(order.length || race.order.length) return [label,'Order and times',[...new Set(order)].join(', ')].filter(Boolean).join(' · ');
-  if(race.holds.checkin) return `${label} · Checking in · ${race.holds.checkin}`;
+  // D: check-in has no holder, so the tile says how far it has got instead of who.
+  if(variant==='D' && race.picked.length) return `${label} · Checking in · ${race.picked.length} ${race.picked.length===1?'team':'teams'}`;
+  if(variant!=='D' && race.holds.checkin) return `${label} · Checking in · ${race.holds.checkin}`;
   return `${label} · ${left} ${left===1?'team':'teams'} to run`;
 }
 
@@ -520,7 +524,8 @@ function relayStatus(r){
 function newRace(){return {heat:1,picked:[],present:{},holds:{checkin:null,order:null,times:null},order:[],dnf:[],atFinish:[],times:[],ran:[],saved:[]};}
 function seed(kind){
   const T=(...lists)=>lists.map((legs,i)=>({n:i+1,legs:legs.map(String).concat(['','','','']).slice(0,4),kept:[]}));
-  S={relays:RELAYS.map(r=>({...r,holder:null,teams:[],race:newRace()}))};
+  // changing: D's "who is changing which team", keyed relay:team, so other phones show it and leave it alone.
+  S={relays:RELAYS.map(r=>({...r,holder:null,teams:[],race:newRace()})),changing:{}};
   if(kind!=='fresh') {
     relay('R19').teams=T([101,102,103,104],[115,116,117,118],[122,123,124,125],[131,132,133,134],[140,141,142]);
     relay('R20').teams=T([201,202,203,204],[210,211,212,213],[220,221,222,223],[230,231,232,233]);
@@ -580,13 +585,19 @@ function teamNote(r,t){const heat=lockedHeat(r,t);
 function teamProblems(p,u,r,t,editable){
   let out='';
   t.legs.forEach((l,i)=>{const key=`${r.code}:${t.n}:${i}`;
-    if(u.drafts[key]!==undefined) out+=`<div class="warning-box team-warn" role="alert"><p>${esc(refusal(relay(r.code),t.n,i,u.drafts[key])||'')}</p><div class="warning-actions"><button data-act="fix" data-k="${key}">Fix number</button></div></div>`;
+    if(u.drafts[key]!==undefined) out+=`<div class="warning-box team-warn" role="alert"><p>${esc(refusal(relay(r.code),t.n,i,u.drafts[key],changingHere(u,r,t.n)?t.legs:undefined)||'')}</p><div class="warning-actions"><button data-act="fix" data-k="${key}">Fix number</button></div></div>`;
     else if(l && u.typing!==key && !t.kept.includes(l)) {const w=warnings(r,l);
       if(w.length) out+=`<div class="warning-box team-warn" role="alert">${w.map(x=>`<p>${esc(x)}</p>`).join('')}${editable?`<div class="warning-actions"><button data-act="fix" data-k="${key}">Fix number</button><button class="button-secondary" data-act="keep" data-code="${r.code}" data-n="${t.n}" data-v="${l}">Keep</button></div>`:''}</div>`;}
   });
   return out;
 }
 const editingTeam=(u,r,n)=>!!u.teamEdit && u.teamEdit.code===r.code && u.teamEdit.n===n;
+/** D: this phone is changing team n, so its boxes live here until Done. */
+const changingHere=(u,r,n)=>variant==='D' && editingTeam(u,r,n);
+/** D: the team as this phone is changing it. */
+const draftTeam=u=>({n:u.teamEdit.n,legs:u.teamEdit.legs,kept:u.teamEdit.kept});
+/** D: who else is changing team n right now, if anyone. */
+const changer=(r,n,p)=>{const name=variant==='D' && S.changing[`${r.code}:${n}`];return name && name!==p.name?name:null;};
 /** One team open for changing: its four boxes, then Cancel (puts it back as it was) and Done. */
 function editRow(p,u,r,t,named=true){
   return `<div class="team-edit"><div class="team-row${named?'':' team-row-bare'}">${named?`<span class="team-name">Team ${t.n}${teamNote(r,t)}</span>`:''}${t.legs.map((_,i)=>boxCell(p,u,r,t,i,true)).join('')}</div>${teamProblems(p,u,r,t,true)}
@@ -595,12 +606,14 @@ function editRow(p,u,r,t,named=true){
 function teamRows(p,u,r,{forceEdit=false}={}){
   const mine=!r.holder || r.holder===p.name;
   // D: teams are read-only until tapped, one at a time, so every change can be cancelled.
-  if(variant==='D' && !forceEdit) return r.teams.map(t=>{
-    const can=mine && !lockedHeat(r,t);
-    if(can && editingTeam(u,r,t.n)) return editRow(p,u,r,t);
-    const row=`<span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((_,i)=>boxCell(p,u,r,t,i,false)).join('')}`;
-    return (can && !u.teamEdit?`<button class="team-row team-row-tap" data-act="teamedit" data-code="${r.code}" data-n="${t.n}" aria-label="Change Team ${t.n}">${row}</button>`:`<div class="team-row">${row}</div>`)+teamProblems(p,u,r,t,false);
-  }).join('');
+  if(variant==='D' && !forceEdit) {const e=u.teamEdit && u.teamEdit.code===r.code?u.teamEdit:null;
+    return r.teams.map(t=>{
+      const can=mine && !lockedHeat(r,t),by=changer(r,t.n,p);
+      if(can && e && !e.isNew && e.n===t.n) return editRow(p,u,r,draftTeam(u));
+      const row=`<span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((_,i)=>boxCell(p,u,r,t,i,false)).join('')}`;
+      return (can && !u.teamEdit && !by?`<button class="team-row team-row-tap" data-act="teamedit" data-code="${r.code}" data-n="${t.n}" aria-label="Change Team ${t.n}">${row}</button>`:`<div class="team-row">${row}</div>`)
+        +(by?`<p class="race-hint team-by">${by} is changing Team ${t.n}</p>`:'')+teamProblems(p,u,r,t,false);
+    }).join('')+(e && e.isNew?editRow(p,u,r,draftTeam(u)):'');}
   return r.teams.map(t=>{const editable=forceEdit || (mine && !lockedHeat(r,t));
     return `<div class="team-row"><span class="team-name">Team ${t.n}${teamNote(r,t)}</span>${t.legs.map((_,i)=>boxCell(p,u,r,t,i,editable)).join('')}</div>${teamProblems(p,u,r,t,editable)}`;}).join('');
 }
@@ -661,8 +674,11 @@ function raceScreen(p,u){
 }
 function presentCount(race,n){return (race.present[n]||[]).filter(Boolean).length;}
 function checkInCard(p,u,r){
-  const race=r.race,holder=race.holds.checkin,mine=holder===p.name,count=`${race.picked.length} ${race.picked.length===1?'team':'teams'} in`;
-  const status=holder?`${mine?'You are':`${holder} is`} checking in · ${count}`:race.picked.length?count:'Nobody yet · open to start';
+  // D: anyone on the race screen checks in: volunteers take children to different holding points.
+  const anyone=variant==='D',race=r.race,holder=anyone?null:race.holds.checkin,mine=anyone || holder===p.name,count=`${race.picked.length} ${race.picked.length===1?'team':'teams'} in`;
+  const here=race.picked.reduce((sum,n)=>sum+presentCount(race,n),0);
+  const status=anyone?race.picked.length?`${count} · ${here} of ${race.picked.length*4} here`:'No teams yet · open to start'
+    :holder?`${mine?'You are':`${holder} is`} checking in · ${count}`:race.picked.length?count:'Nobody yet · open to start';
   let body='';
   if(!mine) {
     body=race.picked.length?race.picked.map(n=>{const t=team(r,n);return `<div class="ci-team"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span></div><div class="ci-legs">${t.legs.map((l,i)=>`<span class="${race.present[n]?.[i]?'is-here':l?'':'is-empty'}">${l||'–'}${race.present[n]?.[i]?'<small>Here</small>':''}</span>`).join('')}</div></div>`;}).join(''):'<p class="race-empty">No teams checked in yet</p>';
@@ -672,7 +688,7 @@ function checkInCard(p,u,r){
   const legs=(n,t)=>`<div class="ci-legs">${t.legs.map((l,i)=>l?`<button aria-pressed="${!!race.present[n]?.[i]}" aria-label="${l} here" data-act="present" data-n="${n}" data-i="${i}">${l}${race.present[n]?.[i]?'<small>Here</small>':''}</button>`:`<span class="is-empty">–</span>`).join('')}</div>`;
   // Short only once ticking has started: a team just added has nobody ticked yet.
   const short=n=>{const c=presentCount(race,n);return c && c<4?`<p class="ci-short">${c} of 4 here. A team can run short: a lead sees it in To check.</p>`:'';};
-  const edit=n=>editRow(p,u,r,team(r,n),false);
+  const edit=n=>editRow(p,u,r,changingHere(u,r,n)?draftTeam(u):team(r,n),false);
   const headBtns=n=>editingTeam(u,r,n)?'':`<button class="button-quiet" data-act="edit" data-n="${n}">Edit</button>${variant==='A'?`<button class="button-quiet" data-act="unpick" data-n="${n}">Take off</button>`:''}`;
   const pickedBlock=(n,cls='')=>{const t=team(r,n);return `<div class="ci-team ${cls}"><div class="ci-head"><span class="team-name">Team ${n}<small>${presentCount(race,n)} of 4 here</small></span>${headBtns(n)}</div>${editingTeam(u,r,n)?edit(n):legs(n,t)}${short(n)}</div>`;};
   const left=pool(r);
@@ -689,7 +705,7 @@ function checkInCard(p,u,r){
   } else {
     const list=[...race.picked.map(n=>team(r,n)),...left].sort((a,b)=>a.n-b.n);
     body=`<p class="race-hint">Tick the teams running heat ${race.heat}, then tap each child as they arrive.</p><div class="ci-list">${list.map(t=>{const on=race.picked.includes(t.n);
-      return on?`<div class="ci-team in-list"><div class="ci-head"><button class="ci-row" style="border:0;padding:0;min-height:var(--tap);flex:1" aria-pressed="true" data-act="unpick" data-n="${t.n}"><span class="ci-tick">${tick}</span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${presentCount(race,t.n)} of 4 here</span></span></button>${editingTeam(u,r,t.n)?'':`${variant==='D' && !presentCount(race,t.n)?`<button class="button-quiet" data-act="unpick" data-n="${t.n}">Cancel</button>`:''}<button class="button-quiet" data-act="edit" data-n="${t.n}">Edit</button>`}</div>${editingTeam(u,r,t.n)?edit(t.n):legs(t.n,t)}${short(t.n)}</div>`
+      return on?`<div class="ci-team in-list"><div class="ci-head"><button class="ci-row" style="border:0;padding:0;min-height:var(--tap);flex:1" aria-pressed="true" data-act="unpick" data-n="${t.n}"><span class="ci-tick">${tick}</span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${presentCount(race,t.n)} of 4 here</span></span></button>${editingTeam(u,r,t.n)?'':`${variant==='D' && !presentCount(race,t.n)?`<button class="button-quiet" data-act="unpick" data-n="${t.n}">Cancel</button>`:''}${changer(r,t.n,p)||u.teamEdit?'':`<button class="button-quiet" data-act="edit" data-n="${t.n}">Edit</button>`}`}</div>${editingTeam(u,r,t.n)?edit(t.n):legs(t.n,t)}${changer(r,t.n,p)?`<p class="race-hint">${changer(r,t.n,p)} is changing this team</p>`:''}${short(t.n)}</div>`
         :`<button class="ci-row" aria-pressed="false" data-act="pick" data-n="${t.n}"><span class="ci-tick"></span><span class="ci-row-text"><strong>Team ${t.n}</strong><span>${nums(t)}${filled(t)<4?` · ${filled(t)} of 4`:''}</span></span></button>`;}).join('')}</div>`;
   }
   return card(u,'checkin','Check-in Teams',status,body,u.open.checkin);
@@ -730,7 +746,7 @@ function blocker(r){const race=r.race;
   const un=race.picked.filter(n=>!race.order.includes(n)&&!race.dnf.includes(n));
   if(un.length) return un.length===1?`Team ${un[0]} has no place yet`:`${un.length} teams have no place yet`;
   const i=race.order.findIndex((_,k)=>!race.times[k]);return i>=0?`Place ${i+1} has no time`:null;}
-function dock(p,u,r){const h=r.race.holds,holders=Object.values(h).filter(Boolean);
+function dock(p,u,r){const h=r.race.holds,holders=Object.entries(h).filter(([job,name])=>name && !(variant==='D' && job==='checkin')).map(([,name])=>name);
   if(holders.length && !holders.includes(p.name)) return '';
   const b=blocker(r);
   return `<div class="action-bar action-bar-stacked"><div class="action-bar-inner">${b?`<p class="race-blocked">${b}</p>`:''}<button ${b?'disabled':''} data-act="submit">Submit Race</button></div></div>`;}
@@ -742,29 +758,34 @@ const actions={
   inert(p,u){u.note='Not part of this prototype: Races &amp; Hurdles and the lead area are unchanged.';},
   tab(p,u,d){u.tab=d.v;u.lastTab=d.v;u.note='';},
   teams(p,u){u.screen='teams';},
-  race(p,u,d){u.screen='race';u.code=d.code;u.open={};u.step='place';u.ciMode=null;u.teamEdit=null;},
+  race(p,u,d){u.screen='race';u.code=d.code;u.open={};u.step='place';u.ciMode=null;if(u.teamEdit) endEdit(u,u.teamEdit);},
   home(p,u){u.screen='home';u.asking='';u.note='';},
   reopen(p,u){u.screen='home';u.tab=homeOpens==='races'?'races':u.lastTab;u.note='';},
   card(p,u,d){
     if(d.k.startsWith('teams:')) {const code=d.k.slice(6),open=!u.teamsOpen[code];u.teamsOpen[code]=open;if(open) takeHold0(relay(code),p.name);return;}
     const open=!u.open[d.k];u.open[d.k]=open;const r=relay(u.code);
-    if(open && d.k==='checkin') takeHold(r,'checkin',p.name);
+    if(open && d.k==='checkin' && variant!=='D') takeHold(r,'checkin',p.name);
     if(open && d.k==='order') {const free=['order','times'].filter(c=>!r.race.holds[c]);if(free.length===1 && !Object.values(r.race.holds).includes(p.name)) takeHold(r,free[0],p.name);}
   },
   hold(p,u,d){takeHold(relay(u.code),d.v,p.name);},
   ask(p,u,d){u.asking=d.k;},
   takeover(p,u,d){u.asking='';
     if(d.k.startsWith('teams:')) relay(d.k.slice(6)).holder=p.name; else relay(u.code).race.holds[d.k]=p.name;},
-  addteam(p,u,d){const r=relay(d.code);if(r.teams.length>=6) return;r.holder=r.holder||p.name;const n=Math.max(0,...r.teams.map(t=>t.n))+1;r.teams.push({n,legs:['','','',''],kept:[]});
-    if(variant==='B') {u.target={n,i:0};u.entry='';u.bRefused='';} else if(variant==='D') startEdit(p,u,r,n,true); else focusLater(p,`${r.code}:${n}:0`);},
+  addteam(p,u,d){const r=relay(d.code);if(r.teams.length>=6) return;r.holder=r.holder||p.name;const n=Math.max(0,...r.teams.map(t=>t.n))+1;
+    // D: the new team stays on this phone until Done.
+    if(variant==='D') {startEdit(p,u,r,n,true);return;}
+    r.teams.push({n,legs:['','','',''],kept:[]});
+    if(variant==='B') {u.target={n,i:0};u.entry='';u.bRefused='';} else focusLater(p,`${r.code}:${n}:0`);},
   teamedit(p,u,d){const r=relay(d.code);takeHold0(r,p.name);startEdit(p,u,r,Number(d.n),false);},
   // Cancel puts the team back as it was when the change began; a team just added goes again.
   editcancel(p,u){const e=u.teamEdit;if(!e) return;const r=relay(e.code);
-    if(e.isNew) r.teams=r.teams.filter(t=>t.n!==e.n); else Object.assign(team(r,e.n),{legs:e.before,kept:e.kept});
-    clearDrafts(u,e);u.teamEdit=null;},
-  fix(p,u,d){delete u.drafts[d.k];const [code,n,i]=d.k.split(':');team(relay(code),Number(n)).legs[i]='';
+    // D never saved the change, so there is nothing to put back.
+    if(variant!=='D') {if(e.isNew) r.teams=r.teams.filter(t=>t.n!==e.n); else Object.assign(team(r,e.n),{legs:e.before,kept:e.kept});}
+    endEdit(u,e);},
+  fix(p,u,d){delete u.drafts[d.k];const [code,n,i]=d.k.split(':');
+    if(changingHere(u,relay(code),Number(n))) u.teamEdit.legs[i]=''; else team(relay(code),Number(n)).legs[i]='';
     if(variant==='B' && u.screen==='teams') {u.target={n:Number(n),i:Number(i)};u.entry='';} else focusLater(p,d.k);},
-  keep(p,u,d){team(relay(d.code),Number(d.n)).kept.push(d.v);},
+  keep(p,u,d){const r=relay(d.code),n=Number(d.n);(changingHere(u,r,n)?u.teamEdit:team(r,n)).kept.push(d.v);},
   pickrelay(p,u,d){u.teamsRelay=d.code;u.target=null;u.entry='';u.bRefused='';},
   target(p,u,d){const r=relay(u.teamsRelay);takeHold0(r,p.name);u.target={n:Number(d.n),i:Number(d.i)};u.entry=team(r,u.target.n).legs[u.target.i];u.bRefused='';focusLater(p,'entry');},
   bnext(p,u){const r=relay(u.teamsRelay),t0=bTarget(u,r);if(!t0||!u.entry) return;takeHold0(r,p.name);
@@ -775,11 +796,17 @@ const actions={
   bskip(p,u){const r=relay(u.teamsRelay),t0=bTarget(u,r);if(!t0) return;const order=r.teams.flatMap(t=>lockedHeat(r,t)?[]:t.legs.map((_,i)=>({n:t.n,i})));
     const k=order.findIndex(x=>x.n===t0.n&&x.i===t0.i);u.target=order[(k+1)%order.length];u.entry=team(r,u.target.n).legs[u.target.i];u.bRefused='';},
   bfix(p,u){u.entry='';u.bRefused='';focusLater(p,'entry');},
-  pick(p,u,d){const r=relay(u.code);takeHold(r,'checkin',p.name);if(variant==='B') u.ciMode='choose';const n=Number(d.n);if(!r.race.picked.includes(n)) r.race.picked.push(n);r.race.picked.sort((a,b)=>a-b);r.race.present[n]=r.race.present[n]||[0,0,0,0];},
-  unpick(p,u,d){const r=relay(u.code),race=r.race,n=Number(d.n);race.picked=race.picked.filter(x=>x!==n);delete race.present[n];race.order=race.order.filter(x=>x!==n);race.dnf=race.dnf.filter(x=>x!==n);if(editingTeam(u,r,n)) u.teamEdit=null;},
+  pick(p,u,d){const r=relay(u.code);if(variant!=='D') takeHold(r,'checkin',p.name);if(variant==='B') u.ciMode='choose';const n=Number(d.n);if(!r.race.picked.includes(n)) r.race.picked.push(n);r.race.picked.sort((a,b)=>a-b);r.race.present[n]=r.race.present[n]||[0,0,0,0];},
+  unpick(p,u,d){const r=relay(u.code),race=r.race,n=Number(d.n);race.picked=race.picked.filter(x=>x!==n);delete race.present[n];race.order=race.order.filter(x=>x!==n);race.dnf=race.dnf.filter(x=>x!==n);if(editingTeam(u,r,n)) endEdit(u,u.teamEdit);},
   present(p,u,d){const race=relay(u.code).race,n=Number(d.n);race.present[n][d.i]=race.present[n][d.i]?0:1;},
   edit(p,u,d){startEdit(p,u,relay(u.code),Number(d.n),false);},
-  editdone(p,u){if(u.teamEdit) clearDrafts(u,u.teamEdit);u.teamEdit=null;},
+  editdone(p,u){const e=u.teamEdit;if(!e) return;const r=relay(e.code);
+    // D: Done is when the change reaches every phone. A new team takes its number now, so two added at once never clash.
+    if(variant==='D') {
+      if(!e.isNew) Object.assign(team(r,e.n),{legs:e.legs,kept:e.kept});
+      else if(e.legs.some(Boolean) && r.teams.length<6) r.teams.push({n:Math.max(0,...r.teams.map(t=>t.n))+1,legs:e.legs,kept:e.kept});
+    }
+    endEdit(u,e);},
   cimode(p,u,d){u.ciMode=d.v;},
   step(p,u,d){u.step=d.v;},
   place(p,u,d){relay(u.code).race.order.push(Number(d.n));},
@@ -791,12 +818,15 @@ const actions={
   submit(p,u){const r=relay(u.code),race=r.race;if(blocker(r)) return;
     race.saved.push({heat:race.heat,teams:[...race.picked],order:[...race.order],times:[...race.times]});
     race.ran.push(...race.picked);Object.assign(race,{heat:race.heat+1,picked:[],present:{},order:[],dnf:[],atFinish:[],times:[]});
-    ui.forEach(x=>{x.step='place';x.ciMode=null;x.teamEdit=null;});},
+    ui.forEach(x=>{x.step='place';x.ciMode=null;if(x.teamEdit) endEdit(x,x.teamEdit);});},
 };
 function takeHold0(r,name){if(!r.holder) r.holder=name;}
-function startEdit(p,u,r,n,isNew){const t=team(r,n);
-  u.teamEdit={code:r.code,n,before:[...t.legs],kept:[...t.kept],isNew};
+function startEdit(p,u,r,n,isNew){const t=team(r,n)||{legs:['','','',''],kept:[]};
+  // legs and kept: the change as this phone makes it (D saves them on Done); before: what Cancel puts back elsewhere.
+  u.teamEdit={code:r.code,n,before:[...t.legs],kept:[...t.kept],legs:[...t.legs],isNew};
+  if(variant==='D' && !isNew) S.changing[`${r.code}:${n}`]=p.name;
   focusLater(p,`${r.code}:${n}:${Math.max(0,t.legs.findIndex(l=>!l))}`);}
+function endEdit(u,e){if(S.changing[`${e.code}:${e.n}`]) delete S.changing[`${e.code}:${e.n}`];clearDrafts(u,e);u.teamEdit=null;}
 function clearDrafts(u,e){for(const k of Object.keys(u.drafts)) if(k.startsWith(`${e.code}:${e.n}:`)) delete u.drafts[k];}
 let pendingFocus=null;
 function focusLater(p,key){pendingFocus={p:PHONES.indexOf(p),key};}
@@ -820,9 +850,10 @@ function stateText(){
   return S.relays.map(r=>{const race=r.race;
     return `${r.code} ${r.name} ${r.section}  ·  Teams screen holder: ${r.holder||'nobody'}\n`
       +(r.teams.length?r.teams.map(t=>`   Team ${t.n}: ${nums(t)}${t.kept.length?`  (kept: ${t.kept.join(', ')})`:''}`).join('\n'):'   no teams')+'\n'
-      +`   Heat ${race.heat}: in heat ${race.picked.map(n=>`T${n} (${presentCount(race,n)}/4 here)`).join(', ')||'none'} · holds ${Object.entries(race.holds).filter(e=>e[1]).map(([k,v])=>`${k}=${v}`).join(', ')||'none'}\n`
+      +`   Heat ${race.heat}: in heat ${race.picked.map(n=>`T${n} (${presentCount(race,n)}/4 here)`).join(', ')||'none'} · holds ${Object.entries(race.holds).filter(([job,name])=>name && !(variant==='D' && job==='checkin')).map(([k,v])=>`${k}=${v}`).join(', ')||'none'}\n`
       +`   order ${race.order.map(n=>`T${n}${race.atFinish.includes(n)?' (at finish)':''}`).join(', ')||'-'} · times ${race.times.map(fmtTime).join(', ')||'-'} · did not finish ${race.dnf.map(n=>`T${n}`).join(', ')||'-'}\n`
       +`   ran a saved heat: ${race.ran.map(n=>`T${n}`).join(', ')||'-'} · saved heats ${race.saved.map(s=>s.heat).join(', ')||'-'}`;}).join('\n\n')
+    +`\n\nBeing changed (not saved until Done): ${Object.entries(S.changing).map(([k,v])=>`${k} by ${v}`).join(', ')||'nothing'}`
     +`\n\nPhones: ${PHONES.map((p,i)=>`${p.name} on ${ui[i].screen}${ui[i].screen==='home'?` (${ui[i].tab} tab)`:ui[i].screen==='race'?` (${ui[i].code})`:''}`).join(' · ')}`;
 }
 
@@ -839,6 +870,11 @@ phonesEl.addEventListener('input',e=>{
   const digits=el.value.replace(/\D/g,'').slice(0,5);
   if(el.dataset.pad) u.pad=digits.slice(0,6);
   else if(el.dataset.entry) {u.entry=digits.slice(0,4);u.bRefused='';}
+  else if(el.dataset.box && changingHere(u,relay(el.dataset.box.split(':')[0]),Number(el.dataset.box.split(':')[1]))) {
+    // D: typing changes only this phone's copy of the team.
+    const e=u.teamEdit,idx=Number(el.dataset.box.split(':')[2]),v=digits.slice(0,4);u.typing=el.dataset.box;
+    if(v && refusal(relay(e.code),e.n,idx,v,e.legs)) {u.drafts[el.dataset.box]=v;e.legs[idx]='';}
+    else {delete u.drafts[el.dataset.box];e.legs[idx]=v;}}
   else if(el.dataset.box) {const [code,n,idx]=el.dataset.box.split(':'),r=relay(code),t=team(r,Number(n)),v=digits.slice(0,4);
     u.typing=el.dataset.box;
     // The first edit on the Teams screen makes you the relay's holder; check-in's Edit is the check-in holder's.
@@ -859,7 +895,7 @@ document.addEventListener('click',e=>{
   const o=e.target.closest('[data-opens]');if(o){homeOpens=o.dataset.opens;render();return;}
   const j=e.target.closest('[data-jump]');if(j) seed(j.dataset.jump);
 });
-function setVariant(k){variant=k;history.replaceState(null,'',`#${k}`);ui.forEach(u=>{u.asking='';u.target=null;u.bRefused='';u.ciMode=null;u.teamEdit=null;});render();}
+function setVariant(k){variant=k;history.replaceState(null,'',`#${k}`);ui.forEach(u=>{u.asking='';u.target=null;u.bRefused='';u.ciMode=null;u.teamEdit=null;});S.changing={};render();}
 const cycle=d=>setVariant(KEYS[(KEYS.indexOf(variant)+d+KEYS.length)%KEYS.length]);
 document.getElementById('prev').onclick=()=>cycle(-1);
 document.getElementById('next').onclick=()=>cycle(1);
