@@ -19,7 +19,7 @@ describe('To check wording',()=>{
     expect(toCheckWording(item({kind:'ran-twice',message:'2001: Ran twice in this event',wristband:2001}))).toMatchObject({title:'A runner ran twice',explanation:'2001 has a result in more than one race of this event. Choose which result counts.'});
   });
   it('explains a tie, which belongs to the event rather than one race',()=>{
-    expect(toCheckWording(item({kind:'tie',message:'Tie at 20.00: 2004, 2005',race:undefined,raceId:undefined,tieId:'t',tie:{time:2000,wristbands:[2004,2005]}}))).toEqual({
+    expect(toCheckWording(item({kind:'tie',message:'Tie at 20.00: 2004, 2005',race:undefined,raceId:undefined,tieId:'t',tie:{time:2000,names:['2004','2005']}}))).toEqual({
       race:'R3 · 60m Boy Cubs',title:'Runners tied on time',explanation:'2004 and 2005 both have 20.00. Decide whether a run-off is needed.'});
   });
   it('keeps the original message when the facts are missing',()=>{

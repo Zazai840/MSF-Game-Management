@@ -17,8 +17,11 @@ async function start() {
   const relays=relaySetup(app);
   /** Types one Girl Cubs team per entry of `teams` on R22's team list: Team 1 is 2101-2104, Team 2 is 2201-2204, ... */
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));}
-  /** Ticks the teams in, then saves the heat with them placed in the order given and timed by place. */
-  async function heat(placed:number[],times:number[]) {for(const number of placed) await relays.tick(sam,'R22',number);await relays.save(sam,'R22',placed,times);}
+  /** Ticks the teams in with all four children marked here, then saves the heat with them placed in the order given and timed by place. */
+  async function heat(placed:number[],times:number[]) {
+    for(const number of placed) {await relays.tick(sam,'R22',number);for(const leg of [0,1,2,3]) await relays.here(sam,'R22',number,leg);}
+    await relays.save(sam,'R22',placed,times);
+  }
   const results=async()=>((await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead).results;
   return {sam,lead,relays,teams,heat,results};
 }

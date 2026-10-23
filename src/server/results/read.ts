@@ -13,13 +13,13 @@ import { runnersOf,type Runner } from '../../shared/races.js';
 import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
-import { readTeamLists } from '../relays/teams.js';
+import { readTeamLists,type TeamList } from '../relays/teams.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
   return (await db.query('SELECT id,code,name,section,format,enabled,relay FROM events WHERE day_id=$1 ORDER BY programme_order,code',[dayId])).rows;
 }
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
-export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map()):EventState {
-  return {event,rulings,auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,saved:race.state==='saved',final:race.final,leadTimes:timings.get(race.id),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
+export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map(),relays:EventState['relays']=[]):EventState {
+  return {event,rulings,...(event.relay?{relays}:{}),auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,saved:race.state==='saved',final:race.final,leadTimes:timings.get(race.id),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
 
 }
 export async function readResults(db:Database,dayId:string,providedRaces?:StoredRace[]):Promise<ResultsRead> {
@@ -27,12 +27,12 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const timings=await leadTimings(db,dayId);
   const rulings=await readRulings(db,dayId),notes=await readAuditNotes(db,dayId);
   const tieSettlements=await readTieSettlements(db,dayId);
-  const stages=await readCompletedStages(db,dayId);
+  const stages=await readCompletedStages(db,dayId),relays=await switchedOnRelays(db,dayId);
   const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
   if(!day) throw newDay();
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
-    const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings));
+    const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings,relays));
     needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId);return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{})};}));
     const rows=groups.get(event.name)||[];rows.push({event,needsYou:results.needsYou.length,status:results.status,raceCount:results.raceCount,provisional:results.provisional,latestNoteAt:notes.find(note=>note.eventId===event.id)?.at??null});groups.set(event.name,rows);
   }
@@ -45,10 +45,13 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   const auditNotes=(await readAuditNotes(db,dayId)).filter(note=>note.eventId===event.id);
   const tieSettlements=(await readTieSettlements(db,dayId)).filter(settlement=>settlement.eventId===event.id);
   const stages=(await readCompletedStages(db,dayId)).filter(stage=>stage.eventId===event.id).map(stage=>stage.stage);
-  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId))),
-    ...(event.relay?{teams:(await readTeamLists(db,dayId)).get(event.id)!.teams}:{})};
+  const lists=event.relay?await readTeamLists(db,dayId):new Map<string,TeamList>();
+  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),switchedOn(lists))),
+    ...(event.relay?{teams:lists.get(event.id)!.teams}:{})};
 }
-
+/** The day's switched-on relays' team lists: a child on two of them is in two relays. */
+const switchedOn=(lists:Map<string,TeamList>)=>[...lists.values()].filter(relay=>relay.enabled);
+const switchedOnRelays=async(db:Database,dayId:string)=>switchedOn(await readTeamLists(db,dayId));
 /** Reuse persisted part and history times; queue ordering never depends on poll time. */
 async function leadTimings(db:Database,dayId:string) {
   const rows=(await db.query('SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1',[dayId])).rows;

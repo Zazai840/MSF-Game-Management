@@ -17,9 +17,9 @@ async function start() {
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relaySetup(app);
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',legs(number));}
-  /** Ticks the teams in and saves the heat with them placed in the order given; answers the saved heat's id. */
+  /** Ticks the teams in with all four children marked here and saves the heat with them placed in the order given; answers the saved heat's id. */
   async function heat(placed:number[]) {
-    for(const number of placed) await relays.tick(sam,'R22',number);
+    for(const number of placed) {await relays.tick(sam,'R22',number);for(const leg of [0,1,2,3]) await relays.here(sam,'R22',number,leg);}
     const before=await relays.screen(sam,'R22');
     await relays.save(sam,'R22',placed,placed.map((_,index)=>1400+index*100));
     return before.race.id!;
