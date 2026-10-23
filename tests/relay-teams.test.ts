@@ -123,7 +123,7 @@ test('a number that looks wrong needs Keep, and Done stores its kept warnings on
 });
 test('Start new day clears every team list, teams hold and "is changing" mark with the day',async()=>{
   const {owner,sam}=await start();
-  const team=relay(await teams(owner,'R22','done',{legs:[2101,null,null,null]}),'R22').teams[0];
+  const team=relay(await teams(sam,'R22','done',{legs:[2101,null,null,null]}),'R22').teams[0];
   await teams(sam,'R22','open',{teamId:team.id});
   await teams(sam,'R21','hold');
   expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
@@ -133,7 +133,7 @@ test('Start new day clears every team list, teams hold and "is changing" mark wi
   expect(relay(fresh,'R21')).toMatchObject({teams:[],teamsHolder:null});
 });
 test('opening a team marks it as being changed; someone else is refused without Change anyway, and Done or Cancel clears the mark',async()=>{
-  const {sam,priya,samId}=await start();
+  const {sam,priya}=await start();
   const saved=await teams(priya,'R22','done',{legs:[2101,2134,null,null]}),team1=relay(saved,'R22').teams[0];
   expect(team1.changing).toBeNull();
   const opened=await teams(priya,'R22','open',{teamId:team1.id});
@@ -141,19 +141,41 @@ test('opening a team marks it as being changed; someone else is refused without 
   expect(relay(opened,'R22').teams[0].changing).toMatchObject({name:'Priya Shah',since:expect.any(String)});
   // Opening it again on the same phone changes nothing.
   expect((await teams(priya,'R22','open',{teamId:team1.id})).revision).toBe(opened.revision);
-  expect((await call(sam,'/api/teams/R22/open',{teamId:team1.id})).json()).toEqual({message:'Priya Shah is changing this team'});
   // Someone else's Cancel leaves the mark where it is.
   expect(relay(await teams(sam,'R22','cancel',{teamId:team1.id}),'R22').teams[0].changing).toMatchObject({name:'Priya Shah'});
-  // Change anyway moves the mark; Priya's Done is then refused.
-  expect(relay(await teams(sam,'R22','open',{teamId:team1.id,changeAnyway:true}),'R22').teams[0].changing).toMatchObject({id:samId,name:'Sam Patel'});
-  expect((await call(priya,'/api/teams/R22/done',{teamId:team1.id,version:1,legs:[2101,2134,2187,null]})).json()).toEqual({message:'Sam Patel is changing this team'});
   // Cancel clears the mark, and a Done with no mark asks to open the team again.
-  expect(relay(await teams(sam,'R22','cancel',{teamId:team1.id}),'R22').teams[0].changing).toBeNull();
+  expect(relay(await teams(priya,'R22','cancel',{teamId:team1.id}),'R22').teams[0].changing).toBeNull();
   expect((await call(priya,'/api/teams/R22/done',{teamId:team1.id,version:1,legs:[2101,2134,2187,null]})).json()).toEqual({message:'Open the team again'});
+  // Sam left Team 1 open in a check-in Edit, then it came off the heat: it is still to run, and still his to change.
+  const heat=(await call(sam,'/api/race-screen/R22/tick',{raceId:null,teamId:team1.id})).json().race.id;
+  expect((await call(sam,'/api/race-screen/R22/edit-open',{raceId:heat,teamId:team1.id})).statusCode).toBe(200);
+  expect((await call(sam,'/api/race-screen/R22/take-off',{raceId:heat,teamId:team1.id})).statusCode).toBe(200);
+  expect((await call(priya,'/api/teams/R22/open',{teamId:team1.id})).json()).toEqual({message:'Sam Patel is changing this team'});
+  // Change anyway moves the mark; Sam's Done is then refused.
+  expect(relay(await teams(priya,'R22','open',{teamId:team1.id,changeAnyway:true}),'R22').teams[0].changing).toMatchObject({name:'Priya Shah'});
+  expect((await call(sam,'/api/race-screen/R22/edit-done',{raceId:heat,teamId:team1.id,version:1,legs:[2101,2134,2188,null]})).json()).toEqual({message:'Team 1 is no longer in Heat 1'});
   // Done clears the mark.
-  await teams(priya,'R22','open',{teamId:team1.id});
   expect(relay(await teams(priya,'R22','done',{teamId:team1.id,version:1,legs:[2101,2134,2187,null]}),'R22').teams[0]).toMatchObject({version:2,changing:null});
-  for(const [body,message] of [[{},'Choose a team'],[{teamId:'nope'},'Team not found']] as const) expect((await call(sam,'/api/teams/R22/open',body)).json()).toEqual({message});
+  for(const [body,message] of [[{},'Choose a team'],[{teamId:'nope'},'Team not found']] as const) expect((await call(priya,'/api/teams/R22/open',body)).json()).toEqual({message});
+});
+test('opening a team on the Teams screen is the teams holder\'s: a tap racing a Take over leaves no mark, while a check-in Edit needs no hold',async()=>{
+  const {sam,ali,priya}=await start();
+  const team1=relay(await teams(sam,'R22','done',{legs:[2101,null,null,null]}),'R22').teams[0];
+  await teams(ali,'R22','take-over');
+  // Sam's phone has not seen the Take over yet: his tap on Team 1 is refused, and Team 1 is nobody's.
+  expect((await call(sam,'/api/teams/R22/open',{teamId:team1.id})).json()).toEqual({message:'Ali Khan took over the teams'});
+  expect((await call(sam,'/api/teams/R22/open',{teamId:team1.id,changeAnyway:true})).json()).toEqual({message:'Ali Khan took over the teams'});
+  expect(relay(await teams(ali,'R22','hold'),'R22').teams[0].changing).toBeNull();
+  // With nobody holding the relay, opening a team takes its teams hold, as opening its card would.
+  const other=relay(await teams(ali,'R21','done',{legs:[1301,null,null,null]}),'R21').teams[0];
+  expect((await call(ali,'/api/sign-out',{})).statusCode).toBe(200);
+  const opened=relay(await teams(priya,'R21','open',{teamId:other.id}),'R21');
+  expect(opened.teamsHolder).toMatchObject({name:'Priya Shah'});
+  expect(opened.teams[0].changing).toMatchObject({name:'Priya Shah'});
+  // A check-in Edit opens a team with no teams hold (ADR 0002).
+  expect((await call(sam,'/api/race-screen/R22/tick',{raceId:null,teamId:team1.id})).statusCode).toBe(200);
+  const seen=(await call(sam,'/api/race-screen/R22')).json();
+  expect((await call(sam,'/api/race-screen/R22/edit-open',{raceId:seen.race.id,teamId:team1.id})).statusCode).toBe(200);
 });
 test('Remove team keeps the team recorded but off the list, and its number is never used again',async()=>{
   const {sam,ali}=await start();
@@ -189,9 +211,9 @@ test('a late Done is refused once the team moved on, and sign-out and Take over 
   expect(relay(taken,'R21').teams[0].changing).toMatchObject({name:'Priya Shah'});
   expect((await call(priya,'/api/teams/R22/done',{teamId:team2.id,version:1,legs:[2201,2202,null,null]})).json()).toEqual({message:'Ali Khan took over the teams'});
   // Signing out clears every mark the phone holds, and only its own.
-  await teams(sam,'R22','open',{teamId:team1.id});
+  await teams(ali,'R22','open',{teamId:team1.id});
   expect((await call(priya,'/api/sign-out',{})).statusCode).toBe(200);
   const after=await teams(ali,'R22','hold');
   expect(relay(after,'R21').teams[0].changing).toBeNull();
-  expect(relay(after,'R22').teams[0].changing).toMatchObject({name:'Sam Patel'});
+  expect(relay(after,'R22').teams[0].changing).toMatchObject({name:'Ali Khan'});
 });

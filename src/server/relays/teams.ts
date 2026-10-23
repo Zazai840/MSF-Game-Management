@@ -168,6 +168,7 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
     const body=(request.body||{}) as {teamId?:unknown;changeAnyway?:unknown},teamId=requestedId(body.teamId);
     return write(phone,code(request),async(client,relay,unchanged)=>{
       requireOpen(relay);
+      await requireHolder(client,relay,phone);
       const team=requestedTeam(relay,teamId);
       requireNotInRace(team);
       await openTeam(client,team,phone,body.changeAnyway,unchanged);

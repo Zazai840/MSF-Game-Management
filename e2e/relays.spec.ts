@@ -1,4 +1,4 @@
-import { expect,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
+import { expect,leaveTeamOpen,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
 
 /** A relay's card on the Teams screen, by its distance heading and Section. */
 const card=(page:Page,name:string,section:string)=>page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${section}`)});
@@ -245,8 +245,8 @@ test('Change anyway after its confirm opens the team with what was last saved, a
   const [team1]=teamIds(await writeTeam(request,samPhone.token,code,[Number(n(11)),Number(n(12)),null,null]),code);
   await openTeams(samPhone.page);
   await card(samPhone.page,name,'Girl Cubs').click();
-  // Priya left Team 1 open (here through the API, as an Edit at check-in would).
-  await openTeam(request,priyaPhone.token,code,team1);
+  // Priya left Team 1 open in an Edit at check-in, and it came off the heat (here through the API).
+  await leaveTeamOpen(request,priyaPhone.token,code,1);
   await expect(samPhone.page.getByText(`${priya} is changing this team`,{exact:true})).toBeVisible(live);
   await samPhone.page.getByRole('button',{name:'Change Team 1',exact:true}).click();
   await expect(samPhone.page.getByText(`${priya} is changing this team. Change it anyway? Their changes will be lost.`,{exact:true})).toBeVisible();

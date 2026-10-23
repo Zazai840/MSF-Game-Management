@@ -199,13 +199,22 @@ export async function writeTeam(request:APIRequestContext,token:string,relayCode
   return teamsWrite(request,token,relayCode,'done',{teamId,version,legs,keptWarnings});
 }
 /** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
-async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here',number:number,data:object={}) {
+async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'take-off'|'here'|'edit-open',number:number,data:object={}) {
   const seen=await readRaceScreen(request,token,relayCode);
   return raceScreenWrite(request,token,relayCode,what,{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===number)!.id,...data});
 }
 /** Ticks Team `number` into the relay's current heat as that phone (anyone can: there is no check-in hold on a relay). */
 export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
   return checkInTap(request,token,relayCode,'tick',number);
+}
+/**
+ * Leaves Team `number` open as that phone, as an Edit at check-in left open does, on a team since taken off the heat:
+ * the team is still to run, and other phones see "Priya Shah is changing this team" with Change anyway.
+ */
+export async function leaveTeamOpen(request:APIRequestContext,token:string,relayCode:string,number:number) {
+  await tickTeam(request,token,relayCode,number);
+  await checkInTap(request,token,relayCode,'edit-open',number);
+  await checkInTap(request,token,relayCode,'take-off',number);
 }
 /** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
 export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
