@@ -8,6 +8,7 @@ import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { homeRead } from '../races/race-screen.js';
 import { raceChange,type Database } from '../races/records.js';
+import type { TeamEntry } from '../../shared/races.js';
 import { writeAuditNote } from '../rulings/records.js';
 /** A relay's team list as it stands: the relay, its teams not removed (by number) and its teams holder. */
 export type TeamList=TeamRelay & {id:string;enabled:boolean;teams:RelayTeam[];holder:Holder|null};
@@ -97,6 +98,16 @@ export function requestedDone(body:unknown):TeamDone {
   if(!Array.isArray(kept) || kept.some(number=>number===null || !wristbands.includes(number))) throw new Refusal(400,'Choose Keep for a wristband number in this team');
   return {teamId,version:version as number|undefined,wristbands,kept};
 }
+/** A team's four boxes as every team write checks them: no wristband twice in the relay, and each warning kept. Answers the legs to store. */
+function checkedLegs(relay:TeamRelay & {relays:readonly TeamRelay[]},teamId:string|null,wristbands:Array<number|null>,kept:unknown[]):TeamLeg[] {
+  const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,teamId,wristbands,index)).find(Boolean);
+  if(refusal) throw new Refusal(409,refusal);
+  // A warning is stored only once kept: each one needs Fix number or Keep.
+  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays).map(warning=>({...warning,kept:true}))}));
+  const unkept=legs.find(leg=>leg.warnings.length && !kept.includes(leg.wristband));
+  if(unkept) throw new Refusal(409,`${unkept.wristband} needs Fix number or Keep`);
+  return legs;
+}
 /**
  * Done's own checks and write, once the phone may write: the team's mark and version, no wristband twice in the
  * relay, and each warning kept. Writes the team list (a new team takes one more than the highest number the relay
@@ -104,15 +115,27 @@ export function requestedDone(body:unknown):TeamDone {
  */
 export async function writeTeam(client:pg.PoolClient,relay:Relay,team:RelayTeam|null,phone:Phone,{version,wristbands,kept}:TeamDone):Promise<TeamLeg[]> {
   if(team) await requireMark(client,team,phone,version!);
-  const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,team?.id??null,wristbands,index)).find(Boolean);
-  if(refusal) throw new Refusal(409,refusal);
-  // A warning is stored only once kept: Done needs each one fixed or kept.
-  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays).map(warning=>({...warning,kept:true}))}));
-  const unkept=legs.find(leg=>leg.warnings.length && !kept.includes(leg.wristband));
-  if(unkept) throw new Refusal(409,`${unkept.wristband} needs Fix number or Keep`);
+  const legs=checkedLegs(relay,team?.id??null,wristbands,kept);
   if(team) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name]);
   else await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4 FROM relay_teams WHERE event_id=$2',[randomUUID(),relay.id,JSON.stringify(legs),phone.name]);
   return legs;
+}
+/**
+ * A lead's correction of a team's four children in a saved race ("Correct number", "Correct teams"): checked as a team
+ * write is. On the team's latest race the team list takes the corrected children in the same write, so a typo doesn't
+ * come back at the Final; its version rises, so a Done opened before is refused. On an earlier race only the race
+ * changes. Answers the race entry as corrected: a child still in the team keeps their here mark, wherever they moved,
+ * and a child put in place of one no longer in it takes theirs.
+ */
+export async function correctTeam(client:pg.PoolClient,lead:Phone,race:{id:string;event:{id:string}},entry:TeamEntry,wristbands:Array<number|null>,kept:unknown[]):Promise<TeamEntry> {
+  const lists=await readTeamLists(client,lead.dayId),relay={...lists.get(race.event.id)!,relays:[...lists.values()].filter(list=>list.enabled)};
+  const legs=checkedLegs(relay,entry.team.id,wristbands,kept),team=relay.teams.find(item=>item.id===entry.team.id);
+  if(team?.races.at(-1)?.id===race.id) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3 WHERE id=$1',[team.id,JSON.stringify(legs),lead.name]);
+  const stays=(wristband:number|null)=>legs.some(leg=>leg.wristband===wristband);
+  return {...entry,legs:legs.map((leg,index)=>{
+    const was=entry.legs.find(old=>old.wristband!==null && old.wristband===leg.wristband)??(stays(entry.legs[index].wristband)?undefined:entry.legs[index]);
+    return {...leg,here:leg.wristband!==null && !!was?.here};
+  })};
 }
 /**
  * The Teams screen's writes, one relay each. Each runs under the day lock, raises the day revision when it changes

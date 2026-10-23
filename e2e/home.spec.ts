@@ -22,6 +22,8 @@ test('Home lists events under distance headings in programme order, and a tile o
   await recordRace(request,process.env.E2E_SCORING_TOKEN!,code,[3001,3002],[1234,1301]);
   const {page}=await openPhone(`Home picker ${project}`);
   const distances=['60m','60m Hurdles','200m','400m'];
+  // The heading shows while Home's stream is still opening: wait for the events before reading them all at once.
+  await expect(page.getByRole('region',{name:'400m',exact:true})).toBeVisible();
   expect((await page.getByRole('main').getByRole('heading',{level:2}).allInnerTexts()).filter(heading=>distances.includes(heading))).toEqual(distances);
   await expect(page.getByRole('region',{name:'60m',exact:true}).getByRole('button')).toHaveCount(6);
   await expect(page.getByRole('region',{name:'60m Hurdles',exact:true}).getByRole('button')).toHaveCount(6);

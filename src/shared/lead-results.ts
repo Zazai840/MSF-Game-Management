@@ -1,5 +1,5 @@
 import type { DayEvent } from './day.js';
-import type { RelayTeam } from './teams.js';
+import type { RelayTeam,TeamRelay } from './teams.js';
 import type { FinalField } from './finals.js';
 import type { RaceRead,RacePartName } from './races.js';
 import type { AuditNote } from './rulings.js';
@@ -16,4 +16,5 @@ export interface EventResultsRead { event:DayEvent; results:EventResults; auditN
  * correction (by that lead). Rows an older build kept have no time or author.
  */
 export interface SavedVersion { part:RacePartName; version:number; author:string|null; at:string|null }
-export interface LeadRaceRead { race:Omit<RaceRead,'final'> & {final?:FinalField}; history:SavedVersion[] }
+/** One race for a lead; a relay race also carries its team list and every switched-on relay's, for Correct teams' checks. */
+export interface LeadRaceRead { race:Omit<RaceRead,'final'> & {final?:FinalField}; history:SavedVersion[]; teams?:RelayTeam[]; relays?:TeamRelay[] }

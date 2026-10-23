@@ -90,7 +90,7 @@ export function ChangeAnyway({by,busy,onConfirm,onCancel}:{by:string;busy:boolea
  * A team read-only: "Team 3" ("3 of 4" under it when not complete, or "In heat 2" while an unsaved race holds it), then its
  * four wristbands, "-" for an empty box and amber for a kept warning.
  */
-function TeamCells({team}:{team:RelayTeam}) {
+export function TeamCells({team}:{team:RelayTeam}) {
   const filled=filledLegs(team),race=unsavedRace(team);
   return <><span className="team-name"><span>Team {team.number}</span>{race?<small>In {currentRaceLabel(race).toLowerCase()}</small>:filled<4 && <small className="is-short">{filled} of 4</small>}</span>
     {team.legs.map((leg,index)=><span key={index} className={`leg-ro${leg.wristband===null?' is-empty':''}${leg.warnings.length?' is-amber':''}`}>{leg.wristband??'-'}</span>)}</>;

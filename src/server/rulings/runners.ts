@@ -7,8 +7,11 @@ import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandRaces } from '../races/warnings.js';
 import { readRace,listRaces } from '../races/records.js';
-import { entryName,raceLabel,runnersOf } from '../../shared/races.js';
+import { entryName,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { correctTeam } from '../relays/teams.js';
 import { readEventResults } from '../results/read.js';
+import { resultEntry } from '../../shared/leaderboard-row.js';
+import { resultHolder,resultName } from '../../shared/results-rules.js';
 import { readRulings,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -57,7 +60,23 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
+      const entry=race.parts.runners.value?.find(runner=>runner.id===entryId);
+      if(entry && isTeamEntry(entry)) {
+        // A child of a team: the leg given, checked and written as a team write is.
+        const leg=value.leg as number;
+        if(!Number.isInteger(leg) || leg<0 || leg>3) throw new Refusal(400,'Choose a child in this team');
+        const was=entry.legs[leg].wristband,wristband=value.wristband as number;
+        if(value.expectedWristband!==was) throw new Refusal(409,'Runner number has changed - open actions again');
+        if(wristband===was) throw new Refusal(409,'Enter the corrected wristband number');
+        const wristbands=entry.legs.map((old,at)=>at===leg?wristband:old.wristband);
+        const corrected=await correctTeam(client,current,race,entry,wristbands,[...wristbands.filter((_,at)=>at!==leg),...(value.keepWarnings===true?[wristband]:[])]);
+        const runners=race.parts.runners.value!.map(other=>other.id===entryId?corrected:other);
+        await correctPart(client,current,race,'runners',runners,runners);
+        await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[raceId,entryId,'[]']);
+        await writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} corrected ${was} to ${wristband} in Team ${entry.team.number} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
+        return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
+      }
+      const runner=entry;
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       if(value.expectedWristband!==runner.wristband) throw new Refusal(409,'Runner number has changed - open actions again');
       if(value.wristband===runner.wristband) throw new Refusal(409,'Enter the corrected wristband number');
@@ -78,12 +97,14 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
+      const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
+      // A child's results are matched by wristband, a team's by team.
+      const holder=resultHolder(resultEntry(race,runner));
       const rulings=await readRulings(client,current.dayId);
       const rulingFor=(raceId:string,entryId:string)=>rulings.find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
       if(race.kind==='final' || rulingFor(raceId,entryId)?.disqualification) throw new Refusal(409,'This result cannot be chosen');
-      const matches=(await listRaces(client,current.dayId)).filter(other=>other.event.id===race.event.id && other.kind!=='final').flatMap(other=>runnersOf(other.parts.runners.value).filter(entry=>entry.wristband===runner.wristband && !rulingFor(other.id,entry.id)?.disqualification).map(entry=>({race:other,entry})));
+      const matches=(await listRaces(client,current.dayId)).filter(other=>other.event.id===race.event.id && other.kind!=='final').flatMap(other=>(other.parts.runners.value||[]).filter(entry=>resultHolder(resultEntry(other,entry))===holder && !rulingFor(other.id,entry.id)?.disqualification).map(entry=>({race:other,entry})));
       if(matches.length<2) throw new Refusal(409,'This number has no other result to choose between');
       if(matches.every(match=>!!rulingFor(match.race.id,match.entry.id)?.notCounted===(match.race.id!==raceId || match.entry.id!==entryId))) throw new Refusal(409,'This is already the counted result');
       for(const match of matches) {
@@ -91,7 +112,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         await client.query('INSERT INTO runner_rulings(race_id,entry_id,not_counted) VALUES($1,$2,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET not_counted=EXCLUDED.not_counted',[match.race.id,match.entry.id,excluded]);
       }
       const others=matches.filter(match=>match.race.id!==raceId || match.entry.id!==entryId).map(match=>raceLabel(match.race));
-      await writeAuditNote(client,current,race.event.id,{action:'count-result',comment,message:`${current.name} counted ${runner.wristband} from ${raceLabel(race)}; ${others.join(', ')} not counted${comment?` - ${comment}`:''}`,touches:matches.map(match=>({raceId:match.race.id,entryId:match.entry.id}))});
+      await writeAuditNote(client,current,race.event.id,{action:'count-result',comment,message:`${current.name} counted ${resultName(resultEntry(race,runner))} from ${raceLabel(race)}; ${others.join(', ')} not counted${comment?` - ${comment}`:''}`,touches:matches.map(match=>({raceId:match.race.id,entryId:match.entry.id}))});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
