@@ -7,7 +7,8 @@ import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandRaces } from '../races/warnings.js';
 import { readRace,listRaces } from '../races/records.js';
-import { raceLabel,runnersOf } from '../../shared/races.js';
+import { isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { correctTeam } from '../relays/teams.js';
 import { readEventResults } from '../results/read.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
 import { resultHolder,resultName } from '../../shared/results-rules.js';
@@ -58,7 +59,23 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      const runner=runnersOf(race.parts.runners.value).find(runner=>runner.id===entryId);
+      const entry=race.parts.runners.value?.find(runner=>runner.id===entryId);
+      if(entry && isTeamEntry(entry)) {
+        // A child of a team: the leg given, checked and written as a team write is.
+        const leg=value.leg as number;
+        if(!Number.isInteger(leg) || leg<0 || leg>3) throw new Refusal(400,'Choose a child in this team');
+        const was=entry.legs[leg].wristband,wristband=value.wristband as number;
+        if(value.expectedWristband!==was) throw new Refusal(409,'Runner number has changed - open actions again');
+        if(wristband===was) throw new Refusal(409,'Enter the corrected wristband number');
+        const wristbands=entry.legs.map((old,at)=>at===leg?wristband:old.wristband);
+        const corrected=await correctTeam(client,current,race,entry,wristbands,[...wristbands.filter((_,at)=>at!==leg),...(value.keepWarnings===true?[wristband]:[])]);
+        const runners=race.parts.runners.value!.map(other=>other.id===entryId?corrected:other);
+        await correctPart(client,current,race,'runners',runners,runners);
+        await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks,not_counted) VALUES($1,$2,$3,false) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks,not_counted=false',[raceId,entryId,'[]']);
+        await writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} corrected ${was} to ${wristband} in Team ${entry.team.number} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
+        return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
+      }
+      const runner=entry;
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       if(value.expectedWristband!==runner.wristband) throw new Refusal(409,'Runner number has changed - open actions again');
       if(value.wristband===runner.wristband) throw new Refusal(409,'Enter the corrected wristband number');

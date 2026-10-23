@@ -74,3 +74,44 @@ test('Delete race makes its teams still to run, Restore counts them as run again
   expect(rows.map(row=>[row.race.number,row.notCounted,row.flags.map(flag=>flag.kind)])).toEqual([[3,false,[]],[1,true,[]]]);
   expect((response.json() as EventResultsRead).auditNotes[0].message).toBe('Jo Evans counted Team 1 from Heat 3; Heat 1 not counted');
 });
+
+/** Team 1 runs Heat 1, which is deleted, then Heat 2; Heat 1 is restored, so Heat 2 is Team 1's latest race and Heat 1 an earlier one. */
+async function twoRaces(setup:Awaited<ReturnType<typeof start>>) {
+  const {lead,teams,heat}=setup;
+  await teams(2);
+  const earlier=await heat([1,2]);
+  await call(lead,`/api/lead/races/${earlier}/delete`,{permanent:false});
+  const latest=await heat([1]);
+  await call(lead,`/api/lead/races/${earlier}/restore`,{});
+  const entryOf=async(raceId:string)=>(await setup.teamEntries(raceId)).find(entry=>entry.team.number===1)!;
+  return {earlier,latest,entryOf};
+}
+const wristbandsOf=(entry:TeamEntry)=>entry.legs.map(leg=>leg.wristband);
+
+test('Correct number on a child of a team in its latest race changes the race and the team list in one write; on an earlier race only the race',async()=>{
+  const setup=await start(),{lead,teamList}=setup,{earlier,latest,entryOf}=await twoRaces(setup);
+  const correct=async(raceId:string,body:object)=>call(lead,`/api/lead/races/${raceId}/runners/${(await entryOf(raceId)).id}/correct-number`,body);
+  const response=await correct(latest,{leg:1,expectedWristband:2102,wristband:2109});
+  expect(response.statusCode).toBe(200);
+  expect(wristbandsOf(await entryOf(latest))).toEqual([2101,2109,2103,2104]);
+  expect((await teamList())[0].wristbands).toEqual([2101,2109,2103,2104]);
+  expect((response.json() as EventResultsRead).auditNotes[0].message).toBe('Jo Evans corrected 2102 to 2109 in Team 1 (Heat 2)');
+  // Heat 1 is earlier: the team list keeps 2103, so the typo fixed there doesn't change who runs next.
+  expect((await correct(earlier,{leg:2,expectedWristband:2103,wristband:2199})).statusCode).toBe(200);
+  expect(wristbandsOf(await entryOf(earlier))).toEqual([2101,2102,2199,2104]);
+  expect((await teamList())[0].wristbands).toEqual([2101,2109,2103,2104]);
+});
+
+test('Correct number on a team refuses a wristband already in the relay and needs Fix number or Keep for a warning',async()=>{
+  const setup=await start(),{lead,teamList}=setup,{latest,entryOf}=await twoRaces(setup);
+  const correct=async(body:object)=>{const response=await call(lead,`/api/lead/races/${latest}/runners/${(await entryOf(latest)).id}/correct-number`,body);return [response.statusCode,response.json().message ?? null];};
+  expect(await correct({leg:1,expectedWristband:2102,wristband:2201})).toEqual([409,'2201 is already in Team 2. Check the wristband.']);
+  expect(await correct({leg:1,expectedWristband:2102,wristband:2101})).toEqual([409,'2101 is already in this team. Check the wristband.']);
+  expect(await correct({leg:1,expectedWristband:2109,wristband:2105})).toEqual([409,'Runner number has changed - open actions again']);
+  // 1060 is a Boy Cub's number: kept, it is stored with its warning on the race and the team list.
+  expect(await correct({leg:1,expectedWristband:2102,wristband:1060})).toEqual([409,'1060 needs Fix number or Keep']);
+  expect((await correct({leg:1,expectedWristband:2102,wristband:1060,keepWarnings:true}))[0]).toBe(200);
+  const leg=(await entryOf(latest)).legs[1];
+  expect([leg.wristband,leg.warnings.map(warning=>[warning.kind,warning.kept])]).toEqual([1060,[['wrong-section',true]]]);
+  expect((await teamList())[0].wristbands).toEqual([2101,1060,2103,2104]);
+});
