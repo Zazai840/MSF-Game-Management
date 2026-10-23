@@ -16,7 +16,7 @@ async function start() {
   /** Types one Girl Cubs team per entry of `teams` on R22's team list: Team 1 is 2101-2104, Team 2 is 2201-2204, ... */
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));}
   /** Ticks the teams in, then saves the heat with them placed in the order given and timed by place. */
-  async function heat(placed:number[],times:number[]) {for(const number of placed) await relays.tick(sam,'R22',number);return (await relays.save(sam,'R22',placed,times)).race;}
+  async function heat(placed:number[],times:number[]) {for(const number of placed) await relays.tick(sam,'R22',number);await relays.save(sam,'R22',placed,times);}
   const read=async()=>(await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead;
   /** Team `number`'s row on the leaderboard, which names its race and entry. */
   const row=async(number:number)=>(await read()).results.leaderboard.find(row=>row.team?.number===number)!;
@@ -79,4 +79,18 @@ test('a run-off or a decision puts the tied teams in the order the lead gives, a
     expect(read.results.qualifiers.map(row=>row.team?.number)).toEqual([1,5,2,6,3,7]);
     await app.close();
   }
+});
+
+test('Correct times on a relay heat retimes its teams by place, refusing more places than teams',async()=>{
+  const {lead,teams,heat,read,row,leadRace}=await start();
+  await teams(2);
+  await heat([1,2],[1400,1500]);
+  const race={id:(await row(1)).raceId},baseVersion=(await leadRace(race.id)).parts.times.version;
+  const tooMany=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1400,1500,1600]});
+  expect([tooMany.statusCode,tooMany.json().message]).toEqual([409,'This race has 2 teams - enter no more places than that']);
+  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1450,1550],comment:'Read again from the recording'});
+  expect(corrected.statusCode).toBe(200);
+  expect((await read()).results.leaderboard.map(row=>[row.team?.number,row.time])).toEqual([[1,1450],[2,1550]]);
+  const stale=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1400,1500]});
+  expect([stale.statusCode,stale.json().message]).toEqual([409,'These times have changed - open the race again']);
 });
