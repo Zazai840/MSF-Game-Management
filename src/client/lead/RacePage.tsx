@@ -47,7 +47,7 @@ function CurrentRecord({race,actionable,onRunner}:{race:LeadRaceRead['race'];act
       const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row;
       return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
-        <span className="record-text">{actionable(row.entryId)?<button className="record-runner" aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
+        <span className="record-text">{actionable(row.entryId)?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
           {team?.addedAtFinish && <small className="record-note">At finish</small>}
           {team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
           <WrongTimeReason wrong={wrongTime}/></span>
