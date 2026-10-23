@@ -22,7 +22,7 @@ test('a relay with a saved Final exports its medal teams in Input - Running and 
  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`XR-${project.toUpperCase()}`;
  await ownRelay(code,`Relay export ${project}`,'Boy Scouts');
  // The test day is shared: each project's Boy Scouts teams use wristbands no other relay test types, and Team 1's 1st leg is a borrowed Girl Scout, kept.
- const legs=(team:number)=>[1,2,3,4].map(leg=>3700+at*20+(team-1)*4+leg),borrowed=4870+at,team1=[borrowed,...legs(1).slice(1)];
+ const legs=(team:number)=>[1,2,3,4].map(leg=>3600+at*20+(team-1)*4+leg),borrowed=4870+at,team1=[borrowed,...legs(1).slice(1)];
  const token=await signInThroughApi(request,`Relay export volunteer ${project}`),lead={headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}};
  for(const team of [1,2,3]) await writeTeam(request,token,code,team===1?team1:legs(team),{keptWarnings:team===1?[borrowed]:[]});
  for(const team of [1,2,3]) await tickTeam(request,token,code,team);
