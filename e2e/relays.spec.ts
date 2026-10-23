@@ -460,3 +460,68 @@ test('Change anyway on a team left open in a check-in Edit, and the first phone\
   await priyaPhone.page.getByRole('button',{name:'Edit Team 1',exact:true}).click();
   await expect(box(priyaPhone.page,'3rd')).toHaveValue(n(9));
 });
+
+test('at the finish, a team with no place is asked Did not finish or Didn\'t run, and "+ Team not on the list" adds a team still to run with At finish on both phones; Cancel on either leaves nothing changed',async({openPhone,request},info)=>{
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay no place ${project}`,code=`RNP-${project.toUpperCase()}`;
+  await ownRelay(code,name,'Girl Scouts');
+  // The test day is shared: each project has its own Girl Scouts wristbands, which no other test types.
+  const n=(offset:number)=>4600+at*20+offset;
+  const ali=await openPhone(`Ali Khan no place ${project}`);
+  let home;
+  for(const team of [0,1,2,3]) home=await writeTeam(request,ali.token,code,[n(team*4+1),n(team*4+2),n(team*4+3),n(team*4+4)]);
+  for(const number of [1,2,3]) await tickTeam(request,process.env.E2E_SCORING_TOKEN!,code,number);
+  const priyaName=`Priya Shah no place ${project}`,priya=await openPhone(priyaName),sam=await openPhone(`Sam Patel no place ${project}`);
+  for(const phone of [priya,sam]) await openRelay(phone.page,name,'Girl Scouts');
+  await priya.page.getByRole('button',{name:/^Order and Times/}).click();
+  // Priya holds the order and the times; Sam watches the card.
+  await priya.page.getByRole('button',{name:'Do the order',exact:true}).click();
+  await priya.page.getByRole('button',{name:'Do the times',exact:true}).click();
+  const samCard=sam.page.getByRole('button',{name:/^Order and Times/});
+  await expect(samCard).toHaveAccessibleName(`Order and Times Order: ${priyaName} · Times: ${priyaName}`,live);
+  await samCard.click();
+  await priya.page.locator('.race-numbers').getByRole('button',{name:/Team 1$/}).click();
+  const rows=(page:Page)=>page.getByRole('table',{name:'Order and times'}).getByRole('row');
+  // Nobody else crossed the line: each team left is asked about as a whole, by its 4th leg. Cancel changes nothing.
+  await priya.page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
+  const question=priya.page.getByRole('heading',{name:`Team 2 (4th leg ${n(8)}) has no place. What happened?`,exact:true});
+  await expect(question).toBeVisible();
+  await expect(priya.page.getByText("Didn't run puts the team back with those still to run, for the next heat.",{exact:true})).toBeVisible();
+  expect(await lookProblems(priya.page)).toEqual([]);
+  await question.scrollIntoViewIfNeeded();
+  await priya.page.screenshot({path:info.outputPath('relay-no-place.png')});
+  await priya.page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(priya.page.getByRole('heading',{name:'Who came 2nd?',exact:true})).toBeVisible();
+  // Did not finish keeps Team 2 in the race with no place; Didn't run takes Team 3 off it.
+  await priya.page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
+  await priya.page.getByRole('button',{name:'Did not finish',exact:true}).click();
+  await expect(priya.page.getByRole('heading',{name:`Team 3 (4th leg ${n(12)}) has no place. What happened?`,exact:true})).toBeVisible();
+  await priya.page.getByRole('button',{name:"Didn't run",exact:true}).click();
+  for(const phone of [priya,sam]) {
+    await expect(phone.page.getByRole('list',{name:'No place'}).getByRole('listitem')).toHaveText([/^Team 2\s*Did not finish/],live);
+    await expect(rows(phone.page)).toHaveText([/^Place/,new RegExp(`^1st\\s*${n(4)}\\s*Team 1`)],live);
+    await expect(phone.page.locator('.race-line')).toHaveText('Heat 1 · 2 teams',live);
+  }
+  // "+ Team not on the list" offers the teams still to run that nobody is changing. Cancel changes nothing.
+  // Ali has Team 3 open, so it is not offered.
+  await openTeam(request,ali.token,code,teamIds(home!,code)[2]);
+  await priya.page.getByRole('button',{name:'+ Team not on the list',exact:true}).click();
+  await expect(priya.page.getByRole('heading',{name:'Which team crossed the line?',exact:true})).toBeVisible();
+  const picks=priya.page.locator('.pick-list').getByRole('button');
+  await expect(picks).toHaveText([new RegExp(`^Team 4\\s*${n(13)} · ${n(14)} · ${n(15)} · ${n(16)}$`)]);
+  expect(await lookProblems(priya.page)).toEqual([]);
+  await priya.page.screenshot({path:info.outputPath('relay-team-not-on-list.png')});
+  await priya.page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(rows(priya.page)).toHaveCount(2);
+  await priya.page.getByRole('button',{name:'+ Team not on the list',exact:true}).click();
+  await picks.click();
+  // Team 4 takes the next place, with At finish under it, on both phones.
+  for(const phone of [priya,sam]) await expect(rows(phone.page)).toHaveText([/^Place/,new RegExp(`^1st\\s*${n(4)}\\s*Team 1`),new RegExp(`^2nd\\s*${n(16)}\\s*Team 4\\s*At finish`)],live);
+  expect(await lookProblems(sam.page)).toEqual([]);
+  await sam.page.screenshot({path:info.outputPath('relay-at-finish.png'),fullPage:true});
+  // Saved, the next heat offers Team 3 again: it didn't run.
+  await writeTimes(request,priya.token,code,[5020,5310]);
+  await submitRace(request,priya.token,code);
+  await expect(sam.page.locator('.race-line')).toHaveText('Heat 2 · 0 teams',live);
+  await openCheckIn(sam.page);
+  await expect(sam.page.locator('.ci-list').getByRole('button')).toHaveText([/^Team 3/]);
+});
