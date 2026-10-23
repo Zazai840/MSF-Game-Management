@@ -45,12 +45,12 @@ export function useColumnWrites<Column extends object>(write:ReturnType<typeof u
   }
   return {pending,sending,send};
 }
-/** Take over beside a job's holder. It confirms inline in the card first. */
-export function TakeOver({job,holder,busy,onConfirm}:{job:Job;holder:string;busy:boolean;onConfirm:()=>void}) {
-  const [asking,setAsking]=useState(false);
-  if(!asking) return <button className="button-quiet race-take-over" disabled={busy} onClick={()=>setAsking(true)}>Take over {jobWords[job]}</button>;
+/** Take over beside a job's holder: a race job, or a relay's teams on the Teams screen. It confirms inline in the card first. */
+export function TakeOver({job,holder,busy,onConfirm}:{job:Job|'teams';holder:string;busy:boolean;onConfirm:()=>void}) {
+  const [asking,setAsking]=useState(false),words=job==='teams'?'the teams':jobWords[job];
+  if(!asking) return <button className="button-quiet race-take-over" disabled={busy} onClick={()=>setAsking(true)}>Take over {words}</button>;
   return <div className="warning-box">
-    <p>Take over {jobWords[job]} from {holder}? {holder}'s phone shows it read-only from now on. Everything already entered stays.</p>
+    <p>Take over {words} from {holder}? {holder}'s phone shows it read-only from now on. Everything already entered stays.</p>
     <div className="warning-actions"><button disabled={busy} onClick={()=>{setAsking(false);onConfirm();}}>Take over</button><button className="button-secondary" onClick={()=>setAsking(false)}>Cancel</button></div>
   </div>;
 }

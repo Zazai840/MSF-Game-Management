@@ -20,5 +20,11 @@ test('on a Final, check-in is checking who is here and the order is the finishin
   expect(homeStatus(event({race:final,holds:{'check-in':sam,order:jo}}))).toBe('Final · Finishing order · Sam, Jo');
 });
 test('a relay with no teams reads No teams yet',()=>{
-  expect(homeStatus(event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{kind:'heat',number:1,state:'in progress'}}))).toBe('No teams yet');
+  expect(homeStatus(event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{kind:'heat',number:1,state:'in progress'},teams:[]}))).toBe('No teams yet');
+});
+test('a relay with teams and no race yet counts the teams to run',()=>{
+  const team=(number:number)=>({id:`t${number}`,number,version:1,legs:[{wristband:2101+number,warnings:[]}]});
+  const relay=(teams:number)=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{kind:'heat',number:1,state:'in progress'},teams:Array.from({length:teams},(_,index)=>team(index+1))});
+  expect(homeStatus(relay(5))).toBe('Heat 1 · 5 teams to run');
+  expect(homeStatus(relay(1))).toBe('Heat 1 · 1 team to run');
 });

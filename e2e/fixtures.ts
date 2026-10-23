@@ -1,6 +1,6 @@
 import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
 import pg from 'pg';
-import type { Job,RaceScreenRead } from '../src/shared/race-screen.js';
+import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
@@ -172,6 +172,30 @@ export async function ownRelay(code:string,name:string,section='Girl Cubs') {
   const api=await request.newContext({baseURL:process.env.E2E_BASE_URL});
   try {expect((await api.post(`/api/day/events/${code}/enabled`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{enabled:true}})).ok()).toBe(true);}
   finally {await api.dispose();}
+}
+/** One Teams screen write as that phone; fails unless the server accepts it, and returns Home as it then stands. */
+async function teamsWrite(request:APIRequestContext,token:string,relayCode:string,what:string,data:object) {
+  const response=await request.post(`/api/teams/${relayCode}/${what}`,{headers:{authorization:`Bearer ${token}`},data});
+  expect(response.ok(),`${what}: ${await response.text()}`).toBe(true);
+  return await response.json() as HomeSnapshot;
+}
+/** Takes the relay's teams hold as that phone, whoever has it, as Take over does. */
+export function takeTeams(request:APIRequestContext,token:string,relayCode:string) {
+  return teamsWrite(request,token,relayCode,'take-over',{});
+}
+/**
+ * Writes a team as that phone, as its Done does: takes the relay's teams hold, then sends the four boxes (null for
+ * an empty box) and the wristbands whose warnings it kept. With no `teamId` it adds a new team.
+ */
+export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{teamId,keptWarnings=[]}:{teamId?:string;keptWarnings?:number[]}={}) {
+  await takeTeams(request,token,relayCode);
+  return teamsWrite(request,token,relayCode,'done',{teamId,legs,keptWarnings});
+}
+/** From Home: the Relays tab, then the Teams button, and waits for the Teams screen. */
+export async function openTeams(page:Page) {
+  await page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await page.getByRole('button',{name:/^Teams Type each relay's teams at the prep area/}).click();
+  await expect(page.getByRole('heading',{level:1,name:'Teams',exact:true})).toBeVisible();
 }
 /**
  * Deletes the event's current race for good, as a lead does a race opened by mistake, so no race a test left

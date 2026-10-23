@@ -8,6 +8,20 @@ export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
 export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
 export interface TeamRelay { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
+/** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
+export const filledLegs=(team:Pick<RelayTeam,'legs'>)=>team.legs.filter(leg=>leg.wristband!==null).length;
+const teamCount=(count:number)=>`${count} ${count===1?'team':'teams'}`;
+/** A relay card's status line on the Teams screen: "You are entering · 5 teams · Team 5 is 3 of 4", "Sam Patel is entering · 5 teams", "5 teams" or "No teams yet · open to start". */
+export function teamsStatus({teams,teamsHolder}:{teams:readonly RelayTeam[];teamsHolder:{id:string;name:string}|null},phoneId:string) {
+  const short=teams.find(team=>filledLegs(team)<4);
+  return [teamsHolder?(teamsHolder.id===phoneId?'You are entering':`${teamsHolder.name} is entering`):'',teams.length?teamCount(teams.length):'No teams yet',
+    short?`Team ${short.number} is ${filledLegs(short)} of 4`:'',!teamsHolder && !teams.length?'open to start':''].filter(Boolean).join(' · ');
+}
+/** The Teams button's badge: every relay's teams, then how many are not complete; empty with no teams. */
+export function teamsBadge(relays:ReadonlyArray<{teams?:readonly RelayTeam[]}>) {
+  const teams=relays.flatMap(relay=>relay.teams||[]),short=teams.filter(team=>filledLegs(team)<4).length;
+  return teams.length?[teamCount(teams.length),short?`${short} not complete`:''].filter(Boolean).join(' · '):'';
+}
 /** Why the number in box `index` can't go in: it is already in another box of this team, or in another team of the relay. */
 export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:readonly (number|null)[],index:number):string|null {
   const number=legs[index];
