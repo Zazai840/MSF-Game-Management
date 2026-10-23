@@ -203,7 +203,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await requireWrite(client,phone,screen,'check-in',raceId,version);
       if(raceId===null || screen.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
       const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=runnersOf(race.parts.runners.value);
-      const lineup=[...final.entries.map(entry=>entry.runner||{id:entry.finalEntryId,wristband:entry.heatWristband}),...(final.additionalEntries||[]).map(entry=>entry.runner)];
+      const lineup=[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
       if(absent.some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
       const runners=lineup.filter(runner=>!absent.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
       if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');

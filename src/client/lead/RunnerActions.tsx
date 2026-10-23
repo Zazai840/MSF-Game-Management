@@ -5,7 +5,8 @@ import { api } from '../api.js';
 import { disqualificationReasons } from '../../shared/rulings.js';
 import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
-import type { LeaderboardRow } from '../../shared/results-rules.js';
+import { resultHolder,resultName,type LeaderboardRow } from '../../shared/results-rules.js';
+import { resultLabel } from './ResultName.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 export interface RunnerActionsProps { row:LeaderboardRow; rows:readonly LeaderboardRow[]; eventCode:string; onSaved:(next:EventResultsRead)=>void; onClose:()=>void }
 export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActionsProps) {
@@ -16,7 +17,7 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
   const [counted,setCounted]=useState(`${row.raceId}:${row.entryId}`);
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
-  const choices=rows.filter(other=>other.wristband===row.wristband && !other.disqualification && other.race.kind!=='final');
+  const choices=rows.filter(other=>resultHolder(other)===resultHolder(row) && !other.disqualification && other.race.kind!=='final');
   async function command(command:string,body:unknown,target=row) {
     if(saving) return;setSaving(true);setError('');
     try {onSaved(await api<EventResultsRead>(`lead/races/${target.raceId}/runners/${target.entryId}/${command}`,body));}
@@ -24,8 +25,8 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
     finally {setSaving(false);}
   }
   function save(event:React.FormEvent) {event.preventDefault();void command(action==='lift'?'lift-disqualification':'disqualify',{reason,comment});}
-  return <ActionSheet title={`Actions for ${row.wristband}`} busy={saving} focusKey={action} onClose={onClose}>
-    <h3>Runner {row.wristband}</h3>{error && <p role="alert">{error}</p>}
+  return <ActionSheet title={`Actions for ${resultName(row)}`} busy={saving} focusKey={action} onClose={onClose}>
+    <h3>{resultLabel(row)}</h3>{error && <p role="alert">{error}</p>}
     {action==='choose'?<div className="runner-action-choices">{row.disqualification?<><p>Disqualified: {row.disqualification.reason}</p><button disabled={saving} onClick={()=>setAction('lift')}>Lift disqualification</button></>:<button disabled={saving} onClick={()=>setAction('disqualify')}>Disqualify</button>}
       {row.flags.some(flag=>flag.kind==='added-at-finish' && !flag.checked) && <button disabled={saving} onClick={()=>void command('mark-added-checked',{})}>Mark addition checked</button>}
       {row.flags.some(isOpenEligibilityWarning) && <><button disabled={saving} onClick={()=>void command('mark-warning-checked',{})}>Mark checked</button>{!row.disqualification && <button disabled={saving} onClick={()=>{setReason('Wrong section or age');setAction('disqualify');}}>Disqualify for wrong section or age</button>}</>}

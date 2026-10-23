@@ -9,3 +9,5 @@
 /* Each place already says its ordinal ("1st: 2601"), so the list shows no numbers of its own. */
 .stage-creates {list-style:none;padding:0;}
 .stage-creates li {margin-bottom:.25rem;}
+.input-running td strong {white-space:nowrap;}
+.input-running-leg {display:block; font-variant-numeric:tabular-nums;}
