@@ -36,6 +36,7 @@ export const currentRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==
  * A tile's status line: "Heat 2", "Heat 2 · Checking in · Sam", "Heat 2 · Order and times · Priya, Jo", "Heat 2 · Waiting on 2 to submit · Sam, Jo" ("Heat 2 · Ready to save" with nobody left to wait on) or "Done".
  * A relay reads "No teams yet", then "Heat 1 · 5 teams to run" (still to run) until a team is ticked, then "Heat 1 · Checking in · 2 teams",
  * and "Heats done · Final next" once no team is still to run and the current heat is empty, until a lead marks heats complete.
+ * A relay Final reads "Final", then "Final · Finishing order · Jo".
  */
 export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:HomeEvent) {
   const final=race.kind==='final',line=(...parts:string[])=>[currentRaceLabel(race),...parts.filter(Boolean)].join(' · ');
@@ -48,7 +49,8 @@ export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:Ho
   if(relay && !final && !ticked) return toRun?line(`${teamCount(toRun)} to run`):'Heats done · Final next';
   if(started || holds.order || holds.times) return line(final?'Finishing order':'Order and times',holders);
   if(holds['check-in']) return line(final?'Checking who is here':'Checking in',holders);
-  if(relay) return ticked?line('Checking in',teamCount(ticked)):line(`${teamCount(toRun)} to run`);
+  // A relay Final's teams are seeded, not ticked: it reads just "Final" until the order starts.
+  if(relay && !final) return ticked?line('Checking in',teamCount(ticked)):line(`${teamCount(toRun)} to run`);
   return line();
 }
 /**
@@ -59,7 +61,7 @@ export function homeStatus({relay,race,holds,started,waitingOn,done,teams=[]}:Ho
  */
 export function submitBlocker(race:Pick<CurrentRace,'kind'|'parts'>,relay=false):string|null {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?'Everyone is marked Absent':relay?'No team is ticked yet':'Nobody is checked in yet';
+  if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
   if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${relay?'teams':'runners'} have no place yet`;
   if(race.kind==='final') return null;

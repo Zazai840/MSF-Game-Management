@@ -27,12 +27,12 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
    const place=(id:string)=>field.leaderboard.find(row=>row.entryId===id)?.position??null;
    const label=(absent:boolean,kind:string)=>`${race.deleted?'Deleted race; ':''}${absent?'Absent; ':''}${kind}`;
    for(const entry of field.entries){
-    const current=runnersOf(race.parts.runners.value).find(runner=>runner.id===entry.finalEntryId)??entry.runner;
+    const current=runnersOf(race.parts.runners.value).find(runner=>runner.id===entry.finalEntryId)??runnersOf(entry.runner?[entry.runner]:[])[0];
     const source=races.find(race=>race.id===entry.heatRaceId);
     const replaced=field.entries.find(other=>other.finalEntryId===entry.replacesEntryId);
     finals.push([event.code,event.name,event.section,raceLabel(race),entry.seed,current?.wristband??entry.heatWristband,entry.absent?null:place(entry.finalEntryId),label(entry.absent,entry.kind==='call-up'?'Call-up':'Qualifier'),source?raceLabel(source):'Heat no longer stored',entry.heatRank,entry.heatWristband,replaced?`${replaced.heatWristband} (seed ${replaced.seed})`:null]);
    }
-   for(const addition of field.additionalEntries||[]) finals.push([event.code,event.name,event.section,raceLabel(race),null,addition.runner.wristband,addition.absent?null:place(addition.runner.id),label(addition.absent,'Added'),null,null,null,null]);
+   for(const addition of field.additionalEntries||[]) finals.push([event.code,event.name,event.section,raceLabel(race),null,runnersOf([addition.runner])[0]?.wristband??null,addition.absent?null:place(addition.runner.id),label(addition.absent,'Added'),null,null,null,null]);
   }
  }
  const audit:SheetData=[['Event code','Time','Who','Action','Comment'],...notes.slice().reverse().map(note=>[events.find(event=>event.id===note.eventId)?.code??null,note.at,note.actor,note.message,note.comment])];
