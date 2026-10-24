@@ -1,4 +1,4 @@
-import { back,expect,openDashboard,ownEvent,recordRace,test } from './fixtures.js';
+import { back,expect,live,openDashboard,openRaceScreen,ownEvent,recordRace,test } from './fixtures.js';
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWF-${project.toUpperCase()}`,name=`No final sprint ${project}`;
   await ownEvent(page.request,code,name);
@@ -52,4 +52,28 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await lead.screenshot({path:info.outputPath('a4-done.png'),fullPage:true});
   await back(lead,'Results');
   await expect(lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('Done · medals decided, no final');
+});
+test('once a lead decides without a final, a volunteer\'s Home shows the event done and its race screen offers no heat to work',async({page,openPhone},info)=>{
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWV-${project.toUpperCase()}`,name=`No final done ${project}`;
+  await ownEvent(page.request,code,name);
+  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
+  // Girl Cubs wristbands no other test types: w(14)..w(19), clear of the first test's.
+  const w=(number:number)=>2900+at*20+number;
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(14),w(15),w(16)],[920,980,1040]);
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(17),w(18),w(19)],[935,990,1060]);
+  const volunteer=(await openPhone(`No final volunteer ${project}`)).page;
+  const tile=volunteer.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} Girl Cubs · `)});
+  await expect(tile).toHaveText(/^Girl CubsHeat 3/);
+  expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{stage:'no-final',comment:'Out of time'}})).ok()).toBe(true);
+  await expect(tile).toHaveText('Girl CubsDone',live);
+  await volunteer.screenshot({path:info.outputPath('a5-home-done.png'),fullPage:true});
+  await openRaceScreen(volunteer,name);
+  await expect(volunteer.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
+  await expect(volunteer.getByRole('button',{name:'Submit Race'})).toHaveCount(0);
+  // Check-in takes no job once the stage is complete: nobody, and no wristband box.
+  const checkIn=volunteer.getByRole('button',{name:/^Check-in Wristbands/});
+  await expect(checkIn).toContainText('Nobody');await expect(checkIn).not.toContainText('open to start');
+  await checkIn.click();
+  await expect(volunteer.getByLabel('Wristband number')).toHaveCount(0);
+  await volunteer.screenshot({path:info.outputPath('a6-race-screen-done.png'),fullPage:true});
 });
