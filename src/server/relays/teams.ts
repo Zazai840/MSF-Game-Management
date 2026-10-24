@@ -39,7 +39,7 @@ export async function relayLists(db:Database,dayId:string,eventId:string) {
 }
 /** One relay as a teams write sees it: its team list, whether its heats are complete, and the day's switched-on relays, which its warnings look through. */
 export async function teamsWriteRead(db:Database,dayId:string,code:string) {
-  const event=(await db.query("SELECT e.id,e.relay,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage='heats') AS heats_complete FROM events e WHERE e.day_id=$1 AND e.code=$2",[dayId,code])).rows[0];
+  const event=(await db.query("SELECT e.id,e.relay,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage IN ('heats','no-final')) AS heats_complete FROM events e WHERE e.day_id=$1 AND e.code=$2",[dayId,code])).rows[0];
   if(!event) throw new Refusal(404,'Event not found');
   if(!event.relay) throw new Refusal(400,'Only a relay has teams');
   const lists=await readTeamLists(db,dayId),list=lists.get(event.id)!;

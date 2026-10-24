@@ -220,7 +220,8 @@ for(const action of ['done','remove']) test(`a refused ${action} closes the team
   const project=info.project.name,code=`TRF-${action.toUpperCase()}-${project.toUpperCase()}`,name=`Teams refused ${action} ${project}`;
   const sam=`Sam Patel refused ${action} ${project}`,phone=await openPhone(sam);
   await ownRelay(code,name,'Girl Cubs');
-  const number=2400+['iPhone','Android','desktop'].indexOf(project)*40+(action==='done'?1:2);
+  // Clear of the typing test's numbers (2101 + 200 per project and up), which another project's relay would warn about.
+  const number=2410+['iPhone','Android','desktop'].indexOf(project)*40+(action==='done'?1:2);
   const home=await writeTeam(request,phone.token,code,[number,null,null,null]),teamId=teamIds(home,code)[0];
   await openTeams(phone.page);
   await card(phone.page,name,'Girl Cubs').click();
