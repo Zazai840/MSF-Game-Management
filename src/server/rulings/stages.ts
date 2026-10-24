@@ -17,7 +17,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
     const stage=(request.body as {stage?:unknown}|null)?.stage;
     // Results without a final, like any reopening, needs the lead's reason.
     const {comment}=rulingDetails(request.body,reopening || stage==='no-final');
-    if(!['event','heats','final',...(reopening?[]:['no-final'])].includes(String(stage))) throw new Refusal(400,'Choose a stage');
+    if(!['event','heats','final','no-final'].includes(String(stage))) throw new Refusal(400,'Choose a stage');
     return rulingChange(pool,phone,async(client,current)=>{
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code);
       const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);
@@ -28,7 +28,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
       else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
       if(sheet.stage==='heats') await seedFinal(client,current,detail.event,detail.results.qualifiers);
       // Decided without a final, the event has no race left to work, so nobody keeps a job on it.
-      if(sheet.stage==='no-final') await client.query('DELETE FROM job_holds WHERE event_id=$1',[detail.event.id]);
+      if(!reopening && sheet.stage==='no-final') await client.query('DELETE FROM job_holds WHERE event_id=$1',[detail.event.id]);
       const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);
       await writeAuditNote(client,current,detail.event.id,{action:command,message:`${current.name} ${reopening?'reopened':'marked'} ${sheet.label}${comment?` - ${comment}`:''}`,comment,touches});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};

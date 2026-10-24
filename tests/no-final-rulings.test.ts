@@ -100,3 +100,34 @@ test('a relay decided without a final locks its team list and refuses call-ups a
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team.id})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:'any'})).statusCode).toBe(409);
 });
+test('Reopen results needs a comment, clears the medals and opens the heats again, from where Heats complete builds a final',async()=>{
+  const {lead,results}=await start();
+  // Not decided yet: nothing to reopen.
+  expect((await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Mistake'})).statusCode).toBe(409);
+  const tie=(await results()).results.noFinalTies[0];
+  await call(lead,'/api/lead/events/R4/settle-tie',{tieId:tie.id,stage:'no-final',outcome:'no-run-off'});
+  expect((await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
+  expect((await results()).results.checkSheet).toMatchObject({stage:'no-final',completed:true});
+  expect((await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final'})).statusCode).toBe(400);
+  expect((await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:' '})).statusCode).toBe(400);
+  const reopened=await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Final fits after all'});
+  expect(reopened.statusCode).toBe(200);
+  const read=reopened.json() as EventResultsRead;
+  expect(read.results).toMatchObject({status:'In progress - provisional',decidedWithoutFinal:false,inputRunning:null,medalPlaces:[],band:{lineLabel:'Qualifying line'},heatsCheckSheet:{completed:false},noFinalCheckSheet:{completed:false}});
+  expect(read.results.leaderboard.slice(0,6).map(row=>[row.medalPlace,row.qualification])).toEqual(Array(6).fill([null,'Q']));
+  expect(read.auditNotes[0]).toMatchObject({actor:'Aisha',action:'reopen-stage',comment:'Final fits after all',message:'Aisha reopened Results without a final - Final fits after all'});
+  expect((await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Again'})).statusCode).toBe(409);
+  const heats=await call(lead,'/api/lead/events/R4/complete-stage',{stage:'heats'});
+  expect(heats.statusCode).toBe(200);
+  expect(heats.json().results.finalResults).not.toBeNull();
+});
+test('after Reopen results, Results without a final can be chosen again',async()=>{
+  const {lead,results}=await start();
+  const tie=(await results()).results.noFinalTies[0];
+  await call(lead,'/api/lead/events/R4/settle-tie',{tieId:tie.id,stage:'no-final',outcome:'no-run-off'});
+  await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'});
+  expect((await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Wrong event'})).statusCode).toBe(200);
+  const again=await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time after all'});
+  expect(again.statusCode).toBe(200);
+  expect(again.json().results).toMatchObject({status:'Complete',decidedWithoutFinal:true,inputRunning:{first:2001,second:2011,third:2002}});
+});
