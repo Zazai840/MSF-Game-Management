@@ -1,4 +1,4 @@
-import { enterTime,openDashboard,openRaceScreen,enterWristband,becomeLead,expect,createProfile,test } from './fixtures.js';
+import { enterTime,openDashboard,openRaceScreen,enterWristband,becomeLead,expect,createProfile,ownEvent,recordRace,signInThroughApi,test } from './fixtures.js';
 test('a lead sees a race worked on the race screen appear within one Results poll',async({page,openPhone},info)=>{
   const project=info.project.name,code=`RP-${project.toUpperCase()}`,name=`Results phone ${project}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
@@ -20,4 +20,20 @@ test('a lead sees a race worked on the race screen appear within one Results pol
   await expect(row).toContainText('12.34',{timeout:6500});await expect(row).toContainText('Q');
   await expect(page.getByText('3045 belongs to Boy Scouts - this race is Girl Cubs',{exact:true}).first()).toBeVisible();
   await page.screenshot({path:info.outputPath('live-leaderboard.png'),fullPage:true});
+});
+
+test('on a phone a medal mark sits beside its position number, not on a line of its own',async({page},info)=>{
+  const project=info.project.name,code=`MM-${project.toUpperCase()}`,name=`Medal marks ${project}`;
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
+  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
+  await recordRace(page.request,await signInThroughApi(page.request,`Medal timer ${project}`),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);
+  await page.goto('/');await createProfile(page,`Medal lead ${project}`);await becomeLead(page);await openDashboard(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  for(const [index,mark] of ['1st','2nd','3rd'].entries()) {
+    const position=page.locator('.result-position').nth(index);
+    await expect(position.locator('.result-mark')).toHaveText(mark);
+    const number=(await position.locator('strong').boundingBox())!,pill=(await position.locator('.result-mark').boundingBox())!;
+    expect(pill.y,`${mark} is on the number's line`).toBeLessThan(number.y+number.height);
+  }
+  await page.screenshot({path:info.outputPath('medal-marks.png'),fullPage:true});
 });
