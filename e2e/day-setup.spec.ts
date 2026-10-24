@@ -1,4 +1,4 @@
-import { lookProblems,back,openDashboard,expect,test,type Page } from './fixtures.js';
+import { lookProblems,back,openDashboard,leadSignIn,dashboardButton,expect,test,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
@@ -19,7 +19,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   const password=section(page,'Olympics password');
   expect(await page.locator('.day-card').first().getAttribute('aria-label')).toBe('Olympics password');
   await expect(password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
-  await expect(password).toContainText('Volunteers type this once on their phone. Only the scoring team can see it here.');
+  await expect(password).toContainText('Volunteers type this once on their phone. Only leads can see it here.');
   await expect(password).toContainText('It stays the same when a new day starts.');
   await expect(password.getByRole('button')).toHaveText(['Change Olympics password']);
   expect(await password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true}).evaluate(element=>getComputedStyle(element).fontSize)).toBe('32px');
@@ -30,7 +30,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   await expect(leadCode.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
   await expect(leadCode).toContainText('Give this only to zone leads. It opens the Dashboard.');
   await expect(leadCode.getByRole('button',{name:'Make a new lead code',exact:true})).toBeVisible();
-  await expect(leadCode).toContainText('Zone leads who used the old code go back to being volunteers. The scoring team keeps access.');
+  await expect(leadCode).toContainText('Other leads go back to being volunteers. You and the owner keep access.');
 
   await expect(page.getByRole('button',{name:`Phones ${phones} ${phones===1?'person':'people'} signed in today`,exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:`Events ${day.events.length} events · ${day.eventsConfirmed?'checked and confirmed':'not confirmed yet'}`,exact:true})).toBeVisible();
@@ -93,4 +93,29 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
   await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
   const fresh=await(await page.request.get('/api/day',{headers:headers()})).json();
   await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
+});
+
+test('a lead who signed in with the lead code opens Day setup and makes a new lead code',async({page},info)=>{
+  const name=`Day setup lead ${info.project.name}`;
+  await page.goto('/');await leadSignIn(page,name);
+  await expect(dashboardButton(page)).toBeVisible();
+  await openDashboard(page,'Day setup');
+  await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
+  await expect(section(page,'Olympics password').getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
+  const before=process.env.E2E_LEAD_CODE!;
+  await expect(section(page,'Lead code').getByText(before,{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:/^Phones /}).click();
+  await expect(page.getByRole('article',{name,exact:true})).toContainText('(you)');
+  await back(page,'Day setup');
+  await page.getByRole('button',{name:/^Events /}).click();
+  await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
+  await back(page,'Day setup');
+  await section(page,'Lead code').getByRole('button',{name:'Make a new lead code',exact:true}).click();
+  await expect(savedNote(page)).toHaveText('Saved');
+  await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
+  const fresh=await(await page.request.get('/api/day',{headers:headers()})).json();
+  await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
+  // The lead who made it keeps the Dashboard.
+  await back(page,'Home');await expect(dashboardButton(page)).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
 });

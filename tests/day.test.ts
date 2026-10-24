@@ -88,24 +88,25 @@ test('a switched-off event stays on Day and disappears from volunteer event choi
   expect(choices.json()).not.toHaveProperty('leadCode');
   expect((await call(token,'/api/day')).json().events.find((event:any)=>event.code==='R4').enabled).toBe(false);
 });
-test('volunteers and ordinary leads are refused every scoring-team setup action',async()=>{
-  const token = await start();
-  const day = (await call(token,'/api/day')).json();
-  for (const name of ['Volunteer Ahmed','Lead Maryam']) {
-    const phone = await people.volunteer(name);
-    if (name==='Lead Maryam') await call(phone.token,'/api/become-lead',{code:day.leadCode});
-    for (const [url,payload] of [
-      ['/api/day/confirm-events',{}],
-      ['/api/day/events/R4/rename',{name:'Changed'}],
-      ['/api/day/events/R4/enabled',{enabled:false}],
-      ['/api/day/events',{code:'R25',name:'Changed',section:'Girl Cubs',format:'timed'}]
-    ] as const) {
-      const response = await call(phone.token,url,payload);
-      expect(response.statusCode).toBe(403);
-      expect(response.json().message).toBe('Scoring team access needed');
-    }
-    expect((await call(phone.token,'/api/day')).statusCode).toBe(403);
+test('a lead who is not the owner can use every Day setup action and a volunteer is refused each one',async()=>{
+  await start();
+  const volunteer = await people.volunteer('Volunteer Ahmed'), lead = await people.lead('Lead Maryam');
+  const actions = [
+    ['/api/day/confirm-events',{}],
+    ['/api/day/events/R4/rename',{name:'Changed'}],
+    ['/api/day/events/R4/enabled',{enabled:false}],
+    ['/api/day/events',{code:'R25',name:'Changed',section:'Girl Cubs',format:'timed'}]
+  ] as const;
+  for (const [url,payload] of actions) {
+    const response = await call(volunteer.token,url,payload);
+    expect(response.statusCode).toBe(403);
+    expect(response.json().message).toBe('Lead access needed');
   }
+  expect((await call(volunteer.token,'/api/day')).statusCode).toBe(403);
+  for (const [url,payload] of actions) expect((await call(lead.token,url,payload)).statusCode).toBe(200);
+  const day = (await call(lead.token,'/api/day')).json();
+  expect(day.events.find((event:any)=>event.code==='R4')).toMatchObject({name:'Changed',enabled:false});
+  expect(day.events.some((event:any)=>event.code==='R25')).toBe(true);
 });
 test('Become lead refuses a wrong code and preserves the signed-in name and scoring-team level',async()=>{
   const token = await start();

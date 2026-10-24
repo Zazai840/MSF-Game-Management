@@ -18,7 +18,7 @@ test('wrong owner password is refused without starting an Olympics day', async (
   expect(refused.json().message).toBe('That is not the Olympics password. Check with a lead and try again.');
   expect((await checkPassword('test-owner-fixture')).json()).toEqual({kind:'owner', dayRunning:false});
 });
-test('permission ladder refuses volunteer lead reads and ordinary lead Day reads but shares Home', async () => {
+test('permission ladder refuses volunteer lead and Day reads, lets every lead read the Day, and shares Home', async () => {
   await start();
   const people = await signInOwner(app, 'test-owner-fixture'), {owner, day} = people;
   const volunteer = await people.volunteer('Ahmed');
@@ -26,7 +26,7 @@ test('permission ladder refuses volunteer lead reads and ordinary lead Day reads
   expect((await app.inject({url:'/api/lead', headers:auth(volunteer.token)})).statusCode).toBe(403);
   expect((await app.inject({url:'/api/day', headers:auth(volunteer.token)})).statusCode).toBe(403);
   expect((await app.inject({method:'POST', url:'/api/become-lead', headers:auth(lead.token), payload:{code:day.leadCode}})).json()).toMatchObject({level:'Lead'});
-  expect((await app.inject({url:'/api/day', headers:auth(lead.token)})).statusCode).toBe(403);
+  expect((await app.inject({url:'/api/day', headers:auth(lead.token)})).statusCode).toBe(200);
   expect((await app.inject({url:'/api/lead', headers:auth(lead.token)})).statusCode).toBe(200);
   for (const phone of [volunteer, lead, owner]) {
     const home = await app.inject({url:'/api/home', headers:auth(phone.token)});

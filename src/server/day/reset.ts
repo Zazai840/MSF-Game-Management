@@ -6,7 +6,7 @@ import { newLeadCode } from '../access/codes.js';
 import { seedEvents } from './events.js';
 import { dayChanged } from '../live/changes.js';
 export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
-  actions(app,pool)('POST','/api/day/start-new','Scoring team',async(request,_reply,phone)=>{
+  actions(app,pool)('POST','/api/day/start-new','Lead',async(request,_reply,phone)=>{
     const client=await pool.connect();
     try {
       await client.query('BEGIN');
@@ -16,7 +16,7 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!day) throw newDay();
       const current=(await client.query('SELECT id,day_id AS "dayId",name,level,profile_id AS "profileId" FROM sign_ins WHERE id=$1 AND day_id=$2 AND NOT signed_out FOR UPDATE',[phone.id,phone.dayId])).rows[0];
       if(!current) throw signedOut();
-      requireLevel(current,'Scoring team');
+      requireLevel(current,'Lead');
       if((request.body as {confirmation?:unknown}|null)?.confirmation!=='NEW DAY') throw new Refusal(400,'Type NEW DAY to confirm');
       if(day.exported_revision===null || day.exported_at===null || day.exported_revision!==day.revision) throw new Refusal(409,'Download a day export after the last change before starting a new day');
       const nextDay=randomUUID();

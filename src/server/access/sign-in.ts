@@ -8,7 +8,7 @@ import { seedEvents } from '../day/events.js';
 import { WrongAccessCode, type failureBackoff } from './failures.js';
 export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 const wrongPassword = 'That is not the Olympics password. Check with a lead and try again.';
-const wrongLeadCode = "That is not today's lead code. Ask the scoring team for it.";
+const wrongLeadCode = "That is not today's lead code. Ask a lead for it.";
 /** Full names are stored tidied (trimmed, inner spaces collapsed), so lower(name) is the form compared for uniqueness. */
 export function fullName(value: unknown) {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';

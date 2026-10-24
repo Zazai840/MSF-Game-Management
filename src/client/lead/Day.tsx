@@ -25,7 +25,7 @@ function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
   return {busy,run,failure};
 }
 
-/** A code the scoring team reads out; with an action, a button that makes a new one, or the children that change it. */
+/** A code a lead reads out; with an action, a button that makes a new one, or the children that change it. */
 function CodeCard({label,code,explanation,note,make,children}:{label:string;code:string;explanation:string;note:string;make?:{action:string;busy:boolean;onMake:()=>void;failure:ReactNode};children?:ReactNode}) {
   return <section className="day-card" aria-label={label}>
     <span className="day-label" aria-hidden="true">{label}</span>
@@ -91,10 +91,10 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
   }
   const events=day.events.length;
   return <div className="day-setup">
-    <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only the scoring team can see it here."
+    <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only leads can see it here."
       note="It stays the same when a new day starts."><ChangePassword/></CodeCard>
     <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard."
-      note="Zone leads who used the old code go back to being volunteers. The scoring team keeps access."
+      note="Other leads go back to being volunteers. You and the owner keep access."
       make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
     <div className="day-rows">
       <button className="day-row" onClick={()=>onOpen('Signed in today')}>

@@ -8,15 +8,15 @@ import { changeDay, eventName, eventDetails } from './mutations.js';
 export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app,pool);
   action('GET','/api/events','Volunteer',async(_request,_reply,phone)=>({events:await readEvents(pool,true,phone.dayId)}));
-  action('GET', '/api/day', 'Scoring team', (_request,_reply,phone) => resultsSnapshot(pool,phone.dayId,async client=>{
+  action('GET', '/api/day', 'Lead', (_request,_reply,phone) => resultsSnapshot(pool,phone.dayId,async client=>{
     const day = (await client.query('SELECT lead_code,events_confirmed,revision,exported_at,exported_revision,(SELECT password FROM olympics_settings) AS olympics_password FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
     if(!day) throw newDay();
     return {olympicsPassword: day.olympics_password, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(client,false,phone.dayId)};
   }));
-  action('POST','/api/day/confirm-events','Scoring team',async(_request,_reply,phone)=>{
+  action('POST','/api/day/confirm-events','Lead',async(_request,_reply,phone)=>{
     return changeDay(pool,phone,async()=>{},true);
   });
-  action('POST','/api/day/events/:code/rename','Scoring team',async(request,_reply,phone)=>{
+  action('POST','/api/day/events/:code/rename','Lead',async(request,_reply,phone)=>{
     const name = eventName((request.body as {name?:unknown}|null)?.name);
     const {code} = request.params as {code:string};
     return changeDay(pool,phone,async(client,dayId)=>{
@@ -24,7 +24,7 @@ export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
       if (!result.rowCount) throw new Refusal(404,'Event not found');
     });
   });
-  action('POST','/api/day/events','Scoring team',async(request,_reply,phone)=>{
+  action('POST','/api/day/events','Lead',async(request,_reply,phone)=>{
     const body = eventDetails(request.body);
     return changeDay(pool,phone,async(client,dayId)=>{
       const existing = await client.query('SELECT 1 FROM events WHERE day_id=$1 AND code=$2',[dayId,body.code]);
@@ -33,7 +33,7 @@ export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
         VALUES($1,$2,$3,$4,$5,$6,(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=$2))`,[randomUUID(),dayId,body.code,body.name,body.section,body.format]);
     });
   });
-  action('POST','/api/day/events/:code/enabled','Scoring team',async(request,_reply,phone)=>{
+  action('POST','/api/day/events/:code/enabled','Lead',async(request,_reply,phone)=>{
     const enabled = (request.body as {enabled?:unknown}|null)?.enabled;
     if (typeof enabled !== 'boolean') throw new Refusal(400,'Choose whether this event is on or off');
     const {code} = request.params as {code:string};

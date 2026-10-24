@@ -51,7 +51,7 @@ test('a wrong lead code is refused plainly and repeated tries are slowed down pe
   const mine = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   const wrong = await post('/api/lead-sign-in', {pass, name:'Yusuf Ali', code:'WRONG1', profiles:[]});
   expect(wrong.statusCode).toBe(403);
-  expect(wrong.json().message).toBe("That is not today's lead code. Ask the scoring team for it.");
+  expect(wrong.json().message).toBe("That is not today's lead code. Ask a lead for it.");
   let now = Date.now();
   vi.spyOn(Date, 'now').mockImplementation(() => now);
   for (let i = 0; i < 5; i++) expect((await post('/api/lead-sign-in', {pass, name:'Yusuf Ali', code:'WRONG1', profiles:held(mine.profile)}, '192.0.2.1')).statusCode).toBe(403);
@@ -64,7 +64,7 @@ test('a wrong lead code is refused plainly and repeated tries are slowed down pe
   expect((await post('/api/lead-sign-in', {pass, name:'Sam Patel', code:leadCode, profiles:held(mine.profile)}, '192.0.2.1')).statusCode).toBe(200);
 });
 
-test('a new lead code turns Lead sign-in leads back into volunteers, except the scoring team', async () => {
+test('a new lead code turns Lead sign-in leads back into volunteers, except whoever made it', async () => {
   const {scoring, pass, leadCode} = await start();
   const lead = (await post('/api/lead-sign-in', {pass, name:'Yusuf Ali', code:leadCode, profiles:[]})).json();
   await post('/api/day/lead-code', {}, undefined, auth(scoring.token));

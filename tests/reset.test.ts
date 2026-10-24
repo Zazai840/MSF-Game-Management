@@ -12,10 +12,11 @@ async function start() {
   const volunteer=(await people.volunteer('Ahmed')).token,lead=(await people.lead('Aisha')).token;
   return {owner:owner.token,volunteer,lead,day,people};
 }
-test('new day requires current Scoring permission, the confirmation word and an export of the last change',async()=>{
+test('new day requires a current lead, the confirmation word and an export of the last change',async()=>{
   const {owner,volunteer,lead}=await start();
-  for(const token of [volunteer,lead]) expect((await call(token,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(403);
-  let response=await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'});
+  let response=await call(volunteer,'/api/day/start-new',{confirmation:'NEW DAY'});
+  expect(response.statusCode).toBe(403);expect(response.json().message).toBe('Lead access needed');
+  response=await call(lead,'/api/day/start-new',{confirmation:'NEW DAY'});
   expect(response.statusCode).toBe(409);expect(response.json().message).toBe('Download a day export after the last change before starting a new day');
   await call(owner,'/api/day/export',{});
   for(const confirmation of [undefined,'','new day','RESET',123]) {
@@ -24,6 +25,9 @@ test('new day requires current Scoring permission, the confirmation word and an 
   await call(owner,'/api/day/events/R4/rename',{name:'Changed sprint'});
   response=await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'});expect(response.statusCode).toBe(409);
   expect((await call(owner,'/api/day')).json().events.find((event:any)=>event.code==='R4').name).toBe('Changed sprint');
+  expect((await call(lead,'/api/day/export',{})).statusCode).toBe(200);
+  expect((await call(lead,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(200);
+  expect((await call(lead,'/api/day')).json().events.find((event:any)=>event.code==='R4').name).toBe('60m');
 });
 test('reset erases a populated day, retains only its initiating scoring phone and restores the built-in programme',async()=>{
   const {owner,volunteer,lead,day,people}=await start();const before=(await call(owner,'/api/me')).json();
@@ -69,7 +73,7 @@ test('requests racing a reset never read the new day through an old phone or fai
   const fresh=(await call(owner,'/api/day')).json();expect(fresh.eventsConfirmed).toBe(false);expect((await call(owner,'/api/day/phones')).json().phones).toHaveLength(1);
 });
 test('sign-ins, lead code rotations, recording and rulings each invalidate the reset export guard',async()=>{
-  const {owner,volunteer,lead,day,people}=await start();await call(owner,'/api/day/confirm-events',{});
+  const {owner,volunteer,day,people}=await start();await call(owner,'/api/day/confirm-events',{});
   const race=await raceSetup(app).checkIn(volunteer,'R7',[101]),entry=race.parts.runners.value![0].id;
   const changes=[
     ()=>app.inject({method:'POST',url:'/api/profiles',payload:{pass:people.pass,name:'Signed in after export'}}),
@@ -84,7 +88,7 @@ test('sign-ins, lead code rotations, recording and rulings each invalidate the r
     expect((await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(409);
     const current=(await call(owner,'/api/day')).json();expect(current.revision).toBeGreaterThan(current.exportedRevision);
   }
-  expect((await call(lead,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(403);
+  expect((await call(volunteer,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(403);
 });
 test('a sign-in racing reset is serialized entirely before or after the day switch, and a second reset cannot erase the fresh day',async()=>{
   const {owner,day,people}=await start();await call(owner,'/api/day/export',{});

@@ -9,7 +9,7 @@ export async function changeDay(pool:pg.Pool,phone:Phone,change:(client:pg.PoolC
     await change(client,current.dayId);
     await client.query('UPDATE olympics_days SET events_confirmed=$1 WHERE id=$2',[confirmed,current.dayId]);
     return {saved:true};
-  },'Scoring team');
+  });
 }
 export function eventName(value:unknown) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > 100) throw new Refusal(400,'Enter an event name (up to 100 characters)');

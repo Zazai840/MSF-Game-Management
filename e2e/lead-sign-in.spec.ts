@@ -14,10 +14,10 @@ test('Lead sign-in with an unknown name creates the profile as a lead, and the p
   expect(await page.getByLabel("Today's lead code").evaluate(element=>getComputedStyle(element).fontSize)).toBe('20px');
   await page.getByLabel('Full name',{exact:true}).fill(name);
   // A real wrong code would count against the shared test IP's backoff (as day.spec's do), so the refusal is replayed here; the API test covers it.
-  await page.route('**/api/lead-sign-in',route=>route.fulfill({status:403,json:{message:"That is not today's lead code. Ask the scoring team for it."}}),{times:1});
+  await page.route('**/api/lead-sign-in',route=>route.fulfill({status:403,json:{message:"That is not today's lead code. Ask a lead for it."}}),{times:1});
   await page.getByLabel("Today's lead code").fill('WRONG1');
   await button.click();
-  await expect(page.getByRole('alert')).toHaveText("That is not today's lead code. Ask the scoring team for it.");
+  await expect(page.getByRole('alert')).toHaveText("That is not today's lead code. Ask a lead for it.");
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-sign-in.png')});
   await page.getByLabel("Today's lead code").fill(process.env.E2E_LEAD_CODE!);

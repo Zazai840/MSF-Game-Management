@@ -22,8 +22,7 @@ test('the Dashboard opens on To check, with Results above it and a back arrow to
     await expect(page.getByRole('heading',{name:'Needs you'})).toHaveCount(0);
     await expect(page.getByRole('navigation',{name:'Lead tabs'})).toHaveCount(0);
     await expect(dashboardButton(page)).toHaveCount(0);
-    for(const [title,line] of menu.slice(0,1)) await expect(dashboardMenuButton(page,title)).toContainText(line);
-    await expect(dashboardMenuButton(page,'Day setup')).toHaveCount(0);
+    for(const [title,line] of menu) await expect(dashboardMenuButton(page,title)).toContainText(line);
     const queue=await(await page.request.get('/api/lead',{headers:headers()})).json(),count=queue.needsYou.length+queue.profileRequests.length;
     expect(count).toBeGreaterThan(0);
     await expect(page.getByRole('heading',{level:2,name:`${count} ${count===1?'thing needs':'things need'} a zone lead`,exact:true})).toBeVisible();
@@ -44,12 +43,12 @@ test('the Dashboard opens on To check, with Results above it and a back arrow to
   } finally {await cleanUp(page,[race]);}
 });
 
-test('Day setup shows only for the scoring team and opens the Olympics password and lead code',async({page},info)=>{
-  await page.goto('/');await createProfile(page,`Dashboard scoring ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');
+test('Day setup shows for every lead and opens the Olympics password and lead code',async({page},info)=>{
+  await page.goto('/');await createProfile(page,`Dashboard day setup ${info.project.name}`);await becomeLead(page);
   await openDashboard(page);
   for(const [title,line] of menu) await expect(dashboardMenuButton(page,title)).toContainText(line);
   await expect(dashboardMenuButton(page,'Day setup')).not.toContainText(/to check|\d/);
-  await page.screenshot({path:info.outputPath('dashboard-menu-scoring.png'),fullPage:true});
+  await page.screenshot({path:info.outputPath('dashboard-menu-day-setup.png'),fullPage:true});
   await dashboardMenuButton(page,'Day setup').click();
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Dashboard',exact:true})).toBeVisible();

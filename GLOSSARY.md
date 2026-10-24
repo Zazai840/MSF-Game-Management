@@ -147,11 +147,11 @@ The volunteer in charge of the Running Zone on the day, who settles disputes and
 _Avoid_: Admin, race manager, supervisor
 
 **Lead**:
-A person trusted with everything beyond the jobs: the live leaderboard and making rulings on a race's problems. Zone leads are leads, and so are scoring team members.
+Anyone who typed today's lead code (or the owner password), trusted with everything beyond the jobs: the live leaderboard, making rulings on a race's problems, and Day setup. Every lead can do everything. Zone leads are leads, and so are scoring team members.
 _Avoid_: Admin, organiser, superuser
 
 **Dashboard**:
-A lead's own screen, opened from Home. It shows To check, with ways into Results and Day setup (Day setup for the scoring team only).
+A lead's own screen, opened from Home. It shows To check, with ways into Results and Day setup.
 _Avoid_: Lead area, admin panel, control panel
 
 **To check**:

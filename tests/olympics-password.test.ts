@@ -21,10 +21,13 @@ test('a new Olympics password under 6 characters or unchanged is refused plainly
   expect((await call(owner.token, '/api/day')).json().olympicsPassword).toBe(day.olympicsPassword);
 });
 
-test('only the scoring team changes the Olympics password', async () => {
-  const {lead} = await start();
-  const maryam = await lead('Maryam');
-  expect((await call(maryam.token, '/api/day/olympics-password', {password:'sunny-days'})).statusCode).toBe(403);
+test('a lead who is not the owner changes the Olympics password and a volunteer is refused', async () => {
+  const {lead, volunteer} = await start();
+  const ahmed = await volunteer('Ahmed'), maryam = await lead('Maryam');
+  const refused = await call(ahmed.token, '/api/day/olympics-password', {password:'sunny-days'});
+  expect(refused.statusCode).toBe(403);
+  expect(refused.json().message).toBe('Lead access needed');
+  expect((await call(maryam.token, '/api/day/olympics-password', {password:'sunny-days'})).statusCode).toBe(200);
 });
 
 test('passwords with surrounding whitespace are refused without changing the password or day', async () => {

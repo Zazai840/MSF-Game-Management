@@ -70,21 +70,30 @@ test('Set role is refused for your own row, for demoting the owner, for the role
   expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
 });
 test('a new lead code refuses old lead upgrades, keeps signed-in race screens, and demotes only ordinary leads',async()=>{
-  const {owner,day,signInAs}=await start();const lead=await signInAs('Maryam');const scoring=await signInAs('Yusuf');const volunteer=await signInAs('Ahmed');
+  const {owner,day,signInAs}=await start();const lead=await signInAs('Maryam');const volunteer=await signInAs('Ahmed');
   await call(lead.token,'/api/become-lead',{code:day.leadCode});
-  await call(scoring.token,'/api/become-lead',{code:'phones-owner-fixture'});
   const before=(await call(owner.token,'/api/day')).json().revision;
   expect((await call(owner.token,'/api/day/lead-code',{})).statusCode).toBe(200);
   const rotated=(await call(owner.token,'/api/day')).json();
   expect(rotated.leadCode).toMatch(/^[A-Z2-9]{6}$/);expect(rotated.leadCode).not.toBe(day.leadCode);
   expect(rotated.revision).toBeGreaterThan(before);
   expect((await call(lead.token,'/api/me')).json().level).toBe('Volunteer');
-  expect((await call(scoring.token,'/api/me')).json().level).toBe('Scoring team');
   expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
   expect((await call(volunteer.token,'/api/become-lead',{code:day.leadCode})).statusCode).toBe(403);
-  for(const phone of [lead,volunteer,scoring]) expect((await call(phone.token,'/api/race-screen/R4')).statusCode).toBe(200);
+  for(const phone of [lead,volunteer]) expect((await call(phone.token,'/api/race-screen/R4')).statusCode).toBe(200);
   expect((await call(lead.token,'/api/lead/results')).statusCode).toBe(403);
   expect((await call(lead.token,'/api/become-lead',{code:rotated.leadCode})).json().level).toBe('Lead');
+});
+test('a lead making a new lead code stays a lead, the owner stays, and every other lead becomes a volunteer with an audit note',async()=>{
+  const {owner,day,signInAs}=await start();const maker=await signInAs('Maryam');const other=await signInAs('Yusuf');const scoring=await signInAs('Bilal');const volunteer=await signInAs('Ahmed');
+  for(const phone of [maker,other]) await call(phone.token,'/api/become-lead',{code:day.leadCode});
+  await call(scoring.token,'/api/become-lead',{code:'phones-owner-fixture'});
+  expect((await call(maker.token,'/api/day/lead-code',{})).statusCode).toBe(200);
+  const level=async(phone:{token:string})=>(await call(phone.token,'/api/me')).json().level;
+  expect([await level(maker),await level(owner),await level(other),await level(scoring),await level(volunteer)]).toEqual(['Lead','Scoring team','Volunteer','Volunteer','Volunteer']);
+  const notes=(await call(maker.token,'/api/day/phones')).json().auditNotes;
+  expect(notes[0]).toMatchObject({actor:'Maryam',action:'Made new lead code',message:'Changed the lead code; other leads are volunteers again'});
+  expect(notes.filter((note:any)=>note.action==='Removed lead access').map((note:any)=>note.message).sort()).toEqual(['Made Bilal a volunteer when the lead code changed','Made Yusuf a volunteer when the lead code changed']);
 });
 test('joining and becoming lead each invalidate the current export revision',async()=>{
   const {owner,day,signInAs}=await start();const before=(await call(owner.token,'/api/day')).json().revision;
@@ -93,21 +102,22 @@ test('joining and becoming lead each invalidate the current export revision',asy
   await call(volunteer.token,'/api/become-lead',{code:day.leadCode});
   expect((await call(owner.token,'/api/day')).json().revision).toBeGreaterThan(afterSignIn);
 });
-test('volunteers and ordinary leads cannot read signed-in phones or use any scoring-team access action',async()=>{
-  const {owner,day,signInAs}=await start();const target=await signInAs('Target');
-  for(const name of ['Volunteer Ahmed','Lead Maryam']) {
-    const phone=await signInAs(name);if(name.startsWith('Lead')) await call(phone.token,'/api/become-lead',{code:day.leadCode});
-    expect((await call(phone.token,'/api/day/phones')).statusCode).toBe(403);
-    for(const [url,payload] of [
-      ['/api/day/lead-code',{}],
-      [`/api/day/phones/${target.phone.id}/remove`,{}],
-      [`/api/day/phones/${target.phone.id}/role`,{role:'Lead'}],
-      [`/api/day/phones/${owner.phone.id}/role`,{role:'Volunteer'}]
-    ] as const) {
-      const response=await call(phone.token,url,payload);expect(response.statusCode).toBe(403);expect(response.json().message).toBe('Scoring team access needed');
-    }
+test('a lead who is not the owner can use every Signed in today and lead code action and a volunteer is refused each one',async()=>{
+  const {owner,signInAs}=await start();const target=await signInAs('Target');const volunteer=await signInAs('Volunteer Ahmed');
+  const lead=await signInAs('Lead Maryam');await call(lead.token,'/api/become-lead',{code:(await call(owner.token,'/api/day')).json().leadCode});
+  const actions=[
+    [`/api/day/phones/${target.phone.id}/role`,{role:'Lead'}],
+    [`/api/day/phones/${target.phone.id}/remove`,{}],
+    ['/api/day/lead-code',{}]
+  ] as const;
+  expect((await call(volunteer.token,'/api/day/phones')).statusCode).toBe(403);
+  for(const [url,payload] of [...actions,[`/api/day/phones/${owner.phone.id}/role`,{role:'Volunteer'}]] as const) {
+    const response=await call(volunteer.token,url,payload);expect(response.statusCode).toBe(403);expect(response.json().message).toBe('Lead access needed');
   }
-  expect((await call(target.token,'/api/me')).statusCode).toBe(200);
+  expect((await call(lead.token,'/api/day/phones')).statusCode).toBe(200);
+  for(const [url,payload] of actions) expect((await call(lead.token,url,payload)).statusCode).toBe(200);
+  expect((await call(target.token,'/api/me')).json().reason).toBe('signed-out');
+  expect((await call(lead.token,`/api/day/phones/${owner.phone.id}/role`,{role:'Volunteer'})).json().message).toBe("Nobody can lower the owner's role");
   expect((await call(owner.token,'/api/me')).json().level).toBe('Scoring team');
 });
 test('a concurrent old lead-code upgrade cannot survive a new lead code',async()=>{

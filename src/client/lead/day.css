@@ -1,4 +1,4 @@
-/* Day setup, Phones and Events (scoring team). Tokens and button classes from theme.css. */
+/* Day setup, Phones and Events (leads). Tokens and button classes from theme.css. */
 .day-setup {display:flex; flex-direction:column; gap:12px; margin-top:4px;}
 .day-setup p {margin:0;}
 .day-card {display:flex; flex-direction:column; gap:8px; padding:16px; background:var(--surface); border-radius:var(--radius-box); overflow-wrap:anywhere;}
