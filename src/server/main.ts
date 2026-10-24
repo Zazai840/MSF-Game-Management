@@ -18,7 +18,8 @@ if (production) {
   const {createServer} = await import('vite');
   const vite = await createServer({server:{middlewareMode:true},appType:'spa'});
   await app.register(middie);
-  app.use(vite.middlewares);
+  // PROTOTYPE workaround: without this Vite answers /api/ requests before the routes do (npm run dev is broken on main).
+  app.use((request:{url?:string},response:unknown,next:()=>void)=>request.url?.startsWith('/api/')?next():vite.middlewares(request as never,response as never,next));
   app.addHook('onClose', async () => { await vite.close(); });
 }
 await app.listen({host:process.env.HOST || '127.0.0.1',port:Number(process.env.PORT || 3000)});
