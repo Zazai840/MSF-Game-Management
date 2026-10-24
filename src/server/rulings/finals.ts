@@ -12,7 +12,6 @@ import { actions,Refusal } from '../access/permissions.js';
 import { readRace,requireStageOpen,listRaces } from '../races/records.js';
 import { publishPart } from '../races/versions.js';
 import { originalRunners } from '../races/create.js';
-import { publishFinalRunners } from '../races/final-field.js';
 import { readEventResults } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
@@ -48,9 +47,8 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
     await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,\'final\',$4,$5)',[id,phone.dayId,event.id,counter.last_number,originalRunners(runners)]);
     for(const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,clock_timestamp())',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,phone.id]);
   }
-  await client.query("INSERT INTO race_finals(race_id,entries,generation) VALUES($1,$2,$3) ON CONFLICT(race_id) DO UPDATE SET entries=EXCLUDED.entries,additional_entries='[]',generation=EXCLUDED.generation",[id,JSON.stringify(entries),randomUUID()]);
-  // Each entry keeps a copy of itself from the start, so one marked Absent is still named and comes back as it was.
-  await publishFinalRunners(client,{id,kind:'final'},runners);
+  // Keep each runner's copy for Here / Absent without recording attendance while seeding the line-up.
+  await client.query("INSERT INTO race_finals(race_id,entries,generation) VALUES($1,$2,$3) ON CONFLICT(race_id) DO UPDATE SET entries=EXCLUDED.entries,additional_entries='[]',generation=EXCLUDED.generation",[id,JSON.stringify(entries.map((entry,index)=>({...entry,runner:runners[index]}))),randomUUID()]);
 }
 export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);

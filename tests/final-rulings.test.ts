@@ -48,10 +48,10 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
  expect((await call(volunteer,'/api/lead/events/R3/complete-stage',{stage:'heats'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Correction'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/reopen-stage',{stage:'final',comment:'Correction'})).statusCode).toBe(403);
  const reopened=await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'final',comment:'Review final placing'});expect(reopened.statusCode).toBe(200);expect(reopened.json().results.inputRunning).toBeNull();expect(reopened.json().results.finalResults.hasRun).toBe(true);
 });
-test('unrun final rebuilds again after heat correction; saved run history survives cleared Finish',async()=>{
+test('unstarted final rebuilds after heat correction; a saved final with cleared Finish prevents reopening heats',async()=>{
  const {lead,volunteer,heats,setup}=await start([[1023,1088]]);
  let result=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json().results;const id=result.finalResults.raceId;let race=await finalRead(volunteer);const oldVersion=race.parts.runners.version;
- await markAbsent(volunteer,[race.parts.runners.value[0].wristband]);
+ await call(volunteer,'/api/race-screen/R3/hold',{job:'check-in'});
  expect((await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Late timer correction'})).statusCode).toBe(200);
  await call(lead,`/api/lead/races/${heats[0].id}/times`,{baseVersion:1,places:[1000,900],acceptOutOfOrder:true});
  result=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json().results;expect(result.finalResults.raceId).toBe(id);expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1088,1023]);expect(result.finalResults.entries.every((e:any)=>!e.absent)).toBe(true);
@@ -59,11 +59,10 @@ test('unrun final rebuilds again after heat correction; saved run history surviv
  expect((await call(volunteer,'/api/race-screen/R3/absent',{raceId:id,version:oldVersion,absent:[]})).statusCode).toBe(409);
  await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
  race=await finalRead(volunteer);await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}]});
- // With heats reopened the race screen shows the next heat, so the final is read as a lead reads it.
+ // A saved final is read as a lead reads it after correcting its runners.
  const leadRead=async()=>(await call(lead,`/api/lead/races/${id}`)).json().race;
  const before=await leadRead();expect(before.parts.finish.value).toBeNull();expect(before.final.hasRun).toBe(true);
- const reopened=await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Recheck heats'});expect(reopened.statusCode).toBe(200);expect(reopened.json().results.heatsCheckSheet.reopenWarning).toContain('already run');const after=await leadRead();expect(after.parts).toEqual(before.parts);expect(after.final.entries).toEqual(before.final.entries);
- await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect((await leadRead()).parts).toEqual(before.parts);
+ const reopened=await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Recheck heats'});expect(reopened.statusCode).toBe(409);expect(reopened.json()).toEqual({message:'The final has started - heats cannot be reopened'});const after=await leadRead();expect(after).toEqual(before);
  const rerun=await call(lead,`/api/lead/races/${id}/re-run`,{});expect(rerun.statusCode).toBe(200);expect(rerun.json().results.finalResults).toMatchObject({hasRun:false});expect(rerun.json().results.finalResults.entries[0]).toMatchObject({heatRaceId:heats[0].id,heatWristband:1088,seed:1});
  const newFinal=await finalRead(volunteer);expect(newFinal.id).toBe(rerun.json().newRaceId);expect(newFinal.final.entries.map((entry:any)=>entry.wristband)).toContain(1012);expect(newFinal.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1088,1023,1012]);
 });

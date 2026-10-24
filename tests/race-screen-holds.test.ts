@@ -107,7 +107,8 @@ test('check-in writes are refused in order: stage complete, race deleted, race s
   expect((await call(owner,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
   expect((await checkIn(jo,{raceId:'00000000-0000-4000-8000-000000000000',version:9,runners:[2001]},'R16')).json()).toEqual({message:'Stage complete - ask a lead'});
   expect((await hold(jo,'check-in','R16')).json()).toEqual({message:'Stage complete - ask a lead'});
-  expect((await screen(jo,'R16')).stageComplete).toBe(true);
+  // A finished timed event is not one decided without a final.
+  expect(await screen(jo,'R16')).toMatchObject({stageComplete:true,decidedWithoutFinal:false});
 });
 test('signing out clears the phone\'s holds and raises the day revision, by the phone itself, by a lead and by Start new day',async()=>{
   const {owner,jo,ali,joId}=await start();

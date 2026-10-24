@@ -17,9 +17,10 @@ export interface Holder { id:string; name:string }
  * next race. `asked` are the holders who must press Submit Race (each job's holder, once the job has entries on this
  * race), `pressed` those who have, and `lastSaved` the event's most recently saved race, who saved it and when. A relay
  * also carries its team list, each team with the races holding it, so its check-in needs no other read, and the day's
- * switched-on relays with theirs, for a check-in Edit's "also in another relay's team" warning.
+ * switched-on relays with theirs, for a check-in Edit's "also in another relay's team" warning. An event decided
+ * without a final (`decidedWithoutFinal`) has no race left for volunteers, so its current race is not offered.
  */
-export interface RaceScreenRead { revision:number; event:DayEvent; race:CurrentRace; stageComplete:boolean; holds:Partial<Record<Job,Holder>>;
+export interface RaceScreenRead { revision:number; event:DayEvent; race:CurrentRace; stageComplete:boolean; decidedWithoutFinal:boolean; holds:Partial<Record<Job,Holder>>;
   asked:Holder[]; pressed:Holder[]; lastSaved:(Pick<RaceRead,'kind'|'number'> & {by:string;at:string})|null; teams?:RelayTeam[]; relays?:TeamList[] }
 /**
  * A switched-on event as Home lists it: what its tile's status line is made of. `started` is the order or times

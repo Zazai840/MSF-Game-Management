@@ -1,6 +1,6 @@
 import { resultRecords,finalRecords,type ResultRecord,type FinalRecord } from './result-records.js';
 import { finalResults,type FinalField,type FinalResults } from './finals.js';
-import { timedCheckSheet,heatsCheckSheet,finalCheckSheet,type Stage,type StageCheckSheet,type InputRunning } from './stages.js';
+import { timedCheckSheet,heatsCheckSheet,noFinalCheckSheet,finalCheckSheet,type Stage,type StageCheckSheet,type InputRunning } from './stages.js';
 import { eventLeadItems } from './lead-items.js';
 import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
@@ -58,13 +58,18 @@ export interface EventResults {
   allResults:ResultRecord[]; finalRecords:FinalRecord[]; leaderboard:LeaderboardRow[]; actionableRunners:LeaderboardRow[]; qualifiers:LeaderboardRow[]; medalPlaces:LeaderboardRow[];
   ties:ResultTie[]; notRankedYet:NotRankedRace[]; needsYou:LeadItem[]; band:ResultsBand;
   checkSheet:StageCheckSheet|null; heatsCheckSheet:StageCheckSheet|null; finalResults:FinalResults|null; inputRunning:InputRunning|null;
+  /** Results without a final while a lead may choose it, with the ties it must settle judged against medal places; once chosen, `checkSheet` is that sheet. */
+  noFinalCheckSheet:StageCheckSheet|null; noFinalTies:ResultTie[]; decidedWithoutFinal:boolean;
   status:'Not started'|'In progress - provisional'|'Heats complete - final to run'|'Complete'; raceCount:number; provisional:boolean;
 }
 /** One event's results are recomputed from facts. Callers never sort or assign positions. */
 export function eventResults(state:EventState):EventResults {
   const allActive=state.races.filter(race=>!race.deleted);
   const active=allActive.filter(race=>race.kind!=='final');
-  const band:ResultsBand=state.event.format==='heats'?{highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'}:{highlightCount:6,lineAfter:3,lineLabel:'Medal line'};
+  // A heats event decided without a final is ranked as a timed event: medal line, medal marks, no final.
+  const decidedWithoutFinal=state.event.format==='heats' && (state.completedStages?.includes('no-final')??false);
+  const rankedAs=decidedWithoutFinal?'timed':state.event.format;
+  const band:ResultsBand=rankedAs==='heats'?{highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'}:{highlightCount:6,lineAfter:3,lineLabel:'Medal line'};
   const publishedRows:LeaderboardRow[]=[],actionableRunners:LeaderboardRow[]=[];
   const recordingReasons=new Map<string,NotRankedReason[]>();
   const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
@@ -95,23 +100,28 @@ export function eventResults(state:EventState):EventResults {
     }
   }
   finished.sort((left,right)=>(left.time!-right.time!) || (left.raceId===right.raceId?left.place!-right.place!:left.race.number-right.race.number || left.race.checkedInAt.localeCompare(right.race.checkedInAt) || left.raceId.localeCompare(right.raceId)));
-  const ties=eventTies(finished,band.highlightCount,state.event.format,state.tieSettlements);
+  const ties=eventTies(finished,band.highlightCount,rankedAs,state.tieSettlements);
   for(const [index,row] of finished.entries()) {
     row.position=index+1;row.highlighted=index<band.highlightCount;
-    if(state.event.format==='heats' && index<6) row.qualification='Q';
-    if(state.event.format==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
+    if(rankedAs==='heats' && index<6) row.qualification='Q';
+    if(rankedAs==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
   const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
-  const final=state.event.format==='heats'?finalResults(state,leaderboard):null;
+  const final=rankedAs==='heats'?finalResults(state,leaderboard):null;
   if(final) for(const row of actionableRunners.filter(row=>row.raceId===final.raceId)) {
     const ranked=final.leaderboard.find(other=>other.entryId===row.entryId);
     if(ranked) {delete row.recordingPending;Object.assign(row,ranked);}
   }
   const needsYou=eventLeadItems(state,actionableRunners,ties);
-  const heatsSheet=state.event.format==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
-  const checkSheet=state.event.format==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):heatsSheet?.completed||final?.hasRun?finalCheckSheet(state,final,needsYou):heatsSheet;
+  const heatsSheet=rankedAs==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
+  // Offered once a heat is ranked, until a volunteer starts the final; judged on a copy of the rows seen as a timed event's, so a tie settled for qualifying comes back when it decides a medal.
+  const noFinalOffered=heatsSheet!==null && !final?.started && finished.length>0;
+  const medalRows=noFinalOffered?finished.map((row,index)=>({...row,highlighted:index<6,flags:[...row.flags]})):[];
+  const noFinalTies=noFinalOffered?eventTies(medalRows,6,'timed',state.tieSettlements):[];
+  const noFinalSheet=noFinalOffered?noFinalCheckSheet(state,medalRows,noFinalTies,notRankedYet,needsYou):null;
+  const checkSheet=decidedWithoutFinal?noFinalCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):rankedAs==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):heatsSheet?.completed||final?.hasRun?finalCheckSheet(state,final,needsYou):heatsSheet;
   const complete=checkSheet?.stage!=='heats' && (checkSheet?.completed??false);
   const podium=checkSheet?.creates.slice(0,3)||[];
   const inputRunning=complete?{eventCode:state.event.code,first:podium[0].wristband,second:podium[1].wristband,third:podium[2].wristband,...(podium.some(place=>place.team)?{teams:podium.map(place=>place.team??null)}:{})}:null;
-  return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
+  return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,noFinalCheckSheet:noFinalSheet,noFinalTies,decidedWithoutFinal,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:rankedAs==='heats'?finished.slice(0,6):[],medalPlaces:rankedAs==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
 }

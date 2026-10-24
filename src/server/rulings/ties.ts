@@ -22,7 +22,8 @@ export function tieRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const {code}=request.params as {code:string};
       const detail=await readEventResults(client,current.dayId,code);
-      const tie=detail.results.ties.find(tie=>tie.id===value.tieId);
+      // A tie settled from the Results without a final sheet is judged against medal places, so it keeps that impact.
+      const tie=(value.stage==='no-final'?detail.results.noFinalTies:detail.results.ties).find(tie=>tie.id===value.tieId);
       if(!tie) throw new Refusal(409,'This tie has changed or is already settled - refresh the results');
       let order=tie.entries.map(({raceId,entryId})=>({raceId,entryId}));
       if(outcome!=='no-run-off') {

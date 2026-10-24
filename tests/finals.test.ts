@@ -14,9 +14,9 @@ test('final ranks finishing order without times, excludes disqualified runners, 
  const absent={...race,runners:[race.runners[0]],finish:{order:['f1'],didNotFinish:[]},final:{...race.final,entries:race.final.entries.map(entry=>({...entry,absent:entry.finalEntryId==='f2'}))}};
  expect(eventResults({event,races:[heat,absent],completedStages:['heats']}).finalResults?.entries[1]).toMatchObject({heatEntryId:'h2',absent:true});
 });
-test('final pending facts are stage scoped, empty saved final can complete, and run history warns on heats reopening',()=>{
+test('final pending facts are stage scoped, empty saved final can complete, and run history prevents heats reopening',()=>{
  const empty={...final,runners:[],finish:{order:[],didNotFinish:[]},final:{...final.final!,entries:[],hasRun:true}};
- const result=eventResults({event,races:[{...heat,times:null},empty],completedStages:['heats']});expect(result.checkSheet?.mustSettleFirst).toEqual([]);expect(result.heatsCheckSheet?.mustSettleFirst).toHaveLength(1);expect(result.heatsCheckSheet?.reopenWarning).toContain('already run');
+ const result=eventResults({event,races:[{...heat,times:null},empty],completedStages:['heats']});expect(result.checkSheet?.mustSettleFirst).toEqual([]);expect(result.heatsCheckSheet?.mustSettleFirst).toHaveLength(1);expect(result.heatsCheckSheet?.reopenWarning).toContain('Heats cannot be reopened');
  expect(result.checkSheet?.creates.map(place=>place.wristband)).toEqual([null,null,null]);
 });
 
