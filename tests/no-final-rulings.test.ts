@@ -71,7 +71,7 @@ test('once decided without a final the event is done for volunteers: Home shows 
   expect(home.events.find(event=>event.code==='R4')).toMatchObject({done:true});
   // Nobody is left holding a job on it, as building a final clears them.
   const screen=await setup.screen(volunteer,'R4');
-  expect(screen).toMatchObject({stageComplete:true,race:{id:null,kind:'heat',number:3}});
+  expect(screen).toMatchObject({stageComplete:true,decidedWithoutFinal:true});
   expect(screen.holds).toEqual({});
   for(const [what,body] of [['hold',{job:'check-in'}],['check-in',{raceId:null,version:0,runners:[{wristband:2021}]}],['times',{raceId:heat,version:1,places:[900,980,1040],keptWrong:[]}]] as const) {
     const response=await call(volunteer,`/api/race-screen/R4/${what}`,body);
@@ -150,7 +150,7 @@ test('after Heats complete, Results without a final discards the unrun final and
   expect((await call(lead,`/api/lead/races/${final}`)).statusCode).toBe(404);
   expect((await call(lead,'/api/lead/events/R4/deleted-races')).json()).toEqual([]);
   const screen=await setup.screen(volunteer,'R4');
-  expect(screen).toMatchObject({stageComplete:true,race:{id:null,kind:'heat',number:3}});
+  expect(screen).toMatchObject({stageComplete:true,decidedWithoutFinal:true});
   expect(screen.holds).toEqual({});
   // Reopen results puts the event back to heats open, not heats complete.
   const reopened=await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Final fits after all'});

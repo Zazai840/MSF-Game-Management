@@ -46,11 +46,12 @@ export async function raceScreenRead(db:Database,dayId:string,code:string):Promi
   if(!event) throw new Refusal(404,'Event not found');
   const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
   const race=(await currentRaces(db,dayId,[event])).get(event.id)!,stage=stageForRace({kind:race.kind,event});
-  const stageComplete=stageDone(event.id,stage,await readCompletedStages(db,dayId));
+  const stages=await readCompletedStages(db,dayId),stageComplete=stageDone(event.id,stage,stages);
+  const decidedWithoutFinal=stages.some(item=>item.eventId===event.id && item.stage==='no-final');
   const holds=(await readHolds(db,dayId)).get(event.id)||{},open=race.id!==null && race.state!=='saved';
   const pressed:Holder[]=open?(await db.query('SELECT s.id,s.name FROM submit_presses p JOIN sign_ins s ON s.id=p.sign_in_id WHERE p.race_id=$1 ORDER BY p.pressed_at,s.name',[race.id])).rows:[];
   const last=(await db.query("SELECT kind,number,saved_by,saved_at FROM races WHERE event_id=$1 AND state='saved' AND NOT deleted ORDER BY saved_at DESC LIMIT 1",[event.id])).rows[0];
-  return {revision,event,race,stageComplete,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null,
+  return {revision,event,race,stageComplete,decidedWithoutFinal,holds,asked:open?askedToSubmit(race,holds):[],pressed,lastSaved:last?{kind:last.kind,number:last.number,by:last.saved_by,at:last.saved_at.toISOString()}:null,
     ...(event.relay?await relayLists(db,dayId,event.id):{})};
 }
 /** Home: every switched-on event's status line inputs, and each relay's team list with its teams holder, read for the whole day at once. */

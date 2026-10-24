@@ -14,9 +14,9 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   for(const command of ['complete-stage','reopen-stage'] as const) action('POST',`/api/lead/events/:code/${command}`,'Lead',async(request,_reply,phone)=>{
     const reopening=command==='reopen-stage';
-    const stage=(request.body as {stage?:unknown}|null)?.stage;
     // Results without a final, like any reopening, needs the lead's reason.
-    const {comment}=rulingDetails(request.body,reopening || stage==='no-final');
+    const {value,comment}=rulingDetails(request.body,reopening || (request.body as {stage?:unknown}|null)?.stage==='no-final');
+    const stage=value.stage;
     if(!['event','heats','final','no-final'].includes(String(stage))) throw new Refusal(400,'Choose a stage');
     return rulingChange(pool,phone,async(client,current)=>{
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code);

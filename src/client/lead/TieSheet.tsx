@@ -5,11 +5,13 @@ import { resultName,type ResultTie } from '../../shared/results-rules.js';
 import { ResultName } from './ResultName.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { keepsSameRaceOrder,tieEntryKey,type TieOutcome } from '../../shared/ties.js';
+import type { Stage } from '../../shared/stages.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { SortableList } from '../flow/SortableList.js';
 import { formatTime } from '../../shared/time-entry.js';
 import './ties.css';
-export function TieSheet({code,tie,noFinal=false,onSaved,onClose}:{code:string;tie:ResultTie;noFinal?:boolean;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
+/** `stage` is the check sheet the tie was opened from: Results without a final judges it against medal places. */
+export function TieSheet({code,tie,stage,onSaved,onClose}:{code:string;tie:ResultTie;stage?:Stage;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
   const commentId=useId();
   const [outcome,setOutcome]=useState<TieOutcome|null>(null);
   const [order,setOrder]=useState(tie.entries);
@@ -20,7 +22,7 @@ export function TieSheet({code,tie,noFinal=false,onSaved,onClose}:{code:string;t
   async function save(event:FormEvent) {
     event.preventDefault();if(!outcome || saving) return;setSaving(true);setError('');
     try {
-      onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/settle-tie`,{tieId:tie.id,...(noFinal?{stage:'no-final'}:{}),outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})}));
+      onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/settle-tie`,{tieId:tie.id,stage,outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})}));
     } catch(error) {setError(error instanceof Error?error.message:'Could not save - try again');}
     finally {setSaving(false);}
   }
