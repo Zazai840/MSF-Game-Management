@@ -92,6 +92,6 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
     const exported=await page.request.post('/api/day/export',{headers,data:{}});expect(exported.ok()).toBe(true);
     const path=info.outputPath('tie-day-export.xlsx');await writeFile(path,await exported.body());
     const all=(await readExcelFile(path)).find(sheet=>sheet.sheet==='All results')!.data.filter(row=>row[0]===code);
-    expect([2733,2731,2735].map(wristband=>all.find(row=>row[4]===wristband)?.[7])).toEqual([1,2,3]);
+    expect([2733,2731,2735].map(wristband=>all.find(row=>row[4]===wristband)?.[9])).toEqual([1,2,3]);
   } finally {for(const id of races) await page.request.post(`/api/lead/races/${id}/delete`,{headers,data:{permanent:true}});}
 });

@@ -8,6 +8,7 @@ test('three phones: check-in, the order and the times, each seeing the others\' 
   await openRaceScreen(sam,name);await sam.getByRole('button',{name:/^Check-in Wristbands/}).click();
   for(const number of [2201,2202,2203,2204]) await enterWristband(sam,number);
   await openRaceScreen(orderer,name);await orderCard(orderer).click();await orderer.getByRole('button',{name:'Do the order',exact:true}).click();
+  await expect(orderCard(orderer)).toHaveAccessibleName('Order and Times Order: You · Times: Nobody');
   // The times are the one free column, so opening the card takes them.
   await openRaceScreen(timer,name);await orderCard(timer).click();
   await expect(orderCard(timer)).toHaveAccessibleName(`Order and Times Order: ${priya} · Times: You`);

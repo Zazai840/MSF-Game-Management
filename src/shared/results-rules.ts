@@ -2,9 +2,10 @@ import { resultRecords,finalRecords,type ResultRecord,type FinalRecord } from '.
 import { finalResults,type FinalField,type FinalResults } from './finals.js';
 import { timedCheckSheet,heatsCheckSheet,finalCheckSheet,type Stage,type StageCheckSheet,type InputRunning } from './stages.js';
 import { eventLeadItems } from './lead-items.js';
-import { leaderboardRowFacts } from './leaderboard-row.js';
+import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
-import type { FinishingOrder,Runner } from './races.js';
+import type { RelayTeam,TeamList,TeamWarning } from './teams.js';
+import type { FinishingOrder,RaceEntry } from './races.js';
 import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
 import { notCountedReasons } from './race-counts.js';
@@ -15,11 +16,22 @@ export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:n
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
 export interface ResultsRace extends RaceReference { deleted:boolean;
   /** Saved through Submit Race (or Save as lead): only a saved race counts. */
-  saved:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|`warning:${string}`|`added:${string}`,string>>; runners:readonly Runner[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
-export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[] }
-export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WristbandWarning['kind']; checked?:boolean }
+  saved:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|`warning:${string}`|`added:${string}`,string>>; runners:readonly RaceEntry[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
+export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[];
+  /** On a relay: the day's switched-on relays' team lists, for "A child is in two relays". */
+  relays?:ReadonlyArray<Pick<TeamList,'code'|'section'> & {teams:ReadonlyArray<Pick<RelayTeam,'number'|'legs'>>}> }
+/** What a warning flag is about: a child's wristband, a child in two relays (`other-relay`), or a team that ran short. */
+export type WarningKind=WristbandWarning['kind']|TeamWarning['kind']|'ran-short';
+export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean }
 
-export interface ResultEntry { raceId:string; entryId:string; wristband:number }
+/** A relay team a result belongs to: its number and the four children who ran in that race, in leg order. */
+export interface ResultTeam { id:string; number:number; wristbands:Array<number|null> }
+/** Whose result it is: a child by wristband, or on a relay a team (with no wristband of its own). */
+export interface ResultEntry { raceId:string; entryId:string; wristband:number|null; team?:ResultTeam }
+/** The same child, or the same relay team, across an event's races. */
+export const resultHolder=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`team:${entry.team.id}`:`wristband:${entry.wristband}`;
+/** A result as a lead names it in a message: "2001", or "Team 3". */
+export const resultName=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`Team ${entry.team.number}`:String(entry.wristband);
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
@@ -33,10 +45,13 @@ export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impa
  * To check list explain the item in plain English (see src/shared/to-check.ts).
  */
 export interface LeadItem {
-  id:string; kind:'warning'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
-  wristband?:number; warningKinds?:WristbandWarning['kind'][];
+  id:string; kind:'warning'|'two-relays'|'ran-short'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
+  wristband?:number; warningKinds?:WarningKind[];
+  /** On a relay: the team's number, and its children's warnings as the lead reads them. */
+  team?:number; warnings?:string[];
   wrongTime?:{ place:number; time:number; earlierPlace:number; earlierTime:number };
-  tie?:{ time:number; wristbands:number[] };
+  /** The tied children's wristbands, or teams ("Team 3"). */
+  tie?:{ time:number; names:string[] };
 }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {
@@ -55,11 +70,11 @@ export function eventResults(state:EventState):EventResults {
   const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
   const reference=(race:ResultsRace):RaceReference=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt});
   // Ran twice counts saved races only, as To check does.
-  const appearances=new Map<number,Set<string>>();
+  const appearances=new Map<string,Set<string>>();
   for(const race of active.filter(race=>race.saved)) for(const runner of race.runners) {
     const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
     if(ruling?.disqualification || ruling?.notCounted) continue;
-    const races=appearances.get(runner.wristband)||new Set<string>();races.add(race.id);appearances.set(runner.wristband,races);
+    const holder=resultHolder(resultEntry(race,runner)),races=appearances.get(holder)||new Set<string>();races.add(race.id);appearances.set(holder,races);
   }
   for(const race of state.races) {
     const reasons=notCountedReasons(race);
@@ -68,7 +83,7 @@ export function eventResults(state:EventState):EventResults {
     for(const runner of race.runners) {
       const index=race.finish?.order.indexOf(runner.id)??-1,isFinisher=index>=0;
       const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
-      const repeated=!race.deleted && race.saved && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && (appearances.get(runner.wristband)?.size||0)>1;
+      const repeated=!race.deleted && race.saved && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && (appearances.get(resultHolder(resultEntry(race,runner)))?.size||0)>1;
       const row:LeaderboardRow={...leaderboardRowFacts(state,race,runner,ruling,repeated),place:isFinisher?index+1:null,time:isFinisher?race.times?.places[index]??null:null,status:reasons.length?'Pending':isFinisher?'Finished':'Did not finish',...(reasons.length?{recordingPending:true as const}:{})};
       publishedRows.push(row);
       if(race.deleted) continue;
@@ -96,6 +111,7 @@ export function eventResults(state:EventState):EventResults {
   const heatsSheet=state.event.format==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
   const checkSheet=state.event.format==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):heatsSheet?.completed||final?.hasRun?finalCheckSheet(state,final,needsYou):heatsSheet;
   const complete=checkSheet?.stage!=='heats' && (checkSheet?.completed??false);
-  const inputRunning=complete?{eventCode:state.event.code,first:checkSheet!.creates[0].wristband,second:checkSheet!.creates[1].wristband,third:checkSheet!.creates[2].wristband}:null;
+  const podium=checkSheet?.creates.slice(0,3)||[];
+  const inputRunning=complete?{eventCode:state.event.code,first:podium[0].wristband,second:podium[1].wristband,third:podium[2].wristband,...(podium.some(place=>place.team)?{teams:podium.map(place=>place.team??null)}:{})}:null;
   return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:state.event.format==='heats'?finished.slice(0,6):[],medalPlaces:state.event.format==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
 }

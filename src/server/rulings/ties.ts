@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { keepsSameRaceOrder,tieEntryKey,type TieSettlement } from '../../shared/ties.js';
 import { formatTime } from '../../shared/time-entry.js';
+import { resultName } from '../../shared/results-rules.js';
 import { actions,Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
@@ -34,10 +35,10 @@ export function tieRoutes(app:FastifyInstance,pool:pg.Pool) {
       }
       const settlement:TieSettlement={tieId:tie.id,outcome,order,impact:tie.impact};
       await client.query('INSERT INTO tie_settlements(event_id,tie_id,settlement) VALUES($1,$2,$3) ON CONFLICT(event_id,tie_id) DO UPDATE SET settlement=EXCLUDED.settlement',[detail.event.id,tie.id,JSON.stringify(settlement)]);
-      const numbers=order.map(entry=>tie.entries.find(member=>tieEntryKey(member)===tieEntryKey(entry))!.wristband);
-      const message=outcome==='no-run-off'?`${current.name} settled the tie at ${formatTime(tie.time)} (${numbers.join(', ')}): No run-off needed`:
-        outcome==='run-off'?`${current.name} recorded a run-off at ${formatTime(tie.time)}: ${numbers.join(' then ')}`:
-        `${current.name} decided the tie at ${formatTime(tie.time)} without a run-off: ${numbers.join(' then ')}`;
+      const names=order.map(entry=>resultName(tie.entries.find(member=>tieEntryKey(member)===tieEntryKey(entry))!));
+      const message=outcome==='no-run-off'?`${current.name} settled the tie at ${formatTime(tie.time)} (${names.join(', ')}): No run-off needed`:
+        outcome==='run-off'?`${current.name} recorded a run-off at ${formatTime(tie.time)}: ${names.join(' then ')}`:
+        `${current.name} decided the tie at ${formatTime(tie.time)} without a run-off: ${names.join(' then ')}`;
       await writeAuditNote(client,current,detail.event.id,{action:'settle-tie',message:`${message}${comment?` - ${comment}`:''}`,comment,touches:order});
       return {status:'saved',...await readEventResults(client,current.dayId,code)};
     });

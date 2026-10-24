@@ -29,8 +29,8 @@ test('a heat replaced by a re-run says which heat replaced it, offers no Restore
   const exported=await page.request.post('/api/day/export',{headers,data:{}});expect(exported.ok()).toBe(true);
   const path=info.outputPath('rerun-day-export.xlsx');await writeFile(path,await exported.body());
   const all=(await readExcelFile(path)).find(sheet=>sheet.sheet==='All results')!.data.filter(row=>row[0]===code);
-  expect(all.filter(row=>row[3]==='Heat 1').map(row=>[row[4],String(row[8]).includes('Deleted race')])).toEqual([[2011,true],[2012,true],[2013,true]]);
-  expect(all.filter(row=>row[3]==='Heat 2').map(row=>[row[4],String(row[8]).includes('Deleted race')])).toEqual([[2011,false],[2012,false],[2013,false]]);
+  expect(all.filter(row=>row[3]==='Heat 1').map(row=>[row[4],String(row[10]).includes('Deleted race')])).toEqual([[2011,true],[2012,true],[2013,true]]);
+  expect(all.filter(row=>row[3]==='Heat 2').map(row=>[row[4],String(row[10]).includes('Deleted race')])).toEqual([[2011,false],[2012,false],[2013,false]]);
   await deleteCurrentRace(page.request,code);
 });
 test('Re-run waits while the current heat has check-ins, and the re-run takes the next unused number',async({page,request},info)=>{

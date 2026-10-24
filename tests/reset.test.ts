@@ -48,7 +48,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
   const reset=await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'});expect(reset.statusCode).toBe(200);
   const me=(await call(owner,'/api/me')).json();expect(me).toMatchObject({id:before.id,name:'Owner',level:'Lead'});expect(me.dayId).not.toBe(before.dayId);
-  const fresh=(await call(owner,'/api/day')).json();expect(fresh.leadCode).not.toBe(day.leadCode);expect(fresh.eventsConfirmed).toBe(false);expect(fresh.exportedAt).toBeNull();expect(fresh.exportedRevision).toBeNull();expect(fresh.events).toHaveLength(20);expect(fresh.events.every((event:any)=>event.enabled)).toBe(true);expect(fresh.events.find((event:any)=>event.code==='R4').name).toBe('60m');expect(fresh.events.some((event:any)=>event.code==='EXTRA')).toBe(false);
+  const fresh=(await call(owner,'/api/day')).json();expect(fresh.leadCode).not.toBe(day.leadCode);expect(fresh.eventsConfirmed).toBe(false);expect(fresh.exportedAt).toBeNull();expect(fresh.exportedRevision).toBeNull();expect(fresh.events).toHaveLength(26);expect(fresh.events.every((event:any)=>event.enabled)).toBe(true);expect(fresh.events.find((event:any)=>event.code==='R4').name).toBe('60m');expect(fresh.events.some((event:any)=>event.code==='EXTRA')).toBe(false);
   expect((await call(owner,'/api/home')).json()).toMatchObject({needsYou:0});
   expect(await setup.screen(owner,'R4')).toMatchObject({race:{id:null,number:1},holds:{},asked:[],pressed:[],lastSaved:null});
   const phones=(await call(owner,'/api/day/phones')).json();expect(phones.phones).toMatchObject([{id:before.id,name:'Owner',level:'Lead'}]);expect(phones.auditNotes).toEqual([]);

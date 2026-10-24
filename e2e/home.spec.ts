@@ -1,6 +1,6 @@
-import { expect,createProfile,deleteCurrentRace,live,lookProblems,ownEvent,recordRace,signInThroughApi,submitRace,takeJob,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
+import { expect,createProfile,deleteCurrentRace,live,lookProblems,openRaceScreen,ownEvent,ownRelay,recordRace,signInThroughApi,submitRace,takeJob,test,writeCheckIn,writeOrder,writeTimes,type Locator,type Page } from './fixtures.js';
 
-const red='rgb(172, 48, 54)';
+const red='rgb(172, 48, 54)',navy='rgb(27, 42, 81)',tint='rgb(220, 227, 239)';
 
 /** Serves the real Home read with the to-check count replaced, so the badge can be checked at known numbers. */
 async function toCheckCount(page:Page,needsYou:number) {
@@ -22,6 +22,8 @@ test('Home lists events under distance headings in programme order, and a tile o
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[3001,3002],[1234,1301]);
   const {page}=await openPhone(`Home picker ${project}`);
   const distances=['60m','60m Hurdles','200m','400m'];
+  // The heading shows while Home's stream is still opening: wait for the events before reading them all at once.
+  await expect(page.getByRole('region',{name:'400m',exact:true})).toBeVisible();
   expect((await page.getByRole('main').getByRole('heading',{level:2}).allInnerTexts()).filter(heading=>distances.includes(heading))).toEqual(distances);
   await expect(page.getByRole('region',{name:'60m',exact:true}).getByRole('button')).toHaveCount(6);
   await expect(page.getByRole('region',{name:'60m Hurdles',exact:true}).getByRole('button')).toHaveCount(6);
@@ -51,6 +53,72 @@ test('Home lists events under distance headings in programme order, and a tile o
   await expect(page.getByText('Places appear here once runners are checked in',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Back to Home',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();
+});
+
+test('Home\'s Races & Hurdles and Relays tabs switch the events shown, a reload keeps the last tab, and the back arrow from a relay\'s race screen returns to Relays',async({openPhone},info)=>{
+  const project=info.project.name,name=`Home relay ${project}`;
+  await ownRelay(`HR-${project.toUpperCase()}`,name);
+  const {page}=await openPhone(`Home tabs ${project}`);
+  const tabs=page.getByRole('tablist',{name:'Events',exact:true}),races=tabs.getByRole('tab',{name:'Races & Hurdles',exact:true}),relays=tabs.getByRole('tab',{name:'Relays',exact:true});
+  const relayHeadings=['4x50m Relay','4x100m Relay',name];
+  // The test day is shared, so other tests' events show too: only this test's and the seeded headings count.
+  const headings=async()=>(await page.getByRole('main').getByRole('heading',{level:2}).allInnerTexts()).filter(heading=>[...relayHeadings,'60m','400m'].includes(heading));
+  const which=page.getByRole('heading',{level:1,name:'Which event are you at?'});
+  // A phone that has never switched opens on Races & Hurdles: today's Home, with no relay anywhere.
+  await expect(tabs.getByRole('tab')).toHaveText(['Races & Hurdles','Relays']);
+  await expect(races).toHaveAttribute('aria-selected','true');await expect(relays).toHaveAttribute('aria-selected','false');
+  await expect(which).toBeVisible();
+  await expect.poll(headings).toEqual(['60m','400m']);
+  await expect(page.getByRole('button',{name:/No teams yet/})).toHaveCount(0);
+  await relays.click();
+  await expect(relays).toHaveAttribute('aria-selected','true');await expect(races).toHaveAttribute('aria-selected','false');
+  await expect(which).toBeVisible();
+  await expect.poll(headings).toEqual(relayHeadings);
+  await expect(page.getByRole('region',{name:'4x50m Relay',exact:true}).getByRole('button')).toHaveText(['Boy BeaversNo teams yet','Girl BeaversNo teams yet','Boy CubsNo teams yet','Girl CubsNo teams yet']);
+  await expect(page.getByRole('region',{name:'4x100m Relay',exact:true}).getByRole('button')).toHaveText(['Boy ScoutsNo teams yet','Girl ScoutsNo teams yet']);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('home-relays.png'),fullPage:true});
+  // The phone remembers the tab it used last.
+  await page.reload();
+  await expect(relays).toHaveAttribute('aria-selected','true');
+  await expect.poll(headings).toEqual(relayHeadings);
+  await openRaceScreen(page,name);
+  await page.getByRole('button',{name:'Back to Home',exact:true}).click();
+  await expect(relays).toHaveAttribute('aria-selected','true');
+  await expect.poll(headings).toEqual(relayHeadings);
+  await races.click();
+  await expect(races).toHaveAttribute('aria-selected','true');
+  await expect(page.getByRole('region',{name:'60m',exact:true})).toBeVisible();
+  await page.reload();
+  await expect(races).toHaveAttribute('aria-selected','true');
+  await expect.poll(headings).toEqual(['60m','400m']);
+});
+
+test('Home\'s tabs are one segmented control under the zone lead row and above the heading: equal halves on a tinted track, the chosen one raised on white',async({openPhone},info)=>{
+  const {page}=await openPhone(`Home tabs look ${info.project.name}`);
+  const tabs=page.getByRole('tablist',{name:'Events',exact:true}),[races,relays]=[tabs.getByRole('tab',{name:'Races & Hurdles',exact:true}),tabs.getByRole('tab',{name:'Relays',exact:true})];
+  const box=async(locator:Locator)=>(await locator.boundingBox())!;
+  const [lead,list,heading,content]=await Promise.all([box(page.getByRole('button',{name:"I'm a zone lead",exact:true})),box(tabs),box(page.getByRole('heading',{level:1,name:'Which event are you at?'})),box(page.locator('.home'))]);
+  expect(list.y).toBeGreaterThanOrEqual(lead.y+lead.height);
+  expect(list.y+list.height).toBeLessThanOrEqual(heading.y);
+  // The full width of Home's content, in two equal halves at least tap height.
+  expect(Math.abs(list.width-content.width)).toBeLessThan(1);
+  const [left,right]=await Promise.all([box(races),box(relays)]);
+  expect(Math.abs(left.width-right.width)).toBeLessThan(1);
+  expect(Math.abs(left.y-right.y)).toBeLessThan(1);
+  expect(Math.min(left.height,right.height)).toBeGreaterThanOrEqual(44);
+  const look=(locator:Locator)=>locator.evaluate(element=>{const style=getComputedStyle(element);return {background:style.backgroundColor,shadow:style.boxShadow,color:style.color};});
+  expect(await look(tabs)).toMatchObject({background:tint});
+  for(const [chosen,other] of [[races,relays],[relays,races]]) {
+    await chosen.click();
+    await expect(chosen).toHaveAttribute('aria-selected','true');
+    expect(await look(chosen)).toMatchObject({background:'rgb(255, 255, 255)',color:navy});
+    expect((await look(chosen)).shadow).not.toBe('none');
+    expect(await look(other)).toEqual({background:'rgba(0, 0, 0, 0)',shadow:'none',color:navy});
+    expect(await lookProblems(page)).toEqual([]);
+  }
+  await races.click();
+  await page.screenshot({path:info.outputPath('home-tabs.png')});
 });
 
 test('a tile\'s status line changes live on another phone as phones check in, take the order and press Submit Race, and says Done once the stage is complete',async({openPhone,request},info)=>{

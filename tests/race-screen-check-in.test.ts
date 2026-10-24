@@ -1,4 +1,5 @@
 import { afterEach,expect,test } from 'vitest';
+import { isRunner } from '../src/shared/races.js';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
@@ -44,5 +45,5 @@ test('number checks warn about another race in this event, but ignore this race,
   expect((await check({eventCode:'R99'})).statusCode).toBe(404);
   await call(owner,`/api/lead/races/${first.id}/delete`,{permanent:false});
   expect((await check({})).json().warnings).toEqual([]);
-  expect((await setup.checkIn(volunteer,'R4',[2001])).parts.runners.value![0].warnings).toEqual([]);
+  expect((await setup.checkIn(volunteer,'R4',[2001])).parts.runners.value!.filter(isRunner)[0].warnings).toEqual([]);
 });

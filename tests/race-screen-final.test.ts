@@ -1,4 +1,5 @@
 import { afterEach,expect,test } from 'vitest';
+import { isRunner } from '../src/shared/races.js';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { openDatabase } from '../src/server/storage.js';
@@ -24,10 +25,10 @@ async function start() {
   expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   return {owner,lead:people.lead,sam,priya};
 }
-const absent=(token:string,read:RaceScreenRead,wristbands:number[])=>call(token,'/api/race-screen/R4/absent',{raceId:read.race.id,version:read.race.parts.runners.version,absent:read.race.final!.entries.filter(entry=>wristbands.includes(entry.wristband)).map(entry=>entry.finalEntryId)});
-const order=(token:string,read:RaceScreenRead,wristbands:number[])=>call(token,'/api/race-screen/R4/order',{raceId:read.race.id,version:read.race.parts.finish.version,order:wristbands.map(wristband=>read.race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id),didNotFinish:[],didNotRun:[],added:[]});
-const wristbands=(read:RaceScreenRead)=>read.race.parts.runners.value!.map(runner=>runner.wristband);
-const placed=(read:RaceScreenRead)=>read.race.parts.finish.value!.order.map(id=>read.race.parts.runners.value!.find(runner=>runner.id===id)!.wristband);
+const absent=(token:string,read:RaceScreenRead,wristbands:number[])=>call(token,'/api/race-screen/R4/absent',{raceId:read.race.id,version:read.race.parts.runners.version,absent:read.race.final!.entries.filter(entry=>wristbands.includes(entry.wristband!)).map(entry=>entry.finalEntryId)});
+const order=(token:string,read:RaceScreenRead,wristbands:number[])=>call(token,'/api/race-screen/R4/order',{raceId:read.race.id,version:read.race.parts.finish.version,order:wristbands.map(wristband=>read.race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id),didNotFinish:[],didNotRun:[],added:[]});
+const wristbands=(read:RaceScreenRead)=>read.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband);
+const placed=(read:RaceScreenRead)=>read.race.parts.finish.value!.order.map(id=>read.race.parts.runners.value!.filter(isRunner).find(runner=>runner.id===id)!.wristband);
 
 test('the final\'s order can start before anyone marks attendance, and a runner the check-in holder marks Absent leaves the order holder\'s list until marked Here again',async()=>{
   const {sam,priya}=await start();

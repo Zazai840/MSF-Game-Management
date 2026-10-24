@@ -1,4 +1,5 @@
 import { lookProblems,deleteCurrentRace,dragTo,enterWristband,expect,live,openRaceScreen,ownEvent,readRaceScreen,signInThroughApi,startDrag,takeJob,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
+import { isRunner } from '../src/shared/races.js';
 /** The finishing order being dragged, and its rows. */
 const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
 const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Drag to move ${number}`,exact:true});
@@ -93,7 +94,7 @@ test('dragging the handle reorders the finishing order with live places while ti
   await drag.drop();
   await expect(orderRows(page)).toHaveText([`1st12.34${d}`,`2nd13.01${a}`,`3rd${b}`,`4th${c}`]);
   await expect(orderRows(page).filter({hasText:String(d)})).not.toHaveAttribute('data-dragging','true');
-  const id=(wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+  const id=(wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   expect((await saving).postDataJSON()).toMatchObject({order:[d,a,b,c].map(id),didNotFinish:[],didNotRun:[],added:[]});
   // The times stay by place: the table pairs them with the new order.
   await page.getByRole('button',{name:'Done',exact:true}).click();

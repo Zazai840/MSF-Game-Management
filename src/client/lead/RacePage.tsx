@@ -3,9 +3,12 @@ import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions } from './RaceActions.js';
 import { useEffect,useRef,useState } from 'react';
 import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
-import { partLabel,raceLabel } from '../../shared/races.js';
+import { entryName,isTeamEntry,partLabel,raceLabel } from '../../shared/races.js';
+import { resultEntry } from '../../shared/leaderboard-row.js';
+import { ResultName,resultLabel } from './ResultName.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
+import { capitalised,entryNoun } from '../../shared/teams.js';
 import type { WrongTime } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
@@ -25,9 +28,9 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>{request.current++;clearInterval(timer);};},[raceId]);
   return <section className="race-page">{error && <p role="alert">{error}</p>}{!read?<p>Opening race…</p>:<>
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {clock(read.race.checkedInAt)}</p>
-    <RaceActions race={read.race} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
+    <RaceActions race={read.race} relay={read} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
     {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
-    <h4>Current record</h4><p>Runners: {read.race.parts.runners.value?.map(runner=>runner.wristband).join(' · ')||'None'}</p>
+    <h4>Current record</h4><p>{capitalised(entryNoun(read.race.event.relay))}s: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
     <CurrentRecord race={read.race} actionable={entryId=>actionableRunners.some(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;
@@ -42,9 +45,13 @@ function CurrentRecord({race,actionable,onRunner}:{race:LeadRaceRead['race'];act
     {mismatch && <p className="warning-box">{mismatch}</p>}
     <ol className="record-rows" aria-label="Current record">{race.recording.results.map(row=>{
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
+      const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row;
       return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
-        <span className="record-text">{actionable(row.entryId)?<button className="record-runner" aria-label={`Runner ${row.wristband}`} onClick={()=>onRunner(row.entryId)}>{row.wristband}</button>:<strong>{row.wristband}</strong>}<WrongTimeReason wrong={wrongTime}/></span>
+        <span className="record-text">{actionable(row.entryId)?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
+          {team?.addedAtFinish && <small className="record-note">At finish</small>}
+          {team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
+          <WrongTimeReason wrong={wrongTime}/></span>
         {wrongTime && <WrongTimeIcon/>}<span className="record-time">{row.time===null?'No time':formatTime(row.time)}</span>
       </li>;
     })}</ol>

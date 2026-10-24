@@ -1,5 +1,7 @@
-import { test as base,expect,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
-import type { Job,RaceScreenRead } from '../src/shared/race-screen.js';
+import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
+import { isRunner,isTeamEntry } from '../src/shared/races.js';
+import pg from 'pg';
+import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
@@ -117,7 +119,7 @@ export function takeJob(request:APIRequestContext,token:string,eventCode:string,
 export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:Array<number|{fix:number;to:number}>,keptWarnings?:number[]) {
   const {race}=await takeJob(request,token,eventCode,'check-in');
   // A fix keeps the entry of the number it replaces, as fixing a number on the card does.
-  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
+  const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.filter(isRunner).find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
   return raceScreenWrite(request,token,eventCode,'check-in',{raceId:race.id,version:race.parts.runners.version,runners:runners.map(entry),keptWarnings});
 }
 /**
@@ -129,7 +131,7 @@ export async function writeOrder(request:APIRequestContext,token:string,eventCod
   let {race}=await takeJob(request,token,eventCode,'order');
   // A runner typed at the finish has no entry until a write adds it, as on the card: added first, then placed.
   if(added.length) race=(await raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added,keptWarnings})).race;
-  const id=(wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+  const id=(wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   return raceScreenWrite(request,token,eventCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[]});
 }
 /** Writes the times on the race screen as that phone, in hundredths by place; `keptWrong` are the places (0-based) whose wrong time it kept. */
@@ -156,6 +158,84 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
 /** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
   expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
+}
+/**
+ * Makes this test's own relay (its code and name unique to the project), switched on, so its teams and races touch no
+ * other test. A lead can't add a relay, so it goes straight into the e2e test database, switched off, and is switched
+ * on through the API, which tells every open Home.
+ */
+export async function ownRelay(code:string,name:string,section='Girl Cubs') {
+  const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+  try {
+    await db.query(`INSERT INTO events(id,day_id,code,name,section,format,enabled,relay,programme_order)
+      SELECT gen_random_uuid(),d.id,$1,$2,$3,'heats',false,true,(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=d.id) FROM olympics_days d WHERE d.active`,[code,name,section]);
+  } finally {await db.end();}
+  const api=await request.newContext({baseURL:process.env.E2E_BASE_URL});
+  try {expect((await api.post(`/api/day/events/${code}/enabled`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{enabled:true}})).ok()).toBe(true);}
+  finally {await api.dispose();}
+}
+/** One Teams screen write as that phone; fails unless the server accepts it, and returns Home as it then stands. */
+async function teamsWrite(request:APIRequestContext,token:string,relayCode:string,what:string,data:object) {
+  const response=await request.post(`/api/teams/${relayCode}/${what}`,{headers:{authorization:`Bearer ${token}`},data});
+  expect(response.ok(),`${what}: ${await response.text()}`).toBe(true);
+  return await response.json() as HomeSnapshot;
+}
+/** Takes the relay's teams hold as that phone, whoever has it, as Take over does. */
+export function takeTeams(request:APIRequestContext,token:string,relayCode:string) {
+  return teamsWrite(request,token,relayCode,'take-over',{});
+}
+/** Opens a team to change it as that phone, as tapping it does ("Priya Shah is changing this team" elsewhere); returns the version it opened. */
+export async function openTeam(request:APIRequestContext,token:string,relayCode:string,teamId:string,changeAnyway=false) {
+  const home=await teamsWrite(request,token,relayCode,'open',{teamId,changeAnyway});
+  return home.events.find(event=>event.code===relayCode)!.teams!.find(team=>team.id===teamId)!.version;
+}
+/**
+ * Writes a team as that phone, as its Done does: takes the relay's teams hold, opens the team (with no `teamId`, a new
+ * team), then sends the four boxes (null for an empty box) and the wristbands whose warnings it kept.
+ */
+export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{teamId,keptWarnings=[]}:{teamId?:string;keptWarnings?:number[]}={}) {
+  await takeTeams(request,token,relayCode);
+  const version=teamId?await openTeam(request,token,relayCode,teamId):undefined;
+  return teamsWrite(request,token,relayCode,'done',{teamId,version,legs,keptWarnings});
+}
+/** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
+async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'take-off'|'here'|'edit-open',number:number,data:object={}) {
+  const seen=await readRaceScreen(request,token,relayCode);
+  return raceScreenWrite(request,token,relayCode,what,{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===number)!.id,...data});
+}
+/** Ticks Team `number` into the relay's current heat as that phone (anyone can: there is no check-in hold on a relay). */
+export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
+  return checkInTap(request,token,relayCode,'tick',number);
+}
+/**
+ * Leaves Team `number` open as that phone, as an Edit at check-in left open does, on a team since taken off the heat:
+ * the team is still to run, and other phones see "Priya Shah is changing this team" with Change anyway.
+ */
+export async function leaveTeamOpen(request:APIRequestContext,token:string,relayCode:string,number:number) {
+  await tickTeam(request,token,relayCode,number);
+  await checkInTap(request,token,relayCode,'edit-open',number);
+  await checkInTap(request,token,relayCode,'take-off',number);
+}
+/** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
+export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
+  return checkInTap(request,token,relayCode,'here',number,{leg:leg-1,here});
+}
+/**
+ * Writes a relay heat's finishing order as that phone, naming teams by their number: takes the order, then writes the
+ * whole column at the version it sees. Every ticked team goes in `order`, `didNotFinish` or `didNotRun`.
+ */
+export async function writeTeamOrder(request:APIRequestContext,token:string,relayCode:string,order:number[],{didNotFinish=[],didNotRun=[],addedTeams=[]}:{didNotFinish?:number[];didNotRun?:number[];addedTeams?:number[]}={}) {
+  const {race}=await takeJob(request,token,relayCode,'order');
+  const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
+  // Teams still to run added at the finish ("+ Team not on the list") take the places after `order`.
+  const listed=addedTeams.length?(await readRaceScreen(request,token,relayCode)).teams!:[];
+  return raceScreenWrite(request,token,relayCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>listed.find(team=>team.number===number)!.id)});
+}
+/** From Home: the Relays tab, then the Teams button, and waits for the Teams screen. */
+export async function openTeams(page:Page) {
+  await page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await page.getByRole('button',{name:/^Teams Type each relay's teams at the prep area/}).click();
+  await expect(page.getByRole('heading',{level:1,name:'Teams',exact:true})).toBeVisible();
 }
 /**
  * Deletes the event's current race for good, as a lead does a race opened by mistake, so no race a test left

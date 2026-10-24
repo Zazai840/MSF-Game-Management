@@ -1,5 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
+import type { Runner } from '../src/shared/races.js';
 const event={code:'R16',name:'200m',section:'Girl Cubs' as const,format:'timed' as const};
 const race=(id:string,number:number,time:number):ResultsRace=>({id,kind:'race',number,checkedInAt:'2026-10-12T10:00:00Z',deleted:false,saved:true,runners:[{id:`entry-${id}`,wristband:2000+number}],finish:{order:[`entry-${id}`],didNotFinish:[]},times:{places:[time],outOfOrder:false}});
 test('the Event complete sheet blocks a highlighted tie and previews the podium',()=>{
@@ -19,14 +20,14 @@ test('incomplete recordings block once per race, while warning-only races can co
     expect(sheet.mustSettleFirst).toHaveLength(1);
     expect(sheet.mustSettleFirst[0]).toMatchObject({raceId:'a'});
   }
-  const r=race('a',1,1000);r.runners[0].warnings=[{kind:'wrong-section',message:'Wrong section',kept:true}];
+  const r=race('a',1,1000);(r.runners[0] as Runner).warnings=[{kind:'wrong-section',message:'Wrong section',kept:true}];
   const result=eventResults({event,races:[r]});
   expect(result.checkSheet?.mustSettleFirst).toEqual([]);
   expect(result.checkSheet?.worthALook).toMatchObject([{kind:'warning',raceId:'a',entryId:'entry-a'}]);
   expect(eventResults({event,races:[r],rulings:[{raceId:'a',entryId:'entry-a',disqualification:null,warningChecks:[{kind:'wrong-section',message:'Wrong section'}]}]}).checkSheet?.worthALook).toEqual([]);
 });
 test('ran-twice blocks inside the tinted band only, excluding a future final from Event complete',()=>{
-  const entries=Array.from({length:8},(_,i)=>race(String(i),i+1,900+i*100));entries[7].runners[0].wristband=2007;
+  const entries=Array.from({length:8},(_,i)=>race(String(i),i+1,900+i*100));(entries[7].runners[0] as Runner).wristband=2007;
   expect(eventResults({event,races:entries}).checkSheet?.mustSettleFirst).toEqual([]);
   entries[7].times={places:[800],outOfOrder:false};
   expect(eventResults({event,races:entries}).checkSheet?.mustSettleFirst).toMatchObject([{kind:'ran-twice',raceId:'7'}]);
