@@ -187,7 +187,7 @@ A person's lasting identity in the app, made once with their full name and kept 
 _Avoid_: Account, user, login
 
 **Signed in**:
-A profile using the app on the current Olympics day, with its role for that day. A lead sees everyone signed in today and can change their role or sign them out, except their own and except making the owner a volunteer.
+A profile using the app on the current Olympics day, with its role for that day. A lead sees everyone signed in today and can change anyone else's role or sign them out, though nobody can make the owner a volunteer.
 _Avoid_: Joined phone, logged in, online
 
 **Lead code**:
@@ -197,6 +197,10 @@ _Avoid_: Admin password, lead PIN
 **Owner password**:
 The app owner's master password, typed where the Olympics password goes, that makes the person a lead marked as the owner, whom nobody can make a volunteer. It never changes, so the owner can always get back in after the Olympics password changes, and it never clears an Olympics day by itself.
 _Avoid_: Admin password, master code
+
+**Owner**:
+The lead who signed in with the owner password. Nobody can make the owner a volunteer, and making a new lead code keeps them a lead. It is not a role: the owner is a lead.
+_Avoid_: Admin, super lead
 
 **Race screen**:
 The one screen where volunteers work an event's current race together, opened from Home by tapping the event. Every job is on it, and each phone sees the others' entries as they are made.

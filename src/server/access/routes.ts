@@ -28,7 +28,7 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       if(!byOwner && !matches(code,day.lead_code)) throw new WrongAccessCode('Wrong lead code');
       const wasOwner=(await client.query('SELECT owner FROM sign_ins WHERE id=$1',[current.id])).rows[0].owner as boolean;
       const updated=(await client.query(`UPDATE sign_ins SET level='Lead',owner=owner OR $2 WHERE id=$1 RETURNING id,day_id AS "dayId",name,level,profile_id AS "profileId"`,[current.id,byOwner])).rows[0];
-      if(byOwner && !wasOwner) await writeAuditNote(client,current,null,{action:'Made owner',message:`Made ${current.name} a lead with the owner password`,comment:null,touches:[]});
+      if(byOwner && !wasOwner) await writeAuditNote(client,current,null,{action:'Made lead with owner password',message:`Made ${current.name} a lead with the owner password`,comment:null,touches:[]});
       else if(current.level==='Volunteer') await writeAuditNote(client,current,null,{action:'Became lead',message:`${current.name} became a lead`,comment:null,touches:[]});
       return updated;
     },'Volunteer'));

@@ -128,7 +128,7 @@ test('Become lead refuses a wrong code, never lowers the owner, and the owner pa
   expect((await call(phone.token,'/api/become-lead',{code:'day-owner-fixture'})).json()).toMatchObject({name:'Ahmed',level:'Lead'});
   const phones=(await call(token,'/api/day/phones')).json();
   expect(phones.phones.find((row:any)=>row.name==='Ahmed')).toMatchObject({level:'Lead',owner:true});
-  expect(phones.auditNotes[0]).toMatchObject({actor:'Ahmed',action:'Made owner',message:'Made Ahmed a lead with the owner password'});
+  expect(phones.auditNotes[0]).toMatchObject({actor:'Ahmed',action:'Made lead with owner password',message:'Made Ahmed a lead with the owner password'});
   expect((await call(token,`/api/day/phones/${phone.phone.id}/role`,{role:'Volunteer'})).json().message).toBe("The owner can't be made a volunteer");
 });
 test('the day read shows a lead the Olympics password and there is no day code to read, make or join with',async()=>{

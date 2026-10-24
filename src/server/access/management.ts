@@ -3,6 +3,7 @@ import type pg from 'pg';
 import { newLeadCode } from './codes.js';
 import { actions, Refusal } from './permissions.js';
 import { levels, type Level, type Phone } from '../../shared/domain.js';
+import { canMakeRole } from '../../shared/phones.js';
 import { rulingChange, readAuditNotes, writeAuditNote } from '../rulings/records.js';
 import { clearHolds } from '../races/race-screen.js';
 export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -43,7 +44,7 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
     const role=(request.body as {role?:unknown}|null)?.role;
     if(!levels.includes(role as Level)) throw new Refusal(400,'Choose Volunteer or Lead');
     const target=await signedInRow(client,current,(request.params as {phoneId:string}).phoneId,"You can't change your own role");
-    if(target.owner && role==='Volunteer') throw new Refusal(409,"The owner can't be made a volunteer");
+    if(!canMakeRole(target,role as Level)) throw new Refusal(409,"The owner can't be made a volunteer");
     if(target.level===role) throw new Refusal(409,`${target.name} is already ${role}`);
     await client.query('UPDATE sign_ins SET level=$1 WHERE id=$2',[role,target.id]);
     await writeAuditNote(client,current,null,{action:`Made ${(role as Level).toLowerCase()}`,message:`Made ${target.name} ${madeAs[role as Level]}`,comment:null,touches:[]});

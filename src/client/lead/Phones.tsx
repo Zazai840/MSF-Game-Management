@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react';
-import type { PhonesRead } from '../../shared/phones.js';
+import { canMakeRole, type PhonesRead } from '../../shared/phones.js';
 import type { Level } from '../../shared/domain.js';
 import { api } from '../api.js';
 import { clock } from '../../shared/clock.js';
@@ -31,7 +31,7 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
       <h3>{phone.name}{phone.id===data.selfId?' (you)':''}</h3><p className="day-text">{phone.level}{phone.owner?' · Owner':''}</p>
       {phone.id!==data.selfId && <div className="day-actions">
         {/* Skipping the role it already has, and Make volunteer for the owner. */}
-        {roles.filter(role=>role!==phone.level && !(phone.owner && role==='Volunteer')).map(role=>
+        {roles.filter(role=>role!==phone.level && canMakeRole(phone,role)).map(role=>
           <button key={role} className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/role`,{role})}>{makeRole[role]}</button>)}
         <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{})}>Remove</button>
       </div>}
