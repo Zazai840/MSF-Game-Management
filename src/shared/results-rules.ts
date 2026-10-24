@@ -66,10 +66,10 @@ export interface EventResults {
 export function eventResults(state:EventState):EventResults {
   const allActive=state.races.filter(race=>!race.deleted);
   const active=allActive.filter(race=>race.kind!=='final');
-  // A heats event decided without a final reads as a timed event: medal line, medal marks, no final.
+  // A heats event decided without a final is ranked as a timed event: medal line, medal marks, no final.
   const decidedWithoutFinal=state.event.format==='heats' && (state.completedStages?.includes('no-final')??false);
-  const view=decidedWithoutFinal?'timed':state.event.format;
-  const band:ResultsBand=view==='heats'?{highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'}:{highlightCount:6,lineAfter:3,lineLabel:'Medal line'};
+  const rankedAs=decidedWithoutFinal?'timed':state.event.format;
+  const band:ResultsBand=rankedAs==='heats'?{highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'}:{highlightCount:6,lineAfter:3,lineLabel:'Medal line'};
   const publishedRows:LeaderboardRow[]=[],actionableRunners:LeaderboardRow[]=[];
   const recordingReasons=new Map<string,NotRankedReason[]>();
   const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
@@ -100,28 +100,28 @@ export function eventResults(state:EventState):EventResults {
     }
   }
   finished.sort((left,right)=>(left.time!-right.time!) || (left.raceId===right.raceId?left.place!-right.place!:left.race.number-right.race.number || left.race.checkedInAt.localeCompare(right.race.checkedInAt) || left.raceId.localeCompare(right.raceId)));
-  const ties=eventTies(finished,band.highlightCount,view,state.tieSettlements);
+  const ties=eventTies(finished,band.highlightCount,rankedAs,state.tieSettlements);
   for(const [index,row] of finished.entries()) {
     row.position=index+1;row.highlighted=index<band.highlightCount;
-    if(view==='heats' && index<6) row.qualification='Q';
-    if(view==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
+    if(rankedAs==='heats' && index<6) row.qualification='Q';
+    if(rankedAs==='timed' && index<3) row.medalPlace=(index+1) as 1|2|3;
   }
   const leaderboard=[...finished,...didNotFinish,...disqualified,...notCounted];
-  const final=view==='heats'?finalResults(state,leaderboard):null;
+  const final=rankedAs==='heats'?finalResults(state,leaderboard):null;
   if(final) for(const row of actionableRunners.filter(row=>row.raceId===final.raceId)) {
     const ranked=final.leaderboard.find(other=>other.entryId===row.entryId);
     if(ranked) {delete row.recordingPending;Object.assign(row,ranked);}
   }
   const needsYou=eventLeadItems(state,actionableRunners,ties);
-  const heatsSheet=view==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
+  const heatsSheet=rankedAs==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
   // Offered once a heat is ranked, until a volunteer starts the final; judged on a copy of the rows seen as a timed event's, so a tie settled for qualifying comes back when it decides a medal.
-  const offered=heatsSheet!==null && !final?.started && finished.length>0;
-  const medalRows=offered?finished.map((row,index)=>({...row,highlighted:index<6,flags:[...row.flags]})):[];
-  const noFinalTies=offered?eventTies(medalRows,6,'timed',state.tieSettlements):[];
-  const noFinalSheet=offered?noFinalCheckSheet(state,medalRows,noFinalTies,notRankedYet,needsYou):null;
-  const checkSheet=decidedWithoutFinal?noFinalCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):view==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):heatsSheet?.completed||final?.hasRun?finalCheckSheet(state,final,needsYou):heatsSheet;
+  const noFinalOffered=heatsSheet!==null && !final?.started && finished.length>0;
+  const medalRows=noFinalOffered?finished.map((row,index)=>({...row,highlighted:index<6,flags:[...row.flags]})):[];
+  const noFinalTies=noFinalOffered?eventTies(medalRows,6,'timed',state.tieSettlements):[];
+  const noFinalSheet=noFinalOffered?noFinalCheckSheet(state,medalRows,noFinalTies,notRankedYet,needsYou):null;
+  const checkSheet=decidedWithoutFinal?noFinalCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):rankedAs==='timed'?timedCheckSheet(state,leaderboard,ties,notRankedYet,needsYou):heatsSheet?.completed||final?.hasRun?finalCheckSheet(state,final,needsYou):heatsSheet;
   const complete=checkSheet?.stage!=='heats' && (checkSheet?.completed??false);
   const podium=checkSheet?.creates.slice(0,3)||[];
   const inputRunning=complete?{eventCode:state.event.code,first:podium[0].wristband,second:podium[1].wristband,third:podium[2].wristband,...(podium.some(place=>place.team)?{teams:podium.map(place=>place.team??null)}:{})}:null;
-  return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,noFinalCheckSheet:noFinalSheet,noFinalTies,decidedWithoutFinal,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:view==='heats'?finished.slice(0,6):[],medalPlaces:view==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
+  return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,noFinalCheckSheet:noFinalSheet,noFinalTies,decidedWithoutFinal,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:rankedAs==='heats'?finished.slice(0,6):[],medalPlaces:rankedAs==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
 }
