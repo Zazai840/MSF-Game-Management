@@ -114,8 +114,8 @@ export function eventResults(state:EventState):EventResults {
   }
   const needsYou=eventLeadItems(state,actionableRunners,ties);
   const heatsSheet=view==='heats'?heatsCheckSheet(state,leaderboard,ties,notRankedYet,final,needsYou):null;
-  // Offered while the heats are open with a heat ranked and no final built; judged on a copy of the rows seen as a timed event's, so a tie settled for qualifying comes back when it decides a medal.
-  const offered=heatsSheet!==null && !heatsSheet.completed && !final && finished.length>0;
+  // Offered once a heat is ranked, until a volunteer starts the final; judged on a copy of the rows seen as a timed event's, so a tie settled for qualifying comes back when it decides a medal.
+  const offered=heatsSheet!==null && !final?.started && finished.length>0;
   const medalRows=offered?finished.map((row,index)=>({...row,highlighted:index<6,flags:[...row.flags]})):[];
   const noFinalTies=offered?eventTies(medalRows,6,'timed',state.tieSettlements):[];
   const noFinalSheet=offered?noFinalCheckSheet(state,medalRows,noFinalTies,notRankedYet,needsYou):null;

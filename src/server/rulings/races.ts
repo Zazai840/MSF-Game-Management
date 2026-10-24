@@ -83,6 +83,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(!race.deleted) throw new Refusal(409,'This race is already in the event');
       if(race.deleteReason==='re-run') throw new Refusal(409,'This race was replaced by a re-run and cannot be restored');
+      if(race.kind==='final' && (await client.query("SELECT 1 FROM event_stages WHERE event_id=$1 AND stage='no-final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
       if(race.state!=='saved') await requireCurrentUnstarted(client,current.dayId,race.event,'restore');
       await client.query('UPDATE races SET deleted=false,delete_reason=null WHERE id=$1',[race.id]);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
