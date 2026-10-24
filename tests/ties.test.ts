@@ -1,5 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
+import type { Runner } from '../src/shared/races.js';
 import type { TieSettlement } from '../src/shared/ties.js';
 const heats={code:'R4',name:'60m',section:'Girl Cubs' as const,format:'heats' as const};
 function races(times:number[]):ResultsRace[] {
@@ -27,7 +28,7 @@ test('a new race reopens a No run-off needed tie when its decision impact change
   const faster=races([800])[0];faster.id='new-race';faster.runners=[{id:'new-entry',wristband:2099}];faster.finish={order:['new-entry'],didNotFinish:[]};
   expect(eventResults({...state,races:[...state.races,faster],tieSettlements}).ties).toHaveLength(1);
   faster.times={places:[1300],outOfOrder:false};
-  expect(eventResults({...state,races:[...state.races,faster],tieSettlements}).ties[0].entries.map(entry=>entry.wristband).sort((left,right)=>left-right)).toEqual([2005,2006,2099]);
+  expect(eventResults({...state,races:[...state.races,faster],tieSettlements}).ties[0].entries.map(entry=>entry.wristband).sort((left,right)=>left!-right!)).toEqual([2005,2006,2099]);
   const timed={event:{...heats,format:'timed' as const},races:races([900,1000,1000])};
   const medalTie=eventResults(timed).ties[0];
   faster.times={places:[800],outOfOrder:false};
@@ -76,7 +77,7 @@ test('a mixed cross-race tie keeps equal finishers from one race in their finish
 test('tie settlements preserve checked warnings and omit entries chosen as not counted',()=>{
   const state={event:heats,races:races([1000,1000,1000])};
   const warning={kind:'wrong-section' as const,message:'2001 belongs to Boy Cubs - this race is Girl Cubs',kept:true};
-  state.races[0].runners[0].warnings=[warning];
+  (state.races[0].runners[0] as Runner).warnings=[warning];
   const rulings=[
     {raceId:'race1',entryId:'entry1',disqualification:null,warningChecks:[warning]},
     {raceId:'race3',entryId:'entry3',disqualification:null,notCounted:true}

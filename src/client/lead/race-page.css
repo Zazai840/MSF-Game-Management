@@ -21,6 +21,9 @@
 .record-place {width:64px; flex:none; font-size:16px; font-weight:800; color:var(--navy);}
 .record-text {flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px;}
 .record-text strong {font-size:20px; font-weight:800;}
+.record-team {padding:6px 12px; text-align:left;}
+.record-note {font-size:var(--text-small); font-weight:700; color:var(--muted);}
+.record-warning {padding:4px 8px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); overflow-wrap:anywhere;}
 .record-time {flex:none; font-size:20px; font-weight:800; color:var(--text);}
 .record-runner {min-height:var(--tap); min-width:var(--tap); padding:0 12px; font-size:var(--text-body); background:var(--surface); color:var(--navy); border-color:var(--navy); border-radius:var(--radius-small); font-variant-numeric:tabular-nums;}
 
@@ -40,6 +43,10 @@
 .lead-runner-row {flex:1; display:flex; align-items:center; gap:12px; min-height:52px; padding:0 14px; text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface);}
 .lead-runner-row .row-label {width:84px; flex:none; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .lead-runner-row strong {flex:1; font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;}
+.lead-team-rows {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+.lead-team-row {display:flex; align-items:center; gap:8px;}
+.lead-team-row .team-row-tap {flex:1; width:auto; margin:0; min-width:0;}
+.lead-team-row .lead-remove {align-self:stretch;}
 .lead-remove {flex:none; width:52px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--navy); border-color:var(--tint);}
 /* Add runner and Review stay in reach at the foot of the sheet, however long the list. */
 .sheet-actions {position:sticky; bottom:0; z-index:1; display:grid; grid-template-columns:auto 1fr; gap:10px; margin:0 -1rem; padding:12px 1rem; background:var(--tint);}

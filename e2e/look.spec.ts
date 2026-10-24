@@ -1,4 +1,4 @@
-import { lookProblems,back,dashboardMenuButton,deleteCurrentRace,enterWristband,openDashboard,openRaceScreen,ownEvent,goHome,dashboardButton,expect,createProfile,test,type Page } from './fixtures.js';
+import { lookProblems,back,dashboardMenuButton,deleteCurrentRace,enterWristband,markHere,openDashboard,openRaceScreen,openTeams,ownEvent,ownRelay,goHome,dashboardButton,expect,createProfile,test,tickTeam,writeTeam,type Page } from './fixtures.js';
 
 const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)';
 
@@ -95,4 +95,51 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   await page.getByRole('button',{name:/^Events /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
+});
+
+test('the Teams screen and a relay race screen meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`LKR-${project.toUpperCase()}`,name=`Look relay ${project}`;
+  // The test day is shared: each project types its own Boy Scouts wristbands, which no other test types.
+  const n=(offset:number)=>3800+at*10+offset;
+  await ownRelay(code,name,'Boy Scouts');
+  const {page,token}=await openPhone(`Look relay ${project}`);
+  await writeTeam(request,token,code,[n(1),n(2),n(3),n(4)]);
+  await writeTeam(request,token,code,[n(5),n(6),null,null]);
+  // The Teams screen: this phone holds the relay, one team open for changing.
+  await openTeams(page);
+  await page.getByRole('region',{name,exact:true}).getByRole('button',{name:/^Boy Scouts/}).click();
+  await expect(page.getByText('Tap a team to change it.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.getByRole('button',{name:'Change Team 2',exact:true}).click();
+  await expect(page.getByLabel('Team 2 1st leg',{exact:true})).toHaveValue(String(n(5)));
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('teams-screen.png'),fullPage:true});
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Back to Home',exact:true}).click();
+  // The relay's race screen: Check-in Teams with both teams ticked, one short of four here, opened.
+  for(const number of [1,2]) await tickTeam(request,token,code,number);
+  await markHere(request,token,code,2,1);
+  await openRaceScreen(page,name,'Boy Scouts');
+  await page.getByRole('button',{name:/^Check-in Teams/}).click();
+  await expect(page.getByText(/A team can run short/)).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-check-in.png'),fullPage:true});
+  // Order and Times with this phone holding both: the team buttons, then a team with no place.
+  await page.getByRole('button',{name:/^Check-in Teams/}).click();
+  await page.getByRole('button',{name:/^Order and Times/}).click();
+  await page.getByRole('button',{name:'Do the order',exact:true}).click();
+  await page.getByRole('button',{name:'Do the times',exact:true}).click();
+  await page.locator('.race-numbers').getByRole('button',{name:/Team 1$/}).click();
+  await expect(page.getByLabel('Place time',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-order-and-times.png'),fullPage:true});
+  await page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
+  await page.getByRole('button',{name:'Did not finish',exact:true}).click();
+  const noPlace=page.getByRole('list',{name:'No place'}).getByRole('listitem');
+  await expect(noPlace).toHaveText(/^Team 2\s*Did not finish\s*Give a place$/);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-did-not-finish.png'),fullPage:true});
+  // Each part of the row stays on one line, even on a 360px phone.
+  for(const part of [noPlace.locator('strong'),noPlace.locator('span'),noPlace.getByRole('button')]) expect(await part.evaluate(element=>{const range=document.createRange();range.selectNodeContents(element);return new Set([...range.getClientRects()].map(rect=>Math.round(rect.top))).size;})).toBe(1);
+  await deleteCurrentRace(request,code);
 });

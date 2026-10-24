@@ -11,11 +11,11 @@ async function start() {
   people = await signInOwner(app,'day-owner-fixture');
   return people.owner.token;
 }
-test('a new Olympics day starts with exactly the 20 individual running events',async()=>{
+test('a new Olympics day starts with exactly the 20 individual running events, then the six relays',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
   expect(day.eventsConfirmed).toBe(false);
-  expect(day.events.map((event:any)=>[event.code,event.name,event.section,event.format,event.enabled])).toEqual([
+  expect(day.events.filter((event:any)=>!event.relay).map((event:any)=>[event.code,event.name,event.section,event.format,event.enabled])).toEqual([
     ['R1','60m','Boy Beavers','heats',true],['R2','60m','Girl Beavers','heats',true],
     ['R3','60m','Boy Cubs','heats',true],['R4','60m','Girl Cubs','heats',true],
     ['R5','60m','Boy Scouts','heats',true],['R6','60m','Girl Scouts','heats',true],
@@ -26,6 +26,12 @@ test('a new Olympics day starts with exactly the 20 individual running events',a
     ['R15','200m','Boy Cubs','timed',true],['R16','200m','Girl Cubs','timed',true],
     ['R17','200m','Boy Scouts','timed',true],['R18','200m','Girl Scouts','timed',true],
     ['R23','400m','Boy Scouts','timed',true],['R24','400m','Girl Scouts','timed',true]
+  ]);
+  // The relays come after the 400m, heats then a final like the 60m, and switch on and off like any event.
+  expect(day.events.slice(20).map((event:any)=>[event.code,event.name,event.section,event.format,event.enabled,event.relay])).toEqual([
+    ['R19','4x50m Relay','Boy Beavers','heats',true,true],['R20','4x50m Relay','Girl Beavers','heats',true,true],
+    ['R21','4x50m Relay','Boy Cubs','heats',true,true],['R22','4x50m Relay','Girl Cubs','heats',true,true],
+    ['R27','4x100m Relay','Boy Scouts','heats',true,true],['R28','4x100m Relay','Girl Scouts','heats',true,true]
   ]);
 });
 test('the scoring team confirms the event list for the Olympics day',async()=>{
@@ -51,11 +57,12 @@ test('the scoring team renames an event and the changed list needs confirmation 
 test('the scoring team adds an event with its code, name, section and event format',async()=>{
   const token = await start();
   const event = {code:'R25',name:'Extra sprint',section:'Girl Cubs',format:'timed'};
-  const saved = await call(token,'/api/day/events',event);
+  const saved = await call(token,'/api/day/events',{...event,relay:true});
   expect(saved.statusCode).toBe(200);
   const day = (await call(token,'/api/day')).json();
-  expect(day.events).toHaveLength(21);
-  expect(day.events.at(-1)).toMatchObject({...event,enabled:true});
+  expect(day.events).toHaveLength(27);
+  // A lead never adds a relay: the added event has no relay mark, whatever the request says.
+  expect(day.events.at(-1)).toMatchObject({...event,enabled:true,relay:false});
 });
 test.each([
   [{code:'R25',name:'Sprint',section:'Girl Cubs',format:'relay'},'Choose heats then final or timed'],
@@ -68,7 +75,7 @@ test.each([
   const response = await call(token,'/api/day/events',payload);
   expect(response.statusCode).toBe(400);
   expect(response.json().message).toBe(message);
-  expect((await call(token,'/api/day')).json().events).toHaveLength(20);
+  expect((await call(token,'/api/day')).json().events).toHaveLength(26);
 });
 test('an event code already in the programme is refused plainly',async()=>{
   const token = await start();
@@ -83,7 +90,7 @@ test('a switched-off event stays on Day and disappears from volunteer event choi
   expect(saved.statusCode).toBe(200);
   const choices = await call(volunteer.token,'/api/events');
   expect(choices.statusCode).toBe(200);
-  expect(choices.json().events).toHaveLength(19);
+  expect(choices.json().events).toHaveLength(25);
   expect(choices.json().events.some((event:any)=>event.code==='R4')).toBe(false);
   expect(choices.json()).not.toHaveProperty('leadCode');
   expect((await call(token,'/api/day')).json().events.find((event:any)=>event.code==='R4').enabled).toBe(false);

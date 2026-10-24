@@ -2,17 +2,22 @@ import type { FinalField } from '../../shared/finals.js';
 import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { raceLabel,type RaceRead } from '../../shared/races.js';
+import { isTeamEntry,raceLabel,type RaceEntry,type RaceRead } from '../../shared/races.js';
 import { newDay, Refusal, signedOut } from '../access/permissions.js';
 import { dayChanged } from '../live/changes.js';
 export type StoredRace=Omit<RaceRead,'final'> & {final?:FinalField};
 /** Jobs receive attendance only; heat ranking and provenance stay within Lead reads. */
 export function jobRace(race:StoredRace):RaceRead {
-  const {final,...rest}=race;
-  return {...rest,...(final?{final:{generation:final.generation,hasRun:final.hasRun,heatsComplete:final.heatsComplete,entries:[...final.entries.map(({finalEntryId,heatWristband,seed,absent,runner,kind})=>({finalEntryId,wristband:race.parts.runners.value?.find(current=>current.id===finalEntryId)?.wristband??runner?.wristband??heatWristband,seed,absent,calledUp:kind==='call-up'})),...(final.additionalEntries||[]).map(({runner,absent})=>({finalEntryId:runner.id,wristband:runner.wristband,seed:null,absent,calledUp:false}))]}}:{})};
+  const {final,...rest}=race,runners=race.parts.runners.value||[];
+  // A line-up entry reads as it is in the race now, else as it was when last there (an Absent one): a child's wristband, or a team.
+  const named=(id:string,copy:RaceEntry|undefined,heatWristband:number|null)=>{
+    const entry=runners.find(current=>current.id===id)??copy;
+    return entry && isTeamEntry(entry)?{wristband:null,team:entry.team}:{wristband:entry?.wristband??heatWristband};
+  };
+  return {...rest,...(final?{final:{generation:final.generation,hasRun:final.hasRun,heatsComplete:final.heatsComplete,entries:[...final.entries.map(({finalEntryId,heatWristband,seed,absent,runner,kind})=>({finalEntryId,...named(finalEntryId,runner,heatWristband),seed,absent,calledUp:kind==='call-up'})),...(final.additionalEntries||[]).map(({runner,absent})=>({finalEntryId:runner.id,...named(runner.id,runner,null),seed:null,absent,calledUp:false}))]}}:{})};
 }
 export type Database=pg.Pool|pg.PoolClient;
-const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=r.event_id AND s.stage=CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END) AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
+const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,e.relay,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=r.event_id AND s.stage=CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END) AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
 const finalRowsQuery=`SELECT f.race_id,f.entries,f.additional_entries,f.generation,
   EXISTS(SELECT 1 FROM event_stages WHERE event_id=r.event_id AND stage='heats') AS heats_complete
   FROM race_finals f JOIN races r ON r.id=f.race_id`;
@@ -47,7 +52,7 @@ function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],finalRow?:pg.
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value}]));
   // A final has run once it is saved.
   const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:row.state==='saved',heatsComplete:finalRow.heats_complete}:undefined;
-  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
+  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {

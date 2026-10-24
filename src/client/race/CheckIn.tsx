@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import type { RaceScreenRead } from '../../shared/race-screen.js';
-import type { Runner } from '../../shared/races.js';
+import { runnersOf,type Runner } from '../../shared/races.js';
 import { RaceCard } from './RaceCard.js';
 import { TakeOver,useRaceWrite,type Offer } from './Hold.js';
 import { WristbandEntry } from './WristbandEntry.js';
@@ -14,7 +14,7 @@ import { WristbandEntry } from './WristbandEntry.js';
  */
 export function CheckInCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneId:string;offer:Offer}) {
   const {event,race,stageComplete}=screen,holder=screen.holds['check-in'],mine=holder?.id===phoneId;
-  const runners=race.parts.runners.value||[],wristbands=runners.map(runner=>runner.wristband);
+  const runners=runnersOf(race.parts.runners.value),wristbands=runners.map(runner=>runner.wristband);
   const {busy,error,write}=useRaceWrite(event.code,offer);
   /** The runner whose number is being fixed or taken off. */
   const [changing,setChanging]=useState<Runner|null>(null);

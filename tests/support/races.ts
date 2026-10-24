@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { isRunner } from '../../src/shared/races.js';
 import type { RaceScreenRead } from '../../src/shared/race-screen.js';
 /**
  * The one way server tests set races up: on the race screen, as the phone whose token is given, through the same
@@ -14,7 +15,7 @@ export function raceSetup(app:FastifyInstance) {
   const write=(token:string,code:string,what:string,body:object)=>post(token,`/api/race-screen/${code}/${what}`,body);
   // Take over: the phone gets the job whoever had it, as a person would who was asked to do it.
   const hold=async(token:string,code:string,job:string)=>(await write(token,code,'take-over',{job})).race;
-  const id=(race:RaceScreenRead['race'],wristband:number)=>race.parts.runners.value!.find(runner=>runner.wristband===wristband)!.id;
+  const id=(race:RaceScreenRead['race'],wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   /** Checks these runners in to the event's current race (the whole list), creating it when it is the empty next race. */
   async function checkIn(token:string,code:string,runners:number[],keptWarnings:number[]=[]) {
     const race=await hold(token,code,'check-in');

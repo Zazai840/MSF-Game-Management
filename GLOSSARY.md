@@ -34,6 +34,10 @@ _Avoid_: Event ID, event number
 How an event decides its medals: either heats then a final (60m and relays), or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m).
 _Avoid_: Event type, race type
 
+**Relay**:
+An event run by relay teams instead of single children: the 4x50m Relay for Beavers and Cubs and the 4x100m Relay for Scouts. Like the 60m it has heats then a final, and every child of a medal-winning team gets the team's medal.
+_Avoid_: Relay race (a race is one run), team event
+
 ### Races
 
 **Race**:
@@ -53,20 +57,32 @@ The 6 qualifiers for a final in seed order, fastest heat time first, produced wh
 _Avoid_: Finalists list, running heats sheet, start list
 
 **Absent finalist**:
-A child in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in lists the line-up and the volunteer marks each child Here or Absent.
+A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in lists the line-up and marks each child Here or Absent; a relay team is Absent as a whole.
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
-A lead bringing the next-ranked heat runner (7th, then 8th) into a final in place of an absent finalist. Without a call-up the final runs short.
+A lead bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist. Without a call-up the final runs short.
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
-Recording, at the start line and before the whistle, which children or relay teams are running in a race. The first check-in on an event's current race is what creates it.
+Recording, at the start line and before the whistle, which children or relay teams are running in a race. The first check-in on an event's current race is what creates it. On a relay, anyone on the race screen ticks the teams that run and marks each child here.
 _Avoid_: Registration, sign-in, line-up
 
 **Relay team**:
-Four children who run one relay event together, known by their four wristband numbers; any one of the numbers finds the team. A relay team belongs to its event, not to a race, and is usually entered on the event's team list before the relays start.
+Four children who run one relay together, known as Team 1, Team 2 and so on within their relay, with their wristband numbers in leg order. A team belongs to its relay's team list, not to a race; each race keeps the four children who actually ran in it.
 _Avoid_: Squad, relay entry, team registration
+
+**Leg**:
+One child's part of a relay race. A team's wristband numbers are in leg order: the first runs the 1st leg, and the fourth crosses the finish line.
+_Avoid_: Runner 1-4, lap, stage
+
+**Team list**:
+A relay's teams, typed at the prep area before the relays start. Teams are numbered in the order they are added and never renumbered; a team that has never been in a race can be removed, and its number is not used again.
+_Avoid_: Start list, entries, registration
+
+**Still to run**:
+A relay team that no race of its relay holds, apart from deleted races. Only teams still to run are offered at a heat's check-in, and a team that didn't run goes back to them.
+_Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
 A race removed from an event's results but kept so it can be restored, for example one created by mistake.
@@ -85,11 +101,11 @@ A race whose results count: everyone it asked has submitted it, or a lead saved 
 _Avoid_: Finished race, complete race, closed race
 
 **Finishing order**:
-The order in which a race's children crossed the line, recorded as wristband numbers from 1st to last. It gives each child who finished their place in the race.
+The order in which a race's children crossed the line, recorded as wristband numbers from 1st to last; on a relay, the teams in the order their 4th leg crossed. It gives each child who finished their place in the race.
 _Avoid_: Results, placings, positions list
 
 **Time**:
-How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so correcting either list re-pairs them.
+How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so correcting either list re-pairs them. A relay team has one time, from the start until its 4th leg crosses the line.
 _Avoid_: Result, score, split
 
 **Tie**:
@@ -109,11 +125,11 @@ The zone lead's ruling, with a reason, that a child (or relay team) is out of an
 _Avoid_: DQ, ban, removal
 
 **Did not finish**:
-A child who started a race but did not cross the line, for example after a fall. They stay in the race with no time and no place.
+A child (or relay team) who started a race but did not cross the line, for example after a fall or a lost baton. They stay in the race with no time and no place.
 _Avoid_: DNF, retired, dropped out
 
 **Didn't run**:
-A child who was checked in to a race but never started it. They are taken off that race, so they can still run in a later race of the event. A finalist missing before a final starts is an absent finalist instead.
+A child (or relay team) who was checked in to a race but never started it. They are taken off that race, so they can still run in a later race of the event; a relay team goes back to its relay's teams still to run. A finalist missing before a final starts is an absent finalist instead.
 _Avoid_: DNS, no-show, absent, scratched
 
 **No finisher**:
@@ -129,7 +145,7 @@ A record kept against an event of something the zone lead did to its results, su
 _Avoid_: Log entry, comment, history
 
 **Warning**:
-A note attached to a child in a race when their wristband number looks wrong for it: a number no section uses, a number from another section, or a child who already ran in this event. It never stops the child running; the zone lead checks it, corrects the number or disqualifies.
+A note attached to a child in a race when their wristband number looks wrong for it: a number no section uses, a number from another section, a child who already ran in this event, or a child who is also in another relay's team. It never stops the child running; the zone lead checks it, corrects the number or disqualifies.
 _Avoid_: Error, alert, validation failure
 
 ### People
@@ -186,8 +202,12 @@ _Avoid_: Admin password, master code
 The one screen where volunteers work an event's current race together, opened from Home by tapping the event. Every job is on it, and each phone sees the others' entries as they are made.
 _Avoid_: Job screen, race page (the lead's), entry screen
 
+**Teams screen**:
+The one screen, opened from Home's Relays tab, where every relay's team list is typed at the prep area.
+_Avoid_: Team page, prep screen, registration screen
+
 **Job**:
-One of the three pieces of work on a race that any volunteer can take on: check-in, the finishing order or the times. One volunteer holds each job at a time; a final has no times job.
+A piece of work that any volunteer can take on and one volunteer holds at a time: on a race, check-in, the finishing order or the times; on a relay, also typing its team list. A final has no times job, and a relay's check-in is not a job: anyone on its race screen does it.
 _Avoid_: Role, station, duty, section
 
 **Hold**:

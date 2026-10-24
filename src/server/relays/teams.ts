@@ -1,0 +1,227 @@
+import { randomUUID } from 'node:crypto';
+import type { FastifyInstance,FastifyRequest } from 'fastify';
+import type pg from 'pg';
+import type { Phone } from '../../shared/domain.js';
+import { currentRaceLabel,type Holder } from '../../shared/race-screen.js';
+import { changingName,legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
+import { actions,Refusal } from '../access/permissions.js';
+import { resultsSnapshot } from '../results/read.js';
+import { homeRead } from '../races/race-screen.js';
+import { raceChange,type Database } from '../races/records.js';
+import type { TeamEntry } from '../../shared/races.js';
+import { writeAuditNote } from '../rulings/records.js';
+/** A relay's team list as it stands: the relay, its teams not removed (by number) and its teams holder. */
+export type TeamListRead=TeamList & {id:string;enabled:boolean;teams:RelayTeam[];holder:Holder|null};
+/**
+ * Every relay of the day with its team list and teams holder, by event id. Each team carries the races holding it,
+ * worked out from the race entries: a team is still to run when no race of its relay holds it, apart from deleted races.
+ */
+export async function readTeamLists(db:Database,dayId:string):Promise<Map<string,TeamListRead>> {
+  const lists=new Map<string,TeamListRead>();
+  for(const relay of (await db.query('SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND relay',[dayId])).rows) lists.set(relay.id,{...relay,teams:[],holder:null});
+  const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version,t.changing_since,s.id AS changing_id,s.name AS changing_name FROM relay_teams t JOIN events e ON e.id=t.event_id LEFT JOIN sign_ins s ON s.id=t.changing_by WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
+  const held=(await db.query(`SELECT r.id,r.kind,r.number,r.state,entry->'team'->>'id' AS team_id FROM races r JOIN events e ON e.id=r.event_id JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]' END) entry
+    WHERE e.day_id=$1 AND e.relay AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
+  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,
+    changing:team.changing_id?{id:team.changing_id,name:team.changing_name,since:team.changing_since.toISOString()}:null,
+    races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
+  const holders=(await db.query("SELECT h.event_id,s.id,s.name FROM job_holds h JOIN events e ON e.id=h.event_id JOIN sign_ins s ON s.id=h.sign_in_id WHERE e.day_id=$1 AND h.job='teams'",[dayId])).rows;
+  for(const holder of holders) lists.get(holder.event_id)!.holder={id:holder.id,name:holder.name};
+  return lists;
+}
+/** The day's switched-on relays' team lists: a child on two of them is in two relays. */
+export const switchedOn=(lists:Map<string,TeamListRead>)=>[...lists.values()].filter(list=>list.enabled);
+/** A relay's race screen and lead race page carry its team list, and every switched-on relay's, which a check-in Edit's warnings and Correct teams look through. */
+export async function relayLists(db:Database,dayId:string,eventId:string) {
+  const lists=await readTeamLists(db,dayId);
+  return {teams:lists.get(eventId)!.teams,relays:switchedOn(lists).map(({code,name,section,teams})=>({code,name,section,teams}))};
+}
+/** One relay as a teams write sees it: its team list, whether its heats are complete, and the day's switched-on relays, which its warnings look through. */
+export async function teamsWriteRead(db:Database,dayId:string,code:string) {
+  const event=(await db.query("SELECT e.id,e.relay,EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage='heats') AS heats_complete FROM events e WHERE e.day_id=$1 AND e.code=$2",[dayId,code])).rows[0];
+  if(!event) throw new Refusal(404,'Event not found');
+  if(!event.relay) throw new Refusal(400,'Only a relay has teams');
+  const lists=await readTeamLists(db,dayId),list=lists.get(event.id)!;
+  if(!list.enabled) throw new Refusal(409,'This event is switched off');
+  return {...list,heatsComplete:event.heats_complete as boolean,relays:switchedOn(lists)};
+}
+export type TeamsWriteRead=Awaited<ReturnType<typeof teamsWriteRead>>;
+function requireOpen(relay:TeamsWriteRead) {
+  if(relay.heatsComplete) throw new Refusal(409,'Stage complete - ask a lead');
+}
+const takeHold=(client:pg.PoolClient,relay:TeamsWriteRead,phone:Phone)=>client.query("INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,'teams',$2) ON CONFLICT(event_id,job) DO UPDATE SET sign_in_id=EXCLUDED.sign_in_id",[relay.id,phone.id]);
+/** A team write is the teams holder's: refused once someone took over, and taking the hold when nobody has it. */
+async function requireHolder(client:pg.PoolClient,relay:TeamsWriteRead,phone:Phone) {
+  if(relay.holder && relay.holder.id!==phone.id) throw new Refusal(409,`${relay.holder.name} took over the teams`);
+  if(!relay.holder) await takeHold(client,relay,phone);
+}
+export function requestedId(teamId:unknown) {
+  if(typeof teamId!=='string') throw new Refusal(400,'Choose a team');
+  return teamId;
+}
+function requestedTeam(relay:TeamsWriteRead,teamId:string) {
+  const team=relay.teams.find(item=>item.id===teamId);
+  if(!team) throw new Refusal(404,'Team not found');
+  return team;
+}
+/** On the Teams screen, a team in an unsaved race is not changed: a check-in Edit changes it with its race entry. */
+function requireNotInRace(team:RelayTeam) {
+  const race=unsavedRace(team);
+  if(race) throw new Refusal(409,`Team ${team.number} is in ${currentRaceLabel(race)} - change it at check-in`);
+}
+/** A change to a team is the phone's only while it holds the team's mark and sends the version it opened. */
+async function requireMark(client:pg.PoolClient,team:RelayTeam,phone:Phone,version:number) {
+  if(team.changing && team.changing.id!==phone.id) throw new Refusal(409,`${team.changing.name} is changing this team`);
+  if(version!==team.version) {
+    const by=(await client.query('SELECT changed_by FROM relay_teams WHERE id=$1',[team.id])).rows[0].changed_by;
+    throw new Refusal(409,`${by||'Someone'} changed this team - check it and enter it again`);
+  }
+  if(!team.changing) throw new Refusal(409,'Open the team again');
+}
+/**
+ * Opening a team to change it marks it as this phone's ("Priya Shah is changing this team"). Someone else's mark
+ * refuses it unless the phone chose Change anyway, which moves the mark: the other phone's Done is then refused.
+ */
+export async function openTeam(client:pg.PoolClient,team:RelayTeam,phone:Phone,changeAnyway:unknown,unchanged:()=>void) {
+  if(team.changing?.id===phone.id) {unchanged();return;}
+  if(team.changing && changeAnyway!==true) throw new Refusal(409,`${team.changing.name} is changing this team`);
+  await client.query('UPDATE relay_teams SET changing_by=$2,changing_since=clock_timestamp() WHERE id=$1',[team.id,phone.id]);
+}
+/** Cancel puts the team back as it was saved and clears this phone's mark; a mark that moved on is left alone. */
+export async function cancelTeam(client:pg.PoolClient,team:RelayTeam,phone:Phone,unchanged:()=>void) {
+  if(team.changing?.id!==phone.id) {unchanged();return;}
+  await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id]);
+}
+/**
+ * A team joining a race from its team list (ticked at check-in, added at the finish, or by a lead's Correct teams):
+ * only a team still to run, and one nobody is changing unless `evenIfChanging`. The race takes a copy of its four
+ * children and their kept warnings, each child on the list marked here when `here` (they crossed the line).
+ */
+export function joiningTeam(team:RelayTeam,{here=false,addedAtFinish=false,evenIfChanging=false}={}):TeamEntry {
+  if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
+  const changer=evenIfChanging?null:changingName(team);
+  if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
+  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:here && leg.wristband!==null})),...(addedAtFinish?{addedAtFinish:true}:{})};
+}
+/** Four wristband boxes in leg order, each a wristband number or null for an empty box. */
+export const fourBoxes=(legs:unknown):legs is Array<number|null>=>Array.isArray(legs) && legs.length===4 && legs.every(leg=>leg===null || (Number.isSafeInteger(leg) && leg>=0));
+/** What a Done sends: the team (none for a new one) and the version it opened, the four boxes in leg order and the wristbands whose warnings were kept. */
+export interface TeamDone { teamId?:string; version?:number; wristbands:Array<number|null>; kept:unknown[] }
+export function requestedDone(body:unknown):TeamDone {
+  const {teamId,version,legs,keptWarnings}=(body||{}) as {teamId?:unknown;version?:unknown;legs?:unknown;keptWarnings?:unknown};
+  if(teamId!==undefined && typeof teamId!=='string') throw new Refusal(400,'Choose a team');
+  if(teamId!==undefined && !Number.isSafeInteger(version)) throw new Refusal(400,'Open the team again');
+  if(!fourBoxes(legs)) throw new Refusal(400,'Enter the four wristband boxes');
+  const wristbands=legs,kept=keptWarnings??[];
+  if(wristbands.every(wristband=>wristband===null)) throw new Refusal(400,'Enter at least one wristband number');
+  if(!Array.isArray(kept) || kept.some(number=>number===null || !wristbands.includes(number))) throw new Refusal(400,'Choose Keep for a wristband number in this team');
+  return {teamId,version:version as number|undefined,wristbands,kept};
+}
+/** A team's four boxes as every team write checks them: no wristband twice in the relay, and each warning kept. Answers the legs to store. */
+function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId:string|null,wristbands:Array<number|null>,kept:unknown[]):TeamLeg[] {
+  const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,teamId,wristbands,index)).find(Boolean);
+  if(refusal) throw new Refusal(409,refusal);
+  // A warning is stored only once kept: each one needs Fix number or Keep.
+  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays).map(warning=>({...warning,kept:true}))}));
+  const unkept=legs.find(leg=>leg.warnings.length && !kept.includes(leg.wristband));
+  if(unkept) throw new Refusal(409,`${unkept.wristband} needs Fix number or Keep`);
+  return legs;
+}
+/**
+ * Done's own checks and write, once the phone may write: the team's mark and version, no wristband twice in the
+ * relay, and each warning kept. Writes the team list (a new team takes one more than the highest number the relay
+ * has ever used; the day lock serialises Dones, so two never clash) and answers the legs written.
+ */
+export async function writeTeam(client:pg.PoolClient,relay:TeamsWriteRead,team:RelayTeam|null,phone:Phone,{version,wristbands,kept}:TeamDone):Promise<TeamLeg[]> {
+  if(team) await requireMark(client,team,phone,version!);
+  const legs=checkedLegs(relay,team?.id??null,wristbands,kept);
+  if(team) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name]);
+  else await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4 FROM relay_teams WHERE event_id=$2',[randomUUID(),relay.id,JSON.stringify(legs),phone.name]);
+  return legs;
+}
+/**
+ * A lead's correction of a team's four children in a saved race ("Correct number", "Correct teams"): checked as a team
+ * write is. On the team's latest race the team list takes the corrected children in the same write, so a typo doesn't
+ * come back at the Final; its version rises, so a Done opened before is refused. On an earlier race only the race
+ * changes. Answers the race entry as corrected: a child still in the team keeps their here mark, wherever they moved,
+ * and a child put in place of one no longer in it takes theirs.
+ */
+export async function correctTeam(client:pg.PoolClient,lead:Phone,race:{id:string;event:{id:string}},entry:TeamEntry,wristbands:Array<number|null>,kept:unknown[]):Promise<TeamEntry> {
+  const lists=await readTeamLists(client,lead.dayId),relay={...lists.get(race.event.id)!,relays:switchedOn(lists)};
+  const legs=checkedLegs(relay,entry.team.id,wristbands,kept),team=relay.teams.find(item=>item.id===entry.team.id);
+  if(team?.races.at(-1)?.id===race.id) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3 WHERE id=$1',[team.id,JSON.stringify(legs),lead.name]);
+  const stays=(wristband:number|null)=>legs.some(leg=>leg.wristband===wristband);
+  return {...entry,legs:legs.map((leg,index)=>{
+    const was=entry.legs.find(old=>old.wristband!==null && old.wristband===leg.wristband)??(stays(entry.legs[index].wristband)?undefined:entry.legs[index]);
+    return {...leg,here:leg.wristband!==null && !!was?.here};
+  })};
+}
+/**
+ * The Teams screen's writes, one relay each. Each runs under the day lock, raises the day revision when it changes
+ * anything, and answers with Home as it then stands: the Teams screen reads Home's day-wide stream.
+ */
+export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
+  const action=actions(app,pool),code=(request:FastifyRequest)=>(request.params as {code:string}).code;
+  async function write(phone:Phone,code:string,change:(client:pg.PoolClient,relay:TeamsWriteRead,unchanged:()=>void)=>Promise<void>) {
+    await raceChange(pool,phone,async(client,unchanged)=>change(client,await teamsWriteRead(client,phone.dayId,code),unchanged));
+    return resultsSnapshot(pool,phone.dayId,db=>homeRead(db,phone.dayId));
+  }
+  // Opening a relay's card takes its teams hold when nobody has it; otherwise nothing changes and the phone watches.
+  action('POST','/api/teams/:code/hold','Volunteer',(request,_reply,phone)=>write(phone,code(request),async(client,relay,unchanged)=>{
+    requireOpen(relay);
+    if(relay.holder) unchanged();
+    else await takeHold(client,relay,phone);
+  }));
+  // Take over: the relay's teams hold passes to this phone (after its confirm), with an audit note naming who had it.
+  action('POST','/api/teams/:code/take-over','Volunteer',(request,_reply,phone)=>write(phone,code(request),async(client,relay,unchanged)=>{
+    requireOpen(relay);
+    const from=relay.holder;
+    if(from?.id===phone.id) {unchanged();return;}
+    await takeHold(client,relay,phone);
+    // The old holder's open teams close: their marks go, and a Done they send later is refused.
+    if(from) await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE event_id=$1 AND changing_by=$2',[relay.id,from.id]);
+    if(from) await writeAuditNote(client,phone,relay.id,{action:'take-over',message:`${phone.name} took over the teams from ${from.name} on ${relay.name} ${relay.section}`,comment:null,touches:[]});
+  }));
+  // Opening a team marks it as this phone's, or with Change anyway moves someone else's mark to it.
+  action('POST','/api/teams/:code/open','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {teamId?:unknown;changeAnyway?:unknown},teamId=requestedId(body.teamId);
+    return write(phone,code(request),async(client,relay,unchanged)=>{
+      requireOpen(relay);
+      await requireHolder(client,relay,phone);
+      const team=requestedTeam(relay,teamId);
+      requireNotInRace(team);
+      await openTeam(client,team,phone,body.changeAnyway,unchanged);
+    });
+  });
+  action('POST','/api/teams/:code/cancel','Volunteer',(request,_reply,phone)=>{
+    const teamId=requestedId(((request.body||{}) as {teamId?:unknown}).teamId);
+    return write(phone,code(request),async(client,relay,unchanged)=>cancelTeam(client,requestedTeam(relay,teamId),phone,unchanged));
+  });
+  // Remove team, from inside a team's edit: only for a team never in a race. The row stays, removed, so an audit
+  // note can still name it and its number is never used again.
+  action('POST','/api/teams/:code/remove','Volunteer',(request,_reply,phone)=>{
+    const body=(request.body||{}) as {teamId?:unknown;version?:unknown},teamId=requestedId(body.teamId);
+    if(!Number.isSafeInteger(body.version)) throw new Refusal(400,'Open the team again');
+    return write(phone,code(request),async(client,relay)=>{
+      requireOpen(relay);
+      await requireHolder(client,relay,phone);
+      const team=requestedTeam(relay,teamId);
+      requireNotInRace(team);
+      await requireMark(client,team,phone,body.version as number);
+      if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has been in a race - it can't be removed`);
+      await client.query('UPDATE relay_teams SET removed=true,version=version+1,changed_by=$2,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,phone.name]);
+    });
+  });
+  // Done: the team's four boxes in one write, with the wristbands whose warnings were kept.
+  action('POST','/api/teams/:code/done','Volunteer',(request,_reply,phone)=>{
+    const done=requestedDone(request.body);
+    return write(phone,code(request),async(client,relay)=>{
+      requireOpen(relay);
+      await requireHolder(client,relay,phone);
+      const team=done.teamId===undefined?null:requestedTeam(relay,done.teamId);
+      if(team) requireNotInRace(team);
+      await writeTeam(client,relay,team,phone,done);
+    });
+  });
+}

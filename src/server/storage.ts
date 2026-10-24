@@ -48,6 +48,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       enabled boolean NOT NULL DEFAULT true, programme_order integer NOT NULL,
       UNIQUE(day_id,code)
     );
+    -- A relay is run by relay teams. Only a new day's seeded relays have the mark: the add-event route never sets it.
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS relay boolean NOT NULL DEFAULT false;
     CREATE TABLE IF NOT EXISTS races (
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), event_id uuid NOT NULL REFERENCES events(id),
       kind text NOT NULL CHECK (kind IN ('heat','final','race')), number integer NOT NULL,
@@ -111,10 +113,24 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     -- Holds: at most one signed-in phone per event and job. They belong to the event, so they carry over to its next race.
     CREATE TABLE IF NOT EXISTS job_holds (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-      job text NOT NULL CHECK (job IN ('check-in','order','times')),
+      job text NOT NULL CHECK (job IN ('check-in','order','times','teams')),
       sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
       PRIMARY KEY(event_id,job)
     );
+    -- A relay's team list has a hold too: the teams job. Older builds' check names only the race jobs.
+    ALTER TABLE job_holds DROP CONSTRAINT IF EXISTS job_holds_job_check;
+    ALTER TABLE job_holds ADD CONSTRAINT job_holds_job_check CHECK (job IN ('check-in','order','times','teams'));
+    -- A relay's team list: one row per team, numbered within the relay and never renumbered. Legs are four
+    -- {wristband,warnings} in leg order. A removed team keeps its row, so its number is never used again.
+    CREATE TABLE IF NOT EXISTS relay_teams (
+      id uuid PRIMARY KEY, event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      number integer NOT NULL, legs jsonb NOT NULL, removed boolean NOT NULL DEFAULT false, version integer NOT NULL DEFAULT 1,
+      UNIQUE(event_id,number)
+    );
+    -- Who is changing a team (the "is changing this team" mark) and since when, and who last changed it, named in a late Done's refusal.
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_since timestamptz;
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by text;
     -- Submit presses on a race: who pressed and when. Not yet clears them; Take over removes the old holder's.
     CREATE TABLE IF NOT EXISTS submit_presses (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
