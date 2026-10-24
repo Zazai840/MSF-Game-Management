@@ -3,7 +3,7 @@ import { raceCounts } from './race-counts.js';
 import { isTeamEntry } from './races.js';
 import { teamCount } from './teams.js';
 import { resultName,type EventState,type LeaderboardRow,type NotRankedRace,type ResultTie,type LeadItem,type ResultTeam } from './results-rules.js';
-export type Stage='event'|'heats'|'final';
+export type Stage='event'|'heats'|'final'|'no-final';
 export interface StageItem { id:string; kind:'tie'|'ran-twice'|'incomplete'|'warning'; message:string; raceId?:string; entryId?:string; tieId?:string }
 /** A place a stage creates: the child by wristband, or on a relay the team with its four children. */
 export interface StagePlace { position:number; wristband:number|null; team?:ResultTeam; raceId?:string; entryId?:string }
@@ -30,6 +30,10 @@ export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],
 export function heatsCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
   const sheet=timedCheckSheet(state,rows,ties,pending,needsYou);
   return {...sheet,stage:'heats',label:'Heats complete',completed:state.completedStages?.includes('heats')??false,creates:rows.filter(row=>row.position!==null).slice(0,6).map(row=>stagePlace(row.position!,row)),reopenWarning:final?.hasRun?'The final has already run. Its line-up, attendance and results will be preserved.':'The unrun final will be rebuilt from the corrected heat rankings when heats are completed again.'};
+}
+/** Results without a final: a heats event's medals from the 3 fastest heat times, judged as a timed event's Event complete. */
+export function noFinalCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],needsYou:readonly LeadItem[]):StageCheckSheet {
+  return {...timedCheckSheet(state,rows,ties,pending,needsYou),stage:'no-final',label:'Results without a final',completed:state.completedStages?.includes('no-final')??false};
 }
 export function finalCheckSheet(state:EventState,final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
   const race=state.races.find(race=>race.id===final?.raceId);

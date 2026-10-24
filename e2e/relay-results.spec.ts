@@ -3,7 +3,7 @@ import { back,dashboardMenuButton,dragTo,expect,lookProblems,markHere,openDashbo
 
 test('To check names relay teams: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),cubs=`TCC-${project.toUpperCase()}`,scouts=`TCS-${project.toUpperCase()}`;
-  const name=`To check relay ${project}`;
+  const name=`Relay warnings ${project}`;
   await ownRelay(cubs,name,'Girl Cubs');await ownRelay(scouts,name,'Girl Scouts');
   // The test day is shared: each project's children use wristbands no other relay test types.
   const cub=(n:number)=>2620+at*16+n,scout=(n:number)=>4500+at*16+n,borrowed=1740+at,shared=cub(7);

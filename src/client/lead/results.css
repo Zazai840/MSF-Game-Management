@@ -64,6 +64,7 @@
 .results-races h3 {margin:0 0 10px;}
 .results-race-buttons {display:flex; flex-wrap:wrap; gap:8px;}
 .stage-actions {display:grid; gap:10px;}
+.input-running-section {margin-top:18px;}
 @media(min-width:700px) {.leaderboard-row {grid-template-columns:4rem minmax(0,1fr) 6rem;}.result-number,.result-time {font-size:22px;}}
 /* A row tapped on a touch screen keeps no dark outline; keyboard focus still shows the focus ring from theme.css. */
 @media(hover:hover) {.result-open:hover {border-color:var(--navy);}}
