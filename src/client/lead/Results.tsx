@@ -1,5 +1,5 @@
 import { FinalPanel } from './FinalPanel.js';
-import { StageSheet } from './StageSheet.js';
+import { StageSheet,reopenLabel } from './StageSheet.js';
 import type { StageCheckSheet,StageItem } from '../../shared/stages.js';
 import { DeletedRaces } from './DeletedRaces.js';
 import { Fragment,useEffect,useState,useRef } from 'react';
@@ -87,8 +87,8 @@ export function Results({target,onDashboard,onChanged}:{target?:DayLeadItem;onDa
       {detail.results.finalResults && <FinalPanel code={detail.event.code} relay={detail.event.relay} teams={detail.teams} final={detail.results.finalResults} onSaved={saved} onSelect={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onRace={()=>openRace(detail.results.finalResults!.raceId)}/>}
       {detail.results.notRankedYet.length>0 && <aside className="not-ranked"><h3>Not ranked yet</h3><ul>{detail.results.notRankedYet.map(item=><li key={item.race.id}><button className="button-small button-secondary" onClick={()=>openRace(item.race.id)} aria-label={`Open ${label(item.race)}`}>{label(item.race)}</button> · {item.reasons.join(' · ')}</li>)}</ul></aside>}
       {detail.results.leaderboard.length>0 && <section className="results-races"><h3>Races</h3><div className="results-race-buttons">{[...new Map(detail.results.leaderboard.map(row=>[row.raceId,row.race])).values()].map(race=><button key={race.id} className="button-small button-secondary" onClick={()=>openRace(race.id)}>Open {label(race)}</button>)}</div></section>}
-      {(detail.results.checkSheet || detail.results.heatsCheckSheet) && !detail.results.decidedWithoutFinal && <section className="stage-actions">
-        {detail.results.checkSheet && <button onClick={()=>setSelectedStage(detail.results.checkSheet)}>{detail.results.checkSheet.completed?(detail.results.checkSheet.stage==='final'?'Reopen final':detail.results.checkSheet.stage==='heats'?'Reopen heats':'Reopen event'):detail.results.checkSheet.label}</button>}
+      {(detail.results.checkSheet || detail.results.heatsCheckSheet) && <section className="stage-actions">
+        {detail.results.checkSheet && <button onClick={()=>setSelectedStage(detail.results.checkSheet)}>{detail.results.checkSheet.completed?reopenLabel(detail.results.checkSheet.stage):detail.results.checkSheet.label}</button>}
         {detail.results.heatsCheckSheet && detail.results.checkSheet?.stage!=='heats' && <button className="button-secondary" onClick={()=>setSelectedStage(detail.results.heatsCheckSheet)}>{detail.results.heatsCheckSheet.completed?'Reopen heats':'Heats complete'}</button>}
         {detail.results.noFinalCheckSheet && <button className="button-secondary" onClick={()=>setSelectedStage(detail.results.noFinalCheckSheet)}>{detail.results.noFinalCheckSheet.label}</button>}
       </section>}

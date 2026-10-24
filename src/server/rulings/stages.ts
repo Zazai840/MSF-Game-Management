@@ -17,7 +17,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
     const stage=(request.body as {stage?:unknown}|null)?.stage;
     // Results without a final, like any reopening, needs the lead's reason.
     const {comment}=rulingDetails(request.body,reopening || stage==='no-final');
-    if(!['event','heats','final',...(reopening?[]:['no-final'])].includes(String(stage))) throw new Refusal(400,'Choose a stage');
+    if(!['event','heats','final','no-final'].includes(String(stage))) throw new Refusal(400,'Choose a stage');
     return rulingChange(pool,phone,async(client,current)=>{
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code);
       const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);

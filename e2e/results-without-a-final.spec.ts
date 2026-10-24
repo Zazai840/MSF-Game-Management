@@ -53,3 +53,46 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await back(lead,'Results');
   await expect(lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('Done · medals decided, no final');
 });
+test('a lead reopens results with a comment: the medals clear, the heats open again and Heats complete builds a final',async({page,openPhone},info)=>{
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RRO-${project.toUpperCase()}`,name=`Reopened sprint ${project}`;
+  await ownEvent(page.request,code,name);
+  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
+  // The first test's wristbands with numbers it leaves free: heat 1 is w(5)..w(7), heat 2 is w(15)..w(17).
+  const w=(number:number)=>2900+at*20+number;
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(5),w(6),w(7)],[920,980,1040]);
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(15),w(16),w(17)],[935,990,1060]);
+  const lead=(await openPhone(`Reopen lead ${project}`,{lead:true})).page;
+  await openDashboard(lead,'Results');
+  await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
+  const sheet=lead.getByRole('dialog',{name:'Results without a final',exact:true});
+  await sheet.getByLabel('Comment',{exact:true}).fill('Out of time');await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Done · medals decided, no final');
+  const stages=lead.locator('.stage-actions').getByRole('button');
+  await expect(stages).toHaveText(['Reopen results']);
+  await lead.screenshot({path:info.outputPath('a5-reopen-offered.png'),fullPage:true});
+  await stages.click();
+  const reopen=lead.getByRole('dialog',{name:'Reopen results',exact:true});
+  await expect(reopen).toContainText('This clears the medals and opens the heats again. You can then run a final or choose Results without a final again.');
+  // The comment is required: Reopen without one stays on the sheet.
+  await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
+  await expect(reopen.getByLabel('Comment',{exact:true})).toBeFocused();
+  await reopen.getByLabel('Comment',{exact:true}).fill('The final fits after all');
+  await lead.screenshot({path:info.outputPath('a5-reopen-sheet.png')});
+  await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
+  await expect(lead.getByRole('dialog')).toHaveCount(0);
+  // Heats open again: the qualifying line and Q marks, no medals, no Input - Running, and the audit note.
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats running · 2 races');
+  await expect(lead.getByText('Top 8 highlighted · Q: fastest 6',{exact:true})).toBeVisible();
+  const board=lead.getByRole('list',{name:'Provisional leaderboard'});
+  await expect(board.locator('.result-mark')).toHaveText(Array(6).fill('Q'));
+  await expect(board.locator('.result-line')).toHaveText('Qualifying line');
+  await expect(lead.getByRole('table',{name:'Input - Running'})).toHaveCount(0);
+  await expect(lead.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText(`Reopen lead ${project} reopened Results without a final - The final fits after all`);
+  await expect(stages).toHaveText(['Heats complete','Results without a final']);
+  await lead.screenshot({path:info.outputPath('a5-heats-open.png'),fullPage:true});
+  await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
+  await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
+  await expect(lead.locator('.final-panel')).toBeVisible();
+});
