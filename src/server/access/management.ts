@@ -38,12 +38,12 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(!target) throw new Refusal(404,'Nobody is signed in with that row today');
     return target as {id:string;name:string;level:Level;owner:boolean};
   };
-  const madeAs:Record<Level,string>={Volunteer:'a volunteer',Lead:'a lead','Scoring team':'scoring team'};
+  const madeAs:Record<Level,string>={Volunteer:'a volunteer',Lead:'a lead'};
   action('POST','/api/day/phones/:phoneId/role','Lead',async(request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{
     const role=(request.body as {role?:unknown}|null)?.role;
-    if(!levels.includes(role as Level)) throw new Refusal(400,'Choose Volunteer, Lead or Scoring team');
+    if(!levels.includes(role as Level)) throw new Refusal(400,'Choose Volunteer or Lead');
     const target=await signedInRow(client,current,(request.params as {phoneId:string}).phoneId,"You can't change your own role");
-    if(target.owner && role!=='Scoring team') throw new Refusal(409,"Nobody can lower the owner's role");
+    if(target.owner && role==='Volunteer') throw new Refusal(409,"The owner can't be made a volunteer");
     if(target.level===role) throw new Refusal(409,`${target.name} is already ${role}`);
     await client.query('UPDATE sign_ins SET level=$1 WHERE id=$2',[role,target.id]);
     await writeAuditNote(client,current,null,{action:`Made ${(role as Level).toLowerCase()}`,message:`Made ${target.name} ${madeAs[role as Level]}`,comment:null,touches:[]});
@@ -51,7 +51,7 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   }));
   action('POST','/api/day/phones/:phoneId/remove','Lead',async(request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{
     const target=await signedInRow(client,current,(request.params as {phoneId:string}).phoneId,'Use Sign out to remove yourself');
-    // The phone's next request fails with reason signed-out; signing back in starts again as a volunteer, except the owner, who keeps Scoring team.
+    // The phone's next request fails with reason signed-out; signing back in starts again as a volunteer, except the owner, who stays a lead.
     await client.query("UPDATE sign_ins SET signed_out=true, level=CASE WHEN owner THEN level ELSE 'Volunteer' END WHERE id=$1",[target.id]);
     await clearHolds(client,target.id);
     await writeAuditNote(client,current,null,{action:'Removed',message:`Removed ${target.name}`,comment:null,touches:[]});

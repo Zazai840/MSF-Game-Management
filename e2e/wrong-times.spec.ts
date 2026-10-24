@@ -13,7 +13,7 @@ async function doTheTimes(page:Page,name:string) {
   await openRaceScreen(page,name);await orderCard(page).click();
   await expect(orderCard(page)).toHaveAccessibleName(/· Times: You$/);
 }
-const savedTimes=async(request:APIRequestContext,code:string)=>(await (await request.get(`/api/race-screen/${code}`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}})).json()).race.parts.times.value;
+const savedTimes=async(request:APIRequestContext,code:string)=>(await (await request.get(`/api/race-screen/${code}`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`}})).json()).race.parts.times.value;
 
 test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one stays amber for a lead, and a retyped place clears it',async({openPhone,request},info)=>{
   const project=info.project.name,code=`WA-${project.toUpperCase()}`,name=`Times wrong ${project}`;

@@ -7,11 +7,11 @@ const post = (url: string, payload: object, remoteAddress?: string, headers?: ob
 const auth = (token: string) => ({authorization:`Bearer ${token}`});
 const me = async (token: string) => (await app.inject({url:'/api/me', headers:auth(token)})).json();
 afterEach(async () => { vi.restoreAllMocks(); await app?.close(); });
-/** A running day with the owner signed in as scoring team, and the Olympics password pass and lead code a phone would have. */
+/** A running day with the owner signed in as a lead, and the Olympics password pass and lead code a phone would have. */
 async function start() {
   app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL!, ownerPassword: 'lead-sign-in-owner', resetTestDay: true});
   const {owner, pass, day} = await signInOwner(app, 'lead-sign-in-owner', 'Aisha Khan');
-  return {scoring:owner, pass, leadCode: day.leadCode as string};
+  return {owner, pass, leadCode: day.leadCode as string};
 }
 const held = (...profiles: {id:string; secret?:string}[]) => profiles.map(({id, secret}) => ({id, secret}));
 
@@ -36,10 +36,10 @@ test('Lead sign-in signs in this phone\'s profile, creates an unused name, and n
   expect((await post('/api/lead-sign-in', {pass, name:'Sam Patel 2', code:leadCode, profiles:held(second.profile)})).json().profile).toEqual({id:second.profile.id, name:'Sam Patel 2'});
 });
 
-test('Lead sign-in never lowers the scoring team and needs the password pass and a full name', async () => {
-  const {scoring, pass, leadCode} = await start();
-  const signedIn = (await post('/api/lead-sign-in', {pass, name:'Aisha Khan', code:leadCode, profiles:held(scoring.profile)})).json();
-  expect(await me(signedIn.token)).toMatchObject({name:'Aisha Khan', level:'Scoring team'});
+test('Lead sign-in never lowers the owner and needs the password pass and a full name', async () => {
+  const {owner, pass, leadCode} = await start();
+  const signedIn = (await post('/api/lead-sign-in', {pass, name:'Aisha Khan', code:leadCode, profiles:held(owner.profile)})).json();
+  expect(await me(signedIn.token)).toMatchObject({name:'Aisha Khan', level:'Lead'});
   const noPass = await post('/api/lead-sign-in', {pass:'made-up', name:'Yusuf Ali', code:leadCode, profiles:[]});
   expect(noPass.statusCode).toBe(401);
   expect(noPass.json().reason).toBe('password-changed');
@@ -65,27 +65,27 @@ test('a wrong lead code is refused plainly and repeated tries are slowed down pe
 });
 
 test('a new lead code turns Lead sign-in leads back into volunteers, except whoever made it', async () => {
-  const {scoring, pass, leadCode} = await start();
+  const {owner, pass, leadCode} = await start();
   const lead = (await post('/api/lead-sign-in', {pass, name:'Yusuf Ali', code:leadCode, profiles:[]})).json();
-  await post('/api/day/lead-code', {}, undefined, auth(scoring.token));
+  await post('/api/day/lead-code', {}, undefined, auth(owner.token));
   expect(await me(lead.token)).toMatchObject({level:'Volunteer'});
-  expect(await me(scoring.token)).toMatchObject({level:'Scoring team'});
+  expect(await me(owner.token)).toMatchObject({level:'Lead'});
   expect((await post('/api/lead-sign-in', {pass, name:'Yusuf Ali', code:leadCode, profiles:held(lead.profile)})).statusCode).toBe(403);
 });
 
 test('profiles on this phone show today\'s role, none on a new day, and which were moved away', async () => {
-  const {scoring, pass, leadCode} = await start();
+  const {owner, pass, leadCode} = await start();
   const volunteer = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   const lead = (await post('/api/lead-sign-in', {pass, name:'Yusuf Ali', code:leadCode, profiles:[]})).json();
   const unused = {id:'00000000-0000-4000-8000-000000000000', secret:'guess'};
-  const read = await post('/api/phone-profiles', {pass, profiles:held(volunteer.profile, lead.profile, scoring.profile, unused)});
+  const read = await post('/api/phone-profiles', {pass, profiles:held(volunteer.profile, lead.profile, owner.profile, unused)});
   expect(read.statusCode).toBe(200);
   expect(read.json()).toEqual({profiles:[
-    {id:volunteer.profile.id, level:'Volunteer'}, {id:lead.profile.id, level:'Lead'}, {id:scoring.profile.id, level:'Scoring team'}, {id:unused.id, moved:true}
+    {id:volunteer.profile.id, level:'Volunteer'}, {id:lead.profile.id, level:'Lead'}, {id:owner.profile.id, level:'Lead'}, {id:unused.id, moved:true}
   ]});
   expect((await post('/api/phone-profiles', {pass:'made-up', profiles:[]})).json().reason).toBe('password-changed');
-  await app.inject({method:'POST', url:'/api/day/export', headers:auth(scoring.token), payload:{}});
-  const reset = await post('/api/day/start-new', {confirmation:'NEW DAY'}, undefined, auth(scoring.token));
+  await app.inject({method:'POST', url:'/api/day/export', headers:auth(owner.token), payload:{}});
+  const reset = await post('/api/day/start-new', {confirmation:'NEW DAY'}, undefined, auth(owner.token));
   expect(reset.statusCode, reset.body).toBe(200);
   expect((await post('/api/phone-profiles', {pass, profiles:held(volunteer.profile, lead.profile)})).json()).toEqual({profiles:[
     {id:volunteer.profile.id, level:null}, {id:lead.profile.id, level:null}

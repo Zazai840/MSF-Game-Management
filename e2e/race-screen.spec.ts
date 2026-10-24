@@ -143,8 +143,8 @@ test('the order fills in live on another phone, and follows check-in live: a lat
 });
 
 test('a phone on the race screen shows the check-in, order and times another phone makes, live and without a reload',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LS-${project.toUpperCase()}`,name=`Live sprint ${project}`,scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-  expect((await request.post('/api/day/events',{headers:scoring,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
+  const project=info.project.name,code=`LS-${project.toUpperCase()}`,name=`Live sprint ${project}`,owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  expect((await request.post('/api/day/events',{headers:owner,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
   const sam=await openPhone(`Sam live ${project}`),jo=await signInThroughApi(request,`Jo live ${project}`);
   // Jo does every job, so Sam only watches.
   for(const job of ['check-in','order','times'] as const) await takeJob(request,jo,code,job);

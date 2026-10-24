@@ -8,7 +8,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start(fields:number[][]=[[1023,1088,1012,1135,1047,1101],[1066,1005,1110,1031,1092]]) {
  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'final-owner',resetTestDay:true});
- const people=await signInOwner(app,'final-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
+ const people=await signInOwner(app,'final-owner','Owner'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
  const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
  const heats=[];const times=[[901,925,948,977,990,1024],[912,939,961,1003,1048]];

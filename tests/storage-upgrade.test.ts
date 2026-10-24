@@ -51,3 +51,29 @@ test('the boot script starts on a database an older build left, competing saves 
     expect(history.filter((row:{at:string|null})=>row.at).map(({part,author}:{part:string;author:string})=>[part,author])).toEqual([['runners',null],['finish','Aisha'],['times','Aisha']]);
   } finally {await app.close();}
 });
+test('starting up turns an older build\'s Scoring team sign-ins into leads, allows only Volunteer or Lead, and runs twice cleanly',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const signedIn=(await app.inject({method:'POST',url:'/api/owner-sign-in',payload:{password:'upgrade-owner',name:'Aisha',profiles:[]}})).json();
+  const yusuf=(await app.inject({method:'POST',url:'/api/profiles',payload:{pass:signedIn.pass,name:'Yusuf'}})).json();
+  await app.close();
+  // The older build allowed a third role and stored the owner and the scoring team under it.
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  await old.query('ALTER TABLE sign_ins DROP CONSTRAINT sign_ins_level_check');
+  await old.query("ALTER TABLE sign_ins ADD CONSTRAINT sign_ins_level_check CHECK (level IN ('Volunteer','Lead','Scoring team'))");
+  await old.query("UPDATE sign_ins SET level='Scoring team'");
+  await old.end();
+  for(let start=0;start<2;start++) {
+    app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+    try {
+      const me=async(token:string)=>(await app.inject({url:'/api/me',headers:{authorization:`Bearer ${token}`}})).json();
+      expect(await me(signedIn.token)).toMatchObject({name:'Aisha',level:'Lead'});
+      expect(await me(yusuf.token)).toMatchObject({name:'Yusuf',level:'Lead'});
+      expect((await app.inject({url:'/api/day/phones',headers:{authorization:`Bearer ${signedIn.token}`}})).json().phones.find((phone:{name:string})=>phone.name==='Aisha')).toMatchObject({level:'Lead',owner:true});
+    } finally {await app.close();}
+  }
+  const db=new pg.Client({connectionString:databaseUrl});await db.connect();
+  try {
+    await expect(db.query("UPDATE sign_ins SET level='Scoring team'")).rejects.toThrow(/sign_ins_level_check/);
+  } finally {await db.end();}
+});

@@ -4,9 +4,9 @@ import type { Level } from '../../shared/domain.js';
 import { api } from '../api.js';
 import { clock } from '../../shared/clock.js';
 /** The role buttons a row offers, in screen order. */
-const makeRole:Record<Level,string>={Lead:'Make lead','Scoring team':'Make scoring team',Volunteer:'Make volunteer'};
+const makeRole:Record<Level,string>={Lead:'Make lead',Volunteer:'Make volunteer'};
 const roles=Object.keys(makeRole) as Level[];
-/** Signed in today: who is signed in on today's Olympics day, and the scoring team's way to set a role or remove someone. */
+/** Signed in today: who is signed in on today's Olympics day, and a lead's way to set a role or remove someone. */
 export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const [data,setData]=useState<PhonesRead|null>(null);
   const [busy,setBusy]=useState(false);
@@ -30,8 +30,8 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
     <div className="day-events">{data?.phones.map(phone=><article key={phone.id} className="day-card" aria-label={phone.name}>
       <h3>{phone.name}{phone.id===data.selfId?' (you)':''}</h3><p className="day-text">{phone.level}{phone.owner?' · Owner':''}</p>
       {phone.id!==data.selfId && <div className="day-actions">
-        {/* Skipping the role it already has, and every role below the owner's. */}
-        {roles.filter(role=>role!==phone.level && !(phone.owner && role!=='Scoring team')).map(role=>
+        {/* Skipping the role it already has, and Make volunteer for the owner. */}
+        {roles.filter(role=>role!==phone.level && !(phone.owner && role==='Volunteer')).map(role=>
           <button key={role} className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/role`,{role})}>{makeRole[role]}</button>)}
         <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{})}>Remove</button>
       </div>}

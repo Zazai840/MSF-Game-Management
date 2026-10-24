@@ -1,7 +1,7 @@
 import { back,openDashboard,dashboardMenuButton,dashboardButton,expect,createProfile,typePassword,test,type Page } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
-async function scoring(page:Page) {
-  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
+async function asOwner(page:Page) {
+  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/');await openDashboard(page,'Day setup');
   await expect(page.getByRole('button',{name:/^Events \d+ events · /})).toBeVisible();
 }
@@ -11,7 +11,7 @@ async function exportDay(page:Page) {
   const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
   await expect(page.getByRole('region',{name:'Day export'})).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
 }
-test('new day shows fresh codes, retains its scoring phone and returns other phones to their profiles with their holds cleared',async({page,browser,baseURL,context},info)=>{
+test('new day shows fresh codes, retains its owner phone and returns other phones to their profiles with their holds cleared',async({page,browser,baseURL,context},info)=>{
   // Safari15.0–15.3 supports the app, but has no crypto.randomUUID.
   const olderCrypto=()=>Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined,configurable:true});
   await context.addInitScript(olderCrypto);
@@ -21,13 +21,13 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
   try {
     await other.goto('/');await createProfile(other,`Reset helper ${info.project.name}`);
     await firstRaceScreen(other);await other.getByRole('button',{name:/^Check-in Wristbands/}).click();await expect(other.getByRole('button',{name:/^Check-in Wristbands You are checking in/})).toBeVisible();
-    await scoring(page);await exportDay(page);
+    await asOwner(page);await exportDay(page);
     await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
     await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Events \d+ events · not confirmed yet$/})).toBeVisible();
     const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();expect(fresh.olympicsPassword).toBe(process.env.E2E_OLYMPICS_PASSWORD);expect(fresh.leadCode).not.toBe(process.env.E2E_LEAD_CODE);
     await expect(page.getByText(fresh.olympicsPassword,{exact:true})).toBeVisible();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('fresh-day.png')});
-    const home=await (await page.request.get('/api/home',{headers:headers()})).json();expect(home.phone.id).toBe(oldHome.phone.id);expect(home.phone.level).toBe('Scoring team');expect(home.phone.dayId).not.toBe(oldHome.phone.dayId);
+    const home=await (await page.request.get('/api/home',{headers:headers()})).json();expect(home.phone.id).toBe(oldHome.phone.id);expect(home.phone.level).toBe('Lead');expect(home.phone.dayId).not.toBe(oldHome.phone.dayId);
     expect(fresh.olympicsPassword).toBe(process.env.E2E_OLYMPICS_PASSWORD);
     const newDayLine=other.getByText('A new Olympics day has started. Tap your name to sign in.',{exact:true});
     await expect(other.getByRole('heading',{name:"Who's using this phone?"})).toBeVisible({timeout:10000});await expect(newDayLine).toBeVisible();
@@ -39,8 +39,8 @@ test('new day shows fresh codes, retains its scoring phone and returns other pho
     await back(page,'Home');await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
   } finally {await otherContext.close().catch(()=>{});}
 });
-for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${oldResponse} response cannot repaint or eject the retained scoring phone after reset`,async({page})=>{
-  await scoring(page);await exportDay(page);
+for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${oldResponse} response cannot repaint or eject the retained owner phone after reset`,async({page})=>{
+  await asOwner(page);await exportDay(page);
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;
   await page.route('**/api/home',async route=>{
@@ -54,11 +54,11 @@ for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${o
   await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
   const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_SCORING_TOKEN);
+  await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
 });
 test('a lost reset reply recovers the fresh Day through Home and discards an old binary export response',async({page})=>{
-  await scoring(page);
+  await asOwner(page);
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;
   await page.route('**/api/day/export',async route=>{if(!first){await route.continue();return;}first=false;const response=await route.fetch();seen();await held;await route.fulfill({response});delivered();});
@@ -102,7 +102,7 @@ test('a stale successful Create profile cannot replace a newer signed-in phone i
   expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByText(`New sign-in ${info.project.name}`,{exact:true})).toBeVisible();await newer.close();
 });
 test('a lost reply from Start new day keeps the retained phone safe from a previously pending 401 until Home recovers',async({page})=>{
-  await scoring(page);await exportDay(page);
+  await asOwner(page);await exportDay(page);
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;
   await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;await route.fetch();seen();await held;await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please sign in again'})});delivered();});
@@ -110,17 +110,17 @@ test('a lost reply from Start new day keeps the retained phone safe from a previ
   await page.route('**/api/day/start-new',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);await route.abort('failed');});
   await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');await page.getByRole('button',{name:'Start a new day',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_SCORING_TOKEN);
+  expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();
 });
 test('polling started while reset is pending cannot authenticate into the old day and later eject the retained phone',async({page})=>{
-  await scoring(page);await exportDay(page);
+  await asOwner(page);await exportDay(page);
   let release!:()=>void,seen!:()=>void;const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;});let committed=false,pendingReads=0;
   await page.route('**/api/home',async route=>{if(!committed) pendingReads++;await route.continue();});
   await page.route('**/api/day/start-new',async route=>{seen();await held;const response=await route.fetch();expect(response.ok()).toBe(true);committed=true;await route.fulfill({response});});
   await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');await page.getByRole('button',{name:'Start a new day',exact:true}).click();await captured;
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(pendingReads).toBe(0);
-  release();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_SCORING_TOKEN);
+  release();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('heading',{name:"Who's using this phone?"})).toHaveCount(0);
 });

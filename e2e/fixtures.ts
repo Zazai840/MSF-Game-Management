@@ -5,7 +5,7 @@ import { wrongTimes } from '../src/shared/wrong-times.js';
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
 /** Every "the other phone sees it" check waits this long, so a fall back to 5 s polling fails. Everything else keeps the 5 s default. */
 export const live={timeout:2000};
-// A real reset changes the lead code. The original scoring phone is retained by
+// A real reset changes the lead code. The original owner phone is retained by
 // every reset journey, so each test reads the current codes rather than a seed.
 export const test=base.extend<{freshCodes:void;openPhone:(name:string,options?:{lead?:boolean})=>Promise<PhoneSession>}>({
   /**
@@ -27,20 +27,20 @@ export const test=base.extend<{freshCodes:void;openPhone:(name:string,options?:{
     for(const context of contexts) await context.close();
   },
   freshCodes:[async({request},use)=>{
-    let response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});
-    // A password change ends every session; a fresh worker still holds setup's token, so sign the scoring team back in.
-    if(response.status()===401) {await signScoringTeamBackIn(request);response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`}});}
+    let response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`}});
+    // A password change ends every session; a fresh worker still holds setup's token, so sign the owner back in.
+    if(response.status()===401) {await signOwnerBackIn(request);response=await request.get('/api/day',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`}});}
     expect(response.ok()).toBe(true);
     const {leadCode,olympicsPassword}=await response.json();
     process.env.E2E_LEAD_CODE=leadCode;process.env.E2E_OLYMPICS_PASSWORD=olympicsPassword;
     await use();
   },{auto:true}]
 });
-/** Signs setup's scoring team profile in again with the owner password; its role and Day setup are untouched. */
-export async function signScoringTeamBackIn(request:APIRequestContext) {
-  const response=await request.post('/api/owner-sign-in',{data:{password:'e2e-owner-fixture',name:'E2E Scoring',profiles:[JSON.parse(process.env.E2E_SCORING_PROFILE!)]}});
+/** Signs setup's owner profile in again with the owner password; its role and Day setup are untouched. */
+export async function signOwnerBackIn(request:APIRequestContext) {
+  const response=await request.post('/api/owner-sign-in',{data:{password:'e2e-owner-fixture',name:'E2E Owner',profiles:[JSON.parse(process.env.E2E_OWNER_PROFILE!)]}});
   expect(response.ok()).toBe(true);
-  process.env.E2E_SCORING_TOKEN=(await response.json()).token;
+  process.env.E2E_OWNER_TOKEN=(await response.json()).token;
 }
 /** On the Olympics password screen: types the password (or the owner password) and taps Continue. */
 export async function typePassword(page:Page,password=process.env.E2E_OLYMPICS_PASSWORD!) {
@@ -155,7 +155,7 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
 }
 /** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
-  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
+  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
 }
 /**
  * Deletes the event's current race for good, as a lead does a race opened by mistake, so no race a test left
@@ -163,9 +163,9 @@ export async function ownEvent(request:APIRequestContext,code:string,name:string
  * next race has nothing to delete.
  */
 export async function deleteCurrentRace(request:APIRequestContext,code:string) {
-  const {race}=await readRaceScreen(request,process.env.E2E_SCORING_TOKEN!,code);
+  const {race}=await readRaceScreen(request,process.env.E2E_OWNER_TOKEN!,code);
   if(race.id===null || race.state==='saved') return;
-  expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{permanent:true}})).ok()).toBe(true);
+  expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{permanent:true}})).ok()).toBe(true);
 }
 /** From Home: taps the event's tile and waits for its race screen. */
 export async function openRaceScreen(page:Page,name:string,section='Girl Cubs') {

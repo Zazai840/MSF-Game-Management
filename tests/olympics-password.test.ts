@@ -64,7 +64,7 @@ test('changing the password ends every session with password-changed, refuses ol
   const {pass:newPass} = (await app.inject({method:'POST', url:'/api/password', payload:{password:'sunny-days'}})).json();
   const back = (await app.inject({method:'POST', url:'/api/sign-in', payload:{pass:newPass, profileId:maryam.profile.id, secret:maryam.profile.secret}})).json();
   expect((await call(back.token, '/api/me')).json()).toMatchObject({name:'Maryam', level:'Lead'});
-  // The scoring team gets back in with the owner password and reads the new password off the Day tab.
+  // The owner gets back in with the owner password and reads the new password off the Day tab.
   const again = (await app.inject({method:'POST', url:'/api/owner-sign-in', payload:{password:'password-owner-fixture', name:'Aisha', profiles:[{id:owner.profile.id, secret:owner.profile.secret}]}})).json();
   expect(again.pass).toBe(newPass);
   expect((await call(again.token, '/api/day')).json().olympicsPassword).toBe('sunny-days');

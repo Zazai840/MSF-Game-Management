@@ -4,9 +4,9 @@ test('a lead disqualifies and lifts a runner, sees the ranking and audit notes c
   await page.addInitScript(()=>Object.defineProperty(HTMLDialogElement.prototype,'showModal',{value:undefined}));
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const numbers=[2501,2502,2503,2504].map(number=>number+offset);
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,'R16',numbers,[1100,1200,1300,1400]);
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,'R16',numbers,[1100,1200,1300,1400]);
   await page.goto('/');await createProfile(page,`Aisha ${info.project.name}`);
   await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:/^R16 · Girl Cubs/}).click();

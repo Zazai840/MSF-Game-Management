@@ -1,6 +1,6 @@
 import { openDashboard,becomeLead,expect,createProfile,test,back } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
-test('the scoring team edits and confirms the Day programme',async({page},info)=>{
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
+test('a lead edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
   const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R4').name as string;
   try {

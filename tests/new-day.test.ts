@@ -24,7 +24,7 @@ test('Start new day keeps the presser and profiles, sends other phones back with
   expect(unknown.statusCode).toBe(401);
   expect(unknown.json().reason).toBeUndefined();
   const me = (await get('/api/me', owner.token)).json();
-  expect(me).toMatchObject({id:owner.phone.id, level:'Scoring team', profileId:owner.profile.id});
+  expect(me).toMatchObject({id:owner.phone.id, level:'Lead', profileId:owner.profile.id});
   expect(me.dayId).not.toBe(owner.phone.dayId);
   const after = (await get('/api/day', owner.token)).json();
   expect(after.olympicsPassword).toBe(before.olympicsPassword);
@@ -38,7 +38,7 @@ test('Start new day keeps the presser and profiles, sends other phones back with
   expect((await get('/api/me', back.json().token)).json().level).toBe('Volunteer');
   expect((await post('/api/profiles', {pass, name:'sam patel'})).json().taken).toBe(true);
   expect((await get('/api/day/phones', owner.token)).json().phones.map((phone: {name:string}) => phone.name)).toEqual(['Aisha Khan', 'Yusuf Ali']);
-  // The presser keeps the owner marker: the owner password finds the same row, still the scoring team.
+  // The presser keeps the owner marker: the owner password finds the same row, still the owner lead.
   const ownerAgain = (await post('/api/owner-sign-in', {password:'new-day-owner', name:'Aisha Khan', profiles:[{id:owner.profile.id, secret:owner.profile.secret}]})).json();
-  expect(ownerAgain.phone).toMatchObject({id:owner.phone.id, dayId:me.dayId, level:'Scoring team'});
+  expect(ownerAgain.phone).toMatchObject({id:owner.phone.id, dayId:me.dayId, level:'Lead'});
 });

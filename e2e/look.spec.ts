@@ -32,7 +32,7 @@ test('a navy header shows Running Zone and the signed-in person, in self-hosted 
 });
 
 test('volunteer and lead screens meet the touch, text size and contrast rules',async({page},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},code=`LK-${info.project.name.toUpperCase()}`,name=`Look sprint ${info.project.name}`;
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=`LK-${info.project.name.toUpperCase()}`,name=`Look sprint ${info.project.name}`;
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await ownEvent(page.request,code,name);
   await joinAs(page,`Look lead ${info.project.name}`);
@@ -84,12 +84,12 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
 });
 
 test('Day setup, Phones and Events meet the touch, text size and contrast rules',async({page})=>{
-  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
+  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/');await openDashboard(page,'Day setup');
   await expect(page.getByRole('button',{name:/^Phones \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Phones /}).click();
-  await expect(page.getByRole('article',{name:'E2E Scoring',exact:true})).toBeVisible();
+  await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await back(page,'Day setup');
   await page.getByRole('button',{name:/^Events /}).click();

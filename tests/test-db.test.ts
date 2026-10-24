@@ -20,7 +20,7 @@ test('a test database left by an older branch under a reused pid is made fresh, 
   await run(process.execPath, ['scripts/test-db.mjs'], {env:{...env, TEST_DATABASE_NAME:name}});
   const app = await createApp({databaseUrl, ownerPassword:'test-owner-fixture', resetTestDay:true});
   try {
-    const signIn = await app.inject({method:'POST', url:'/api/owner-sign-in', payload:{password:'test-owner-fixture', name:'E2E Scoring', profiles:[]}});
+    const signIn = await app.inject({method:'POST', url:'/api/owner-sign-in', payload:{password:'test-owner-fixture', name:'E2E Owner', profiles:[]}});
     expect(signIn.statusCode).toBe(200);
   } finally { await app.close(); }
 });

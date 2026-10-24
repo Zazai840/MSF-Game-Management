@@ -9,7 +9,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'cap-owner',resetTestDay:true});
-  const people=await signInOwner(app,'cap-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'cap-owner','Owner'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed Khan'),lead=await signInAs('Aisha Malik');await call(lead,'/api/become-lead',{code:day.leadCode});
   const read=async(id:string)=>(await call(lead,`/api/lead/races/${id}`)).json().race;

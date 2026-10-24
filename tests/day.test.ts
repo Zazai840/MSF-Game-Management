@@ -28,7 +28,7 @@ test('a new Olympics day starts with exactly the 20 individual running events',a
     ['R23','400m','Boy Scouts','timed',true],['R24','400m','Girl Scouts','timed',true]
   ]);
 });
-test('the scoring team confirms the event list for the Olympics day',async()=>{
+test('a lead confirms the event list for the Olympics day',async()=>{
   const token = await start();
   const before = (await call(token,'/api/day')).json();
   const saved = await call(token,'/api/day/confirm-events',{});
@@ -37,7 +37,7 @@ test('the scoring team confirms the event list for the Olympics day',async()=>{
   expect(after.eventsConfirmed).toBe(true);
   expect(after.revision).toBeGreaterThan(before.revision);
 });
-test('the scoring team renames an event and the changed list needs confirmation again',async()=>{
+test('a lead renames an event and the changed list needs confirmation again',async()=>{
   const token = await start();
   await call(token,'/api/day/confirm-events',{});
   const before = (await call(token,'/api/day')).json();
@@ -48,7 +48,7 @@ test('the scoring team renames an event and the changed list needs confirmation 
   expect(after.eventsConfirmed).toBe(false);
   expect(after.revision).toBeGreaterThan(before.revision);
 });
-test('the scoring team adds an event with its code, name, section and event format',async()=>{
+test('a lead adds an event with its code, name, section and event format',async()=>{
   const token = await start();
   const event = {code:'R25',name:'Extra sprint',section:'Girl Cubs',format:'timed'};
   const saved = await call(token,'/api/day/events',event);
@@ -108,7 +108,7 @@ test('a lead who is not the owner can use every Day setup action and a volunteer
   expect(day.events.find((event:any)=>event.code==='R4')).toMatchObject({name:'Changed',enabled:false});
   expect(day.events.some((event:any)=>event.code==='R25')).toBe(true);
 });
-test('Become lead refuses a wrong code and preserves the signed-in name and scoring-team level',async()=>{
+test('Become lead refuses a wrong code, never lowers the owner, and the owner password makes a lead the owner',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
   const phone = await people.volunteer('Ahmed');
@@ -117,10 +117,14 @@ test('Become lead refuses a wrong code and preserves the signed-in name and scor
   expect(wrong.json().message).toBe('Wrong lead code');
   expect((await call(phone.token,'/api/me')).json()).toMatchObject({name:'Ahmed',level:'Volunteer'});
   expect((await call(phone.token,'/api/become-lead',{code:day.leadCode})).json()).toMatchObject({id:phone.phone.id,name:'Ahmed',level:'Lead'});
-  expect((await call(token,'/api/become-lead',{code:day.leadCode})).json()).toMatchObject({name:'Aisha',level:'Scoring team'});
-  expect((await call(phone.token,'/api/become-lead',{code:'day-owner-fixture'})).json()).toMatchObject({name:'Ahmed',level:'Scoring team'});
+  expect((await call(token,'/api/become-lead',{code:day.leadCode})).json()).toMatchObject({name:'Aisha',level:'Lead'});
+  expect((await call(phone.token,'/api/become-lead',{code:'day-owner-fixture'})).json()).toMatchObject({name:'Ahmed',level:'Lead'});
+  const phones=(await call(token,'/api/day/phones')).json();
+  expect(phones.phones.find((row:any)=>row.name==='Ahmed')).toMatchObject({level:'Lead',owner:true});
+  expect(phones.auditNotes[0]).toMatchObject({actor:'Ahmed',action:'Made owner',message:'Made Ahmed a lead with the owner password'});
+  expect((await call(token,`/api/day/phones/${phone.phone.id}/role`,{role:'Volunteer'})).json().message).toBe("The owner can't be made a volunteer");
 });
-test('the day read shows the scoring team the Olympics password and there is no day code to read, make or join with',async()=>{
+test('the day read shows a lead the Olympics password and there is no day code to read, make or join with',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
   expect(day.olympicsPassword).toMatch(/^[A-Z0-9]{8}$/);

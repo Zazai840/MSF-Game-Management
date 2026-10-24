@@ -9,7 +9,7 @@ afterEach(async()=>{await app?.close();});
 /** R1 (heats) with Heat 1 saved by Jo, who holds every job; Aisha is a lead. */
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'current-owner',resetTestDay:true});
-  const people=await signInOwner(app,'current-owner','Scoring');await call(people.owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'current-owner','Owner');await call(people.owner.token,'/api/day/confirm-events',{});
   const jo=(await people.volunteer('Jo')).token,lead=(await people.volunteer('Aisha')).token;await call(lead,'/api/become-lead',{code:people.day.leadCode});
   const setup=raceSetup(app),heat1=await setup.record(jo,'R1',[1001,1002,1003],[1000,1100,1200]);
   const revision=async()=>(await call(people.owner.token,'/api/day')).json().revision;

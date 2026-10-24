@@ -8,7 +8,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'rulings-owner',resetTestDay:true});
-  const people=await signInOwner(app,'rulings-owner','Scoring'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'rulings-owner','Owner'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
   const setup=raceSetup(app),race=await setup.record(volunteer,'R4',[2001,2002],[1234,1334]);
@@ -57,7 +57,7 @@ test('volunteers cannot make rulings, lift comments and reasons are plain refusa
   for(const body of [{},{comment:' '},null]) expect((await call(lead,`${path}/lift-disqualification`,body)).statusCode).toBe(400);
   expect((await call(lead,`${path}/disqualify`,{reason:'Baton'})).statusCode).toBe(409);
   const result=(await call(lead,'/api/lead/events/R4/results')).json();
-  expect(result.auditNotes).toHaveLength(1);expect(result.auditNotes[0]).toMatchObject({actor:'Scoring',comment:'Stepped onto another track'});
+  expect(result.auditNotes).toHaveLength(1);expect(result.auditNotes[0]).toMatchObject({actor:'Owner',comment:'Stepped onto another track'});
   expect((await call(lead,'/api/race-screen/R4')).statusCode).toBe(200);
   expect((await call(volunteer,'/api/race-screen/R4')).json()).not.toHaveProperty('auditNotes');
 });

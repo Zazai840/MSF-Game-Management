@@ -1,5 +1,5 @@
 import { ownEvent,openRaceScreen,recordRace,back,openDashboard,enterWristband,becomeLead,expect,createProfile,test,type Page,enterTime } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await createProfile(page,name);
   if(lead) {await becomeLead(page);}
@@ -39,7 +39,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   const code=`F7-${info.project.name.slice(0,3).toUpperCase()}`,name=`Seven ${info.project.name}`;
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
-    await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,times);
+    await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
   // The final of six runs on the race screen; the phone holds check-in and the order, so its one press saves it.

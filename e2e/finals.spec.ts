@@ -9,7 +9,7 @@ const attendance=(page:Page)=>page.getByRole('list',{name:'Who is here'}).getByR
 /** Heats recorded through the API (the race screen's heats have their own tests), then the lead completes them on Results. */
 async function heatsToFinal(page:Page,code:string,name:string,heats:Array<[number[],number[]]>,lead:string) {
  await ownEvent(page.request,code,name,'Boy Cubs');
- const races=[];for(const [runners,times] of heats) races.push(await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,times));
+ const races=[];for(const [runners,times] of heats) races.push(await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times));
  await signInAs(page,lead,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Boy Cubs`)}).click();
  return races;
 }
@@ -62,7 +62,7 @@ test('short fields show lines, and an unrun final rebuilt after a heat correctio
  const sam=await openPhone(`Short final phone ${project}`);await openRaceScreen(sam.page,name,'Boy Cubs');
  await checkInCard(sam.page).click();await sam.page.getByRole('button',{name:'1041 Absent',exact:true}).click();
  await expect(sam.page.getByRole('button',{name:'1041 Absent',exact:true})).toHaveAttribute('aria-pressed','true');await expect(sam.page.getByRole('button',{name:'1042 Here',exact:true})).toHaveAttribute('aria-pressed','true');
- const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+ const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
  await page.getByRole('button',{name:'Reopen heats',exact:true}).click();await page.getByRole('dialog').getByLabel('Comment',{exact:true}).fill('Corrected heat timer');await page.getByRole('dialog').getByRole('button',{name:'Reopen',exact:true}).click();await page.request.post(`/api/lead/races/${heat.id}/times`,{headers,data:{baseVersion:1,places:[1000,900],acceptOutOfOrder:true}});await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:'Heats complete',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Confirm',exact:true}).click();
  // The rebuilt final is a new line-up: 1042 is now the top seed, everyone is Here, and its holds were cleared.
  await expect(attendance(sam.page)).toHaveText([/1st seed\s*1042\s*Here/,/2nd seed\s*1041\s*Here/],live);
@@ -76,8 +76,8 @@ test('short fields show lines, and an unrun final rebuilt after a heat correctio
 test('Here / Absent on one phone is read-only on another, which can take over check-in',async({openPhone,request},info)=>{
  const project=info.project.name,code=`FR-${project.toUpperCase()}`,name=`Final read ${project}`;
  await ownEvent(request,code,name,'Boy Cubs');
- await recordRace(request,process.env.E2E_SCORING_TOKEN!,code,[1051,1052],[900,1000]);
- expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{stage:'heats'}})).ok()).toBe(true);
+ await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[1051,1052],[900,1000]);
+ expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{stage:'heats'}})).ok()).toBe(true);
  const sam=(await openPhone(`Sam read ${project}`)).page,jo=(await openPhone(`Jo read ${project}`)).page;
  await openRaceScreen(sam,name,'Boy Cubs');await openRaceScreen(jo,name,'Boy Cubs');
  await checkInCard(sam).click();await checkInCard(jo).click();

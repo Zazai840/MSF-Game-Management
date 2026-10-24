@@ -52,7 +52,7 @@ function OwnerScreen({password,dayRunning,onSignedIn,onBack}:{password:string;da
   const {busy,error,submit}=useSubmit();
   const signIn=(event:FormEvent)=>{event.preventDefault();void submit(async()=>onSignedIn(await api<SignedIn>('owner-sign-in',{password,name,profiles:phoneStorage.profiles().map(({id,secret})=>({id,secret}))})));};
   return <section className="sign-in"><h1>What's your full name?</h1>
-    <p className="sign-in-lede">You'll sign in as the scoring team.</p>
+    <p className="sign-in-lede">You'll sign in as a lead.</p>
     {!dayRunning && <p className="calm-note">No Olympics day is running. Signing in starts today's day.</p>}
     <form id="owner-sign-in" onSubmit={signIn}>
       <label>Full name<input autoComplete="name" maxLength={80} value={name} onChange={event=>setName(event.target.value)} required /></label>
@@ -63,7 +63,7 @@ function OwnerScreen({password,dayRunning,onSignedIn,onBack}:{password:string;da
   </section>;
 }
 const chevron=<svg className="profile-chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
-const roleTag=(level?:Level|null)=>level==='Lead' ? <span className="badge">Lead</span> : level==='Scoring team' ? <span className="badge badge-scoring">Scoring team</span> : null;
+const roleTag=(level?:Level|null)=>level==='Lead' ? <span className="badge">Lead</span> : null;
 const tidyFullName=(name:string)=>name.trim().replace(/\s+/g,' ').toLowerCase();
 type Open=''|'create-profile'|'lead-sign-in';
 /** One of the profile screen's sections that open in place below the list; one is open at a time. */
@@ -176,7 +176,7 @@ function WaitingScreen({onSignedIn,onLeave}:{onSignedIn:(result:SignedIn)=>void;
   if(!waiting) return null;
   const leave=()=>void cancel.submit(async()=>{await api('thats-me/cancel',{secret:waiting.secret}).catch(error=>{if(!(error instanceof ApiFailure && error.status===404)) throw error;});onLeave();});
   return <section className="sign-in"><h1>Waiting for a lead to approve</h1>
-    <p className="sign-in-lede">Show this screen to a lead or the scoring team. They will check it's you.</p>
+    <p className="sign-in-lede">Show this screen to a lead. They will check it's you.</p>
     <p className="waiting-name" data-testid="waiting-name">{waiting.name}</p>
     <p className="waiting-pulse"><span aria-hidden="true"/>Waiting…</p>
     <p className="sign-in-lede">You can't do jobs on this phone until a lead approves.</p>

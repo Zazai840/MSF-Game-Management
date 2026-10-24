@@ -10,7 +10,7 @@ test('the volunteer app reopens from its shell cache without caching race reads 
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   expect(scripts.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
   // A real successful race-data read must not become available from the shell cache.
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const read=await page.evaluate(async headers=>(await fetch('/api/race-screen/R4',{headers})).ok,headers);
   expect(read).toBe(true);
   await context.setOffline(true);
@@ -41,7 +41,7 @@ test('old phones see the browser message before the application opens',async({br
 });
 
 test('a deployed version reloads the phone by itself',async({page},info)=>{
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
+  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   await page.goto('/');
   await createProfile(page,`Update ${info.project.name}`);
   await expect(page.getByRole('heading',{level:1,name:'Which event are you at?'})).toBeVisible();

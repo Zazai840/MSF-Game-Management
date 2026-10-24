@@ -3,11 +3,11 @@ import { deleteCurrentRace,enterWristband,live,openRaceScreen,recordRace,back,op
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
 test('timed Event complete checks blockers, locks the race screen live, and reopens with a retained comment',async({page,openPhone},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},code=`T36${info.project.name.toUpperCase()}`,name=`Stage event ${info.project.name}`;
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=`T36${info.project.name.toUpperCase()}`,name=`Stage event ${info.project.name}`;
   await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed'}});
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[2601,2602],[1000,1100]);
-  // A volunteer takes check-in over from the scoring team and starts checking in Race 2 on the race screen.
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2601,2602],[1000,1100]);
+  // A volunteer takes check-in over from the owner and starts checking in Race 2 on the race screen.
   const job=(await openPhone(`Stage starter ${info.project.name}`)).page;
   await openRaceScreen(job,name);await job.getByRole('button',{name:/^Check-in Wristbands/}).click();await job.getByRole('button',{name:'Take over check-in',exact:true}).click();await job.getByRole('button',{name:'Take over',exact:true}).click();await enterWristband(job,2603);
   await expect(job.getByText('Race 2 · 1 runner',{exact:true})).toBeVisible();

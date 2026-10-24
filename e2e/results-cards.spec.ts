@@ -1,6 +1,6 @@
 import { recordRace,writeCheckIn,back,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const colours={
   done:{background:'rgb(227, 241, 232)',border:'rgb(47, 107, 71)'},
   running:{background:'rgb(255, 255, 255)',border:'rgb(27, 42, 81)'},
@@ -14,7 +14,7 @@ async function events(page:Page,name:string,prefix:string) {
   const add=async(code:string,section:string,format:'heats'|'timed')=>page.request.post('/api/day/events',{headers:headers(),data:{code,name,section,format}});
   await add(`${prefix}D`,'Girl Cubs','timed');await add(`${prefix}R`,'Boy Cubs','timed');await add(`${prefix}H`,'Girl Scouts','heats');await add(`${prefix}N`,'Boy Scouts','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const token=process.env.E2E_SCORING_TOKEN!;
+  const token=process.env.E2E_OWNER_TOKEN!;
   const done=await recordRace(page.request,token,`${prefix}D`,[2001,2002],[1000,1100],[2001,2002]);
   expect((await page.request.post(`/api/lead/events/${prefix}D/complete-stage`,{headers:headers(),data:{stage:'event'}})).ok()).toBe(true);
   const running=await recordRace(page.request,token,`${prefix}R`,[1001,1002],[1600,1305],[1001,1002]);

@@ -45,7 +45,7 @@ async function holdJob(page:Page,job:Job) {
 test('five phones share the test build: three work one race live to Submit Race, a mistyped password, the export and 70 live writes',async({browser},info)=>{
   test.setTimeout(240_000);
   const use={...info.project.use};
-  // Owner: the owner password signs in as the scoring team, starting the day on a fresh server.
+  // Owner: the owner password signs in as the owner lead, starting the day on a fresh server.
   const owner=await phone(browser,use);
   await expectDeployedCommitShown(owner);
   await typePassword(owner,ownerPassword!);

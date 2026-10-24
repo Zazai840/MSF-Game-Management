@@ -14,12 +14,12 @@ async function toCheckCount(page:Page,needsYou:number) {
 }
 
 test('Home lists events under distance headings in programme order, and a tile opens its race screen on the next heat',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Home sprint ${project}`,code=`HS-${project.toUpperCase()}`,off=`HO-${project.toUpperCase()}`,scoring={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
-  expect((await request.post('/api/day/events',{headers:scoring,data:{code,name,section:'Boy Scouts',format:'heats'}})).ok()).toBe(true);
-  expect((await request.post('/api/day/events',{headers:scoring,data:{code:off,name,section:'Girl Scouts',format:'heats'}})).ok()).toBe(true);
-  expect((await request.post(`/api/day/events/${off}/enabled`,{headers:scoring,data:{enabled:false}})).ok()).toBe(true);
+  const project=info.project.name,name=`Home sprint ${project}`,code=`HS-${project.toUpperCase()}`,off=`HO-${project.toUpperCase()}`,owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  expect((await request.post('/api/day/events',{headers:owner,data:{code,name,section:'Boy Scouts',format:'heats'}})).ok()).toBe(true);
+  expect((await request.post('/api/day/events',{headers:owner,data:{code:off,name,section:'Girl Scouts',format:'heats'}})).ok()).toBe(true);
+  expect((await request.post(`/api/day/events/${off}/enabled`,{headers:owner,data:{enabled:false}})).ok()).toBe(true);
   // Heat 1 is saved, so the event's current race is the next heat, not stored yet.
-  await recordRace(request,process.env.E2E_SCORING_TOKEN!,code,[3001,3002],[1234,1301]);
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[3001,3002],[1234,1301]);
   const {page}=await openPhone(`Home picker ${project}`);
   const distances=['60m','60m Hurdles','200m','400m'];
   expect((await page.getByRole('main').getByRole('heading',{level:2}).allInnerTexts()).filter(heading=>distances.includes(heading))).toEqual(distances);
@@ -29,7 +29,7 @@ test('Home lists events under distance headings in programme order, and a tile o
   const mine=page.getByRole('region',{name,exact:true}).getByRole('button');
   // The switched-off Girl Scouts event is not listed.
   await expect(mine).toHaveCount(1);
-  // The scoring team that recorded Heat 1 still holds its jobs, which carry over to Heat 2.
+  // The owner who recorded Heat 1 still holds its jobs, which carry over to Heat 2.
   await expect(mine).toHaveAccessibleName(new RegExp(`^${name} Boy Scouts · Heat 2 · Order and times · `));
   await expect(mine).toHaveText(/^Boy ScoutsHeat 2 · Order and times · /);
   expect(await lookProblems(page)).toEqual([]);
@@ -73,8 +73,8 @@ test('a tile\'s status line changes live on another phone as phones check in, ta
   await submitRace(request,joToken,code);
   // Heat 1 is saved; the holds carry over to Heat 2.
   await expect(tile('Girl Cubs')).toHaveText(`Girl CubsHeat 2 · Order and times · ${sam}, ${jo}`,live);
-  await recordRace(request,process.env.E2E_SCORING_TOKEN!,timed,[2611],[1000]);
-  expect((await request.post(`/api/lead/events/${timed}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{stage:'event'}})).ok()).toBe(true);
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,timed,[2611],[1000]);
+  expect((await request.post(`/api/lead/events/${timed}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{stage:'event'}})).ok()).toBe(true);
   await expect(tile('Boy Cubs')).toHaveText('Boy CubsDone',live);
   expect(await lookProblems(page)).toEqual([]);
   await deleteCurrentRace(request,code);await deleteCurrentRace(request,timed);

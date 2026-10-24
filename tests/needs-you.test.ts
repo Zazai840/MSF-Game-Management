@@ -10,7 +10,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'needs-owner',resetTestDay:true});
-  const people=await signInOwner(app,'needs-owner','Scoring'),owner=people.owner.token,day=people.day;await call(owner,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'needs-owner','Owner'),owner=people.owner.token,day=people.day;await call(owner,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
   // Only saved races reach To check, so each race is saved before the event's next one: every warning kept.

@@ -1,5 +1,5 @@
 import { lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
@@ -7,7 +7,7 @@ test.afterEach(async({request})=>{for(const id of created.splice(0)) await reque
 async function recordedRace(page:Page,code:string,runners:number[],places:number[]) {
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,runners,places);
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places);
   created.push(race.id);
   return race;
 }
@@ -109,7 +109,7 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
 });
 
 test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
-  const code=`IP-${info.project.name.slice(0,3).toUpperCase()}`,token=process.env.E2E_SCORING_TOKEN!;
+  const code=`IP-${info.project.name.slice(0,3).toUpperCase()}`,token=process.env.E2E_OWNER_TOKEN!;
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   await writeCheckIn(page.request,token,code,[2131,2132]);

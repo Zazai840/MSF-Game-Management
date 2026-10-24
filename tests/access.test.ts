@@ -41,14 +41,14 @@ test('permission ladder refuses volunteer lead and Day reads, lets every lead re
 test('owner password starts the first Olympics day and the phone stays signed in', async () => {
   await start();
   const {token, phone} = (await signInOwner(app, 'test-owner-fixture')).owner;
-  expect(phone).toMatchObject({name:'Aisha', level:'Scoring team'});
+  expect(phone).toMatchObject({name:'Aisha', level:'Lead'});
   const headers = auth(token);
-  expect((await app.inject({url:'/api/me', headers})).json()).toMatchObject({name:'Aisha', level:'Scoring team'});
+  expect((await app.inject({url:'/api/me', headers})).json()).toMatchObject({name:'Aisha', level:'Lead'});
   const day = (await app.inject({url:'/api/day', headers})).json();
   expect(day.leadCode).toMatch(/^[A-Z0-9]{6}$/);
   await app.close();
   app = await createApp({databaseUrl: process.env.TEST_DATABASE_URL || `postgresql://${process.env.USER}@localhost:5432/${process.env.TEST_DATABASE_NAME || 'msf_spec22_23_test'}`, ownerPassword:'test-owner-fixture'});
-  expect((await app.inject({url:'/api/me', headers})).json()).toMatchObject({name:'Aisha', level:'Scoring team'});
+  expect((await app.inject({url:'/api/me', headers})).json()).toMatchObject({name:'Aisha', level:'Lead'});
 });
 test('malformed sign-in requests are refused as a plain request error', async () => {
   await start();
@@ -78,7 +78,7 @@ test('failed Olympics and owner passwords block all password checks from an IP w
   expect(codeChecks).not.toHaveBeenCalled();
   codeChecks.mockRestore();
   expect((await attempt('wrong','192.0.2.2')).statusCode).toBe(403);
-  const {day}=await signInOwner(app,'test-owner-fixture','Scoring');
+  const {day}=await signInOwner(app,'test-owner-fixture','Owner');
   expect((await attempt(day.olympicsPassword)).statusCode).toBe(429);
   now+=1000;
   expect((await attempt(day.olympicsPassword)).json().kind).toBe('olympics');
@@ -92,7 +92,7 @@ test('failed lead codes aggregate across phones sharing an IP and across IPs use
   await start();
   let now=Date.now();
   vi.spyOn(Date,'now').mockImplementation(()=>now);
-  const people=await signInOwner(app,'test-owner-fixture','Scoring'),day=people.day;
+  const people=await signInOwner(app,'test-owner-fixture','Owner'),day=people.day;
   const first=await people.volunteer('Ahmed'),second=await people.volunteer('Aisha');
   const attempt=(token:string,code:unknown,remoteAddress:string)=>app.inject({method:'POST',url:'/api/become-lead',remoteAddress,headers:auth(token),payload:{code}});
   for(let i=0;i<8;i++) expect((await attempt(first.token,null,'192.0.2.1')).statusCode).toBe(400);
@@ -113,7 +113,7 @@ test('failed lead codes aggregate across phones sharing an IP and across IPs use
   expect((await attempt(second.token,'wrong','192.0.2.3')).statusCode).toBe(403);
   now+=1000;
   expect((await attempt(first.token,day.leadCode,'192.0.2.2')).json()).toMatchObject({level:'Lead'});
-  expect((await attempt(second.token,'test-owner-fixture','192.0.2.1')).json()).toMatchObject({level:'Scoring team'});
+  expect((await attempt(second.token,'test-owner-fixture','192.0.2.1')).json()).toMatchObject({level:'Lead'});
 });
 
 // Behind one proxy every phone connects from the proxy's address; only the forwarded address tells them apart.
@@ -134,7 +134,7 @@ test('without proxy trust forwarded addresses are ignored and cannot dodge wrong
   expect((await attempt('198.51.100.2')).statusCode).toBe(429);
 });
 async function twoPhonesBehindProxy() {
-  const people=await signInOwner(app,'test-owner-fixture','Scoring');
+  const people=await signInOwner(app,'test-owner-fixture','Owner');
   const first=await people.volunteer('Ahmed'),second=await people.volunteer('Aisha');
   const attempt=(token:string,forwardedFor:string)=>{
     const {remoteAddress,headers}=viaProxy(forwardedFor);

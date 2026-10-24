@@ -2,7 +2,7 @@ import { lookProblems,recordRace,back,toCheckItem,openDashboard,dashboardMenuBut
 /** This run's own suffix, so the spec can repeat in one run (--repeat-each) without reusing a code or profile name. */
 const run=(info:{project:{name:string};repeatEachIndex:number})=>`${info.project.name.toUpperCase()}${info.repeatEachIndex?`-${info.repeatEachIndex}`:''}`;
 test('live lead count, pending runner actions and duplicate choices share one queue',async({page},info)=>{
-  const code=`NY-${run(info)}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  const code=`NY-${run(info)}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const queue=async()=>(await(await page.request.get('/api/lead',{headers})).json()).needsYou;
   /** On Home: the Dashboard button's badge matches the live queue. */
   const count=async()=>{const n=(await queue()).length;await expect(page.getByRole('button',{name:n?`Dashboard ${n} to check`:'Dashboard',exact:true})).toBeVisible({timeout:10000});};
@@ -17,7 +17,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await back(page,'Home');
   await page.request.post('/api/day/events',{headers,data:{code,name:`Needs you sprint ${run(info)}`,section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   // Race 1: a kept wrong-section warning and a runner added at the finish. Race 2: 2001 again. Both saved, so both on To check.
-  const token=process.env.E2E_SCORING_TOKEN!;
+  const token=process.env.E2E_OWNER_TOKEN!;
   await writeCheckIn(page.request,token,code,[3045,2001],[3045,2001]);
   await writeOrder(page.request,token,code,[3045,2001,2002],{added:[2002]});
   const {race:first}=await writeTimes(page.request,token,code,[1200,1300,1400]);
@@ -45,10 +45,10 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   for(const race of [first,second]) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });
 test('queue items open their race or tie directly and clear after the lead settles them',async({page},info)=>{
-  const code=`NR-${run(info)}`,headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};
+  const code=`NR-${run(info)}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:`Queue race actions ${run(info)}`,section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:any[]=[];
-  const token=process.env.E2E_SCORING_TOKEN!;
+  const token=process.env.E2E_OWNER_TOKEN!;
   async function recorded(numbers:number[],places:number[]) {const race=await recordRace(page.request,token,code,numbers,places);races.push(race);return race;}
   await recorded([2001,2002],[1700,1600]);await recorded([2003],[1400]);await recorded([2004],[2000]);await recorded([2005],[2000]);
   await page.goto('/');await createProfile(page,`Race queue lead ${run(info)}`);await becomeLead(page);await openDashboard(page);

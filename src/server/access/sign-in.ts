@@ -117,7 +117,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       return signInTransaction(pool, async client => {
         const day = await activeDay(client) ?? await startFirstDay(client);
         const profile = await profileByName(client, name, body.profiles);
-        return {pass:passFor((await readSettings(client))!), profile, ...await signIn(client, day.id, profile, 'Scoring team', true)};
+        return {pass:passFor((await readSettings(client))!), profile, ...await signIn(client, day.id, profile, 'Lead', true)};
       });
     });
   });

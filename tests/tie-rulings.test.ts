@@ -8,7 +8,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start(mixed=false) {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'ties-owner',resetTestDay:true});
-  const people=await signInOwner(app,'ties-owner','Scoring'),owner=people.owner,day=people.day;
+  const people=await signInOwner(app,'ties-owner','Owner'),owner=people.owner,day=people.day;
   await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');

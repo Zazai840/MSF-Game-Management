@@ -1,8 +1,8 @@
 import { recordRace,openDashboard,becomeLead,expect,createProfile,test } from './fixtures.js';
 test('lead checks an eligibility warning, corrects a number with Fix or Keep and chooses the counted repeated result',async({page},info)=>{
   const number=2601+['iPhone','Android','desktop'].indexOf(info.project.name)*10;
-  const headers={authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`};await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  const race=(numbers:number[],places:number[])=>recordRace(page.request,process.env.E2E_SCORING_TOKEN!,'R10',numbers,places,numbers);
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const race=(numbers:number[],places:number[])=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,'R10',numbers,places,numbers);
   const first=await race([number,3045],[1100,1200]),second=await race([number],[1300]);
   await page.goto('/');await createProfile(page,`Runner lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:/^R10 · Girl Cubs/}).click();
   const warning=page.getByRole('button',{name:`Runner 3045 · Race ${first.number}`,exact:true});await warning.click();await page.getByRole('button',{name:'Mark checked',exact:true}).click();await expect(warning.locator('.checked-warning')).toHaveText('3045 belongs to Boy Scouts - this race is Girl Cubs');await page.screenshot({path:info.outputPath('checked-warning.png'),fullPage:true});

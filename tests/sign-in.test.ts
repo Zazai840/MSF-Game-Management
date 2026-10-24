@@ -30,7 +30,8 @@ test('with no day running only the owner password works, and owner sign-in start
   expect(signedIn.profile.secret).toEqual(expect.any(String));
   expect(signedIn.pass).toEqual(expect.any(String));
   const me = (await app.inject({url:'/api/me', headers:auth(signedIn.token)})).json();
-  expect(me).toEqual({id:expect.any(String), dayId:expect.any(String), name:'Aisha Khan', level:'Scoring team', profileId:signedIn.profile.id});
+  expect(me).toEqual({id:expect.any(String), dayId:expect.any(String), name:'Aisha Khan', level:'Lead', profileId:signedIn.profile.id});
+  expect((await app.inject({url:'/api/day/phones', headers:auth(signedIn.token)})).json().phones).toEqual([{id:me.id, name:'Aisha Khan', level:'Lead', owner:true}]);
   const day = (await app.inject({url:'/api/day', headers:auth(signedIn.token)})).json();
   expect(day.leadCode).toMatch(/^[A-Z0-9]{6}$/);
   expect(day.olympicsPassword.length).toBeGreaterThanOrEqual(6);
@@ -39,7 +40,7 @@ test('with no day running only the owner password works, and owner sign-in start
   expect((await post('/api/password', {password:day.olympicsPassword})).json()).toEqual({kind:'olympics', pass:signedIn.pass});
 });
 
-test('the owner password signs in as scoring team on a running day without touching it', async () => {
+test('the owner password signs in as the owner lead on a running day without touching it', async () => {
   await start();
   const first = await owner();
   const before = (await app.inject({url:'/api/day', headers:auth(first.token)})).json();
@@ -55,14 +56,14 @@ test('the owner password signs in as scoring team on a running day without touch
   expect(after).toMatchObject({leadCode:before.leadCode, olympicsPassword:before.olympicsPassword});
   expect(after.events.find((event: {code:string}) => event.code === 'R4').name).toBe('Kept sprint');
   const me = (await app.inject({url:'/api/me', headers:auth(second.token)})).json();
-  expect(me).toMatchObject({dayId:again.phone.dayId, level:'Scoring team'});
+  expect(me).toMatchObject({dayId:again.phone.dayId, level:'Lead'});
   expect((await post('/api/owner-sign-in', {password:'wrong', name:'Someone Else', profiles:[]})).statusCode).toBe(403);
 });
 
 test('Create profile tidies the name, refuses empty, long and taken names, and signs in as a volunteer', async () => {
   await start();
-  const scoring = await owner();
-  const pass = await olympicsPass(scoring.token);
+  const ownerLead = await owner();
+  const pass = await olympicsPass(ownerLead.token);
   const created = await post('/api/profiles', {pass, name:'  Sam   Patel '});
   expect(created.statusCode).toBe(200);
   const {profile, token} = created.json();
@@ -84,10 +85,10 @@ test('Create profile tidies the name, refuses empty, long and taken names, and s
 
 test('tapping a name proves the profile secret and the password pass and returns a session token', async () => {
   await start();
-  const scoring = await owner();
-  const pass = await olympicsPass(scoring.token);
+  const ownerLead = await owner();
+  const pass = await olympicsPass(ownerLead.token);
   const {profile, token: first} = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
-  await app.inject({method:'POST', url:'/api/become-lead', headers:auth(first), payload:{code:(await app.inject({url:'/api/day', headers:auth(scoring.token)})).json().leadCode}});
+  await app.inject({method:'POST', url:'/api/become-lead', headers:auth(first), payload:{code:(await app.inject({url:'/api/day', headers:auth(ownerLead.token)})).json().leadCode}});
   const signedIn = await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret});
   expect(signedIn.statusCode).toBe(200);
   const {token, phone} = signedIn.json();
@@ -115,15 +116,15 @@ test('repeated wrong Olympics or owner passwords from one IP are slowed down', a
 
 test('the history of a saved race names who held each job, and tapping the name again keeps the same sign-in row', async () => {
   await start();
-  const scoring = await owner();
-  const pass = await olympicsPass(scoring.token);
-  await app.inject({method:'POST', url:'/api/day/confirm-events', headers:auth(scoring.token), payload:{}});
+  const ownerLead = await owner();
+  const pass = await olympicsPass(ownerLead.token);
+  await app.inject({method:'POST', url:'/api/day/confirm-events', headers:auth(ownerLead.token), payload:{}});
   const {profile} = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   const {token, phone} = (await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json();
   const setup = raceSetup(app), race = await setup.checkIn(token, 'R4', [2001,2002]);
   await setup.order(token, 'R4', [2001,2002]);
   await setup.times(token, 'R4', [1200,1300]);
-  const history = async () => (await app.inject({url:`/api/lead/races/${race.id}`, headers:auth(scoring.token)})).json().history;
+  const history = async () => (await app.inject({url:`/api/lead/races/${race.id}`, headers:auth(ownerLead.token)})).json().history;
   // Taps before saving are not kept: the race's history starts when it is saved, naming who held each job.
   expect(await history()).toEqual([]);
   await setup.submit(token, 'R4');
@@ -133,9 +134,9 @@ test('the history of a saved race names who held each job, and tapping the name 
 
 test('Sign out ends the session, resets today\'s role to Volunteer and leaves Signed in today, with no audit note', async () => {
   await start();
-  const scoring = await owner();
-  const pass = await olympicsPass(scoring.token);
-  const {leadCode} = (await app.inject({url:'/api/day', headers:auth(scoring.token)})).json();
+  const ownerLead = await owner();
+  const pass = await olympicsPass(ownerLead.token);
+  const {leadCode} = (await app.inject({url:'/api/day', headers:auth(ownerLead.token)})).json();
   const {profile, token} = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   await app.inject({method:'POST', url:'/api/become-lead', headers:auth(token), payload:{code:leadCode}});
   const signedOut = await app.inject({method:'POST', url:'/api/sign-out', headers:auth(token), payload:{}});
@@ -143,28 +144,28 @@ test('Sign out ends the session, resets today\'s role to Volunteer and leaves Si
   const after = await app.inject({url:'/api/me', headers:auth(token)});
   expect(after.statusCode).toBe(401);
   expect(after.json().reason).toBe('signed-out');
-  const phones = (await app.inject({url:'/api/day/phones', headers:auth(scoring.token)})).json();
+  const phones = (await app.inject({url:'/api/day/phones', headers:auth(ownerLead.token)})).json();
   expect(phones.phones.map((phone: {name:string}) => phone.name)).toEqual(['Aisha Khan']);
   expect(phones.auditNotes.map((note: {action:string}) => note.action)).toEqual(['Became lead']);
   // Tapping the name again signs in as a volunteer: the lead code has to be typed again.
   expect((await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json().phone.level).toBe('Volunteer');
-  // The scoring team gets back in with the owner password.
-  expect((await app.inject({method:'POST', url:'/api/sign-out', headers:auth(scoring.token), payload:{}})).statusCode).toBe(200);
-  expect((await app.inject({url:'/api/day', headers:auth(scoring.token)})).json().reason).toBe('signed-out');
-  expect((await owner('Aisha Khan', [{id:scoring.profile.id, secret:scoring.profile.secret}])).phone).toMatchObject({level:'Scoring team', profileId:scoring.profile.id});
+  // The owner gets back in with the owner password.
+  expect((await app.inject({method:'POST', url:'/api/sign-out', headers:auth(ownerLead.token), payload:{}})).statusCode).toBe(200);
+  expect((await app.inject({url:'/api/day', headers:auth(ownerLead.token)})).json().reason).toBe('signed-out');
+  expect((await owner('Aisha Khan', [{id:ownerLead.profile.id, secret:ownerLead.profile.secret}])).phone).toMatchObject({level:'Lead', profileId:ownerLead.profile.id});
 });
 
 test('every 401 says why: signed-out after Remove or with no session, new-day once the day has changed', async () => {
   await start();
-  const scoring = await owner();
-  const pass = await olympicsPass(scoring.token);
+  const ownerLead = await owner();
+  const pass = await olympicsPass(ownerLead.token);
   const removed = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   const stale = (await post('/api/profiles', {pass, name:'Yusuf Ali'})).json();
-  await app.inject({method:'POST', url:`/api/day/phones/${removed.phone.id}/remove`, headers:auth(scoring.token), payload:{}});
+  await app.inject({method:'POST', url:`/api/day/phones/${removed.phone.id}/remove`, headers:auth(ownerLead.token), payload:{}});
   expect((await app.inject({url:'/api/home', headers:auth(removed.token)})).json().reason).toBe('signed-out');
   expect((await app.inject({url:'/api/home'})).json().reason).toBe('signed-out');
-  await app.inject({method:'POST', url:'/api/day/export', headers:auth(scoring.token), payload:{}});
-  expect((await app.inject({method:'POST', url:'/api/day/start-new', headers:auth(scoring.token), payload:{confirmation:'NEW DAY'}})).statusCode).toBe(200);
+  await app.inject({method:'POST', url:'/api/day/export', headers:auth(ownerLead.token), payload:{}});
+  expect((await app.inject({method:'POST', url:'/api/day/start-new', headers:auth(ownerLead.token), payload:{confirmation:'NEW DAY'}})).statusCode).toBe(200);
   const old = await app.inject({url:'/api/home', headers:auth(stale.token)});
   expect(old.statusCode).toBe(401);
   expect(old.json().reason).toBe('new-day');

@@ -1,9 +1,9 @@
 import { lookProblems,back,openDashboard,leadSignIn,dashboardButton,expect,test,type Page } from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
-async function scoring(page:Page) {
-  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_SCORING_TOKEN!);
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
+async function asOwner(page:Page) {
+  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/');await openDashboard(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
 }
@@ -14,7 +14,7 @@ const savedNote=(page:Page)=>page.locator('.dashboard-saved');
 test('Day setup explains each code, row, the day export and Start a new day in plain English',async({page},info)=>{
   const phones=(await(await page.request.get('/api/day/phones',{headers:headers()})).json()).phones.length as number;
   const day=await(await page.request.get('/api/day',{headers:headers()})).json();
-  await scoring(page);
+  await asOwner(page);
 
   const password=section(page,'Olympics password');
   expect(await page.locator('.day-card').first().getAttribute('aria-label')).toBe('Olympics password');
@@ -49,7 +49,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
 });
 
 test('the day export says when it was last downloaded and whether changes came after',async({page},info)=>{
-  await scoring(page);
+  await asOwner(page);
   const dayExport=section(page,'Day export');
   const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
@@ -61,11 +61,11 @@ test('the day export says when it was last downloaded and whether changes came a
 });
 
 test('Phones and Events open their screens with a back arrow to Day setup, and lead actions there say Saved',async({page},info)=>{
-  await scoring(page);
+  await asOwner(page);
   await page.getByRole('button',{name:/^Phones /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
-  await expect(page.getByRole('article',{name:'E2E Scoring',exact:true})).toContainText('(you)');
+  await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toContainText('(you)');
   await expect(page.getByRole('button',{name:'Back',exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('phones.png'),fullPage:true});
   await back(page,'Day setup');

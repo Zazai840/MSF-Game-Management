@@ -1,6 +1,6 @@
 import { back,recordRace,toCheckItem,openDashboard,dashboardMenuButton,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
 
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const row=(page:Page)=>page.getByRole('navigation',{name:'Back',exact:true});
 /** The back arrow shows bare at the left of the row under the header, names where it goes and is at least 44px to tap. */
 async function arrowGoesBackTo(page:Page,to:string) {
@@ -42,7 +42,7 @@ test('on lead screens the back arrow goes up one level: event results to Results
   const code=`BA-${info.project.name.toUpperCase()}`,event='Back arrow sprint Girl Cubs';
   await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Back arrow sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   // A 2nd place faster than 1st puts the race on To check.
-  const race=await recordRace(page.request,process.env.E2E_SCORING_TOKEN!,code,[2021,2022],[1600,1305]);
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2021,2022],[1600,1305]);
   try {
     await page.goto('/');await createProfile(page,`Back arrow lead ${info.project.name}`);await becomeLead(page,'e2e-owner-fixture');
     await openDashboard(page);
