@@ -32,6 +32,34 @@ async function start({complete=true}={}) {
 /** The Final's teams by number, each with its four children and whether each is here. */
 const finalTeams=(read:RaceScreenRead)=>(read.race.parts.runners.value||[]).filter(isTeamEntry).map(entry=>entry.team.number);
 
+test.each(['seeded','added'])('a %s relay finalist keeps the final started after its child is unmarked and the server restarts',async(kind)=>{
+  const {sam,lead,relays,results}=await start();
+  const number=kind==='seeded'?2:4,seen=await relays.screen(sam,'R22'),teamId=seen.teams!.find(team=>team.number===number)!.id;
+  if(kind==='added') expect((await call(lead,'/api/lead/events/R22/add-team',{teamId})).statusCode).toBe(200);
+  expect((await results()).finalResults).toMatchObject({started:false,hasRun:false});
+  expect((await results()).noFinalCheckSheet).not.toBeNull();
+  await relays.here(sam,'R22',number,0);
+  await relays.here(sam,'R22',number,0,false);
+  const before=await results();
+  expect(before).toMatchObject({noFinalCheckSheet:null,finalResults:{started:true,hasRun:false}});
+  const entry=kind==='seeded'?before.finalResults!.entries.find(entry=>entry.runner && isTeamEntry(entry.runner) && entry.runner.team.number===number):before.finalResults!.additionalEntries![0];
+  expect(entry).toMatchObject({wasHere:true,absent:false});
+  expect(before.finalResults!.runners.filter(isTeamEntry).every(entry=>entry.legs.every(leg=>!leg.here))).toBe(true);
+  expect(before.finalResults!.entries.every(entry=>!entry.absent)).toBe(true);
+  await app.close();
+  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-final-owner'});
+  expect(await results()).toEqual(before);
+  for(const [command,stage,message] of [
+    ['complete-stage','no-final','The final has started - medals come from the final'],
+    ['reopen-stage','heats','The final has started - heats cannot be reopened']
+  ]) {
+    const refused=await call(lead,`/api/lead/events/R22/${command}`,{stage,comment:'Recheck heats'});
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toEqual({message});
+  }
+  expect(await results()).toEqual(before);
+});
+
 test.each(['Heats complete','Call up'])('%s refuses a team missing from the team list without changing the final',async(action)=>{
   const {sam,lead,relays,results}=await start({complete:action==='Call up'});
   const seen=await relays.screen(sam,'R22');

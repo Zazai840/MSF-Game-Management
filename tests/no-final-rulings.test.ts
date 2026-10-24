@@ -190,6 +190,24 @@ test('publishing every individual finalist Here starts the final and retains the
   expect(refused.statusCode).toBe(409);
   expect(refused.json()).toEqual({message:'The final has started - medals come from the final'});
 });
+test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, preserving the line-up, holds, audit notes and revision',async(kind)=>{
+  const {owner,lead,volunteer,setup,results}=await finalBuilt();
+  if(kind==='Here' || kind==='Absent') {
+    const held=(await setup.write(volunteer,'R4','take-over',{job:'check-in'})).race;
+    await setup.write(volunteer,'R4','absent',{raceId:held.id,version:held.parts.runners.version,absent:kind==='Absent'?held.final!.entries.map(entry=>entry.finalEntryId):[]});
+  } else {
+    const runners=[2001,2011,2002,2012,2003,2013];
+    await setup.order(volunteer,'R4',kind==='order'?runners:[],{didNotFinish:kind==='DNF'?runners:[]});
+  }
+  const before=await results(),screen=await setup.screen(volunteer,'R4'),revision=(await call(owner,'/api/day')).json().revision;
+  expect(before.results.finalResults).toMatchObject({started:true,hasRun:false});
+  const refused=await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'heats',comment:'Recheck heats'});
+  expect(refused.statusCode).toBe(409);
+  expect(refused.json()).toEqual({message:'The final has started - heats cannot be reopened'});
+  expect(await results()).toEqual(before);
+  expect(await setup.screen(volunteer,'R4')).toEqual(screen);
+  expect((await call(owner,'/api/day')).json().revision).toBe(revision);
+});
 test('deleting a started final offers it again; the deleted final stays restorable once the results are reopened, and the next final is Final 2',async()=>{
   const {lead,volunteer,setup,results,final}=await finalBuilt();
   await setup.order(volunteer,'R4',[2001,2011,2002,2012,2003,2013]);

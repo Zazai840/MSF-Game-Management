@@ -29,7 +29,7 @@ export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],
 
 export function heatsCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
   const sheet=timedCheckSheet(state,rows,ties,pending,needsYou);
-  return {...sheet,stage:'heats',label:'Heats complete',completed:state.completedStages?.includes('heats')??false,creates:rows.filter(row=>row.position!==null).slice(0,6).map(row=>stagePlace(row.position!,row)),reopenWarning:final?.hasRun?'The final has already run. Its line-up, attendance and results will be preserved.':'The unrun final will be rebuilt from the corrected heat rankings when heats are completed again.'};
+  return {...sheet,stage:'heats',label:'Heats complete',completed:state.completedStages?.includes('heats')??false,creates:rows.filter(row=>row.position!==null).slice(0,6).map(row=>stagePlace(row.position!,row)),reopenWarning:final?.started?'The final has started. Heats cannot be reopened.':'The unrun final will be rebuilt from the corrected heat rankings when heats are completed again.'};
 }
 /** Results without a final: a heats event's medals from the 3 fastest heat times, judged as a timed event's Event complete. */
 export function noFinalCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],needsYou:readonly LeadItem[]):StageCheckSheet {

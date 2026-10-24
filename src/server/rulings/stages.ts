@@ -23,6 +23,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
       const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);
       if(!sheet) throw new Refusal(409,stage==='no-final' && detail.results.finalResults?.started?'The final has started - medals come from the final':'This stage is not available');
       if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
+      if(reopening && stage==='heats' && detail.results.finalResults?.started) throw new Refusal(409,'The final has started - heats cannot be reopened');
       if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Must settle first - open the completion check sheet');
       if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
       else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
