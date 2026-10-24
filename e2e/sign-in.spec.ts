@@ -1,5 +1,5 @@
 import { goHome,back,openDashboard,dashboardMenuButton,dashboardButton,becomeLead,lookProblems,typePassword,expect,createProfile,test,type Locator,type Page } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the job screens. */
 async function expectDocked(page:Page,button:Locator) {
   const box=(await button.boundingBox())!,height=page.viewportSize()!.height;
@@ -57,7 +57,7 @@ test('a new phone types the Olympics password once, creates a profile, stays sig
   await expect(dashboardButton(page)).toBeVisible();
   await openDashboard(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
-  await back(page,'Dashboard');await expect(dashboardMenuButton(page,'Day setup')).toHaveCount(0);
+  await back(page,'Dashboard');await expect(dashboardMenuButton(page,'Day setup')).toBeVisible();
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(true);
 });
 test('Create profile refuses a name already taken, keeping what was typed',async({page,browser},info)=>{
@@ -73,11 +73,11 @@ test('Create profile refuses a name already taken, keeping what was typed',async
     await other.screenshot({path:info.outputPath('create-profile-taken.png')});
   } finally {await second.close();}
 });
-test('the owner password signs in as the scoring team on the running day without touching it',async({page},info)=>{
+test('the owner password signs in as the owner lead on the running day without touching it',async({page},info)=>{
   const before=await (await page.request.get('/api/day',{headers:headers()})).json();
   await page.goto('/');await typePassword(page,'e2e-owner-fixture');
   await expect(page.getByRole('heading',{level:1,name:"What's your full name?"})).toBeVisible();
-  await expect(page.getByText("You'll sign in as the scoring team.",{exact:true})).toBeVisible();
+  await expect(page.getByText("You'll sign in as a lead.",{exact:true})).toBeVisible();
   await expect(page.getByText("No Olympics day is running. Signing in starts today's day.",{exact:true})).toHaveCount(0);
   await expectLargeInput(page.getByLabel('Full name'));
   await expectDocked(page,page.getByRole('button',{name:'Sign in',exact:true}));

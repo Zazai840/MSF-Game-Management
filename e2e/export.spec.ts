@@ -1,7 +1,7 @@
-import { openDashboard,dashboardMenuButton,becomeLead,expect,createProfile,test,back } from './fixtures.js';
-const headers=()=>({authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`});
+import { openDashboard,becomeLead,expect,createProfile,test,back } from './fixtures.js';
+const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 import readExcelFile from 'read-excel-file/node';
-test('Scoring downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
+test('A lead downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
  // Other specs pick R6 by its seeded name, so put it back whatever happens here.
  const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R6').name as string;
  try {
@@ -14,7 +14,7 @@ test('Scoring downloads the whole day workbook and sees when its export needs re
  await page.reload();await openDashboard(page,'Day setup');await expect(status).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
  } finally {await page.request.post('/api/day/events/R6/rename',{headers:headers(),data:{name:original}});}
 });
-test('ordinary Lead has no Day download and its direct export request is refused',async({page,request},info)=>{
- await page.goto('/');await createProfile(page,`No export ${info.project.name}`);await becomeLead(page);await openDashboard(page);await expect(dashboardMenuButton(page,'Day setup')).toHaveCount(0);await expect(page.getByRole('button',{name:'Download day export',exact:true})).toHaveCount(0);
- const token=await page.evaluate(()=>localStorage.getItem('msf:token'));expect((await request.post('/api/day/export',{headers:{authorization:`Bearer ${token}`},data:{}})).status()).toBe(403);
+test('a lead from the lead code has the Day download and its direct export request is accepted',async({page,request},info)=>{
+ await page.goto('/');await createProfile(page,`Lead export ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Day setup');await expect(page.getByRole('button',{name:'Download day export',exact:true})).toBeVisible();
+ const token=await page.evaluate(()=>localStorage.getItem('msf:token'));expect((await request.post('/api/day/export',{headers:{authorization:`Bearer ${token}`},data:{}})).status()).toBe(200);
 });
