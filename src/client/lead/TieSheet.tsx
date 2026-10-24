@@ -9,7 +9,7 @@ import { ordinal } from '../../shared/ordinal.js';
 import { SortableList } from '../flow/SortableList.js';
 import { formatTime } from '../../shared/time-entry.js';
 import './ties.css';
-export function TieSheet({code,tie,onSaved,onClose}:{code:string;tie:ResultTie;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
+export function TieSheet({code,tie,noFinal=false,onSaved,onClose}:{code:string;tie:ResultTie;noFinal?:boolean;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
   const commentId=useId();
   const [outcome,setOutcome]=useState<TieOutcome|null>(null);
   const [order,setOrder]=useState(tie.entries);
@@ -20,7 +20,7 @@ export function TieSheet({code,tie,onSaved,onClose}:{code:string;tie:ResultTie;o
   async function save(event:FormEvent) {
     event.preventDefault();if(!outcome || saving) return;setSaving(true);setError('');
     try {
-      onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/settle-tie`,{tieId:tie.id,outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})}));
+      onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/settle-tie`,{tieId:tie.id,...(noFinal?{stage:'no-final'}:{}),outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})}));
     } catch(error) {setError(error instanceof Error?error.message:'Could not save - try again');}
     finally {setSaving(false);}
   }

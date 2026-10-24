@@ -31,7 +31,7 @@ The scoring team's identifier for an event (R1, R2, ...).
 _Avoid_: Event ID, event number
 
 **Event format**:
-How an event decides its medals: either heats then a final (60m and relays), or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m).
+How an event decides its medals: either heats then a final (60m and relays), unless a zone lead calls results without a final; or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m).
 _Avoid_: Event type, race type
 
 **Relay**:
@@ -49,12 +49,16 @@ A race within an event that has a final, formed at the start line from whoever i
 _Avoid_: Qualifier, preliminary
 
 **Final**:
-The single deciding race of an event that has heats. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place).
+The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place).
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
 The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete. Runners a lead adds to the final afterwards are not part of the line-up.
 _Avoid_: Finalists list, running heats sheet, start list
+
+**Results without a final**:
+A zone lead's call, on an event with heats, to award its medals to the 3 fastest heat times instead of running its final.
+_Avoid_: Skip final, cancel final, no final, heat-time medals
 
 **Absent finalist**:
 A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in lists the line-up and marks each child Here or Absent; a relay team is Absent as a whole.

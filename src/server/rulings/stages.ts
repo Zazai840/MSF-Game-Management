@@ -14,12 +14,14 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   for(const command of ['complete-stage','reopen-stage'] as const) action('POST',`/api/lead/events/:code/${command}`,'Lead',async(request,_reply,phone)=>{
     const reopening=command==='reopen-stage';
-    const {value,comment}=rulingDetails(request.body,reopening);
-    if(!['event','heats','final'].includes(String(value.stage))) throw new Refusal(400,'Choose a stage');
+    const stage=(request.body as {stage?:unknown}|null)?.stage;
+    // Results without a final, like any reopening, needs the lead's reason.
+    const {comment}=rulingDetails(request.body,reopening || stage==='no-final');
+    if(!['event','heats','final',...(reopening?[]:['no-final'])].includes(String(stage))) throw new Refusal(400,'Choose a stage');
     return rulingChange(pool,phone,async(client,current)=>{
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code);
-      const sheet=value.stage==='heats'?detail.results.heatsCheckSheet:detail.results.checkSheet;
-      if(!sheet || sheet.stage!==value.stage) throw new Refusal(409,'This stage is not available');
+      const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);
+      if(!sheet) throw new Refusal(409,'This stage is not available');
       if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
       if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Must settle first - open the completion check sheet');
       if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
