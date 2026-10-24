@@ -73,7 +73,7 @@ export function Results({target,onDashboard,onChanged}:{target?:DayLeadItem;onDa
       <header className="results-event-head"><h1>{detail.event.name} {detail.event.section}</h1>
         <p className="results-event-meta"><span className={`event-status event-status-${state!.state}`}>{state!.state==='done' && tick}{state!.line}</span><span className="results-event-code">{detail.event.code}{!detail.event.enabled?' · Switched off':''}</span></p></header>
       {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.actionableRunners} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}
-      {selectedStage && <StageSheet code={detail.event.code} sheet={selectedStage} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}
+      {selectedStage && <StageSheet code={detail.event.code} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}
       {selectedTie && <TieSheet key={selectedTie.id} code={detail.event.code} tie={selectedTie} noFinal={noFinalTie} onSaved={saved} onClose={()=>setSelectedTieId(null)}/>}
       <p className="results-band">Top {detail.results.band.highlightCount} highlighted · {detail.results.band.lineLabel==='Qualifying line'?'Q: fastest 6':'Medal places: 1st, 2nd, 3rd'}</p>
       {detail.results.leaderboard.length===0?<p className="results-empty">No runners ranked yet</p>:<ol className="leaderboard" aria-label={detail.results.provisional?'Provisional leaderboard':'Official leaderboard'}>{detail.results.leaderboard.map(row=><Fragment key={`${row.raceId}:${row.entryId}`}>

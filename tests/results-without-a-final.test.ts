@@ -62,3 +62,28 @@ test('a relay decided without a final names its 3 fastest heat teams with their 
   const result=eventResults({event:{...event,code:'R22',name:'4x50m Relay'},races:[relayHeat(1,[1,2],[1400,1600]),relayHeat(2,[3,4],[1500,1700])],completedStages:['no-final']});
   expect(result.inputRunning).toEqual({eventCode:'R22',first:null,second:null,third:null,teams:[1,3,2].map(number=>({id:`team-${number}`,number,wristbands:[1,2,3,4].map(leg=>2000+number*100+leg)}))});
 });
+/** The final Heats complete builds from the fastest three above, nobody marked and no order yet. */
+const final=(change:Partial<ResultsRace>={}):ResultsRace=>({id:'final',kind:'final',number:1,checkedInAt:'2026-10-12T11:00:00Z',deleted:false,saved:false,runners:[2001,2011,2002].map((wristband,index)=>({id:`f${index+1}`,wristband})),finish:null,times:null,
+  final:{generation:'initial',hasRun:false,heatsComplete:true,entries:[['heat1','h1-1',2001],['heat2','h2-1',2011],['heat1','h1-2',2002]].map(([heatRaceId,heatEntryId,heatWristband],index)=>({finalEntryId:`f${index+1}`,heatRaceId:heatRaceId as string,heatEntryId:heatEntryId as string,heatWristband:heatWristband as number,seed:index+1,heatRank:index+1,kind:'qualifier' as const,absent:false}))},...change});
+const heats=()=>[heat(1,[920,980,1040]),heat(2,[935,1010])];
+test('after Heats complete it is offered while the final is unstarted, and gone once a finalist is marked Absent or an order is recorded',()=>{
+  const completedStages=['heats' as const];
+  expect(eventResults({event,races:[...heats(),final()],completedStages}).noFinalCheckSheet).toMatchObject({stage:'no-final',completed:false,mustSettleFirst:[]});
+  const absent=final({runners:final().runners.slice(1)});absent.final={...absent.final!,entries:absent.final!.entries.map(entry=>({...entry,absent:entry.finalEntryId==='f1'}))};
+  expect(eventResults({event,races:[...heats(),absent],completedStages})).toMatchObject({noFinalCheckSheet:null,finalResults:{started:true}});
+  expect(eventResults({event,races:[...heats(),final({finish:{order:['f2'],didNotFinish:[]}})],completedStages}).noFinalCheckSheet).toBeNull();
+  // A final left over after Reopen heats is offered, or not, the same way.
+  expect(eventResults({event,races:[...heats(),final()]}).noFinalCheckSheet).not.toBeNull();
+  expect(eventResults({event,races:[...heats(),absent]}).noFinalCheckSheet).toBeNull();
+});
+test('deleting a started final offers it again',()=>{
+  expect(eventResults({event,races:[...heats(),final({deleted:true,finish:{order:['f2'],didNotFinish:[]}})],completedStages:['heats']}).noFinalCheckSheet).toMatchObject({stage:'no-final'});
+});
+test('a relay final has started once a child of a finalist team is marked here',()=>{
+  const team=(id:string,number:number,here=false):TeamEntry=>({id,team:{id:`team-${number}`,number},legs:[1,2,3,4].map(leg=>({wristband:2000+number*100+leg,warnings:[],here}))});
+  const relayHeat:ResultsRace={...heat(1,[1400,1500]),runners:[team('h1-1',1,true),team('h1-2',2,true)]};
+  const relayFinal=(here:boolean)=>final({runners:[team('f1',1,here),team('f2',2)]});
+  const relay={...event,code:'R22',name:'4x50m Relay'};
+  expect(eventResults({event:relay,races:[relayHeat,relayFinal(false)],completedStages:['heats']}).noFinalCheckSheet).not.toBeNull();
+  expect(eventResults({event:relay,races:[relayHeat,relayFinal(true)],completedStages:['heats']}).noFinalCheckSheet).toBeNull();
+});

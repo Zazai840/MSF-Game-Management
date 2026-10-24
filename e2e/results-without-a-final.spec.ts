@@ -120,3 +120,47 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
   await expect(lead.locator('.final-panel')).toBeVisible();
 });
+test('after Heats complete, a lead chooses Results without a final before the final starts: its line-up is discarded, and Reopen results then Heats complete builds a fresh final',async({page,openPhone},info)=>{
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWH-${project.toUpperCase()}`,name=`Late no final ${project}`;
+  await ownEvent(page.request,code,name);
+  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
+  // Girl Cubs wristbands no other test types: heat 1 is w(1)..w(3), heat 2 is w(11)..w(13).
+  const w=(number:number)=>2540+at*20+number;
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(11),w(12),w(13)],[935,990,1060]);
+  const lead=(await openPhone(`Late no final lead ${project}`,{lead:true})).page;
+  await openDashboard(lead,'Results');
+  await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
+  await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
+  // The final is built and nobody has touched it: the option sits under Final complete and Reopen heats.
+  const stages=lead.locator('.stage-actions').getByRole('button');
+  await expect(stages).toHaveText(['Final complete','Reopen heats','Results without a final']);
+  await lead.screenshot({path:info.outputPath('a6-final-built.png'),fullPage:true});
+  await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
+  const sheet=lead.getByRole('dialog',{name:'Results without a final',exact:true});
+  await expect(sheet).toContainText('Nothing to settle');
+  await expect(sheet.locator('.stage-creates li')).toHaveText([`1st: ${w(1)}`,`2nd: ${w(11)}`,`3rd: ${w(2)}`]);
+  await expect(sheet.getByRole('status')).toHaveText("The final's line-up will be discarded.");
+  await expect(sheet).toContainText('No final will be run. Medals go to the 3 fastest heat times.');
+  await sheet.getByLabel('Comment',{exact:true}).fill('Out of time');
+  await lead.screenshot({path:info.outputPath('a6-discard-sheet.png')});
+  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(lead.getByRole('dialog')).toHaveCount(0);
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Done · medals decided, no final');
+  await expect(lead.locator('.final-panel')).toHaveCount(0);
+  await expect(lead.getByRole('list',{name:'Official leaderboard'}).locator('.result-mark')).toHaveText(['1st','2nd','3rd']);
+  await expect(stages).toHaveText(['Reopen results']);
+  await lead.screenshot({path:info.outputPath('a6-done.png'),fullPage:true});
+  await stages.click();
+  const reopen=lead.getByRole('dialog',{name:'Reopen results',exact:true});
+  await reopen.getByLabel('Comment',{exact:true}).fill('The final fits after all');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
+  // Heats open again, not complete: Heats complete builds a fresh final.
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats running · 2 races');
+  await expect(stages).toHaveText(['Heats complete','Results without a final']);
+  await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
+  await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
+  await expect(lead.locator('.final-panel')).toBeVisible();
+});
