@@ -69,12 +69,11 @@ test('once a lead decides without a final, a volunteer\'s Home shows the event d
   await volunteer.screenshot({path:info.outputPath('a5-home-done.png'),fullPage:true});
   await openRaceScreen(volunteer,name);
   await expect(volunteer.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
+  // No further heat and no final: the screen names neither and offers no job to take.
+  await expect(volunteer.locator('.race-line')).toHaveText('Done · medals decided, no final');
+  await expect(volunteer.getByText(/Heat 3|Final/)).toHaveCount(0);
+  await expect(volunteer.getByRole('button',{name:/^Check-in Wristbands/})).toHaveCount(0);
   await expect(volunteer.getByRole('button',{name:'Submit Race'})).toHaveCount(0);
-  // Check-in takes no job once the stage is complete: nobody, and no wristband box.
-  const checkIn=volunteer.getByRole('button',{name:/^Check-in Wristbands/});
-  await expect(checkIn).toContainText('Nobody');await expect(checkIn).not.toContainText('open to start');
-  await checkIn.click();
-  await expect(volunteer.getByLabel('Wristband number')).toHaveCount(0);
   await volunteer.screenshot({path:info.outputPath('a6-race-screen-done.png'),fullPage:true});
 });
 test('a lead reopens results with a comment: the medals clear, the heats open again and Heats complete builds a final',async({page,openPhone},info)=>{
