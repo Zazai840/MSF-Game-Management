@@ -72,9 +72,16 @@ test('after Heats complete it is offered while the final is unstarted, and gone 
   const absent=final({runners:final().runners.slice(1)});absent.final={...absent.final!,entries:absent.final!.entries.map(entry=>({...entry,absent:entry.finalEntryId==='f1'}))};
   expect(eventResults({event,races:[...heats(),absent],completedStages})).toMatchObject({noFinalCheckSheet:null,finalResults:{started:true}});
   expect(eventResults({event,races:[...heats(),final({finish:{order:['f2'],didNotFinish:[]}})],completedStages}).noFinalCheckSheet).toBeNull();
+  expect(eventResults({event,races:[...heats(),final({finish:{order:[],didNotFinish:['f2']}})],completedStages}).noFinalCheckSheet).toBeNull();
   // A final left over after Reopen heats is offered, or not, the same way.
   expect(eventResults({event,races:[...heats(),final()]}).noFinalCheckSheet).not.toBeNull();
   expect(eventResults({event,races:[...heats(),absent]}).noFinalCheckSheet).toBeNull();
+});
+test.each(['seeded','added'])('an individual %s finalist previously published Here keeps the final started without absences or a finishing order',kind=>{
+  const race=final();
+  if(kind==='seeded') race.final!.entries[0].wasHere=true;
+  else race.final!.additionalEntries=[{runner:{id:'added',wristband:2021},absent:false,wasHere:true}];
+  expect(eventResults({event,races:[...heats(),race],completedStages:['heats']})).toMatchObject({noFinalCheckSheet:null,finalResults:{started:true,hasRun:false}});
 });
 test('deleting a started final offers it again',()=>{
   expect(eventResults({event,races:[...heats(),final({deleted:true,finish:{order:['f2'],didNotFinish:[]}})],completedStages:['heats']}).noFinalCheckSheet).toMatchObject({stage:'no-final'});
