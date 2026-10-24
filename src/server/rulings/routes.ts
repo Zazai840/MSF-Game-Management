@@ -12,7 +12,7 @@ export function rulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   for(const lifting of [false,true]) {
     const command=lifting?'lift-disqualification':'disqualify';
     action('POST',`/api/lead/races/:raceId/runners/:entryId/${command}`,'Lead',async(request,_reply,phone)=>{
-      const {value,comment}=rulingDetails(request.body,lifting || (request.body as {reason?:unknown}|null)?.reason==='Other');
+      const {value,comment}=rulingDetails(request.body,lifting);
       const reason=disqualificationReasons.find(reason=>reason===value.reason);
       if(!lifting && !reason) throw new Refusal(400,'Choose a disqualification reason');
       return rulingChange(pool,phone,async(client,current)=>{

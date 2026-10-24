@@ -28,7 +28,7 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
     <h3>Runner {row.wristband}</h3>{error && <p role="alert">{error}</p>}
     {action==='choose'?<div className="runner-action-choices">{row.disqualification?<><p>Disqualified: {row.disqualification.reason}</p><button disabled={saving} onClick={()=>setAction('lift')}>Lift disqualification</button></>:<button disabled={saving} onClick={()=>setAction('disqualify')}>Disqualify</button>}
       {row.flags.some(flag=>flag.kind==='added-at-finish' && !flag.checked) && <button disabled={saving} onClick={()=>void command('mark-added-checked',{})}>Mark addition checked</button>}
-      {row.flags.some(isOpenEligibilityWarning) && <><button disabled={saving} onClick={()=>void command('mark-warning-checked',{})}>Mark checked</button>{!row.disqualification && <button disabled={saving} onClick={()=>{setReason('Wrong section or age');setAction('disqualify');}}>Disqualify for wrong section or age</button>}</>}
+      {row.flags.some(isOpenEligibilityWarning) && <button disabled={saving} onClick={()=>void command('mark-warning-checked',{})}>Mark checked</button>}
       <button disabled={saving} onClick={()=>setAction('correct')}>Correct number</button>
       {!row.disqualification && choices.length>1 && <button disabled={saving} onClick={()=>setAction('count')}>Choose which result counts</button>}
       <button disabled={saving} className="button-secondary" onClick={onClose}>Close actions</button>
@@ -38,7 +38,7 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
       <button disabled={saving}>{saving?'Saving…':'Save counted result'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
     </form>:<form onSubmit={save}>
       {action==='disqualify' && <><label htmlFor={reasonId}>Reason</label><select id={reasonId} value={reason} onChange={event=>setReason(event.target.value)} required disabled={saving}><option value="">Choose a reason</option>{disqualificationReasons.map(reason=><option key={reason}>{reason}</option>)}</select></>}
-      <label htmlFor={commentId}>{action==='lift'||reason==='Other'?'Comment':'Comment (optional)'}</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} required={action==='lift'||reason==='Other'} maxLength={1000} disabled={saving}/>
+      <label htmlFor={commentId}>{action==='lift'?'Comment':'Comment (optional)'}</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} required={action==='lift'} maxLength={1000} disabled={saving}/>
       <button disabled={saving}>{saving?'Saving…':action==='lift'?'Save lift':'Save disqualification'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
     </form>}
   </ActionSheet>;

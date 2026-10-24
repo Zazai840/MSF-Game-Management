@@ -28,7 +28,12 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   await toCheckItem(page,new RegExp(`${code}.*3045 is not a Girl Cubs number`)).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('heading',{name:'Runner 3045',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('pending-warning-actions.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true}).click();await sheet.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(sheet).toHaveCount(0);await agrees();
+  for(const action of ['Disqualify','Mark checked','Correct number']) await expect(sheet.getByRole('button',{name:action,exact:true})).toBeVisible();
+  await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
+  await sheet.getByRole('button',{name:'Disqualify',exact:true}).click();
+  await expect(sheet.getByLabel('Reason',{exact:true}).getByRole('option')).toHaveText(['Choose a reason','Two false starts','Obstruction','Out of lane','Baton','Wrong section or age','Other']);
+  await sheet.getByLabel('Reason',{exact:true}).selectOption('Other');await expect(sheet.getByLabel('Comment (optional)',{exact:true})).toHaveValue('');
+  await sheet.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(sheet).toHaveCount(0);await agrees();
   await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Runner 3045',exact:true}).click();await sheet.getByRole('button',{name:'Lift disqualification',exact:true}).click();await sheet.getByLabel('Comment',{exact:true}).fill('Wristband confirmed for review');await sheet.getByRole('button',{name:'Save lift',exact:true}).click();await expect(sheet).toHaveCount(0);await agrees();
   await back(page,'Dashboard');await toCheckItem(page,new RegExp(`${code}.*3045 is not a Girl Cubs number`)).click();await sheet.getByRole('button',{name:'Mark checked',exact:true}).click();await expect(sheet).toHaveCount(0);await menuCount();
   await toCheckItem(page,new RegExp(`${code}.*2002 crossed the line but was not checked in`)).click();

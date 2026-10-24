@@ -35,12 +35,19 @@ test('a lead disqualifies and lifts one stable runner, with immediate re-ranking
   await app.close();app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'rulings-owner'});
   expect((await call(lead,'/api/lead/events/R4/results')).json().auditNotes).toEqual(lifted.auditNotes);
 });
-test('volunteers cannot make rulings, required comments and reasons are plain refusals, and refusals leave no audit note',async()=>{
+test('a disqualification comment is optional for every reason, Other included',async()=>{
+  const {lead,path}=await start();
+  const saved=await call(lead,`${path}/disqualify`,{reason:'Other',comment:'  '});
+  expect(saved.statusCode).toBe(200);
+  expect(saved.json().results.leaderboard).toMatchObject([{wristband:2002},{wristband:2001,status:'Disqualified',disqualification:{reason:'Other',comment:null}}]);
+  expect(saved.json().auditNotes).toMatchObject([{action:'disqualify',message:'Aisha disqualified 2001 (Heat 1): Other',comment:null}]);
+});
+test('volunteers cannot make rulings, lift comments and reasons are plain refusals, and refusals leave no audit note',async()=>{
   const {owner,lead,volunteer,path}=await start();
   for(const command of ['disqualify','lift-disqualification']) {
     expect((await call(volunteer,`${path}/${command}`,{reason:'Obstruction',comment:'Not permitted'})).statusCode).toBe(403);
   }
-  for(const body of [null,[],{}, {reason:'DQ'},{reason:'Other'},{reason:'Other',comment:'  '},{reason:'Baton',comment:123},{reason:'Baton',comment:'x'.repeat(1001)}]) {
+  for(const body of [null,[],{}, {reason:'DQ'},{reason:'Baton',comment:123},{reason:'Baton',comment:'x'.repeat(1001)}]) {
     const refusal=await call(lead,`${path}/disqualify`,body);
     expect(refusal.statusCode).toBe(400);expect(typeof refusal.json().message).toBe('string');
   }
