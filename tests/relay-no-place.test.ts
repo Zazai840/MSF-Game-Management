@@ -51,7 +51,7 @@ test('Didn\'t run takes the team off the race: it is still to run again and can 
   expect(teamsOf(await relays.tick(sam,'R22',2)).map(entry=>entry.team.number)).toEqual([1,2]);
 });
 
-test('"+ Team not on the list" adds a team still to run, marked added at the finish, at the next place, with the four children on its list',async()=>{
+test('"Add team" adds a team still to run, marked added at the finish, at the next place, with the four children on its list',async()=>{
   const {order}=await start();
   const answer=(await order([2],{addedTeams:[3]})).json() as RaceScreenRead,entries=teamsOf(answer);
   expect(entries.map(entry=>entry.team.number)).toEqual([1,2,3]);
@@ -65,7 +65,7 @@ test('"+ Team not on the list" adds a team still to run, marked added at the fin
   expect(added.legs[0].warnings).toEqual([expect.objectContaining({kind:'wrong-section',kept:true})]);
 });
 
-test('"+ Team not on the list" is refused for a team that has already run, or that someone is changing; a wristband typed at the finish is refused',async()=>{
+test('"Add team" is refused for a team that has already run, or that someone is changing; a wristband typed at the finish is refused',async()=>{
   const {priya,ali,relays,order}=await start();
   // A team in this heat is no longer still to run.
   expect((await order([1],{addedTeams:[2]})).json()).toEqual({message:'Team 2 has already run'});

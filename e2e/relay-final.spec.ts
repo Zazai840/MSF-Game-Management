@@ -59,7 +59,7 @@ test('a relay Final on two phones and a lead: six seeded teams ticked, one Absen
   await expect(buttons).toHaveCount(6);
   await expect(buttons.filter({hasText:'Team 5'})).toHaveCount(0);
   // A Final's teams are its seeds, call-ups and a lead's additions: none is added at the finish.
-  await expect(priya.page.getByRole('button',{name:'+ Team not on the list',exact:true})).toHaveCount(0);
+  await expect(priya.page.getByRole('button',{name:'Add team',exact:true})).toHaveCount(0);
   for(const number of [3,2,4,1,6,7]) await buttons.filter({hasText:new RegExp(`Team ${number}$`)}).click();
   expect(await lookProblems(priya.page)).toEqual([]);
   await priya.page.screenshot({path:info.outputPath('relay-final-order.png'),fullPage:true});

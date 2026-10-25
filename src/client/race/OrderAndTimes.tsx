@@ -78,7 +78,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
     setPad('',null);
   }
   const ordering=holds.order?.id===phoneId && !stageComplete;
-  // "+ Team not on the list" offers the relay's teams still to run that nobody is changing: never a new team.
+  // "Add team" offers the relay's teams still to run that nobody is changing: never a new team.
   const addable=(screen.teams||[]).filter(team=>stillToRun(team) && !changingName(team));
   // A relay Final's teams are its seeds, call-ups and a lead's additions: none is added at the finish.
   const addAtFinish=!(event.relay && final);
@@ -154,7 +154,7 @@ export function OrderAndTimesCard({screen,phoneId,offer}:{screen:RaceScreenRead;
         <button className="button-secondary" onClick={()=>setStep('no-place')}>Nobody else crossed the line</button>
       </>}
       {runners.length>0 && (addAtFinish || order.length>1) && <div className="race-order-more">
-        {addAtFinish && <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>+ {capitalised(entryNoun(event.relay))} not on the list</button>}
+        {addAtFinish && <button className="button-quiet" disabled={sending} onClick={()=>setStep('add')}>Add {entryNoun(event.relay)}</button>}
         {order.length>1 && <button className="button-quiet" onClick={()=>setStep('move')}>Change the order</button>}
       </div>}
     </div>}

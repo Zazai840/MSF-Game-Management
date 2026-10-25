@@ -290,7 +290,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
   // The order: the holder's whole finishing order by entry, with Did not finish, Didn't run (which takes the runner
   // off the race) and runners added at the finish. Runners check-in has since taken off are dropped, later places moving up.
-  // On a relay "+ Team not on the list" names teams on its team list instead, each taking the next place.
+  // On a relay "Add team" names teams on its team list instead, each taking the next place.
   action('POST','/api/race-screen/:code/order','Volunteer',(request,_reply,phone)=>{
     const body=(request.body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown;addedTeams?:unknown};
     const {raceId,version}=seenRace(body,'Open the race before saving its finishing order');
@@ -385,7 +385,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
 }
 /**
- * A team added at the finish ("+ Team not on the list"): a copy of its four children and their kept warnings, those on
+ * A team added at the finish ("Add team"): a copy of its four children and their kept warnings, those on
  * the list marked here since they crossed the line. Only a team still to run that nobody is changing can be added.
  */
 function addedAtFinish(screen:RaceScreenRead,teamId:string):TeamEntry {

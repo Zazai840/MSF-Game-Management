@@ -65,7 +65,7 @@ test('a team added at the finish is a To check item cleared by Mark addition che
   await relays.team(sam,'R22',[1045,2202,2203,2204]);
   await relays.tick(sam,'R22',1);
   for(const leg of [0,1,2,3]) await relays.here(sam,'R22',1,leg);
-  // Team 2 was never checked in: the order adds it with "+ Team not on the list".
+  // Team 2 was never checked in: the order adds it with "Add team".
   const race=(await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/take-over',{job:'order'})).race,teams=(await relays.screen(sam,'R22')).teams!;
   const team1=race.parts.runners.value!.find(entry=>isTeamEntry(entry) && entry.team.number===1)!.id;
   const ordered=await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/order',{raceId:race.id,version:race.parts.finish.version,order:[team1],didNotFinish:[],didNotRun:[],added:[],addedTeams:[teams.find(team=>team.number===2)!.id]});

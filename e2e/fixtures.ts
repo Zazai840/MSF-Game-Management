@@ -227,7 +227,7 @@ export function markHere(request:APIRequestContext,token:string,relayCode:string
 export async function writeTeamOrder(request:APIRequestContext,token:string,relayCode:string,order:number[],{didNotFinish=[],didNotRun=[],addedTeams=[]}:{didNotFinish?:number[];didNotRun?:number[];addedTeams?:number[]}={}) {
   const {race}=await takeJob(request,token,relayCode,'order');
   const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
-  // Teams still to run added at the finish ("+ Team not on the list") take the places after `order`.
+  // Teams still to run added at the finish ("Add team") take the places after `order`.
   const listed=addedTeams.length?(await readRaceScreen(request,token,relayCode)).teams!:[];
   return raceScreenWrite(request,token,relayCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>listed.find(team=>team.number===number)!.id)});
 }
