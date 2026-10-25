@@ -6,7 +6,7 @@ import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
 import type { RelayTeam,TeamList,TeamWarning } from './teams.js';
 import type { FinishingOrder,RaceEntry } from './races.js';
-import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
+import type { AuditNote,CheckedBy,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
 import { notCountedReasons } from './race-counts.js';
 import { eventTies,type TieSettlement } from './ties.js';
@@ -22,7 +22,10 @@ export interface EventState { event:Event; races:readonly ResultsRace[]; rulings
   relays?:ReadonlyArray<Pick<TeamList,'code'|'section'> & {teams:ReadonlyArray<Pick<RelayTeam,'number'|'legs'>>}> }
 /** What a warning flag is about: a child's wristband, a child in two relays (`other-relay`), or a team that ran short. */
 export type WarningKind=WristbandWarning['kind']|TeamWarning['kind']|'ran-short';
-export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean }
+/** A warning on a result as a lead checks it: its kind and its message. */
+export interface ResultWarning { kind:WarningKind; message:string }
+/** `checked` is whether it is settled; `checkedBy` names the lead's check, `settledByDisqualification` a disqualification that settled it instead. */
+export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean; checkedBy?:CheckedBy; settledByDisqualification?:true }
 
 /** A relay team a result belongs to: its number and the four children who ran in that race, in leg order. */
 export interface ResultTeam { id:string; number:number; wristbands:Array<number|null> }
@@ -33,7 +36,9 @@ export const resultHolder=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.te
 /** A result as a lead names it in a message: "2001", or "Team 3". */
 export const resultName=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`Team ${entry.team.number}`:String(entry.wristband);
 export interface LeaderboardRow extends ResultEntry {
-  race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
+  race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null;
+  /** The result's audit notes (see resultAuditNotes; its Notes are resultNotes); `hasNote` is its note badge (see hasNotes). */
+  notes:AuditNote[]; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }
 export type NotRankedReason='in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";

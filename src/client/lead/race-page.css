@@ -24,6 +24,7 @@
 .record-team {padding:6px 12px; text-align:left;}
 .record-note {font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .record-warning {padding:4px 8px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); overflow-wrap:anywhere;}
+.record-warning.checked-warning {background:var(--idle-fill); color:var(--muted);}
 .record-time {flex:none; font-size:20px; font-weight:800; color:var(--text);}
 .record-runner {min-height:var(--tap); min-width:var(--tap); padding:0 12px; font-size:var(--text-body); background:var(--surface); color:var(--navy); border-color:var(--navy); border-radius:var(--radius-small); font-variant-numeric:tabular-nums;}
 

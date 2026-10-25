@@ -5,6 +5,7 @@ import type { EventResultsRead } from '../../shared/lead-results.js';
 import { api } from '../api.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
+import { flagText } from '../../shared/runner-rulings.js';
 import { isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import { entryNoun,type RelayTeam } from '../../shared/teams.js';
 import { ResultName,TeamLegs,resultLabel } from './ResultName.js';
@@ -26,6 +27,6 @@ export function FinalPanel({code,relay,teams=[],final,onSaved,onSelect,onRace}:{
   :<p>Every team is in the final.</p>}
   <button className="button-quiet" onClick={()=>setAdding(false)}>Cancel</button></div>
  :<button className="button-secondary" onClick={()=>setAdding(true)}>Add a team to the final</button>)}
- {final.leaderboard.length>0?<ol className="leaderboard" aria-label="Final leaderboard">{final.leaderboard.map(row=><li key={row.entryId}><button className={`leaderboard-row result-open ${row.highlighted?'highlighted':''} ${row.disqualification?'disqualified':''} ${row.notCounted?'not-counted':''}`} aria-label={`${resultLabel(row)} · Final`} onClick={()=>onSelect(row)}><span className="result-position"><strong>{row.position??'-'}</strong>{row.medalPlace&&<span className="result-mark">{ordinal(row.medalPlace)}</span>}</span><ResultName entry={row} legs="none"/>{row.team && <TeamLegs team={row.team}/>}<span className="result-detail">{row.status}{row.disqualification?`: ${row.disqualification.reason}`:''}{row.hasNote&&<span className="badge note-tag">note</span>}{row.flags.length>0&&<span className="result-flags">{row.flags.map((flag,index)=><span key={`${flag.kind}:${index}`} className={flag.checked?'checked-warning':''}>{flag.message}</span>)}</span>}</span></button>{row.position===Math.min(3,eligible)&&<div className="result-line">Medal line</div>}</li>)}</ol>:<p>Final finishing order not recorded yet.</p>}
+ {final.leaderboard.length>0?<ol className="leaderboard" aria-label="Final leaderboard">{final.leaderboard.map(row=><li key={row.entryId}><button className={`leaderboard-row result-open ${row.highlighted?'highlighted':''} ${row.disqualification?'disqualified':''} ${row.notCounted?'not-counted':''}`} aria-label={`${resultLabel(row)} · Final`} onClick={()=>onSelect(row)}><span className="result-position"><strong>{row.position??'-'}</strong>{row.medalPlace&&<span className="result-mark">{ordinal(row.medalPlace)}</span>}</span><ResultName entry={row} legs="none"/>{row.team && <TeamLegs team={row.team}/>}<span className="result-detail">{row.status}{row.disqualification?`: ${row.disqualification.reason}`:''}{row.hasNote&&<span className="badge note-tag">note</span>}{row.flags.length>0&&<span className="result-flags">{row.flags.map((flag,index)=><span key={`${flag.kind}:${index}`} className={flag.checked?'checked-warning':''}>{flagText(flag)}</span>)}</span>}</span></button>{row.position===Math.min(3,eligible)&&<div className="result-line">Medal line</div>}</li>)}</ol>:<p>Final finishing order not recorded yet.</p>}
  <button onClick={onRace}>Open final</button></section>;
 }

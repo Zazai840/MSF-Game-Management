@@ -13,6 +13,7 @@ import type { WrongTime } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
+import { flagText } from '../../shared/runner-rulings.js';
 /** A lead's page for one race. It has no back button of its own: the back arrow above it leads back. */
 export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
@@ -31,12 +32,12 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
     <RaceActions race={read.race} relay={read} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
     {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
     <h4>Current record</h4><p>{capitalised(entryNoun(read.race.event.relay))}s: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
-    <CurrentRecord race={read.race} actionable={entryId=>actionableRunners.some(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
+    <CurrentRecord race={read.race} rowFor={entryId=>actionableRunners.find(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;
 }
-/** The race's places and times, a wrong time in amber with its reason as on the Times screens, and v1's count check. */
-function CurrentRecord({race,actionable,onRunner}:{race:LeadRaceRead['race'];actionable:(entryId:string)=>boolean;onRunner:(entryId:string)=>void}) {
+/** The race's places and times, a wrong time in amber with its reason as on the Times screens, each child's or relay team's warnings beside them (grey once settled), and v1's count check. */
+function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryId:string)=>LeaderboardRow|undefined;onRunner:(entryId:string)=>void}) {
   const times=race.kind==='final'?null:race.parts.times.value;
   const wrong=times?wrongTimesByPlace(times.places):new Map<number,WrongTime>();
   const mismatch=race.recording.countMismatch;
@@ -45,12 +46,14 @@ function CurrentRecord({race,actionable,onRunner}:{race:LeadRaceRead['race'];act
     {mismatch && <p className="warning-box">{mismatch}</p>}
     <ol className="record-rows" aria-label="Current record">{race.recording.results.map(row=>{
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
-      const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row;
+      const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,result=rowFor(row.entryId);
       return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
-        <span className="record-text">{actionable(row.entryId)?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
+        <span className="record-text">{result?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
           {team?.addedAtFinish && <small className="record-note">At finish</small>}
-          {team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
+          {result?result.flags.filter(flag=>flag.kind==='warning').map((flag,index)=><small key={index} className={flag.checked?'record-note record-warning checked-warning':'record-note record-warning'}>{flagText(flag)}</small>)
+            // A deleted race has no result row: its teams keep their children's warnings as the race recorded them.
+            :team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
           <WrongTimeReason wrong={wrongTime}/></span>
         {wrongTime && <WrongTimeIcon/>}<span className="record-time">{row.time===null?'No time':formatTime(row.time)}</span>
       </li>;

@@ -51,7 +51,7 @@ test('added-at-finish acknowledgment is narrow, audited, revisioned and Lead-onl
   expect((await call(lead,path(finished,0)+'/mark-added-checked',{})).statusCode).toBe(409);
   const saved=await call(lead,command,{});expect(saved.statusCode).toBe(200);await count(0);
   expect(saved.json().auditNotes[0]).toMatchObject({action:'mark-added-checked',actor:'Aisha',touches:[{raceId:race.id,entryId:finished.parts.runners.value[1].id}]});
-  expect(saved.json().results.actionableRunners[1].flags).toContainEqual({kind:'added-at-finish',message:'Added at the finish',checked:true});
+  expect(saved.json().results.actionableRunners[1].flags).toContainEqual(expect.objectContaining({kind:'added-at-finish',message:'Added at the finish',checked:true}));
   expect((await read()).parts).toEqual(finished.parts);
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
   expect((await call(lead,command,{})).statusCode).toBe(409);

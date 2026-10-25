@@ -488,7 +488,7 @@ test('Change anyway on a team left open in a check-in Edit, and the first phone\
   await expect(box(priyaPhone.page,'3rd')).toHaveValue(n(9));
 });
 
-test('at the finish, a team with no place is asked Did not finish or Didn\'t run, and "+ Team not on the list" adds a team still to run with At finish on both phones; Cancel on either leaves nothing changed',async({openPhone,request},info)=>{
+test('at the finish, a team with no place is asked Did not finish or Didn\'t run, and "Add team" adds a team still to run with At finish on both phones; Cancel on either leaves nothing changed',async({openPhone,request},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay no place ${project}`,code=`RNP-${project.toUpperCase()}`;
   await ownRelay(code,name,'Girl Scouts');
   // The test day is shared: each project has its own Girl Scouts wristbands, which no other test types.
@@ -528,10 +528,10 @@ test('at the finish, a team with no place is asked Did not finish or Didn\'t run
     await expect(rows(phone.page)).toHaveText([/^Place/,new RegExp(`^1st\\s*${n(4)}\\s*Team 1`)],live);
     await expect(phone.page.locator('.race-line')).toHaveText('Heat 1 · 2 teams',live);
   }
-  // "+ Team not on the list" offers the teams still to run that nobody is changing. Cancel changes nothing.
+  // "Add team" offers the teams still to run that nobody is changing. Cancel changes nothing.
   // Ali has Team 3 open, so it is not offered.
   await openTeam(request,ali.token,code,teamIds(home!,code)[2]);
-  await priya.page.getByRole('button',{name:'+ Team not on the list',exact:true}).click();
+  await priya.page.getByRole('button',{name:'Add team',exact:true}).click();
   await expect(priya.page.getByRole('heading',{name:'Which team crossed the line?',exact:true})).toBeVisible();
   const picks=priya.page.locator('.pick-list').getByRole('button');
   await expect(picks).toHaveText([new RegExp(`^Team 4\\s*${n(13)} · ${n(14)} · ${n(15)} · ${n(16)}$`)]);
@@ -539,7 +539,7 @@ test('at the finish, a team with no place is asked Did not finish or Didn\'t run
   await priya.page.screenshot({path:info.outputPath('relay-team-not-on-list.png')});
   await priya.page.getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(rows(priya.page)).toHaveCount(2);
-  await priya.page.getByRole('button',{name:'+ Team not on the list',exact:true}).click();
+  await priya.page.getByRole('button',{name:'Add team',exact:true}).click();
   await picks.click();
   // Team 4 takes the next place, with At finish under it, on both phones.
   for(const phone of [priya,sam]) await expect(rows(phone.page)).toHaveText([/^Place/,new RegExp(`^1st\\s*${n(4)}\\s*Team 1`),new RegExp(`^2nd\\s*${n(16)}\\s*Team 4\\s*At finish`)],live);
