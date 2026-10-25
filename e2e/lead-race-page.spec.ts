@@ -3,11 +3,11 @@ const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
-/** A timed event with one race of these runners, finished in that order with these times. */
-async function recordedRace(page:Page,code:string,runners:number[],places:number[]) {
+/** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
+async function recordedRace(page:Page,code:string,runners:number[],places:number[],keptWarnings?:number[]) {
   expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places);
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places,keptWarnings);
   created.push(race.id);
   return race;
 }
@@ -51,6 +51,35 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
   await expect(saved(page)).toBeVisible();
   await expect(second).toContainText('12.20');await expect(second).not.toContainText('Faster');
   expect(await background(second)).not.toBe(amber);
+});
+
+test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{
+  const code=`LC-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[5141,3141,2141,3142],[1300,1310,1320,1330],[5141,3141,3142]);
+  const lead=`Warning lead ${info.project.name}`;
+  await openRace(page,code,lead,race.number);
+  const record=page.getByRole('list',{name:'Current record',exact:true}),row=(number:number)=>record.getByRole('listitem').filter({hasText:String(number)});
+  const warning=(number:number)=>row(number).locator('.record-warning');
+  await expect(warning(5141)).toHaveText('5141 is not a known wristband number');
+  await expect(warning(3141)).toHaveText('3141 belongs to Boy Scouts - this race is Girl Cubs');
+  for(const number of [5141,3141]) expect(await background(warning(number))).toBe(amber);
+  await expect(row(2141).locator('.record-note')).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-open-warnings.png'),fullPage:true});
+
+  // Checked by a lead: grey, worded as on the leaderboards. Tapping the number still opens the child's actions.
+  await page.getByRole('button',{name:'Runner 3141',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'Actions for 3141',exact:true});
+  await sheet.getByRole('button',{name:'Mark checked',exact:true}).click();await sheet.getByRole('button',{name:'Save check',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await expect(warning(3141)).toHaveText(`Checked by ${lead}: 3141 belongs to Boy Scouts - this race is Girl Cubs`);
+  expect(await background(warning(3141))).not.toBe(amber);
+  // Settled by a Wrong section or age disqualification.
+  await page.getByRole('button',{name:'Runner 3142',exact:true}).click();
+  await page.getByRole('button',{name:'Disqualify',exact:true}).click();
+  await page.getByLabel('Reason',{exact:true}).selectOption('Wrong section or age');
+  await page.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(warning(3142)).toHaveText('Checked: 3142 belongs to Boy Scouts - this race is Girl Cubs');
+  expect(await background(warning(3142))).not.toBe(amber);
+  await expect(warning(5141)).toHaveText('5141 is not a known wristband number');expect(await background(warning(5141))).toBe(amber);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-checked-warnings.png'),fullPage:true});
 });
 
 test('a lead corrects a number on the phone number pad: digits only, Enter checks, a warning closes the keyboard and Fix clears it',async({page},info)=>{
