@@ -1,6 +1,7 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import readExcelFile from 'read-excel-file/node';
+import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
@@ -51,10 +52,24 @@ test('the workbook keeps completed podium columns, every recorded/pending/delete
  const all=sheets[2].data;expect(all[0]).toEqual(['Event code','Event','Section','Race','Wristband number','Team','Leg','Time','Place in race','Event position','Status','Warning','Note']);expect(all).toHaveLength(11);expect(all.slice(1).every(values=>values[5]===null&&values[6]===null)).toBe(true);
  const row=(n:number,raceLabel='Race 1',code='R7')=>all.find(values=>values[0]===code&&values[3]===raceLabel&&values[4]===n)!;
  expect(row(101).slice(5,11)).toEqual([null,null,9,1,1,'1st']);expect(row(106,'Race 3')[10]).toContain('Tie settled');expect(row(104).slice(7,11)).toEqual([null,null,null,'Did not finish']);
- expect(row(103)[10]).toContain('Disqualified: Obstruction');expect(row(103)[12]).toContain('=1+1');expect(row(1005)[11]).toContain('Checked:');expect(row(1005)[12]).toContain('Checked wristband < & >');
+ expect(row(103)[10]).toContain('Disqualified: Obstruction');expect(row(103)[12]).toContain('=1+1');expect(row(1005)[11]).toMatch(/^Checked by Aisha: 1005 belongs to Boy Cubs - this race is /);expect(row(1005)[12]).toContain('Checked wristband < & >');
  expect(row(101,'Race 2')[10]).toContain('Not counted');expect(row(107,'Race 4').slice(7,11)).toEqual([8,1,null,'Deleted race; Finished']);expect(row(108,'Race 1','R8')[10]).toContain('in progress');
  expect(sheets[3].data.some(values=>values[0]===null&&String(values[3]).includes('Changed the lead code'))).toBe(true);expect(sheets[3].data.some(values=>values[4]==='=1+1')).toBe(true);
  expect(other.id).not.toBe(first.id);
+});
+test('a check saved before who-checked was kept reads as checked with no name, in the results and the Warning column',async()=>{
+ const {owner,lead,volunteer}=await start();const setup=raceSetup(app);
+ await setup.checkIn(volunteer,'R4',[3045],[3045]);const saved=await setup.order(volunteer,'R4',[3045,2010],{added:[2010]});await setup.times(volunteer,'R4',[1000,1100]);await setup.submit(volunteer,'R4');
+ const entry=(n:number)=>saved.parts.runners.value!.find((r:any)=>r.wristband===n)!.id;
+ await call(lead,`/api/lead/races/${saved.id}/runners/${entry(3045)}/mark-warning-checked`,{});await call(lead,`/api/lead/races/${saved.id}/runners/${entry(2010)}/mark-added-checked`,{});
+ // As an older build stored them: the check alone, with no lead's name or time.
+ const db=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});await db.connect();
+ try {await db.query(`UPDATE runner_rulings SET warning_checks=COALESCE((SELECT jsonb_agg(check_ - 'checkedBy') FROM jsonb_array_elements(warning_checks) check_),'[]'),added_at_finish_checked_by=NULL WHERE race_id=$1`,[saved.id]);} finally {await db.end();}
+ const rows=(await call(lead,'/api/lead/events/R4/results')).json().results.leaderboard;
+ expect(rows.find((row:any)=>row.wristband===3045).flags).toEqual([{kind:'warning',warningKind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',checked:true}]);
+ expect(rows.find((row:any)=>row.wristband===2010).flags).toEqual([{kind:'added-at-finish',message:'Added at the finish',checked:true}]);
+ const all=(await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload))[2].data,warning=(n:number)=>all.find(values=>values[0]==='R4'&&values[4]===n)![11];
+ expect(warning(3045)).toBe('Checked: 3045 belongs to Boy Scouts - this race is Girl Cubs');expect(warning(2010)).toBe('Checked: Added at the finish');
 });
 test('final export preserves absent seeds, sourced callups, corrected numbers, typed additions and deleted final generations',async()=>{
  const {owner,lead,volunteer}=await start();await race(volunteer,'R3',[1023,1066,1088,1005,1012,1110],[900,910,920,930,940,950]);await race(volunteer,'R3',[1135,1047],[960,970]);

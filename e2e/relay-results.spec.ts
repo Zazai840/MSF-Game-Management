@@ -36,7 +36,7 @@ test('To check names relay teams: a kept wrong-Section number, a child in two re
     // Disqualifying for wrong section or age is a reason under the one Disqualify button, not a button of its own.
     await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
     if(team===1) {expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('relay-team-actions.png'),fullPage:true});}
-    await sheet.getByRole('button',{name:button,exact:true}).click();await expect(sheet).toHaveCount(0);
+    await sheet.getByRole('button',{name:button,exact:true}).click();await sheet.getByRole('button',{name:'Save check',exact:true}).click();await expect(sheet).toHaveCount(0);
     await back(page,'Dashboard');
     await expect(item).toHaveCount(0);
   }
@@ -48,7 +48,8 @@ test('To check names relay teams: a kept wrong-Section number, a child in two re
   await dashboardMenuButton(page,'Results').click();
   await page.getByRole('button',{name:new RegExp(`^${cubs} · Girl Cubs`)}).click();
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
-  await expect(board.locator('.checked-warning')).toHaveText([`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,'Team 3 ran with 3 of 4 children marked here.','Added at the finish']);
+  const checked=`Checked by To check relay lead ${project}: `;
+  await expect(board.locator('.checked-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`,`${checked}Added at the finish`]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-checked-rows.png'),fullPage:true});
 });

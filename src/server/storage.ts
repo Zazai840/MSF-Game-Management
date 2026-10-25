@@ -103,6 +103,7 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE runner_rulings ADD COLUMN IF NOT EXISTS warning_checks jsonb NOT NULL DEFAULT '[]';
     ALTER TABLE runner_rulings ADD COLUMN IF NOT EXISTS not_counted boolean NOT NULL DEFAULT false;
     ALTER TABLE runner_rulings ADD COLUMN IF NOT EXISTS added_at_finish_checked boolean NOT NULL DEFAULT false;
+    ALTER TABLE runner_rulings ADD COLUMN IF NOT EXISTS added_at_finish_checked_by jsonb;
     CREATE TABLE IF NOT EXISTS audit_notes (
       id uuid PRIMARY KEY, sequence_number bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
       day_id uuid NOT NULL REFERENCES olympics_days(id), event_id uuid REFERENCES events(id),

@@ -6,7 +6,7 @@ import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
 import type { RelayTeam,TeamList,TeamWarning } from './teams.js';
 import type { FinishingOrder,RaceEntry } from './races.js';
-import type { AuditNote,RunnerRuling,Disqualification } from './rulings.js';
+import type { AuditNote,CheckedBy,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
 import { notCountedReasons } from './race-counts.js';
 import { eventTies,type TieSettlement } from './ties.js';
@@ -22,7 +22,8 @@ export interface EventState { event:Event; races:readonly ResultsRace[]; rulings
   relays?:ReadonlyArray<Pick<TeamList,'code'|'section'> & {teams:ReadonlyArray<Pick<RelayTeam,'number'|'legs'>>}> }
 /** What a warning flag is about: a child's wristband, a child in two relays (`other-relay`), or a team that ran short. */
 export type WarningKind=WristbandWarning['kind']|TeamWarning['kind']|'ran-short';
-export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean }
+/** `checked` is whether it is settled; `checkedBy` names the lead's check, `settledByDisqualification` a disqualification that settled it instead. */
+export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean; checkedBy?:CheckedBy; settledByDisqualification?:true }
 
 /** A relay team a result belongs to: its number and the four children who ran in that race, in leg order. */
 export interface ResultTeam { id:string; number:number; wristbands:Array<number|null> }

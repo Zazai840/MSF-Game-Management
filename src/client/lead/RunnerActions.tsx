@@ -5,18 +5,20 @@ import { api } from '../api.js';
 import { disqualificationReasons } from '../../shared/rulings.js';
 import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { resultHolder,resultName,type LeaderboardRow } from '../../shared/results-rules.js';
+import { resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
 import { resultLabel } from './ResultName.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
+const openAddition=(flag:ResultFlag)=>flag.kind==='added-at-finish' && !flag.checked;
 export interface RunnerActionsProps { row:LeaderboardRow; rows:readonly LeaderboardRow[]; eventCode:string; onSaved:(next:EventResultsRead)=>void; onClose:()=>void }
 export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActionsProps) {
   const reasonId=useId(),commentId=useId();
-  const [action,setAction]=useState<'choose'|'disqualify'|'lift'|'correct'|'count'>('choose');
+  const [action,setAction]=useState<'choose'|'disqualify'|'lift'|'correct'|'count'|'check-warning'|'check-added'>('choose');
   const [reason,setReason]=useState('');
   const [comment,setComment]=useState('');
   const [counted,setCounted]=useState(`${row.raceId}:${row.entryId}`);
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
+  const checking=row.flags.filter(action==='check-added'?openAddition:isOpenEligibilityWarning);
   const choices=rows.filter(other=>resultHolder(other)===resultHolder(row) && !other.disqualification && other.race.kind!=='final');
   async function command(command:string,body:unknown,target=row) {
     if(saving) return;setSaving(true);setError('');
@@ -28,8 +30,8 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
   return <ActionSheet title={`Actions for ${resultName(row)}`} busy={saving} focusKey={action} onClose={onClose}>
     <h3>{resultLabel(row)}</h3>{error && <p role="alert">{error}</p>}
     {action==='choose'?<div className="runner-action-choices">{row.disqualification?<><p>Disqualified: {row.disqualification.reason}</p><button disabled={saving} onClick={()=>setAction('lift')}>Lift disqualification</button></>:<button disabled={saving} onClick={()=>setAction('disqualify')}>{row.team?`Disqualify ${resultName(row)}`:'Disqualify'}</button>}
-      {row.flags.some(flag=>flag.kind==='added-at-finish' && !flag.checked) && <button disabled={saving} onClick={()=>void command('mark-added-checked',{})}>Mark addition checked</button>}
-      {row.flags.some(isOpenEligibilityWarning) && <button disabled={saving} onClick={()=>void command('mark-warning-checked',{})}>Mark checked</button>}
+      {row.flags.some(openAddition) && <button disabled={saving} onClick={()=>setAction('check-added')}>Mark addition checked</button>}
+      {row.flags.some(isOpenEligibilityWarning) && <button disabled={saving} onClick={()=>setAction('check-warning')}>Mark checked</button>}
       <button disabled={saving} onClick={()=>setAction('correct')}>Correct number</button>
       {!row.disqualification && choices.length>1 && <button disabled={saving} onClick={()=>setAction('count')}>Choose which result counts</button>}
       <button disabled={saving} className="button-secondary" onClick={onClose}>Close actions</button>
@@ -37,6 +39,11 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
       <p>Choose the result that counts for {resultName(row)}. Other results stay visible as not counted.</p>
       {choices.map(other=><label className="count-choice" key={`${other.raceId}:${other.entryId}`}><input type="radio" name="counted-result" value={`${other.raceId}:${other.entryId}`} checked={counted===`${other.raceId}:${other.entryId}`} onChange={event=>setCounted(event.target.value)} disabled={saving} aria-label={`Count ${other.race.kind==='heat'?'Heat':'Race'} ${other.race.number}`}/>{other.race.kind==='heat'?'Heat':'Race'} {other.race.number} · {other.recordingPending?'Not recorded yet':other.time===null?'Did not finish':formatTime(other.time)}{other.notCounted?' · Not counted':''}</label>)}
       <button disabled={saving}>{saving?'Saving…':'Save counted result'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+    </form>:action==='check-warning' || action==='check-added'?<form onSubmit={event=>{event.preventDefault();void command(action==='check-added'?'mark-added-checked':'mark-warning-checked',{comment});}}>
+      {action==='check-added'?<p>Check {resultName(row)} ran in this race:</p>:<p>Check {checking.length===1?'this warning':'these warnings'} for {resultName(row)}:</p>}
+      <div className="warning-box">{checking.map((flag,index)=><p key={index}>{flag.message}</p>)}</div>
+      <label htmlFor={commentId}>Note (optional)</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} maxLength={1000} disabled={saving}/>
+      <button disabled={saving}>{saving?'Saving…':'Save check'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
     </form>:<form onSubmit={save}>
       {action==='disqualify' && <><label htmlFor={reasonId}>Reason</label><select id={reasonId} value={reason} onChange={event=>setReason(event.target.value)} required disabled={saving}><option value="">Choose a reason</option>{disqualificationReasons.map(reason=><option key={reason}>{reason}</option>)}</select></>}
       <label htmlFor={commentId}>{action==='lift'?'Comment':'Comment (optional)'}</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} required={action==='lift'} maxLength={1000} disabled={saving}/>

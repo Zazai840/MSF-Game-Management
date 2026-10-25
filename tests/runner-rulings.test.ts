@@ -72,3 +72,24 @@ test('runner rulings refuse volunteers and malformed corrections without audit c
   expect((await call(lead,'/api/race-screen/R4')).statusCode).toBe(200);
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
 });
+test('Mark checked records the lead who checked it, when, and the trimmed note on the warning',async()=>{
+  const {lead,first,path}=await start();
+  const data=(await call(lead,path(first,3045)+'/mark-warning-checked',{comment:'  Saw the wristband, wrong band issued  '})).json();
+  const row=data.results.leaderboard.find((row:any)=>row.wristband===3045);
+  expect(row.flags).toEqual([{kind:'warning',warningKind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',checked:true,checkedBy:{name:'Aisha',at:data.auditNotes[0].at,note:'Saw the wristband, wrong band issued'}}]);
+  expect(data.auditNotes[0].comment).toBe('Saw the wristband, wrong band issued');
+});
+test('Mark addition checked with no note records who and when, and no note',async()=>{
+  const {lead,volunteer}=await start();
+  const setup=raceSetup(app);await setup.checkIn(volunteer,'R4',[2002]);
+  const race=await setup.order(volunteer,'R4',[2002,2010],{added:[2010]});await setup.times(volunteer,'R4',[1000,1100]);await setup.submit(volunteer,'R4');
+  const added=race.parts.runners.value!.find((runner:any)=>runner.wristband===2010)!;
+  const data=(await call(lead,`/api/lead/races/${race.id}/runners/${added.id}/mark-added-checked`,{comment:'   '})).json();
+  const flag=data.results.leaderboard.find((row:any)=>row.entryId===added.id).flags.find((flag:any)=>flag.kind==='added-at-finish');
+  expect(flag).toEqual({kind:'added-at-finish',message:'Added at the finish',checked:true,checkedBy:{name:'Aisha',at:data.auditNotes[0].at}});
+});
+test('a "Wrong section or age" disqualification settles the warning by disqualification, not by a check',async()=>{
+  const {lead,first,path}=await start();
+  const data=(await call(lead,path(first,3045)+'/disqualify',{reason:'Wrong section or age'})).json();
+  expect(data.results.leaderboard.find((row:any)=>row.wristband===3045).flags).toEqual([{kind:'warning',warningKind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',checked:true,settledByDisqualification:true}]);
+});
