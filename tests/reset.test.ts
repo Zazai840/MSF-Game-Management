@@ -33,7 +33,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   const {owner,volunteer,lead,day,people}=await start();const before=(await call(owner,'/api/me')).json();
   const otherOwner=(await people.volunteer('Other owner')).token;
   await call(otherOwner,'/api/become-lead',{code:'reset-owner'});
-  await call(owner,'/api/day/events',{code:'EXTRA',name:'Extra',section:'Girl Cubs',format:'timed'});
+  await call(owner,'/api/day/events',{code:'EXTRA',name:'Extra',section:'Girl Cubs',format:'timed',type:'races'});
   await call(owner,'/api/day/events/R4/rename',{name:'Renamed'});await call(owner,'/api/day/events/R24/enabled',{enabled:false});await call(owner,'/api/day/confirm-events',{});
   const setup=raceSetup(app),record=(eventCode:string,number:number)=>setup.record(volunteer,eventCode,[number],[1000]);
   const first=await record('R7',101),second=await record('R7',102);

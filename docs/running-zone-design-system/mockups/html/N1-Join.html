@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 · Join and pick your job</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@1,62.5..100,600..900&amp;family=Nunito:wght@600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../../tokens.css">
+<link rel="stylesheet" href="../../components/bundle.css">
+<style>body{margin:0;background:#d9d2c3;display:flex;justify-content:center}</style>
+</head>
+<body>
+<div class="rz-screen rz-zone-running" style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden">
+  <header class="rz-appbar rz-appbar--compact" style="padding-left: 20px">
+    <svg class="rz-pattern" aria-hidden="true"><defs><pattern id="n1-star" width="44" height="44" patternUnits="userSpaceOnUse"><g><rect x="12" y="12" width="20" height="20"></rect><rect x="12" y="12" width="20" height="20" transform="rotate(45 22 22)"></rect><path d="M0 22H8M36 22H44M22 0V8M22 36V44"></path></g></pattern></defs><rect width="100%" height="100%" fill="url(#n1-star)"></rect></svg>
+    <div class="rz-stripes rz-stripes--small" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span class="rz-appbar__eyebrow" style="font-size: 12px">MSF Olympics</span>
+      <span style="font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 26px; line-height: 1; text-transform: uppercase">Running <span style="color: var(--running)">Zone</span></span>
+    </div>
+  </header>
+  <main style="flex: 1; padding: 20px 20px 0; display: flex; flex-direction: column; gap: 16px">
+    <h1 class="rz-screen-title">Join the Running Zone</h1>
+    <div class="rz-field rz-field--text">
+      <label class="rz-field__label" for="code">Day code</label>
+      <input class="rz-field__input" id="code" inputmode="numeric" autocomplete="off" value="6509">
+    </div>
+    <div class="rz-field rz-field--text">
+      <label class="rz-field__label" for="name">Full name</label>
+      <input class="rz-field__input" id="name" autocomplete="name" value="Amina Yusuf">
+    </div>
+    <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+      <legend class="rz-field__label" style="padding: 0; margin-bottom: 6px">What's your job today?</legend>
+      <label style="display: grid; grid-template-columns: 40px 1fr 24px; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px 8px 10px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow-card); cursor: pointer">
+        <span style="position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: var(--navy)"><svg class="rz-star" viewBox="0 0 40 40" aria-hidden="true" style="position: absolute; inset: 0; fill: var(--running)"><rect x="7" y="7" width="26" height="26" rx="3"></rect><rect x="7" y="7" width="26" height="26" rx="3" transform="rotate(45 20 20)"></rect></svg><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="position: relative; width: 18px; height: 18px; stroke-width: 2.6"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg></span>
+        <span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 16px; font-weight: 800">Start line</span><span style="font-size: 13px; color: var(--ink-muted)">Type wristband numbers before the start</span></span>
+        <input type="radio" name="job" value="start" style="width: 20px; height: 20px; margin: 0; accent-color: #1E2B51">
+      </label>
+      <label style="display: grid; grid-template-columns: 40px 1fr 24px; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px 8px 10px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow-card); cursor: pointer">
+        <span style="position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: var(--navy)"><svg class="rz-star" viewBox="0 0 40 40" aria-hidden="true" style="position: absolute; inset: 0; fill: var(--challenge)"><rect x="7" y="7" width="26" height="26" rx="3"></rect><rect x="7" y="7" width="26" height="26" rx="3" transform="rotate(45 20 20)"></rect></svg><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="position: relative; width: 18px; height: 18px; stroke-width: 2.6"><path d="M10 6h10M10 12h10M10 18h10"></path><path d="M4 6h1M4 12h1M4 18h1"></path></svg></span>
+        <span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 16px; font-weight: 800">Finish line</span><span style="font-size: 13px; color: var(--ink-muted)">Tap runners as they cross the line</span></span>
+        <input type="radio" name="job" value="finish" style="width: 20px; height: 20px; margin: 0; accent-color: #1E2B51">
+      </label>
+      <label style="display: grid; grid-template-columns: 40px 1fr 24px; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px 8px 10px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); cursor: pointer">
+        <span style="position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: var(--navy)"><svg class="rz-star" viewBox="0 0 40 40" aria-hidden="true" style="position: absolute; inset: 0; fill: var(--gold)"><rect x="7" y="7" width="26" height="26" rx="3"></rect><rect x="7" y="7" width="26" height="26" rx="3" transform="rotate(45 20 20)"></rect></svg><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="position: relative; width: 18px; height: 18px; stroke-width: 2.6"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M10 2h4"></path></svg></span>
+        <span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 16px; font-weight: 800">Timer</span><span style="font-size: 13px; color: var(--ink-muted)">Type times from the stopwatch</span></span>
+        <input type="radio" name="job" value="timer" checked style="width: 20px; height: 20px; margin: 0; accent-color: #1E2B51">
+      </label>
+    </fieldset>
+    <p style="margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-muted)">You can switch job on any race. Zone lead? Type the lead code instead of the day code.</p>
+  </main>
+  <footer class="rz-footer">
+    <a class="rz-btn rz-btn--display rz-btn--block" href="N2-Races.html">Join</a>
+  </footer>
+</div>
+</body>
+</html>

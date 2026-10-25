@@ -3,7 +3,7 @@ import readExcelFile from 'read-excel-file/node';
 import { deleteCurrentRace,ownEvent,writeCheckIn,recordRace,goHome,back,openDashboard,openRaceScreen,becomeLead,expect,createProfile,test } from './fixtures.js';
 test('a heat replaced by a re-run says which heat replaced it, offers no Restore, and the re-run reaches the race screen and the day export',async({page},info)=>{
   const code=`RR-${info.project.name.toUpperCase()}`,name=`Re-run heats ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2011,2012,2013],[1200,1300,1400]);
   await page.goto('/');await createProfile(page,`Re-run lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Re-run race',exact:true}).click();

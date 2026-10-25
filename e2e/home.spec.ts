@@ -15,8 +15,8 @@ async function toCheckCount(page:Page,needsYou:number) {
 
 test('Home lists events under distance headings in programme order, and a tile opens its race screen on the next heat',async({openPhone,request},info)=>{
   const project=info.project.name,name=`Home sprint ${project}`,code=`HS-${project.toUpperCase()}`,off=`HO-${project.toUpperCase()}`,owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  expect((await request.post('/api/day/events',{headers:owner,data:{code,name,section:'Boy Scouts',format:'heats'}})).ok()).toBe(true);
-  expect((await request.post('/api/day/events',{headers:owner,data:{code:off,name,section:'Girl Scouts',format:'heats'}})).ok()).toBe(true);
+  expect((await request.post('/api/day/events',{headers:owner,data:{code,name,section:'Boy Scouts',format:'heats',type:'races'}})).ok()).toBe(true);
+  expect((await request.post('/api/day/events',{headers:owner,data:{code:off,name,section:'Girl Scouts',format:'heats',type:'races'}})).ok()).toBe(true);
   expect((await request.post(`/api/day/events/${off}/enabled`,{headers:owner,data:{enabled:false}})).ok()).toBe(true);
   // Heat 1 is saved, so the event's current race is the next heat, not stored yet.
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[3001,3002],[1234,1301]);

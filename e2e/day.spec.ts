@@ -24,6 +24,7 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await page.getByLabel('New event name',{exact:true}).fill('Extra sprint');
     await page.getByLabel('New event section',{exact:true}).selectOption('Girl Cubs');
     await page.getByLabel('New event format',{exact:true}).selectOption('timed');
+    await page.getByLabel('New event type',{exact:true}).selectOption('races');
     await page.getByRole('button',{name:'Add event',exact:true}).click();
     const event = page.getByRole('article',{name:`${code} · Girl Cubs`});
     await expect(event).toContainText('Extra sprint');

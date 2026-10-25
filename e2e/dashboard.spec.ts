@@ -7,7 +7,7 @@ const menu=[
 ] as const;
 /** A timed event with one race whose 2nd place time is faster than 1st, so To check has an item. */
 async function wrongTimeRace(page:Page,code:string) {
-  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Dashboard sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Dashboard sprint',section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   return recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1600,1305]);
 }
 const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers:headers(),data:{permanent:true}});};

@@ -18,7 +18,7 @@ export function jobRace(race:StoredRace):RaceRead {
   return {...rest,...(final?{final:{generation:final.generation,hasRun:final.hasRun,heatsComplete:final.heatsComplete,entries:[...final.entries.map(({finalEntryId,heatWristband,seed,absent,runner,kind})=>({finalEntryId,...named(finalEntryId,runner,heatWristband),seed,absent,calledUp:kind==='call-up'})),...(final.additionalEntries||[]).map(({runner,absent})=>({finalEntryId:runner.id,...named(runner.id,runner,null),seed:null,absent,calledUp:false}))]}}:{})};
 }
 export type Database=pg.Pool|pg.PoolClient;
-const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,e.relay,${stageDoneSql('r.event_id',"CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END")} AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
+const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,e.type,(e.type='relays') AS relay,${stageDoneSql('r.event_id',"CASE WHEN r.kind='final' THEN 'final' WHEN e.format='heats' THEN 'heats' ELSE 'event' END")} AS stage_complete FROM races r JOIN events e ON e.id=r.event_id`;
 // A final's heats_complete is Heats complete itself, which opens its line-up to call-ups and added teams: Results
 // without a final never does, and leaves no final in the event (an unrun one is discarded, a deleted one stays deleted).
 const finalRowsQuery=`SELECT f.race_id,f.entries,f.additional_entries,f.generation,
@@ -55,7 +55,7 @@ function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],finalRow?:pg.
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value}]));
   // A final has run once it is saved.
   const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:row.state==='saved',heatsComplete:finalRow.heats_complete}:undefined;
-  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
+  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,type:row.type,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {

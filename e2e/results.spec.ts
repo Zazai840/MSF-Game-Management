@@ -1,7 +1,7 @@
 import { enterTime,openDashboard,openRaceScreen,enterWristband,becomeLead,expect,createProfile,ownEvent,recordRace,signInThroughApi,test } from './fixtures.js';
 test('a lead sees a race worked on the race screen appear within one Results poll',async({page,openPhone},info)=>{
   const project=info.project.name,code=`RP-${project.toUpperCase()}`,name=`Results phone ${project}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await page.goto('/');await createProfile(page,`Results lead ${project}`);await becomeLead(page);await openDashboard(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();

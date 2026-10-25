@@ -37,7 +37,7 @@ test('a phone checks in 8 runners on the race screen and carries them through th
 test('a lead adds a 7th runner to a saved final and the final is recorded end to end',async({page,openPhone},info)=>{
   test.setTimeout(60000);
   const code=`F7-${info.project.name.slice(0,3).toUpperCase()}`,name=`Seven ${info.project.name}`;
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats',type:'races'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }

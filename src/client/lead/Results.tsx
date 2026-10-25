@@ -24,7 +24,7 @@ const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fi
  * then one race. Its back arrow goes up one level: a race to its event, an event to Results, Results to the Dashboard;
  * whatever a To check item opened goes back to the Dashboard, where To check lives. No to-check count shows anywhere here.
  */
-export function Results({target,onDashboard,onChanged}:{target?:DayLeadItem;onDashboard:()=>void;onChanged?:()=>void}) {
+export function Results({target,onDashboard,onChanged,backTo='Dashboard'}:{target?:DayLeadItem;onDashboard:()=>void;onChanged?:()=>void;backTo?:string}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
   // The check sheet a tie was opened from: from Results without a final it is settled against medal places.
@@ -54,7 +54,7 @@ export function Results({target,onDashboard,onChanged}:{target?:DayLeadItem;onDa
   function openRace(id:string|null) {setSelectedRace(id);window.scrollTo(0,0);}
   const fromToCheck=target?.entryId?null:target?.raceId||null;
   const back=code && selectedRace && selectedRace!==fromToCheck?<BackArrow to={detail?`${detail.event.name} ${detail.event.section}`:eventName||code} onBack={()=>openRace(null)}/>
-    :code && !target?<BackArrow to="Results" onBack={()=>open(null)}/>:<BackArrow to="Dashboard" onBack={onDashboard}/>;
+    :code && !target?<BackArrow to="Results" onBack={()=>open(null)}/>:<BackArrow to={backTo} onBack={onDashboard}/>;
 
   const tieOn=(stage:Stage|undefined,id:string|null|undefined)=>(stage==='no-final'?detail?.results.noFinalTies:detail?.results.ties)?.find(tie=>tie.id===id);
   const selectedTie=tieOn(tieStage,selectedTieId);

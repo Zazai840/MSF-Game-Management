@@ -2,6 +2,8 @@ import { seedFinal } from './finals.js';
 import type pg from 'pg';
 import type { FastifyInstance } from 'fastify';
 import type { CompletedStage } from '../../shared/stage-lock.js';
+import type { Phone } from '../../shared/domain.js';
+import type { Stage } from '../../shared/stages.js';
 import { actions,Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
@@ -19,27 +21,36 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
     const stage=value.stage;
     if(!['event','heats','final','no-final'].includes(String(stage))) throw new Refusal(400,'Choose a stage');
     return rulingChange(pool,phone,async(client,current)=>{
-      const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code);
-      const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);
-      if(!sheet) throw new Refusal(409,stage==='no-final' && detail.results.finalResults?.started?'The final has started - medals come from the final':'This stage is not available');
-      if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
-      if(reopening && stage==='heats' && detail.results.finalResults?.started) throw new Refusal(409,'The final has started - heats cannot be reopened');
-      if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Must settle first - open the completion check sheet');
-      if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
-      else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
-      if(sheet.stage==='heats') await seedFinal(client,current,detail.event,detail.results.qualifiers);
-      // Decided without a final, the event has no race left to work, so nobody keeps a job on it. An unrun final goes
-      // with its line-up, call-ups and added runners, and the heats are no longer complete: Reopen results opens them.
-      if(!reopening && sheet.stage==='no-final') {
-        await client.query('DELETE FROM job_holds WHERE event_id=$1',[detail.event.id]);
-        if(detail.results.finalResults) await client.query('DELETE FROM races WHERE id=$1',[detail.results.finalResults.raceId]);
-        // The next final is Final 1 again, unless a deleted final keeps its number.
-        await client.query("DELETE FROM race_counters WHERE event_id=$1 AND kind='final' AND NOT EXISTS(SELECT 1 FROM races WHERE event_id=$1 AND kind='final')",[detail.event.id]);
-        await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage IN ('heats','final')",[detail.event.id]);
-      }
-      const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);
-      await writeAuditNote(client,current,detail.event.id,{action:command,message:`${current.name} ${reopening?'reopened':'marked'} ${sheet.label}${comment?` - ${comment}`:''}`,comment,touches});
-      return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
+      const code=(request.params as {code:string}).code;
+      await changeStage(client,current,code,stage as Stage,reopening,comment);
+      return {status:'saved',...await readEventResults(client,current.dayId,code)};
     });
   });
+}
+/**
+ * Completes or reopens one stage of an event, under the caller's day lock. Completing refuses while its check sheet
+ * has anything to settle first. Heats complete seeds the final: the race flow's "+ Final" comes here too.
+ */
+export async function changeStage(client:pg.PoolClient,current:Phone,code:string,stage:Stage,reopening:boolean,comment:string|null) {
+  const command=reopening?'reopen-stage':'complete-stage';
+  const detail=await readEventResults(client,current.dayId,code);
+  const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);
+  if(!sheet) throw new Refusal(409,stage==='no-final' && detail.results.finalResults?.started?'The final has started - medals come from the final':'This stage is not available');
+  if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
+  if(reopening && stage==='heats' && detail.results.finalResults?.started) throw new Refusal(409,'The final has started - heats cannot be reopened');
+  if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Must settle first - open the completion check sheet',{mustSettleFirst:sheet.mustSettleFirst.map(item=>item.message)});
+  if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
+  else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
+  if(sheet.stage==='heats') await seedFinal(client,current,detail.event,detail.results.qualifiers);
+  // Decided without a final, the event has no race left to work, so nobody keeps a job on it. An unrun final goes
+  // with its line-up, call-ups and added runners, and the heats are no longer complete: Reopen results opens them.
+  if(!reopening && sheet.stage==='no-final') {
+    await client.query('DELETE FROM job_holds WHERE event_id=$1',[detail.event.id]);
+    if(detail.results.finalResults) await client.query('DELETE FROM races WHERE id=$1',[detail.results.finalResults.raceId]);
+    // The next final is Final 1 again, unless a deleted final keeps its number.
+    await client.query("DELETE FROM race_counters WHERE event_id=$1 AND kind='final' AND NOT EXISTS(SELECT 1 FROM races WHERE event_id=$1 AND kind='final')",[detail.event.id]);
+    await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage IN ('heats','final')",[detail.event.id]);
+  }
+  const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);
+  await writeAuditNote(client,current,detail.event.id,{action:command,message:`${current.name} ${reopening?'reopened':'marked'} ${sheet.label}${comment?` - ${comment}`:''}`,comment,touches});
 }

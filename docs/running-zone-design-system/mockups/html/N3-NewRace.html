@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 · New race</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@1,62.5..100,600..900&amp;family=Nunito:wght@600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../../tokens.css">
+<link rel="stylesheet" href="../../components/bundle.css">
+<style>body{margin:0;background:#d9d2c3;display:flex;justify-content:center}</style>
+</head>
+<body>
+<div class="rz-screen rz-zone-running" style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden">
+  <header class="rz-appbar rz-appbar--compact" style="padding: 10px 14px 10px 20px">
+    <svg class="rz-pattern" aria-hidden="true"><defs><pattern id="n3-star" width="44" height="44" patternUnits="userSpaceOnUse"><g><rect x="12" y="12" width="20" height="20"></rect><rect x="12" y="12" width="20" height="20" transform="rotate(45 22 22)"></rect><path d="M0 22H8M36 22H44M22 0V8M22 36V44"></path></g></pattern></defs><rect width="100%" height="100%" fill="url(#n3-star)"></rect></svg>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span class="rz-appbar__eyebrow" style="font-size: 12px">MSF Olympics</span>
+      <span style="font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 28px; line-height: 1; text-transform: uppercase">Running <span style="color: var(--running)">Zone</span></span>
+    </div>
+  </header>
+  <div style="margin: 14px 20px 0; height: 52px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow-card)"></div>
+  <div style="margin: 18px 20px 0; height: 140px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow-card)"></div>
+
+  <div class="rz-scrim rz-scrim--contained">
+    <div class="rz-sheet" role="dialog" aria-modal="true" aria-labelledby="new-title" style="gap: 14px">
+      <div class="rz-sheet__grip" aria-hidden="true"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <h2 class="rz-sheet__title" id="new-title" style="margin: 0">New race</h2>
+        <a href="N2-Races.html" aria-label="Close" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--navy)"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.6"><path d="M7 7l10 10M17 7L7 17"></path></svg></a>
+      </div>
+
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend class="rz-field__label" style="padding: 0; margin-bottom: 8px">Event</legend>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <button type="button" aria-pressed="true" style="min-height: 48px; border: 0; border-radius: 12px; background: var(--navy); color: var(--on-navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 20px; text-transform: uppercase">60m</button>
+          <button type="button" aria-pressed="false" style="min-height: 48px; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 20px; text-transform: uppercase">200m</button>
+          <button type="button" aria-pressed="false" style="min-height: 48px; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 20px; text-transform: uppercase">400m</button>
+        </div>
+      </fieldset>
+
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend class="rz-field__label" style="padding: 0; margin-bottom: 8px">Section</legend>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+          <button type="button" aria-pressed="false" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; font-weight: 800">Boy Beavers<span style="font-size: 13px; color: var(--ink-muted)">R1</span></button>
+          <button type="button" aria-pressed="false" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; font-weight: 800">Girl Beavers<span style="font-size: 13px; color: var(--ink-muted)">R2</span></button>
+          <button type="button" aria-pressed="false" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; font-weight: 800">Boy Cubs<span style="font-size: 13px; color: var(--ink-muted)">R3</span></button>
+          <button type="button" aria-pressed="true" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 12px; background: var(--navy); color: var(--on-navy); font-size: 15px; font-weight: 800">Girl Cubs<span style="font-size: 13px; color: var(--scoreboard-muted)">R4</span></button>
+          <button type="button" aria-pressed="false" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; font-weight: 800">Boy Scouts<span style="font-size: 13px; color: var(--ink-muted)">R5</span></button>
+          <button type="button" aria-pressed="false" style="min-height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; font-weight: 800">Girl Scouts<span style="font-size: 13px; color: var(--ink-muted)">R6</span></button>
+        </div>
+      </fieldset>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span class="rz-field__label">Race</span>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+          <button type="button" aria-pressed="true" style="min-height: 48px; border: 0; border-radius: 12px; background: var(--navy); color: var(--on-navy); font-size: 16px; font-weight: 800">Heat 5</button>
+          <button type="button" aria-disabled="true" style="min-height: 48px; border: 0; border-radius: 12px; background: transparent; box-shadow: inset 0 0 0 2px var(--line-strong); color: var(--ink-muted); font-size: 16px; font-weight: 800; cursor: not-allowed">Final</button>
+        </div>
+        <p style="margin: 0; font-size: 13px; font-weight: 600; color: var(--ink-muted)">Girl Cubs already has heats 1 to 4. The final opens when every heat has times, with the fastest 6 filled in.</p>
+      </div>
+
+      <a class="rz-btn rz-btn--display rz-btn--block" href="N5-StartLine.html" style="margin-top: 4px">Create heat 5</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

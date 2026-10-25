@@ -1,0 +1,68 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Running Zone</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@1,62.5..100,600..900&amp;family=Nunito:wght@600;700;800&amp;display=swap">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--paper); color: var(--navy); font-family: var(--font-body); overflow: hidden; }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; }
+  .art { position: absolute; top: 0; left: 480px; width: 480px; height: 288px; overflow: hidden; }
+  .art svg { display: block; width: 480px; height: 288px; }
+  .band { rx: var(--radius-xs); }
+  .navy { fill: var(--navy); }
+  .gold { fill: var(--gold); }
+  .blue { fill: var(--running); }
+  .orange { fill: var(--challenge); }
+  .red { fill: var(--red); }
+  .star-gold { fill: var(--gold); }
+  .star-cut { fill: var(--paper); }
+  .words { position: absolute; left: var(--space-32); bottom: var(--space-32); max-width: 440px; }
+  .name { margin: 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 100px; line-height: .92; letter-spacing: -.01em; color: var(--navy); }
+  .tag { margin: var(--space-8) 0 0 4px; font-size: 14px; line-height: 20px; font-weight: 700; color: var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      navy 136 wide (the app bar and ink, largest) · running 88 wide bleeding off the right · gold 40 · challenge 40, shorter · red 16, shortest (it only ever marks a stripe or the qualifying line) — about 29% of 960×288
+  arrangement a strip of unequal bands slanted at skew-stripe (-24°), like the app bar's speed stripes; bands bleed off the top and bottom, shorter ones rise from the bottom edge
+  pattern     8-point stars: ten gold stars set two-wide down the navy band and two cut in paper from the running band, from the README's "the 8-point star … as the medal shape and a quiet texture"
+  scales      band corners radius-xs; star squares 14 on a space-56 pitch down the band (space-24 + space-32); gaps between bands space-16
+-->
+<g transform="skewX(-24)">
+  <rect class="band red" x="170" y="176" width="16" height="120" rx="4"/>
+  <rect class="band orange" x="202" y="112" width="40" height="184" rx="4"/>
+  <rect class="band navy" x="258" y="-8" width="136" height="304" rx="4"/>
+  <rect class="band gold" x="410" y="-8" width="40" height="240" rx="4"/>
+  <rect class="band blue" x="466" y="-8" width="88" height="304" rx="4"/>
+</g>
+<g class="star-gold">
+  <g transform="translate(278 40)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(338 40)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(253 96)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(313 96)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(228 152)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(288 152)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(203 208)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(263 208)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(179 264)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(239 264)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+</g>
+<g class="star-cut">
+  <g transform="translate(442 120)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+  <g transform="translate(402 216)"><rect x="-7" y="-7" width="14" height="14"/><rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/></g>
+</g>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Running<br>Zone</h1>
+<p class="tag">Rulebook Games: the MSF Olympics scoring app, built for a sunny field.</p>
+</div>
+</div>
+</body>
+</html>

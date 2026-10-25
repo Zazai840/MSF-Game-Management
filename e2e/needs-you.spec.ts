@@ -15,7 +15,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
   const agrees=async()=>expect.poll(async()=>(await(await page.request.get('/api/home',{headers})).json()).needsYou).toBe((await queue()).length);
   await page.goto('/');await createProfile(page,`Queue lead ${run(info)}`);await becomeLead(page);await count();
   await dashboardButton(page).click();await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();await back(page,'Home');
-  await page.request.post('/api/day/events',{headers,data:{code,name:`Needs you sprint ${run(info)}`,section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await page.request.post('/api/day/events',{headers,data:{code,name:`Needs you sprint ${run(info)}`,section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   // Race 1: a kept wrong-section warning and a runner added at the finish. Race 2: 2001 again. Both saved, so both on To check.
   const token=process.env.E2E_OWNER_TOKEN!;
   await writeCheckIn(page.request,token,code,[3045,2001],[3045,2001]);
@@ -46,7 +46,7 @@ test('live lead count, pending runner actions and duplicate choices share one qu
 });
 test('queue items open their race or tie directly and clear after the lead settles them',async({page},info)=>{
   const code=`NR-${run(info)}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  await page.request.post('/api/day/events',{headers,data:{code,name:`Queue race actions ${run(info)}`,section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await page.request.post('/api/day/events',{headers,data:{code,name:`Queue race actions ${run(info)}`,section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:any[]=[];
   const token=process.env.E2E_OWNER_TOKEN!;
   async function recorded(numbers:number[],places:number[]) {const race=await recordRace(page.request,token,code,numbers,places);races.push(race);return race;}

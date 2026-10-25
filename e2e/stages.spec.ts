@@ -4,7 +4,7 @@ import { deleteCurrentRace,enterWristband,live,openRaceScreen,recordRace,back,op
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
 test('timed Event complete checks blockers, locks the race screen live, and reopens with a retained comment',async({page,openPhone},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=`T36${info.project.name.toUpperCase()}`,name=`Stage event ${info.project.name}`;
-  await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed'}});
+  await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed',type:'races'}});
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2601,2602],[1000,1100]);
   // A volunteer takes check-in over from the owner and starts checking in Race 2 on the race screen.

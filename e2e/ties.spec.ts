@@ -4,7 +4,7 @@ import { recordRace,openDashboard,becomeLead,dragTo,expect,createProfile,test,ba
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie event ${info.project.name}`,section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie event ${info.project.name}`,section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const createRace=(number:number,time:number)=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[number],[time]);
   await createRace(2701,1000);await createRace(2702,1000);
@@ -48,7 +48,7 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
   test.setTimeout(60000);
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=`TE-${info.project.name.slice(0,3).toUpperCase()}`;
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie heats ${info.project.name}`,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie heats ${info.project.name}`,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:string[]=[];
   const heat=async(runners:number[],places:number[])=>{races.push((await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places)).id);};

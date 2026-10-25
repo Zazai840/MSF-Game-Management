@@ -11,7 +11,7 @@ async function look(card:ReturnType<Page['getByRole']>) {
 }
 /** Four events in one group: one Done, one timed and one heats event running (Heat 1 saved, Heat 2 checking in), one not started. The running timed race has a wrong time, so To check has an item for it. */
 async function events(page:Page,name:string,prefix:string) {
-  const add=async(code:string,section:string,format:'heats'|'timed')=>page.request.post('/api/day/events',{headers:headers(),data:{code,name,section,format}});
+  const add=async(code:string,section:string,format:'heats'|'timed')=>page.request.post('/api/day/events',{headers:headers(),data:{code,name,section,format,type:'races'}});
   await add(`${prefix}D`,'Girl Cubs','timed');await add(`${prefix}R`,'Boy Cubs','timed');await add(`${prefix}H`,'Girl Scouts','heats');await add(`${prefix}N`,'Boy Scouts','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const token=process.env.E2E_OWNER_TOKEN!;

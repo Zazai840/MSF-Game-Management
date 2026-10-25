@@ -54,7 +54,7 @@ test('the day export says when it was last downloaded and whether changes came a
   const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
   const code=`DS-${info.project.name.toUpperCase()}`;
-  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Day setup sprint',section:'Girl Cubs',format:'timed'}});
+  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Day setup sprint',section:'Girl Cubs',format:'timed',type:'races'}});
   await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-export.png'),fullPage:true});
@@ -79,6 +79,7 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
   await page.getByLabel('New event name',{exact:true}).fill('Saved sprint');
   await page.getByLabel('New event section',{exact:true}).selectOption('Girl Cubs');
   await page.getByLabel('New event format',{exact:true}).selectOption('timed');
+  await page.getByLabel('New event type',{exact:true}).selectOption('races');
   await page.getByRole('button',{name:'Add event',exact:true}).click();
   await expect(savedNote(page)).toHaveText('Saved');
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();

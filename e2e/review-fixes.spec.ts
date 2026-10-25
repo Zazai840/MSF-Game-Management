@@ -5,7 +5,7 @@ async function signInAs(page:Page,name:string) {
 /** Six runners placed and timed (the times by `timer`), then the last taken off as Didn't run: six times for five finishers. */
 async function surplusRace(request:APIRequestContext,code:string,name:string,timer:string) {
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},runners=[2401,2402,2403,2404,2405,2406];
-  expect((await request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  expect((await request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
   const token=process.env.E2E_OWNER_TOKEN!;
   await writeCheckIn(request,token,code,runners);await writeOrder(request,token,code,runners);
   await writeTimes(request,timer,code,[1200,1300,1400,1500,1600,1700]);
@@ -34,7 +34,7 @@ test('a surplus time at a place with no wristband blocks Submit Race until the t
 });
 test('after a lead takes a finisher off a saved race, the lead sees the surplus time and the mismatch before correcting the last place',async({page},info)=>{
   const code=`SL-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},runners=[2401,2402,2403,2404,2405,2406];
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Review surplus',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:'Review surplus',section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,[1200,1300,1400,1500,1600,1700]);
   // Finishers and times only disagree after a lead's correction: 2406 turns out not to have run.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;

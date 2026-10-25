@@ -157,7 +157,7 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
 }
 /** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
-  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{code,name,section,format}})).ok()).toBe(true);
+  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{code,name,section,format,type:'races'}})).ok()).toBe(true);
 }
 /**
  * Makes this test's own relay (its code and name unique to the project), switched on, so its teams and races touch no

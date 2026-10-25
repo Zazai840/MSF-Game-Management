@@ -40,7 +40,7 @@ test("Home has no back arrow and keeps I'm a zone lead on the right; every volun
 
 test('on lead screens the back arrow goes up one level: event results to Results, Results and a To check race to the Dashboard, the Dashboard to Home',async({page},info)=>{
   const code=`BA-${info.project.name.toUpperCase()}`,event='Back arrow sprint Girl Cubs';
-  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Back arrow sprint',section:'Girl Cubs',format:'timed'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Back arrow sprint',section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   // A 2nd place faster than 1st puts the race on To check.
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2021,2022],[1600,1305]);
   try {

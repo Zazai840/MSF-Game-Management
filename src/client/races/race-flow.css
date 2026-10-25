@@ -1,0 +1,219 @@
+/*
+ * The race flow's own components (race-flow.md "New components"), built on rz.css's tokens. The same rules are in
+ * docs/running-zone-design-system/components/bundle.css.
+ */
+
+/* Saira, the display face: italic only, variable in width (62.5-100%) and weight (600-900), self-hosted from Google
+   Fonts (SIL Open Font License, see fonts/OFL-Saira.txt). One file per subset; a phone fetches a subset only when a
+   race flow screen uses one of its characters. */
+@font-face {
+  font-family: 'Saira'; font-style: italic; font-weight: 600 900; font-stretch: 62.5% 100%; font-display: swap;
+  src: url(../fonts/saira-latin-wdth-wght-italic.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Saira'; font-style: italic; font-weight: 600 900; font-stretch: 62.5% 100%; font-display: swap;
+  src: url(../fonts/saira-latin-ext-wdth-wght-italic.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---------- Reset: the older look styles bare elements (theme.css, style.css); inside .rz-screen they start plain.
+   Same specificity as those rules and loaded after them, so they lose here, while every rz- class still wins. ---------- */
+:where(.rz-screen) button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; line-height: inherit; text-decoration: none; }
+:where(.rz-screen) footer button { text-decoration: none; }
+:where(.rz-screen) h1, :where(.rz-screen) h2, :where(.rz-screen) h3, :where(.rz-screen) p { margin: 0; color: inherit; }
+:where(.rz-screen) main { max-width: none; margin: 0; padding: 0; }
+:where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; font-size: inherit; color: inherit; }
+:where(.rz-screen) label { display: block; }
+:where(.rz-screen) form { display: flex; flex-direction: column; gap: var(--space-8); }
+:where(.rz-screen) input { min-height: 0; }
+
+/* ---------- Screen layout ----------
+   Phone first: one column with space-20 gutters. Wider screens keep the navy bars edge to edge and centre the content
+   in a column of --content: 720px on a tablet, and on Races (rz-app--wide) 1040px on a laptop, where the cards flow into
+   columns. Every full-width band pads its sides with --gutter, which is space-20 on a phone. */
+.rz-app { --content: 100%; --gutter: max(var(--space-20), calc((100% - var(--content)) / 2)); min-height: 100dvh; display: flex; flex-direction: column; }
+@media (min-width: 700px) { .rz-app { --content: 720px; } }
+@media (min-width: 1100px) { .rz-app--wide { --content: 1040px; } }
+.rz-appbar--home { padding: 10px max(var(--space-14), calc(var(--gutter) - 6px)) 10px var(--gutter); }
+.rz-appbar--race { padding: 8px max(var(--space-6), calc(var(--gutter) - 14px)); }
+.rz-testbuild, .rz-main, .rz-heats-nav, .rz-steps, .rz-footer { padding-left: var(--gutter); padding-right: var(--gutter); }
+.rz-tabs { margin-left: var(--gutter); margin-right: var(--gutter); }
+/* Over today's relay list, which keeps the older look below it. */
+.rz-app--top { min-height: 0; padding-bottom: var(--space-12); }
+.rz-main { flex: 1; display: flex; flex-direction: column; gap: var(--space-12); padding-top: var(--space-6); padding-bottom: var(--space-16); }
+.rz-main > * { margin: 0; }
+.rz-main--form { padding-top: var(--space-16); }
+.rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
+.rz-note { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); font-size: 14px; line-height: 1.4; font-weight: 700; }
+.rz-empty { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
+.rz-error { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 700; color: var(--red-ink); }
+.rz-appbar__brand { display: flex; flex-direction: column; gap: var(--space-4); }
+.rz-appbar__name { white-space: nowrap; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: clamp(22px, 7vw, 28px); line-height: 1; text-transform: uppercase; }
+.rz-appbar__name span { color: var(--zone); }
+.rz-appbar__end { display: flex; align-items: center; gap: var(--space-8); }
+.rz-appbar__race { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.rz-appbar__race h1 { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; white-space: nowrap; }
+.rz-appbar__race .rz-code-tag { margin-left: var(--space-6); }
+.rz-appbar .rz-backlink { min-width: var(--size-touch); justify-content: center; color: var(--on-navy); padding: 0 var(--space-6); border: 0; background: none; }
+.rz-iconbtn { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--on-navy); }
+.rz-avatar { border: 0; }
+.rz-testbuild { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); padding-top: var(--space-6); padding-bottom: var(--space-6); background: var(--warn-soft); font-size: 13px; line-height: 1.3; font-weight: 700; }
+.rz-testbuild a { color: var(--navy); }
+
+/* ---------- RoleChip ---------- */
+.rz-rolechip { min-height: var(--size-touch); display: inline-flex; align-items: center; gap: var(--space-6); padding: 0 var(--space-10) 0 var(--space-12); border: 0; border-radius: var(--radius-pill); background: var(--paper); color: var(--navy); font-family: var(--font-body); font-size: 14px; font-weight: 800; white-space: nowrap; }
+.rz-rolechip .rz-icon { width: 18px; height: 18px; stroke-width: 2.4; }
+.rz-rolechip .rz-icon--chevron { width: 16px; height: 16px; stroke-width: 2.6; }
+.rz-rolechip--lead { background: var(--jumping); }
+
+/* ---------- EventTabs ---------- */
+.rz-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
+.rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
+
+/* ---------- RaceCard ---------- */
+.rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-racecard__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
+.rz-racecard__title { margin: 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; }
+.rz-racecard__status { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--ink-muted); }
+
+/* ---------- HeatChips: states follow the viewer's step ---------- */
+.rz-heats { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.rz-heats-nav { padding-top: var(--space-12); }
+.rz-heat { position: relative; min-width: 52px; height: var(--size-touch); padding: 0 var(--space-8); display: flex; align-items: center; justify-content: center; gap: 2px; border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
+.rz-heat .rz-icon { width: 16px; height: 16px; stroke-width: 3; }
+.rz-heat--done { background: var(--navy); box-shadow: none; color: var(--on-navy); }
+.rz-heat--ready { background: var(--gold); box-shadow: none; }
+.rz-heat--current { background: var(--gold); box-shadow: inset 0 0 0 2px var(--navy); }
+.rz-heat--pending { box-shadow: inset 0 0 0 2px var(--navy); }
+.rz-heat--pending::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 1.5px var(--navy); }
+.rz-heat--add { min-width: var(--size-touch); width: var(--size-touch); padding: 0; background: none; box-shadow: none; border: 2px dashed var(--line-strong); }
+.rz-heat--final { padding: 0 var(--space-12); background: none; box-shadow: none; border: 2px dashed var(--navy); }
+
+/* ---------- StepStrip ---------- */
+.rz-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
+.rz-steps--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rz-step { min-height: 48px; padding: var(--space-6) var(--space-10); display: flex; flex-direction: column; justify-content: center; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
+.rz-step__label { display: flex; align-items: center; gap: var(--space-4); font-size: 13px; line-height: 1.2; font-weight: 800; }
+.rz-step__label .rz-icon { width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink); }
+.rz-step__status { display: flex; align-items: center; gap: var(--space-4); font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
+.rz-step__status .rz-icon { width: 13px; height: 13px; stroke-width: 2.6; color: var(--warn-ink); }
+.rz-step--mine { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); }
+.rz-step--mine .rz-step__status { color: var(--navy); font-weight: 700; }
+.rz-step[aria-selected="true"] { background: var(--navy); box-shadow: none; color: var(--on-navy); }
+.rz-step[aria-selected="true"] .rz-step__status, .rz-step[aria-selected="true"] .rz-icon { color: var(--on-navy); }
+/* Your own step keeps its outline while it is open; another step you are looking at is navy. */
+.rz-step--mine[aria-selected="true"] { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); color: var(--navy); }
+.rz-step--mine[aria-selected="true"] .rz-step__status { color: var(--navy); }
+.rz-step--mine[aria-selected="true"] .rz-step__label .rz-icon { color: var(--throwing-ink); }
+.rz-step--mine[aria-selected="true"] .rz-step__status .rz-icon { color: var(--warn-ink); }
+/* Looking at another role's step: what it is and that it is read-only. */
+.rz-readonly { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); border: 2px dashed var(--navy); background: var(--card); }
+.rz-readonly__text { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.35; font-weight: 700; }
+.rz-readonly__text .rz-icon { width: 18px; height: 18px; }
+.rz-readonly__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+
+/* ---------- PlacesBoard ---------- */
+.rz-places { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.rz-placeslot { width: 100%; height: var(--size-touch); padding: 0 var(--space-4); display: flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); }
+.rz-placeslot__ord { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 15px; line-height: 1; text-transform: uppercase; }
+.rz-placeslot__num { font-size: 16px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rz-placeslot--placed { background: var(--navy); color: var(--on-navy); }
+.rz-placeslot--placed .rz-placeslot__ord { color: var(--gold); }
+.rz-placeslot--current { background: var(--gold); box-shadow: inset 0 0 0 2px var(--navy); }
+.rz-placeslot--empty { border: 1.5px dashed var(--line-strong); color: var(--ink-muted); }
+
+/* ---------- RunnerButton ---------- */
+.rz-runners { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-12) var(--space-10); margin: 0; padding: 0 0 var(--space-4); list-style: none; }
+.rz-runner { width: 100%; height: 72px; border: 0; border-radius: 36px 36px var(--radius-md) var(--radius-md); background: var(--card); box-shadow: var(--shadow-tile); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.rz-runner:active { transform: translateY(4px); box-shadow: var(--shadow-card); }
+
+/* ---------- OrderRow ---------- */
+.rz-orderrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.rz-orderrow { min-height: var(--size-touch); display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding-left: var(--space-8); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-orderrow[data-dragging="true"] { box-shadow: var(--shadow-raised); }
+.rz-orderrow__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; line-height: 1; text-transform: uppercase; }
+.rz-orderrow__num { font-size: 18px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rz-orderrow__handle { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--navy); touch-action: none; }
+.rz-orderrow--unplaced { width: 100%; grid-template-columns: 44px 1fr auto; padding-right: var(--space-10); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); text-align: left; font: inherit; }
+
+/* ---------- Toast ---------- */
+.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
+.rz-toast__msg { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.3; font-weight: 700; }
+.rz-toast__msg .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); }
+.rz-toast button { min-height: var(--size-touch); padding: 0 var(--space-10); border: 0; background: none; color: var(--gold); font-size: 15px; font-weight: 800; white-space: nowrap; }
+
+/* ---------- Sheet bits: choice buttons and radio cards ---------- */
+.rz-scrim { z-index: 10; }
+.rz-sheet { max-height: 90dvh; overflow-y: auto; }
+/* Over a phone's width a sheet becomes a centred dialog. */
+@media (min-width: 700px) {
+  .rz-scrim { align-items: center; justify-content: center; padding: var(--space-24); }
+  .rz-sheet { max-width: 520px; border-radius: var(--radius-2xl); }
+  .rz-sheet__grip { display: none; }
+}
+.rz-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
+.rz-sheet__close { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); }
+.rz-sheet fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
+.rz-choices { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.rz-choices--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rz-choice { min-height: var(--size-touch); display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); padding: 0 var(--space-14); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); font-family: var(--font-body); font-size: 15px; font-weight: 800; }
+.rz-choice[aria-pressed="true"] { background: var(--navy); box-shadow: none; color: var(--on-navy); }
+.rz-choice[aria-pressed="true"] .rz-code-tag { background: var(--gold); color: var(--navy); }
+.rz-choice:disabled { background: var(--disabled-fill); box-shadow: none; color: var(--disabled-ink); cursor: not-allowed; }
+.rz-jobcard { width: 100%; display: grid; grid-template-columns: 48px 1fr 24px; align-items: center; gap: var(--space-12); padding: var(--space-10) var(--space-14); border: 0; border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); text-align: left; font: inherit; }
+.rz-jobcard[aria-checked="true"], .rz-jobcard:has(input:checked) { box-shadow: inset 0 0 0 2.5px var(--navy); }
+.rz-jobcard__icon { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--navy); }
+.rz-jobcard__icon .rz-star { position: absolute; inset: 0; fill: var(--c); }
+.rz-jobcard__icon .rz-icon { position: relative; }
+.rz-jobcard__title { display: block; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 20px; line-height: 1.05; text-transform: uppercase; }
+.rz-jobcard__desc { display: block; font-size: 14px; line-height: 1.35; font-weight: 600; color: var(--ink-muted); }
+.rz-jobcard__mark { width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--line-strong); }
+.rz-jobcard[aria-checked="true"] .rz-jobcard__mark, .rz-jobcard:has(input:checked) .rz-jobcard__mark { box-shadow: inset 0 0 0 7px var(--navy); }
+.rz-jobcard input { position: absolute; opacity: 0; pointer-events: none; }
+.rz-jobcard--start { --c: var(--running); }
+.rz-jobcard--finish { --c: var(--challenge); }
+.rz-jobcard--timer { --c: var(--gold); }
+.rz-jobcard--lead { --c: var(--jumping); }
+.rz-menu { position: absolute; right: var(--space-8); top: calc(100% + 4px); z-index: 6; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
+.rz-menu button { min-height: var(--size-touch); padding: 0 var(--space-12); border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); text-align: left; font-family: var(--font-body); font-size: 15px; font-weight: 800; }
+
+/* ---------- Race body bits ---------- */
+.rz-attendance { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.rz-attendance li { min-height: var(--size-touch); display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-attendance li.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
+.rz-attendance__who { display: flex; flex-direction: column; }
+.rz-attendance__seed { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.rz-lead-rows { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.rz-lead-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: var(--space-8); min-height: var(--size-touch); padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-lead-row--warn { background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-line); }
+.rz-lead-row__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; text-transform: uppercase; }
+.rz-lead-row__num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rz-lead-row__end { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
+.rz-lead-row__note { grid-column: 2 / -1; font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+.rz-callout--status { border-color: var(--navy); background: var(--card); }
+.rz-old { font-family: var(--font-body); }
+@media (prefers-reduced-motion: reduce) { .rz-runner:active { transform: none; } }
+
+/* ---------- Wider screens: more room, same order ---------- */
+@media (min-width: 700px) {
+  /* Races: cards flow into columns; headings, notes and Done span the row. */
+  .rz-main--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-content: start; }
+  .rz-main--cards > :not(.rz-racecard) { grid-column: 1 / -1; }
+  .rz-disclosure__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  /* Races' footer: the Updated-at line, then New race at its own width. */
+  .rz-footer--home { flex-direction: row; align-items: center; justify-content: space-between; }
+  .rz-footer--home .rz-btn--display { width: auto; min-width: 320px; padding: 0 var(--space-32); }
+  /* A race: the footer's actions keep a phone's reach, at the column's right. */
+  .rz-footer:not(.rz-footer--home) > * { width: 100%; max-width: 520px; margin-left: auto; }
+  .rz-footer:not(.rz-footer--home) { align-items: flex-end; }
+  /* Grids add columns rather than stretching tiles. */
+  .rz-runners { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .rz-places { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .rz-slots { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .rz-choices--grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rz-prompt--compact .rz-prompt__q { font-size: 48px; }
+  .rz-field { max-width: 520px; }
+  .rz-toast { bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+}
