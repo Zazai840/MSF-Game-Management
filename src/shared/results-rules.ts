@@ -37,7 +37,7 @@ export const resultHolder=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.te
 export const resultName=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`Team ${entry.team.number}`:String(entry.wristband);
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null;
-  /** The result's audit notes (see resultAuditNotes; its Notes are resultNotes); `hasNote` is whether there are any, for the row's note badge. */
+  /** The result's audit notes (see resultAuditNotes; its Notes are resultNotes); `hasNote` is its note badge (see hasNotes). */
   notes:AuditNote[]; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }

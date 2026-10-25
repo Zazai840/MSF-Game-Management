@@ -21,7 +21,7 @@ async function start() {
 test('a lead marks an eligibility warning checked without changing the ranking; ran-twice cannot be marked checked',async()=>{
   const {lead,first,second,path,read}=await start();
   const saved=await call(lead,path(first,3045)+'/mark-warning-checked',{});expect(saved.statusCode).toBe(200);
-  const data=saved.json();expect(data.results.leaderboard[1]).toMatchObject({wristband:3045,position:2,flags:[{kind:'warning',checked:true,warningKind:'wrong-section'}],hasNote:true});
+  const data=saved.json();expect(data.results.leaderboard[1]).toMatchObject({wristband:3045,position:2,flags:[{kind:'warning',checked:true,warningKind:'wrong-section'}],hasNote:false});
   expect(data.auditNotes[0]).toMatchObject({action:'mark-warning-checked',actor:'Aisha'});expect(data.auditNotes[0].message).toContain('3045');
   expect((await call(lead,path(second,2001)+'/mark-warning-checked',{})).statusCode).toBe(409);
   expect((await read()).auditNotes).toHaveLength(1);
@@ -127,4 +127,13 @@ test('an already-ran warning on a child whose other result no longer counts read
   await call(lead,path(second,2001)+'/count-result',{});
   const row=(await read()).results.leaderboard.find((row:any)=>row.entryId===second.parts.runners.value[0].id);
   expect(resultNotes(row)[0]).toMatchObject({text:'2001 already ran in this event',detail:'Settled: only one result counts',open:false});
+});
+test('the note badge leaves out a plain check, already on its warning\'s line, but shows for a check with the lead\'s note',async()=>{
+  const {lead,volunteer,first,path,read}=await start();
+  const other=await raceSetup(app).record(volunteer,'R4',[3046],[1400],{keptWarnings:[3046]});
+  const row=async(race:any,number:number)=>(await read()).results.leaderboard.find((row:any)=>row.wristband===number && row.raceId===race.id);
+  await call(lead,path(first,3045)+'/mark-warning-checked',{});
+  expect(await row(first,3045)).toMatchObject({flags:[{checked:true}],hasNote:false});
+  await call(lead,path(other,3046)+'/mark-warning-checked',{comment:'Saw the wristband'});
+  expect(await row(other,3046)).toMatchObject({flags:[{checked:true}],hasNote:true});
 });

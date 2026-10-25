@@ -2,7 +2,7 @@ import { isTeamEntry,type RaceEntry } from './races.js';
 import type { RunnerRuling } from './rulings.js';
 import type { EventState,LeaderboardRow,ResultEntry,ResultsRace } from './results-rules.js';
 import { runnerWarningFlags,teamWarningFlags } from './runner-rulings.js';
-import { resultAuditNotes } from './result-notes.js';
+import { hasNotes,resultAuditNotes } from './result-notes.js';
 /** Whose result a race entry is: a child by wristband, or a relay team with the four children who ran in that race. */
 export const resultEntry=(race:Pick<ResultsRace,'id'>,entry:RaceEntry):ResultEntry=>isTeamEntry(entry)
   ?{raceId:race.id,entryId:entry.id,wristband:null,team:{id:entry.team.id,number:entry.team.number,wristbands:entry.legs.map(leg=>leg.wristband)}}
@@ -11,7 +11,7 @@ export const resultEntry=(race:Pick<ResultsRace,'id'>,entry:RaceEntry):ResultEnt
 export function leaderboardRowFacts(state:EventState,race:ResultsRace,runner:RaceEntry,ruling:RunnerRuling|undefined,repeated=false):Omit<LeaderboardRow,'place'|'time'|'status'> {
   const flags=isTeamEntry(runner)?teamWarningFlags(state,race,runner,ruling):runnerWarningFlags(runner,ruling,repeated);
   if(repeated) flags.push({kind:'ran-twice',message:'Ran twice in this event'});
-  const notes=resultAuditNotes(state,race.id,runner.id);
   if(runner.addedAtFinish) flags.push({kind:'added-at-finish',message:'Added at the finish',...(ruling?.addedAtFinishChecked?{checked:true,...(ruling.addedAtFinishCheckedBy?{checkedBy:ruling.addedAtFinishCheckedBy}:{})}:{})});
-  return {...resultEntry(race,runner),race:{id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt},position:null,disqualification:ruling?.disqualification??null,notCounted:ruling?.notCounted??false,notes,hasNote:notes.length>0,highlighted:false,qualification:null,medalPlace:null,flags};
+  const notes=resultAuditNotes(state,race.id,runner.id);
+  return {...resultEntry(race,runner),race:{id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt},position:null,disqualification:ruling?.disqualification??null,notCounted:ruling?.notCounted??false,notes,hasNote:hasNotes({flags,notes}),highlighted:false,qualification:null,medalPlace:null,flags};
 }
