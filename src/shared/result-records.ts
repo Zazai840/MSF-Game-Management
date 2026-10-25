@@ -1,5 +1,5 @@
 import { flagText } from './runner-rulings.js';
-import { noteText } from './leaderboard-row.js';
+import { noteText } from './result-notes.js';
 import { finalRows,type FinalField } from './finals.js';
 import type { EventState,LeaderboardRow,NotRankedReason,RaceReference } from './results-rules.js';
 export interface ResultRecord extends LeaderboardRow { deleted:boolean; statuses:string[]; warning:string; note:string }

@@ -22,6 +22,8 @@ export interface EventState { event:Event; races:readonly ResultsRace[]; rulings
   relays?:ReadonlyArray<Pick<TeamList,'code'|'section'> & {teams:ReadonlyArray<Pick<RelayTeam,'number'|'legs'>>}> }
 /** What a warning flag is about: a child's wristband, a child in two relays (`other-relay`), or a team that ran short. */
 export type WarningKind=WristbandWarning['kind']|TeamWarning['kind']|'ran-short';
+/** A warning on a result as a lead checks it: its kind and its message. */
+export interface ResultWarning { kind:WarningKind; message:string }
 /** `checked` is whether it is settled; `checkedBy` names the lead's check, `settledByDisqualification` a disqualification that settled it instead. */
 export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean; checkedBy?:CheckedBy; settledByDisqualification?:true }
 
@@ -35,7 +37,7 @@ export const resultHolder=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.te
 export const resultName=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`Team ${entry.team.number}`:String(entry.wristband);
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null;
-  /** The result's Notes (see resultNotes); `hasNote` is whether there are any, for the row's note badge. */
+  /** The result's audit notes (see resultAuditNotes; its Notes are resultNotes); `hasNote` is whether there are any, for the row's note badge. */
   notes:AuditNote[]; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }

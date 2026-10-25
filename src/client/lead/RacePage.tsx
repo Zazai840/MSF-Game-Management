@@ -46,13 +46,13 @@ function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:
     {mismatch && <p className="warning-box">{mismatch}</p>}
     <ol className="record-rows" aria-label="Current record">{race.recording.results.map(row=>{
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
-      const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,actions=rowFor(row.entryId);
+      const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,result=rowFor(row.entryId);
       return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
-        <span className="record-text">{actions?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
+        <span className="record-text">{result?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
           {team?.addedAtFinish && <small className="record-note">At finish</small>}
           {team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
-          {!team && actions?.flags.filter(flag=>flag.kind==='warning').map((flag,index)=><small key={index} className={flag.checked?'record-note record-warning checked-warning':'record-note record-warning'}>{flagText(flag)}</small>)}
+          {!team && result?.flags.filter(flag=>flag.kind==='warning').map((flag,index)=><small key={index} className={flag.checked?'record-note record-warning checked-warning':'record-note record-warning'}>{flagText(flag)}</small>)}
           <WrongTimeReason wrong={wrongTime}/></span>
         {wrongTime && <WrongTimeIcon/>}<span className="record-time">{row.time===null?'No time':formatTime(row.time)}</span>
       </li>;

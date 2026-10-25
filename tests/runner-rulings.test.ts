@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
+import { resultNotes } from '../src/shared/result-notes.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -76,7 +77,7 @@ test('Mark checked records the lead who checked it, when, and the trimmed note o
   const {lead,first,path}=await start();
   const data=(await call(lead,path(first,3045)+'/mark-warning-checked',{comment:'  Saw the wristband, wrong band issued  '})).json();
   const row=data.results.leaderboard.find((row:any)=>row.wristband===3045);
-  expect(row.flags).toEqual([{kind:'warning',warningKind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',checked:true,checkedBy:{name:'Aisha',at:data.auditNotes[0].at,note:'Saw the wristband, wrong band issued'}}]);
+  expect(row.flags).toEqual([{kind:'warning',warningKind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',checked:true,checkedBy:{name:'Aisha',at:data.auditNotes[0].at,noteId:data.auditNotes[0].id,note:'Saw the wristband, wrong band issued'}}]);
   expect(data.auditNotes[0].comment).toBe('Saw the wristband, wrong band issued');
 });
 test('Mark addition checked with no note records who and when, and no note',async()=>{
@@ -86,7 +87,7 @@ test('Mark addition checked with no note records who and when, and no note',asyn
   const added=race.parts.runners.value!.find((runner:any)=>runner.wristband===2010)!;
   const data=(await call(lead,`/api/lead/races/${race.id}/runners/${added.id}/mark-added-checked`,{comment:'   '})).json();
   const flag=data.results.leaderboard.find((row:any)=>row.entryId===added.id).flags.find((flag:any)=>flag.kind==='added-at-finish');
-  expect(flag).toEqual({kind:'added-at-finish',message:'Added at the finish',checked:true,checkedBy:{name:'Aisha',at:data.auditNotes[0].at}});
+  expect(flag).toEqual({kind:'added-at-finish',message:'Added at the finish',checked:true,checkedBy:{name:'Aisha',at:data.auditNotes[0].at,noteId:data.auditNotes[0].id}});
 });
 test('a "Wrong section or age" disqualification settles the warning by disqualification, not by a check',async()=>{
   const {lead,first,path}=await start();
@@ -108,4 +109,22 @@ test('a child\'s notes are the audit notes on them or their whole race, oldest f
   expect(await row(child)).toMatchObject({wristband:2045,hasNote:true});
   // The other child in the race has only the whole race's note.
   expect((await row(other)).notes.map((note:any)=>note.action)).toEqual(['correct-times']);
+});
+test('a child\'s Notes are each warning with who settled it, then the audit notes, leaving out a check\'s note already on its warning\'s line',async()=>{
+  const {lead,first,path,read}=await start();
+  const notes=async(entryId:string)=>resultNotes((await read()).results.leaderboard.find((row:any)=>row.entryId===entryId)).map(({text,detail,open})=>({text,detail,open}));
+  const child=first.parts.runners.value.find((runner:any)=>runner.wristband===3045).id;
+  expect(await notes(child)).toEqual([{text:'3045 belongs to Boy Scouts - this race is Girl Cubs',detail:'Not checked yet',open:true}]);
+  await call(lead,path(first,3045)+'/mark-warning-checked',{comment:'Saw the wristband'});
+  expect((await call(lead,`/api/lead/races/${first.id}/times`,{baseVersion:first.parts.times.version,places:[1100,1250],comment:'Stopwatch misread'})).statusCode).toBe(200);
+  expect(await notes(child)).toEqual([
+    {text:'3045 belongs to Boy Scouts - this race is Girl Cubs',detail:expect.stringMatching(/^Checked by Aisha · \d{2}:\d{2} - Saw the wristband$/),open:false},
+    {text:expect.stringContaining('Stopwatch misread'),detail:expect.stringMatching(/^\d{2}:\d{2}$/),open:false}
+  ]);
+});
+test('an already-ran warning on a child whose other result no longer counts reads as settled that way in Notes, not as checked by a lead',async()=>{
+  const {lead,second,path,read}=await start();
+  await call(lead,path(second,2001)+'/count-result',{});
+  const row=(await read()).results.leaderboard.find((row:any)=>row.entryId===second.parts.runners.value[0].id);
+  expect(resultNotes(row)[0]).toMatchObject({text:'2001 already ran in this event',detail:'Settled: only one result counts',open:false});
 });

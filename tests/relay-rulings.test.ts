@@ -132,7 +132,7 @@ test('a team\'s notes carry its children\'s warnings, a child also in another re
   ]);
   expect([team.notes,team.hasNote]).toEqual([[],false]);
   const checked=(await call(lead,`/api/lead/races/${team.raceId}/runners/${team.entryId}/mark-warning-checked`,{comment:'Leg 4 ran, judge saw'})).json() as EventResultsRead;
-  const after=checked.results.leaderboard.find(row=>row.team?.number===1)!,by={name:'Jo Evans',at:checked.auditNotes[0].at,note:'Leg 4 ran, judge saw'};
+  const after=checked.results.leaderboard.find(row=>row.team?.number===1)!,by={name:'Jo Evans',at:checked.auditNotes[0].at,noteId:checked.auditNotes[0].id,note:'Leg 4 ran, judge saw'};
   expect(after.flags.map(flag=>flag.checkedBy)).toEqual([by,by,by]);
   expect(after.notes.map(note=>[note.action,note.actor,note.comment])).toEqual([['mark-warning-checked','Jo Evans','Leg 4 ran, judge saw']]);
 });

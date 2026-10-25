@@ -15,9 +15,9 @@ import { resultHolder,resultName } from '../../shared/results-rules.js';
 import { readRulings,reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import type { Phone } from '../../shared/domain.js';
-import type { CheckedBy } from '../../shared/rulings.js';
-/** The lead's name and the check's time are snapshots, kept on the check itself so they never depend on an audit note's wording. */
-const checkedBy=(lead:Phone,at:string,note:string|null):CheckedBy=>({name:lead.name,at,...(note?{note}:{})});
+import type { AuditNote,CheckedBy } from '../../shared/rulings.js';
+/** The lead's name and the check's time are snapshots, kept on the check itself so they never depend on an audit note's wording; `noteId` ties the check to its audit note. */
+const checkedBy=(lead:Phone,{id,at}:Pick<AuditNote,'id'|'at'>,note:string|null):CheckedBy=>({name:lead.name,at,noteId:id,...(note?{note}:{})});
 export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('POST','/api/lead/races/:raceId/runners/:entryId/mark-added-checked','Lead',async(request,_reply,phone)=>{
@@ -30,8 +30,8 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
       if(!runner.addedAtFinish || previous?.addedAtFinishChecked) throw new Refusal(409,'There is no unchecked addition at the finish');
-      const at=await writeAuditNote(client,current,race.event.id,{action:'mark-added-checked',comment,message:`${current.name} checked ${entryName(runner)} added at the finish (${raceLabel(race)})${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
-      await client.query('INSERT INTO runner_rulings(race_id,entry_id,added_at_finish_checked,added_at_finish_checked_by) VALUES($1,$2,true,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET added_at_finish_checked=true,added_at_finish_checked_by=EXCLUDED.added_at_finish_checked_by',[raceId,entryId,JSON.stringify(checkedBy(current,at,comment))]);
+      const written=await writeAuditNote(client,current,race.event.id,{action:'mark-added-checked',comment,message:`${current.name} checked ${entryName(runner)} added at the finish (${raceLabel(race)})${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
+      await client.query('INSERT INTO runner_rulings(race_id,entry_id,added_at_finish_checked,added_at_finish_checked_by) VALUES($1,$2,true,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET added_at_finish_checked=true,added_at_finish_checked_by=EXCLUDED.added_at_finish_checked_by',[raceId,entryId,JSON.stringify(checkedBy(current,written,comment))]);
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
@@ -48,8 +48,8 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const row=(await readEventResults(client,current.dayId,race.event.code)).results.actionableRunners.find(row=>row.raceId===raceId && row.entryId===entryId);
       const warnings=(row?.flags||[]).filter(isOpenEligibilityWarning).map(flag=>({kind:flag.warningKind!,message:flag.message}));
       if(!warnings.length) throw new Refusal(409,'There is no open eligibility warning to check');
-      const at=await writeAuditNote(client,current,race.event.id,{action:'mark-warning-checked',comment,message:`${current.name} checked the warning for ${entryName(runner)} (${raceLabel(race)}): ${warnings.map(warning=>warning.message).join('; ')}${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
-      const checks=[...(previous?.warningChecks||[]),...warnings.map(warning=>({...warning,checkedBy:checkedBy(current,at,comment)}))];
+      const written=await writeAuditNote(client,current,race.event.id,{action:'mark-warning-checked',comment,message:`${current.name} checked the warning for ${entryName(runner)} (${raceLabel(race)}): ${warnings.map(warning=>warning.message).join('; ')}${comment?` - ${comment}`:''}`,touches:[{raceId,entryId}]});
+      const checks=[...(previous?.warningChecks||[]),...warnings.map(warning=>({...warning,checkedBy:checkedBy(current,written,comment)}))];
       await client.query('INSERT INTO runner_rulings(race_id,entry_id,warning_checks) VALUES($1,$2,$3) ON CONFLICT(race_id,entry_id) DO UPDATE SET warning_checks=EXCLUDED.warning_checks',[raceId,entryId,JSON.stringify(checks)]);
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });

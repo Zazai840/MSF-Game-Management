@@ -5,23 +5,17 @@ import { api } from '../api.js';
 import { disqualificationReasons } from '../../shared/rulings.js';
 import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { clock } from '../../shared/clock.js';
-import { noteText } from '../../shared/leaderboard-row.js';
+import { resultNotes } from '../../shared/result-notes.js';
 import { resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
 import { resultLabel } from './ResultName.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 const openAddition=(flag:ResultFlag)=>flag.kind==='added-at-finish' && !flag.checked;
-/** Who settled a warning or an addition at the finish, as its line in Notes says it. */
-const settlement=(flag:ResultFlag)=>flag.checkedBy?`Checked by ${flag.checkedBy.name} · ${clock(flag.checkedBy.at)}${flag.checkedBy.note?` - ${flag.checkedBy.note}`:''}`:flag.settledByDisqualification?'Settled by disqualification':flag.checked?'Checked':'Not checked yet';
-const isCheck=(action:string)=>action==='mark-warning-checked' || action==='mark-added-checked';
-/** The row's Notes: its warnings and addition at the finish with who settled them, then its audit notes, leaving out a check's note already on its warning's line. */
+/** The row's Notes (see resultNotes), or nothing when there are none. */
 function Notes({row}:{row:LeaderboardRow}) {
-  const flags=row.flags.filter(flag=>flag.kind==='warning' || flag.kind==='added-at-finish');
-  const notes=row.notes.filter(note=>!(isCheck(note.action) && flags.some(flag=>flag.checkedBy?.at===note.at)));
-  if(!flags.length && !notes.length) return null;
+  const lines=resultNotes(row);
+  if(!lines.length) return null;
   return <section className="runner-notes"><h4>Notes</h4><ol aria-label="Notes">
-    {flags.map((flag,index)=><li key={`${flag.kind}:${index}`} className={flag.checked?'':'open'}><span>{flag.message}</span><small>{settlement(flag)}</small></li>)}
-    {notes.map(note=><li key={note.id}><span>{noteText(note)}</span><small><time dateTime={note.at}>{clock(note.at)}</time></small></li>)}
+    {lines.map(line=><li key={line.id} className={line.open?'open':undefined}><span>{line.text}</span><small>{line.at?<time dateTime={line.at}>{line.detail}</time>:line.detail}</small></li>)}
   </ol></section>;
 }
 export interface RunnerActionsProps { row:LeaderboardRow; rows:readonly LeaderboardRow[]; eventCode:string; onSaved:(next:EventResultsRead)=>void; onClose:()=>void }
