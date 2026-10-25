@@ -52,6 +52,13 @@ test('To check names relay teams: a kept wrong-Section number, a child in two re
   await expect(board.locator('.checked-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`,`${checked}Added at the finish`]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-checked-rows.png'),fullPage:true});
+  // The race page's Current record shows the same checked warnings beside each team, grey and worded as on the leaderboard.
+  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  const record=page.getByRole('list',{name:'Current record',exact:true});
+  await expect(record.locator('.record-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]);
+  for(const warning of await record.locator('.record-warning').all()) expect(await warning.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toBe('rgb(255, 244, 220)');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relay-race-page-checked.png'),fullPage:true});
 });
 
 test('a lead sees a relay\'s two saved heats as team rows with four wristbands and the qualifying line, the race page lists teams, and Heats complete seeds the six fastest',async({openPhone,request},info)=>{
@@ -88,7 +95,10 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await expect(page.getByText('Teams: Team 2 · Team 1 · Team 3 · Team 4',{exact:true})).toBeVisible();
   const record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   await expect(record.nth(0)).toContainText(`Team 2${legs(2).join(' · ')}`);await expect(record.nth(0)).toContainText('14.00');
-  await expect(record.nth(3)).toContainText(`${borrowed} is not a Girl Cubs number.`);
+  // Open, so amber, and worded as on the leaderboard.
+  const kept=record.nth(3).locator('.record-warning').filter({hasText:String(borrowed)});
+  await expect(kept).toHaveText(`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`);
+  expect(await kept.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe('rgb(255, 244, 220)');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page.png'),fullPage:true});
   await page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button').click();

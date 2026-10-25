@@ -36,7 +36,7 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;
 }
-/** The race's places and times, a wrong time in amber with its reason as on the Times screens, each child's warnings beside their number (grey once settled), and v1's count check. */
+/** The race's places and times, a wrong time in amber with its reason as on the Times screens, each child's or relay team's warnings beside them (grey once settled), and v1's count check. */
 function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryId:string)=>LeaderboardRow|undefined;onRunner:(entryId:string)=>void}) {
   const times=race.kind==='final'?null:race.parts.times.value;
   const wrong=times?wrongTimesByPlace(times.places):new Map<number,WrongTime>();
@@ -51,8 +51,9 @@ function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
         <span className="record-text">{result?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
           {team?.addedAtFinish && <small className="record-note">At finish</small>}
-          {team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
-          {!team && result?.flags.filter(flag=>flag.kind==='warning').map((flag,index)=><small key={index} className={flag.checked?'record-note record-warning checked-warning':'record-note record-warning'}>{flagText(flag)}</small>)}
+          {result?result.flags.filter(flag=>flag.kind==='warning').map((flag,index)=><small key={index} className={flag.checked?'record-note record-warning checked-warning':'record-note record-warning'}>{flagText(flag)}</small>)
+            // A deleted race has no result row: its teams keep their children's warnings as the race recorded them.
+            :team?.legs.flatMap(leg=>leg.warnings).map((warning,index)=><small key={index} className="record-note record-warning">{warning.message}</small>)}
           <WrongTimeReason wrong={wrongTime}/></span>
         {wrongTime && <WrongTimeIcon/>}<span className="record-time">{row.time===null?'No time':formatTime(row.time)}</span>
       </li>;
