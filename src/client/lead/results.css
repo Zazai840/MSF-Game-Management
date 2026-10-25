@@ -89,6 +89,15 @@
 .not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
 .not-counted-reason {display:block;font-weight:800;margin-top:4px;color:var(--text);}
 .runner-action-choices {display:grid;gap:.6rem;}
+/* The actions sheet's Notes: an open warning in amber, everything settled or recorded in grey. */
+.runner-notes {margin:0 0 16px;}
+.runner-notes h4 {margin:0 0 8px;}
+.runner-notes ol {list-style:none; margin:0; padding:0; display:grid; gap:6px;}
+.runner-notes li {display:grid; gap:2px; padding:8px 10px; border-radius:var(--radius-small); background:var(--idle-fill); font-size:var(--text-small); font-weight:700; overflow-wrap:anywhere;}
+.runner-notes li.open {background:var(--amber-fill); color:var(--amber-text);}
+.runner-notes small {font-size:var(--text-small); font-weight:600; color:var(--muted);}
+.runner-notes li.open small {color:inherit;}
+.runner-notes time {font-variant-numeric:tabular-nums;}
 .count-choice {display:flex;align-items:center;gap:.6rem;min-height:var(--tap);}
 .count-choice input {width:auto;}
 

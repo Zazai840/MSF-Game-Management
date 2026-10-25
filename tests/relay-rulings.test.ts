@@ -117,3 +117,22 @@ test('Correct finishing order on a relay heat moves teams by number while times 
   expect((await leadRace(raceId)).parts.runners.value.map((entry:any)=>entry.team.number)).toEqual([1,2]);
   expect(await stillToRun()).toEqual([3]);
 });
+
+test('a team\'s notes carry its children\'s warnings, a child also in another relay\'s team and running short, each checked by the lead with the note',async()=>{
+  const {sam,lead,relays,row}=await start();
+  await relays.team(sam,'R22',[1045,2102,2103,2134]);
+  await relays.team(sam,'R28',[4101,2134,4103,4104]);
+  await relays.tick(sam,'R22',1);for(const leg of [0,1,2]) await relays.here(sam,'R22',1,leg);
+  await relays.save(sam,'R22',[1],[1400]);
+  const team=await row(1);
+  expect(team.flags.map(flag=>[flag.warningKind,flag.message,flag.checked])).toEqual([
+    ['wrong-section','1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.',false],
+    ['other-relay','2134 is in Girl Cubs Team 1 and Girl Scouts Team 1.',false],
+    ['ran-short','Team 1 ran with 3 of 4 children marked here.',false]
+  ]);
+  expect([team.notes,team.hasNote]).toEqual([[],false]);
+  const checked=(await call(lead,`/api/lead/races/${team.raceId}/runners/${team.entryId}/mark-warning-checked`,{comment:'Leg 4 ran, judge saw'})).json() as EventResultsRead;
+  const after=checked.results.leaderboard.find(row=>row.team?.number===1)!,by={name:'Jo Evans',at:checked.auditNotes[0].at,note:'Leg 4 ran, judge saw'};
+  expect(after.flags.map(flag=>flag.checkedBy)).toEqual([by,by,by]);
+  expect(after.notes.map(note=>[note.action,note.actor,note.comment])).toEqual([['mark-warning-checked','Jo Evans','Leg 4 ran, judge saw']]);
+});

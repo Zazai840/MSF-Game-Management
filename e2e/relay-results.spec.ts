@@ -34,7 +34,7 @@ test('To check names relay teams: a kept wrong-Section number, a child in two re
     await item.click();
     const sheet=page.getByRole('dialog',{name:`Actions for Team ${team}`,exact:true});
     // Disqualifying for wrong section or age is a reason under the one Disqualify button, not a button of its own.
-    await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
+    await expect(sheet).toBeVisible();await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
     if(team===1) {expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('relay-team-actions.png'),fullPage:true});}
     await sheet.getByRole('button',{name:button,exact:true}).click();await sheet.getByRole('button',{name:'Save check',exact:true}).click();await expect(sheet).toHaveCount(0);
     await back(page,'Dashboard');

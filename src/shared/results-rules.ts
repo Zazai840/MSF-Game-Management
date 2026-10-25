@@ -34,7 +34,9 @@ export const resultHolder=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.te
 /** A result as a lead names it in a message: "2001", or "Team 3". */
 export const resultName=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`Team ${entry.team.number}`:String(entry.wristband);
 export interface LeaderboardRow extends ResultEntry {
-  race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null; hasNote:boolean;
+  race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null;
+  /** The result's Notes (see resultNotes); `hasNote` is whether there are any, for the row's note badge. */
+  notes:AuditNote[]; hasNote:boolean;
   highlighted:boolean; qualification:'Q'|null; medalPlace:1|2|3|null; flags:ResultFlag[];
 }
 export type NotRankedReason='in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";

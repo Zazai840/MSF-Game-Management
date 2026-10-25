@@ -71,6 +71,20 @@ test('a check saved before who-checked was kept reads as checked with no name, i
  const all=(await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload))[2].data,warning=(n:number)=>all.find(values=>values[0]==='R4'&&values[4]===n)![11];
  expect(warning(3045)).toBe('Checked: 3045 belongs to Boy Scouts - this race is Girl Cubs');expect(warning(2010)).toBe('Checked: Added at the finish');
 });
+test('the Note column holds the same notes as the child\'s row, oldest first, with a check\'s note; the Warning column names who checked',async()=>{
+ const {owner,lead,volunteer}=await start();const setup=raceSetup(app);
+ const saved=await setup.record(volunteer,'R4',[3045,2010],[1000,1100],{keptWarnings:[3045]});
+ const entry=(n:number)=>saved.parts.runners.value!.find((r:any)=>r.wristband===n)!.id;
+ await call(lead,`/api/lead/races/${saved.id}/runners/${entry(3045)}/mark-warning-checked`,{comment:'Saw the wristband, wrong band issued'});
+ expect((await call(lead,`/api/lead/races/${saved.id}/times`,{baseVersion:saved.parts.times.version,places:[1000,1150],comment:'Stopwatch misread'})).statusCode).toBe(200);
+ const rows=(await call(lead,'/api/lead/events/R4/results')).json().results.leaderboard as EventResultsRead['results']['leaderboard'];
+ const all=(await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload))[2].data,record=(n:number)=>all.find(values=>values[0]==='R4'&&values[4]===n)!;
+ expect(record(3045)[11]).toBe('Checked by Aisha: 3045 belongs to Boy Scouts - this race is Girl Cubs');
+ const lines=String(record(3045)[12]).split('\n');
+ expect(lines.map(line=>line.replace(/^\S+ /,''))).toEqual(['Aisha: Aisha checked the warning for 3045 (Heat 1): 3045 belongs to Boy Scouts - this race is Girl Cubs - Saw the wristband, wrong band issued','Aisha: Aisha corrected the times for Heat 1: Stopwatch misread']);
+ expect(lines.map(line=>line.split(' ')[0])).toEqual(rows.find(row=>row.wristband===3045)!.notes.map(note=>note.at));
+ expect(String(record(2010)[12]).replace(/^\S+ /,'')).toBe('Aisha: Aisha corrected the times for Heat 1: Stopwatch misread');
+});
 test('final export preserves absent seeds, sourced callups, corrected numbers, typed additions and deleted final generations',async()=>{
  const {owner,lead,volunteer}=await start();await race(volunteer,'R3',[1023,1066,1088,1005,1012,1110],[900,910,920,930,940,950]);await race(volunteer,'R3',[1135,1047],[960,970]);
  const completed=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(completed.statusCode).toBe(200);const id=completed.json().results.finalResults.raceId;

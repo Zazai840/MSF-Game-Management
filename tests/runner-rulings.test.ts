@@ -93,3 +93,19 @@ test('a "Wrong section or age" disqualification settles the warning by disqualif
   const data=(await call(lead,path(first,3045)+'/disqualify',{reason:'Wrong section or age'})).json();
   expect(data.results.leaderboard.find((row:any)=>row.wristband===3045).flags).toEqual([{kind:'warning',warningKind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',checked:true,settledByDisqualification:true}]);
 });
+test('a child\'s notes are the audit notes on them or their whole race, oldest first, kept through a corrected number; the note badge shows exactly when there are some',async()=>{
+  const {lead,first,path,read}=await start();
+  const row=async(entryId:string)=>(await read()).results.leaderboard.find((row:any)=>row.entryId===entryId);
+  const child=first.parts.runners.value.find((runner:any)=>runner.wristband===3045).id,other=first.parts.runners.value.find((runner:any)=>runner.wristband===2001).id;
+  expect(await row(child)).toMatchObject({notes:[],hasNote:false});
+  await call(lead,path(first,3045)+'/mark-warning-checked',{comment:'Saw the wristband, wrong band issued'});
+  expect((await call(lead,`/api/lead/races/${first.id}/times`,{baseVersion:first.parts.times.version,places:[1100,1250],comment:'Stopwatch misread'})).statusCode).toBe(200);
+  expect((await call(lead,path(first,3045)+'/correct-number',{expectedWristband:3045,wristband:2045})).statusCode).toBe(200);
+  const notes=(await row(child)).notes;
+  expect(notes.map((note:any)=>[note.action,note.actor,note.comment])).toEqual([['mark-warning-checked','Aisha','Saw the wristband, wrong band issued'],['correct-times','Aisha','Stopwatch misread'],['correct-number','Aisha',null]]);
+  expect(notes[0].message).toBe('Aisha checked the warning for 3045 (Heat 1): 3045 belongs to Boy Scouts - this race is Girl Cubs - Saw the wristband, wrong band issued');
+  expect(Date.parse(notes[0].at)).toBeLessThanOrEqual(Date.parse(notes[2].at));
+  expect(await row(child)).toMatchObject({wristband:2045,hasNote:true});
+  // The other child in the race has only the whole race's note.
+  expect((await row(other)).notes.map((note:any)=>note.action)).toEqual(['correct-times']);
+});

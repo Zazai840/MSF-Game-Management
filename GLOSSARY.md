@@ -152,6 +152,10 @@ _Avoid_: Log entry, comment, history
 A note attached to a child in a race when their wristband number looks wrong for it: a number no section uses, a number from another section, a child who already ran in this event, or a child who is also in another relay's team. It never stops the child running; the zone lead checks it, corrects the number or disqualifies.
 _Avoid_: Error, alert, validation failure
 
+**Notes**:
+What the lead's actions sheet shows about one child or relay team in one race: its warnings, and any addition at the finish, each with who settled it (checked by a lead, settled by disqualification, or not checked yet), then the audit notes about that child or their whole race, oldest first. The "note" badge on a leaderboard row and the Day export's Note column come from the same notes.
+_Avoid_: Participant notes, comments, history
+
 ### People
 
 **Wristband number**:
