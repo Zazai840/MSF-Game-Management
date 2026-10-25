@@ -122,11 +122,12 @@ test('a child\'s Notes are each warning with who settled it, then the audit note
     {text:expect.stringContaining('Stopwatch misread'),detail:expect.stringMatching(/^\d{2}:\d{2}$/),open:false}
   ]);
 });
-test('an already-ran warning on a child whose other result no longer counts reads as settled that way in Notes, not as checked by a lead',async()=>{
+test('an already-ran warning reads in Notes as not settled until one result counts, then as settled that way, never as checked by a lead',async()=>{
   const {lead,second,path,read}=await start();
+  const line=async()=>resultNotes((await read()).results.leaderboard.find((row:any)=>row.entryId===second.parts.runners.value[0].id))[0];
+  expect(await line()).toMatchObject({text:'2001 already ran in this event',detail:'Not settled yet: choose which result counts',open:true});
   await call(lead,path(second,2001)+'/count-result',{});
-  const row=(await read()).results.leaderboard.find((row:any)=>row.entryId===second.parts.runners.value[0].id);
-  expect(resultNotes(row)[0]).toMatchObject({text:'2001 already ran in this event',detail:'Settled: only one result counts',open:false});
+  expect(await line()).toMatchObject({text:'2001 already ran in this event',detail:'Settled: only one result counts',open:false});
 });
 test('the note badge leaves out a plain check, already on its warning\'s line, but shows for a check with the lead\'s note',async()=>{
   const {lead,volunteer,first,path,read}=await start();

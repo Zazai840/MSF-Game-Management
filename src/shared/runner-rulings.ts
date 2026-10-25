@@ -24,11 +24,12 @@ export function flagText(flag:ResultFlag):string {
 }
 /**
  * How a flag was settled, as its line in a result's Notes says it: "Checked by Sam Patel · 10:42 - <note>", "Checked",
- * "Settled by disqualification", "Settled: only one result counts" for an already-ran warning (never Mark checked) or "Not checked yet".
+ * "Settled by disqualification" or "Not checked yet". An already-ran warning is never Mark checked: it reads
+ * "Not settled yet: choose which result counts" until "Settled: only one result counts".
  */
 export function signOffText(flag:ResultFlag):string {
   if(flag.settledByDisqualification) return 'Settled by disqualification';
-  if(flag.warningKind==='already-ran' && flag.checked) return 'Settled: only one result counts';
+  if(flag.warningKind==='already-ran') return flag.checked?'Settled: only one result counts':'Not settled yet: choose which result counts';
   const by=checker(flag),{checkedBy}=flag;
   return !by?'Not checked yet':checkedBy?`${by} · ${clock(checkedBy.at)}${checkedBy.note?` - ${checkedBy.note}`:''}`:by;
 }
