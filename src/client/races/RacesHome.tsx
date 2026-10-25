@@ -13,7 +13,8 @@ import { Toast } from './Toast.js';
 const tabs:Array<[HomeTab,string]>=[['races','Races'],['hurdles','Hurdles'],['relays','Relays']];
 /** Races · Hurdles · Relays, remembered per phone. */
 export function EventTabs({tab,onTab}:{tab:HomeTab;onTab:(tab:HomeTab)=>void}) {
-  return <nav className="rz-tabs" aria-label="Event type">{tabs.map(([key,label])=><button key={key} type="button" aria-current={tab===key?'page':undefined} onClick={()=>onTab(key)}>{label}</button>)}</nav>;
+  return <nav className="rz-tabs" aria-label="Event type">{tabs.map(([key,label])=><button key={key} type="button" aria-current={tab===key?'page':undefined} onClick={()=>onTab(key)}>
+    {label}{key==='relays' && <span className="rz-beta">Beta</span>}</button>)}</nav>;
 }
 /** A lead's open issues, by event code: the To check items, read while a lead has Races open. */
 function useLeadItems(on:boolean) {

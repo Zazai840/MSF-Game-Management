@@ -71,6 +71,9 @@
 .rz-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
+.rz-tabs button { gap: var(--space-6); }
+/* Relays keep today's screens while the race flow is built for them. */
+.rz-beta { display: inline-block; transform: skewX(var(--skew-tag)); padding: 1px var(--space-6); border-radius: var(--radius-xs); background: var(--gold); color: var(--navy); font-family: var(--font-body); font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 
 /* ---------- RaceCard ---------- */
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
@@ -176,7 +179,8 @@
 .rz-jobcard--finish { --c: var(--challenge); }
 .rz-jobcard--timer { --c: var(--gold); }
 .rz-jobcard--lead { --c: var(--jumping); }
-.rz-menu { position: absolute; right: var(--space-8); top: calc(100% + 4px); z-index: 6; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
+/* Fixed over the screen: the app bar clips what overflows it (its pattern and stripes), which hid the menu. */
+.rz-menu { position: fixed; right: max(var(--space-8), calc((100% - var(--content)) / 2)); top: calc(env(safe-area-inset-top, 0px) + 62px); z-index: 30; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
 .rz-menu button { min-height: var(--size-touch); padding: 0 var(--space-12); border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); text-align: left; font-family: var(--font-body); font-size: 15px; font-weight: 800; }
 
 /* ---------- Race body bits ---------- */
