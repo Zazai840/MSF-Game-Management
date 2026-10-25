@@ -192,7 +192,7 @@ test('Absent is only for a Final\'s teams',async()=>{
   expect((await call(sam,'/api/race-screen/R22/absent-team',{raceId:ticked.race.id,teamId:ticked.teams!.find(team=>team.number===8)!.id,absent:true})).json()).toEqual({message:'Only a final has Here / Absent'});
 });
 
-test('"+ Team not on the list" is refused on a relay Final: its teams are its seeds, call-ups and a lead\'s additions',async()=>{
+test('"Add team" is refused on a relay Final: its teams are its seeds, call-ups and a lead\'s additions',async()=>{
   const {sam,priya,relays,completeHeats}=await start({complete:false});
   // Team 8 never ran a heat, so it is still to run once the Final is stored.
   await relays.team(sam,'R22',legs(8));

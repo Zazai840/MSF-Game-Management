@@ -25,7 +25,7 @@ test('two phones: check-in on one, the order on the other, with a runner not on 
   expect(await lookProblems(finish)).toEqual([]);await finish.screenshot({path:info.outputPath('finish-order-question.png'),fullPage:true});
   await finish.getByRole('button',{name:'2011',exact:true}).click();
   // A runner not on the list goes in through the phone's own number pad, with check-in's warnings.
-  await finish.getByRole('button',{name:'+ Runner not on the list',exact:true}).click();
+  await finish.getByRole('button',{name:'Add runner',exact:true}).click();
   const label='Runner not on the list: wristband number',input=finish.getByLabel(label,{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toBeFocused();
   await enterWristband(finish,2011,label);
