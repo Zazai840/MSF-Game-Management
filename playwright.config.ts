@@ -1,5 +1,13 @@
 import { defineConfig } from '@playwright/test';
-const port = process.env.E2E_PORT || '4323';
+import { createServer } from 'node:net';
+// A free port the OS picks, so concurrent runs never collide. Workers inherit it through the environment.
+const freePort = () => new Promise<string>(resolve => {
+  const server = createServer().listen(0, '127.0.0.1', () => {
+    const { port } = server.address() as { port: number };
+    server.close(() => resolve(String(port)));
+  });
+});
+const port = process.env.E2E_PORT ||= await freePort();
 const baseURL = `http://127.0.0.1:${port}`;
 const databaseName = process.env.E2E_DATABASE_NAME || `msf_spec22_${process.pid}_e2e`;
 const databaseUrl = new URL(process.env.PG_ADMIN_URL || `postgresql://${process.env.USER}@localhost:5432/postgres`);
