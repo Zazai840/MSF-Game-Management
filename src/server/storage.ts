@@ -1,4 +1,10 @@
 import pg from 'pg';
+/**
+ * Opens a PostgreSQL pool, logs idle connection errors, and initializes the application schema.
+ * @param databaseUrl PostgreSQL connection URL.
+ * @param resetTestDay Clear day, sign-in, profile, and settings data; only generated test database names are allowed.
+ * @returns The initialized pool, which the caller must close with `end()`.
+ */
 export async function openDatabase(databaseUrl: string, resetTestDay = false) {
   const pool = new pg.Pool({connectionString: databaseUrl});
   // Postgres can drop an idle connection (a restart or maintenance); the pool discards it and connects afresh, but an
