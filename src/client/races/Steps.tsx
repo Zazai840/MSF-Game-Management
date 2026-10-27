@@ -206,7 +206,8 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
       {sizeNote}
       {!runners.length && <p className="rz-empty">Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.</p>}
-      {!locked && unplaced.length>0 && <ul className="rz-runners" aria-label="Runners not yet placed">{unplaced.map(runner=><li key={runner.id}>
+      {/* A heat of more than 9 gets smaller buttons, so all 12 of a full heat fit above the footer. */}
+      {!locked && unplaced.length>0 && <ul className={runners.length>9?'rz-runners rz-runners--compact':'rz-runners'} aria-label="Runners not yet placed">{unplaced.map(runner=><li key={runner.id}>
         <button type="button" className="rz-runner" aria-label={`${runner.wristband} came ${ordinal(current+1)}`} onClick={()=>place(runner)}>{runner.wristband}</button>
       </li>)}</ul>}
     </main>

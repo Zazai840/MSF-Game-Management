@@ -123,10 +123,10 @@ test('a 12-runner heat is fully placed on one phone screen with no sideways scro
   await expect(runnerButtons(page)).toHaveCount(12);
   expect(await noSideways()).toBe(true);
   await page.screenshot({path:info.outputPath('twelve-runners.png')});
-  // The last runner scrolls into reach above the footer.
-  await page.evaluate(()=>{window.scrollTo(0,document.body.scrollHeight);for(const element of document.querySelectorAll('*')) if(element.scrollHeight>element.clientHeight) element.scrollTop=element.scrollHeight;});
+  // A heat of more than 9 has smaller runner buttons, so every slot and every button fits above the footer without scrolling.
   const footer=(await page.locator('.rz-footer').boundingBox())!,last=(await runnerButtons(page).last().boundingBox())!;
   expect(last.y+last.height).toBeLessThanOrEqual(footer.y);
+  expect(last.height).toBeGreaterThanOrEqual(44);
   expect(await lookProblems(page)).toEqual([]);
   for(const [index,number] of runners.entries()) await page.getByRole('button',{name:new RegExp(`^${number} came ${index+1}(st|nd|rd|th)$`)}).click();
   await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();

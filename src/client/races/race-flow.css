@@ -131,6 +131,8 @@
 .rz-runners { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-12) var(--space-10); margin: 0; padding: 0 0 var(--space-4); list-style: none; }
 .rz-runner { width: 100%; height: 72px; border: 0; border-radius: 36px 36px var(--radius-md) var(--radius-md); background: var(--card); box-shadow: var(--shadow-tile); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
 .rz-runner:active { transform: translateY(4px); box-shadow: var(--shadow-card); }
+.rz-runners--compact { gap: var(--space-8) var(--space-10); }
+.rz-runners--compact .rz-runner { height: 56px; border-radius: 28px 28px var(--radius-md) var(--radius-md); font-size: 30px; }
 
 /* ---------- OrderRow ---------- */
 .rz-orderrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
