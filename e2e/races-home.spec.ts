@@ -64,7 +64,7 @@ test('New race offers this tab\'s events, each section with its code, and the ne
   await expect(page.getByRole('heading',{level:2,name:'Runner 1: wristband number?'})).toBeVisible();
   // Heat 1 saved: the card's "+" pre-selects the event and section, and offers Heat 2 and the final.
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
-  await page.getByRole('button',{name:'Back to races',exact:true}).click();
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(status(page,name)).toHaveText('Heat 1 done · the final is ready to create',live);
   await card(page,name).getByRole('button',{name:'Add heat 2',exact:true}).click();
   await expect(sheet.getByRole('button',{name:'Heat 2',exact:true})).toHaveAttribute('aria-pressed','true');

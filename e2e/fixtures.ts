@@ -298,7 +298,7 @@ export async function enterWristband(page:Page,number:number|string,label='Wrist
 export async function goHome(page:Page) {await back(page,'Races');}
 /** From a race: its back link to Races. */
 export async function backToRaces(page:Page) {
-  await page.getByRole('button',{name:'Back to races',exact:true}).click();
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 }
 /** Switches today's job from the job chip on Races or a race, as a volunteer does. */
