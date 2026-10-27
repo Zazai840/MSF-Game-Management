@@ -33,7 +33,7 @@ test('correcting a number retains the stable entry, finishing place and time, re
   const row=saved.json().results.leaderboard.find((row:any)=>row.wristband===2003);
   expect(row).toMatchObject({entryId:first.parts.runners.value[1].id,place:2,time:1200,flags:[],hasNote:true});
   const race=(await call(lead,`/api/lead/races/${first.id}`)).json().race;
-  expect(race.parts.runners.value[1]).toMatchObject({id:row.entryId,wristband:2003});expect(race.parts.runners.version).toBe(2);
+  expect(race.parts.runners.value[1]).toMatchObject({id:row.entryId,wristband:2003});expect(race.parts.runners.version).toBe(first.parts.runners.version+1);
   expect(race.parts.finish.value.order).toEqual(first.parts.runners.value.map((runner:any)=>runner.id));expect(race.parts.times.value.places).toEqual([1100,1200]);
   const duplicateFixed=await call(lead,path(second,2001)+'/correct-number',{expectedWristband:2001,wristband:2004});expect(duplicateFixed.statusCode).toBe(200);
   expect(duplicateFixed.json().results.leaderboard.flatMap((row:any)=>row.flags).some((flag:any)=>flag.kind==='ran-twice')).toBe(false);
@@ -70,7 +70,7 @@ test('runner rulings refuse volunteers and malformed corrections without audit c
   const saved=await call(lead,path(second,2001)+'/disqualify',{reason:'Two false starts'});expect(saved.statusCode).toBe(200);
   expect(saved.json().results.leaderboard.flatMap((row:any)=>row.flags).some((flag:any)=>flag.kind==='ran-twice')).toBe(false);
   expect((await call(lead,path(second,2001)+'/count-result',{})).statusCode).toBe(409);
-  expect((await call(lead,'/api/race-screen/R4')).statusCode).toBe(200);
+  expect((await call(lead,`/api/races/${second.id}`)).statusCode).toBe(200);
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
 });
 test('Mark checked records the lead who checked it, when, and the trimmed note on the warning',async()=>{

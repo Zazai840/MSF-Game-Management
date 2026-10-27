@@ -116,7 +116,7 @@ test('a relay never gets a check-in hold, and only a relay takes team taps',asyn
   for(const what of ['hold','take-over']) expect((await call(sam,`/api/race-screen/R19/${what}`,{job:'check-in'})).json()).toEqual({message:'Anyone can check a relay in: tick its teams'});
   expect((await call(sam,'/api/race-screen/R19/check-in',{raceId:null,version:0,runners:[{wristband:105}]})).json()).toEqual({message:'Anyone can check a relay in: tick its teams'});
   expect((await relays.screen(sam,'R19')).holds).toEqual({});
-  expect((await call(sam,'/api/race-screen/R4/tick',{raceId:null,teamId:'x'})).json()).toEqual({message:'Only a relay has teams'});
+  expect((await call(sam,'/api/race-screen/R4/tick',{raceId:null,teamId:'x'})).json()).toEqual({message:'Open this race from Races'});
 });
 test('a team being changed can\'t be ticked until its change is done',async()=>{
   const {sam,priya,relays}=await start();

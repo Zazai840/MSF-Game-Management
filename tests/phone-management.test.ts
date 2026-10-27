@@ -81,7 +81,7 @@ test('a new lead code refuses old lead upgrades, keeps signed-in race screens, a
   expect((await call(lead.token,'/api/me')).json().level).toBe('Volunteer');
   expect((await call(owner.token,'/api/me')).json().level).toBe('Lead');
   expect((await call(volunteer.token,'/api/become-lead',{code:day.leadCode})).statusCode).toBe(403);
-  for(const phone of [lead,volunteer]) expect((await call(phone.token,'/api/race-screen/R4')).statusCode).toBe(200);
+  for(const phone of [lead,volunteer]) expect((await call(phone.token,'/api/races')).statusCode).toBe(200);
   expect((await call(lead.token,'/api/lead/results')).statusCode).toBe(403);
   expect((await call(lead.token,'/api/become-lead',{code:rotated.leadCode})).json().level).toBe('Lead');
 });

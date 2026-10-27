@@ -43,7 +43,7 @@ test('a disqualification comment is optional for every reason, Other included',a
   expect(saved.json().auditNotes).toMatchObject([{action:'disqualify',message:'Aisha disqualified 2001 (Heat 1): Other',comment:null}]);
 });
 test('volunteers cannot make rulings, lift comments and reasons are plain refusals, and refusals leave no audit note',async()=>{
-  const {owner,lead,volunteer,path}=await start();
+  const {owner,lead,volunteer,path,race}=await start();
   for(const command of ['disqualify','lift-disqualification']) {
     expect((await call(volunteer,`${path}/${command}`,{reason:'Obstruction',comment:'Not permitted'})).statusCode).toBe(403);
   }
@@ -58,8 +58,8 @@ test('volunteers cannot make rulings, lift comments and reasons are plain refusa
   expect((await call(lead,`${path}/disqualify`,{reason:'Baton'})).statusCode).toBe(409);
   const result=(await call(lead,'/api/lead/events/R4/results')).json();
   expect(result.auditNotes).toHaveLength(1);expect(result.auditNotes[0]).toMatchObject({actor:'Owner',comment:'Stepped onto another track'});
-  expect((await call(lead,'/api/race-screen/R4')).statusCode).toBe(200);
-  expect((await call(volunteer,'/api/race-screen/R4')).json()).not.toHaveProperty('auditNotes');
+  expect((await call(lead,`/api/races/${race.id}`)).statusCode).toBe(200);
+  expect((await call(volunteer,`/api/races/${race.id}`)).json()).not.toHaveProperty('auditNotes');
 });
 test('concurrent rulings create one disqualification and one note; checked-in runners can be disqualified before their recording is complete',async()=>{
   const {lead,volunteer,path,setup}=await start();
