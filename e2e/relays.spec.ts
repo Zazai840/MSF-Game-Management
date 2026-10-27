@@ -105,7 +105,8 @@ test('the Teams button on Home\'s Relays tab counts every team and those not com
   await openRelays(page);
   const teams=page.getByRole('button',{name:/^Teams Type each relay's teams at the prep area/});
   await expect(teams).toBeVisible();
-  // The test day is shared, so other tests' teams count too: read the badge first.
+  // The test day is shared, so other tests' teams count too: read the badge first, once the list has come in.
+  await expect(page.getByRole('region',{name:`Teams badge ${project}`,exact:true})).toBeVisible();
   const badge=teams.locator('.badge'),before=(await badge.count())?await badge.innerText():'';
   const [count,short]=[Number(before.match(/^(\d+) team/)?.[1]||0),Number(before.match(/(\d+) not complete/)?.[1]||0)];
   // Another project's badge test may hold the same children: keep any warning.

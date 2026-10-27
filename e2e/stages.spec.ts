@@ -7,10 +7,10 @@ test('timed Event complete checks blockers, locks the race screen live, and reop
   await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed',type:'races'}});
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2601,2602],[1000,1100]);
-  // A volunteer takes check-in over from the owner and starts checking in Race 2 on the race screen.
+  // A volunteer takes check-in over from the owner and starts checking in Heat 2 on the race screen.
   const job=(await openPhone(`Stage starter ${info.project.name}`)).page;
   await openRaceScreen(job,name);await job.getByRole('button',{name:/^Check-in Wristbands/}).click();await job.getByRole('button',{name:'Take over check-in',exact:true}).click();await job.getByRole('button',{name:'Take over',exact:true}).click();await enterWristband(job,2603);
-  await expect(job.getByText('Race 2 · 1 runner',{exact:true})).toBeVisible();
+  await expect(job.getByText('Heat 2 · 1 runner',{exact:true})).toBeVisible();
   await page.goto('/');await join(page,`Stage lead ${info.project.name}`,{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
@@ -18,7 +18,7 @@ test('timed Event complete checks blockers, locks the race screen live, and reop
   // Amber marks only a list that holds something to settle or look at.
   await expect.poll(()=>sheetSectionFill(blocked,'Must settle first')).toBe('rgb(255, 244, 220)');
   await page.screenshot({path:info.outputPath('must-settle-first.png'),fullPage:true});
-  await blocked.getByRole('button',{name:'Race 2 is in progress (1 checked in) - submit it or delete it',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Race 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await back(page,`${name} Girl Cubs`);await page.getByRole('button',{name:'Event complete',exact:true}).click();
+  await blocked.getByRole('button',{name:'Heat 2 is in progress (1 checked in) - submit it or delete it',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Heat 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await back(page,`${name} Girl Cubs`);await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(sheet.getByRole('heading',{name:'Must settle first',exact:true})).toBeVisible();await expect(sheet).toContainText('Nothing to settle');await expect.poll(()=>sheetSectionFill(sheet,'Must settle first')).toBe('none');await expect(sheet).toContainText('No open warnings');await expect.poll(()=>sheetSectionFill(sheet,'Worth a look')).toBe('none');await expect(sheet).toContainText('2601');await expect(sheet).toContainText('2602');
   await page.screenshot({path:info.outputPath('event-complete-sheet.png'),fullPage:true});await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(`${code}`);await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('2601');

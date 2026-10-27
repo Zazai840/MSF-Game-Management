@@ -40,7 +40,7 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
 });
 
 test('inside a race each issue sits on its step\'s tab; It\'s right clears it and records who accepted it',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead tabs ${project}`,code=`LT-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Lead tabs ${project}`,code=`LB-${project.toUpperCase()}`;
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // A kept wrong-section number, a runner added at the finish, and a kept wrong time.
   await writeCheckIn(request,owner(),code,[3045,2001],[3045]);

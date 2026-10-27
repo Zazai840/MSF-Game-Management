@@ -13,7 +13,7 @@ async function twoTeams(request:APIRequestContext,token:string,code:string) {
 async function openRelay(page:Page,name:string) {await openRelays(page);await openRaceScreen(page,name);}
 
 test('Take over on a relay confirms in the card, carries on from what was entered, and the old holder\'s next write is refused',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`RO-${project.toUpperCase()}`,name=`Take over relay ${project}`,jo=`Jo relay takeover ${project}`,ali=`Ali relay takeover ${project}`;
+  const project=info.project.name,code=`RT-${project.toUpperCase()}`,name=`Take over relay ${project}`,jo=`Jo relay takeover ${project}`,ali=`Ali relay takeover ${project}`;
   await ownRelay(code,name);
   const old=await openPhone(jo),taker=await openPhone(ali);
   await twoTeams(request,old.token,code);
@@ -67,7 +67,7 @@ test('Submit Race on a relay waits for every holder: every phone shows who it wa
 });
 
 test('a lead\'s Save as lead saves a relay heat stuck waiting on another phone, after a confirm',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`RL-${project.toUpperCase()}`,name=`Save as lead relay ${project}`,jo=`Jo relay stuck ${project}`;
+  const project=info.project.name,code=`XQ-${project.toUpperCase()}`,name=`Save as lead relay ${project}`,jo=`Jo relay stuck ${project}`;
   await ownRelay(code,name);
   const timer=await signInThroughApi(request,jo),priya=await openPhone(`Priya relay stuck ${project}`);
   await twoTeams(request,priya.token,code);

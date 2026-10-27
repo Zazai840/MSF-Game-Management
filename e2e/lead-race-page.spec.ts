@@ -14,7 +14,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await page.getByRole('button',{name:`Open Race ${number}`,exact:true}).click();
+  await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
 }
 const saved=(page:Page)=>page.getByRole('status').filter({hasText:'Saved'});
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);

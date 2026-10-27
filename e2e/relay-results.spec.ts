@@ -27,7 +27,7 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   await page.screenshot({path:info.outputPath('relay-warnings.png'),fullPage:true});
   /** Opens the team's actions sheet from its row and presses the button. */
   async function settle(team:number,button:string) {
-    await board.getByRole('button',{name:`Team ${team} · Heat 1`,exact:true}).click();
+    await board.getByRole('button',{name:new RegExp(`^Team ${team} · .* · Heat 1$`)}).click();
     const sheet=page.getByRole('dialog',{name:`Actions for Team ${team}`,exact:true});
     // Disqualifying for wrong section or age is a reason under the one Disqualify button, not a button of its own.
     await expect(sheet).toBeVisible();await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);

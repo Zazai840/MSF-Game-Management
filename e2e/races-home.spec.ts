@@ -156,7 +156,7 @@ test('switching job on a race keeps the race open in the new view, and another j
   await deleteCurrentRace(request,code);
 });
 test('a saved race opens read-only for a volunteer, saying to ask a lead',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Saved sprint ${project}`,code=`SV-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Saved sprint ${project}`,code=`SD-${project.toUpperCase()}`;
   await ownEvent(request,code,name);
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   const {page}=await openPhone(`Saved ${project}`);

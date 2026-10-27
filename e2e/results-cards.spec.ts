@@ -55,11 +55,11 @@ test('Results shows each event as a card coloured by its state, with a legend an
     await expect(page.getByText('Running · 1 race',{exact:true})).toBeVisible();
     await expect(results).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
-    await page.getByRole('button',{name:'Open Race 1',exact:true}).click();
+    await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
     await expect(page.getByRole('button',{name:`Back to ${name} Boy Cubs`,exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:/^Back to event/})).toHaveCount(0);
     await back(page,`${name} Boy Cubs`);
-    await expect(page.getByRole('button',{name:'Open Race 1',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
     await back(page,'Results');
     await expect(legend).toBeVisible();
     await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
