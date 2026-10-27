@@ -160,3 +160,17 @@ test('Re-run waits while a relay\'s current race has check-ins; an individual ev
   expect(rerun.statusCode,rerun.body).toBe(200);
   expect((await call(sam,`/api/races/${rerun.json().newRaceId}`)).json().race).toMatchObject({kind:'heat',number:3});
 });
+test('Restore waits while a relay\'s current race has check-ins, and Delete, Re-run and Restore leave its holds as they are',async()=>{
+  const context=await start(),{owner,relays,sam,priya,jo}=context;
+  const first=(await worked(context)).race.id;
+  const holds=(await screen(sam)).holds;expect(Object.keys(holds).sort()).toEqual(['order','times']);
+  await call(owner,`/api/lead/races/${first}/delete`,{permanent:false});expect((await screen(sam)).holds).toEqual(holds);
+  await relays.tick(sam,code,3);
+  expect((await call(owner,`/api/lead/races/${first}/restore`,{})).json()).toEqual({message:"Heat 2 is in progress - restore after it's saved"});
+  await relays.takeOff(sam,code,3);
+  expect((await call(owner,`/api/lead/races/${first}/restore`,{})).statusCode).toBe(200);
+  expect((await screen(sam)).race.id).toBe(first);expect((await screen(sam)).holds).toEqual(holds);
+  await submit(priya,first);await submit(jo,first);
+  const rerun=await call(owner,`/api/lead/races/${first}/re-run`,{});expect(rerun.statusCode,rerun.body).toBe(200);
+  expect((await screen(sam)).race.id).toBe(rerun.json().newRaceId);expect((await screen(sam)).holds).toEqual(holds);
+});
