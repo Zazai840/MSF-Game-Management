@@ -52,9 +52,9 @@ test('a team typed on one phone reaches the others on Done; Cancel leaves nothin
   await card(priyaPhone,name,'Girl Cubs').click();
   const box=(team:string,leg:string)=>samPhone.getByLabel(`${team} ${leg} leg`,{exact:true});
   const add=samPhone.getByRole('button',{name:'+ Add team',exact:true}),done=samPhone.getByRole('button',{name:'Done',exact:true});
-  // Cancel on a new team leaves no team behind.
+  // Cancel on a new team leaves no team behind, even with a number whose warning shows as its box is left.
   await add.click();
-  await box('New team','1st').fill(n(2101));
+  await box('New team','1st').fill('3045');
   await samPhone.getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(box('New team','1st')).toHaveCount(0);
   await expect(samPhone.getByRole('region',{name,exact:true}).locator('.team-row')).toHaveCount(0);
