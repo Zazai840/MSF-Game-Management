@@ -1,9 +1,9 @@
-import { back,expect,live,lookProblems,openDashboard,openTeams,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes } from './fixtures.js';
-import type { APIRequestContext,Page } from '@playwright/test';
+import {back,expect,live,lookProblems,openLeadMenu,openTeams,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import type {APIRequestContext,Page} from '@playwright/test';
 
 /** A lead's Results for the relay, then its event page. */
 async function openRelayResults(page:Page,code:string) {
-  await openDashboard(page,'Results');
+  await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
 }
 /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */

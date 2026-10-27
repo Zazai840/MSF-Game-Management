@@ -1,4 +1,4 @@
-import { deleteCurrentRace,enterWristband,live,openRaceScreen,recordRace,back,openDashboard,becomeLead,expect,createProfile,test,type Locator } from './fixtures.js';
+import {deleteCurrentRace,enterWristband,live,openRaceScreen,recordRace,back,openLeadMenu,becomeLead,expect,join,test,type Locator} from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
@@ -11,8 +11,8 @@ test('timed Event complete checks blockers, locks the race screen live, and reop
   const job=(await openPhone(`Stage starter ${info.project.name}`)).page;
   await openRaceScreen(job,name);await job.getByRole('button',{name:/^Check-in Wristbands/}).click();await job.getByRole('button',{name:'Take over check-in',exact:true}).click();await job.getByRole('button',{name:'Take over',exact:true}).click();await enterWristband(job,2603);
   await expect(job.getByText('Race 2 · 1 runner',{exact:true})).toBeVisible();
-  await page.goto('/');await createProfile(page,`Stage lead ${info.project.name}`);
-  await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await join(page,`Stage lead ${info.project.name}`,{job:'Start line'});
+  await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();
   // Amber marks only a list that holds something to settle or look at.

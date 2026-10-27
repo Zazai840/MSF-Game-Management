@@ -246,9 +246,9 @@ export async function writeTeamOrder(request:APIRequestContext,token:string,rela
   const listed=addedTeams.length?(await readRaceScreen(request,token,relayCode)).teams!:[];
   return raceScreenWrite(request,token,relayCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>listed.find(team=>team.number===number)!.id)});
 }
-/** From Home: the Relays tab, then the Teams button, and waits for the Teams screen. */
+/** From Races: the Relays tab, then the Teams button, and waits for the Teams screen. */
 export async function openTeams(page:Page) {
-  await page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(page);
   await page.getByRole('button',{name:/^Teams Type each relay's teams at the prep area/}).click();
   await expect(page.getByRole('heading',{level:1,name:'Teams',exact:true})).toBeVisible();
 }

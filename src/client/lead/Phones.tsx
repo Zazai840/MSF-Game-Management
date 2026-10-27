@@ -24,7 +24,7 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
     finally {setBusy(false);}
   }
   return <section className="day-setup" aria-label="Signed in today">
-    <p className="day-intro">Everyone signed in today, oldest first. Role changes last for today only. Remove signs that person out and sends their phone to the Olympics password screen, dropping anything it hasn't saved.</p>
+    <p className="day-intro">Everyone signed in today, oldest first. Role changes last for today only. Remove signs that person out and sends their phone back to Join, dropping anything it hasn't saved.</p>
     {failed && <p className="day-not-saved">Not saved - try again</p>}{error && <p role="alert">{error}</p>}
     {!data && !error && <p className="day-intro">Opening Signed in today…</p>}
     <div className="day-events">{data?.phones.map(phone=><article key={phone.id} className="day-card" aria-label={phone.name}>

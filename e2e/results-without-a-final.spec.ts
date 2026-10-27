@@ -1,4 +1,4 @@
-import { back,expect,live,openDashboard,openRaceScreen,ownEvent,recordRace,test } from './fixtures.js';
+import {back,expect,live,openLeadMenu,openRaceScreen,ownEvent,recordRace,test} from './fixtures.js';
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWF-${project.toUpperCase()}`,name=`No final sprint ${project}`;
   await ownEvent(page.request,code,name);
@@ -8,7 +8,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(11),w(12),w(13)],[935,980,1060]);
   const lead=(await openPhone(`No final lead ${project}`,{lead:true})).page;
-  await openDashboard(lead,'Results');
+  await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // The tie for 3rd and 4th only decides qualifying for now: both qualify, so No run-off needed.
   await lead.getByRole('button',{name:`TIE at 9.80 for ${w(2)}`,exact:true}).click();
@@ -85,7 +85,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(5),w(6),w(7)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(15),w(16),w(17)],[935,990,1060]);
   const lead=(await openPhone(`Reopen lead ${project}`,{lead:true})).page;
-  await openDashboard(lead,'Results');
+  await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
   const sheet=lead.getByRole('dialog',{name:'Results without a final',exact:true});
@@ -128,7 +128,7 @@ test('after Heats complete, a lead chooses Results without a final before the fi
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(11),w(12),w(13)],[935,990,1060]);
   const lead=(await openPhone(`Late no final lead ${project}`,{lead:true})).page;
-  await openDashboard(lead,'Results');
+  await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
   await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();

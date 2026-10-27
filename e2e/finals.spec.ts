@@ -1,6 +1,6 @@
-import { lookProblems,recordRace,openDashboard,becomeLead,expect,createProfile,test,live,openRaceScreen,ownEvent,submitRace,writeOrder,deleteCurrentRace,type Page } from './fixtures.js';
+import {lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRaceScreen,ownEvent,submitRace,writeOrder,deleteCurrentRace,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
- await page.goto('/');await createProfile(page,name);
+ await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
 }
 const checkInCard=(page:Page)=>page.getByRole('button',{name:/^Check-in Wristbands/});
@@ -10,7 +10,7 @@ const attendance=(page:Page)=>page.getByRole('list',{name:'Who is here'}).getByR
 async function heatsToFinal(page:Page,code:string,name:string,heats:Array<[number[],number[]]>,lead:string) {
  await ownEvent(page.request,code,name,'Boy Cubs');
  const races=[];for(const [runners,times] of heats) races.push(await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times));
- await signInAs(page,lead,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Boy Cubs`)}).click();
+ await signInAs(page,lead,true);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Boy Cubs`)}).click();
  return races;
 }
 test('a final on the race screen: Absent hides a runner from the order holder live, a lead\'s call-up appears live, and Finishing order has no times',async({page,openPhone},info)=>{

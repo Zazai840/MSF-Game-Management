@@ -1,6 +1,6 @@
-import { deleteCurrentRace,openDashboard,openRaceScreen,becomeLead,expect,createProfile,lookProblems,readRaceScreen,recordRace,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext,type Page } from './fixtures.js';
+import {deleteCurrentRace,openLeadMenu,openRaceScreen,becomeLead,expect,join,lookProblems,readRaceScreen,recordRace,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string) {
-  await page.goto('/');await createProfile(page,name);
+  await page.goto('/');await join(page,name,{job:'Start line'});
 }
 /** Six runners placed and timed (the times by `timer`), then the last taken off as Didn't run: six times for five finishers. */
 async function surplusRace(request:APIRequestContext,code:string,name:string,timer:string) {
@@ -39,7 +39,7 @@ test('after a lead takes a finisher off a saved race, the lead sees the surplus 
   // Finishers and times only disagree after a lead's correction: 2406 turns out not to have run.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;
   expect((await page.request.post(`/api/lead/races/${race.id}/finish-order`,{headers,data:{baseVersion:saved.parts.finish.version,runnersVersion:saved.parts.runners.version,order:runners.slice(0,5),didNotFinish:[],didNotRun:[2406]}})).ok()).toBe(true);
-  await signInAs(page,`Surplus lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  await signInAs(page,`Surplus lead ${info.project.name}`);await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
   const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.';
   await expect(sheet.getByText(leftover,{exact:true})).toBeVisible();await expect(sheet.getByRole('button',{name:'Save times',exact:true})).toBeDisabled();

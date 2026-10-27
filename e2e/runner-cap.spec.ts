@@ -1,11 +1,11 @@
-import { ownEvent,openRaceScreen,recordRace,back,openDashboard,enterWristband,becomeLead,expect,createProfile,test,type Page,enterTime } from './fixtures.js';
+import {ownEvent,openRaceScreen,recordRace,back,openLeadMenu,enterWristband,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
-  await page.goto('/');await createProfile(page,name);
+  await page.goto('/');await join(page,name,{job:'Start line'});
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {
-  await signInAs(page,name,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await signInAs(page,name,true);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
 
 test('a phone checks in 8 runners on the race screen and carries them through the order, times, Submit Race and Results',async({page,openPhone},info)=>{

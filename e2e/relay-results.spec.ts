@@ -1,7 +1,7 @@
-import type { APIRequestContext,TestInfo } from '@playwright/test';
-import { back,dashboardMenuButton,dragTo,expect,lookProblems,markHere,openDashboard,ownRelay,signInThroughApi,submitRace,test,tickTeam,toCheckItem,writeTeam,writeTeamOrder,writeTimes } from './fixtures.js';
+import type {APIRequestContext,TestInfo} from '@playwright/test';
+import {back,dragTo,expect,lookProblems,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
-test('To check names relay teams: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
+test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),cubs=`TCC-${project.toUpperCase()}`,scouts=`TCS-${project.toUpperCase()}`;
   const name=`Relay warnings ${project}`;
   await ownRelay(cubs,name,'Girl Cubs');await ownRelay(scouts,name,'Girl Scouts');
@@ -18,36 +18,27 @@ test('To check names relay teams: a kept wrong-Section number, a child in two re
   await writeTeamOrder(request,token,cubs,[1,2,3],{addedTeams:[4]});await writeTimes(request,token,cubs,[1400,1500,1600,1700]);await submitRace(request,token,cubs);
 
   const {page}=await openPhone(`To check relay lead ${project}`,{lead:true});
-  await openDashboard(page);
-  const race=`${cubs} · ${name} Girl Cubs · Heat 1`;
-  const item=(text:string)=>toCheckItem(page,new RegExp(`^${race} [0-9:]+ ${text.replace(/[.]/g,'\\.')} Open race$`));
-  const wrongNumber=item(`A wristband number needs checking In Team 1: ${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.`);
-  const twoRelays=item(`A child is in two relays ${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`);
-  const ranShort=item('A team ran short Team 3 ran with 3 of 4 children marked here.');
-  const added=item('A team was added at the finish Team 4 crossed the line but was not checked in at the start. Check it ran in this race.');
-  for(const each of [wrongNumber,twoRelays,ranShort,added]) await expect(each).toBeVisible();
+  // A relay's issues are on its results: each team's row names them, and its actions settle them.
+  await openLeadMenu(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${cubs} · Girl Cubs`)}).click();
+  const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
+  for(const warning of [`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,'Team 3 ran with 3 of 4 children marked here.']) await expect(board).toContainText(warning);
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('relay-to-check.png'),fullPage:true});
-
-  /** Opens the item, presses the button on the team's actions sheet, and is back on To check with the item gone. */
-  async function settle(item:ReturnType<typeof toCheckItem>,team:number,button:string) {
-    await item.click();
+  await page.screenshot({path:info.outputPath('relay-warnings.png'),fullPage:true});
+  /** Opens the team's actions sheet from its row and presses the button. */
+  async function settle(team:number,button:string) {
+    await board.getByRole('button',{name:`Team ${team} · Heat 1`,exact:true}).click();
     const sheet=page.getByRole('dialog',{name:`Actions for Team ${team}`,exact:true});
     // Disqualifying for wrong section or age is a reason under the one Disqualify button, not a button of its own.
     await expect(sheet).toBeVisible();await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
     if(team===1) {expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('relay-team-actions.png'),fullPage:true});}
     await sheet.getByRole('button',{name:button,exact:true}).click();await sheet.getByRole('button',{name:'Save check',exact:true}).click();await expect(sheet).toHaveCount(0);
-    await back(page,'Dashboard');
-    await expect(item).toHaveCount(0);
   }
-  await settle(wrongNumber,1,'Mark checked');
-  await settle(twoRelays,2,'Mark checked');
-  await settle(ranShort,3,'Mark checked');
-  await settle(added,4,'Mark addition checked');
+  await settle(1,'Mark checked');
+  await settle(2,'Mark checked');
+  await settle(3,'Mark checked');
+  await settle(4,'Mark addition checked');
   // Each team's row keeps its warnings, now checked.
-  await dashboardMenuButton(page,'Results').click();
-  await page.getByRole('button',{name:new RegExp(`^${cubs} · Girl Cubs`)}).click();
-  const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
   const checked=`Checked by To check relay lead ${project}: `;
   await expect(board.locator('.checked-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`,`${checked}Added at the finish`]);
   expect(await lookProblems(page)).toEqual([]);
@@ -77,7 +68,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await heat([2,1,3,4],[1400,1500,1700,1900]);
   await heat([5,6,7],[1450,1600,1800]);
   const {page}=await openPhone(`Relay results lead ${project}`,{lead:true});
-  await openDashboard(page,'Results');
+  await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // One row per team: Team N and its four children in leg order, then the time and where it ran.
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true}),rows=board.locator(':scope > li');
@@ -145,7 +136,7 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
   const {code,legs,heat}=await scoutsRelay(request,info,'RDQ','Relay disqualify',3,0);
   await heat([1,2,3],[1400,1500,1600]);
   const {page}=await openPhone(`Relay disqualify lead ${info.project.name}`,{lead:true});
-  await openDashboard(page,'Results');
+  await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
   const team1=board.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat 1`,exact:true});
@@ -178,7 +169,7 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
   await heat([1,2,3,4],[1400,1500,1600,1700]);
   await heat([5,6,7,8],[1450,1550,1700,1800]);
   const {page}=await openPhone(`Relay tie lead ${info.project.name}`,{lead:true});
-  await openDashboard(page,'Results');
+  await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   // Team 4 and Team 7 share 6th place at 17.00: one of them misses the final.
   await page.getByRole('button',{name:'TIE at 17.00 for Team 4',exact:true}).click();
@@ -205,7 +196,7 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   const {code,name,heat}=await scoutsRelay(request,info,'RCFO','Relay order fix',3,60);
   await heat([1,2,3],[1400,1500,1600]);
   const {page}=await openPhone(`Relay order fix lead ${info.project.name}`,{lead:true});
-  await openDashboard(page,'Results');
+  await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();

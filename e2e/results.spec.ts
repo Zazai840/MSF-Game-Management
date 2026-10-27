@@ -1,9 +1,9 @@
-import { enterTime,openDashboard,openRaceScreen,enterWristband,becomeLead,expect,createProfile,ownEvent,recordRace,signInThroughApi,test } from './fixtures.js';
+import {enterTime,openLeadMenu,openRaceScreen,enterWristband,becomeLead,expect,join,ownEvent,recordRace,signInThroughApi,test} from './fixtures.js';
 test('a lead sees a race worked on the race screen appear within one Results poll',async({page,openPhone},info)=>{
   const project=info.project.name,code=`RP-${project.toUpperCase()}`,name=`Results phone ${project}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
-  await page.goto('/');await createProfile(page,`Results lead ${project}`);await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await join(page,`Results lead ${project}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // One phone does every job: check-in with a kept warning, the order, the times, then Submit Race.
   const phone=(await openPhone(`Results phone ${project}`)).page;
@@ -27,7 +27,7 @@ test('on a phone a medal mark sits beside its position number, not on a line of 
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await recordRace(page.request,await signInThroughApi(page.request,`Medal timer ${project}`),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);
-  await page.goto('/');await createProfile(page,`Medal lead ${project}`);await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await join(page,`Medal lead ${project}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   for(const [index,mark] of ['1st','2nd','3rd'].entries()) {
     const position=page.locator('.result-position').nth(index);

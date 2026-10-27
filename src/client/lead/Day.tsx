@@ -48,7 +48,7 @@ function ChangePassword() {
   const change=()=>void submit(async()=>{await api('day/olympics-password',{password});phoneStorage.signOut();},()=>setConfirming(false));
   if(!open) return <button className="button-secondary button-small" onClick={()=>setOpen(true)}>Change Olympics password</button>;
   if(confirming) return <div className="day-confirm">
-    <p className="calm-note">Every phone, including yours, goes back to the password screen. Profiles stay on the phones.</p>
+    <p className="calm-note">Every phone, including yours, goes back to Join. Profiles stay on the phones.</p>
     <div className="day-actions"><button className="button-small" disabled={busy} onClick={change}>{busy?'Changing…':'Yes, change password'}</button>
       <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setConfirming(false)}>Keep the old password</button></div>
   </div>;
@@ -93,7 +93,7 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
   return <div className="day-setup">
     <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only leads can see it here."
       note="It stays the same when a new day starts."><ChangePassword/></CodeCard>
-    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard."
+    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. Typed on Join or in Your job, it makes the phone a zone lead."
       note="Other leads go back to being volunteers. You and the owner keep access."
       make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
     <div className="day-rows">

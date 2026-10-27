@@ -1,10 +1,10 @@
-import { deleteCurrentRace,recordRace,goHome,back,openDashboard,openRaceScreen,becomeLead,expect,createProfile,dragTo,lookProblems,test } from './fixtures.js';
+import {deleteCurrentRace,recordRace,goHome,back,openLeadMenu,openRaceScreen,becomeLead,expect,join,dragTo,lookProblems,test} from './fixtures.js';
 test('a lead repairs a race, keeps failed corrections, deletes and restores it, then calls a prefilled re-run',async({page},info)=>{
   // The test day is shared and projects run at once: each names its own event, so its race screen tile is its alone.
   const code=`RC-${info.project.name.toUpperCase()}`,name=`Race corrections ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
-  await page.goto('/');await createProfile(page,`Race lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,`Race lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1400');
   let failed=true;await page.route('**/api/lead/races/*/times',async route=>{if(failed){failed=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Not saved - try again'})});}else await route.continue();});
@@ -24,7 +24,7 @@ test('a lead can correct times again straight after saving, even when the race i
   const code=`RQ-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:'Quick corrections',section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
-  await page.goto('/');await createProfile(page,`Quick lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,`Quick lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen the sheet on the version just replaced.
@@ -39,7 +39,7 @@ test('a lead corrects a saved race\'s finishing order: drags a wristband, marks 
   const code=`RO-${info.project.name.toUpperCase()}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await page.request.post('/api/day/events',{headers,data:{code,name:'Order corrections',section:'Girl Cubs',format:'timed',type:'races'}});await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002,2003],[1200,1300,1400]);
-  await page.goto('/');await createProfile(page,`Order lead ${info.project.name}`);await becomeLead(page);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,`Order lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Race 1',exact:true}).click();await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();
   const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveText(['1st12.002001No place','2nd13.002002No place','3rd14.002003No place']);

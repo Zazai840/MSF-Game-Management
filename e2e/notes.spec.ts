@@ -1,4 +1,4 @@
-import { becomeLead,createProfile,expect,lookProblems,openDashboard,ownEvent,recordRace,test } from './fixtures.js';
+import {becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,recordRace,test} from './fixtures.js';
 const amber='rgb(255, 244, 220)';
 test('a lead reads a kept wristband warning in the child\'s Notes, checks it with a note, and sees who checked it',async({page},info)=>{
   const code=`NO-${info.project.name.slice(0,3).toUpperCase()}`,lead=`Notes lead ${info.project.name}`;
@@ -6,7 +6,7 @@ test('a lead reads a kept wristband warning in the child\'s Notes, checks it wit
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The volunteer kept the out-of-range wristband at check-in, and the race was saved.
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2301,6000],[1100,1200],[6000]);
-  await page.goto('/');await createProfile(page,lead);await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await join(page,lead,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:`Open Race ${race.number}`,exact:true}).click();
   // The warning shows in amber beside the child's number on the race page's Current record.

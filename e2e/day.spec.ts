@@ -1,16 +1,16 @@
-import { openDashboard,becomeLead,expect,createProfile,test,back } from './fixtures.js';
+import {openLeadMenu,becomeLead,expect,join,test,back} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 test('a lead edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
   const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R4').name as string;
   try {
     await page.goto('/');
-    await createProfile(page,`Day ${info.project.name}`);
+    await join(page,`Day ${info.project.name}`,{job:'Start line'});
     await becomeLead(page,'wrong-lead-fixture');
     await expect(page.getByRole('alert')).toHaveText('Wrong lead code');
     await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');
     await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-    await openDashboard(page,'Day setup');
+    await openLeadMenu(page,'Day setup');
     await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
     await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
@@ -36,7 +36,7 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await back(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
     await page.reload();
-    await openDashboard(page,'Day setup');
+    await openLeadMenu(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();

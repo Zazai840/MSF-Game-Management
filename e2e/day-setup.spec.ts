@@ -1,10 +1,10 @@
-import { lookProblems,back,openDashboard,leadSignIn,dashboardButton,expect,test,type Page } from './fixtures.js';
+import {lookProblems,back,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
-  await page.goto('/');await openDashboard(page,'Day setup');
+  await page.goto('/');await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
 }
 const section=(page:Page,name:string)=>page.getByRole('region',{name,exact:true});
@@ -28,7 +28,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
 
   const leadCode=section(page,'Lead code');
   await expect(leadCode.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
-  await expect(leadCode).toContainText('Give this only to zone leads. It opens the Dashboard.');
+  await expect(leadCode).toContainText('Give this only to zone leads. Typed on Join or in Your job, it makes the phone a zone lead.');
   await expect(leadCode.getByRole('button',{name:'Make a new lead code',exact:true})).toBeVisible();
   await expect(leadCode).toContainText('Other leads go back to being volunteers. You and the owner keep access.');
 
@@ -98,9 +98,9 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
 
 test('a lead who signed in with the lead code opens Day setup and makes a new lead code',async({page},info)=>{
   const name=`Day setup lead ${info.project.name}`;
-  await page.goto('/');await leadSignIn(page,name);
-  await expect(dashboardButton(page)).toBeVisible();
-  await openDashboard(page,'Day setup');
+  await page.goto('/');await join(page,name,{code:process.env.E2E_LEAD_CODE});
+  await expect(leadMenuButton(page)).toBeVisible();
+  await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expect(section(page,'Olympics password').getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
   const before=process.env.E2E_LEAD_CODE!;
@@ -116,7 +116,7 @@ test('a lead who signed in with the lead code opens Day setup and makes a new le
   await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
   const fresh=await(await page.request.get('/api/day',{headers:headers()})).json();
   await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
-  // The lead who made it keeps the Dashboard.
-  await back(page,'Home');await expect(dashboardButton(page)).toBeVisible();
+  // The lead who made it stays a lead.
+  await back(page,'Races');await expect(leadMenuButton(page)).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });
