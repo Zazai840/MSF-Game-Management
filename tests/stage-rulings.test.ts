@@ -28,21 +28,21 @@ test('a lead completes a timed event with durable official podium and audit, the
   expect(reopened.json().results).toMatchObject({status:'In progress - provisional',provisional:true,inputRunning:null});
   expect(reopened.json().auditNotes[0]).toMatchObject({action:'reopen-stage',comment:'Late correction',message:'Aisha reopened Event complete - Late correction'});
 });
-test('completion refuses every race screen write and new race, while reopen restores entry',async()=>{
+test('completion refuses every race flow write and new race, while reopen restores entry',async()=>{
   const {lead,volunteer,setup}=await start();
-  await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'});
-  const next=await setup.screen(volunteer,'R16');
-  expect(next).toMatchObject({stageComplete:true,race:{id:null,number:2}});
-  const bodies:[string,unknown][]=[
-    ['hold',{job:'check-in'}],['take-over',{job:'times'}],
-    ['check-in',{raceId:null,version:0,runners:[{wristband:2003}]}],
-    ['order',{raceId:null,version:0,order:[],didNotFinish:[],didNotRun:[],added:[]}],
-    ['times',{raceId:null,version:0,places:[],keptWrong:[]}],
-    ['submit',{raceId:null}],['not-yet',{raceId:null}]
+  // An empty race made before completion doesn't stop it, and can't be written once it is complete.
+  const empty=(await call(volunteer,'/api/races',{eventCode:'R16',kind:'heat',number:2})).json().race;
+  expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
+  const writes:[string,unknown][]=[
+    ['check-in',{raceId:empty.id,version:empty.parts.runners.version,runners:[{wristband:2003}]}],
+    ['order',{raceId:empty.id,version:empty.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added:[]}],
+    ['times',{raceId:empty.id,version:empty.parts.times.version,places:[],keptWrong:[]}],
+    ['steps/runners/done',{}]
   ];
-  for(const [what,body] of bodies) {
-    const response=await call(volunteer,`/api/race-screen/R16/${what}`,body);expect(response.statusCode).toBe(409);expect(response.json().message).toBe('Stage complete - ask a lead');
+  for(const [what,body] of writes) {
+    const response=await call(volunteer,`/api/races/${empty.id}/${what}`,body);expect(response.statusCode).toBe(409);expect(response.json().message).toBe('Stage complete - ask a lead');
   }
+  expect((await call(volunteer,'/api/races',{eventCode:'R16',kind:'heat',number:3})).json().message).toBe('Stage complete - ask a lead');
   await call(lead,'/api/lead/events/R16/reopen-stage',{stage:'event',comment:'One more race'});
   expect((await setup.checkIn(volunteer,'R16',[2003])).number).toBe(2);
 });
@@ -78,5 +78,5 @@ test('an open kept warning does not prevent completion, and leads can correct a 
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
   const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1000,1200]});
   expect(corrected.statusCode).toBe(200);expect(corrected.json().results.status).toBe('Complete');
-  expect((await call(volunteer,'/api/race-screen/R16/times',{raceId:race.id,version:2,places:[1000,1300],keptWrong:[]})).json().message).toBe('Stage complete - ask a lead');
+  expect((await call(volunteer,`/api/races/${race.id}/times`,{raceId:race.id,version:2,places:[1000,1300],keptWrong:[]})).json().message).toBe('Stage complete - ask a lead');
 });
