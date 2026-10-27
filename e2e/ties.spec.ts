@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {recordRace,openLeadMenu,becomeLead,dragTo,expect,join,test,back} from './fixtures.js';
+import {recordRace,openLeadMenu,becomeLead,dragTo,expect,join,test} from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;

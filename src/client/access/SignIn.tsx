@@ -2,17 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiFailure, phoneStorage, type HeldProfile, type Waiting } from '../api.js';
 import type { Phone } from '../../shared/domain.js';
 import type { Role } from '../../shared/race-flow.js';
-import { AppHeader } from '../shell/AppHeader.js';
 import { Callout,HomeBar,Icon,Screen as RzScreen } from '../races/parts.js';
 import { JobChoice } from '../races/RoleSheet.js';
-import { ActionBar } from '../flow/ActionBar.js';
 import { useSubmit } from '../flow/useSubmit.js';
 import './access.css';
 interface SignedIn { token:string; phone:Phone; pass?:string; profile?:{id:string;name:string;secret?:string} }
 /** Lead sign-in numbered a name taken on another phone: `taken` is that name, `name` the one signed in. */
 export interface Renamed { taken:string; name:string }
 type Screen = 'join'|'waiting';
-const screenNames:Record<Screen,string>={join:'Join',waiting:'Waiting for a lead'};
 const declined='A lead did not approve this - add your middle name or initial.';
 function signedIn({token,phone,pass,profile}:SignedIn) {
   if(pass) phoneStorage.rememberPass(pass);
@@ -30,7 +27,7 @@ export function SignIn({onSignedIn}:{onSignedIn:(renamed?:Renamed)=>void}) {
   const done=(result:SignedIn,renamed?:Renamed)=>{signedIn(result);onSignedIn(renamed);};
   const leaveWaiting=(notice='')=>{const name=phoneStorage.waiting()?.name||'';phoneStorage.rememberWaiting(null);setBack({name,notice});setScreen('join');};
   if(screen==='join') return <Join key={back.name+back.notice} {...back} onSignedIn={done} onWaiting={()=>setScreen('waiting')}/>;
-  return <><AppHeader screen={screenNames[screen]} /><main><WaitingScreen onSignedIn={done} onLeave={leaveWaiting} /></main></>;
+  return <WaitingScreen onSignedIn={done} onLeave={leaveWaiting} />;
 }
 const tidyFullName=(name:string)=>name.trim().replace(/\s+/g,' ').toLowerCase();
 interface Joined extends SignedIn { kind:'volunteer'|'lead'|'owner'; pass:string; profile:{id:string;name:string;secret?:string} }
@@ -113,12 +110,15 @@ function WaitingScreen({onSignedIn,onLeave}:{onSignedIn:(result:SignedIn)=>void;
   },[]);
   if(!waiting) return null;
   const leave=()=>void cancel.submit(async()=>{await api('thats-me/cancel',{secret:waiting.secret}).catch(error=>{if(!(error instanceof ApiFailure && error.status===404)) throw error;});onLeave();});
-  return <section className="sign-in"><h1>Waiting for a lead to approve</h1>
-    <p className="sign-in-lede">Show this screen to a lead. They will check it's you.</p>
-    <p className="waiting-name" data-testid="waiting-name">{waiting.name}</p>
-    <p className="waiting-pulse"><span aria-hidden="true"/>Waiting…</p>
-    <p className="sign-in-lede">You can't do jobs on this phone until a lead approves.</p>
-    {cancel.error && <p role="alert">{cancel.error}</p>}
-    <ActionBar><button className="button-secondary" disabled={cancel.busy} onClick={leave}>Cancel</button></ActionBar>
-  </section>;
+  return <RzScreen screen="Waiting for a lead"><HomeBar>{null}</HomeBar>
+    <main className="rz-main rz-main--form">
+      <h1 className="rz-screen-title">Waiting for a lead to approve</h1>
+      <p className="rz-field__hint">Show this screen to a lead. They will check it's you.</p>
+      <p className="waiting-name" data-testid="waiting-name">{waiting.name}</p>
+      <p className="waiting-pulse"><span aria-hidden="true"/>Waiting…</p>
+      <p className="rz-field__hint">You can't do jobs on this phone until a lead approves.</p>
+      {cancel.error && <p className="rz-error" role="alert">{cancel.error}</p>}
+    </main>
+    <footer className="rz-footer rz-footer--sticky"><button type="button" className="rz-btn rz-btn--block" disabled={cancel.busy} onClick={leave}>Cancel</button></footer>
+  </RzScreen>;
 }

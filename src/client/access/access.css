@@ -31,8 +31,8 @@
 
 /* That's me: the taken-name refusal offers it, then the waiting screen shows the name to a lead. */
 .sign-in-taken {display:flex; flex-direction:column; align-items:flex-start; gap:10px;}
-.waiting-name {font-size:36px; font-weight:800; line-height:1.1; color:var(--navy); text-align:center; overflow-wrap:anywhere; padding:28px 12px; background:var(--surface); border-radius:var(--radius-card);}
-.waiting-pulse {display:flex; align-items:center; gap:10px; color:var(--muted); font-weight:700;}
-.waiting-pulse span {width:12px; height:12px; border-radius:50%; background:var(--amber-line); animation:waiting-pulse 1.4s ease-in-out infinite;}
+.waiting-name {margin:0; font-family:var(--font-display); font-style:italic; font-stretch:75%; font-size:40px; font-weight:900; line-height:1.05; color:var(--navy); text-align:center; overflow-wrap:anywhere; padding:28px 12px; background:var(--card); border-radius:var(--radius-xl); box-shadow:var(--shadow-card);}
+.waiting-pulse {display:flex; align-items:center; gap:10px; margin:0; color:var(--ink-muted); font-weight:700;}
+.waiting-pulse span {width:12px; height:12px; border-radius:50%; background:var(--warn-line); animation:waiting-pulse 1.4s ease-in-out infinite;}
 @keyframes waiting-pulse {50% {opacity:.25;}}
 @media (prefers-reduced-motion:reduce) {.waiting-pulse span {animation:none;}}
