@@ -8,13 +8,13 @@ async function expectDocked(page:Page,button:Locator) {
 }
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const jobChip=(page:Page,job:string)=>page.getByRole('button',{name:`Your job: ${job}. Change job`,exact:true});
-test('a new phone joins with the day code, its name and its job, stays signed in, and taps its name to sign in again',async({page},info)=>{
+test('a new phone joins with the Olympics password, its name and its job, stays signed in, and taps its name to sign in again',async({page},info)=>{
   await page.addInitScript(()=>{Object.defineProperty(navigator.storage,'persist',{value:()=>{localStorage.setItem('e2e:persist','asked');return Promise.resolve(false);}});});
   const downloaded:string[]=[];
   page.on('request',request=>{if(request.url().endsWith('.js')) downloaded.push(request.url());});
   await page.goto('/');
   await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
-  await expect(page.getByText('You can switch job on any race. Zone lead? Type the lead code instead of the day code.',{exact:true})).toBeVisible();
+  await expect(page.getByText('You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password.',{exact:true})).toBeVisible();
   await expectDocked(page,page.getByRole('button',{name:'Join',exact:true}));
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('join.png')});

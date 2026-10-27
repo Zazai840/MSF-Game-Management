@@ -27,7 +27,7 @@ test('Edit list forgets a name on this phone only, and names do not sign in whil
   await page.reload();
   await expect(welcome(page).getByText(sam,{exact:true})).toHaveCount(0);
   await expect(welcome(page).getByRole('button',{name:new RegExp(`^${ola}`)})).toBeVisible();
-  // Removing the last name leaves plain Join, still past the day code: the phone keeps its pass.
+  // Removing the last name leaves plain Join, still past the Olympics password: the phone keeps its pass.
   await welcome(page).getByRole('button',{name:'Edit list',exact:true}).click();
   await welcome(page).getByRole('button',{name:`Remove ${ola} from this phone`,exact:true}).click();
   await expect(welcome(page)).toHaveCount(0);

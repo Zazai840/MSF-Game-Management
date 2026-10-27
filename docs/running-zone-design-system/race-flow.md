@@ -57,8 +57,8 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ## Screens
 
 ### 1. Join (artboard `N1-Join`)
-- Fields: Day code, Full name, "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
-- Copy under the cards: "You can switch job on any race. Zone lead? Type the lead code instead of the day code."
+- Fields: Olympics password, Full name, "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
+- Copy under the cards: "You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password."
 - Typing the lead code into the code field signs in as Zone lead and skips the job choice.
 - Display-primary "Join" goes to Races.
 

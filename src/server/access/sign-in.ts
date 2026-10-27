@@ -169,7 +169,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
    */
   app.post('/api/join', async (request, reply) => {
     const body = request.body as {code?: unknown; name?: unknown; profiles?: unknown} | null;
-    if (typeof body?.code !== 'string' || !body.code.trim()) throw new Refusal(400, 'Type the day code');
+    if (typeof body?.code !== 'string' || !body.code.trim()) throw new Refusal(400, 'Type the Olympics password');
     const code = body.code.trim(), name = fullName(body.name);
     return passwordFailures([request.ip], reply, () => signInTransaction(pool, async client => {
       if (matches(code, ownerPassword)) {

@@ -49,5 +49,5 @@ test('a wrong code is refused plainly and backs off per address after five',asyn
   }
   expect((await join({code:'NOPE',name:'Jo'},'10.0.0.9')).statusCode).toBe(429);
   expect((await join({code:'NOPE',name:'Jo'},'10.0.0.10')).statusCode).toBe(403);
-  expect((await join({code:'',name:'Jo'})).json().message).toBe('Type the day code');
+  expect((await join({code:'',name:'Jo'})).json().message).toBe('Type the Olympics password');
 });
