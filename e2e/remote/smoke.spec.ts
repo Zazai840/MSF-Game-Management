@@ -84,8 +84,10 @@ test('five phones share the test build: three work one race live until it saves 
 
   // Three phones work one race: the start line makes the next heat with New race, the finish line and the timer open it
   // from Races, and each step shows on the other two live. Once every step is done the race saves itself.
-  await starter.getByRole('article',{name:`${name} · Girl Cubs`}).getByRole('button',{name:`Add heat ${group!.nextHeat}`,exact:true}).click();
-  await starter.getByRole('dialog',{name:'New race'}).getByRole('button',{name:`Create heat ${group!.nextHeat}`,exact:true}).click();
+  await starter.getByRole('button',{name:'New race',exact:true}).click();
+  const newRace=starter.getByRole('dialog',{name:'New race'});
+  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs R4',exact:true}).click();
+  await newRace.getByRole('button',{name:`Create heat ${group!.nextHeat}`,exact:true}).click();
   await expect(starter.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   for(const page of [finisher,timer]) await openRace(page,name,'Girl Cubs',chip);
   const input=starter.getByLabel('Wristband number',{exact:true});
@@ -126,7 +128,9 @@ test('five phones share the test build: three work one race live until it saves 
     if(!inTeams.has(number) && !legs.includes(number)) legs.push(number);
   }
   const teamLegs=[legs.slice(0,4),legs.slice(4)];
+  /** Back to Races from wherever the phone is: a race's back link, an older screen's back arrow, or there already. */
   const toRaces=async(page:Page)=>{
+    if(await page.getByRole('navigation',{name:'Event type'}).isVisible()) return;
     const raceBack=page.getByRole('banner').getByRole('button',{name:'Back to Races',exact:true});
     if(await raceBack.isVisible()) await raceBack.click();else await back(page,'Races');
     await races(page);
