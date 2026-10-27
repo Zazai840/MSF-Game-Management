@@ -55,7 +55,7 @@ export function RacesHome({tab,onTab,role,onRace,saved,onSavedShown}:{tab:Exclud
       <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3><span className="rz-code-tag">{group.event.code}</span></div>
       <p className="rz-racecard__status">{role==='lead'?own.length?issueLine(own):groupDone(group)?'Every race saved':'No issues':groupStatus(group,role)}</p>
       <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
-        onAdd={()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true})}
+        onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
         onFinal={group.finalAvailable?()=>void make({eventCode:group.event.code,kind:'final',number:0,direct:true}):undefined}/>
     </article>;
   };

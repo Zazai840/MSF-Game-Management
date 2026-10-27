@@ -46,7 +46,8 @@ export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; 
  * An event group: one event × one section, with its races in order. `nextHeat` is the number "+" makes, and
  * `finalAvailable` says "+ Final" can be tapped: a heats event with no final yet, every heat with runners saved.
  */
-export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; updatedAt:string }
+/** One event's races. `heatsOpen` is whether a new heat can be made: false once its heats (a timed event: the event) are complete. */
+export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; heatsOpen:boolean; updatedAt:string }
 /** The races list, versioned by the day revision: every switched-on event that is not a relay, in programme order. */
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /** One race in the flow, with its group (for the heat chips) and its steps. */

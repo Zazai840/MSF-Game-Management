@@ -43,7 +43,8 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
       && !stageDone(event.id,'heats',stages);
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,updatedAt};
+    const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
+    return {event,races:summaries,nextHeat:last+1,finalAvailable,heatsOpen,updatedAt};
   });
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {

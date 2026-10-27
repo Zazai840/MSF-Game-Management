@@ -81,7 +81,7 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
-      onAdd={()=>void create('heat')} onFinal={group.finalAvailable?()=>void create('final'):undefined}/></nav>
+      onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={group.finalAvailable?()=>void create('final'):undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>

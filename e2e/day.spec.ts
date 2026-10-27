@@ -1,4 +1,4 @@
-import {openLeadMenu,becomeLead,expect,join,test,back} from './fixtures.js';
+import {openLeadMenu,expect,join,test,back} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 test('a lead edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
@@ -6,10 +6,15 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
   try {
     await page.goto('/');
     await join(page,`Day ${info.project.name}`,{job:'Start line'});
-    await becomeLead(page,'wrong-lead-fixture');
-    await expect(page.getByRole('alert')).toHaveText('Wrong lead code');
-    await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');
-    await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
+    // A wrong code is refused in the job sheet; the owner password makes the phone a lead.
+    await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
+    await page.getByRole('radio',{name:/^Zone lead/}).click();
+    await page.getByLabel('Lead code',{exact:true}).fill('wrong-lead-fixture');
+    await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+    await expect(page.getByRole('dialog',{name:'Your job'}).getByRole('alert')).toHaveText('Wrong lead code');
+    await page.getByLabel('Lead code',{exact:true}).fill('e2e-owner-fixture');
+    await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
     await openLeadMenu(page,'Day setup');
     await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
     await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();

@@ -39,7 +39,7 @@ test('the races list has every switched-on event that is not a relay, each with 
   const empty=await ok<RacesRead>(ahmed,'/api/races');
   expect(empty.groups.some(group=>group.event.relay)).toBe(false);
   expect(empty.groups.find(group=>group.event.code==='R7')!.event.type).toBe('hurdles');
-  expect(empty.groups.find(group=>group.event.code==='R4')).toMatchObject({event:{type:'races'},races:[],nextHeat:1,finalAvailable:false});
+  expect(empty.groups.find(group=>group.event.code==='R4')).toMatchObject({event:{type:'races'},races:[],nextHeat:1,finalAvailable:false,heatsOpen:true});
   const made=await newHeat(ahmed,'R4',1);
   expect(made.race).toMatchObject({kind:'heat',number:1,state:'in progress'});
   expect(made.steps.runners).toMatchObject({state:'not started',count:0});
@@ -120,6 +120,8 @@ test('the final opens to anyone once every heat is saved, seeded with the fastes
   expect(final.race.kind).toBe('final');
   expect(final.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([2004,2001,2002,2003]);
   expect(Object.keys(final.steps)).toEqual(['runners','positions']);
+  // Making the final completes the heats: the group offers no more heats.
+  expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')!.heatsOpen).toBe(false);
   expect((await ok(ahmed,'/api/races',{eventCode:'R4',kind:'final'})).race.id).toBe(final.race.id);
   // Boy Beavers: 6th and 7th tie on time across two heats, so who takes the last place in the final is not decided.
   await heat(ahmed,'R1',1,[1,2,3,4,5,6],[1000,1100,1200,1300,1400,1500],steps);
