@@ -23,7 +23,7 @@ export function issueStep(item:DayLeadItem):Step {
  */
 export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:StepProps & {step:Step;issues:readonly DayLeadItem[];onIssue:()=>void;onResults:(item:DayLeadItem)=>void;onActions:()=>void}) {
   const {read}=props,{race}=read,own=issues.filter(item=>issueStep(item)===step);
-  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[updated,setUpdated]=useState('');
+  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[updated,setUpdated]=useState(()=>clockWithSeconds(new Date()));
   useEffect(()=>setUpdated(clockWithSeconds(new Date())),[read.revision]);
   async function accept(item:DayLeadItem) {
     setBusy(item.id);setError('');
