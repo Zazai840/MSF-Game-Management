@@ -69,8 +69,8 @@ test('a re-run deletes the old record with its reason and creates a new numbered
 test('a race replaced by a re-run names its replacing race from the audit note, or says a re-run when that race is gone',async()=>{
   const {lead,race,setup}=await start();
   const newId=(await call(lead,`/api/lead/races/${race.id}/re-run`,{})).json().newRaceId;
-  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race.replacedBy).toBe('Race 2');
-  expect((await call(lead,'/api/lead/events/R10/deleted-races')).json()).toMatchObject([{id:race.id,replacedBy:'Race 2'}]);
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race.replacedBy).toBe('Heat 2');
+  expect((await call(lead,'/api/lead/events/R10/deleted-races')).json()).toMatchObject([{id:race.id,replacedBy:'Heat 2'}]);
   const ordinary=await setup.checkIn(lead,'R10',[2003]);
   await call(lead,`/api/lead/races/${ordinary.id}/delete`,{permanent:false});
   expect((await call(lead,`/api/lead/races/${ordinary.id}`)).json().race.replacedBy).toBeUndefined();
@@ -114,7 +114,7 @@ test('a lead corrects the finishing order: wristbands move, times stay by place,
   const corrected=await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:2,order:[2002,2001],didNotFinish:[],didNotRun:[],comment:'Photo checked'});expect(corrected.statusCode).toBe(200);
   expect(corrected.json().results.leaderboard.map((row:any)=>[row.wristband,row.time])).toEqual([[2002,1200],[2001,1300]]);
   expect((await leadRead(race.id)).parts.finish.version).toBe(2);
-  expect((await read()).auditNotes[0]).toMatchObject({action:'correct-finish-order',message:'Aisha corrected the finishing order for Race 1: 2002, 2001 - Photo checked'});
+  expect((await read()).auditNotes[0]).toMatchObject({action:'correct-finish-order',message:'Aisha corrected the finishing order for Heat 1: 2002, 2001 - Photo checked'});
   const history=(await call(lead,`/api/lead/races/${race.id}`)).json().history;expect(history.at(-1)).toMatchObject({part:'finish',version:2,author:'Aisha'});
 });
 test('a finishing order correction at a stale version is refused with today\'s wording and changes nothing',async()=>{
@@ -138,7 +138,7 @@ test('Did not finish or Didn\'t run leaves times the finishers don\'t agree with
   expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:2,runnersVersion:2,order:[2002],didNotFinish:[],didNotRun:[2001]})).statusCode).toBe(200);
   const current=(await leadRead(race.id));expect(current.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2002]);
   expect(current.parts.finish.value).toEqual({order:[current.parts.runners.value[0].id],didNotFinish:[]});
-  expect((await read()).auditNotes[0].message).toBe('Aisha corrected the finishing order for Race 1: 2002; Didn\'t run 2001');
+  expect((await read()).auditNotes[0].message).toBe('Aisha corrected the finishing order for Heat 1: 2002; Didn\'t run 2001');
   expect(await reasons()).toEqual([]);
 });
 test('one writer per job leaves nothing to choose between: the lead race read has no clash candidates and the clash route is gone',async()=>{

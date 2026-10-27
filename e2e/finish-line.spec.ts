@@ -1,4 +1,4 @@
-import { deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,writeOrder,type Page } from './fixtures.js';
+import { deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,type Page } from './fixtures.js';
 import { isRunner } from '../src/shared/races.js';
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');

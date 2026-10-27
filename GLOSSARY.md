@@ -49,7 +49,7 @@ One run of one event: one or more children or relay teams who line up and run to
 _Avoid_: Run, round
 
 **Heat**:
-A race within an event that has a final, formed at the start line from whoever is there.
+A race of an event that is not its final, formed at the start line from whoever is there, numbered Heat 1, Heat 2 and so on. Every event type names its runs this way, with or without a final, including a 200m or 400m decided by time alone (race-flow.md decision 1).
 _Avoid_: Qualifier, preliminary
 
 **Final**:

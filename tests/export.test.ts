@@ -50,10 +50,10 @@ test('the workbook keeps completed podium columns, every recorded/pending/delete
  const sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);
  const input=sheets[0].data;expect(input).toHaveLength(2);expect(input[1]).toEqual(['R7',null,null,null,null,null,null,null,null,101,null,null,106,null,null,102]);
  const all=sheets[2].data;expect(all[0]).toEqual(['Event code','Event','Section','Race','Wristband number','Team','Leg','Time','Place in race','Event position','Status','Warning','Note']);expect(all).toHaveLength(11);expect(all.slice(1).every(values=>values[5]===null&&values[6]===null)).toBe(true);
- const row=(n:number,raceLabel='Race 1',code='R7')=>all.find(values=>values[0]===code&&values[3]===raceLabel&&values[4]===n)!;
- expect(row(101).slice(5,11)).toEqual([null,null,9,1,1,'1st']);expect(row(106,'Race 3')[10]).toContain('Tie settled');expect(row(104).slice(7,11)).toEqual([null,null,null,'Did not finish']);
+ const row=(n:number,raceLabel='Heat 1',code='R7')=>all.find(values=>values[0]===code&&values[3]===raceLabel&&values[4]===n)!;
+ expect(row(101).slice(5,11)).toEqual([null,null,9,1,1,'1st']);expect(row(106,'Heat 3')[10]).toContain('Tie settled');expect(row(104).slice(7,11)).toEqual([null,null,null,'Did not finish']);
  expect(row(103)[10]).toContain('Disqualified: Obstruction');expect(row(103)[12]).toContain('=1+1');expect(row(1005)[11]).toMatch(/^Checked by Aisha: 1005 belongs to Boy Cubs - this race is /);expect(row(1005)[12]).toContain('Checked wristband < & >');
- expect(row(101,'Race 2')[10]).toContain('Not counted');expect(row(107,'Race 4').slice(7,11)).toEqual([8,1,null,'Deleted race; Finished']);expect(row(108,'Race 1','R8')[10]).toContain('in progress');
+ expect(row(101,'Heat 2')[10]).toContain('Not counted');expect(row(107,'Heat 4').slice(7,11)).toEqual([8,1,null,'Deleted race; Finished']);expect(row(108,'Heat 1','R8')[10]).toContain('in progress');
  expect(sheets[3].data.some(values=>values[0]===null&&String(values[3]).includes('Changed the lead code'))).toBe(true);expect(sheets[3].data.some(values=>values[4]==='=1+1')).toBe(true);
  expect(other.id).not.toBe(first.id);
 });
