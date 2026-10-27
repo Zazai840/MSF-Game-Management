@@ -41,6 +41,8 @@ test('a card says in words what is waiting for my step, and each chip names its 
   expect(groupStatus({races:[timed,second],finalAvailable:true},'timer')).toBe('All 2 heats done · the final is ready to create');
   expect(groupStatus({races:[third,fifth],finalAvailable:false},'finish')).toBe('Heats 3 and 5 need positions');
   expect(groupStatus({races:[fifth],finalAvailable:false},'timer')).toBe('Heat 5 needs times');
+  // One heat done is that heat, never "All 1 heat".
+  expect(groupStatus({races:[timed],finalAvailable:false},'timer')).toBe('Heat 1 done');
   expect(chipLabel(third,'timer')).toBe('Heat 3, needs times');
   expect(chipLabel(timed,'timer')).toBe('Heat 1, times done');
   expect(chipLabel(third,'start')).toBe('Heat 3, runners done');

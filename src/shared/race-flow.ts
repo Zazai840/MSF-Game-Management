@@ -130,7 +130,7 @@ export function groupStatus(group:Pick<RaceGroup,'races'|'finalAvailable'>,role:
   const rest=races.filter(race=>!ready.includes(race) && !done.includes(race));
   const parts:string[]=[];
   if(ready.length) parts.push(`${heatList(ready)} ${ready.length>1?'need':'needs'} ${stepNeeds[step]}`);
-  if(done.length===races.length && races.length) parts.push(`All ${races.length} ${races.length===1?'heat':'heats'} done`);
+  if(done.length===races.length && races.length>1) parts.push(`All ${races.length} heats done`);
   else if(done.length) parts.push(`${ready.length?numbers(done):heatList(done)} done`);
   if(rest.length) parts.push(`${heatList(rest)} ${rest.length>1?'are':'is'} ${rest.some(race=>race.steps.runners?.state!=='done')?'checking in':'waiting'}`);
   if(group.finalAvailable) parts.push('the final is ready to create');

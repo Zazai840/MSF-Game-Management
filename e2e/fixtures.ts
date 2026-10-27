@@ -182,8 +182,8 @@ export async function ownEvent(request:APIRequestContext,code:string,name:string
 export async function ownRelay(code:string,name:string,section='Girl Cubs') {
   const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
   try {
-    await db.query(`INSERT INTO events(id,day_id,code,name,section,format,enabled,relay,programme_order)
-      SELECT gen_random_uuid(),d.id,$1,$2,$3,'heats',false,true,(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=d.id) FROM olympics_days d WHERE d.active`,[code,name,section]);
+    await db.query(`INSERT INTO events(id,day_id,code,name,section,format,enabled,relay,type,programme_order)
+      SELECT gen_random_uuid(),d.id,$1,$2,$3,'heats',false,true,'relays',(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=d.id) FROM olympics_days d WHERE d.active`,[code,name,section]);
   } finally {await db.end();}
   const api=await request.newContext({baseURL:process.env.E2E_BASE_URL});
   try {expect((await api.post(`/api/day/events/${code}/enabled`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{enabled:true}})).ok()).toBe(true);}

@@ -1,0 +1,157 @@
+import { deleteCurrentRace,expect,live,lookProblems,openRace,openRaceScreen,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,type Page } from './fixtures.js';
+const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event type'});
+const tab=(page:Page,name:string)=>tabs(page).getByRole('button',{name:new RegExp(`^${name}`)});
+const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
+const status=(page:Page,name:string,section='Girl Cubs')=>card(page,name,section).locator('.rz-racecard__status');
+
+test('Races, Hurdles and Relays tabs show their own events, the phone keeps the last tab, and Relays keeps its list and race screens',async({openPhone,request},info)=>{
+  const project=info.project.name,races=`Tab sprint ${project}`,hurdles=`Tab hurdles ${project}`,relay=`Tab relay ${project}`,owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  await ownEvent(request,`TR-${project.toUpperCase()}`,races);
+  expect((await request.post('/api/day/events',{headers:owner,data:{code:`TH-${project.toUpperCase()}`,name:hurdles,section:'Girl Cubs',format:'timed',type:'hurdles'}})).ok()).toBe(true);
+  await ownRelay(`TL-${project.toUpperCase()}`,relay);
+  const token=process.env.E2E_OWNER_TOKEN!;
+  await writeCheckIn(request,token,`TR-${project.toUpperCase()}`,[2001]);await writeCheckIn(request,token,`TH-${project.toUpperCase()}`,[2002]);
+  const {page}=await openPhone(`Tabs ${project}`);
+  // A phone that has never switched opens on Races.
+  await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
+  await expect(card(page,races)).toBeVisible();await expect(card(page,hurdles)).toHaveCount(0);
+  await expect(tab(page,'Relays')).toHaveAccessibleName('Relays Beta');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('races.png'),fullPage:true});
+  await tab(page,'Hurdles').click();
+  await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');await expect(tab(page,'Races')).not.toHaveAttribute('aria-current');
+  await expect(card(page,hurdles)).toBeVisible();await expect(card(page,races)).toHaveCount(0);
+  await page.reload();
+  await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');await expect(card(page,hurdles)).toBeVisible();
+  // Relays keeps today's list of relay events, and the back arrow from a relay's race screen returns to Relays.
+  await openRelays(page);
+  await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
+  await expect(page.getByRole('region',{name:relay,exact:true}).getByRole('button')).toHaveText(['Girl CubsNo teams yet']);
+  await expect(card(page,races)).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('relays.png'),fullPage:true});
+  await openRaceScreen(page,relay);
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
+  await tab(page,'Races').click();
+  await expect(card(page,races)).toBeVisible();
+  await deleteCurrentRace(request,`TR-${project.toUpperCase()}`);await deleteCurrentRace(request,`TH-${project.toUpperCase()}`);
+});
+
+test('New race offers this tab\'s events, each section with its code, and the next heat; the final opens once every heat has times',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`New race sprint ${project}`,code=`NR-${project.toUpperCase()}`,timed=`NT-${project.toUpperCase()}`;
+  await ownEvent(request,code,name);await ownEvent(request,timed,name,'Boy Cubs','timed');
+  const {page}=await openPhone(`New race ${project}`);
+  await page.getByRole('button',{name:'New race',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'New race'});
+  await expect(sheet.getByRole('button',{name:'Choose the event and section',exact:true})).toBeDisabled();
+  await expect(sheet.getByRole('button',{name:'60m Hurdles',exact:true})).toHaveCount(0);
+  await sheet.getByRole('button',{name,exact:true}).click();
+  await expect(sheet.getByRole('button',{name:/^(Girl Cubs|Boy Cubs)/})).toHaveText([`Girl Cubs${code}`,`Boy Cubs${timed}`]);
+  await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Heat 1',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
+  await expect(sheet.getByText('Girl Cubs has no heats yet. The final opens when every heat has times, with the fastest 6 filled in.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('new-race.png'),fullPage:true});
+  // An event decided by time alone has no final.
+  await sheet.getByRole('button',{name:`Boy Cubs ${timed}`,exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toHaveCount(0);
+  await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  // The new race opens in my role's view.
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Runner 1: wristband number?'})).toBeVisible();
+  // Heat 1 saved: the card's "+" pre-selects the event and section, and offers Heat 2 and the final.
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
+  await page.getByRole('button',{name:'Back to races',exact:true}).click();
+  await expect(status(page,name)).toHaveText('Heat 1 done · the final is ready to create',live);
+  await card(page,name).getByRole('button',{name:'Add heat 2',exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Heat 2',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(sheet.getByText('Girl Cubs already has heat 1. The final opens when every heat has times, with the fastest 6 filled in.',{exact:true})).toBeVisible();
+  await sheet.getByRole('button',{name:'Final',exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Create the final',exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await deleteCurrentRace(request,code);
+});
+
+test('a heat someone made a moment before the tap opens theirs: two phones making the same next heat end up in one race',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Same heat ${project}`,code=`SH-${project.toUpperCase()}`;
+  await ownEvent(request,code,name);
+  const one=await openPhone(`Same one ${project}`),two=await openPhone(`Same two ${project}`);
+  await two.page.getByRole('button',{name:'New race',exact:true}).click();
+  const sheet=two.page.getByRole('dialog',{name:'New race'});
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Create heat 1',exact:true})).toBeVisible();
+  // The other phone makes Heat 1 first, and the sheet hears of it live.
+  const made=(await (await request.post('/api/races',{headers:{authorization:`Bearer ${one.token}`},data:{eventCode:code,kind:'heat',number:1}})).json()).race.id;
+  await expect(sheet.getByText(/^Girl Cubs already has heat 1\./)).toBeVisible(live);
+  // The tap is for the heat it offered: it opens that heat, not a second one.
+  await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  await expect(two.page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
+  expect(new URL(two.page.url()).pathname).toBe(`/races/${made}`);
+  const groups=(await (await request.get('/api/races',{headers:{authorization:`Bearer ${one.token}`}})).json()).groups;
+  expect(groups.find((group:{event:{code:string}})=>group.event.code===code).races).toHaveLength(1);
+  await deleteCurrentRace(request,code);
+});
+test('each card says in words what waits for my job, sorted into Ready for you, In progress and Done, live as others work',async({openPhone,request},info)=>{
+  const project=info.project.name,ready=`Ready sprint ${project}`,busy=`Busy sprint ${project}`,done=`Done sprint ${project}`;
+  const [readyCode,busyCode,doneCode]=['RY','BY','DY'].map(prefix=>`${prefix}-${project.toUpperCase()}`);
+  for(const [code,name] of [[readyCode,ready],[busyCode,busy],[doneCode,done]]) await ownEvent(request,code,name,'Girl Cubs','timed');
+  const sam=await signInThroughApi(request,`Ready Sam ${project}`);
+  await recordRace(request,sam,doneCode,[2001],[1200]);
+  // Busy has runners still checking in; Ready has its runners done, waiting for times.
+  await writeCheckIn(request,sam,busyCode,[2002]);
+  await writeCheckIn(request,sam,readyCode,[2003,2004]);
+  const {page}=await openPhone(`Ready timer ${project}`,{job:'timer'});
+  const section=(heading:string)=>page.locator(`h2:text-is("${heading}") ~ article`);
+  // Times never wait for the start line: both heats with runners are ready for the timer.
+  await expect(status(page,ready)).toHaveText('Heat 1 needs times');
+  await expect(status(page,busy)).toHaveText('Heat 1 needs times');
+  await expect(page.getByRole('heading',{level:2,name:'Ready for you'})).toBeVisible();
+  await expect(section('Ready for you').filter({hasText:ready})).toHaveCount(1);
+  await expect(card(page,done)).toBeHidden();
+  const disclosure=page.locator('details',{hasText:/^Done \(\d+\)/});
+  await disclosure.locator('summary').click();
+  await expect(status(page,done)).toHaveText('Heat 1 done');
+  await expect(card(page,done).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, times done');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('sections.png'),fullPage:true});
+  // A finish line sees the same cards for its own step: the heat still checking in waits.
+  await switchJob(page,'Finish line');
+  await expect(status(page,busy)).toHaveText('Heat 1 needs positions');
+  await expect(card(page,busy).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs positions');
+  // Another phone saves Ready's positions and times: the card moves to Done, live.
+  await writeOrder(request,sam,readyCode,[2003,2004]);
+  await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs positions');
+  await request.post(`/api/races/${(await (await request.get('/api/races',{headers:{authorization:`Bearer ${sam}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===readyCode).races[0].id}/steps/positions/done`,{headers:{authorization:`Bearer ${sam}`},data:{}});
+  await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, positions done',live);
+  for(const code of [readyCode,busyCode,doneCode]) await deleteCurrentRace(request,code);
+});
+
+test('switching job on a race keeps the race open in the new view, and another job\'s step opens read-only',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Switch sprint ${project}`,code=`SW-${project.toUpperCase()}`;
+  await ownEvent(request,code,name);
+  await writeCheckIn(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002]);
+  const {page}=await openPhone(`Switch ${project}`);
+  await openRace(page,name);
+  await expect(page.getByRole('heading',{level:2,name:'Runner 3: wristband number?'})).toBeVisible();
+  // Tapping Positions in the step strip shows it read-only, with the way back.
+  await page.getByRole('tab',{name:'Positions, Not started. View read-only',exact:true}).click();
+  const readOnly=page.getByRole('tabpanel',{name:'Positions, read-only'});
+  await expect(readOnly.getByRole('status')).toHaveText(/Viewing Positions · read-only\. It's the Finish line's step; you're the Start line\./);
+  await expect(readOnly.getByText('Nobody is placed yet.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('read-only.png'),fullPage:true});
+  await readOnly.getByRole('button',{name:'Back to Runners',exact:true}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Runner 3: wristband number?'})).toBeVisible();
+  // Switch job from the chip: the race stays open, in the finish line's view, and Races follows.
+  await switchJob(page,'Finish line');
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Your job: Finish line. Change job',exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
+  await deleteCurrentRace(request,code);
+});
