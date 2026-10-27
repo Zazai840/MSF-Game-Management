@@ -16,13 +16,15 @@ async function start(fields:number[][]=[[1023,1088,1012,1135,1047,1101],[1066,10
  for(const [i,runners] of fields.entries()) heats.push(await setup.record(volunteer,'R3',runners,times[i].slice(0,runners.length)));
  return {volunteer,lead,heats,setup,owner:owner.token as string};
 }
-/** The final as R3's race screen shows it now: attendance only, no heat provenance. */
-const finalRead=async(token:string)=>(await call(token,'/api/race-screen/R3')).json().race;
-/** The check-in holder's Here / Absent list on R3's final race screen: these wristbands Absent, everyone else Here. */
+/** R3's final as the race flow shows it now: attendance only, no heat provenance. */
+async function finalRead(token:string) {
+ const final=(await call(token,'/api/races')).json().groups.find((group:any)=>group.event.code==='R3').races.find((race:any)=>race.kind==='final');
+ return final && (await call(token,`/api/races/${final.id}`)).json().race;
+}
+/** A Here / Absent list on R3's final: these wristbands Absent, everyone else Here. */
 async function markAbsent(token:string,wristbands:number[]) {
- await call(token,'/api/race-screen/R3/hold',{job:'check-in'});
- const read=(await call(token,'/api/race-screen/R3')).json();
- return call(token,'/api/race-screen/R3/absent',{raceId:read.race.id,version:read.race.parts.runners.version,absent:read.race.final.entries.filter((entry:any)=>wristbands.includes(entry.wristband)).map((entry:any)=>entry.finalEntryId)});
+ const race=await finalRead(token);
+ return call(token,`/api/races/${race.id}/absent`,{raceId:race.id,version:race.parts.runners.version,absent:race.final.entries.filter((entry:any)=>wristbands.includes(entry.wristband)).map((entry:any)=>entry.finalEntryId)});
 }
 test('heat-to-final attendance, audited next ranked callups, order-only podium and final locks',async()=>{
  const {volunteer,lead,setup}=await start();
@@ -30,10 +32,10 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
  expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(409);
  const result=complete.json().results;expect(result.status).toBe('Heats complete - final to run');expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1023,1066,1088,1005,1012,1110]);const id=result.finalResults.raceId;
  let final=await finalRead(volunteer);expect(final.id).toBe(id);expect(final.final.entries[0].heatRank).toBeUndefined();expect(final.final.entries[0].heatRaceId).toBeUndefined();expect(final.parts.runners.value.map((r:any)=>r.warnings||[])).toEqual([[],[],[],[],[],[]]);
- expect((await call(volunteer,'/api/race-screen/R3/hold',{job:'times'})).json().message).toBe('A final has no times');
+ expect((await call(volunteer,`/api/races/${id}/steps/times/done`,{})).json().message).toBe('A final has no times');
  expect((await markAbsent(volunteer,[1066,1088])).statusCode).toBe(200);
  final=await finalRead(volunteer);
- expect((await call(volunteer,'/api/race-screen/R3/check-in',{raceId:id,version:final.parts.runners.version,runners:[{wristband:1023}]})).json().message).toBe("Mark the final's runners Here or Absent");
+ expect((await call(volunteer,`/api/races/${id}/check-in`,{raceId:id,version:final.parts.runners.version,runners:[{wristband:1023}]})).json().message).toBe("Mark the final's runners Here or Absent");
  expect((await call(volunteer,'/api/lead/events/R3/call-up',{expectedHeatEntryId:'none'})).statusCode).toBe(403);
  let read=(await call(lead,'/api/lead/events/R3/results')).json();expect(read.results.finalResults.nextCallUp.wristband).toBe(1135);
  for(const number of [1135,1047]) {const next=read.results.finalResults.nextCallUp;expect(next.wristband).toBe(number);const save=await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:next.entryId});expect(save.statusCode).toBe(200);read=save.json();}
@@ -43,7 +45,7 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
  const first=runners.find((r:any)=>r.wristband===1047);await call(lead,`/api/lead/races/${id}/runners/${first.id}/disqualify`,{reason:'Two false starts'});
  const done=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'});expect(done.statusCode).toBe(200);expect(done.json().results.inputRunning).toEqual({eventCode:'R3',first:1023,second:1110,third:1135});expect(done.json().results.finalResults.leaderboard.every((r:any)=>r.time===null)).toBe(true);
  await app.close();app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'final-owner'});const restarted=(await call(lead,'/api/lead/events/R3/results')).json();expect(restarted.results.finalResults.entries).toEqual(done.json().results.finalResults.entries);expect(restarted.results.inputRunning).toEqual(done.json().results.inputRunning);expect(restarted.auditNotes.filter((n:any)=>n.action==='call-up')).toHaveLength(2);
- for(const [what,body] of [['order',{raceId:id,version:1,order:[],didNotFinish:[],didNotRun:[],added:[]}],['check-in',{raceId:id,version:1,runners:[{wristband:1023}]}],['not-yet',{raceId:id}]] as const) {const refused=await call(volunteer,`/api/race-screen/R3/${what}`,body);expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('Stage complete - ask a lead');}
+ for(const [what,body] of [['order',{raceId:id,version:1,order:[],didNotFinish:[],didNotRun:[],added:[]}],['check-in',{raceId:id,version:1,runners:[{wristband:1023}]}],['steps/positions/done',{}]] as const) {const refused=await call(volunteer,`/api/races/${id}/${what}`,body);expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('Stage complete - ask a lead');}
  const locked=await markAbsent(volunteer,[]);expect(locked.statusCode).toBe(409);expect(locked.json().message).toBe('Stage complete - ask a lead');
  expect((await call(volunteer,'/api/lead/events/R3/complete-stage',{stage:'heats'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Correction'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/reopen-stage',{stage:'final',comment:'Correction'})).statusCode).toBe(403);
  const reopened=await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'final',comment:'Review final placing'});expect(reopened.statusCode).toBe(200);expect(reopened.json().results.inputRunning).toBeNull();expect(reopened.json().results.finalResults.hasRun).toBe(true);
@@ -51,12 +53,11 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
 test('unstarted final rebuilds after heat correction; a saved final with cleared Finish prevents reopening heats',async()=>{
  const {lead,volunteer,heats,setup}=await start([[1023,1088]]);
  let result=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json().results;const id=result.finalResults.raceId;let race=await finalRead(volunteer);const oldVersion=race.parts.runners.version;
- await call(volunteer,'/api/race-screen/R3/hold',{job:'check-in'});
  expect((await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Late timer correction'})).statusCode).toBe(200);
  await call(lead,`/api/lead/races/${heats[0].id}/times`,{baseVersion:1,places:[1000,900],acceptOutOfOrder:true});
  result=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json().results;expect(result.finalResults.raceId).toBe(id);expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1088,1023]);expect(result.finalResults.entries.every((e:any)=>!e.absent)).toBe(true);
  // A Here / Absent list written before the rebuild names the old line-up, so it is not saved.
- expect((await call(volunteer,'/api/race-screen/R3/absent',{raceId:id,version:oldVersion,absent:[]})).statusCode).toBe(409);
+ expect((await call(volunteer,`/api/races/${id}/absent`,{raceId:id,version:oldVersion,absent:[]})).statusCode).toBe(409);
  await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
  race=await finalRead(volunteer);await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}]});
  // A saved final is read as a lead reads it after correcting its runners.
@@ -90,11 +91,10 @@ test('authoritative final runner publications keep absence aligned through lead 
 });
 test('a stale Here / Absent list is not saved, and a lead\'s corrected number stays through Absent and back to Here',async()=>{
  const {lead,volunteer}=await start([[1023,1088]]);const detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json(),id=detail.results.finalResults.raceId;
- const before=(await call(volunteer,'/api/race-screen/R3')).json();
+ const before={race:await finalRead(volunteer)};
  await call(lead,`/api/lead/races/${id}/runners/${before.race.parts.runners.value[0].id}/correct-number`,{expectedWristband:1023,wristband:1050});
- await call(volunteer,'/api/race-screen/R3/hold',{job:'check-in'});
- const stale=await call(volunteer,'/api/race-screen/R3/absent',{raceId:id,version:before.race.parts.runners.version,absent:[]});
- expect(stale.statusCode).toBe(409);expect(stale.json().message).toBe('Not saved - check your entries and enter it again');
+ const stale=await call(volunteer,`/api/races/${id}/absent`,{raceId:id,version:before.race.parts.runners.version,absent:[]});
+ expect(stale.statusCode).toBe(409);expect(stale.json().message).toBe('Aisha changed this a moment ago');
  expect((await markAbsent(volunteer,[1050])).json().race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1088]);
  const here=(await markAbsent(volunteer,[])).json();
  expect(here.race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1050,1088]);
