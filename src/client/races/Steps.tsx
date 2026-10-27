@@ -56,7 +56,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
   const entries=writes.pending?.runners||runners.map(({id,wristband})=>({id,wristband}));
   const entry=useWristbandEntry(event,race.id,entries.map(item=>item.wristband),async(wristband,kept)=>{
     const sent=await writes.send({runners:[...entries,{wristband}],keptWarnings:kept?[wristband]:[]});
-    if(sent && applies && entries.length+1===usualRunnersPerRace) size.show();
+    if(typeof sent==='object' && applies && entries.length+1===usualRunnersPerRace) size.show();
     return sent;
   });
   if(race.kind==='final') return <Attendance {...{read,flow,onDone,locked}}/>;

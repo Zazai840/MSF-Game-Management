@@ -2,6 +2,7 @@ import { useRef,useState } from 'react';
 import { ApiFailure,api } from '../api.js';
 import type { RaceFlowRead } from '../../shared/race-flow.js';
 import type { RacePartName } from '../../shared/races.js';
+import { latestWins } from './latest-wins.js';
 /** Hands a write's answer (the race as it then stands) to the screen, which keeps the newest. */
 export type Offer=(next:RaceFlowRead)=>void;
 /** Someone else changed what this phone was writing, so the write was refused: their name, for the banner. */
@@ -27,27 +28,19 @@ export function useFlowWrite(raceId:string,offer:Offer) {
   return {busy,error,setError,changed,clearChanged:()=>setChanged(null),write};
 }
 /**
- * One step's writes, latest wins: each change sends the whole step with the part version last answered. A change
- * made while a write is on its way shows at once as `pending` and goes in the next write, so quick taps on a slow
- * link are never lost.
+ * One step's writes, latest wins (latestWins): each change sends the whole step with the part version last answered.
+ * A change made while a write is on its way shows at once as `pending` and goes in the next write, so quick taps on a
+ * slow link are never lost; each send resolves with the outcome of the write that carried it.
  */
 export function useStepWrites<Body extends object>(write:ReturnType<typeof useFlowWrite>['write'],what:string,part:RacePartName,raceId:string,version:number) {
-  const queue=useRef<Body|null>(null),running=useRef(false);
   const [pending,setPending]=useState<Body|null>(null),[sending,setSending]=useState(false);
-  async function send(body:Body) {
-    queue.current=body;setPending(body);
-    if(running.current) return true;
-    running.current=true;setSending(true);
-    let seen=version,sent:Awaited<ReturnType<typeof write>>=false;
-    try {
-      while(queue.current) {
-        const next=queue.current;queue.current=null;
-        sent=await write(what,{...next,raceId,version:seen});
-        if(typeof sent!=='object') break;
-        seen=sent.race.parts[part].version;
-      }
-    } finally {queue.current=null;running.current=false;setSending(false);setPending(null);}
-    return sent;
+  // The queue outlives renders, so it calls the latest write.
+  const latest=useRef(write);latest.current=write;
+  const queue=useRef<ReturnType<typeof latestWins<Body,RaceFlowRead>>|null>(null);
+  queue.current??=latestWins<Body,RaceFlowRead>((body,seen)=>latest.current(what,{...body,raceId,version:seen}),answer=>answer.race.parts[part].version,()=>{setSending(false);setPending(null);});
+  function send(body:Body) {
+    setPending(body);setSending(true);
+    return queue.current!(body,version);
   }
   return {pending,sending,send};
 }
