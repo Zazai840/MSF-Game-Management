@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiFailure, phoneStorage, type HeldProfile, type Waiting } from '../api.js';
 import type { Phone } from '../../shared/domain.js';
 import type { Role } from '../../shared/race-flow.js';
@@ -45,6 +45,9 @@ function Join({name:typed,notice,onSignedIn,onWaiting}:{name:string;notice:strin
   const [code,setCode]=useState(''),[name,setName]=useState(typed),[job,setJob]=useState<Role|null>(null);
   const [taken,setTaken]=useState<string|null>(null);
   const join=useSubmit(notice),tap=useSubmit();
+  // A refusal shows under the form: bring it, and its That's me, out from under the docked Join.
+  const refusal=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(join.error) refusal.current?.scrollIntoView({block:'center'});},[join.error]);
   const pass=phoneStorage.pass(),held=()=>profiles.map(({id,secret})=>({id,secret}));
   /** Signs in, then keeps the job for today on this phone (a lead is Zone lead): signing in clears the last session's. */
   const enter=(result:SignedIn,role:Role|null,renamed?:Renamed)=>{onSignedIn(result,renamed);if(role) phoneStorage.rememberRole(result.phone.dayId,role);};
@@ -77,12 +80,12 @@ function Join({name:typed,notice,onSignedIn,onWaiting}:{name:string;notice:strin
           <input className="rz-field__input" id="join-code" type="password" autoComplete="off" autoCapitalize="characters" value={code} onChange={event=>setCode(event.target.value)} required/></div>
         <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="join-name">Full name</label>
           <input className="rz-field__input" id="join-name" autoComplete="name" maxLength={80} value={name} onChange={event=>{setName(event.target.value);setTaken(null);}} required/></div>
-        <fieldset style={{border:0,margin:0,padding:0,display:'flex',flexDirection:'column',gap:10}}><legend className="rz-field__label" style={{marginBottom:6}}>What's your job today?</legend>
+        <fieldset style={{border:0,margin:0,padding:0,display:'flex',flexDirection:'column',gap:10}}><legend className="rz-field__label" style={{marginBottom:6,padding:0}}>What's your job today?</legend>
           <JobChoice role={job} label="What's your job today?" onChoose={setJob}/></fieldset>
         <p className="rz-field__hint">You can switch job on any race. Zone lead? Type the lead code instead of the day code.</p>
-        {join.error && (taken?<Callout message={join.error} actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={join.busy} onClick={thatsMe}>That's me</button>
+        {join.error && <div ref={refusal}>{taken?<Callout message={join.error} actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={join.busy} onClick={thatsMe}>That's me</button>
           <button type="button" className="rz-btn" onClick={()=>{setTaken(null);join.setError('');document.getElementById('join-name')?.focus();}}>Change name</button></>}/>
-          :<p className="rz-error" role="alert">{join.error}</p>)}
+          :<p className="rz-error" role="alert">{join.error}</p>}</div>}
       </form>
     </main>
     <footer className="rz-footer rz-footer--sticky"><button form="join" className="rz-btn rz-btn--display rz-btn--block" disabled={join.busy}>{join.busy?'Joining…':'Join'}</button></footer>
