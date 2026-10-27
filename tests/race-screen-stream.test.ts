@@ -4,9 +4,15 @@ import { connect as connectSocket,type AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { createApp,type AppSettings } from '../src/server/app.js';
 import { frameData,newerSnapshot,splitFrames } from '../src/shared/live.js';
+import type { RaceFlowRead,RacesRead } from '../src/shared/race-flow.js';
 import { homeStatus,type HomeSnapshot,type RaceScreenRead } from '../src/shared/race-screen.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
+import { relaySetup } from './support/relays.js';
+/**
+ * The live streams: the races list and a race (the race flow), and Home and a relay's race screen. Each sends a whole
+ * snapshot first and again after each change that raises the day revision.
+ */
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -52,20 +58,41 @@ async function openStream(token:string,path:string) {
   }
   return {response,frame,snapshot,close:()=>reader.cancel()};
 }
+/** A new empty Heat 1 of R4 (Girl Cubs 60m), as New race makes it. */
+const newHeat=async(token:string)=>((await call(token,'/api/races',{eventCode:'R4',kind:'heat',number:1})).json() as RaceFlowRead).race;
+/** Girl Cubs 4x50m Relay (R22), and three teams entered on it. */
+const relay='R22';
+async function withTeams(token:string) {
+  const relays=relaySetup(app);
+  for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,2302,2303,2304]]) await relays.team(token,relay,legs);
+  return relays;
+}
 
-test('a race screen stream sends the whole race first, an empty next heat when nothing is stored',async()=>{
+test('a race stream sends the whole race first, and the races stream every event group but the relays',async()=>{
   const {volunteer}=await start();
-  const stream=await openStream(volunteer,'race-screen/R4');
+  const race=await newHeat(volunteer);
+  const stream=await openStream(volunteer,`races/${race.id}`);
   expect(stream.response.status).toBe(200);
   expect(stream.response.headers.get('content-type')).toBe('text/event-stream');
-  const first=await stream.snapshot();
-  expect(first).toMatchObject({event:{code:'R4',name:'60m',section:'Girl Cubs'},race:{id:null,kind:'heat',number:1,parts:{runners:{version:0,value:null},finish:{version:0,value:null},times:{version:0,value:null}}}});
+  const first=await stream.snapshot<RaceFlowRead>();
+  expect(first).toMatchObject({group:{event:{code:'R4',name:'60m',section:'Girl Cubs'}},race:{id:race.id,kind:'heat',number:1,parts:{runners:{value:[]},finish:{version:0,value:null},times:{version:0,value:null}}}});
   expect(first.revision).toEqual(expect.any(Number));
+  await stream.close();
+  const list=await openStream(volunteer,'races');
+  const groups=(await list.snapshot<RacesRead>()).groups;
+  expect(groups.find(group=>group.event.code==='R4')!.races.map(item=>item.id)).toEqual([race.id]);
+  expect(groups.some(group=>group.event.relay)).toBe(false);
+  await list.close();
+});
+test('a relay\'s race screen stream sends its current race first, an empty next heat when nothing is stored',async()=>{
+  const {volunteer}=await start();
+  const stream=await openStream(volunteer,`race-screen/${relay}`);
+  expect((await stream.snapshot()).race).toMatchObject({id:null,kind:'heat',number:1,parts:{runners:{version:0,value:null},finish:{version:0,value:null},times:{version:0,value:null}}});
   await stream.close();
 });
 test('an idle stream sends a heartbeat comment and ends itself at its limit, so the phone reconnects to a fresh one',async()=>{
   const {volunteer}=await start({streamHeartbeatMs:50,streamLimitMs:400});
-  const stream=await openStream(volunteer,'race-screen/R4');
+  const stream=await openStream(volunteer,'races');
   await stream.snapshot();
   expect(await stream.frame()).toBe(': hb');
   expect(await stream.frame()).toBe(': hb');
@@ -73,36 +100,38 @@ test('an idle stream sends a heartbeat comment and ends itself at its limit, so 
   while(next===': hb') next=await stream.frame();
   expect(next).toBe('ended');
 });
-test('the stream refuses a phone that is not signed in, and an unknown event, before it starts',async()=>{
+test('the stream refuses a phone that is not signed in, an unknown event and an unknown race, before it starts',async()=>{
   const {volunteer}=await start();
-  expect((await refusedStream('nobody','race-screen/R4')).status).toBe(401);
+  for(const path of ['races','race-screen/R4']) expect((await refusedStream('nobody',path)).status).toBe(401);
   expect(await refusedStream(volunteer,'race-screen/R99')).toEqual({status:404,refusal:{message:'Event not found'}});
+  expect((await refusedStream(volunteer,'races/00000000-0000-0000-0000-000000000000')).status).toBe(404);
 });
-test('a race write raises the day revision and reaches every open stream of the event, ending with the next heat on the same stream',async()=>{
+test('a race write raises the day revision and reaches every open stream of the race, through to saved',async()=>{
   const {volunteer,other}=await start(),setup=raceSetup(app);
-  // Sam holds every job before the stream opens, so each write below is one change.
-  for(const job of ['check-in','order','times']) await call(volunteer,'/api/race-screen/R4/hold',{job});
-  const watching=await openStream(other,'race-screen/R4');
-  const empty=await watching.snapshot();
+  const made=await newHeat(volunteer);
+  const watching=await openStream(other,`races/${made.id}`);
+  const empty=await watching.snapshot<RaceFlowRead>();
   const race=await setup.checkIn(volunteer,'R4',[2001,2002]);
-  const checkedIn=await watching.snapshot();
+  const checkedIn=await watching.snapshot<RaceFlowRead>();
   expect(checkedIn.revision).toBeGreaterThan(empty.revision);
-  expect(checkedIn.race).toMatchObject({id:race.id,kind:'heat',number:1,parts:{runners:{version:1,value:[{wristband:2001},{wristband:2002}]}}});
+  expect(checkedIn.race).toMatchObject({id:made.id,parts:{runners:{value:[{wristband:2001},{wristband:2002}]}}});
   await setup.order(volunteer,'R4',[2002,2001]);
-  const ordered=await watching.snapshot();
+  const ordered=await watching.snapshot<RaceFlowRead>();
   expect(ordered.revision).toBeGreaterThan(checkedIn.revision);
   expect(ordered.race.parts.finish.value!.order).toEqual([race.parts.runners.value![1].id,race.parts.runners.value![0].id]);
-  // Every placed wristband timed is not saved: Heat 1 stays current until Submit Race.
   await setup.times(volunteer,'R4',[1234,1301]);
-  expect((await watching.snapshot()).race).toMatchObject({id:race.id,state:'in progress',parts:{times:{value:{places:[1234,1301]}}}});
+  expect((await watching.snapshot<RaceFlowRead>()).race).toMatchObject({state:'in progress',parts:{times:{value:{places:[1234,1301]}}}});
+  // Each done mark is a change, and the last one saves the race.
   await setup.submit(volunteer,'R4');
-  expect((await watching.snapshot()).race).toEqual({id:null,kind:'heat',number:2,state:'in progress',parts:{runners:{version:0,value:null},finish:{version:0,value:null},times:{version:0,value:null}}});
+  let next=await watching.snapshot<RaceFlowRead>();
+  while(next.race.state!=='saved') next=await watching.snapshot<RaceFlowRead>();
+  expect(next.steps).toMatchObject({runners:{state:'done'},positions:{state:'done'},times:{state:'done'}});
   await watching.close();
 });
 test('a change elsewhere in the day that leaves the revision alone sends nothing new, and a phone keeps the newest snapshot it holds',async()=>{
   const {owner,volunteer}=await start();
-  const stream=await openStream(volunteer,'race-screen/R4');
-  const first=await stream.snapshot();
+  const stream=await openStream(volunteer,'races');
+  const first=await stream.snapshot<RacesRead>();
   // The day export changes nothing a phone shows and keeps the revision.
   expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
   await expect(stream.snapshot(300)).rejects.toThrow('No frame in time');
@@ -115,35 +144,29 @@ test('a change elsewhere in the day that leaves the revision alone sends nothing
 });
 test('Start new day ends the old day\'s streams, so their phones reconnect and are told a new day has started',async()=>{
   const {owner,volunteer}=await start();
-  const stream=await openStream(volunteer,'race-screen/R4');
-  await stream.snapshot();
+  const race=await newHeat(volunteer);
+  const streams=[await openStream(volunteer,'races'),await openStream(volunteer,`races/${race.id}`)];
+  for(const stream of streams) await stream.snapshot();
   await call(owner,'/api/day/export',{});
   expect((await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(200);
-  expect(await stream.frame()).toBe('ended');
-  expect(await refusedStream(volunteer,'race-screen/R4')).toMatchObject({status:401,refusal:{reason:'new-day'}});
+  for(const stream of streams) expect(await stream.frame()).toBe('ended');
+  expect(await refusedStream(volunteer,'races')).toMatchObject({status:401,refusal:{reason:'new-day'}});
 });
-test('taking a hold reaches every open stream with the holder\'s name, and a phone that signs out loses its holds and its stream',async()=>{
+test('taking a hold on a relay reaches every open stream with the holder\'s name, and a phone that signs out loses its holds and its stream',async()=>{
   const {volunteer,other}=await start();
-  const watching=await openStream(other,'race-screen/R4'),holding=await openStream(volunteer,'race-screen/R4');
+  const watching=await openStream(other,`race-screen/${relay}`),holding=await openStream(volunteer,`race-screen/${relay}`);
   const empty=await watching.snapshot();await holding.snapshot();
   expect(empty.holds).toEqual({});
-  expect((await call(volunteer,'/api/race-screen/R4/hold',{job:'check-in'})).statusCode).toBe(200);
+  expect((await call(volunteer,`/api/race-screen/${relay}/hold`,{job:'order'})).statusCode).toBe(200);
   const held=await watching.snapshot();
   expect(held.revision).toBeGreaterThan(empty.revision);
-  expect(held.holds).toEqual({'check-in':{id:expect.any(String),name:'Sam'}});
+  expect(held.holds).toEqual({order:{id:expect.any(String),name:'Sam'}});
   await holding.snapshot();
   expect((await call(volunteer,'/api/sign-out',{})).statusCode).toBe(200);
   expect((await watching.snapshot()).holds).toEqual({});
   expect(await holding.frame()).toBe('ended');
-  expect(await refusedStream(volunteer,'race-screen/R4')).toMatchObject({status:401,refusal:{reason:'signed-out'}});
+  expect(await refusedStream(volunteer,`race-screen/${relay}`)).toMatchObject({status:401,refusal:{reason:'signed-out'}});
   await watching.close();
-});
-test('a timed event moves on to its next race, and a saved race no longer holds the screen',async()=>{
-  const {volunteer}=await start();
-  await raceSetup(app).record(volunteer,'R16',[2003],[2650]);
-  const stream=await openStream(volunteer,'race-screen/R16');
-  expect((await stream.snapshot()).race).toMatchObject({id:null,kind:'race',number:2});
-  await stream.close();
 });
 /** Reads a Home stream's snapshots until the event's status line reads `line`, and answers that snapshot. */
 async function homeLine(stream:Awaited<ReturnType<typeof openStream>>,code:string,line:string) {
@@ -162,10 +185,11 @@ test('shutting down does not wait on a connection that never sent a request, suc
   expect(Date.now()-started).toBeLessThan(1000);
 });
 test('the Home stream sends every switched-on event first, in programme order, each with its status line',async()=>{
-  const {owner,volunteer,other}=await start(),setup=raceSetup(app);
+  const {owner,volunteer,other}=await start();
   await call(owner,'/api/day/events/R5/enabled',{enabled:false});
-  await setup.record(volunteer,'R4',[2001],[1234]);
-  await setup.checkIn(other,'R7',[1001]);
+  const relays=await withTeams(volunteer);
+  await relays.tick(other,relay,1);
+  await call(other,`/api/race-screen/${relay}/hold`,{job:'order'});
   const stream=await openStream(other,'home');
   expect(stream.response.headers.get('content-type')).toBe('text/event-stream');
   const first=await stream.snapshot<HomeSnapshot>();
@@ -175,31 +199,34 @@ test('the Home stream sends every switched-on event first, in programme order, e
   expect(first.events[0]).toMatchObject({code:'R1',name:'60m',section:'Boy Beavers',relay:false});
   expect(first.events.find(event=>event.code==='R27')).toMatchObject({name:'4x100m Relay',section:'Boy Scouts',relay:true});
   const line=(code:string)=>homeStatus(first.events.find(event=>event.code===code)!);
-  expect(line('R1')).toBe('Heat 1');
-  // Heat 1 is saved; Sam's holds carry over to Heat 2.
-  expect(line('R4')).toBe('Heat 2 · Order and times · Sam');
-  expect(line('R7')).toBe('Race 1 · Checking in · Priya');
+  expect(line('R19')).toBe('No teams yet');
+  expect(line(relay)).toBe('Heat 1 · Order and times · Priya');
   await stream.close();
   expect((await refusedStream('nobody','home')).status).toBe(401);
 });
-test('the Home stream reaches every phone on a check-in, a hold change and a Submit press, and says Done once the stage is complete',async()=>{
+test('the Home stream reaches every phone on a relay tick, a hold change and a Submit press, and says Done once the stage is complete',async()=>{
   const {owner,volunteer,other}=await start(),setup=raceSetup(app);
+  const relays=await withTeams(volunteer);
   const sam=await openStream(volunteer,'home'),priya=await openStream(other,'home');
   const empty=await priya.snapshot<HomeSnapshot>();await sam.snapshot();
-  // Checking in on a free job takes it: one change.
-  await setup.write(volunteer,'R4','check-in',{raceId:null,version:0,runners:[{wristband:2001},{wristband:2002}]});
+  await relays.tick(volunteer,relay,1);
   for(const stream of [sam,priya]) {
-    const checkedIn=await stream.snapshot<HomeSnapshot>();
-    expect(checkedIn.revision).toBeGreaterThan(empty.revision);
-    expect(homeStatus(checkedIn.events.find(event=>event.code==='R4')!)).toBe('Heat 1 · Checking in · Sam');
+    const ticked=await stream.snapshot<HomeSnapshot>();
+    expect(ticked.revision).toBeGreaterThan(empty.revision);
+    expect(homeStatus(ticked.events.find(event=>event.code===relay)!)).toBe('Heat 1 · Checking in · 1 team');
   }
-  await call(other,'/api/race-screen/R4/hold',{job:'order'});
-  for(const stream of [sam,priya]) await homeLine(stream,'R4','Heat 1 · Order and times · Sam, Priya');
-  await setup.order(other,'R4',[2002,2001]);await setup.times(volunteer,'R4',[1234,1301]);
-  await setup.submit(volunteer,'R4');
-  for(const stream of [sam,priya]) await homeLine(stream,'R4','Heat 1 · Waiting on 1 to submit · Priya');
-  await setup.submit(other,'R4');
-  await homeLine(priya,'R4','Heat 2 · Order and times · Sam, Priya');
+  await relays.tick(volunteer,relay,2);
+  await call(other,`/api/race-screen/${relay}/hold`,{job:'order'});
+  for(const stream of [sam,priya]) await homeLine(stream,relay,'Heat 1 · Order and times · Priya');
+  const seen=await relays.screen(other,relay),id=(number:number)=>seen.race.parts.runners.value!.find(entry=>'team' in entry && entry.team.number===number)!.id;
+  await relays.post(other,`/api/race-screen/${relay}/order`,{raceId:seen.race.id,version:seen.race.parts.finish.version,order:[2,1].map(id),didNotFinish:[],didNotRun:[],added:[]});
+  await call(volunteer,`/api/race-screen/${relay}/hold`,{job:'times'});
+  const timed=await relays.screen(volunteer,relay);
+  await relays.post(volunteer,`/api/race-screen/${relay}/times`,{raceId:timed.race.id,version:timed.race.parts.times.version,places:[1520,1610],keptWrong:[]});
+  await relays.post(volunteer,`/api/race-screen/${relay}/submit`,{raceId:timed.race.id});
+  for(const stream of [sam,priya]) await homeLine(stream,relay,'Heat 1 · Waiting on 1 to submit · Priya');
+  await relays.post(other,`/api/race-screen/${relay}/submit`,{raceId:timed.race.id});
+  await homeLine(priya,relay,'Heat 2 · 1 team to run');
   await setup.record(volunteer,'R16',[2003],[2650]);
   expect((await call(owner,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
   for(const stream of [sam,priya]) await homeLine(stream,'R16','Done');

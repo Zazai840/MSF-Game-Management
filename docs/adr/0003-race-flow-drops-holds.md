@@ -9,5 +9,5 @@ With no holders, Submit Race goes too for individual events: each step is marked
 ## Consequences
 
 - Two people typing into the same step at once each see the other's change refused on their next write, never silently overwritten.
-- The old race screen routes stay on the server for relays (and still accept individual events, which the app no longer sends there).
+- The old race screen routes stay on the server for relays only: they refuse an individual event with "Open this race from Races".
 - A step marked done can still be written: a runner added at the finish changes Runners after That's everyone.
