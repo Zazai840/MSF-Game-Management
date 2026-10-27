@@ -5,16 +5,20 @@ import { deleteCurrentRace,expect,live,lookProblems,openRaceScreen,openRelays,ow
  */
 const orderCard=(page:Page)=>page.getByRole('button',{name:/^Order and Times/});
 const dockSays=(page:Page,text:string)=>expect(page.getByRole('status').filter({hasText:text})).toHaveText(text,live);
-/** The relay's two teams, both ticked into Heat 1 by `token`. */
+/**
+ * The relay's two teams, both ticked into Heat 1 by `token`. The test day is shared: each project's children use
+ * Boy Cubs wristbands no other relay test types, so no child is in another test's relay.
+ */
 async function twoTeams(request:APIRequestContext,token:string,code:string) {
-  for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204]]) await writeTeam(request,token,code,legs,{keptWarnings:legs});
+  const base=1950+['iPhone','Android','desktop'].indexOf(test.info().project.name)*8;
+  for(const legs of [[0,1,2,3],[4,5,6,7]].map(team=>team.map(leg=>base+leg))) await writeTeam(request,token,code,legs,{keptWarnings:legs});
   await tickTeam(request,token,code,1);await tickTeam(request,token,code,2);
 }
-async function openRelay(page:Page,name:string) {await openRelays(page);await openRaceScreen(page,name);}
+async function openRelay(page:Page,name:string) {await openRelays(page);await openRaceScreen(page,name,'Boy Cubs');}
 
 test('Take over on a relay confirms in the card, carries on from what was entered, and the old holder\'s next write is refused',async({openPhone,request},info)=>{
   const project=info.project.name,code=`RT-${project.toUpperCase()}`,name=`Take over relay ${project}`,jo=`Jo relay takeover ${project}`,ali=`Ali relay takeover ${project}`;
-  await ownRelay(code,name);
+  await ownRelay(code,name,'Boy Cubs');
   const old=await openPhone(jo),taker=await openPhone(ali);
   await twoTeams(request,old.token,code);
   await takeJob(request,old.token,code,'order');
@@ -38,7 +42,7 @@ test('Take over on a relay confirms in the card, carries on from what was entere
 
 test('Submit Race on a relay waits for every holder: every phone shows who it waits on, Not yet clears the presses, and the last press saves the heat',async({openPhone,request},info)=>{
   const project=info.project.name,code=`RS-${project.toUpperCase()}`,name=`Submit relay ${project}`,jo=`Jo relay submit ${project}`;
-  await ownRelay(code,name);
+  await ownRelay(code,name,'Boy Cubs');
   const priya=await openPhone(`Priya relay submit ${project}`),timer=await openPhone(jo),ali=await openPhone(`Ali relay submit ${project}`);
   await twoTeams(request,priya.token,code);
   await writeTeamOrder(request,priya.token,code,[2,1]);
@@ -68,7 +72,7 @@ test('Submit Race on a relay waits for every holder: every phone shows who it wa
 
 test('a lead\'s Save as lead saves a relay heat stuck waiting on another phone, after a confirm',async({openPhone,request},info)=>{
   const project=info.project.name,code=`XQ-${project.toUpperCase()}`,name=`Save as lead relay ${project}`,jo=`Jo relay stuck ${project}`;
-  await ownRelay(code,name);
+  await ownRelay(code,name,'Boy Cubs');
   const timer=await signInThroughApi(request,jo),priya=await openPhone(`Priya relay stuck ${project}`);
   await twoTeams(request,priya.token,code);
   await writeTeamOrder(request,priya.token,code,[1,2]);await writeTimes(request,timer,code,[1500,1600]);
