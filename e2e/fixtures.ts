@@ -261,10 +261,14 @@ export async function deleteCurrentRace(request:APIRequestContext,code:string) {
   const ids=group?group.races.filter(race=>race.state!=='saved').map(race=>race.id):[(await readRaceScreen(request,owner,code)).race].filter(race=>race.id!==null && race.state!=='saved').map(race=>race.id!);
   for(const id of ids) expect((await request.post(`/api/lead/races/${id}/delete`,{headers:bearer(owner),data:{permanent:true}})).ok()).toBe(true);
 }
-/** From Races: taps a race's chip on its event group's card ("H1", "Final") and waits for the race. */
+/** From Races: taps a race's chip on its event group's card ("H1", "Final"), opening Done when the group is done, and waits for the race. */
 export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H1') {
-  const label=chip==='Final'?/^Final[, ]/:new RegExp(`^Heat ${chip.slice(1)}[, ]`);
-  await page.getByRole('article',{name:`${name} · ${section}`,exact:true}).getByRole('button',{name:label}).click();
+  const label=chip==='Final'?/^Final[, ]/:new RegExp(`^Heat ${chip.slice(1)}[, ]`),card=page.getByRole('article',{name:`${name} · ${section}`,exact:true});
+  // Once the races have come in, a group that is done waits under the closed Done disclosure.
+  await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
+  const done=page.locator('details:not([open])',{has:page.locator('summary',{hasText:/^Done \(/})});
+  if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
+  await card.getByRole('button',{name:label}).click();
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
 }
 /** On Races: the Relays tab. */
