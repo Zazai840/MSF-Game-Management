@@ -28,6 +28,9 @@ test('the boot script starts on a database an older build left, competing saves 
     base_version integer NOT NULL, version integer NOT NULL, author_name text, saved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     value jsonb, runners jsonb NOT NULL, before_runners jsonb NOT NULL, active boolean NOT NULL DEFAULT true)`);
   await old.query('CREATE INDEX race_part_candidates ON race_part_saves(race_id,part) WHERE active');
+  // Before event types were stored: only the relay mark said what an event was, and a lead had named one 60m hurdles.
+  await old.query('ALTER TABLE events DROP CONSTRAINT events_relay_is_type, DROP COLUMN type');
+  await old.query("UPDATE events SET name='Low hurdles' WHERE code='R8'");
   await old.query(`INSERT INTO race_part_history(race_id,part,version,value,runners) SELECT race_id,part,version,value,'[]' FROM race_parts WHERE race_id=$1 ON CONFLICT DO NOTHING`,[race.id]);
   await old.query(`INSERT INTO race_part_saves(id,race_id,part,base_version,version,author_name,value,runners,before_runners) VALUES(gen_random_uuid(),$1,'times',0,1,'Jo','{"places":[1200,1300],"outOfOrder":false}','[]','[]'),(gen_random_uuid(),$1,'times',0,1,'Ali','{"places":[1250,1300],"outOfOrder":false}','[]','[]')`,[race.id]);
   await old.end();
@@ -41,15 +44,19 @@ test('the boot script starts on a database an older build left, competing saves 
     try {
       expect((await db.query("SELECT to_regclass('race_part_saves') AS saves")).rows).toEqual([{saves:null}]);
       expect((await db.query("SELECT column_name FROM information_schema.columns WHERE table_name='race_finals' AND column_name='presence_confirmed'")).rows).toEqual([]);
+      // Each event gets its type once, from the relay mark or a Hurdles name.
+      const types=Object.fromEntries((await db.query("SELECT code,type FROM events WHERE code IN ('R4','R7','R8','R19')")).rows.map(row=>[row.code,row.type]));
+      expect(types).toEqual({R4:'races',R7:'hurdles',R8:'hurdles',R19:'relays'});
+      await expect(db.query("UPDATE events SET type='races' WHERE code='R19'")).rejects.toThrow(/events_relay_is_type/);
     } finally {await db.end();}
     const lead=await app.inject({url:`/api/lead/races/${race.id}`,headers:{authorization:`Bearer ${owner}`}});
     expect(lead.statusCode).toBe(200);expect(lead.json()).not.toHaveProperty('clashes');
-    expect(lead.json().history).toContainEqual({part:'runners',version:1,author:null,at:null});
+    expect(lead.json().history).toContainEqual({part:'runners',version:2,author:null,at:null});
     await setup.order(owner,'R4',[2001,2002]);await setup.times(owner,'R4',[1200,1300]);
-    expect(await setup.submit(owner,'R4')).toMatchObject({race:{id:null,number:2},lastSaved:{number:1,by:'Aisha'}});
+    expect((await setup.submit(owner,'R4')).race).toMatchObject({id:race.id,state:'saved'});
     const history=(await app.inject({url:`/api/lead/races/${race.id}`,headers:{authorization:`Bearer ${owner}`}})).json().history;
-    // Holds are new, so nobody held check-in when the older build's runners went in: the saved row names nobody.
-    expect(history.filter((row:{at:string|null})=>row.at).map(({part,author}:{part:string;author:string})=>[part,author])).toEqual([['runners',null],['finish','Aisha'],['times','Aisha']]);
+    // The saved rows name who marked each step done (ADR 0003), so the older build's runners are named too.
+    expect(history.filter((row:{at:string|null})=>row.at).map(({part,author}:{part:string;author:string})=>[part,author])).toEqual([['runners','Aisha'],['finish','Aisha'],['times','Aisha']]);
   } finally {await app.close();}
 });
 test('starting up turns an older build\'s Scoring team sign-ins into leads, allows only Volunteer or Lead, and runs twice cleanly',async()=>{
@@ -78,7 +85,7 @@ test('starting up turns an older build\'s Scoring team sign-ins into leads, allo
     await expect(db.query("UPDATE sign_ins SET level='Scoring team'")).rejects.toThrow(/sign_ins_level_check/);
   } finally {await db.end();}
 });
-test('the boot script adds the relay mark, the team store and the teams job to a day the current build started, leaving its events, holds and races as they were and adding no relays',async()=>{
+test('the boot script adds the relay mark, the team store and the teams job to a day the current build started, leaving its events and races as they were and adding no relays',async()=>{
   await admin(`CREATE DATABASE "${name}"`);
   let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
   const owner=(await app.inject({method:'POST',url:'/api/owner-sign-in',payload:{password:'upgrade-owner',name:'Aisha',profiles:[]}})).json().token as string;
@@ -99,7 +106,6 @@ test('the boot script adds the relay mark, the team store and the teams job to a
     const screen=await raceSetup(app).screen(owner,'R4');
     expect(screen.race).toMatchObject({id:race.id,state:'in progress'});
     expect(screen.race.parts.runners.value?.filter(isRunner).map(runner=>runner.wristband)).toEqual([2001,2002]);
-    expect(screen.holds['check-in']?.name).toBe('Aisha');
     const db=new pg.Client({connectionString:databaseUrl});await db.connect();
     try {
       expect((await db.query("SELECT to_regclass('relay_teams') IS NOT NULL AS teams")).rows).toEqual([{teams:true}]);

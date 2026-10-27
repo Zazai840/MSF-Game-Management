@@ -24,5 +24,7 @@ export function eventDetails(value:unknown) {
   const section = sections.find(section=>section===body.section);
   if (!section) throw new Refusal(400,'Choose one of the six sections');
   if (body.format!=='heats' && body.format!=='timed') throw new Refusal(400,'Choose heats then final or timed');
-  return {code,name,section,format:body.format};
+  // A relay needs its team lists, so only a new day's seeded relays are relays.
+  if (body.type!=='races' && body.type!=='hurdles') throw new Refusal(400,'Choose Races or Hurdles');
+  return {code,name,section,format:body.format,type:body.type};
 }

@@ -15,7 +15,7 @@ import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
 import { readTeamLists,switchedOn,type TeamListRead } from '../relays/teams.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
-  return (await db.query('SELECT id,code,name,section,format,enabled,relay FROM events WHERE day_id=$1 ORDER BY programme_order,code',[dayId])).rows;
+  return (await db.query("SELECT id,code,name,section,format,enabled,type,(type='relays') AS relay FROM events WHERE day_id=$1 ORDER BY programme_order,code",[dayId])).rows;
 }
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
 export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map(),relays:EventState['relays']=[]):EventState {

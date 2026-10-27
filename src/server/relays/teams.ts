@@ -19,11 +19,11 @@ export type TeamListRead=TeamList & {id:string;enabled:boolean;teams:RelayTeam[]
  */
 export async function readTeamLists(db:Database,dayId:string):Promise<Map<string,TeamListRead>> {
   const lists=new Map<string,TeamListRead>();
-  for(const relay of (await db.query('SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND relay',[dayId])).rows) lists.set(relay.id,{...relay,teams:[],holder:null});
+  for(const relay of (await db.query("SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND type='relays'",[dayId])).rows) lists.set(relay.id,{...relay,teams:[],holder:null});
   const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version,t.changing_since,s.id AS changing_id,s.name AS changing_name FROM relay_teams t JOIN events e ON e.id=t.event_id LEFT JOIN sign_ins s ON s.id=t.changing_by WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
   const held=(await db.query(`SELECT r.id,r.kind,r.number,r.state,entry->'team'->>'id' AS team_id FROM races r JOIN events e ON e.id=r.event_id JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]' END) entry
-    WHERE e.day_id=$1 AND e.relay AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
+    WHERE e.day_id=$1 AND e.type='relays' AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
   for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,
     changing:team.changing_id?{id:team.changing_id,name:team.changing_name,since:team.changing_since.toISOString()}:null,
     races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
@@ -40,7 +40,7 @@ export async function relayLists(db:Database,dayId:string,eventId:string) {
 }
 /** One relay as a teams write sees it: its team list, whether its heats are complete, and the day's switched-on relays, which its warnings look through. */
 export async function teamsWriteRead(db:Database,dayId:string,code:string) {
-  const event=(await db.query(`SELECT e.id,e.relay,${stageDoneSql('e.id',"'heats'")} AS heats_complete FROM events e WHERE e.day_id=$1 AND e.code=$2`,[dayId,code])).rows[0];
+  const event=(await db.query(`SELECT e.id,(e.type='relays') AS relay,${stageDoneSql('e.id',"'heats'")} AS heats_complete FROM events e WHERE e.day_id=$1 AND e.code=$2`,[dayId,code])).rows[0];
   if(!event) throw new Refusal(404,'Event not found');
   if(!event.relay) throw new Refusal(400,'Only a relay has teams');
   const lists=await readTeamLists(db,dayId),list=lists.get(event.id)!;

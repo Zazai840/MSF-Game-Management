@@ -63,6 +63,20 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     );
     -- A relay is run by relay teams. Only a new day's seeded relays have the mark: the add-event route never sets it.
     ALTER TABLE events ADD COLUMN IF NOT EXISTS relay boolean NOT NULL DEFAULT false;
+    -- An event's type is Home's tab: races, hurdles or relays. A relay is run by relay teams; only a new day's seeded relays
+    -- are relays (the add-event route never makes one). Events from before types were stored get one once, from the relay
+    -- mark or a Hurdles name; nothing reads the name after that.
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS type text;
+    UPDATE events SET type=CASE WHEN relay THEN 'relays' WHEN name ILIKE '%hurdles%' THEN 'hurdles' ELSE 'races' END WHERE type IS NULL;
+    ALTER TABLE events ALTER COLUMN type SET NOT NULL;
+    -- An older build still answering during a deploy adds events without a type: those are Races (it never adds a relay).
+    ALTER TABLE events ALTER COLUMN type SET DEFAULT 'races';
+    ALTER TABLE events DROP CONSTRAINT IF EXISTS events_type_check;
+    ALTER TABLE events ADD CONSTRAINT events_type_check CHECK (type IN ('races','hurdles','relays'));
+    -- The type replaces the relay mark: nothing reads relay now. It is kept, in step with type, only for an older build
+    -- still answering during a deploy; drop it in a later release.
+    ALTER TABLE events DROP CONSTRAINT IF EXISTS events_relay_is_type;
+    ALTER TABLE events ADD CONSTRAINT events_relay_is_type CHECK (relay = (type='relays'));
     CREATE TABLE IF NOT EXISTS races (
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), event_id uuid NOT NULL REFERENCES events(id),
       kind text NOT NULL CHECK (kind IN ('heat','final','race')), number integer NOT NULL,
@@ -91,6 +105,9 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       value jsonb, saved_at timestamptz, saved_by uuid REFERENCES sign_ins(id),
       PRIMARY KEY(race_id,part)
     );
+    -- The race flow's step done mark: who marked the part done (That's everyone, Save positions, No more finishers) and when.
+    ALTER TABLE race_parts ADD COLUMN IF NOT EXISTS done_at timestamptz;
+    ALTER TABLE race_parts ADD COLUMN IF NOT EXISTS done_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
     CREATE TABLE IF NOT EXISTS race_part_history (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL,

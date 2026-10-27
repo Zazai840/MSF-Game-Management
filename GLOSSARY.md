@@ -23,7 +23,7 @@ The competition category a child competes in: Boy Beavers, Girl Beavers, Boy Cub
 _Avoid_: Age group, category, division
 
 **Event**:
-One running competition for one section, such as 60m for Girl Cubs.
+One running competition for one section, such as 60m for Girl Cubs. Races shows each as a card with its races (the race flow plan calls it an event group).
 _Avoid_: Competition, discipline
 
 **Event code**:
@@ -32,7 +32,11 @@ _Avoid_: Event ID, event number
 
 **Event format**:
 How an event decides its medals: either heats then a final (60m and relays), unless a zone lead calls results without a final; or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m).
-_Avoid_: Event type, race type
+_Avoid_: Race type
+
+**Event type**:
+Which tab of Races an event is on: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events.
+_Avoid_: Category, kind
 
 **Relay**:
 An event run by relay teams instead of single children: the 4x50m Relay for Beavers and Cubs and the 4x100m Relay for Scouts. Like the 60m it has heats then a final, and every child of a medal-winning team gets the team's medal.
@@ -45,7 +49,7 @@ One run of one event: one or more children or relay teams who line up and run to
 _Avoid_: Run, round
 
 **Heat**:
-A race within an event that has a final, formed at the start line from whoever is there.
+A race of an event that is not its final, formed at the start line from whoever is there, numbered Heat 1, Heat 2 and so on. Every event type names its runs this way, with or without a final, including a 200m or 400m decided by time alone (race-flow.md decision 1).
 _Avoid_: Qualifier, preliminary
 
 **Final**:
@@ -93,15 +97,15 @@ A race removed from an event's results but kept so it can be restored, for examp
 _Avoid_: Cancelled race, deleted game, void race
 
 **Current race**:
-The one race of an event being worked on now: its latest race that is neither saved nor deleted, or else the next heat (or race) waiting for its first check-in. Once a race is saved the next one becomes current by itself; once the heats are complete it is the final.
+On a relay's race screen, the one race of the relay being worked on now: its latest race that is neither saved nor deleted, or else the next heat (or race) waiting for its first check-in. Once a race is saved the next one becomes current by itself; once the heats are complete it is the final.
 _Avoid_: Active race, open race, next race
 
 **Submit Race**:
-A volunteer's confirmation that the results of the current race are right. Everyone holding a job with entries on the race must submit; any of them can tap Not yet to send the race back for changes, which clears every submission.
+On a relay's race screen, a volunteer's confirmation that the results of the current race are right. Everyone holding a job with entries on the race must submit; any of them can tap Not yet to send the race back for changes, which clears every submission.
 _Avoid_: Confirm, sign off, check step
 
 **Saved race**:
-A race whose results count: everyone it asked has submitted it, or a lead saved it without them. Only saved races reach results, To check and the day export, and only a lead can change one.
+A race whose results count: in the race flow, every step is done and nothing blocks it (it saves itself); on a relay's race screen, everyone it asked has submitted it; or a lead saved it. Only saved races reach results, To check and the day export, and only a lead can change one.
 _Avoid_: Finished race, complete race, closed race
 
 **Finishing order**:
@@ -174,12 +178,12 @@ _Avoid_: Admin, race manager, supervisor
 Anyone who typed today's lead code (or the owner password), trusted with everything beyond the jobs: the live leaderboard, making rulings on a race's problems, and Day setup. Every lead can do everything. Zone leads are leads, and so are scoring team members.
 _Avoid_: Admin, organiser, superuser
 
-**Dashboard**:
-A lead's own screen, opened from Home. It shows To check, with ways into Results and Day setup.
-_Avoid_: Lead area, admin panel, control panel
+**Lead menu**:
+What a lead's avatar opens on Races: Results, Day setup and their details. It replaced the Dashboard.
+_Avoid_: Dashboard, admin panel, control panel
 
 **To check**:
-The list of race problems that need a lead to decide, such as a tie, a warning or a kept wrong time, each opening its race. Its count shows as "N to check" on the Dashboard button.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Ready for you lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
 **Scoring team**:
@@ -210,8 +214,28 @@ _Avoid_: Admin password, master code
 The lead who signed in with the owner password. Nobody can make the owner a volunteer, and making a new lead code keeps them a lead. It is not a role: the owner is a lead.
 _Avoid_: Admin, super lead
 
+**Races**:
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat or the final.
+_Avoid_: Event list, dashboard
+
+**Race**, as a screen:
+One race of the race flow (/races/:raceId): its event's heat chips, its steps, and only the body for your role. A lead sees every step as tabs.
+_Avoid_: Race page (the lead's), job screen
+
+**Step**:
+One part of a race as the race flow works it: Runners (check-in), Positions (the finishing order) or Times. A final has no Times. Each step is done when marked (That's everyone, Save positions, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, positions by wristband.
+_Avoid_: Job (the relay race screen's), stage (an event's)
+
+**Role**:
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Positions), Timer (Times), or Zone lead, who sees every step. Chosen after signing in and switched from the role chip; Zone lead needs the lead code once per day.
+_Avoid_: Job, station, position
+
+**Undo**:
+The toast's way to reverse your own save of a step, only while nobody else has changed that step since. It reopens the race at that step, and un-saves a race the save had saved.
+_Avoid_: Revert, roll back
+
 **Race screen**:
-The one screen where volunteers work an event's current race together, opened from Home by tapping the event. Every job is on it, and each phone sees the others' entries as they are made.
+A relay's screen where volunteers work its current race together, opened from the Relays tab by tapping the relay. Every job is on it, and each phone sees the others' entries as they are made.
 _Avoid_: Job screen, race page (the lead's), entry screen
 
 **Teams screen**:
@@ -219,11 +243,11 @@ The one screen, opened from Home's Relays tab, where every relay's team list is 
 _Avoid_: Team page, prep screen, registration screen
 
 **Job**:
-A piece of work that any volunteer can take on and one volunteer holds at a time: on a race, check-in, the finishing order or the times; on a relay, also typing its team list. A final has no times job, and a relay's check-in is not a job: anyone on its race screen does it.
+On a relay's race screen, a piece of work that any volunteer can take on and one volunteer holds at a time: on a race, check-in, the finishing order or the times; on a relay, also typing its team list. A final has no times job, and a relay's check-in is not a job: anyone on its race screen does it.
 _Avoid_: Role, station, duty, section
 
 **Hold**:
-Being the one volunteer who may enter a job's part of an event's races. Opening a job on the race screen takes its hold when nobody has it; everyone else sees that job read-only. A hold carries on to the event's next heat or race, but not to its final.
+On a relay, being the one volunteer who may enter a job's part of its races (ADR 0003: the race flow has none). Opening a job on the race screen takes its hold when nobody has it; everyone else sees that job read-only. A hold carries on to the event's next heat or race, but not to its final.
 _Avoid_: Claim, lock, owner
 
 **Take over**:

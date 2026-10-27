@@ -1,20 +1,20 @@
-import { lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,createProfile,openDashboard,test,type Page } from './fixtures.js';
+import {lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
 async function recordedRace(page:Page,code:string,runners:number[],places:number[],keptWarnings?:number[]) {
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places,keptWarnings);
   created.push(race.id);
   return race;
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
-  await page.goto('/');await createProfile(page,name);await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await page.getByRole('button',{name:`Open Race ${number}`,exact:true}).click();
+  await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
 }
 const saved=(page:Page)=>page.getByRole('status').filter({hasText:'Saved'});
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
@@ -139,7 +139,7 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
 
 test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
   const code=`IP-${info.project.name.slice(0,3).toUpperCase()}`,token=process.env.E2E_OWNER_TOKEN!;
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);

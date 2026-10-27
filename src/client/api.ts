@@ -1,3 +1,4 @@
+import { roles,type Role } from '../shared/race-flow.js';
 import { onThisBuild } from './shell/updates.js';
 const prefix = 'msf:';
 let epoch=0;
@@ -8,7 +9,8 @@ const kept=[`${prefix}pass`,`${prefix}profiles`];
 const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],moved:kept};
 /** Home's last tab belongs to the phone, not the session, so it outlasts sign-ins. */
 const homeTabKey=`${prefix}home-tab`;
-export type HomeTab='races'|'relays';
+export type HomeTab='races'|'hurdles'|'relays';
+const homeTabs:HomeTab[]=['races','hurdles','relays'];
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
   for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session` && key!==homeTabKey) localStorage.removeItem(key);
@@ -23,7 +25,6 @@ const dayId=()=>localStorage.getItem(`${prefix}day`);
 /** The profile signed in now, so a "moved" 401 knows which profile to forget. */
 const signedInProfile=()=>localStorage.getItem(`${prefix}profile`);
 const forgetProfile=(id:string)=>localStorage.setItem(`${prefix}profiles`,JSON.stringify(profiles().filter(entry=>entry.id!==id)));
-export interface Waiting {secret:string;name:string}
 const sessionId=()=>`${epoch}:${token()}:${localStorage.getItem(`${prefix}session`)}`;
 function newSession() {
   const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
@@ -47,11 +48,15 @@ export const phoneStorage = {
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
   forgetProfile,
   /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
-  waiting:():Waiting|null=>{try {return JSON.parse(localStorage.getItem(`${prefix}waiting`)||'null');} catch {return null;}},
-  rememberWaiting:(waiting:Waiting|null)=>waiting?localStorage.setItem(`${prefix}waiting`,JSON.stringify(waiting)):localStorage.removeItem(`${prefix}waiting`),
-  /** The Home tab this phone used last: Races & Hurdles on a phone that never switched, or when storage fails. */
-  homeTab:():HomeTab=>{try {return localStorage.getItem(homeTabKey)==='relays'?'relays':'races';} catch {return 'races';}},
+  /** The Home tab this phone used last: Races on a phone that never switched, or when storage fails. */
+  homeTab:():HomeTab=>{try {const tab=localStorage.getItem(homeTabKey) as HomeTab;return homeTabs.includes(tab)?tab:'races';} catch {return 'races';}},
   rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},
+  /** The job chosen for today on this phone (Start line, Finish line, Timer or Zone lead), or null before it is chosen. */
+  role:(day:string):Role|null=>{try {const held=JSON.parse(localStorage.getItem(`${prefix}role`)||'null');return held?.day===day && roles.includes(held.role)?held.role:null;} catch {return null;}},
+  rememberRole:(day:string,role:Role)=>{try {localStorage.setItem(`${prefix}role`,JSON.stringify({day,role}));} catch {/* the job still switches; it is just not remembered */}},
+  /** The races where this person has seen the usual-heat-size warning: it shows once per race. */
+  warnedSize:(raceId:string)=>{try {return (JSON.parse(localStorage.getItem(`${prefix}warned-size`)||'[]') as string[]).includes(raceId);} catch {return false;}},
+  rememberWarnedSize:(raceId:string)=>{try {const held=JSON.parse(localStorage.getItem(`${prefix}warned-size`)||'[]') as string[];localStorage.setItem(`${prefix}warned-size`,JSON.stringify([...held.slice(-50),raceId]));} catch {/* it may show again */}},
   /** A new session drops what the old one kept but keeps the pass and profiles. */
   signIn:(signedInToken:string,profileId:string|null)=>{
     erase(kept);localStorage.setItem(`${prefix}token`,signedInToken);

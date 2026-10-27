@@ -86,7 +86,7 @@ test('a team added at the finish is a To check item cleared by Mark addition che
 });
 
 test('a time out of order, teams tied on time and a team ran twice are today\'s items worded with "team", and "already ran" never applies to a relay',()=>{
-  const at='2026-10-23T10:00:00Z',event={id:'r22',code:'R22',name:'4x50m Relay',section:'Girl Cubs' as const,format:'heats' as const,enabled:true,relay:true};
+  const at='2026-10-23T10:00:00Z',event={id:'r22',code:'R22',name:'4x50m Relay',section:'Girl Cubs' as const,format:'heats' as const,enabled:true,type:'relays' as const,relay:true};
   const team=(id:string,number:number):TeamEntry=>({id,team:{id:`team-${number}`,number},legs:[1,2,3,4].map(leg=>({wristband:2000+number*100+leg,warnings:[],here:true}))});
   const heat=(id:string,number:number,entries:TeamEntry[],places:number[]):ResultsRace=>({id,kind:'heat',number,checkedInAt:at,deleted:false,saved:true,runners:entries,finish:{order:entries.map(entry=>entry.id),didNotFinish:[]},times:{places,outOfOrder:places.some((time,index)=>index>0 && time<places[index-1])}});
   // Team 1 ran in both heats (a restored heat); Team 2 and Team 3 tie on 15.00; Heat 3's times are out of order.

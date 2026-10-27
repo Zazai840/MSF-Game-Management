@@ -1,4 +1,4 @@
-import { expect,live,lookProblems,openDashboard,openRaceScreen,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
+import {openRelays,expect,live,lookProblems,openLeadMenu,openRaceScreen,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page} from './fixtures.js';
 
 /** A team's block in Check-in Teams, ticked or Absent. */
 const team=(page:Page,number:number)=>page.locator('.ci-list > div').filter({has:page.getByText(`Team ${number}`,{exact:true})});
@@ -18,10 +18,10 @@ test('a relay Final on two phones and a lead: six seeded teams ticked, one Absen
   }
   expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${lead.token}`},data:{stage:'heats'}})).ok()).toBe(true);
   // Home's tile reads just Final.
-  await priya.page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(priya.page);
   await expect(priya.page.getByRole('region',{name,exact:true}).getByRole('button')).toHaveText('Girl ScoutsFinal',live);
   for(const phone of [sam,priya]) {
-    await phone.page.getByRole('tab',{name:'Relays',exact:true}).click();
+    await openRelays(phone.page);
     await openRaceScreen(phone.page,name,'Girl Scouts');
     await expect(phone.page.locator('.race-line')).toHaveText('Final · 6 teams');
     await phone.page.getByRole('button',{name:/^Check-in Teams/}).click();
@@ -35,7 +35,7 @@ test('a relay Final on two phones and a lead: six seeded teams ticked, one Absen
   await expect(team(priya.page,5)).toHaveText('Team 52nd seed · Absent · tap if here',live);
   await expect(priya.page.locator('.race-line')).toHaveText('Final · 5 teams');
   // The lead calls up the next-ranked team: it appears ticked on both phones.
-  await openDashboard(lead.page,'Results');
+  await openLeadMenu(lead.page,'Results');
   await lead.page.getByRole('button',{name:new RegExp(`^${code} · Girl Scouts`)}).click();
   await lead.page.getByRole('button',{name:'Call up next-ranked team: Team 4 (7th)',exact:true}).click();
   await expect(lead.page.locator('.final-lineup li').last()).toHaveText(`2: Team 4 · ${legs(4).join(' · ')} · Called up from heat rank 7`);
@@ -87,10 +87,10 @@ test('a lead adds a team to a relay Final by picking it from the relay\'s teams,
   await writeTeamOrder(request,sam.token,code,[1,2]);await writeTimes(request,sam.token,code,[1400,1500]);await submitRace(request,sam.token,code);
   await writeTeam(request,sam.token,code,legs(3),{keptWarnings:legs(3)});
   expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${lead.token}`},data:{stage:'heats'}})).ok()).toBe(true);
-  await sam.page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(sam.page);
   await openRaceScreen(sam.page,name,'Girl Scouts');
   await sam.page.getByRole('button',{name:/^Check-in Teams/}).click();
-  await openDashboard(lead.page,'Results');
+  await openLeadMenu(lead.page,'Results');
   await lead.page.getByRole('button',{name:new RegExp(`^${code} · Girl Scouts`)}).click();
   await lead.page.getByRole('button',{name:'Add a team to the final',exact:true}).click();
   // The pick list is the relay's teams not in the Final yet.

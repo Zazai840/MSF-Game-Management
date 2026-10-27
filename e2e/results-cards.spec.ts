@@ -1,4 +1,4 @@
-import { recordRace,writeCheckIn,back,openDashboard,becomeLead,expect,createProfile,test,type Page } from './fixtures.js';
+import {recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,test,type Page} from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const colours={
@@ -11,7 +11,7 @@ async function look(card:ReturnType<Page['getByRole']>) {
 }
 /** Four events in one group: one Done, one timed and one heats event running (Heat 1 saved, Heat 2 checking in), one not started. The running timed race has a wrong time, so To check has an item for it. */
 async function events(page:Page,name:string,prefix:string) {
-  const add=async(code:string,section:string,format:'heats'|'timed')=>page.request.post('/api/day/events',{headers:headers(),data:{code,name,section,format}});
+  const add=async(code:string,section:string,format:'heats'|'timed')=>page.request.post('/api/day/events',{headers:headers(),data:{code,name,section,format,type:'races'}});
   await add(`${prefix}D`,'Girl Cubs','timed');await add(`${prefix}R`,'Boy Cubs','timed');await add(`${prefix}H`,'Girl Scouts','heats');await add(`${prefix}N`,'Boy Scouts','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const token=process.env.E2E_OWNER_TOKEN!;
@@ -26,9 +26,9 @@ const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) aw
 test('Results shows each event as a card coloured by its state, with a legend and no to-check counts',async({page},info)=>{
   const name=`Cards ${info.project.name}`,prefix=`RC${info.project.name.slice(0,1).toUpperCase()}`,races=await events(page,name,prefix);
   try {
-    await page.goto('/');await createProfile(page,`Cards lead ${info.project.name}`);await becomeLead(page);
+    await page.goto('/');await join(page,`Cards lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);
     expect((await(await page.request.get('/api/lead',{headers:headers()})).json()).needsYou.some((item:any)=>item.event.code===`${prefix}R`)).toBe(true);
-    await openDashboard(page,'Results');
+    await openLeadMenu(page,'Results');
     const legend=page.getByRole('list',{name:'Card colours'});
     for(const label of ['Done','Running','Not started']) await expect(legend.getByText(label,{exact:true})).toBeVisible();
     const group=page.getByRole('region',{name});
@@ -55,13 +55,13 @@ test('Results shows each event as a card coloured by its state, with a legend an
     await expect(page.getByText('Running · 1 race',{exact:true})).toBeVisible();
     await expect(results).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
-    await page.getByRole('button',{name:'Open Race 1',exact:true}).click();
+    await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
     await expect(page.getByRole('button',{name:`Back to ${name} Boy Cubs`,exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:/^Back to event/})).toHaveCount(0);
     await back(page,`${name} Boy Cubs`);
-    await expect(page.getByRole('button',{name:'Open Race 1',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
     await back(page,'Results');
     await expect(legend).toBeVisible();
-    await expect(page.getByRole('button',{name:'Back to Dashboard',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
   } finally {await cleanUp(page,races);}
 });

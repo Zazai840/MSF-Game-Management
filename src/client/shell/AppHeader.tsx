@@ -7,10 +7,10 @@ export function initials(name:string) {
   const first=[...words[0]][0]||'',last=words.length>1?[...words[words.length-1]][0]||'':'';
   return (first+last).toLocaleUpperCase();
 }
-interface TestBuild { commit:string; reportUrl:string }
+export interface TestBuild { commit:string; reportUrl:string }
 let testBuildRead:Promise<TestBuild|undefined>|undefined;
 /** The health read says whether this deployment is a test build; it is read once per page load. */
-function useTestBuild() {
+export function useTestBuild() {
   const [testBuild,setTestBuild]=useState<TestBuild>();
   useEffect(()=>{
     let live=true;
@@ -20,7 +20,7 @@ function useTestBuild() {
   },[]);
   return testBuild;
 }
-function reportLink({reportUrl,commit}:TestBuild,screen:string) {
+export function reportLink({reportUrl,commit}:TestBuild,screen:string) {
   const url=new URL(reportUrl);
   url.searchParams.set('commit',commit);url.searchParams.set('screen',screen);
   return url.href;

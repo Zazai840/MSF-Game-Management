@@ -4,6 +4,7 @@ import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import type { EventResultsRead } from '../src/shared/lead-results.js';
 import type { HomeSnapshot } from '../src/shared/race-screen.js';
+import { groupDone,type RaceFlowRead,type RaceGroup } from '../src/shared/race-flow.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
 import { relaySetup } from './support/relays.js';
@@ -20,6 +21,15 @@ async function start() {
   await setup.record(volunteer,'R4',[2011,2012,2013],[935,980,1060]);
   const results=async()=>(await call(lead,'/api/lead/events/R4/results')).json() as EventResultsRead;
   return {owner:people.owner.token as string,lead,volunteer,setup,results};
+}
+/** R4's event group as the races list shows it now. */
+const group=async(token:string)=>((await call(token,'/api/races')).json().groups as RaceGroup[]).find(item=>item.event.code==='R4')!;
+/** A Here / Absent list on the final, at the version the phone sees now: these final entries Absent, everyone else Here. */
+async function absent(token:string,id:string,which:(entries:NonNullable<RaceFlowRead['race']['final']>['entries'])=>string[]=()=>[]) {
+  const {race}=(await call(token,`/api/races/${id}`)).json() as RaceFlowRead;
+  const response=await call(token,`/api/races/${id}/absent`,{raceId:id,version:race.parts.runners.version,absent:which(race.final!.entries)});
+  expect(response.statusCode,response.body).toBe(200);
+  return response.json() as RaceFlowRead;
 }
 test('a lead awards medals from heat times with a comment, after settling a qualifying tie that now decides 3rd',async()=>{
   const {owner,lead,results}=await start();
@@ -62,21 +72,18 @@ test('only a lead may choose it, and never on a timed event',async()=>{
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(409);
 });
 test('once decided without a final the event is done for volunteers: Home shows it done, no further heat is offered and its heats need a lead',async()=>{
-  const {lead,volunteer,setup,results}=await start();
+  const {lead,volunteer,results}=await start();
   const heat=(await results()).results.leaderboard[0].raceId;
   await call(lead,'/api/lead/events/R4/settle-tie',{tieId:(await results()).results.noFinalTies[0].id,stage:'no-final',outcome:'no-run-off'});
   expect((await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   // Any teams write answers Home as it then stands.
   const home=(await call(volunteer,'/api/teams/R19/hold',{})).json() as HomeSnapshot;
   expect(home.events.find(event=>event.code==='R4')).toMatchObject({done:true});
-  // Nobody is left holding a job on it, as building a final clears them.
-  const screen=await setup.screen(volunteer,'R4');
-  expect(screen).toMatchObject({stageComplete:true,decidedWithoutFinal:true});
-  expect(screen.holds).toEqual({});
-  for(const [what,body] of [['hold',{job:'check-in'}],['check-in',{raceId:null,version:0,runners:[{wristband:2021}]}],['times',{raceId:heat,version:1,places:[900,980,1040],keptWrong:[]}]] as const) {
-    const response=await call(volunteer,`/api/race-screen/R4/${what}`,body);
-    expect(response.json()).toEqual({message:'Stage complete - ask a lead'});
-  }
+  const races=await group(volunteer);
+  expect(groupDone(races)).toBe(true);
+  expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'heat',number:races.nextHeat})).json()).toEqual({message:'Stage complete - ask a lead'});
+  expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'final'})).statusCode).toBe(409);
+  expect((await call(volunteer,`/api/races/${heat}/times`,{raceId:heat,version:1,places:[900,980,1040],keptWrong:[]})).json()).toEqual({message:'Stage complete - ask a lead'});
   expect((await call(lead,`/api/lead/races/${heat}/times`,{baseVersion:1,places:[920,980,1041]})).statusCode).toBe(200);
 });
 test('the day export has the podium from heat times and no Finals rows for an event decided without a final',async()=>{
@@ -139,19 +146,18 @@ async function finalBuilt() {
   await call(lead,'/api/lead/events/R4/settle-tie',{tieId:(await results()).results.noFinalTies[0].id,stage:'no-final',outcome:'no-run-off'});
   return {...started,final:(await results()).results.finalResults!.raceId};
 }
-test('after Heats complete, Results without a final discards the unrun final and its holds, and Reopen results then Heats complete builds Final 1 afresh',async()=>{
+test('after Heats complete, Results without a final discards the unrun final, and Reopen results then Heats complete builds Final 1 afresh',async()=>{
   const {lead,volunteer,setup,results,final}=await finalBuilt();
   expect((await results()).results).toMatchObject({checkSheet:{stage:'final'},heatsCheckSheet:{completed:true},noFinalCheckSheet:{stage:'no-final',mustSettleFirst:[]}});
-  // Holding a job on the final does not start it.
-  await setup.write(volunteer,'R4','take-over',{job:'check-in'});
+  // Opening the final does not start it.
+  expect((await call(volunteer,`/api/races/${final}`)).statusCode).toBe(200);
   const done=await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'});
   expect(done.statusCode,done.body).toBe(200);
   expect(done.json().results).toMatchObject({status:'Complete',decidedWithoutFinal:true,finalResults:null,inputRunning:{first:2001,second:2011,third:2002}});
   expect((await call(lead,`/api/lead/races/${final}`)).statusCode).toBe(404);
   expect((await call(lead,'/api/lead/events/R4/deleted-races')).json()).toEqual([]);
-  const screen=await setup.screen(volunteer,'R4');
-  expect(screen).toMatchObject({stageComplete:true,decidedWithoutFinal:true});
-  expect(screen.holds).toEqual({});
+  expect(await group(volunteer)).toMatchObject({finalAvailable:false});
+  expect((await group(volunteer)).races.some(race=>race.kind==='final')).toBe(false);
   // Reopen results puts the event back to heats open, not heats complete.
   const reopened=await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Final fits after all'});
   expect(reopened.json().results).toMatchObject({status:'In progress - provisional',heatsCheckSheet:{completed:false},finalResults:null});
@@ -161,26 +167,24 @@ test('after Heats complete, Results without a final discards the unrun final and
   expect((await setup.screen(volunteer,'R4')).race).toMatchObject({kind:'final',number:1});
 });
 test('once a finalist is marked Absent then Here the option stays gone and the route refuses',async()=>{
-  const {lead,volunteer,setup,results}=await finalBuilt();
-  const held=(await setup.write(volunteer,'R4','take-over',{job:'check-in'})).race;
-  const away=await setup.write(volunteer,'R4','absent',{raceId:held.id,version:held.parts.runners.version,absent:held.final!.entries.filter(entry=>entry.wristband===2013).map(entry=>entry.finalEntryId)});
+  const {lead,volunteer,results,final}=await finalBuilt();
+  await absent(volunteer,final,entries=>entries.filter(entry=>entry.wristband===2013).map(entry=>entry.finalEntryId));
   expect((await results()).results.noFinalCheckSheet).toBeNull();
   expect((await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'})).json()).toEqual({message:'The final has started - medals come from the final'});
   // Returning the absent finalist must not make Results without a final available again.
-  await setup.write(volunteer,'R4','absent',{raceId:held.id,version:away.race.parts.runners.version,absent:[]});
+  await absent(volunteer,final);
   expect((await results()).results).toMatchObject({noFinalCheckSheet:null,finalResults:{started:true}});
   const refused=await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'});
   expect(refused.statusCode).toBe(409);
 });
 test('publishing every individual finalist Here starts the final and retains the marker through absence and restart',async()=>{
-  const {lead,volunteer,setup,results}=await finalBuilt();
-  const held=(await setup.write(volunteer,'R4','take-over',{job:'check-in'})).race;
+  const {lead,volunteer,results,final}=await finalBuilt();
   expect((await results()).results).toMatchObject({noFinalCheckSheet:{stage:'no-final'},finalResults:{started:false}});
-  const here=await setup.write(volunteer,'R4','absent',{raceId:held.id,version:held.parts.runners.version,absent:[]});
+  await absent(volunteer,final);
   expect((await results()).results).toMatchObject({noFinalCheckSheet:null,finalResults:{started:true,hasRun:false}});
-  const away=await setup.write(volunteer,'R4','absent',{raceId:held.id,version:here.race.parts.runners.version,absent:held.final!.entries.map(entry=>entry.finalEntryId)});
+  await absent(volunteer,final,entries=>entries.map(entry=>entry.finalEntryId));
   expect((await results()).results.finalResults!.entries.every(entry=>entry.wasHere && entry.absent)).toBe(true);
-  await setup.write(volunteer,'R4','absent',{raceId:held.id,version:away.race.parts.runners.version,absent:[]});
+  await absent(volunteer,final);
   await app.close();
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'no-final-owner'});
   const restarted=(await results()).results;
@@ -190,11 +194,10 @@ test('publishing every individual finalist Here starts the final and retains the
   expect(refused.statusCode).toBe(409);
   expect(refused.json()).toEqual({message:'The final has started - medals come from the final'});
 });
-test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, preserving the line-up, holds, audit notes and revision',async(kind)=>{
-  const {owner,lead,volunteer,setup,results}=await finalBuilt();
+test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, preserving the line-up, audit notes and revision',async(kind)=>{
+  const {owner,lead,volunteer,setup,results,final}=await finalBuilt();
   if(kind==='Here' || kind==='Absent') {
-    const held=(await setup.write(volunteer,'R4','take-over',{job:'check-in'})).race;
-    await setup.write(volunteer,'R4','absent',{raceId:held.id,version:held.parts.runners.version,absent:kind==='Absent'?held.final!.entries.map(entry=>entry.finalEntryId):[]});
+    await absent(volunteer,final,entries=>kind==='Absent'?entries.map(entry=>entry.finalEntryId):[]);
   } else {
     const runners=[2001,2011,2002,2012,2003,2013];
     await setup.order(volunteer,'R4',kind==='order'?runners:[],{didNotFinish:kind==='DNF'?runners:[]});

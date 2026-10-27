@@ -1,32 +1,36 @@
-import { ownEvent,openRaceScreen,recordRace,back,openDashboard,enterWristband,becomeLead,expect,createProfile,test,type Page,enterTime } from './fixtures.js';
+import {ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
-  await page.goto('/');await createProfile(page,name);
+  await page.goto('/');await join(page,name,{job:'Start line'});
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {
-  await signInAs(page,name,true);await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await signInAs(page,name,true);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
 }
 
-test('a phone checks in 8 runners on the race screen and carries them through the order, times, Submit Race and Results',async({page,openPhone},info)=>{
+test('a phone checks in 8 runners and carries them through each job in turn, the race saving itself, and Results',async({page,openPhone},info)=>{
   test.setTimeout(60000);
   const code=`E8-${info.project.name.slice(0,3).toUpperCase()}`,name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
   await ownEvent(page.request,code,name);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const {page:phone}=await openPhone(`Eight phone ${info.project.name}`);
-  await openRaceScreen(phone,name);await phone.getByRole('button',{name:/^Check-in Wristbands/}).click();
-  for(const number of numbers) await enterWristband(phone,number);
-  await expect(phone.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveCount(8);
-  await expect(phone.getByText('Heat 1 · 8 runners',{exact:true})).toBeVisible();
+  await phone.getByRole('button',{name:'New race',exact:true}).click();
+  const newRace=phone.getByRole('dialog',{name:'New race'});
+  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await newRace.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  const input=phone.getByLabel('Wristband number',{exact:true});
+  for(const number of numbers) {await expect(input).toBeEditable();await input.fill(String(number));await input.press('Enter');}
+  await expect(phone.getByRole('list',{name:'Wristbands entered'}).getByRole('button')).toHaveCount(8);
+  await expect(phone.locator('.rz-prompt__meta')).toHaveText('Heat 1 · 8 runners so far · more than usual');
   await phone.screenshot({path:info.outputPath('start-line-eight.png'),fullPage:true});
-  await phone.getByRole('button',{name:/^Order and Times/}).click();
-  await phone.getByRole('button',{name:'Do the order',exact:true}).click();await phone.getByRole('button',{name:'Do the times',exact:true}).click();
-  for(const number of numbers) await phone.getByRole('button',{name:String(number),exact:true}).click();
-  await expect(phone.getByText('Everyone has a place',{exact:true})).toBeVisible();
+  await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
+  await openRace(phone,name);await switchJob(phone,'Finish line');
+  for(const [index,number] of numbers.entries()) await phone.getByRole('button',{name:new RegExp(`^${number} came ${index+1}(st|nd|rd|th)$`)}).click();
+  await expect(phone.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
   await phone.screenshot({path:info.outputPath('finish-order-eight.png'),fullPage:true});
-  for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
-  await expect(phone.getByRole('table',{name:'Order and times'}).getByRole('row').last()).toHaveText(/^8th\s*2808\s*13\.05$/);
-  await phone.screenshot({path:info.outputPath('times-eight.png'),fullPage:true});
-  await phone.getByRole('button',{name:'Submit Race',exact:true}).click();await expect(phone.getByText('Heat 1 saved',{exact:true})).toBeVisible();
+  await phone.getByRole('button',{name:'Save positions',exact:true}).click();
+  await openRace(phone,name);await switchJob(phone,'Timer');
+  for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{level:2,name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
+  await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
   await openResults(page,code,`Eight lead ${info.project.name}`);
   const board=page.getByRole('list',{name:'Provisional leaderboard'});
   await expect(board.locator('.leaderboard-row')).toHaveCount(8);await expect(board.locator('.leaderboard-row.highlighted')).toHaveCount(8);await expect(board.locator('.result-mark')).toHaveCount(6);
@@ -37,20 +41,20 @@ test('a phone checks in 8 runners on the race screen and carries them through th
 test('a lead adds a 7th runner to a saved final and the final is recorded end to end',async({page,openPhone},info)=>{
   test.setTimeout(60000);
   const code=`F7-${info.project.name.slice(0,3).toUpperCase()}`,name=`Seven ${info.project.name}`;
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats',type:'races'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
-  // The final of six runs on the race screen; the phone holds check-in and the order, so its one press saves it.
-  const {page:phone}=await openPhone(`Seven phone ${info.project.name}`);await openRaceScreen(phone,name,'Boy Cubs');
-  await expect(phone.getByText('Final · 6 runners',{exact:true})).toBeVisible();
-  await phone.getByRole('button',{name:/^Check-in Wristbands/}).click();
-  await expect(phone.getByRole('button',{name:/ Here$/,pressed:true})).toHaveCount(6);
-  await phone.getByRole('button',{name:/^Finishing order/}).click();
-  for(const number of [1801,1807,1802,1803,1804,1805]) await phone.getByRole('button',{name:String(number),exact:true}).click();
-  await expect(phone.getByText('Everyone has a place',{exact:true})).toBeVisible();
-  await phone.getByRole('button',{name:'Submit Race',exact:true}).click();await expect(phone.getByText('Final saved',{exact:true})).toBeVisible();
+  // The final of six runs in the race flow: everyone here at the start line, then the finishing order, and it saves itself.
+  const {page:phone}=await openPhone(`Seven phone ${info.project.name}`);await openRace(phone,name,'Boy Cubs','Final');
+  await expect(phone.locator('.rz-prompt__meta')).toHaveText('Final · 6 of 6 here');
+  await expect(phone.getByRole('button',{name:/: Here\. Mark absent$/})).toHaveCount(6);
+  await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
+  await openRace(phone,name,'Boy Cubs','Final');await switchJob(phone,'Finish line');
+  for(const [number,place] of [[1801,'1st'],[1807,'2nd'],[1802,'3rd'],[1803,'4th'],[1804,'5th'],[1805,'6th']] as const) await phone.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
+  await phone.getByRole('button',{name:'Save positions',exact:true}).click();
+  await expect(phone.locator('.rz-toast')).toContainText('Positions saved · Boy Cubs Final');
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
   await openResults(page,code,`Seven lead ${info.project.name}`);
   await page.getByRole('button',{name:'Open final',exact:true}).click();await page.getByRole('button',{name:'Correct runner list',exact:true}).click();

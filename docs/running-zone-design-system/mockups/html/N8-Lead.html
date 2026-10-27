@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8 · Race as Zone lead</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@1,62.5..100,600..900&amp;family=Nunito:wght@600;700;800&amp;display=swap">
+<link rel="stylesheet" href="../../tokens.css">
+<link rel="stylesheet" href="../../components/bundle.css">
+<style>body{margin:0;background:#d9d2c3;display:flex;justify-content:center}</style>
+</head>
+<body>
+<div class="rz-screen rz-zone-running" style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden">
+  <header class="rz-appbar rz-appbar--compact" style="padding: 8px 6px 8px 6px">
+    <svg class="rz-pattern" aria-hidden="true"><defs><pattern id="n8-star" width="44" height="44" patternUnits="userSpaceOnUse"><g><rect x="12" y="12" width="20" height="20"></rect><rect x="12" y="12" width="20" height="20" transform="rotate(45 22 22)"></rect><path d="M0 22H8M36 22H44M22 0V8M22 36V44"></path></g></pattern></defs><rect width="100%" height="100%" fill="url(#n8-star)"></rect></svg>
+    <div style="display: flex; align-items: center; gap: 2px; min-width: 0">
+      <a class="rz-backlink" href="N2-Races.html" aria-label="Back to races" style="padding: 0 6px"><svg class="rz-icon rz-icon--bold" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+      <h1 style="margin: 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; white-space: nowrap">60m · Girl Cubs</h1>
+    </div>
+    <div style="display: flex; align-items: center; gap: 2px">
+      <a href="N4-Role.html" aria-label="Your job: Zone lead. Change job" style="min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 12px; border-radius: 999px; background: var(--jumping); color: var(--navy); font-size: 14px; font-weight: 800; text-decoration: none; white-space: nowrap"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; stroke-width: 2.4"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Lead<svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; stroke-width: 2.8"><path d="M6 9l6 6 6-6"></path></svg></a>
+      <button type="button" aria-label="Race actions: re-run, delete, settle a tie" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: none; color: var(--on-navy)"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 3.6"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+    </div>
+  </header>
+
+  <nav aria-label="Heats" style="padding: 12px 20px 0">
+    <ol style="list-style: none; margin: 0; padding: 0; display: flex; gap: 8px">
+      <li><a href="#h1" aria-label="Heat 1, all done" style="min-width: 52px; height: 44px; padding: 0 8px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 2px; border-radius: 12px; background: var(--navy); color: var(--on-navy); text-decoration: none; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px">H1<svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; stroke-width: 3"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></a></li>
+      <li><a href="#h2" aria-label="Heat 2, all done" style="min-width: 52px; height: 44px; padding: 0 8px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 2px; border-radius: 12px; background: var(--navy); color: var(--on-navy); text-decoration: none; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px">H2<svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; stroke-width: 3"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></a></li>
+      <li><span aria-current="page" aria-label="Heat 3, this race, 1 thing to check" style="position: relative; min-width: 52px; height: 44px; padding: 0 8px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--gold); box-shadow: inset 0 0 0 2px var(--navy); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px">H3</span></li>
+      <li><a href="#h4" aria-label="Heat 4, in progress" style="min-width: 52px; height: 44px; padding: 0 8px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); text-decoration: none; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px">H4</a></li>
+      <li><a href="#h5" aria-label="Heat 5, checking in" style="min-width: 52px; height: 44px; padding: 0 8px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); text-decoration: none; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px">H5</a></li>
+      <li><a href="N3-NewRace.html" aria-label="Add heat 6" style="width: 44px; height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 2px dashed var(--line-strong); color: var(--navy)"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px; stroke-width: 2.6"><path d="M12 5v14M5 12h14"></path></svg></a></li>
+    </ol>
+  </nav>
+
+  <div role="tablist" aria-label="Heat 3 steps" style="margin: 12px 20px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+    <button role="tab" aria-selected="false" type="button" style="min-height: 52px; padding: 6px 10px; border: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left"><span style="display: flex; align-items: center; gap: 4px; font-size: 14px; line-height: 1.2; font-weight: 800">Runners<svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink)"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span style="font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted)">5 checked in</span></button>
+    <button role="tab" aria-selected="false" type="button" style="min-height: 52px; padding: 6px 10px; border: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left"><span style="display: flex; align-items: center; gap: 4px; font-size: 14px; line-height: 1.2; font-weight: 800">Positions<svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink)"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span style="font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted)">5 of 5</span></button>
+    <button role="tab" aria-selected="true" type="button" style="min-height: 52px; padding: 6px 10px; border: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; background: var(--navy); color: var(--on-navy); text-align: left"><span style="font-size: 14px; line-height: 1.2; font-weight: 800">Times</span><span style="display: flex; align-items: center; gap: 4px; font-size: 12px; line-height: 1.3; font-weight: 700; color: var(--gold)"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; stroke-width: 2.6"><path d="M12 3.5L2.5 20h19L12 3.5z"></path><path d="M12 10v4.5"></path><path d="M12 17.5v.01"></path></svg>1 to check</span></button>
+  </div>
+
+  <main role="tabpanel" aria-label="Times" style="flex: 1; padding: 16px 20px 0; display: flex; flex-direction: column; gap: 8px">
+    <p class="rz-prompt__meta" style="margin-bottom: 2px">Heat 3 · positions and times joined up</p>
+    <ol class="rz-list">
+      <li><button class="rz-listrow" type="button" aria-label="1st, 2033, 12.34. Edit" style="min-height: 52px"><span style="display: flex; align-items: center; gap: 12px"><span class="rz-slot__ord" style="width: 34px">1st</span><span class="rz-listrow__label" style="font-size: 18px">2033</span></span><span style="display: flex; align-items: center; gap: 10px"><span class="rz-slot__time">12.34</span><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"></path><path d="M14 7l3 3"></path></svg></span></button></li>
+      <li class="rz-callout" style="padding: 10px 12px 12px; gap: 10px">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+          <span style="display: flex; align-items: center; gap: 12px"><span class="rz-slot__ord" style="width: 34px">2nd</span><span class="rz-listrow__label" style="font-size: 18px">2031</span></span>
+          <span class="rz-slot__time">11.80</span>
+        </div>
+        <p class="rz-callout__msg" style="font-size: 14px"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M12 3.5L2.5 20h19L12 3.5z"></path><path d="M12 10v4.5"></path><path d="M12 17.5v.01"></path></svg><span>Faster than 1st (12.34). The timer kept it as typed.</span></p>
+        <div class="rz-callout__actions">
+          <button class="rz-btn rz-btn--primary" type="button" style="min-height: 44px">Fix time</button>
+          <button class="rz-btn" type="button" style="min-height: 44px">It's right</button>
+        </div>
+      </li>
+      <li><button class="rz-listrow" type="button" aria-label="3rd, 2035, 13.05. Edit" style="min-height: 52px"><span style="display: flex; align-items: center; gap: 12px"><span class="rz-slot__ord" style="width: 34px">3rd</span><span class="rz-listrow__label" style="font-size: 18px">2035</span></span><span style="display: flex; align-items: center; gap: 10px"><span class="rz-slot__time">13.05</span><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"></path><path d="M14 7l3 3"></path></svg></span></button></li>
+      <li><button class="rz-listrow" type="button" aria-label="4th, 2032, 13.55. Edit" style="min-height: 52px"><span style="display: flex; align-items: center; gap: 12px"><span class="rz-slot__ord" style="width: 34px">4th</span><span class="rz-listrow__label" style="font-size: 18px">2032</span></span><span style="display: flex; align-items: center; gap: 10px"><span class="rz-slot__time">13.55</span><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"></path><path d="M14 7l3 3"></path></svg></span></button></li>
+      <li><button class="rz-listrow" type="button" aria-label="5th, 2034, no time yet. Add time" style="min-height: 52px"><span style="display: flex; align-items: center; gap: 12px"><span class="rz-slot__ord" style="width: 34px">5th</span><span class="rz-listrow__label" style="font-size: 18px">2034</span></span><span style="display: flex; align-items: center; gap: 10px"><span style="font-size: 14px; font-weight: 700; color: var(--ink-muted)">No time yet</span><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"></path><path d="M14 7l3 3"></path></svg></span></button></li>
+    </ol>
+  </main>
+
+  <footer class="rz-footer">
+    <p class="rz-refresh" aria-live="polite">Updated at 11:42:05 AM <button class="rz-btn rz-btn--small" type="button">Refresh</button></p>
+  </footer>
+</div>
+</body>
+</html>

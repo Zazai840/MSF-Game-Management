@@ -1,16 +1,21 @@
-import { openDashboard,becomeLead,expect,createProfile,test,back } from './fixtures.js';
+import {openLeadMenu,expect,join,test,back} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 test('a lead edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
   const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R4').name as string;
   try {
     await page.goto('/');
-    await createProfile(page,`Day ${info.project.name}`);
-    await becomeLead(page,'wrong-lead-fixture');
-    await expect(page.getByRole('alert')).toHaveText('Wrong lead code');
-    await page.getByLabel('Lead code or owner password').fill('e2e-owner-fixture');
-    await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-    await openDashboard(page,'Day setup');
+    await join(page,`Day ${info.project.name}`,{job:'Start line'});
+    // A wrong code is refused in the job sheet; the owner password makes the phone a lead.
+    await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
+    await page.getByRole('radio',{name:/^Zone lead/}).click();
+    await page.getByLabel('Lead code',{exact:true}).fill('wrong-lead-fixture');
+    await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+    await expect(page.getByRole('dialog',{name:'Your job'}).getByRole('alert')).toHaveText('Wrong lead code');
+    await page.getByLabel('Lead code',{exact:true}).fill('e2e-owner-fixture');
+    await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
+    await openLeadMenu(page,'Day setup');
     await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
     await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
@@ -24,6 +29,7 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await page.getByLabel('New event name',{exact:true}).fill('Extra sprint');
     await page.getByLabel('New event section',{exact:true}).selectOption('Girl Cubs');
     await page.getByLabel('New event format',{exact:true}).selectOption('timed');
+    await page.getByLabel('New event type',{exact:true}).selectOption('races');
     await page.getByRole('button',{name:'Add event',exact:true}).click();
     const event = page.getByRole('article',{name:`${code} · Girl Cubs`});
     await expect(event).toContainText('Extra sprint');
@@ -35,7 +41,7 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await back(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
     await page.reload();
-    await openDashboard(page,'Day setup');
+    await openLeadMenu(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();

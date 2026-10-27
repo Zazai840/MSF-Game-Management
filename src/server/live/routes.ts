@@ -1,7 +1,10 @@
 import type { FastifyInstance,FastifyReply } from 'fastify';
 import type pg from 'pg';
 import { actions,Refusal,signedOut } from '../access/permissions.js';
+import type { Phone } from '../../shared/domain.js';
 import type { HomeSnapshot } from '../../shared/race-screen.js';
+import type { RacesRead } from '../../shared/race-flow.js';
+import { raceFlowRead,racesRead } from '../races/race-flow.js';
 import { homeRead,raceScreenRead } from '../races/race-screen.js';
 import { resultsSnapshot } from '../results/read.js';
 import { changesSoFar,onDayChange } from './changes.js';
@@ -52,19 +55,34 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
       return raceScreenRead(db,phone.dayId,code);
     }));
   });
-  // Home is the same for every phone of the day, so its streams share one read per change: the read begun since the latest change.
-  const homeReads=new Map<string,{at:number;read:Promise<HomeSnapshot>}>();
-  function sharedHomeRead(dayId:string) {
-    const at=changesSoFar();let held=homeReads.get(dayId);
-    if(held?.at!==at) {
-      const read=resultsSnapshot(pool,dayId,db=>homeRead(db,dayId));
-      homeReads.set(dayId,held={at,read});
-      read.catch(()=>{if(homeReads.get(dayId)?.read===read) homeReads.delete(dayId);});
-    }
-    return held.read;
+  // Home and the races list are the same for every phone of the day, so their streams share one read per change: the read begun since the latest change.
+  function sharedReads<T>(readDay:(db:pg.PoolClient,dayId:string)=>Promise<T>) {
+    const reads=new Map<string,{at:number;read:Promise<T>}>();
+    return (dayId:string)=>{
+      const at=changesSoFar();let held=reads.get(dayId);
+      if(held?.at!==at) {
+        const read=resultsSnapshot(pool,dayId,db=>readDay(db,dayId));
+        reads.set(dayId,held={at,read});
+        read.catch(()=>{if(reads.get(dayId)?.read===read) reads.delete(dayId);});
+      }
+      return held.read;
+    };
   }
+  const sharedHomeRead=sharedReads<HomeSnapshot>(homeRead),sharedRacesRead=sharedReads<RacesRead>(racesRead);
+  const signedIn=async(phone:Phone)=>{if(!(await pool.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();};
   action('GET','/api/live/home','Volunteer',(_request,reply,phone)=>stream(reply,phone.dayId,async()=>{
-    if(!(await pool.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();
+    await signedIn(phone);
     return sharedHomeRead(phone.dayId);
   }));
+  action('GET','/api/live/races','Volunteer',(_request,reply,phone)=>stream(reply,phone.dayId,async()=>{
+    await signedIn(phone);
+    return sharedRacesRead(phone.dayId);
+  }));
+  action('GET','/api/live/races/:raceId','Volunteer',(request,reply,phone)=>{
+    const raceId=(request.params as {raceId:string}).raceId;
+    return stream(reply,phone.dayId,()=>resultsSnapshot(pool,phone.dayId,async db=>{
+      if(!(await db.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();
+      return raceFlowRead(db,phone.dayId,raceId);
+    }));
+  });
 }

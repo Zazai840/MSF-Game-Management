@@ -23,8 +23,12 @@ export async function currentRaces(db:Database,dayId:string,events:readonly DayE
     return [event.id,{id:null,kind,number:last+1,state:'in progress',parts:emptyParts}];
   }));
 }
-/** Re-run and Restore make a race the event's current race, so they wait while its current race has check-ins. */
+/**
+ * On a relay, Re-run and Restore make a race the relay's current race, so they wait while its current race has
+ * check-ins. An individual event has no current race (ADR 0003): its races run side by side, so they never wait.
+ */
 export async function requireCurrentUnstarted(db:Database,dayId:string,event:DayEvent,command:'re-run'|'restore') {
+  if(!event.relay) return;
   const race=(await currentRaces(db,dayId,[event])).get(event.id)!;
   if(race.state!=='saved' && race.parts.runners.value?.length) throw new Refusal(409,`${currentRaceLabel(race)} is in progress - ${command} after it's saved`);
 }

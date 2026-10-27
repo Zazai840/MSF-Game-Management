@@ -1,4 +1,4 @@
-import { expect,leaveTeamOpen,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
+import {openRelays,expect,leaveTeamOpen,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
 
 /** A relay's card on the Teams screen, by its distance heading and Section. */
 const card=(page:Page,name:string,section:string)=>page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${section}`)});
@@ -52,9 +52,9 @@ test('a team typed on one phone reaches the others on Done; Cancel leaves nothin
   await card(priyaPhone,name,'Girl Cubs').click();
   const box=(team:string,leg:string)=>samPhone.getByLabel(`${team} ${leg} leg`,{exact:true});
   const add=samPhone.getByRole('button',{name:'+ Add team',exact:true}),done=samPhone.getByRole('button',{name:'Done',exact:true});
-  // Cancel on a new team leaves no team behind.
+  // Cancel on a new team leaves no team behind, even with a number whose warning shows as its box is left.
   await add.click();
-  await box('New team','1st').fill(n(2101));
+  await box('New team','1st').fill('3045');
   await samPhone.getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(box('New team','1st')).toHaveCount(0);
   await expect(samPhone.getByRole('region',{name,exact:true}).locator('.team-row')).toHaveCount(0);
@@ -102,10 +102,11 @@ test('the Teams button on Home\'s Relays tab counts every team and those not com
   const project=info.project.name,code=`TB-${project.toUpperCase()}`;
   await ownRelay(code,`Teams badge ${project}`,'Boy Scouts');
   const {page}=await openPhone(`Teams badge ${project}`),writer=await openPhone(`Teams badge writer ${project}`);
-  await page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(page);
   const teams=page.getByRole('button',{name:/^Teams Type each relay's teams at the prep area/});
   await expect(teams).toBeVisible();
-  // The test day is shared, so other tests' teams count too: read the badge first.
+  // The test day is shared, so other tests' teams count too: read the badge first, once the list has come in.
+  await expect(page.getByRole('region',{name:`Teams badge ${project}`,exact:true})).toBeVisible();
   const badge=teams.locator('.badge'),before=(await badge.count())?await badge.innerText():'';
   const [count,short]=[Number(before.match(/^(\d+) team/)?.[1]||0),Number(before.match(/(\d+) not complete/)?.[1]||0)];
   // Another project's badge test may hold the same children: keep any warning.
@@ -117,13 +118,13 @@ test('the Teams button on Home\'s Relays tab counts every team and those not com
   // The Teams screen's back arrow returns to the Relays tab.
   await teams.click();
   await expect(page.getByRole('heading',{level:1,name:'Teams',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Back to Home',exact:true}).click();
-  await expect(page.getByRole('tab',{name:'Relays',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'Event type'}).getByRole('button',{name:/^Relays/})).toHaveAttribute('aria-current','page');
 });
 
 /** From Home: the Relays tab, then the relay's tile, and waits for its race screen. */
 async function openRelay(page:Page,name:string,section:string) {
-  await page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(page);
   await openRaceScreen(page,name,section);
 }
 /** The Check-in Teams card's body on a race screen, opened. */
@@ -141,7 +142,7 @@ test('two phones check in one relay heat at once: ticks and here marks from both
   await writeTeam(request,sam.token,code,[n(2101),n(2134),n(2187),n(2150)],{keptWarnings:[n(2101),n(2134),n(2187),n(2150)]});
   await writeTeam(request,sam.token,code,[n(2201),n(2202),null,n(2204)],{keptWarnings:[n(2201),n(2202),n(2204)]});
   // Jo watches Home: the tile counts the teams to run, then the teams ticked, live.
-  await jo.page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(jo.page);
   const tile=jo.page.getByRole('region',{name,exact:true}).getByRole('button');
   await expect(tile).toHaveText('Girl CubsHeat 1 · 2 teams to run');
   for(const phone of [sam,priya]) {await openRelay(phone.page,name,'Girl Cubs');await openCheckIn(phone.page);}
@@ -335,7 +336,7 @@ test('a relay heat on three phones: check-in on one, the order by 4th-leg button
   const n=(offset:number)=>2900+at*20+offset,team=(legs:Array<number|null>)=>writeTeam(request,sam.token,code,legs,{keptWarnings:legs.filter((leg):leg is number=>leg!==null)});
   await team([n(1),n(2),n(3),n(4)]);await team([n(5),n(6),n(7),null]);await team([n(8),n(9),n(10),n(11)]);
   // Ali watches Home: the relay's tile follows the heat live.
-  await ali.page.getByRole('tab',{name:'Relays',exact:true}).click();
+  await openRelays(ali.page);
   const tile=ali.page.getByRole('region',{name,exact:true}).getByRole('button');
   await expect(tile).toHaveText('Girl CubsHeat 1 · 3 teams to run');
   // Sam checks Teams 1 and 2 in.

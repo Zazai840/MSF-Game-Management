@@ -1,15 +1,15 @@
-import { writeFile } from 'node:fs/promises';
+import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import { recordRace,openDashboard,becomeLead,dragTo,expect,createProfile,test,back } from './fixtures.js';
+import {recordRace,openLeadMenu,becomeLead,dragTo,expect,join,test} from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=`T31${info.project.name.toUpperCase()}`;
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie event ${info.project.name}`,section:'Girl Cubs',format:'timed'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie event ${info.project.name}`,section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const createRace=(number:number,time:number)=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[number],[time]);
   await createRace(2701,1000);await createRace(2702,1000);
-  await page.goto('/');await createProfile(page,`Tie lead ${info.project.name}`);
-  await becomeLead(page);await openDashboard(page,'Results');
+  await page.goto('/');await join(page,`Tie lead ${info.project.name}`,{job:'Start line'});
+  await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();
@@ -48,26 +48,23 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
   test.setTimeout(60000);
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=`TE-${info.project.name.slice(0,3).toUpperCase()}`;
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie heats ${info.project.name}`,section:'Girl Cubs',format:'heats'}})).ok()).toBe(true);
+  expect((await page.request.post('/api/day/events',{headers,data:{code,name:`Tie heats ${info.project.name}`,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:string[]=[];
   const heat=async(runners:number[],places:number[])=>{races.push((await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places)).id);};
   // 2731 and 2735 share a time in Heat 1; 2733 has the same time in Heat 2.
   await heat([2731,2735,2736],[1000,1000,1200]);await heat([2733,2734],[1000,1100]);
   try {
-    await page.goto('/');await createProfile(page,`Tie heats lead ${info.project.name}`);await becomeLead(page);
-    await openDashboard(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+    await page.goto('/');await join(page,`Tie heats lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);
+    await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {
       await expect(board.getByRole('button',{name:`TIE at 10.00 for ${wristband}`,exact:true})).toBeVisible();
       await expect(board.getByRole('button',{name:new RegExp(`^Runner ${wristband} · Heat`)})).toHaveClass(/highlighted/);
     }
     await page.screenshot({path:info.outputPath('tie-leaderboard.png'),fullPage:true});
-    await back(page,'Dashboard');
-    const item=page.getByRole('list',{name:'To check'}).getByRole('button',{name:new RegExp(code)}).filter({hasText:'Runners tied on time'});
-    await expect(item).toHaveCount(1);await expect(item).toContainText('10.00');
-    await item.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('tie-to-check.png'),fullPage:true});
-    await item.click();
+    // The tie opens from its TIE tag on the leaderboard.
+    await board.getByRole('button',{name:'TIE at 10.00 for 2731',exact:true}).click();
     const sheet=page.getByRole('dialog',{name:'Tie at 10.00',exact:true});await expect(sheet).toBeVisible();
     await sheet.getByRole('button',{name:'Run-off held',exact:true}).click();
     const order=sheet.getByRole('list',{name:'Tie order'}),rows=order.getByRole('listitem');

@@ -29,8 +29,8 @@ export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
     return changeDay(pool,phone,async(client,dayId)=>{
       const existing = await client.query('SELECT 1 FROM events WHERE day_id=$1 AND code=$2',[dayId,body.code]);
       if (existing.rowCount) throw new Refusal(409,`An event already uses ${body.code}`);
-      await client.query(`INSERT INTO events(id,day_id,code,name,section,format,programme_order)
-        VALUES($1,$2,$3,$4,$5,$6,(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=$2))`,[randomUUID(),dayId,body.code,body.name,body.section,body.format]);
+      await client.query(`INSERT INTO events(id,day_id,code,name,section,format,type,programme_order)
+        VALUES($1,$2,$3,$4,$5,$6,$7,(SELECT COALESCE(MAX(programme_order),-1)+1 FROM events WHERE day_id=$2))`,[randomUUID(),dayId,body.code,body.name,body.section,body.format,body.type]);
     });
   });
   action('POST','/api/day/events/:code/enabled','Lead',async(request,_reply,phone)=>{

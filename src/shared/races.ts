@@ -40,7 +40,8 @@ export interface RaceRead {
   replacedBy?:string|null; recording:RaceRecording;
   parts:{runners:RacePart<RaceEntry[]>; finish:RacePart<FinishingOrder>; times:RacePart<RaceTimes>}
 }
-export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='heat'?'Heat':race.kind==='final'?'Final':'Race'} ${race.number}`;
+/** Every run of every event type is a Heat (race-flow.md decision 1), the final a Final. */
+export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='final'?'Final':'Heat'} ${race.number}`;
 export const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
 /** How a lead sees a race deleted by a re-run: it can never be restored, so it names its replacement instead. */
 export const replacedByRerun=(race:Pick<RaceRead,'deleted'|'deleteReason'|'replacedBy'>)=>race.deleted && race.deleteReason==='re-run'?(race.replacedBy?`Replaced by ${race.replacedBy} (re-run)`:'Replaced by a re-run'):null;

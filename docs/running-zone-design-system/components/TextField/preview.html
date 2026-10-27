@@ -1,0 +1,31 @@
+<!-- @dsCard group="Entry" height=465 subtitle="Numeric (wristband, time), warning, text" -->
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>TextField — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@1,62.5..100,600..900&amp;family=Nunito:wght@600;700;800&amp;display=swap">
+</head>
+<body class="rz-preview">
+<div class="rz-stage"><div class="rz-phone" style="display:flex;flex-direction:column;gap:18px"><div class="rz-field">
+  <label class="rz-field__label" for="wb">Wristband number</label>
+  <input class="rz-field__input" id="wb" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="e.g. 205">
+</div>
+
+<div class="rz-field">
+  <label class="rz-field__label" for="pt">Place time</label>
+  <input class="rz-field__input" id="pt" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="1234" aria-describedby="pt-hint">
+  <p class="rz-field__hint" id="pt-hint">Shows as <strong>12.34</strong></p>
+</div>
+
+<div class="rz-field rz-field--warn">
+  <label class="rz-field__label" for="wb2">Wristband number</label>
+  <input class="rz-field__input" id="wb2" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="3046" aria-describedby="wb2-warn" aria-invalid="true">
+</div>
+
+<div class="rz-field rz-field--text">
+  <label class="rz-field__label" for="name">Full name</label>
+  <input class="rz-field__input" id="name" autocomplete="name">
+</div></div></div>
+</body>
+</html>

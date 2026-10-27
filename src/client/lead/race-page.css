@@ -70,3 +70,7 @@
 .lead-order-others li {display:flex; align-items:center; gap:12px; min-height:52px; padding:0 8px 0 14px; border-radius:var(--radius); background:var(--tint);}
 .lead-order-others strong {font-size:18px; font-weight:800; font-variant-numeric:tabular-nums;}
 .lead-order-others span {flex:1; font-size:var(--text-small); font-weight:700; color:var(--muted);}
+/* The race flow's race actions: the lead race page over the race screen, in this older look. */
+.lead-race-overlay {position:fixed; inset:0; z-index:20; overflow-y:auto; background:var(--ground);}
+.lead-race-panel {max-width:48rem; margin:0 auto; padding:16px;}
+.lead-race-head {display:flex; align-items:center; justify-content:space-between; gap:12px;}

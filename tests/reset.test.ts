@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
+import { relaySetup } from './support/relays.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`},...(body===undefined?{}:{payload:body as object})});
 afterEach(async()=>{await app?.close();});
@@ -33,7 +34,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   const {owner,volunteer,lead,day,people}=await start();const before=(await call(owner,'/api/me')).json();
   const otherOwner=(await people.volunteer('Other owner')).token;
   await call(otherOwner,'/api/become-lead',{code:'reset-owner'});
-  await call(owner,'/api/day/events',{code:'EXTRA',name:'Extra',section:'Girl Cubs',format:'timed'});
+  await call(owner,'/api/day/events',{code:'EXTRA',name:'Extra',section:'Girl Cubs',format:'timed',type:'races'});
   await call(owner,'/api/day/events/R4/rename',{name:'Renamed'});await call(owner,'/api/day/events/R24/enabled',{enabled:false});await call(owner,'/api/day/confirm-events',{});
   const setup=raceSetup(app),record=(eventCode:string,number:number)=>setup.record(volunteer,eventCode,[number],[1000]);
   const first=await record('R7',101),second=await record('R7',102);
@@ -41,16 +42,19 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   expect((await call(lead,'/api/lead/events/R7/settle-tie',{tieId:tied.id,outcome:'no-run-off'})).statusCode).toBe(200);
   await call(lead,`/api/lead/races/${first.id}/runners/${first.parts.runners.value![0].id}/disqualify`,{reason:'Obstruction'});
   await record('R3',1001);const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);const finalId=complete.json().results.finalResults.raceId;
-  // A race left submitted, with holds and a Submit press: Start new day clears them all.
-  const running=await setup.checkIn(volunteer,'R4',[2001]);await setup.order(lead,'R4',[2001]);await setup.times(lead,'R4',[1000]);
-  expect((await setup.submit(lead,'R4')).pressed).toHaveLength(1);
+  // A race left in progress with a step done, and a relay with a team, a tick and a hold: Start new day clears them all.
+  const running=await setup.checkIn(volunteer,'R4',[2001]);await setup.order(lead,'R4',[2001]);
+  expect((await call(volunteer,`/api/races/${running.id}/steps/runners/done`,{})).statusCode).toBe(200);
+  const relays=relaySetup(app);await relays.team(volunteer,'R19',[101,102,103,104]);await relays.tick(volunteer,'R19',1);
+  expect((await relays.post<{holds:object}>(lead,'/api/race-screen/R19/hold',{job:'order'})).holds).toHaveProperty('order');
   await call(lead,`/api/lead/races/${second.id}/delete`,{permanent:false});
   expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
   const reset=await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'});expect(reset.statusCode).toBe(200);
   const me=(await call(owner,'/api/me')).json();expect(me).toMatchObject({id:before.id,name:'Owner',level:'Lead'});expect(me.dayId).not.toBe(before.dayId);
   const fresh=(await call(owner,'/api/day')).json();expect(fresh.leadCode).not.toBe(day.leadCode);expect(fresh.eventsConfirmed).toBe(false);expect(fresh.exportedAt).toBeNull();expect(fresh.exportedRevision).toBeNull();expect(fresh.events).toHaveLength(26);expect(fresh.events.every((event:any)=>event.enabled)).toBe(true);expect(fresh.events.find((event:any)=>event.code==='R4').name).toBe('60m');expect(fresh.events.some((event:any)=>event.code==='EXTRA')).toBe(false);
   expect((await call(owner,'/api/home')).json()).toMatchObject({needsYou:0});
-  expect(await setup.screen(owner,'R4')).toMatchObject({race:{id:null,number:1},holds:{},asked:[],pressed:[],lastSaved:null});
+  expect(await setup.screen(owner,'R4')).toMatchObject({race:{id:null,number:1}});
+  expect(await relays.screen(owner,'R19')).toMatchObject({race:{id:null,number:1},holds:{},asked:[],pressed:[],lastSaved:null,teams:[]});
   const phones=(await call(owner,'/api/day/phones')).json();expect(phones.phones).toMatchObject([{id:before.id,name:'Owner',level:'Lead'}]);expect(phones.auditNotes).toEqual([]);
   for(const token of [volunteer,lead,otherOwner]) expect((await call(token,'/api/home')).statusCode).toBe(401);
   for(const id of [first.id,second.id,running.id,finalId]) expect((await call(owner,`/api/lead/races/${id}`)).statusCode).toBe(404);
@@ -79,7 +83,7 @@ test('sign-ins, lead code rotations, recording and rulings each invalidate the r
     ()=>app.inject({method:'POST',url:'/api/profiles',payload:{pass:people.pass,name:'Signed in after export'}}),
     ()=>call(volunteer,'/api/become-lead',{code:day.leadCode}),
     ()=>call(owner,'/api/day/lead-code',{}),
-    ()=>call(volunteer,'/api/race-screen/R7/order',{raceId:race.id,version:0,order:[entry],didNotFinish:[],didNotRun:[],added:[]}),
+    ()=>call(volunteer,`/api/races/${race.id}/order`,{raceId:race.id,version:race.parts.finish.version,order:[entry],didNotFinish:[],didNotRun:[],added:[]}),
     ()=>call(owner,`/api/lead/races/${race.id}/runners/${entry}/disqualify`,{reason:'Obstruction'}),
     ()=>call(owner,`/api/lead/races/${race.id}/delete`,{permanent:false})
   ];

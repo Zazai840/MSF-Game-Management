@@ -17,12 +17,17 @@ test('every API response and every live snapshot carries the build id, so a phon
   expect((await app.inject({url:'/api/home',headers})).headers['x-build-id']).toBe(build);
   // Refusals too: an old phone's write to a path that no longer exists still learns the build.
   expect((await app.inject({method:'POST',url:'/api/no-such-write',headers})).headers['x-build-id']).toBe(build);
+  const race=(await app.inject({method:'POST',url:'/api/races',headers,payload:{eventCode:'R4',kind:'heat',number:1}})).json().race;
   const {port}=app.server.address() as AddressInfo;
-  const response=await fetch(`http://127.0.0.1:${port}/api/live/race-screen/R4`,{headers});
+  const response=await fetch(`http://127.0.0.1:${port}/api/live/races/${race.id}`,{headers});
   expect(response.headers.get('x-build-id')).toBe(build);
   const reader=response.body!.pipeThrough(new TextDecoderStream()).getReader();
   let text='';
-  while(!splitFrames(text).frames.length) text+=(await reader.read()).value;
-  expect(JSON.parse(frameData(splitFrames(text).frames[0])!)).toMatchObject({build,event:{code:'R4'}});
+  while(!splitFrames(text).frames.length) {
+    const {done,value}=await reader.read();
+    if(done) throw new Error(`The stream ended before its first snapshot: ${text}`);
+    text+=value;
+  }
+  expect(JSON.parse(frameData(splitFrames(text).frames[0])!)).toMatchObject({build,group:{event:{code:'R4'}}});
   await reader.cancel();
 });

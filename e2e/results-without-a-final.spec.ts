@@ -1,4 +1,4 @@
-import { back,expect,live,openDashboard,openRaceScreen,ownEvent,recordRace,test } from './fixtures.js';
+import {back,expect,live,openLeadMenu,openRace,ownEvent,recordRace,test} from './fixtures.js';
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWF-${project.toUpperCase()}`,name=`No final sprint ${project}`;
   await ownEvent(page.request,code,name);
@@ -8,7 +8,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(11),w(12),w(13)],[935,980,1060]);
   const lead=(await openPhone(`No final lead ${project}`,{lead:true})).page;
-  await openDashboard(lead,'Results');
+  await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // The tie for 3rd and 4th only decides qualifying for now: both qualify, so No run-off needed.
   await lead.getByRole('button',{name:`TIE at 9.80 for ${w(2)}`,exact:true}).click();
@@ -53,7 +53,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await back(lead,'Results');
   await expect(lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('Done · medals decided, no final');
 });
-test('once a lead decides without a final, a volunteer\'s Home shows the event done and its race screen offers no heat to work',async({page,openPhone},info)=>{
+test('once a lead decides without a final, a volunteer\'s Races shows the event done and its races offer no heat to work',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWV-${project.toUpperCase()}`,name=`No final done ${project}`;
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
@@ -62,19 +62,20 @@ test('once a lead decides without a final, a volunteer\'s Home shows the event d
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(8),w(9),w(10)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(18),w(19),w(4)],[935,990,1060]);
   const volunteer=(await openPhone(`No final volunteer ${project}`)).page;
-  const tile=volunteer.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} Girl Cubs · `)});
-  await expect(tile).toHaveText(/^Girl CubsHeat 3/);
+  const card=volunteer.getByRole('article',{name:`${name} · Girl Cubs`});
+  await expect(card.locator('.rz-racecard__status')).toHaveText('All 2 heats done · the final is ready to create');
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{stage:'no-final',comment:'Out of time'}})).ok()).toBe(true);
-  await expect(tile).toHaveText('Girl CubsDone',live);
-  await volunteer.screenshot({path:info.outputPath('a5-home-done.png'),fullPage:true});
-  await openRaceScreen(volunteer,name);
+  // Done: under Done on Races, with no next heat and no final to make.
+  await expect(volunteer.locator('details',{hasText:/^Done \(\d+\)/})).toBeVisible(live);
+  await volunteer.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
+  await expect(card.locator('.rz-racecard__status')).toHaveText('All 2 heats done');
+  await expect(card.getByRole('button',{name:/^Add heat|^Create the final/})).toHaveCount(0);
+  await volunteer.screenshot({path:info.outputPath('a5-races-done.png'),fullPage:true});
+  await openRace(volunteer,name,'Girl Cubs','H2');
   await expect(volunteer.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
-  // No further heat and no final: the screen names neither and offers no job to take.
-  await expect(volunteer.locator('.race-line')).toHaveText('Done · medals decided, no final');
-  await expect(volunteer.getByText(/Heat 3|Final/)).toHaveCount(0);
-  await expect(volunteer.getByRole('button',{name:/^Check-in Wristbands/})).toHaveCount(0);
-  await expect(volunteer.getByRole('button',{name:'Submit Race'})).toHaveCount(0);
-  await volunteer.screenshot({path:info.outputPath('a6-race-screen-done.png'),fullPage:true});
+  await expect(volunteer.getByLabel('Wristband number',{exact:true})).toHaveCount(0);
+  await expect(volunteer.getByRole('button',{name:/^Add heat|^Create the final/})).toHaveCount(0);
+  await volunteer.screenshot({path:info.outputPath('a6-race-done.png'),fullPage:true});
 });
 test('a lead reopens results with a comment: the medals clear, the heats open again and Heats complete builds a final',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RRO-${project.toUpperCase()}`,name=`Reopened sprint ${project}`;
@@ -85,7 +86,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(5),w(6),w(7)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(15),w(16),w(17)],[935,990,1060]);
   const lead=(await openPhone(`Reopen lead ${project}`,{lead:true})).page;
-  await openDashboard(lead,'Results');
+  await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
   const sheet=lead.getByRole('dialog',{name:'Results without a final',exact:true});
@@ -128,7 +129,7 @@ test('after Heats complete, a lead chooses Results without a final before the fi
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(11),w(12),w(13)],[935,990,1060]);
   const lead=(await openPhone(`Late no final lead ${project}`,{lead:true})).page;
-  await openDashboard(lead,'Results');
+  await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
   await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();

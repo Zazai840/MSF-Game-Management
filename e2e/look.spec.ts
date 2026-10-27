@@ -1,25 +1,26 @@
-import { lookProblems,back,dashboardMenuButton,deleteCurrentRace,enterWristband,markHere,openDashboard,openRaceScreen,openTeams,ownEvent,ownRelay,goHome,dashboardButton,expect,createProfile,test,tickTeam,writeTeam,type Page } from './fixtures.js';
+import { lookProblems,back,backToRaces,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page } from './fixtures.js';
 
-const navy='rgb(27, 42, 81)',red='rgb(172, 48, 54)';
+// The design system's navy and paper.
+const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
 
-async function joinAs(page:Page,name:string) {await page.goto('/');await createProfile(page,name);}
+async function joinAs(page:Page,name:string) {await page.goto('/');await join(page,name,{job:'Start line'});await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();}
 
-test('a navy header shows Running Zone and the signed-in person, in self-hosted Nunito',async({page},info)=>{
+test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'s initials, in self-hosted Nunito and Saira',async({page},info)=>{
   const outside:string[]=[];
   page.on('request',request=>{if(!request.url().startsWith(info.project.use.baseURL||'http://127.0.0.1')) outside.push(request.url());});
   const fonts:string[]=[];
   page.on('response',response=>{if(response.url().endsWith('.woff2')) fonts.push(response.url());});
   await joinAs(page,`Abdulaziz ${info.project.name} Zazai`);
   const header=page.getByRole('banner');
-  await expect(header.getByText('Running Zone',{exact:true})).toBeVisible();
-  await expect(header.getByText(`Abdulaziz ${info.project.name} Zazai`,{exact:true})).toBeVisible();
+  await expect(header).toContainText('MSF Olympics');await expect(header).toContainText('Running Zone');
   expect(await header.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(navy);
-  const avatar=header.locator('[aria-hidden=true]',{hasText:/^AZ$/});
-  await expect(avatar).toBeVisible();
-  expect(await avatar.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(red);
-  expect(await page.evaluate(()=>getComputedStyle(document.body).fontFamily)).toMatch(/^Nunito, system-ui/);
+  const avatar=header.getByRole('button',{name:`Abdulaziz ${info.project.name} Zazai, your details`,exact:true});
+  await expect(avatar).toHaveText('AZ');
+  expect(await avatar.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(paper);
+  expect(await page.locator('.rz-screen').evaluate(element=>getComputedStyle(element).fontFamily)).toMatch(/^Nunito, /);
   await page.evaluate(()=>document.fonts.ready);
   expect(await page.evaluate(()=>[500,600,700,800].every(weight=>document.fonts.check(`${weight} 16px Nunito`,'Running Zone')))).toBe(true);
+  expect(await page.evaluate(()=>document.fonts.check('italic 900 16px Saira','Running Zone'))).toBe(true);
   expect(await page.evaluate(()=>[...document.fonts].filter(font=>font.family.replace(/"/g,'')==='Nunito'&&font.status==='loaded').length)).toBeGreaterThan(0);
   expect(fonts.length).toBeGreaterThan(0);
   expect(outside).toEqual([]);
@@ -32,60 +33,54 @@ test('a navy header shows Running Zone and the signed-in person, in self-hosted 
 });
 
 test('volunteer and lead screens meet the touch, text size and contrast rules',async({page},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=`LK-${info.project.name.toUpperCase()}`,name=`Look sprint ${info.project.name}`;
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const code=`LK-${info.project.name.toUpperCase()}`,name=`Look sprint ${info.project.name}`;
   await ownEvent(page.request,code,name);
-  await joinAs(page,`Look lead ${info.project.name}`);
-  await expect(page.getByRole('heading',{level:1})).toBeVisible();
+  await writeCheckIn(page.request,process.env.E2E_OWNER_TOKEN!,code,[2091,2092]);
+  await page.goto('/');
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:"I'm a zone lead",exact:true}).click();
+  await join(page,`Look lead ${info.project.name}`,{job:'Start line'});
+  await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  // A faked refusal shows the error style without adding to the server's wrong-code backoff.
-  await page.route('**/api/become-lead',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Wrong lead code - ask a zone lead'})}),{times:1});
-  await page.getByLabel('Lead code or owner password').fill('wrong-fixture');
-  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-  await expect(page.getByRole('alert')).toHaveText('Wrong lead code - ask a zone lead');
-  expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('become-lead-error.png'),fullPage:true});
-  await page.getByLabel('Lead code or owner password').fill(process.env.E2E_LEAD_CODE!);
-  await page.locator('form').getByRole('button',{name:'Become lead',exact:true}).click();
-  await expect(dashboardButton(page)).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Which event are you at?'})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
-  // The race screen: check-in with its number pad, the order and times with this phone holding both, and the dock.
-  await openRaceScreen(page,name);
-  expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:/^Check-in Wristbands/}).click();
-  await enterWristband(page,2091);
+  // Each job's race screen.
+  await openRace(page,name);
   const wristband=page.getByLabel('Wristband number',{exact:true});
-  await wristband.fill('2092');
-  await expect(wristband).toHaveValue('2092');
+  await wristband.fill('2093');
   expect(await wristband.evaluate(element=>getComputedStyle(element).fontVariantNumeric)).toBe('tabular-nums');
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('check-in-entry.png'),fullPage:true});
-  await page.getByRole('button',{name:/^Order and Times/}).click();
-  await page.getByRole('button',{name:'Do the order',exact:true}).click();
-  await page.getByRole('button',{name:'Do the times',exact:true}).click();
-  await page.getByRole('button',{name:'2091',exact:true}).click();
-  await expect(page.getByLabel('Place time',{exact:true})).toBeVisible();
+  await switchJob(page,'Finish line');
+  await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('order-and-times.png'),fullPage:true});
-  await deleteCurrentRace(page.request,code);
-  await goHome(page);
-  await openDashboard(page);
+  await switchJob(page,'Timer');
+  await expect(page.getByRole('heading',{level:2,name:'1st place time?'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await dashboardMenuButton(page,'Results').click();
+  await page.screenshot({path:info.outputPath('timer.png'),fullPage:true});
+  // The job sheet, with a faked lead code refusal: the error style without adding to the server's wrong-code backoff.
+  await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
+  await page.getByRole('radio',{name:/^Zone lead/}).click();
+  await page.route('**/api/become-lead',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Wrong lead code - ask a zone lead'})}),{times:1});
+  await page.getByLabel('Lead code',{exact:true}).fill('wrong-fixture');
+  await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Your job'}).getByRole('alert')).toHaveText('Wrong lead code - ask a zone lead');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('lead-code-error.png'),fullPage:true});
+  await page.getByLabel('Lead code',{exact:true}).fill(process.env.E2E_LEAD_CODE!);
+  await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
+  // The lead's tabs, Races and Results.
+  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await backToRaces(page);
+  expect(await lookProblems(page)).toEqual([]);
+  await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-results.png'),fullPage:true});
-  await back(page,'Dashboard');
-  await expect(page.getByRole('heading',{level:2,name:/zone lead|Nothing to check/})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
+  await deleteCurrentRace(page.request,code);
 });
 
 test('Day setup, Phones and Events meet the touch, text size and contrast rules',async({page})=>{
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
-  await page.goto('/');await openDashboard(page,'Day setup');
+  await page.goto('/');await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('button',{name:/^Phones \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Phones /}).click();
@@ -115,11 +110,11 @@ test('the Teams screen and a relay race screen meet the touch, text size and con
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('teams-screen.png'),fullPage:true});
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Back to Home',exact:true}).click();
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   // The relay's race screen: Check-in Teams with both teams ticked, one short of four here, opened.
   for(const number of [1,2]) await tickTeam(request,token,code,number);
   await markHere(request,token,code,2,1);
-  await openRaceScreen(page,name,'Boy Scouts');
+  await openRelays(page);await openRaceScreen(page,name,'Boy Scouts');
   await page.getByRole('button',{name:/^Check-in Teams/}).click();
   await expect(page.getByText(/A team can run short/)).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);

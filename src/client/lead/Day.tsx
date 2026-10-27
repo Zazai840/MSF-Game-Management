@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { sections, type DayRead } from '../../shared/day.js';
+import { eventTypeNames, sections, type DayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import { useSubmit } from '../flow/useSubmit.js';
 import { clock } from '../../shared/clock.js';
@@ -48,7 +48,7 @@ function ChangePassword() {
   const change=()=>void submit(async()=>{await api('day/olympics-password',{password});phoneStorage.signOut();},()=>setConfirming(false));
   if(!open) return <button className="button-secondary button-small" onClick={()=>setOpen(true)}>Change Olympics password</button>;
   if(confirming) return <div className="day-confirm">
-    <p className="calm-note">Every phone, including yours, goes back to the password screen. Profiles stay on the phones.</p>
+    <p className="calm-note">Every phone, including yours, goes back to Join. Profiles stay on the phones.</p>
     <div className="day-actions"><button className="button-small" disabled={busy} onClick={change}>{busy?'Changing…':'Yes, change password'}</button>
       <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setConfirming(false)}>Keep the old password</button></div>
   </div>;
@@ -93,7 +93,7 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
   return <div className="day-setup">
     <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only leads can see it here."
       note="It stays the same when a new day starts."><ChangePassword/></CodeCard>
-    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. It opens the Dashboard."
+    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. Typed on Join or in Your job, it makes the phone a zone lead."
       note="Other leads go back to being volunteers. You and the owner keep access."
       make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
     <div className="day-rows">
@@ -132,14 +132,15 @@ export function Events({day,onChanged,onSaved}:{day:DayRead;onChanged:()=>Promis
   const [newName,setNewName] = useState('');
   const [section,setSection] = useState('');
   const [format,setFormat] = useState('');
+  const [type,setType] = useState('');
   async function rename(event:FormEvent) {
     event.preventDefault();
     if (editing && await run('list',`day/events/${encodeURIComponent(editing)}/rename`,{name})) setEditing(null);
   }
   async function add(event:FormEvent) {
     event.preventDefault();
-    if (await run('add','day/events',{code:newCode,name:newName,section,format})) {
-      setNewCode(''); setNewName(''); setSection(''); setFormat('');
+    if (await run('add','day/events',{code:newCode,name:newName,section,format,type})) {
+      setNewCode(''); setNewName(''); setSection(''); setFormat(''); setType('');
     }
   }
   return <div className="day-setup">
@@ -150,7 +151,7 @@ export function Events({day,onChanged,onSaved}:{day:DayRead;onChanged:()=>Promis
     </section>
     <div className="day-events">{day.events.map(event=><article key={event.id} className={event.enabled?'day-card':'day-card day-card-off'} aria-label={`${event.code} · ${event.section}`}>
       <h3>{event.code} · {event.name}</h3>
-      <p className="day-text">{event.section} · {event.format==='heats'?'Heats then final':'Timed'}{!event.enabled && ' · Switched off'}</p>
+      <p className="day-text">{event.section} · {eventTypeNames[event.type]} · {event.format==='heats'?'Heats then final':'Timed'}{!event.enabled && ' · Switched off'}</p>
       {editing===event.code ? <form onSubmit={rename}>
         <label>New name for {event.code}<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} required /></label>
         <div className="day-actions"><button className="button-small" disabled={busy}>Save name for {event.code}</button><button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
@@ -166,6 +167,7 @@ export function Events({day,onChanged,onSaved}:{day:DayRead;onChanged:()=>Promis
         <label>New event name<input value={newName} onChange={e=>setNewName(e.target.value)} maxLength={100} required /></label>
         <label>New event section<select aria-label="New event section" value={section} onChange={e=>setSection(e.target.value)} required><option value="">Choose section</option>{sections.map(value=><option key={value}>{value}</option>)}</select></label>
         <label>New event format<select aria-label="New event format" value={format} onChange={e=>setFormat(e.target.value)} required><option value="">Choose event format</option><option value="heats">Heats then final</option><option value="timed">Timed</option></select></label>
+        <label>New event type<select aria-label="New event type" value={type} onChange={e=>setType(e.target.value)} required><option value="">Choose Races or Hurdles</option><option value="races">Races</option><option value="hurdles">Hurdles</option></select></label>
         <button disabled={busy}>{busy?'Saving…':'Add event'}</button>
       </form>
       {failure('add','Add event')}

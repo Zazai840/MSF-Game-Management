@@ -133,7 +133,9 @@ export function TeamEdit({team,relay,relays,busy,bare=false,onCancel,onDone,onRe
         <div className="warning-actions"><button onClick={()=>fix(index)}>Fix number</button><button className="button-secondary" onClick={()=>setKept([...kept,number!])}>Keep</button></div></div>:null)}
     {removing?<div className="warning-box"><p>Remove {name}? Its number won't be used again.</p>
       <div className="warning-actions"><button disabled={busy} onClick={()=>onRemove!(version!)}>Remove</button><button className="button-secondary" onClick={()=>setRemoving(false)}>Cancel</button></div></div>
-    :<div className="edit-actions"><button className="button-secondary" onClick={onCancel}>Cancel</button>
+    :<div className="edit-actions">
+      {/* Pressing Cancel keeps focus in the box: leaving it would show the box's warning and move Cancel from under the tap. */}
+      <button className="button-secondary" onMouseDown={event=>event.preventDefault()} onClick={onCancel}>Cancel</button>
       <button disabled={!ready} onClick={()=>onDone({...(team?{teamId:team.id,version}:{}),legs,keptWarnings:kept.filter(number=>legs.includes(number))})}>Done</button></div>}
     {onRemove && !removing && <button className="button-quiet remove-team" onClick={()=>setRemoving(true)}>Remove team</button>}
   </div>;

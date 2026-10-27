@@ -54,19 +54,24 @@ test('a lead renames an event and the changed list needs confirmation again',asy
   expect(after.eventsConfirmed).toBe(false);
   expect(after.revision).toBeGreaterThan(before.revision);
 });
-test('a lead adds an event with its code, name, section and event format',async()=>{
+test('a lead adds an event with its code, name, section, event format and type',async()=>{
   const token = await start();
-  const event = {code:'R25',name:'Extra sprint',section:'Girl Cubs',format:'timed'};
-  const saved = await call(token,'/api/day/events',{...event,relay:true});
+  const event = {code:'R25',name:'Extra sprint',section:'Girl Cubs',format:'timed',type:'hurdles'};
+  const saved = await call(token,'/api/day/events',event);
   expect(saved.statusCode).toBe(200);
   const day = (await call(token,'/api/day')).json();
   expect(day.events).toHaveLength(27);
-  // A lead never adds a relay: the added event has no relay mark, whatever the request says.
+  // The type is stored, not read from the name: "Extra sprint" is on the Hurdles tab because the lead chose it.
   expect(day.events.at(-1)).toMatchObject({...event,enabled:true,relay:false});
+  expect(day.events.find((item:any)=>item.code==='R19')).toMatchObject({type:'relays',relay:true});
+  expect(day.events.find((item:any)=>item.code==='R7')).toMatchObject({type:'hurdles',relay:false});
 });
 test.each([
   [{code:'R25',name:'Sprint',section:'Girl Cubs',format:'relay'},'Choose heats then final or timed'],
   [{code:'R25',name:'Sprint',section:'Penguins',format:'timed'},'Choose one of the six sections'],
+  // A lead never adds a relay: it needs team lists, so only a new day's seeded relays are relays.
+  [{code:'R25',name:'Sprint',section:'Girl Cubs',format:'heats',type:'relays'},'Choose Races or Hurdles'],
+  [{code:'R25',name:'Sprint',section:'Girl Cubs',format:'heats'},'Choose Races or Hurdles'],
   [{code:'',name:'Sprint',section:'Girl Cubs',format:'timed'},'Enter an event code (letters, numbers or hyphens, up to 12 characters)'],
   [{code:25,name:'Sprint',section:'Girl Cubs',format:'timed'},'Enter an event code (letters, numbers or hyphens, up to 12 characters)'],
   [null,'Enter event details']
@@ -79,7 +84,7 @@ test.each([
 });
 test('an event code already in the programme is refused plainly',async()=>{
   const token = await start();
-  const response = await call(token,'/api/day/events',{code:' r4 ',name:'Sprint',section:'Girl Cubs',format:'timed'});
+  const response = await call(token,'/api/day/events',{code:' r4 ',name:'Sprint',section:'Girl Cubs',format:'timed',type:'races'});
   expect(response.statusCode).toBe(409);
   expect(response.json().message).toBe('An event already uses R4');
 });
@@ -102,7 +107,7 @@ test('a lead who is not the owner can use every Day setup action and a volunteer
     ['/api/day/confirm-events',{}],
     ['/api/day/events/R4/rename',{name:'Changed'}],
     ['/api/day/events/R4/enabled',{enabled:false}],
-    ['/api/day/events',{code:'R25',name:'Changed',section:'Girl Cubs',format:'timed'}]
+    ['/api/day/events',{code:'R25',name:'Changed',section:'Girl Cubs',format:'timed',type:'races'}]
   ] as const;
   for (const [url,payload] of actions) {
     const response = await call(volunteer.token,url,payload);
@@ -131,11 +136,11 @@ test('Become lead refuses a wrong code, never lowers the owner, and the owner pa
   expect(phones.auditNotes[0]).toMatchObject({actor:'Ahmed',action:'Made lead with owner password',message:'Made Ahmed a lead with the owner password'});
   expect((await call(token,`/api/day/phones/${phone.phone.id}/role`,{role:'Volunteer'})).json().message).toBe("The owner can't be made a volunteer");
 });
-test('the day read shows a lead the Olympics password and there is no day code to read, make or join with',async()=>{
+test('the day read shows a lead the Olympics password and there is no day code to read or make: Join takes the Olympics password',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
   expect(day.olympicsPassword).toMatch(/^[A-Z0-9]{8}$/);
   expect(Object.keys(day).filter(key=>/day.?code/i.test(key))).toEqual([]);
   expect((await call(token,'/api/day/day-code',{})).statusCode).toBe(404);
-  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.olympicsPassword,name:'Sam Patel'}})).statusCode).toBe(404);
+  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.olympicsPassword,name:'Sam Patel'}})).json().kind).toBe('volunteer');
 });
