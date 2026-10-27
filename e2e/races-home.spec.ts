@@ -155,3 +155,19 @@ test('switching job on a race keeps the race open in the new view, and another j
   await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
   await deleteCurrentRace(request,code);
 });
+test('a saved race opens read-only for a volunteer, saying to ask a lead',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Saved sprint ${project}`,code=`SV-${project.toUpperCase()}`;
+  await ownEvent(request,code,name);
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
+  const {page}=await openPhone(`Saved ${project}`);
+  await openRace(page,name);
+  await expect(page.getByRole('status').filter({hasText:'Heat 1 is saved. Ask a lead to change it.'})).toBeVisible();
+  await expect(page.getByLabel('Wristband number',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:"That's everyone",exact:true})).toHaveCount(0);
+  // It asks for nothing: the runners are listed, with nothing to remove.
+  await expect(page.getByRole('heading',{level:2,name:'2 runners checked in'})).toBeVisible();
+  await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2001','2002']);
+  await expect(page.getByRole('button',{name:/^Remove /})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('saved.png'),fullPage:true});
+});

@@ -64,15 +64,18 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{raceName(race)} · {count} {count===1?'runner':'runners'} so far{more?' · more than usual':''}</p>
-        <h2 className="rz-prompt__q">Runner {count+1}: wristband number?</h2>
+        {locked?<><p className="rz-prompt__meta">{raceName(race)}</p><h2 className="rz-prompt__q">{runnersText(count)} checked in</h2></>
+          :<><p className="rz-prompt__meta">{raceName(race)} · {count} {count===1?'runner':'runners'} so far{more?' · more than usual':''}</p>
+          <h2 className="rz-prompt__q">Runner {count+1}: wristband number?</h2></>}
       </div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
       {entry.error && <p className="rz-error" role="alert">{entry.error}</p>}
-      {count>0 && <ul className="rz-chips" aria-label="Wristbands entered">{entries.map(item=>{
+      {count>0 && <ul className="rz-chips" aria-label={locked?'Checked in':'Wristbands entered'}>{entries.map(item=>{
         const runner=runners.find(other=>other.id===item.id);
-        const kept=!!runner?.warnings?.length;
-        return <li key={item.id||item.wristband}><button type="button" className={kept?'rz-chip rz-chip--warn':'rz-chip'} aria-label={`Remove ${item.wristband}${kept?', kept for a lead to check':''}`} disabled={locked}
+        const kept=!!runner?.warnings?.length,look=kept?'rz-chip rz-chip--warn':'rz-chip';
+        // A locked race lists its runners, with nothing to remove.
+        if(locked) return <li key={item.id||item.wristband}><span className={look}>{item.wristband}</span></li>;
+        return <li key={item.id||item.wristband}><button type="button" className={look} aria-label={`Remove ${item.wristband}${kept?', kept for a lead to check':''}`}
           onClick={()=>void writes.send({runners:entries.filter(other=>other!==item),keptWarnings:[]})}>{item.wristband} <Icon name="close"/></button></li>;
       })}</ul>}
       {size.showing && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}
