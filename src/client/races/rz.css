@@ -249,7 +249,7 @@
 .rz-listrow__meta { font-size: 13px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
 .rz-listrow--resume { box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-listrow--warn { background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-line); }
-.rz-code-tag { display: inline-block; transform: skewX(var(--skew-tag)); padding: 1px var(--space-8); background: var(--zone); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 14px; line-height: 1.3; text-transform: uppercase; }
+.rz-code-tag { display: inline-block; flex: none; white-space: nowrap; transform: skewX(var(--skew-tag)); padding: 1px var(--space-8); background: var(--zone); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 14px; line-height: 1.3; text-transform: uppercase; }
 
 /* ---------- TextField ---------- */
 .rz-field { display: flex; flex-direction: column; gap: var(--space-6); }

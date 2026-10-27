@@ -71,7 +71,8 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {entry.error && <p className="rz-error" role="alert">{entry.error}</p>}
       {count>0 && <ul className="rz-chips" aria-label="Wristbands entered">{entries.map(item=>{
         const runner=runners.find(other=>other.id===item.id);
-        return <li key={item.id||item.wristband}><button type="button" className={runner?.warnings?.length?'rz-chip rz-chip--warn':'rz-chip'} aria-label={`Remove ${item.wristband}`} disabled={locked}
+        const kept=!!runner?.warnings?.length;
+        return <li key={item.id||item.wristband}><button type="button" className={kept?'rz-chip rz-chip--warn':'rz-chip'} aria-label={`Remove ${item.wristband}${kept?', kept for a lead to check':''}`} disabled={locked}
           onClick={()=>void writes.send({runners:entries.filter(other=>other!==item),keptWarnings:[]})}>{item.wristband} <Icon name="close"/></button></li>;
       })}</ul>}
       {size.showing && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}

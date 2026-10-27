@@ -39,6 +39,7 @@ export function useWristbandEntry(event:DayEvent,raceId:string|null,taken:readon
     if(await onSave(Number(current),kept)) {setCurrent('');setPending([]);}
   }
   async function next() {
+    if(!current) return;
     const number=Number(current);setError('');
     if(taken.includes(number)) {setRefused(`${number} is already in this race. Check the wristband.`);return;}
     const refusal=runnerListRefusal([number]);
