@@ -15,10 +15,11 @@ databaseUrl.pathname = `/${databaseName}`;
 process.env.E2E_BASE_URL = baseURL;
 // The web server's database, for test setup no API allows (ownRelay). Workers load this config again with their own
 // process id, so they keep the first value.
+if (!process.env.E2E_TEST_DATABASE_URL && !process.env.E2E_DATABASE_URL && !process.env.E2E_DATABASE_NAME) process.env.E2E_DROP_DATABASE = '1';
 const testDatabaseUrl = process.env.E2E_TEST_DATABASE_URL ||= process.env.E2E_DATABASE_URL || databaseUrl.href;
 export default defineConfig({
   testDir:'e2e', testIgnore:['test-build/**','remote/**'], fullyParallel:false, workers:1,
-  globalSetup:'./e2e/setup.ts',
+  globalSetup:'./e2e/setup.ts', globalTeardown:'./e2e/teardown.ts',
   use:{baseURL, trace:'retain-on-failure'},
   projects:[
     {name:'iPhone',use:{browserName:'chromium',viewport:{width:390,height:844},isMobile:true,hasTouch:true}},
