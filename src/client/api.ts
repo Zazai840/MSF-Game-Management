@@ -25,7 +25,6 @@ const dayId=()=>localStorage.getItem(`${prefix}day`);
 /** The profile signed in now, so a "moved" 401 knows which profile to forget. */
 const signedInProfile=()=>localStorage.getItem(`${prefix}profile`);
 const forgetProfile=(id:string)=>localStorage.setItem(`${prefix}profiles`,JSON.stringify(profiles().filter(entry=>entry.id!==id)));
-export interface Waiting {secret:string;name:string}
 const sessionId=()=>`${epoch}:${token()}:${localStorage.getItem(`${prefix}session`)}`;
 function newSession() {
   const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
@@ -49,8 +48,6 @@ export const phoneStorage = {
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
   forgetProfile,
   /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
-  waiting:():Waiting|null=>{try {return JSON.parse(localStorage.getItem(`${prefix}waiting`)||'null');} catch {return null;}},
-  rememberWaiting:(waiting:Waiting|null)=>waiting?localStorage.setItem(`${prefix}waiting`,JSON.stringify(waiting)):localStorage.removeItem(`${prefix}waiting`),
   /** The Home tab this phone used last: Races on a phone that never switched, or when storage fails. */
   homeTab:():HomeTab=>{try {const tab=localStorage.getItem(homeTabKey) as HomeTab;return homeTabs.includes(tab)?tab:'races';} catch {return 'races';}},
   rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},

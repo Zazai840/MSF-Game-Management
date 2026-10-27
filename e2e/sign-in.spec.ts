@@ -22,6 +22,9 @@ test('a new phone joins with the day code, its name and its job, stays signed in
   await page.route('**/api/join',route=>route.fulfill({status:403,json:{message:"That is not the Olympics password or today's lead code. Check with a lead and try again."}}),{times:1});
   await join(page,'Nobody',{code:'wrong-fixture'});
   await expect(page.getByRole('alert')).toHaveText("That is not the Olympics password or today's lead code. Check with a lead and try again.");
+  // The refusal comes out from under the docked Join.
+  const refusal=(await page.getByRole('alert').boundingBox())!;
+  expect(refusal.y+refusal.height).toBeLessThanOrEqual((await page.getByRole('button',{name:'Join',exact:true}).boundingBox())!.y);
   const name=`Ahmed Sign ${info.project.name}`;
   await join(page,`  Ahmed   Sign ${info.project.name} `,{job:'Start line'});
   await races(page);
@@ -48,23 +51,21 @@ test('a new phone joins with the day code, its name and its job, stays signed in
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(true);
 });
-test('Join refuses a name already taken on another phone, keeping what was typed, with That\'s me',async({page,browser},info)=>{
+test('a volunteer joining with a name taken on another phone is numbered, and the first phone keeps its own',async({page,browser},info)=>{
   const name=`Amina Taken ${info.project.name}`;
   await page.goto('/');await join(page,name,{job:'Finish line'});await races(page);
   const second=await browser.newContext({...info.project.use});
   try {
     const other=await second.newPage();await other.goto('/');await join(other,name.toLowerCase(),{job:'Finish line'});
-    await expect(other.getByRole('alert')).toContainText(`${name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`);
-    // The refusal comes out from under the docked Join, so That's me can be tapped.
-    const thatsMe=(await other.getByRole('alert').getByRole('button',{name:"That's me",exact:true}).boundingBox())!;
-    expect(thatsMe.y+thatsMe.height).toBeLessThanOrEqual((await other.getByRole('button',{name:'Join',exact:true}).boundingBox())!.y);
-    await expect(other.getByLabel('Full name')).toHaveValue(name.toLowerCase());
+    await races(other);
+    await expect(other.getByRole('status')).toHaveText(`${name} is already taken, so you're signed in as ${name} 2`);
+    await expect(other.getByRole('button',{name:`${name} 2, your details`,exact:true})).toBeVisible();
+    await expect(jobChip(other,'Finish line')).toBeVisible();
     expect(await lookProblems(other)).toEqual([]);
-    await other.screenshot({path:info.outputPath('join-taken.png')});
-    await other.getByRole('button',{name:'Change name',exact:true}).click();
-    await expect(other.getByRole('alert')).toHaveCount(0);
-    await expect(other.getByLabel('Full name')).toBeFocused();
+    await other.screenshot({path:info.outputPath('join-numbered.png')});
   } finally {await second.close();}
+  await page.reload();
+  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
 });
 test('the lead code joins as Zone lead on its own, and a name taken on another phone is numbered',async({page,browser},info)=>{
   const name=`Sara Taken Lead ${info.project.name}`;

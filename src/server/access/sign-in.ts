@@ -10,7 +10,6 @@ export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha
 const wrongPassword = 'That is not the Olympics password. Check with a lead and try again.';
 const wrongLeadCode = "That is not today's lead code. Ask a lead for it.";
 const wrongJoinCode = "That is not the Olympics password or today's lead code. Check with a lead and try again.";
-const takenName = (name: string) => `${name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`;
 /** Full names are stored tidied (trimmed, inner spaces collapsed), so lower(name) is the form compared for uniqueness. */
 export function fullName(value: unknown) {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -164,7 +163,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
   /**
    * Join, the race flow's one form: a code, a full name and the phone's profiles. The code is the owner password (sign
    * in as the owner, starting the first day if none is running), the Olympics password (a name this phone holds signs
-   * in; a new name makes a profile; a name held on another phone is refused as taken, with the pass for That's me), or
+   * in; a new name makes a profile; a name held on another phone joins as the next free number, ADR 0005), or
    * today's lead code on its own (sign in as Lead, never refusing a name: ADR 0004). Wrong codes share the password
    * backoff per IP. Each answers `kind` with the sign-in and the pass, so the phone can tap its name next time.
    */
@@ -182,10 +181,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       if (!day || !settings) throw new WrongAccessCode(wrongJoinCode);
       const pass = passFor(settings);
       if (matches(code, settings.password)) {
-        const held = await heldProfiles(client, body.profiles);
-        const found = (await client.query('SELECT id,name FROM profiles WHERE lower(name)=lower($1)', [name])).rows[0] as {id: string; name: string} | undefined;
-        if (found && !held.has(found.id)) throw new Refusal(409, takenName(found.name), {taken:true, pass});
-        const profile = found ?? await createProfile(client, name);
+        const profile = await profileByName(client, name, body.profiles);
         return {kind:'volunteer', pass, profile, ...await signIn(client, day.id, profile)};
       }
       if (matches(code.toUpperCase(), day.lead_code)) {

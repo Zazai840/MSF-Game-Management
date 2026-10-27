@@ -21,15 +21,16 @@ test('the Olympics password makes a new name a volunteer profile, and the same p
   expect(again).toMatchObject({kind:'volunteer',profile:{id:made.profile.id}});
   expect(again.profile.secret).toBeUndefined();
 });
-test('a name held on another phone is refused as taken, with the pass for That\'s me',async()=>{
+test('a name held on another phone joins as the next free number, and the first phone keeps its own',async()=>{
   const {olympics}=await start();
-  await join({code:olympics,name:'Tom Barker',profiles:[]});
-  const taken=await join({code:olympics,name:'tom barker',profiles:[]});
-  expect(taken.statusCode).toBe(409);
-  expect(taken.json()).toMatchObject({taken:true,pass:expect.any(String)});
-  expect(taken.json().message).toMatch(/^Tom Barker already has a profile/);
-  const waiting=await app.inject({method:'POST',url:'/api/thats-me',payload:{pass:taken.json().pass,name:'Tom Barker'}});
-  expect(waiting.statusCode).toBe(200);
+  const first=(await join({code:olympics,name:'Tom Barker',profiles:[]})).json();
+  const second=await join({code:olympics,name:'tom barker',profiles:[]});
+  expect(second.statusCode).toBe(200);
+  expect(second.json()).toMatchObject({kind:'volunteer',profile:{name:'Tom Barker 2'},phone:{level:'Volunteer'}});
+  expect(second.json().profile.id).not.toBe(first.profile.id);
+  expect((await join({code:olympics,name:'Tom Barker',profiles:[]})).json().profile.name).toBe('Tom Barker 3');
+  // The first phone still joins as itself.
+  expect((await join({code:olympics,name:'Tom Barker',profiles:[{id:first.profile.id,secret:first.profile.secret}]})).json().profile.id).toBe(first.profile.id);
 });
 test('today\'s lead code alone signs in as a lead, numbering a name taken on another phone; the owner password signs in the owner',async()=>{
   const {olympics,leadCode}=await start();

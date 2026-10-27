@@ -7,5 +7,5 @@ The lead code was already a day secret given only to leads, at least as strong a
 ## Consequences
 
 - Anyone who has the lead code can join as a lead without the Olympics password. Give the lead code only to leads, as before; changing it still demotes the other leads.
-- The Olympics password stays the volunteers' way in: a new name makes a profile, a name this phone holds signs in again, and a name held on another phone is refused as taken, with That's me.
+- The Olympics password stays the volunteers' way in: a new name makes a profile, a name this phone holds signs in again, and a name held on another phone was refused as taken, with That's me (since ADR 0005 it joins numbered, as the lead code does).
 - `/api/password`, `/api/owner-sign-in`, `/api/profiles` and `/api/lead-sign-in` stay for older builds and the tests; the app now joins through `/api/join`.
