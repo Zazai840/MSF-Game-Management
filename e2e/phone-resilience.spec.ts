@@ -49,7 +49,7 @@ test('a deployed version reloads the phone by itself',async({page},info)=>{
   await join(page,`Update ${info.project.name}`,{job:'Start line'});
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
-  const workerPath=resolve('dist/web/sw.js');
+  const workerPath=resolve(process.env.DIST_DIR!,'web/sw.js');
   const previous=await readFile(workerPath,'utf8');
   let loads=0;page.on('load',()=>loads++);
   try {

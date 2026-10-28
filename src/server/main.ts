@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { createApp } from './app.js';
 import { serveWeb } from './web.js';
 const production = process.env.NODE_ENV === 'production';
 const app = await createApp({
-  buildId:production ? await readFile(resolve('dist/web/build-id'),'utf8') : undefined,
+  buildId:production ? await readFile(new URL('../../web/build-id',import.meta.url),'utf8') : undefined,
   databaseUrl:process.env.DATABASE_URL || '', ownerPassword:process.env.OWNER_PASSWORD || '', resetTestDay:process.env.RESET_TEST_DAY === '1',
   trustedProxyHops:Number(process.env.TRUSTED_PROXY_HOPS || 0),
   logTo:process.env.NODE_ENV === 'production' ? process.stdout : undefined,

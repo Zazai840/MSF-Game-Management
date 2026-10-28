@@ -11,7 +11,7 @@
     "test": "node scripts/run-tests.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "build": "vite build && node scripts/budget.mjs && tsc -p tsconfig.server.json",
+    "build": "vite build && node scripts/budget.mjs && tsc -p tsconfig.server.json --outDir ${DIST_DIR:-dist}/server",
     "start": "node dist/server/server/main.js",
     "test:e2e": "playwright test && playwright test -c playwright.test-build.config.ts",
     "test:remote": "playwright test -c playwright.remote.config.ts",
