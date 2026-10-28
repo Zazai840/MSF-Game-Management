@@ -1,12 +1,12 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {back,dragTo,expect,lookProblems,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownWristbands,ownCode,back,dragTo,expect,lookProblems,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),cubs=`TCC-${project.toUpperCase()}`,scouts=`TCS-${project.toUpperCase()}`;
+  const project=info.project.name,cubs=await ownCode(),scouts=await ownCode();
   const name=`Relay warnings ${project}`;
   await ownRelay(cubs,name,'Girl Cubs');await ownRelay(scouts,name,'Girl Scouts');
   // The test day is shared: each project's children use wristbands no other relay test types.
-  const cub=(n:number)=>2620+at*16+n,scout=(n:number)=>4500+at*16+n,borrowed=1740+at,shared=cub(7);
+  const cub=await ownWristbands('Girl Cubs',16),scout=await ownWristbands('Girl Scouts',16),borrowed=(await ownWristbands('Boy Cubs',1))(1),shared=cub(7);
   const token=await signInThroughApi(request,`To check relay volunteer ${project}`);
   await writeTeam(request,token,cubs,[cub(1),borrowed,cub(2),cub(3)],{keptWarnings:[borrowed]});
   await writeTeam(request,token,cubs,[cub(4),cub(5),cub(6),shared]);
@@ -53,11 +53,11 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
 });
 
 test('a lead sees a relay\'s two saved heats as team rows with four wristbands and the qualifying line, the race page lists teams, and Heats complete seeds the six fastest',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay results ${project}`,code=`RRS-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay results ${project}`,code=await ownCode();
   await ownRelay(code,name,'Girl Cubs');
   // The test day is shared: each project's teams use Girl Cubs wristbands no other relay test types, and Team 4 runs a
   // borrowed Boy Cub, kept.
-  const legs=(team:number)=>[1,2,3,4].map(leg=>2000+at*30+(team-1)*4+leg),borrowed=1060+at;
+  const n=await ownWristbands('Girl Cubs',30),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg)),borrowed=(await ownWristbands('Boy Cubs',1))(1);
   const token=await signInThroughApi(request,`Relay results volunteer ${project}`);
   for(let team=1;team<=7;team++) await writeTeam(request,token,code,team===4?[legs(4)[0],borrowed,legs(4)[2],legs(4)[3]]:legs(team),{keptWarnings:team===4?[borrowed]:[]});
   /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
@@ -115,13 +115,12 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
 });
 
 /**
- * A Boy Scouts relay for this project with `count` teams typed by a volunteer. The test day is shared, so each test
- * and project types its own Boy Scouts wristbands (3200 to 3499, from `first`) that no other test types.
+ * A Boy Scouts relay for this project with `count` teams typed by a volunteer, each child from this test's own block.
  */
-async function scoutsRelay(request:APIRequestContext,info:TestInfo,prefix:string,title:string,count:number,first:number) {
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`${prefix}-${project.toUpperCase()}`,name=`${title} ${project}`;
+async function scoutsRelay(request:APIRequestContext,info:TestInfo,title:string,count:number) {
+  const project=info.project.name,code=await ownCode(),name=`${title} ${project}`;
   await ownRelay(code,name,'Boy Scouts');
-  const legs=(team:number)=>[1,2,3,4].map(leg=>3200+at*100+first+(team-1)*4+leg);
+  const n=await ownWristbands('Boy Scouts',count*4),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
   const token=await signInThroughApi(request,`${title} volunteer ${project}`);
   for(let team=1;team<=count;team++) await writeTeam(request,token,code,legs(team));
   /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
@@ -133,7 +132,7 @@ async function scoutsRelay(request:APIRequestContext,info:TestInfo,prefix:string
 }
 
 test('a lead disqualifies a whole team for a handover outside the zone, and lifts it',async({openPhone,request},info)=>{
-  const {code,legs,heat}=await scoutsRelay(request,info,'RDQ','Relay disqualify',3,0);
+  const {code,legs,heat}=await scoutsRelay(request,info,'Relay disqualify',3);
   await heat([1,2,3],[1400,1500,1600]);
   const {page}=await openPhone(`Relay disqualify lead ${info.project.name}`,{lead:true});
   await openLeadMenu(page,'Results');
@@ -165,7 +164,7 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
 });
 
 test('a lead settles a tie between two teams on the tie sheet: a run-off puts Team 7 through',async({openPhone,request},info)=>{
-  const {code,legs,heat}=await scoutsRelay(request,info,'RTIE','Relay tie',8,20);
+  const {code,legs,heat}=await scoutsRelay(request,info,'Relay tie',8);
   await heat([1,2,3,4],[1400,1500,1600,1700]);
   await heat([5,6,7,8],[1450,1550,1700,1800]);
   const {page}=await openPhone(`Relay tie lead ${info.project.name}`,{lead:true});
@@ -193,7 +192,7 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
 });
 
 test('a lead corrects a relay heat\'s finishing order by dragging teams, and Didn\'t run makes a team still to run again',async({openPhone,request},info)=>{
-  const {code,name,heat}=await scoutsRelay(request,info,'RCFO','Relay order fix',3,60);
+  const {code,name,heat}=await scoutsRelay(request,info,'Relay order fix',3);
   await heat([1,2,3],[1400,1500,1600]);
   const {page}=await openPhone(`Relay order fix lead ${info.project.name}`,{lead:true});
   await openLeadMenu(page,'Results');

@@ -1,4 +1,4 @@
-import {openLeadMenu,becomeLead,expect,join,test,back,ownRelay,signInThroughApi,writeTeam,tickTeam,writeTeamOrder,writeTimes,submitRace} from './fixtures.js';
+import {ownWristbands,ownCode,openLeadMenu,becomeLead,expect,join,test,back,ownRelay,signInThroughApi,writeTeam,tickTeam,writeTeamOrder,writeTimes,submitRace} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 import readExcelFile from 'read-excel-file/node';
 test('A lead downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
@@ -19,10 +19,11 @@ test('a lead from the lead code has the Day download and its direct export reque
  const token=await page.evaluate(()=>localStorage.getItem('msf:token'));expect((await request.post('/api/day/export',{headers:{authorization:`Bearer ${token}`},data:{}})).status()).toBe(200);
 });
 test('a relay with a saved Final exports its medal teams in Input - Running and one row per child with Team and Leg in All results',async({page,request},info)=>{
- const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`XR-${project.toUpperCase()}`;
+ const project=info.project.name,code=await ownCode();
  await ownRelay(code,`Relay export ${project}`,'Boy Scouts');
- // The test day is shared: each project's Boy Scouts teams use wristbands no other relay test types, and Team 1's 1st leg is a borrowed Girl Scout, kept.
- const legs=(team:number)=>[1,2,3,4].map(leg=>3600+at*20+(team-1)*4+leg),borrowed=4870+at,team1=[borrowed,...legs(1).slice(1)];
+ // Team 1's 1st leg is a borrowed Girl Scout, kept.
+ const scouts=await ownWristbands('Boy Scouts',12),borrowed=(await ownWristbands('Girl Scouts',1))(1);
+ const legs=(team:number)=>[1,2,3,4].map(leg=>scouts((team-1)*4+leg)),team1=[borrowed,...legs(1).slice(1)];
  const token=await signInThroughApi(request,`Relay export volunteer ${project}`),lead={headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`}};
  for(const team of [1,2,3]) await writeTeam(request,token,code,team===1?team1:legs(team),{keptWarnings:team===1?[borrowed]:[]});
  for(const team of [1,2,3]) await tickTeam(request,token,code,team);

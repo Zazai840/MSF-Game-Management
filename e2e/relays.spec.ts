@@ -1,4 +1,4 @@
-import {openRelays,expect,leaveTeamOpen,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page } from './fixtures.js';
+import {ownWristbands,ownCode,openRelays,expect,leaveTeamOpen,live,lookProblems,markHere,openRaceScreen,openTeam,openTeams,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page} from './fixtures.js';
 
 /** A relay's card on the Teams screen, by its distance heading and Section. */
 const card=(page:Page,name:string,section:string)=>page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${section}`)});
@@ -6,8 +6,8 @@ const card=(page:Page,name:string,section:string)=>page.getByRole('region',{name
 const legs=(page:Page,name:string,team:number)=>page.getByRole('region',{name,exact:true}).locator('.team-row').filter({has:page.getByText(`Team ${team}`,{exact:true})}).locator('.leg-ro');
 
 test('two phones hold two relays on the Teams screen at once, and a third sees who is entering read-only and takes over after a confirm',async({openPhone},info)=>{
-  const project=info.project.name,code=project.toUpperCase(),name=`Teams hold ${project}`;
-  await ownRelay(`TH1-${code}`,name,'Girl Cubs');await ownRelay(`TH2-${code}`,name,'Boy Cubs');
+  const project=info.project.name,name=`Teams hold ${project}`;
+  await ownRelay(await ownCode(),name,'Girl Cubs');await ownRelay(await ownCode(),name,'Boy Cubs');
   const sam=`Sam Patel ${project}`,priya=`Priya Shah ${project}`,ali=`Ali Khan ${project}`;
   const samPhone=(await openPhone(sam)).page,priyaPhone=(await openPhone(priya)).page,aliPhone=(await openPhone(ali)).page;
   for(const page of [samPhone,priyaPhone,aliPhone]) await openTeams(page);
@@ -40,10 +40,10 @@ test('two phones hold two relays on the Teams screen at once, and a third sees w
 });
 
 test('a team typed on one phone reaches the others on Done; Cancel leaves nothing, a duplicate is refused and a wrong-Section number is kept',async({openPhone},info)=>{
-  const project=info.project.name,name=`Teams typing ${project}`,at=['iPhone','Android','desktop'].indexOf(project);
+  const project=info.project.name,name=`Teams typing ${project}`;
   // The test day is shared: each project types its own wristbands, so no child is also in another project's relay.
-  const n=(number:number)=>String(number+at*200),cub=String(1045+at);
-  await ownRelay(`TT-${project.toUpperCase()}`,name,'Girl Cubs');
+  const w=await ownWristbands('Girl Cubs',12),n=(number:number)=>String(w(number)),cub=String((await ownWristbands('Boy Cubs',1))(1));
+  await ownRelay(await ownCode(),name,'Girl Cubs');
   const sam=`Sam Patel typing ${project}`;
   const samPhone=(await openPhone(sam)).page,priyaPhone=(await openPhone(`Priya Shah typing ${project}`)).page;
   for(const page of [samPhone,priyaPhone]) await openTeams(page);
@@ -99,7 +99,7 @@ test('a team typed on one phone reaches the others on Done; Cancel leaves nothin
 });
 
 test('the Teams button on Home\'s Relays tab counts every team and those not complete, live',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TB-${project.toUpperCase()}`;
+  const project=info.project.name,code=await ownCode();
   await ownRelay(code,`Teams badge ${project}`,'Boy Scouts');
   const {page}=await openPhone(`Teams badge ${project}`),writer=await openPhone(`Teams badge writer ${project}`);
   await openRelays(page);
@@ -133,9 +133,9 @@ async function openCheckIn(page:Page) {
 }
 
 test('two phones check in one relay heat at once: ticks and here marks from both land, live, with the amber 3 of 4 here and Cancel',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay check-in ${project}`,code=`RCI-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay check-in ${project}`,code=await ownCode();
   // The test day is shared: each project types its own wristbands.
-  const n=(number:number)=>number+at*200;
+  const n=await ownWristbands('Girl Cubs',12);
   await ownRelay(code,name,'Girl Cubs');
   const sam=await openPhone(`Sam Patel check-in ${project}`),priya=await openPhone(`Priya Shah check-in ${project}`),jo=await openPhone(`Jo Evans check-in ${project}`);
   // Another test's relay may hold the same children: keep any warning.
@@ -191,13 +191,13 @@ test('two phones check in one relay heat at once: ticks and here marks from both
 });
 
 test('a relay with no teams says where they are typed, and the Teams screen shows a team in the heat read-only',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay in heat ${project}`,code=`RIH-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay in heat ${project}`,code=await ownCode();
   await ownRelay(code,name,'Boy Cubs');
   const sam=await openPhone(`Sam Patel in heat ${project}`),priya=await openPhone(`Priya Shah in heat ${project}`);
   await openRelay(sam.page,name,'Boy Cubs');
   await openCheckIn(sam.page);
   await expect(sam.page.getByText('No teams yet. They are typed on the Teams screen at the prep area.',{exact:true})).toBeVisible();
-  const wristbands=[1101,1102,1103,1104].map(number=>number+at*10);
+  const wristbands=[1,2,3,4].map(await ownWristbands('Boy Cubs',4));
   await writeTeam(request,priya.token,code,wristbands,{keptWarnings:wristbands});
   await expect(sam.page.getByRole('button',{name:/^Team 1 /})).toBeVisible(live);
   await tickTeam(request,sam.token,code,1);
@@ -212,13 +212,11 @@ test('a relay with no teams says where they are typed, and the Teams screen show
   await priya.page.screenshot({path:info.outputPath('teams-in-heat.png'),fullPage:true});
 });
 
-/** Wristbands for the "is changing" tests: Girl Cubs numbers no other test or project uses, so no Keep is needed. */
-const changingWristband=(project:string,offset:number)=>2700+['iPhone','Android','desktop'].indexOf(project)*40+offset;
 /** The ids of a relay's teams, in number order, from the Home snapshot a team write answers. */
 const teamIds=(home:Awaited<ReturnType<typeof writeTeam>>,code:string)=>home.events.find(event=>event.code===code)!.teams!.map(team=>team.id);
 
 for(const action of ['done','remove']) test(`a refused ${action} closes the team, keeps its refusal and clears this phone's mark`,async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TRF-${action.toUpperCase()}-${project.toUpperCase()}`,name=`Teams refused ${action} ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Teams refused ${action} ${project}`;
   const sam=`Sam Patel refused ${action} ${project}`,phone=await openPhone(sam);
   await ownRelay(code,name,'Girl Cubs');
   // Clear of the typing test's numbers (2101 + 200 per project and up), which another project's relay would warn about.
@@ -242,7 +240,7 @@ for(const action of ['done','remove']) test(`a refused ${action} closes the team
 });
 
 test('a team being changed shows who is changing it on other phones, live, and Take over closes it on the old holder\'s phone',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TMC-${project.toUpperCase()}`,name=`Teams changing ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
+  const project=info.project.name,code=await ownCode(),name=`Teams changing ${project}`,w=await ownWristbands('Girl Cubs',25),n=(offset:number)=>String(w(offset));
   await ownRelay(code,name,'Girl Cubs');
   const priya=`Priya Shah changing ${project}`,sam=`Sam Patel changing ${project}`;
   const priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
@@ -266,7 +264,7 @@ test('a team being changed shows who is changing it on other phones, live, and T
 });
 
 test('Change anyway after its confirm opens the team with what was last saved, and a Done overtaken by another change snaps back to the server\'s copy',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TMA-${project.toUpperCase()}`,name=`Teams change anyway ${project}`,n=(offset:number)=>String(changingWristband(project,offset));
+  const project=info.project.name,code=await ownCode(),name=`Teams change anyway ${project}`,w=await ownWristbands('Girl Cubs',25),n=(offset:number)=>String(w(offset));
   await ownRelay(code,name,'Girl Cubs');
   const priya=`Priya Shah anyway ${project}`,sam=`Sam Patel anyway ${project}`;
   const priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
@@ -300,7 +298,7 @@ test('Change anyway after its confirm opens the team with what was last saved, a
 });
 
 test('Remove team, after its confirm, takes a team off the list for good: the list reads Team 1, 2, 4',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`TMR-${project.toUpperCase()}`,name=`Teams remove ${project}`,n=(offset:number)=>changingWristband(project,offset);
+  const project=info.project.name,code=await ownCode(),name=`Teams remove ${project}`,n=await ownWristbands('Girl Cubs',25);
   await ownRelay(code,name,'Girl Cubs');
   const samPhone=await openPhone(`Sam Patel remove ${project}`),priyaPhone=await openPhone(`Priya Shah remove ${project}`);
   for(const offset of [21,22,23]) await writeTeam(request,samPhone.token,code,[n(offset),null,null,null]);
@@ -328,12 +326,12 @@ test('Remove team, after its confirm, takes a team off the list for good: the li
 });
 
 test('a relay heat on three phones: check-in on one, the order by 4th-leg buttons on another, times on a third; Submit Race by the two holders saves it and the next heat offers only the teams still to run',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay order ${project}`,code=`ROT-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay order ${project}`,code=await ownCode();
   await ownRelay(code,name,'Girl Cubs');
   const sam=await openPhone(`Sam Patel order ${project}`),priyaName=`Priya Shah order ${project}`,joName=`Jo Evans order ${project}`;
   const priya=await openPhone(priyaName),jo=await openPhone(joName),ali=await openPhone(`Ali Khan order ${project}`);
   // The test day is shared: each project has its own Girl Cubs wristbands, which no other relay test types.
-  const n=(offset:number)=>2900+at*20+offset,team=(legs:Array<number|null>)=>writeTeam(request,sam.token,code,legs,{keptWarnings:legs.filter((leg):leg is number=>leg!==null)});
+  const n=await ownWristbands('Girl Cubs',20),team=(legs:Array<number|null>)=>writeTeam(request,sam.token,code,legs,{keptWarnings:legs.filter((leg):leg is number=>leg!==null)});
   await team([n(1),n(2),n(3),n(4)]);await team([n(5),n(6),n(7),null]);await team([n(8),n(9),n(10),n(11)]);
   // Ali watches Home: the relay's tile follows the heat live.
   await openRelays(ali.page);
@@ -411,13 +409,11 @@ test('a relay heat on three phones: check-in on one, the order by 4th-leg button
   await expect(tile).toHaveText('Girl CubsHeats done · Final next',live);
 });
 
-/** Wristbands for the check-in Edit tests: Girl Cubs numbers no other test or project uses, so no Keep is needed. */
-const editWristband=(project:string,offset:number)=>String(2960+['iPhone','Android','desktop'].indexOf(project)*12+offset);
 /** A ticked team's block in Check-in Teams. */
 const ticked=(page:Page,team:number)=>page.locator('.ci-team').filter({has:page.getByText(`Team ${team}`,{exact:true})});
 
 test('an Edit at check-in shows who is changing the team on the other phone, then the change on the Teams screen after Done, the swapped child unmarked',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`REDIT-${project.toUpperCase()}`,name=`Check-in edit ${project}`,n=(offset:number)=>editWristband(project,offset);
+  const project=info.project.name,code=await ownCode(),name=`Check-in edit ${project}`,w=await ownWristbands('Girl Cubs',12),n=(offset:number)=>String(w(offset));
   await ownRelay(code,name,'Girl Cubs');
   const sam=`Sam Patel edit ${project}`,samPhone=await openPhone(sam),priyaPhone=await openPhone(`Priya Shah edit ${project}`),joPhone=await openPhone(`Jo Evans edit ${project}`);
   await writeTeam(request,joPhone.token,code,[0,1,2,3].map(offset=>Number(n(offset))));
@@ -454,7 +450,7 @@ test('an Edit at check-in shows who is changing the team on the other phone, the
 });
 
 test('Change anyway on a team left open in a check-in Edit, and the first phone\'s late Done is refused and snaps back',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`RANY-${project.toUpperCase()}`,name=`Check-in anyway ${project}`,n=(offset:number)=>editWristband(project,offset);
+  const project=info.project.name,code=await ownCode(),name=`Check-in anyway ${project}`,w=await ownWristbands('Girl Cubs',12),n=(offset:number)=>String(w(offset));
   await ownRelay(code,name,'Girl Cubs');
   const priya=`Priya Shah anyway edit ${project}`,sam=`Sam Patel anyway edit ${project}`,priyaPhone=await openPhone(priya),samPhone=await openPhone(sam);
   await writeTeam(request,samPhone.token,code,[Number(n(6)),Number(n(7)),null,null]);
@@ -490,10 +486,10 @@ test('Change anyway on a team left open in a check-in Edit, and the first phone\
 });
 
 test('at the finish, a team with no place is asked Did not finish or Didn\'t run, and "Add team" adds a team still to run with At finish on both phones; Cancel on either leaves nothing changed',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay no place ${project}`,code=`RNP-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay no place ${project}`,code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
   // The test day is shared: each project has its own Girl Scouts wristbands, which no other test types.
-  const n=(offset:number)=>4600+at*20+offset;
+  const n=await ownWristbands('Girl Scouts',20);
   const ali=await openPhone(`Ali Khan no place ${project}`);
   let home;
   for(const team of [0,1,2,3]) home=await writeTeam(request,ali.token,code,[n(team*4+1),n(team*4+2),n(team*4+3),n(team*4+4)]);

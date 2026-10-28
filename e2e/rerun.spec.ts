@@ -1,9 +1,9 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {deleteCurrentRace,ownEvent,writeCheckIn,recordRace,goHome,back,openLeadMenu,openRace,becomeLead,expect,join,test} from './fixtures.js';
+import {ownCode,deleteCurrentRace,ownEvent,writeCheckIn,recordRace,goHome,back,openLeadMenu,openRace,becomeLead,expect,join,test} from './fixtures.js';
 test('a heat replaced by a re-run says which heat replaced it, offers no Restore, and the re-run reaches Races and the day export',async({page},info)=>{
-  const code=`RR-${info.project.name.toUpperCase()}`,name=`Re-run heats ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const code=await ownCode(),name=`Re-run heats ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  await ownEvent(page.request,code,name,'Girl Cubs','heats');await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2011,2012,2013],[1200,1300,1400]);
   await page.goto('/');await join(page,`Re-run lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Re-run race',exact:true}).click();
@@ -32,7 +32,7 @@ test('a heat replaced by a re-run says which heat replaced it, offers no Restore
   await deleteCurrentRace(page.request,code);
 });
 test('Re-run does not wait for a heat in progress (its races run side by side), and takes the next unused number',async({page,request},info)=>{
-  const code=`RW-${info.project.name.toUpperCase()}`,name=`Re-run wait ${info.project.name}`,token=process.env.E2E_OWNER_TOKEN!;
+  const code=await ownCode(),name=`Re-run wait ${info.project.name}`,token=process.env.E2E_OWNER_TOKEN!;
   await ownEvent(request,code,name);
   await recordRace(request,token,code,[2021,2022],[1200,1300]);
   await writeCheckIn(request,token,code,[2023]);

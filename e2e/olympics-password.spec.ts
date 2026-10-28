@@ -1,4 +1,4 @@
-import { becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page } from './fixtures.js';
+import {becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible({timeout:10000});
 test('changing the Olympics password sends both phones back to Join with their profiles kept',async({page,browser,baseURL},info)=>{

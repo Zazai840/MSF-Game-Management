@@ -1,4 +1,4 @@
-import {ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
+import {ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
@@ -10,7 +10,7 @@ async function openResults(page:Page,code:string,name:string) {
 
 test('a phone checks in 8 runners and carries them through each job in turn, the race saving itself, and Results',async({page,openPhone},info)=>{
   test.setTimeout(60000);
-  const code=`E8-${info.project.name.slice(0,3).toUpperCase()}`,name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
+  const code=await ownCode(),name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
   await ownEvent(page.request,code,name);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const {page:phone}=await openPhone(`Eight phone ${info.project.name}`);
   await phone.getByRole('button',{name:'New race',exact:true}).click();
@@ -40,8 +40,8 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
 
 test('a lead adds a 7th runner to a saved final and the final is recorded end to end',async({page,openPhone},info)=>{
   test.setTimeout(60000);
-  const code=`F7-${info.project.name.slice(0,3).toUpperCase()}`,name=`Seven ${info.project.name}`;
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name,section:'Boy Cubs',format:'heats',type:'races'}})).ok()).toBe(true);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  const code=await ownCode(),name=`Seven ${info.project.name}`;
+  await ownEvent(page.request,code,name,'Boy Cubs','heats');await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }

@@ -1,7 +1,7 @@
-import {becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,recordRace,test} from './fixtures.js';
+import {ownCode,becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,recordRace,test} from './fixtures.js';
 const amber='rgb(255, 244, 220)';
 test('a lead reads a kept wristband warning in the child\'s Notes, checks it with a note, and sees who checked it',async({page},info)=>{
-  const code=`NO-${info.project.name.slice(0,3).toUpperCase()}`,lead=`Notes lead ${info.project.name}`;
+  const code=await ownCode(),lead=`Notes lead ${info.project.name}`;
   await ownEvent(page.request,code,'Notes','Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The volunteer kept the out-of-range wristband at check-in, and the race was saved.

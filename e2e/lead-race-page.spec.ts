@@ -1,11 +1,11 @@
-import {lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
+import {ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
 async function recordedRace(page:Page,code:string,runners:number[],places:number[],keptWarnings?:number[]) {
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
+  await ownEvent(page.request,code,'Race page','Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places,keptWarnings);
   created.push(race.id);
@@ -20,7 +20,7 @@ const saved=(page:Page)=>page.getByRole('status').filter({hasText:'Saved'});
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 
 test('the race page highlights a wrong time in amber with its reason, and the times editor retypes it on the phone number pad',async({page},info)=>{
-  const code=`LW-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[2101,2102,2103],[1200,1100,1250]);
+  const code=await ownCode(),race=await recordedRace(page,code,[2101,2102,2103],[1200,1100,1250]);
   await openRace(page,code,`Wrong time lead ${info.project.name}`,race.number);
   const record=page.getByRole('list',{name:'Current record',exact:true});
   const second=record.getByRole('listitem').filter({hasText:'2102'});
@@ -54,7 +54,7 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
 });
 
 test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{
-  const code=`LC-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[5141,3141,2141,3142],[1300,1310,1320,1330],[5141,3141,3142]);
+  const code=await ownCode(),race=await recordedRace(page,code,[5141,3141,2141,3142],[1300,1310,1320,1330],[5141,3141,3142]);
   const lead=`Warning lead ${info.project.name}`;
   await openRace(page,code,lead,race.number);
   const record=page.getByRole('list',{name:'Current record',exact:true}),row=(number:number)=>record.getByRole('listitem').filter({hasText:String(number)});
@@ -83,7 +83,7 @@ test('a single child\'s warnings show beside their number on the Current record,
 });
 
 test('a lead corrects a number on the phone number pad: digits only, Enter checks, a warning closes the keyboard and Fix clears it',async({page},info)=>{
-  const code=`LN-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[2111,2112],[1300,1400]);
+  const code=await ownCode(),race=await recordedRace(page,code,[2111,2112],[1300,1400]);
   await openRace(page,code,`Number lead ${info.project.name}`,race.number);
   await page.getByRole('button',{name:'Runner 2112',exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();
@@ -111,7 +111,7 @@ test('a lead corrects a number on the phone number pad: digits only, Enter check
 });
 
 test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{
-  const code=`LR-${info.project.name.slice(0,3).toUpperCase()}`,race=await recordedRace(page,code,[2121,2122,2123,2124,2125,2126],[1300,1310,1320,1330,1340,1350]);
+  const code=await ownCode(),race=await recordedRace(page,code,[2121,2122,2123,2124,2125,2126],[1300,1310,1320,1330,1340,1350]);
   await openRace(page,code,`Runner list lead ${info.project.name}`,race.number);
   await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
   const sheet=page.getByRole('dialog');
@@ -138,8 +138,8 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
 });
 
 test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
-  const code=`IP-${info.project.name.slice(0,3).toUpperCase()}`,token=process.env.E2E_OWNER_TOKEN!;
-  expect((await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Race page',section:'Girl Cubs',format:'timed',type:'races'}})).ok()).toBe(true);
+  const code=await ownCode(),token=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(page.request,code,'Race page','Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);

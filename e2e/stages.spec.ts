@@ -1,10 +1,10 @@
-import {backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,join,test,type Locator} from './fixtures.js';
+import {ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,join,test,type Locator} from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
 test('timed Event complete checks blockers, locks the event\'s races live, and reopens with a retained comment',async({page,openPhone},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=`T36${info.project.name.toUpperCase()}`,name=`Stage event ${info.project.name}`;
-  await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'timed',type:'races'}});
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=await ownCode(),name=`Stage event ${info.project.name}`;
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2601,2602],[1000,1100]);
   // A volunteer starts Heat 2 from the card and checks a runner in.

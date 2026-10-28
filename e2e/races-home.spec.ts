@@ -1,16 +1,17 @@
-import { deleteCurrentRace,expect,live,lookProblems,openRace,openRaceScreen,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,type Page } from './fixtures.js';
+import {ownCode,deleteCurrentRace,expect,live,lookProblems,openRace,openRaceScreen,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,type Page} from './fixtures.js';
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event type'});
 const tab=(page:Page,name:string)=>tabs(page).getByRole('button',{name:new RegExp(`^${name}`)});
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 const status=(page:Page,name:string,section='Girl Cubs')=>card(page,name,section).locator('.rz-racecard__status');
 
 test('Races, Hurdles and Relays tabs show their own events, the phone keeps the last tab, and Relays keeps its list and race screens',async({openPhone,request},info)=>{
-  const project=info.project.name,races=`Tab sprint ${project}`,hurdles=`Tab hurdles ${project}`,relay=`Tab relay ${project}`,owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  await ownEvent(request,`TR-${project.toUpperCase()}`,races);
-  expect((await request.post('/api/day/events',{headers:owner,data:{code:`TH-${project.toUpperCase()}`,name:hurdles,section:'Girl Cubs',format:'timed',type:'hurdles'}})).ok()).toBe(true);
-  await ownRelay(`TL-${project.toUpperCase()}`,relay);
+  const project=info.project.name,races=`Tab sprint ${project}`,hurdles=`Tab hurdles ${project}`,relay=`Tab relay ${project}`;
+  const [racesCode,hurdlesCode,relayCode]=[await ownCode(),await ownCode(),await ownCode()];
+  await ownEvent(request,racesCode,races);
+  await ownEvent(request,hurdlesCode,hurdles,'Girl Cubs','timed','hurdles');
+  await ownRelay(relayCode,relay);
   const token=process.env.E2E_OWNER_TOKEN!;
-  await writeCheckIn(request,token,`TR-${project.toUpperCase()}`,[2001]);await writeCheckIn(request,token,`TH-${project.toUpperCase()}`,[2002]);
+  await writeCheckIn(request,token,racesCode,[2001]);await writeCheckIn(request,token,hurdlesCode,[2002]);
   const {page}=await openPhone(`Tabs ${project}`);
   // A phone that has never switched opens on Races.
   await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
@@ -35,11 +36,11 @@ test('Races, Hurdles and Relays tabs show their own events, the phone keeps the 
   await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
   await tab(page,'Races').click();
   await expect(card(page,races)).toBeVisible();
-  await deleteCurrentRace(request,`TR-${project.toUpperCase()}`);await deleteCurrentRace(request,`TH-${project.toUpperCase()}`);
+  await deleteCurrentRace(request,racesCode);await deleteCurrentRace(request,hurdlesCode);
 });
 
 test('New race offers this tab\'s events, each section with its code, and the next heat; the final opens once every heat has times',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`New race sprint ${project}`,code=`NR-${project.toUpperCase()}`,timed=`NT-${project.toUpperCase()}`;
+  const project=info.project.name,name=`New race sprint ${project}`,code=await ownCode(),timed=await ownCode();
   await ownEvent(request,code,name);await ownEvent(request,timed,name,'Boy Cubs','timed');
   const {page}=await openPhone(`New race ${project}`);
   await page.getByRole('button',{name:'New race',exact:true}).click();
@@ -77,7 +78,7 @@ test('New race offers this tab\'s events, each section with its code, and the ne
 });
 
 test('a heat someone made a moment before the tap opens theirs: two phones making the same next heat end up in one race',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Same heat ${project}`,code=`SH-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Same heat ${project}`,code=await ownCode();
   await ownEvent(request,code,name);
   const one=await openPhone(`Same one ${project}`),two=await openPhone(`Same two ${project}`);
   await two.page.getByRole('button',{name:'New race',exact:true}).click();
@@ -97,7 +98,7 @@ test('a heat someone made a moment before the tap opens theirs: two phones makin
 });
 test('each card says in words what waits for my job, sorted into Ready for you, In progress and Done, live as others work',async({openPhone,request},info)=>{
   const project=info.project.name,ready=`Ready sprint ${project}`,busy=`Busy sprint ${project}`,done=`Done sprint ${project}`;
-  const [readyCode,busyCode,doneCode]=['RY','BY','DY'].map(prefix=>`${prefix}-${project.toUpperCase()}`);
+  const [readyCode,busyCode,doneCode]=[await ownCode(),await ownCode(),await ownCode()];
   for(const [code,name] of [[readyCode,ready],[busyCode,busy],[doneCode,done]]) await ownEvent(request,code,name,'Girl Cubs','timed');
   const sam=await signInThroughApi(request,`Ready Sam ${project}`);
   await recordRace(request,sam,doneCode,[2001],[1200]);
@@ -131,7 +132,7 @@ test('each card says in words what waits for my job, sorted into Ready for you, 
 });
 
 test('switching job on a race keeps the race open in the new view, and another job\'s step opens read-only',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Switch sprint ${project}`,code=`SW-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Switch sprint ${project}`,code=await ownCode();
   await ownEvent(request,code,name);
   await writeCheckIn(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002]);
   const {page}=await openPhone(`Switch ${project}`);
@@ -156,7 +157,7 @@ test('switching job on a race keeps the race open in the new view, and another j
   await deleteCurrentRace(request,code);
 });
 test('a saved race opens read-only for a volunteer, saying to ask a lead',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Saved sprint ${project}`,code=`SD-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Saved sprint ${project}`,code=await ownCode();
   await ownEvent(request,code,name);
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   const {page}=await openPhone(`Saved ${project}`);

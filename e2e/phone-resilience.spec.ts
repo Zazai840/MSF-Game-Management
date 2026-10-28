@@ -1,4 +1,4 @@
-import { deleteCurrentRace,expect,flowRace,join,leadMenuButton,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext } from './fixtures.js';
+import {ownCode,deleteCurrentRace,expect,flowRace,join,leadMenuButton,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext} from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const joinHeading='Join the Running Zone';
@@ -70,7 +70,7 @@ test('a deployed version reloads the phone by itself',async({page},info)=>{
 });
 
 test('a race snapshot from another build reloads the phone by itself',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`SB-${project.toUpperCase()}`,name=`Snapshot build ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Snapshot build ${project}`;
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Snapshot build ${project}`);
   await newHeat(request,token,code);
@@ -85,7 +85,7 @@ test('a race snapshot from another build reloads the phone by itself',async({ope
 });
 
 test('a phone meeting the old and the new server in turn mid-deploy reloads once, then carries on instead of reloading again',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`RB-${project.toUpperCase()}`,name=`Reload once ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Reload once ${project}`;
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Reload once ${project}`);
   await newHeat(request,token,code);
@@ -120,7 +120,7 @@ test('a failed load of the Lead area reloads the app instead of leaving a blank 
 });
 
 test('a reload shows everything entered from the server, and a half-typed number is not kept on the phone',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`RL-${project.toUpperCase()}`,name=`Reload sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Reload sprint ${project}`;
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Reload ${project}`);
   await writeCheckIn(request,token,code,[2401,2402,2403]);await writeOrder(request,token,code,[2402,2401]);await writeTimes(request,token,code,[1234]);

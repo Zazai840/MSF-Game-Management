@@ -1,4 +1,4 @@
-import { deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page } from './fixtures.js';
+import {ownCode,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -10,7 +10,7 @@ async function raceWaitingForTimes(request:APIRequestContext,code:string,name:st
 const savedTimes=async(request:APIRequestContext,code:string)=>(await flowRace(request,process.env.E2E_OWNER_TOKEN!,code))!.race.parts.times.value;
 
 test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one stays marked, and a retyped place clears it',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`WA-${project.toUpperCase()}`,name=`Times wrong ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Times wrong ${project}`;
   await raceWaitingForTimes(request,code,name);
   const {page}=await openPhone(`Wrong times ${project}`,{job:'timer'});
   await openRace(page,name);
@@ -74,7 +74,7 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
 });
 
 test('tapping a time while typing retypes that place, then the next place is up again; Back steps to the last time; No more finishers marks Times done',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`WC-${project.toUpperCase()}`,name=`Times chip ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Times chip ${project}`;
   await raceWaitingForTimes(request,code,name);
   const {page}=await openPhone(`Chip retype ${project}`,{job:'timer'});
   await openRace(page,name);
@@ -100,7 +100,7 @@ test('tapping a time while typing retypes that place, then the next place is up 
 });
 
 test('three phones work one heat at once: each sees the others\' steps live, the race saves itself once every step is done and they agree, and a lead sees times joined to wristbands',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`T3-${project.toUpperCase()}`,name=`Times sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Times sprint ${project}`;
   await ownEvent(request,code,name);
   const start=await openPhone(`Sam times ${project}`),finish=await openPhone(`Priya times ${project}`,{job:'finish'}),timer=await openPhone(`Jo times ${project}`,{job:'timer'});
   await request.post('/api/races',{headers:{authorization:`Bearer ${start.token}`},data:{eventCode:code,kind:'heat',number:1}});
