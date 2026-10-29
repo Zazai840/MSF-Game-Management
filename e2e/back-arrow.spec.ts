@@ -16,7 +16,7 @@ async function onRaces(page:Page) {
   await expect(page.getByRole('button',{name:/^Back to /})).toHaveCount(0);
 }
 
-test('Races has no back arrow; a race, your profile and the Teams screen each go back to Races',async({page,request},info)=>{
+test('Races has no back arrow; a race and the Teams screen each go back to Races',async({page,request},info)=>{
   const project=info.project.name,name=`Back arrow heat ${project}`,code=await ownCode();
   await ownEvent(request,code,name);
   await page.goto('/');await join(page,`Back arrow volunteer ${project}`,{job:'Start line'});
@@ -28,9 +28,6 @@ test('Races has no back arrow; a race, your profile and the Teams screen each go
   expect(box.width).toBeGreaterThanOrEqual(44);expect(box.height).toBeGreaterThanOrEqual(44);expect(box.x).toBeLessThan(page.viewportSize()!.width/4);
   await page.screenshot({path:info.outputPath('race.png')});
   await link.click();await onRaces(page);
-  await page.getByRole('button',{name:`Back arrow volunteer ${project}, your details`,exact:true}).click();
-  await arrowGoesBackTo(page,'Races');
-  await back(page,'Races');await onRaces(page);
   await openTeams(page);
   await arrowGoesBackTo(page,'Races');
   await back(page,'Races');await onRaces(page);

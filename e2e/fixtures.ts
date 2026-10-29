@@ -345,11 +345,11 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job'})).toBeVisible();
 }
-/** A lead's avatar, which opens the lead menu (Results, Day setup, Your details). */
+/** A lead's avatar, which opens the avatar menu (Results, Day setup, Log out). */
 export function leadMenuButton(page:Page) {
-  return page.getByRole('button',{name:/: Results, Day setup and your details$/});
+  return page.getByRole('button',{name:/: Results, Day setup and Log out$/});
 }
-/** From Races or a race as a lead: the lead menu, then Results or Day setup. */
+/** From Races or a race as a lead: the avatar menu, then Results or Day setup. */
 export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
   await leadMenuButton(page).click();
   await page.getByRole('menu').getByRole('menuitem',{name:section,exact:true}).click();

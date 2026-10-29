@@ -49,7 +49,7 @@ test('a new phone joins with its name, the password and its job, stays signed in
   await page.getByLabel('Password',{exact:true}).press('Enter');
   await races(page);
   await expect(jobChip(page,'Start line')).toBeVisible();
-  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`${name}: Log out`,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem('e2e:persist'))).toBe('asked');
   await page.reload();
   await races(page);await expect(jobChip(page,'Start line')).toBeVisible();
@@ -87,13 +87,13 @@ test('a volunteer joining with a name taken on another phone is numbered, and th
     const other=await second.newPage();await other.goto('/');await join(other,name.toLowerCase(),{job:'Finish line'});
     await races(other);
     await expect(other.getByRole('status')).toHaveText(`${name} is already taken, so you're signed in as ${name} 2`);
-    await expect(other.getByRole('button',{name:`${name} 2, your details`,exact:true})).toBeVisible();
+    await expect(other.getByRole('button',{name:`${name} 2: Log out`,exact:true})).toBeVisible();
     await expect(jobChip(other,'Finish line')).toBeVisible();
     expect(await lookProblems(other)).toEqual([]);
     await other.screenshot({path:info.outputPath('join-numbered.png')});
   } finally {await second.close();}
   await page.reload();
-  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`${name}: Log out`,exact:true})).toBeVisible();
 });
 test('the lead code joins as Zone lead on its own, and a name taken on another phone is numbered',async({page,browser},info)=>{
   const name=`Sara Taken Lead ${info.project.name}`;
@@ -107,13 +107,13 @@ test('the lead code joins as Zone lead on its own, and a name taken on another p
     await expect(other.getByRole('status')).toHaveText(`${name} is already taken, so you're signed in as ${name} 2`);
     await expect(other.getByRole('status').locator('strong')).toHaveText(`${name} 2`);
     // Initials skip the number: "Sara Taken Lead iPhone 2" is SI, not S2.
-    await expect(other.getByRole('button',{name:`${name} 2: Results, Day setup and your details`,exact:true})).toHaveText(`S${info.project.name[0].toUpperCase()}`);
+    await expect(other.getByRole('button',{name:`${name} 2: Results, Day setup and Log out`,exact:true})).toHaveText(`S${info.project.name[0].toUpperCase()}`);
     expect(await lookProblems(other)).toEqual([]);
     await other.screenshot({path:info.outputPath('lead-numbered.png')});
   } finally {await second.close();}
   // The first phone's profile is untouched.
   await page.reload();
-  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`${name}: Log out`,exact:true})).toBeVisible();
   await expect(jobChip(page,'Start line')).toBeVisible();
 });
 test('the owner password joins as the owner lead on the running day without touching it',async({page},info)=>{

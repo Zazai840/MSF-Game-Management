@@ -79,7 +79,7 @@ export const phoneStorage = {
     if(reason==='moved' && profile) forgetProfile(profile);
     epoch++;
   },
-  /** Sign out: the pass and session go, the profiles stay, and every tab goes to the password screen. */
+  /** Log out: the pass, session and drafts go, the listed names stay, and every tab goes to Join. */
   signOut:()=>{erase(keptAfter['signed-out']);changed(false);}
 };
 // Tabs share this app's storage. A changed session marker also invalidates

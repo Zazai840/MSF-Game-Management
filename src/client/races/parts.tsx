@@ -48,9 +48,9 @@ export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
     <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
-/** The avatar: your initials. For a lead it opens the menu with Results and Day setup. */
-export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label?:string}) {
-  return <button type="button" className="rz-avatar" aria-label={label||`${name}, your details`} onClick={onOpen}>{initials(name)}</button>;
+/** The avatar: your initials. It opens the avatar menu, which its label names. */
+export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label:string}) {
+  return <button type="button" className="rz-avatar" aria-label={label} onClick={onOpen}>{initials(name)}</button>;
 }
 /** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
 export function HomeBar({children}:{children:ReactNode}) {

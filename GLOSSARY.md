@@ -178,9 +178,13 @@ _Avoid_: Admin, race manager, supervisor
 Anyone who typed today's lead code (or the owner password), trusted with everything beyond the jobs: the live leaderboard, making rulings on a race's problems, and Day setup. Every lead can do everything. Zone leads are leads, and so are scoring team members.
 _Avoid_: Admin, organiser, superuser
 
-**Lead menu**:
-What a lead's avatar opens on Races: Results, Day setup and their details. It replaced the Dashboard.
-_Avoid_: Dashboard, admin panel, control panel
+**Avatar menu**:
+What every avatar opens, and the name in the older-look header too: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+_Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
+
+**Log out**:
+Ending the session on this phone, at once with no confirmation. The phone keeps its listed names and shows Join.
+_Avoid_: Sign out
 
 **To check**:
 The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Ready for you lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
@@ -191,7 +195,7 @@ The people outside the Running Zone who keep the Olympics scoring workbook and c
 _Avoid_: Scorers, results team, admin team
 
 **Olympics password**:
-The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone signs out on that phone. It replaces the day code. Volunteers see it as "Password" on Join; only a lead's Day setup calls it the Olympics password.
+The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone logs out on that phone. It replaces the day code. Volunteers see it as "Password" on Join; only a lead's Day setup calls it the Olympics password.
 _Avoid_: Day code, event password, PIN, access code
 
 **Profile**:

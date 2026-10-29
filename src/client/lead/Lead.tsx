@@ -15,7 +15,7 @@ const daySetup:Section[]=['Day setup','Signed in today','Events'];
 /** How long the short "Saved" note stays after a lead action. */
 const savedFor=3000;
 /**
- * The lead's screens, from the lead menu on Races: Results and Day setup. The race flow put a race's issues on the
+ * The lead's screens, from the avatar menu on Races: Results and Day setup. The race flow put a race's issues on the
  * race itself, so there is no Dashboard or To check list: back goes up one level (an event to Results, Signed in
  * today to Day setup), then to Races. After Start a new day the lead lands in Day setup.
  */

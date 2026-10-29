@@ -5,7 +5,6 @@ import type { Role } from '../../shared/race-flow.js';
 import { Callout,HomeBar,Icon,Screen as RzScreen } from '../races/parts.js';
 import { JobChoice } from '../races/RoleSheet.js';
 import { useSubmit } from '../flow/useSubmit.js';
-import './access.css';
 interface SignedIn { token:string; phone:Phone; pass?:string; profile?:{id:string;name:string;secret?:string} }
 /** Join numbered a name taken on another phone (ADR 0005): `taken` is that name, `name` the one signed in. */
 export interface Renamed { taken:string; name:string }

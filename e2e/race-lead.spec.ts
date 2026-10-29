@@ -25,9 +25,9 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
-  // The avatar's menu: Results, Day setup and your details.
+  // The avatar's menu: Results, Day setup and Log out.
   await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Your details']);
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
   await page.screenshot({path:info.outputPath('lead-menu.png')});
   await page.getByRole('menuitem',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();

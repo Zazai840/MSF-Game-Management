@@ -107,7 +107,7 @@ test('a stale successful Join cannot replace a newer signed-in phone in shared b
   const newer=await context.newPage();await newer.goto('/');await join(newer,`New sign-in ${info.project.name}`,{job:'Start line'});await races(newer);
   const freshToken=await newer.evaluate(()=>localStorage.getItem('msf:token'));await races(page);
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByRole('button',{name:`New sign-in ${info.project.name}, your details`,exact:true})).toBeVisible();await newer.close();
+  expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByRole('button',{name:`New sign-in ${info.project.name}: Log out`,exact:true})).toBeVisible();await newer.close();
 });
 test('a lost reply from Start new day keeps the retained phone safe from a previously pending 401 until Home recovers',async({page})=>{
   await asOwner(page);await exportDay(page);

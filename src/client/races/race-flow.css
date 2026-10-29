@@ -182,6 +182,8 @@
 .rz-jobcard--timer { --c: var(--gold); }
 .rz-jobcard--lead { --c: var(--jumping); }
 /* Fixed over the screen: the app bar clips what overflows it (its pattern and stripes), which hid the menu. */
+/* The older look's header spans the page, so its menu sits at the page's right edge. */
+.rz-menu-anchor { --content: 100%; }
 .rz-menu { position: fixed; right: max(var(--space-8), calc((100% - var(--content)) / 2)); top: calc(env(safe-area-inset-top, 0px) + 62px); z-index: 30; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
 .rz-menu button { min-height: var(--size-touch); padding: 0 var(--space-12); border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); text-align: left; font-family: var(--font-body); font-size: 15px; font-weight: 800; }
 
