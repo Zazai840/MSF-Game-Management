@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -106,6 +106,36 @@ test('tapping a time while typing retypes that place, then the next place is up 
   // Two of five finished: No more finishers marks Times done.
   await page.getByRole('button',{name:'No more finishers',exact:true}).click();
   await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await deleteCurrentRace(request,code);
+});
+
+test('once the finishing order is saved, the Timer has one slot per finisher and the last finisher\'s time marks Times done',async({openPhone,request},info)=>{
+  const project=info.project.name,code=await ownCode(),name=`Times finishers ${project}`,n=await ownWristbands('Girl Cubs',11);
+  const runners=Array.from({length:11},(_,index)=>n(index));
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await writeCheckIn(request,await signInThroughApi(request,`Start ${name}`),code,runners);
+  const {page}=await openPhone(`Finishers ${project}`,{job:'timer'});
+  await openRace(page,name);
+  const slots=page.getByRole('list',{name:'Place times'}).getByRole('listitem');
+  // Before the order is saved: one slot per runner.
+  await expect(slots).toHaveCount(11);
+  await expect(page.locator('.rz-prompt__meta')).toHaveText('Heat 1 · 11 runners');
+  await enterTime(page,'1100');
+  const finish=await signInThroughApi(request,`Finish ${name}`);
+  const ordered=await writeOrder(request,finish,code,runners.slice(0,10),{didNotFinish:[runners[10]]});
+  expect((await request.post(`/api/races/${ordered.race.id}/steps/positions/done`,{headers:{authorization:`Bearer ${finish}`},data:{}})).ok()).toBe(true);
+  // Saved with one Did not finish: one slot per finisher, live.
+  await expect(slots).toHaveCount(10,live);
+  await expect(page.locator('.rz-prompt__meta')).toHaveText('Heat 1 · 10 finished · 1 did not finish');
+  await expect(page.getByRole('tab',{name:'Finishing order, 10 finished. View read-only',exact:true})).toBeVisible();
+  await expect(page.getByRole('tab',{name:/^Times/})).toContainText('You · 1 of 10');
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer-finishers.png'),fullPage:true});
+  for(let place=2;place<=9;place++) await enterTime(page,String(1100+place*10));
+  await expect(page.getByRole('heading',{level:2,name:'10th place time?'})).toBeVisible();
+  // The 10th and last finisher's time marks Times done.
+  await enterTime(page,'1300');
+  await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect.poll(async()=>(await savedTimes(request,code))?.places.length).toBe(10);
   await deleteCurrentRace(request,code);
 });
 

@@ -78,7 +78,7 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await expect(chips).toHaveText(['2011','2012','2013','3045'],live);
   await expect(input).toBeEditable();await input.fill('3045');await input.press('Enter');
   await expect(start.page.getByRole('alert')).toContainText('3045 is already in this race. Check the wristband.');
-  await expect(start.page.getByRole('tab',{name:/^Finishing order/})).toContainText('Finishing order4 of 4',live);
+  await expect(start.page.getByRole('tab',{name:/^Finishing order/})).toContainText('Finishing order3 finished',live);
   await deleteCurrentRace(request,code);
 });
 
