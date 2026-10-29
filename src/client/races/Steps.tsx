@@ -237,8 +237,10 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       disabled={locked} aria-pressed={as(runner)===value} onClick={()=>setLeftAs({...leftAs,[runner.id]:value})}>{label}</button>;
     return <>
       <main className="rz-main">
-        <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p><h2 className="rz-prompt__q">Check the order</h2></div>
-          {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div>
+        {/* The line above spans the screen, so it stays on one line at 360px; Back sits beside the question. */}
+        <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p>
+          <div className="rz-heading-row"><h2 className="rz-prompt__q">Check the order</h2>
+            {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div></div>
         {flow.error && <Callout message={flow.error}/>}
         {sizeNote}
         {order.length>0 && <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>String(byId.get(id)?.wristband??'')} disabled={locked}
