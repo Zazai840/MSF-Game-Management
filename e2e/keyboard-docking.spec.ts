@@ -1,4 +1,4 @@
-import {ownCode,ownEvent,ownRelay,ownWristbands,expect,openRace,openRaceScreen,openRelays,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRaceScreen,openRelays,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -78,6 +78,28 @@ test('the Timer\'s Back, No more finishers and Next ride on the keyboard',async(
   await openRace(page,name);
   const box=page.getByLabel('Place time',{exact:true});
   await box.focus();
+  await docksAboveKeyboard(page,box);
+});
+test('on a 12-runner heat, a wrong time typed with the keyboard up shows its warning, Fix time and Keep in view as the keyboard goes',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=`Docked big timer ${info.project.name}`,n=await ownWristbands('Girl Cubs',12);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await writeCheckIn(request,await signInThroughApi(request,`Docked big start ${info.project.name}`),code,Array.from({length:12},(_,index)=>n(index)));
+  const {page}=await withKeyboard(await openPhone(`Docked big timer ${info.project.name}`,{job:'timer'}));
+  await openRace(page,name);
+  const box=page.getByLabel('Place time',{exact:true}),footer=page.locator('footer.rz-footer');
+  await box.focus();await keyboard(page,Math.round(page.viewportSize()!.height*0.55));
+  for(const time of ['1100','1200','1150']) {await box.fill(time);await box.press('Enter');}
+  const warning=page.getByRole('alert').filter({hasText:'The 3rd place time is faster than 2nd.'});
+  await expect(warning).toBeVisible();
+  // The box lets go while the warning waits, so the phone puts its keyboard away and the footer goes back to the foot.
+  await expect(box).not.toBeFocused();
+  await expect(page.locator('html')).not.toHaveAttribute('data-keyboard','open');
+  await keyboard(page,null);
+  await expect(footer).toContainText('Fix or keep the 3rd place time first');
+  await inViewAboveFooter(page,[warning,warning.getByRole('button',{name:'Fix time',exact:true}),warning.getByRole('button',{name:'Keep',exact:true})]);
+  await page.screenshot({path:info.outputPath('docked-big-timer-warning.png')});
+  // Fix time brings the keyboard back up with the footer on it.
+  await warning.getByRole('button',{name:'Fix time',exact:true}).click();
   await docksAboveKeyboard(page,box);
 });
 test('Join\'s button stays at the foot of the screen while typing',async({page})=>{

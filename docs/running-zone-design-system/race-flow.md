@@ -178,10 +178,11 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Prompt (compact):** meta "Heat 3 · 5 runners", question "3rd place time?".
 - **PlaceTimeGrid**, one slot per place.
   - The number of places is the larger of the runner count and the number of places recorded so far.
-  - The current slot is gold; tap any slot to retype it.
+  - The current slot is gold with a navy ring; tap any slot to retype it.
+  - Over 9 places the grid is compact: 4 across, 44px tall.
 - **Numeric TextField** with the hint "Shows as **13.05**. Type digits only."
-- **Footer trio:** Back / No more finishers / Next.
-- **Keep the "faster than the place before" warning** (Fix time / Keep).
+- **Footer trio:** Back / No more finishers / Next, each on one line.
+- **Keep the "faster than the place before" warning** (Fix time / Keep), directly above the TextField. While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 
 #### 8. Zone lead (artboard `N8-Lead`)
