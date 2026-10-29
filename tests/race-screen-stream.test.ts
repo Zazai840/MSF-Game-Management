@@ -70,7 +70,7 @@ async function withTeams(token:string) {
   return relays;
 }
 
-test('a race stream sends the whole race first, and the races stream every event group but the relays',async()=>{
+test('a race stream sends the whole race first, and the races stream every event group, relays too',async()=>{
   const {volunteer}=await start();
   const race=await newHeat(volunteer);
   const stream=await openStream(volunteer,`races/${race.id}`);
@@ -83,7 +83,7 @@ test('a race stream sends the whole race first, and the races stream every event
   const list=await openStream(volunteer,'races');
   const groups=(await list.snapshot<RacesRead>()).groups;
   expect(groups.find(group=>group.event.code==='R4')!.races.map(item=>item.id)).toEqual([race.id]);
-  expect(groups.some(group=>group.event.relay)).toBe(false);
+  expect(groups.find(group=>group.event.code===relay)!.event.relay).toBe(true);
   await list.close();
 });
 test('a relay\'s race screen stream sends its current race first, an empty next heat when nothing is stored',async()=>{
