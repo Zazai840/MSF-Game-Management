@@ -91,7 +91,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 
 **After saving any step**, return here and show the **Toast**: "Times saved · Girl Cubs Heat 2" with **Undo**.
 - The toast lasts 6 seconds.
-- **Undo reverses only this person's own save**, the local change they just made. It restores the step to exactly how it was before that save and reopens the race at that step. It never touches other steps or other people's edits. Other steps don't depend on it: times are keyed by place and positions by wristband.
+- **Undo reverses only this person's own save**, the local change they just made. It restores the step to exactly how it was before that save and reopens the race at that step. It never touches other steps or other people's edits. Other steps don't depend on it: times are keyed by place and the finishing order by wristband.
 - **If someone else has changed the same step since the save**, Undo would wipe out their work. So the toast shows "Tom Barker changed this since. Open the race to edit it." with an "Open race" button instead of Undo.
 
 **Empty state** (no races in the tab): "No races yet. Tap New race when a race lines up."
@@ -143,7 +143,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Keep the existing warnings** (wrong section, unknown, already raced) as the WarningCallout with Fix number / Keep.
 - **Soft capacity warning at 6 runners.** Specified in "Soft warning: usual heat size" below.
 
-#### 6. Finish line: record positions (artboard `N6-FinishLine`)
+#### 6. Finish line: record the finishing order (artboard `N6-FinishLine`)
 
 **PlacesBoard**
 - A 4-column grid with **one slot for every runner in the race** (1st … *n*th).

@@ -102,7 +102,7 @@ test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, F
   const warning=page.getByRole('alert').filter({hasText:'The 3rd place time is faster than 2nd.'});
   await expect(warning).toBeVisible();
   await expect(page.locator('footer.rz-footer')).toContainText('Fix or keep the 3rd place time first');
-  await inViewAboveFooter(page,[warning,warning.getByRole('button',{name:'Fix time',exact:true}),warning.getByRole('button',{name:'Keep',exact:true})]);
+  await inViewAboveFooter(page,[warning,warning.getByRole('button',{name:'Fix time',exact:true}),warning.getByRole('button',{name:'Keep',exact:true}),page.locator('.rz-main > :last-child')]);
   // Directly above the number box.
   const [callout,box]=[(await warning.boundingBox())!,(await input.boundingBox())!];
   expect(box.y-(callout.y+callout.height)).toBeGreaterThanOrEqual(0);expect(box.y-(callout.y+callout.height)).toBeLessThan(48);

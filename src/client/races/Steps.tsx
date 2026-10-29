@@ -320,7 +320,8 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
       </div>
       {flow.error && <Callout message={flow.error}/>}
-      {/* A heat of more than 9 gets the compact grid, 4 across, so a warning and the time box stay above the footer. */}
+      {/* A heat of more than 9 gets the compact grid, 4 across, so a warning and the time box (without its hint, which the warning
+        replaces) stay above the footer, even at 360px. */}
       {slots>0?<ol className={slots>9?'rz-slots rz-slots--compact':'rz-slots'} aria-label="Place times">{Array.from({length:slots},(_,index)=>{
         const time=places[index],isWrong=wrong.has(index);
         const kind=isWrong?'rz-slot rz-slot--warn':index===target && !full?'rz-slot rz-slot--current':time===undefined?'rz-slot rz-slot--empty':'rz-slot';
@@ -335,7 +336,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button>
           <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}
       {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held} onChange={setTyped} onEnter={()=>void next()}
-        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={digits?<>Shows as <strong>{formatTimeDigits(digits)}</strong>. Type digits only.</>:'Type digits only: 1234 shows as 12.34.'}/>}
+        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={held?undefined:digits?<>Shows as <strong>{formatTimeDigits(digits)}</strong>. Type digits only.</>:'Type digits only: 1234 shows as 12.34.'}/>}
     </main>
     {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
       <KeepFocus className="rz-btn" disabled={target===0 && retype===null && !places.length} onClick={()=>{const back=Math.max(0,(retype??places.length)-1);if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Back</KeepFocus>

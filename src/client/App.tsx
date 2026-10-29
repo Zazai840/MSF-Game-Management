@@ -36,7 +36,8 @@ export function App() {
   const [homeTab,setHomeTab]=useState(phoneStorage.homeTab);
   const [role,setRole]=useState<Role|null>(null);
   const [roleSheet,setRoleSheet]=useState(false);
-  const [menu,setMenu]=useState(false);
+  // The avatar menu, when open: placed under the avatar (or name) that opened it, wherever that sits.
+  const [menu,setMenu]=useState<{top:number;right:number}|null>(null);
   const logOut=useSubmit();
   const [saved,setSaved]=useState<SavedStep|null>(null);
   const [openDay,setOpenDay]=useState(false);
@@ -56,13 +57,13 @@ export function App() {
   }
   /** Moves to another screen; opening a race gives it its address, so the phone's Back returns to Races. */
   function go(next:View) {
-    setMenu(false);setView(next);
+    setMenu(null);setView(next);
     const path=next.kind==='race'?`/races/${encodeURIComponent(next.id)}`:'/';
     if(location.pathname!==path) history.pushState(null,'',path);
     window.scrollTo(0,0);
   }
   useEffect(()=>{
-    const back=()=>{setMenu(false);setView(fromLocation());};
+    const back=()=>{setMenu(null);setView(fromLocation());};
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{
@@ -95,8 +96,11 @@ export function App() {
   if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
   const name=home.phone.name,toRaces=()=>go({kind:'races'});
   // Every avatar, and the older-look header's name, opens this one menu. Log out asks nothing: the phone keeps its listed names.
-  const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=()=>setMenu(!menu);
-  const menuList=menu && <div className="rz-menu" role="menu">
+  const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
+    const box=anchor.getBoundingClientRect();
+    setMenu(menu?null:{top:box.bottom+6,right:document.documentElement.clientWidth-box.right});
+  };
+  const menuList=menu && <div className="rz-menu" role="menu" style={menu}>
     {isLead && <><button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Results'})}>Results</button>
       <button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Day setup'})}>Day setup</button></>}
     <button role="menuitem" type="button" disabled={logOut.busy} onClick={()=>void logOut.submit(async()=>{await api('sign-out',{});phoneStorage.signOut();})}>Log out</button>
@@ -118,7 +122,7 @@ export function App() {
       onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
   // The older look has no race-flow tokens, so the menu brings its own .rz-screen.
-  return <><AppHeader name={name} label={menuLabel} screen={screenName(view,leadSection)} onMenu={openMenu}/>{menuList && <div className="rz-screen rz-menu-anchor">{menuList}</div>}<BackArea>
+  return <><AppHeader name={name} label={menuLabel} screen={screenName(view,leadSection)} onMenu={openMenu}/>{menuList && <div className="rz-screen">{menuList}</div>}<BackArea>
     {view.kind!=='lead' && <BackArrow to="Races" onBack={toRaces}/>}<main>
     {view.kind==='teams'?<TeamsScreen phoneId={home.phone.id}/>
       :view.kind==='relay'?<RaceScreen key={view.code} eventCode={view.code} phoneId={home.phone.id} lead={isLead}/>

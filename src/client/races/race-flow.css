@@ -25,6 +25,7 @@
 :where(.rz-screen) main { max-width: none; margin: 0; padding: 0; }
 :where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; align-items: normal; font-size: inherit; color: inherit; }
 :where(.rz-screen) label { display: block; }
+:where(.rz-screen) legend { padding: 0; }
 :where(.rz-screen) form { display: flex; flex-direction: column; gap: var(--space-8); }
 :where(.rz-screen) input { min-height: 0; }
 
@@ -45,7 +46,12 @@
 /* The docked footer has left the page's flow: the page keeps room for it, so the last row never hides behind it. */
 html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var(--rz-footer-height, 0px)); }
 .rz-main > * { margin: 0; }
+/* A section heading sits nearer the cards it heads than what is above it. */
+.rz-main > .rz-section { margin-top: var(--space-6); }
+.rz-main > .rz-section:first-child { margin-top: var(--space-10); }
 .rz-main--form { padding-top: var(--space-16); }
+/* The Updated-at line sits centred in its footer, as it did when the older look's footer centred it. */
+.rz-footer .rz-refresh { justify-content: center; }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
 .rz-note { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); font-size: 14px; line-height: 1.4; font-weight: 700; }
 .rz-empty { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
@@ -187,10 +193,8 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-jobcard--finish { --c: var(--challenge); }
 .rz-jobcard--timer { --c: var(--gold); }
 .rz-jobcard--lead { --c: var(--jumping); }
-/* Fixed over the screen: the app bar clips what overflows it (its pattern and stripes), which hid the menu. */
-/* The older look's header spans the page, so its menu sits at the page's right edge. */
-.rz-menu-anchor { --content: 100%; }
-.rz-menu { position: fixed; right: max(var(--space-8), calc((100% - var(--content)) / 2)); top: calc(env(safe-area-inset-top, 0px) + 62px); z-index: 30; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
+/* Fixed over the screen (the app bar clips what overflows it, its pattern and stripes), placed under its avatar from script. */
+.rz-menu { position: fixed; z-index: 30; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
 .rz-menu button { min-height: var(--size-touch); padding: 0 var(--space-12); border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); text-align: left; font-family: var(--font-body); font-size: 15px; font-weight: 800; }
 
 /* ---------- Race body bits ---------- */
