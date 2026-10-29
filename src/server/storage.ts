@@ -105,7 +105,7 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       value jsonb, saved_at timestamptz, saved_by uuid REFERENCES sign_ins(id),
       PRIMARY KEY(race_id,part)
     );
-    -- The race flow's step done mark: who marked the part done (That's everyone, Save positions, No more finishers) and when.
+    -- The race flow's step done mark: who marked the part done (That's everyone, Save the order, No more finishers) and when.
     ALTER TABLE race_parts ADD COLUMN IF NOT EXISTS done_at timestamptz;
     ALTER TABLE race_parts ADD COLUMN IF NOT EXISTS done_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
     CREATE TABLE IF NOT EXISTS race_part_history (

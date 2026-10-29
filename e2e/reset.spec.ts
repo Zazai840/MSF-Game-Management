@@ -22,7 +22,7 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     await other.goto('/');await join(other,`Reset helper ${info.project.name}`,{job:'Start line'});await races(other);
     // The helper starts Heat 1 of 60m Boy Beavers.
     await other.getByRole('button',{name:'New race',exact:true}).click();const sheet=other.getByRole('dialog',{name:'New race'});
-    await sheet.getByRole('button',{name:'60m',exact:true}).click();await sheet.getByRole('button',{name:/^Boy Beavers /}).click();await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+    await sheet.getByRole('button',{name:'60m',exact:true}).click();await sheet.getByRole('button',{name:'Boy Beavers',exact:true}).click();await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
     await expect(other.getByRole('heading',{level:1,name:'60m · Boy Beavers'})).toBeVisible();
     await asOwner(page);await exportDay(page);
     await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;

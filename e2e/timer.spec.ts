@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
+import {ownCode,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -36,11 +36,20 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await expect(fourth).toBeVisible();
   await page.screenshot({path:info.outputPath('timer-wrong.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
-  // Fix time retypes it.
+  // Tapping the time box opens the typed time to edit, selected; Enter checks it again.
+  await input.click();
+  await expect(warning).toHaveCount(0);
+  await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
+  await expect(input).toBeFocused();await expect(input).toHaveValue('1290');
+  await expect.poll(()=>selected(page,'Place time')).toBe('1290');
+  await input.press('Enter');
+  await expect(warning).toBeVisible();
+  // Fix time does the same: the time stays, selected, so typing replaces it.
   await warning.getByRole('button',{name:'Fix time',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
-  await expect(input).toBeFocused();await expect(input).toHaveValue('');
-  await enterTime(page,'1290');
+  await expect(input).toBeFocused();await expect(input).toHaveValue('1290');
+  await expect.poll(()=>selected(page,'Place time')).toBe('1290');
+  await input.pressSequentially('1290');await input.press('Enter');
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
   // Kept: it stays marked, its note says Kept, and the next place is up.
   await expect(warning).toHaveCount(0);
@@ -113,16 +122,16 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await expect(timer.page.getByRole('tab',{name:/^Runners/})).toContainText('3 so far',live);
   await start.page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(timer.page.getByRole('tab',{name:/^Runners/})).toContainText('3 checked in',live);
-  // Positions and times go in at the same time; neither waits for the other.
+  // The finishing order and times go in at the same time; neither waits for the other.
   await finish.page.getByRole('button',{name:'2202 came 1st',exact:true}).click();
   await enterTime(timer.page,'1234');
   await finish.page.getByRole('button',{name:'2201 came 2nd',exact:true}).click();
   await enterTime(timer.page,'1301');
   await expect(finish.page.getByRole('tab',{name:/^Times/})).toContainText('2 of 3',live);
-  await expect(timer.page.getByRole('tab',{name:/^Positions/})).toContainText('2 of 3',live);
+  await expect(timer.page.getByRole('tab',{name:/^Finishing order/})).toContainText('2 of 3',live);
   await finish.page.getByRole('button',{name:'2203 came 3rd',exact:true}).click();
-  await finish.page.getByRole('button',{name:'Save positions',exact:true}).click();
-  await expect(finish.page.locator('.rz-toast')).toContainText('Positions saved · Girl Cubs Heat 1');
+  await finish.page.getByRole('button',{name:'Save the order',exact:true}).click();
+  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
   // Every step done and agreeing: the last one saves the race.
   await enterTime(timer.page,'1350');
   await expect(timer.page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');

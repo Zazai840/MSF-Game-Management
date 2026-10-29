@@ -109,8 +109,9 @@ test('the Teams button on Home\'s Relays tab counts every team and those not com
   await expect(page.getByRole('region',{name:`Teams badge ${project}`,exact:true})).toBeVisible();
   const badge=teams.locator('.badge'),before=(await badge.count())?await badge.innerText():'';
   const [count,short]=[Number(before.match(/^(\d+) team/)?.[1]||0),Number(before.match(/(\d+) not complete/)?.[1]||0)];
-  // Another project's badge test may hold the same children: keep any warning.
-  await writeTeam(request,writer.token,code,[3101,3102,3103,null],{keptWarnings:[3101,3102,3103]});
+  // Its own children: a child another test's team holds would bring a warning.
+  const n=await ownWristbands('Boy Scouts',3);
+  await writeTeam(request,writer.token,code,[n(1),n(2),n(3),null]);
   await expect(badge).toHaveText(`${count+1} ${count?'teams':'team'} · ${short+1} not complete`,live);
   await expect(page.getByRole('region',{name:`Teams badge ${project}`,exact:true}).getByRole('button')).toHaveText('Boy ScoutsHeat 1 · 1 team to run');
   expect(await lookProblems(page)).toEqual([]);

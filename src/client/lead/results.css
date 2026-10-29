@@ -73,8 +73,9 @@
 .disqualification-reason {display:block; margin-top:4px; font-weight:800; color:var(--text);}
 .badge.note-tag {display:inline-block; vertical-align:1px; line-height:inherit; margin-left:8px; padding:1px 8px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-badge); font-weight:800;}
 .runner-actions {border-radius:var(--radius-card);box-shadow:0 18px 48px rgba(24,33,59,.35);background:var(--surface);color:inherit;padding:1rem;width:100%;max-width:34rem;max-height:min(85vh,100%);overflow:auto;margin:auto;}
-/* While a phone number entry is open in a sheet, the sheet sits above its bar and the keyboard (both 0 otherwise). */
-.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem .5rem calc(1rem + var(--action-bar-height, 0px) + var(--keyboard-inset, 0px));}
+/* While a phone number entry is open in a sheet, the sheet sits above its bar and, while typing, in what shows above the keyboard. */
+.action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem .5rem calc(1rem + var(--action-bar-height, 0px));}
+html[data-keyboard="open"] .action-sheet-overlay {top:var(--vv-top);bottom:auto;height:var(--vv-height);}
 .runner-actions h3 {margin-top:0;}
 .runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}

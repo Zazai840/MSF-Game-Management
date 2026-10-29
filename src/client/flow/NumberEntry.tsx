@@ -7,7 +7,7 @@ export const digitsOnly=(value:string)=>value.replace(/\D/g,'');
  * One number typed on the phone's own number pad, entry after entry (wristbands, times).
  * The same input stays mounted and focused between entries so the keyboard never closes;
  * Enter, the keyboard's Next/Go key and the Next button all call onNext.
- * While `held` (a warning is waiting for Fix or Keep) the keyboard closes; when released it opens again.
+ * While `held` (a warning is waiting for Fix or Keep) the keyboard closes; when released it opens again, the box selected.
  */
 export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,nextLabel='Next',placeholder,display,extraAction,selectKey,inline=false}:{
   label:string; value:string; onChange:(digits:string)=>void; onNext:()=>void;
@@ -25,7 +25,8 @@ export function NumberEntry({label,value,onChange,onNext,held=false,busy=false,n
   const wasHeld=useRef(held);
   useLayoutEffect(()=>{
     if(held) input.current?.blur();
-    else if(wasHeld.current) input.current?.focus();
+    // Released: anything left in the box (a wristband kept to fix) is selected, so typing replaces it.
+    else if(wasHeld.current) {input.current?.focus();input.current?.select();}
     wasHeld.current=held;
   },[held]);
   // Opening the step puts the cursor straight in the input (mount only).

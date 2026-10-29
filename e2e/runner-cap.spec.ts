@@ -15,7 +15,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
   const {page:phone}=await openPhone(`Eight phone ${info.project.name}`);
   await phone.getByRole('button',{name:'New race',exact:true}).click();
   const newRace=phone.getByRole('dialog',{name:'New race'});
-  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await newRace.getByRole('button',{name:'Create heat 1',exact:true}).click();
   const input=phone.getByLabel('Wristband number',{exact:true});
   for(const number of numbers) {await expect(input).toBeEditable();await input.fill(String(number));await input.press('Enter');}
@@ -27,7 +27,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
   for(const [index,number] of numbers.entries()) await phone.getByRole('button',{name:new RegExp(`^${number} came ${index+1}(st|nd|rd|th)$`)}).click();
   await expect(phone.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
   await phone.screenshot({path:info.outputPath('finish-order-eight.png'),fullPage:true});
-  await phone.getByRole('button',{name:'Save positions',exact:true}).click();
+  await phone.getByRole('button',{name:'Save the order',exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Timer');
   for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{level:2,name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
   await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
@@ -53,8 +53,8 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
   await openRace(phone,name,'Boy Cubs','Final');await switchJob(phone,'Finish line');
   for(const [number,place] of [[1801,'1st'],[1807,'2nd'],[1802,'3rd'],[1803,'4th'],[1804,'5th'],[1805,'6th']] as const) await phone.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
-  await phone.getByRole('button',{name:'Save positions',exact:true}).click();
-  await expect(phone.locator('.rz-toast')).toContainText('Positions saved · Boy Cubs Final');
+  await phone.getByRole('button',{name:'Save the order',exact:true}).click();
+  await expect(phone.locator('.rz-toast')).toContainText('Finishing order saved · Boy Cubs Final');
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
   await openResults(page,code,`Seven lead ${info.project.name}`);
   await page.getByRole('button',{name:'Open final',exact:true}).click();await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
