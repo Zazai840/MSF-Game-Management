@@ -90,9 +90,9 @@ test('final export preserves absent seeds, sourced callups, corrected numbers, t
  const completed=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(completed.statusCode).toBe(200);const id=completed.json().results.finalResults.raceId;
  const setup=raceSetup(app),current=async()=>(await setup.screen(volunteer,'R3')).race as any;
  let final=await current();expect(final.id).toBe(id);
- await call(volunteer,`/api/races/${id}/absent`,{raceId:id,version:final.parts.runners.version,absent:[final.parts.runners.value.find((r:any)=>r.wristband===1066).id]});
+ await setup.attend(volunteer,'R3',undefined,[1066]);
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect((await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:detail.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
- final=await current();const correctedId=final.parts.runners.value.find((r:any)=>r.wristband===1023).id;
+ await setup.attend(volunteer,'R3',undefined,[1066]);final=await current();const correctedId=final.parts.runners.value.find((r:any)=>r.wristband===1023).id;
  await call(lead,`/api/lead/races/${id}/runners/${correctedId}/correct-number`,{expectedWristband:1023,wristband:1050});final=await current();
  final=await setup.order(volunteer,'R3',[1135,1050,1005,1012,1110],{didNotFinish:[1001],didNotRun:[1088],added:[1001]});await setup.submit(volunteer,'R3');
  await call(lead,`/api/lead/races/${id}/runners/${final.parts.runners.value.find((r:any)=>r.wristband===1135).id}/disqualify`,{reason:'Two false starts'});

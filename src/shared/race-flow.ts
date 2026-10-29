@@ -80,7 +80,7 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
  */
 export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'>,step:Step):string|null {
   const runners:RaceEntry[]=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?'Everyone is marked Absent':'Nobody is checked in yet';
+  if(!runners.length) return race.kind==='final'?'Nobody is marked Here yet':'Nobody is checked in yet';
   if(step==='positions') {
     const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
     return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} runners have no place yet`;

@@ -46,10 +46,11 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
-  // The final of six runs in the race flow: everyone here at the start line, then the finishing order, and it saves itself.
+  // The final of six runs in the race flow: everyone marked Here at the start line, then the finishing order, and it saves itself.
   const {page:phone}=await openPhone(`Seven phone ${info.project.name}`);await openRace(phone,name,'Boy Cubs','Final');
+  await expect(phone.locator('.rz-prompt__meta')).toHaveText('Final · 0 of 6 here · 6 not marked');
+  for(const number of [1801,1802,1803,1804,1805,1807]) await phone.getByRole('button',{name:`${number}: Here`,exact:true}).click();
   await expect(phone.locator('.rz-prompt__meta')).toHaveText('Final · 6 of 6 here');
-  await expect(phone.getByRole('button',{name:/: Here\. Mark absent$/})).toHaveCount(6);
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
   await openRace(phone,name,'Boy Cubs','Final');await switchJob(phone,'Finish line');
   for(const [number,place] of [[1801,'1st'],[1807,'2nd'],[1802,'3rd'],[1803,'4th'],[1804,'5th'],[1805,'6th']] as const) await phone.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();

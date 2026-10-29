@@ -64,7 +64,7 @@ test('Heats complete waits on a heat with check-ins, ignores an empty current he
   expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=(await screen()).race;
   expect(final).toMatchObject({kind:'final',state:'in progress'});
-  expect(final.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband).sort()).toEqual([1001,1002,1003]);
+  expect(final.final!.entries.map(entry=>entry.wristband).sort()).toEqual([1001,1002,1003]);
 });
 test('Heats complete with the empty next heat never stored',async()=>{
   const {lead,screen}=await start();

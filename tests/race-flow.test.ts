@@ -123,7 +123,8 @@ test('only a lead makes the final, once every heat is saved, seeded with the fas
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')).toMatchObject({heatsOpen:true,finalAvailable:true});
   const final=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
   expect(final.race.kind).toBe('final');
-  expect(final.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([2006,2001,2002,2003,2004,2005]);
+  expect(final.race.final!.entries.map(entry=>entry.wristband)).toEqual([2006,2001,2002,2003,2004,2005]);
+  expect(final.race.parts.runners.value).toEqual([]);
   expect(Object.keys(final.steps)).toEqual(['runners','positions']);
   // Making the final completes the heats: the group offers no more heats.
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')!.heatsOpen).toBe(false);

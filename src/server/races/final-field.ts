@@ -1,17 +1,30 @@
 import type pg from 'pg';
 import { isRunner,type RaceEntry,type RaceRead } from '../../shared/races.js';
 import type { FinalEntry,FinalAddition } from '../../shared/finals.js';
-/** Attendance follows the published runner list; a finalist's Here marker is never cleared. */
-export async function publishFinalRunners(client:pg.PoolClient,race:Pick<RaceRead,'id'|'kind'>,runners:readonly RaceEntry[]) {
+/**
+ * Attendance follows the published runner list: those in it are Here, and one leaving it (Didn't run, a lead taking
+ * them off, a relay team's Absent) is Absent. One never in it keeps its mark, so a finalist not yet checked in stays
+ * unmarked; the final's check-in sets the marks itself (`markFinalAbsent`). A finalist's Here marker is never cleared.
+ * `race` is as it was before this publication.
+ */
+export async function publishFinalRunners(client:pg.PoolClient,race:Pick<RaceRead,'id'|'kind'|'parts'>,runners:readonly RaceEntry[]) {
   if(race.kind!=='final') return;
   const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[race.id])).rows[0];
   if(!row) return;
-  const present=new Map(runners.map(runner=>[runner.id,runner]));
+  const present=new Map(runners.map(runner=>[runner.id,runner])),before=new Set((race.parts.runners.value||[]).map(runner=>runner.id));
+  const absent=(id:string,stored:boolean)=>!present.has(id) && (stored || before.has(id));
   const original:FinalEntry[]=row.entries;
   const known=new Set(original.map(entry=>entry.finalEntryId));
   const here=(runner:RaceEntry|undefined)=>runner && (isRunner(runner) || runner.legs.some(leg=>leg.here))?{wasHere:true}:{};
-  const additional:FinalAddition[]=(row.additional_entries||[]).map((entry:FinalAddition)=>({...entry,runner:present.get(entry.runner.id)||entry.runner,absent:!present.has(entry.runner.id),...here(present.get(entry.runner.id))}));
+  const additional:FinalAddition[]=(row.additional_entries||[]).map((entry:FinalAddition)=>({...entry,runner:present.get(entry.runner.id)||entry.runner,absent:absent(entry.runner.id,entry.absent),...here(present.get(entry.runner.id))}));
   for(const runner of runners) if(!known.has(runner.id)&&!additional.some(entry=>entry.runner.id===runner.id)) additional.push({runner,absent:false,...here(runner)});
-  const entries=original.map(entry=>({...entry,...(present.has(entry.finalEntryId)?{runner:present.get(entry.finalEntryId)}:{}),absent:!present.has(entry.finalEntryId),...here(present.get(entry.finalEntryId))}));
+  const entries=original.map(entry=>({...entry,...(present.has(entry.finalEntryId)?{runner:present.get(entry.finalEntryId)}:{}),absent:absent(entry.finalEntryId,entry.absent),...here(present.get(entry.finalEntryId))}));
   await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),race.id]);
+}
+/** A child's final check-in: exactly these finalists are marked Absent (after the runner list, those Here, is published). */
+export async function markFinalAbsent(client:pg.PoolClient,raceId:string,absent:readonly string[]) {
+  const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];
+  const entries=(row.entries as FinalEntry[]).map(entry=>({...entry,absent:absent.includes(entry.finalEntryId)}));
+  const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>({...entry,absent:absent.includes(entry.runner.id)}));
+  await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),raceId]);
 }
