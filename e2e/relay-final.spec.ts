@@ -16,9 +16,11 @@ test('a relay Final on two phones and a lead: six seeded teams ticked, one Absen
     await writeTeamOrder(request,sam.token,code,placed);await writeTimes(request,sam.token,code,times);await submitRace(request,sam.token,code);
   }
   expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${lead.token}`},data:{stage:'heats'}})).ok()).toBe(true);
-  // Home's tile reads just Final.
+  // Home's tile reads Final with its holders: making the final leaves every hold as it was, so Priya takes the order over from the heats' holder.
+  const taken=await request.post(`/api/race-screen/${code}/take-over`,{headers:{authorization:`Bearer ${priya.token}`},data:{job:'order'}});
+  expect(taken.ok(),await taken.text()).toBe(true);
   await openRelays(priya.page);
-  await expect(priya.page.getByRole('region',{name,exact:true}).getByRole('button')).toHaveText('Girl ScoutsFinal',live);
+  await expect(priya.page.getByRole('region',{name,exact:true}).getByRole('button')).toHaveText(new RegExp(`^Girl ScoutsFinal · Finishing order · ${priyaName}`),live);
   for(const phone of [sam,priya]) {
     await openRelays(phone.page);
     await openRaceScreen(phone.page,name,'Girl Scouts');

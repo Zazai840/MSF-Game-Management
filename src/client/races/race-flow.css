@@ -216,6 +216,15 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
 .rz-teamcard__head .rz-btn { margin-left: auto; }
 .rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+.rz-teamcard__seed { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
+.rz-teamcard__marks { display: flex; gap: var(--space-6); margin-left: auto; }
+.rz-teamcard__marks .rz-btn { margin-left: 0; }
+/* A relay final's team card: the whole team on one card, its children in leg order, Here / Absent for the team. */
+.rz-teamcard--final { gap: 0; padding: var(--space-4) var(--space-10) var(--space-4) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-teamcard--final.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
+.rz-teamlegs { margin: 0; padding: 0; list-style: none; }
+.rz-teamlegs li { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); border-top: 1px solid var(--line); }
+.rz-teamlegs__leg { min-width: 56px; font-size: 13px; font-weight: 700; color: var(--ink-muted); }
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 .rz-lead-rows { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-lead-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: var(--space-8); min-height: var(--size-touch); padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
