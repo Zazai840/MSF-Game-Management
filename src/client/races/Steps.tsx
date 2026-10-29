@@ -1,6 +1,6 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import { raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
+import { finishedWords,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { onlyRunners } from '../../shared/race-screen.js';
 import { runnersOf,runnersText,type Runner } from '../../shared/races.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
@@ -226,12 +226,12 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
 }
 
 /**
- * Timer: one slot per place (the larger of the runner count and the places recorded), the current one gold; tap any
+ * Timer: one slot per place (each finisher once the order is saved, before that each runner), the current one gold; tap any
  * to retype it. Digits only: the app puts the point in. A time faster than an earlier place waits for Fix time or
  * Keep. The last place's time, or No more finishers, marks Times done. Times never wait for the finish line.
  */
 export function Timer({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,status=read.steps.times!;
+  const {race}=read,status=read.steps.times!,order=read.steps.positions!;
   const writes=useStepWrites<{places:number[];keptWrong:number[]}>(flow.write,'times','times',race.id,race.parts.times.version);
   const [typed,setTyped]=useState(''),[retype,setRetype]=useState<number|null>(null);
   const stored=race.parts.times.value,places=writes.pending?.places||(stored?.places||[]).filter((time):time is number=>time!==null);
@@ -254,7 +254,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{raceName(race)} · {runnersText(race.parts.runners.value?.length||0)}</p>
+        <p className="rz-prompt__meta">{raceName(race)} · {order.state==='done'?finishedWords(order):runnersText(race.parts.runners.value?.length||0)}</p>
         <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
       </div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}

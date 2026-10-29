@@ -87,10 +87,12 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{ra
     {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" onClick={onFinal}>+ Final</button></li>}
   </ol>;
 }
-/** A step's status in words: "5 checked in", "2 of 8", "Not started". */
+/** A step's status in words: "5 checked in", "2 of 8", "10 finished", "Not started". */
 export function stepWords(step:Step,status:StepStatus) {
   if(status.state==='not started') return 'Not started';
   if(step==='runners') return `${status.count} ${status.state==='done'?'checked in':'so far'}`;
+  // The Did not finish count goes on the step's own meta line: beside two other steps it would not fit on one line at 360px.
+  if(step==='positions' && status.state==='done') return `${status.count-(status.didNotFinish||0)} finished`;
   return `${status.count} of ${status.expected}`;
 }
 /**

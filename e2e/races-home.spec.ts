@@ -200,7 +200,7 @@ test('a saved race opens read-only for a volunteer, saying to ask a lead',async(
   await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2001','2002']);
   await expect(page.getByRole('button',{name:/^Remove /})).toHaveCount(0);
   // Every step done: an own done step is "You · done", so the strip stays one line per cell.
-  await expect(page.getByRole('tablist',{name:'Heat 1 progress'}).getByRole('tab')).toHaveText(['RunnersYou · done','Finishing order2 of 2','Times2 of 2']);
+  await expect(page.getByRole('tablist',{name:'Heat 1 progress'}).getByRole('tab')).toHaveText(['RunnersYou · done','Finishing order2 finished','Times2 of 2']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('saved.png'),fullPage:true});
 });

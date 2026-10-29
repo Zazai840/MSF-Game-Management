@@ -175,3 +175,15 @@ test('the timer types times before the finish line places anyone, up to the runn
   const saved=(await done(ahmed,await order(ahmed,partly,[2001,2002]),'positions')).json() as RaceFlowRead;
   expect(saved.race.state).toBe('saved');
 });
+test('Times expects every runner until the finishing order is saved, then only the finishers',async()=>{
+  const {ahmed,tom}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002},{wristband:2003}]});
+  const ordered=await ok(tom,`/api/races/${id}/order`,{raceId:id,version:checked.race.parts.finish.version,order:ids(checked,[2002,2001]),didNotFinish:ids(checked,[2003]),didNotRun:[],added:[]});
+  expect(ordered.steps.times).toMatchObject({count:0,expected:3});
+  const saved=(await done(tom,ordered,'positions')).json() as RaceFlowRead;
+  expect(saved.steps.positions).toMatchObject({state:'done',count:3,expected:3,didNotFinish:1});
+  expect(saved.steps.times).toMatchObject({count:0,expected:2});
+  const list=await ok<RacesRead>(ahmed,'/api/races');
+  expect(list.groups.find(group=>group.event.code==='R4')!.races[0].steps.times).toMatchObject({expected:2});
+});

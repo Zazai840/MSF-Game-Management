@@ -29,17 +29,21 @@ export const chipName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'
 export interface StepMeta { version:number; by:string|null; at:string|null; doneBy:string|null; doneAt:string|null }
 /**
  * One step's status on one race. `count` is what has been entered (runners checked in, runners placed or Did not
- * finish, places timed) and `expected` what it would be when complete, or null when nothing says (Runners).
+ * finish, places timed) and `expected` what it would be when complete, or null when nothing says (Runners). Times
+ * expects the finishers once Finishing order is done, before that every runner. Finishing order also counts its Did not finish.
  */
-export interface StepStatus extends StepMeta { state:'not started'|'in progress'|'done'; count:number; expected:number|null }
-export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:StepMeta):StepStatus {
+export interface StepStatus extends StepMeta { state:'not started'|'in progress'|'done'; count:number; expected:number|null; didNotFinish?:number }
+const noMeta:StepMeta={version:0,by:null,at:null,doneBy:null,doneAt:null};
+export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:Partial<Record<RacePartName,StepMeta>>={}):StepStatus {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
-  const placed=finish?.order.length||0;
+  const placed=finish?.order.length||0,didNotFinish=finish?.didNotFinish.length||0,own=meta[stepParts[step]]??noMeta;
   const [count,expected]=step==='runners'?[runners.length,null]
-    :step==='positions'?[placed+(finish?.didNotFinish.length||0),runners.length]
-    :[places.filter(time=>time!==null).length,Math.max(runners.length,placed)];
-  return {...meta,state:meta.doneAt?'done':count>0?'in progress':'not started',count,expected};
+    :step==='positions'?[placed+didNotFinish,runners.length]
+    :[places.filter(time=>time!==null).length,meta.finish?.doneAt?placed:Math.max(runners.length,placed)];
+  return {...own,state:own.doneAt?'done':count>0?'in progress':'not started',count,expected,...(step==='positions'?{didNotFinish}:{})};
 }
+/** A saved finishing order in words: "10 finished · 1 did not finish". */
+export const finishedWords=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
 /** A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. */
 export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; createdAt:string; updatedAt:string; steps:Partial<Record<Step,StepStatus>> }
 /**
