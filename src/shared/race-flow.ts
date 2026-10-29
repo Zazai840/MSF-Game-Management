@@ -2,6 +2,7 @@ import type { DayEvent } from './day.js';
 import { ordinal } from './ordinal.js';
 import { andList } from './race-screen.js';
 import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
+import type { NotRankedReason } from './results-rules.js';
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
@@ -49,6 +50,18 @@ export const finishedWords=(status:StepStatus)=>`${finishedCount(status)}${statu
 export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; createdAt:string; updatedAt:string; steps:Partial<Record<Step,StepStatus>> }
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
+/**
+ * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs), a tie,
+ * or why the heat is not ranked yet (`name` is the heat's). "Heat 1 has a time to check first".
+ */
+export function finalHold(kind:'ran-twice'|'tie'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
+  if(kind==='ran-twice') return {step:null,line:`${name} ran twice: choose which result counts first`};
+  if(kind==='tie') return {step:'times',line:`${name} has a tie to settle first`};
+  if(kind==='times out of order' || kind==="finishers and times don't agree") return {step:'times',line:`${name} has a time to check first`};
+  if(kind==='awaiting times') return {step:'times',line:`${name} needs its times first`};
+  if(kind==='awaiting finishing order' || kind==='checked in') return {step:'positions',line:`${name} needs its finishing order first`};
+  return {step:null,line:`${name} is not saved yet`};
+}
 /**
  * An event group: one event × one section, with its races in order. `nextHeat` is the number "+" makes, and
  * `finalAvailable` says "+ Final" can be tapped: a heats event with no final yet, every heat with runners saved.
