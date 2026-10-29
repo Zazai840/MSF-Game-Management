@@ -328,7 +328,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         return <li key={index}><button type="button" className={kind} aria-current={index===target && !full?'step':undefined} disabled={locked || held || (time===undefined && index!==places.length)}
           aria-label={`${ordinal(index+1)} place: ${time===undefined?'no time yet':formatTime(time)}${isWrong?`, ${wrong.get(index)!.reason}`:''}`}
           onClick={()=>{setRetype(time===undefined?null:index);setTyped(time===undefined?'':digitsForTime(time));}}>
-          <span className="rz-slot__ord">{ordinal(index+1)}</span><span className="rz-slot__time">{time===undefined?'–':formatTime(time)}</span>
+          <span className="rz-slot__ord">{ordinal(index+1)}{isWrong && <Icon name="warning" className="rz-slot__flag"/>}</span><span className="rz-slot__time">{time===undefined?'–':formatTime(time)}</span>
           {isWrong && <span className="rz-slot__note">{keptWrong.includes(index)?'Kept':wrong.get(index)!.reason}</span>}
         </button></li>;
       })}</ol>:<p className="rz-empty">Places appear here once runners are checked in.</p>}

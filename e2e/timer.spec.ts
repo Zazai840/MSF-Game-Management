@@ -101,13 +101,18 @@ test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, F
   await input.fill('1150');await input.press('Enter');
   const warning=page.getByRole('alert').filter({hasText:'The 3rd place time is faster than 2nd.'});
   await expect(warning).toBeVisible();
-  await expect(page.locator('footer.rz-footer')).toContainText('Fix or keep the 3rd place time first');
+  const reason=page.locator('footer.rz-footer').getByText('Fix or keep the 3rd place time first',{exact:true});
+  // Navy on the paper footer, an approved colour pair (accessibility.md).
+  expect(await style(reason)).toMatchObject({color:navy});
   await inViewAboveFooter(page,[warning,warning.getByRole('button',{name:'Fix time',exact:true}),warning.getByRole('button',{name:'Keep',exact:true}),page.locator('.rz-main > :last-child')]);
   // Directly above the number box.
   const [callout,box]=[(await warning.boundingBox())!,(await input.boundingBox())!];
   expect(box.y-(callout.y+callout.height)).toBeGreaterThanOrEqual(0);expect(box.y-(callout.y+callout.height)).toBeLessThan(48);
   // The wrong time in the amber warning look; the other slots not faded while it waits.
   expect((await style(slot(page,'3rd place: 11.50, Faster than 2nd place'))).background).toBe(amber);
+  // Its note does not fit 4 across, so the warning icon says it is wrong without colour; a right time has none.
+  await expect(slot(page,'3rd place: 11.50, Faster than 2nd place').locator('.rz-icon')).toBeVisible();
+  await expect(slot(page,'1st place: 11.00').locator('.rz-icon')).toHaveCount(0);
   expect(await style(slot(page,'1st place: 11.00'))).toMatchObject({color:navy,opacity:'1'});
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer-big-wrong.png')});
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
