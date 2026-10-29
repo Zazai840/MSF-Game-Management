@@ -82,6 +82,8 @@ export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
 }
 /** A group is done once its medals are decided; until then it stays in progress, even with every race saved. */
 export const groupDone=(group:Pick<RaceGroup,'medalsDecided'>)=>group.medalsDecided;
+/** Whether an event group's final is made: New race then opens it, and nobody makes another. */
+export const finalMade=(group:{races:readonly Pick<RaceSummary,'kind'>[]})=>group.races.some(race=>race.kind==='final');
 /**
  * Home's sections for a volunteer role: Ready for you (a race whose step for the role can be worked on now, the
  * group whose oldest such race was made first coming first), In progress (every other group not done, most recently

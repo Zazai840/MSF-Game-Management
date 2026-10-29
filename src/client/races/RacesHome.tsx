@@ -1,7 +1,7 @@
 import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { groupDone,groupStatus,leadFinalLine,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
+import { finalMade,groupDone,groupStatus,leadFinalLine,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { issueLine } from '../../shared/to-check.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
@@ -86,7 +86,7 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
     </footer>
     {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
     {creating && snapshot && <NewRaceSheet groups={all} lead={role==='lead'} choice={creating} onRace={onRace} onResults={onResults} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
-      const made=all.find(group=>group.event.code===choice.eventCode)?.races.some(race=>race.kind==='final');
+      const group=all.find(item=>item.event.code===choice.eventCode),made=group && finalMade(group);
       if(choice.kind==='final' && !made) {setCreating(null);setConfirming(choice.eventCode);} else void make(choice);
     }}/>}
     {finalFor && <FinalSheet group={finalFor} failure={failure} onClose={()=>{setConfirming(null);setFailure('');}} onMake={()=>void make({eventCode:finalFor.event.code,kind:'final',number:0,direct:true})}/>}

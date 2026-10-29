@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,finalHold,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { submitBlocker,type Job } from '../../shared/race-screen.js';
 import type { RacePartName } from '../../shared/races.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -52,7 +52,7 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
-    const finalAvailable=event.format==='heats' && !own.some(race=>race.kind==='final') && heats.length>0 && heats.every(race=>race.state==='saved')
+    const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
       && !stageDone(event.id,'heats',stages);
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
