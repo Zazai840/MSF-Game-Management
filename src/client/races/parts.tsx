@@ -1,5 +1,6 @@
 import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 
 /** The design system's line icons (components/Icon/README.md). */
@@ -74,7 +75,7 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
  * with the reason beside it, which opens what it is about.
  */
 export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
-  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:{line:string;onOpen:()=>void}}) {
+  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:ReactNode}) {
   return <ol className="rz-heats" aria-label="Heats">
     {races.map(race=>{
       const state=chipState(race,role),here=race.id===current;
@@ -87,8 +88,16 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,n
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
     {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
       onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
-    {onFinal && finalReason && <li><button type="button" className="rz-heat-reason" onClick={finalReason.onOpen}><Icon name="warning"/>{finalReason.line}</button></li>}
+    {onFinal && finalReason && <li>{finalReason}</li>}
   </ol>;
+}
+/**
+ * Why a lead's final would be refused, beside "+ Final" and under New race's greyed Final. Tapping it opens what it is
+ * about: that race on its step, or Results on the event when no step fixes it (a runner who ran twice).
+ */
+export function FinalReasonButton({group,onRace,onResults}:{group:Pick<RaceGroup,'event'|'finalReason'>;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
+  const reason=group.finalReason!;
+  return <button type="button" className="rz-heat-reason" onClick={()=>reason.step===null?onResults({event:group.event}):onRace(reason.raceId,reason.step)}><Icon name="warning"/>{reason.line}</button>;
 }
 /** A step's status in words: "5 checked in", "2 of 8", "10 finished", "Not started". */
 export function stepWords(step:Step,status:StepStatus) {

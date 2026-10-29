@@ -1,4 +1,4 @@
-import {ownCode,ownWristbands,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,backToRaces,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -118,16 +118,22 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
  await expect(reason).toBeVisible();
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
- // New race never offers the final the server would refuse: Final is greyed, with the reason in the hint.
+ // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's Times tab too.
  await lena.getByRole('button',{name:'New race',exact:true}).click();
  const sheet=lena.getByRole('dialog',{name:'New race'});
  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Boy Cubs ${code}`,exact:true}).click();
  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
- await expect(sheet.getByText('Boy Cubs already has heat 1. Heat 1 has a time to check first.',{exact:true})).toBeVisible();
- await lena.keyboard.press('Escape');
+ await expect(sheet.getByText('Boy Cubs already has heat 1.',{exact:true})).toBeVisible();
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-sheet.png')});
+ await sheet.getByRole('button',{name:'Heat 1 has a time to check first',exact:true}).click();
+ const opened=async()=>{
+  await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
+  await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
+ };
+ await opened();
+ await backToRaces(lena);
  await reason.click();
- await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
- await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
+ await opened();
  const onRace=lena.getByRole('navigation',{name:'Heats'});
  await expect(onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveAttribute('aria-disabled','true');
  await expect(onRace.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toBeVisible();

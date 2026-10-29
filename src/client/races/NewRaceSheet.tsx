@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { heatsFinishedLine,volunteerFinalLine,type RaceGroup } from '../../shared/race-flow.js';
-import { Callout,Sheet } from './parts.js';
+import { heatsFinishedLine,volunteerFinalLine,type RaceGroup,type Step } from '../../shared/race-flow.js';
+import type { ResultsTarget } from '../../shared/lead-results.js';
+import { Callout,FinalReasonButton,Sheet } from './parts.js';
 /** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
 const tabs=[['races','Races'],['hurdles','Hurdles']] as const;
 export interface NewRaceChoice { eventCode?:string; kind?:'heat'|'final'; number?:number; direct?:boolean }
@@ -15,7 +16,8 @@ function already(group:RaceGroup) {
  * the final once every heat has times. Anyone can make a heat; the server answers a heat someone made a moment ago with
  * theirs. Once a section's heats are complete it offers no heat, and says so.
  */
-export function NewRaceSheet({groups,lead,choice,failure,onClose,onCreate}:{groups:readonly RaceGroup[];lead:boolean;choice:NewRaceChoice;failure:string;onClose:()=>void;onCreate:(choice:Required<NewRaceChoice>)=>void}) {
+export function NewRaceSheet({groups,lead,choice,failure,onClose,onCreate,onRace,onResults}:{groups:readonly RaceGroup[];lead:boolean;choice:NewRaceChoice;failure:string;onClose:()=>void;
+  onCreate:(choice:Required<NewRaceChoice>)=>void;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
   const chosen=groups.find(group=>group.event.code===choice.eventCode);
   const names=[...new Set(groups.map(group=>group.event.name))];
   const [name,setName]=useState(chosen?.event.name??(names.length===1?names[0]:''));
@@ -44,8 +46,9 @@ export function NewRaceSheet({groups,lead,choice,failure,onClose,onCreate}:{grou
       {group.heatsOpen && <button type="button" className="rz-choice" aria-pressed={race==='heat'} onClick={()=>setKind('heat')}>Heat {number}</button>}
       {hasFinal && <button type="button" className="rz-choice" aria-pressed={race==='final'} disabled={blocked} onClick={()=>setKind('final')}>Final</button>}
     </div>}
-      <p className="rz-field__hint">{already(group)}{hasFinal?finalMade?' The final is made: open it from the card.':group.finalReason?` ${group.finalReason.line}.`:' The final opens when every heat has times, with the fastest 6 filled in.'
+      <p className="rz-field__hint">{already(group)}{hasFinal?finalMade?' The final is made: open it from the card.':group.finalReason?'':' The final opens when every heat has times, with the fastest 6 filled in.'
         :volunteerFinalLine(group)?` ${volunteerFinalLine(group)}`:''}</p>
+      {hasFinal && !finalMade && group.finalReason && <FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>}
     </fieldset>}
     {failure && <Callout message={failure}/>}
     {group && race==='heat' && !group.heatsOpen?<Callout status message={heatsFinishedLine(group)}/>
