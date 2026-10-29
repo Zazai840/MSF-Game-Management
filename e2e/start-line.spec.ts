@@ -51,6 +51,8 @@ test('wristbands go in through the phone keyboard, each saved as it is typed, an
   await expect(warning).toHaveCount(0);
   await expect(input).toBeFocused();await expect(input).toBeEditable();await expect(input).toHaveValue('3045');
   await expect.poll(()=>selected(page,'Wristband number')).toBe('3045');
+  // The tap selects again a frame later: let it land before moving the caret.
+  await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(()=>done(null)))));
   // Correcting a digit and Next checks it again and adds it.
   await input.press('ArrowLeft');await input.press('Delete');await input.pressSequentially('2');
   await expect(input).toHaveValue('2045');
@@ -69,6 +71,7 @@ test('wristbands go in through the phone keyboard, each saved as it is typed, an
   await expect(chips(page)).toHaveText(['2001','2002','2004','2045','2047']);
   for(const number of ['2045','2047']) await page.getByRole('button',{name:`Remove ${number}`,exact:true}).click();
   await expect(chips(page)).toHaveText(['2001','2002','2004']);
+  await expect(input).toBeEditable();
   await input.click();
   // A number already in the race is refused: Fix number only, which keeps it selected too.
   await input.pressSequentially('2001');await input.press('Enter');
