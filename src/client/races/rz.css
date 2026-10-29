@@ -301,7 +301,7 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-slot--empty .rz-slot__time, .rz-slot--none .rz-slot__time { color: var(--ink-muted); font-weight: 700; font-size: 14px; }
 /* Over 9 places: 4 across and 44px tall, as the PlacesBoard; the warn look and the callout say why a time is wrong. */
 .rz-slots--compact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); }
-.rz-slots--compact .rz-slot { min-height: var(--size-touch); gap: 0; padding: 2px var(--space-8); border-radius: var(--radius-sm); }
+.rz-slots--compact .rz-slot { min-height: var(--size-touch); gap: 0; padding: var(--space-4) var(--space-8); border-radius: var(--radius-sm); }
 .rz-slots--compact .rz-slot__ord { font-size: 13px; line-height: 1; }
 .rz-slots--compact .rz-slot__time { font-size: 16px; line-height: 1.15; }
 .rz-slots--compact .rz-slot__note { display: none; }
