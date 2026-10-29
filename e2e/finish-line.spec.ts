@@ -1,8 +1,10 @@
-import {ownCode,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
 import { isRunner } from '../src/shared/races.js';
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
 const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
+/** A runner nobody placed, on Check the order: their Did not finish and Didn't run buttons. */
+const notPlaced=(page:Page,number:number)=>page.getByRole('list',{name:'Not placed'}).getByRole('group',{name:String(number),exact:true});
 const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Move ${number}`,exact:true});
 /** A new Heat 1 of the event, made through the API as that phone. */
 const newHeat=(page:Page,token:string,code:string)=>page.request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
@@ -60,12 +62,10 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await finish.page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
   await expect(finish.page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
   await expect(orderRows(finish.page)).toHaveText(['1st2011','2nd3045','3rd2013']);
-  // Each runner left is Did not finish, until tapped to say Didn't run.
-  const notPlaced=finish.page.getByRole('list',{name:'Not placed'}).getByRole('button');
-  await expect(notPlaced).toHaveCount(2);
-  await expect(notPlaced.first()).toHaveAccessibleName('2012, did not finish. Change');await expect(notPlaced.last()).toHaveAccessibleName('2014, did not finish. Change');
-  await finish.page.getByRole('button',{name:'2014, did not finish. Change',exact:true}).click();
-  await expect(finish.page.getByRole('button',{name:"2014, didn't run. Change",exact:true})).toBeVisible();
+  // Each runner left is asked: Did not finish or Didn't run.
+  await expect(finish.page.getByRole('list',{name:'Not placed'}).getByRole('group')).toHaveText(["2012Did not finishDidn't run","2014Did not finishDidn't run"]);
+  await notPlaced(finish.page,2012).getByRole('button',{name:'Did not finish',exact:true}).click();
+  await notPlaced(finish.page,2014).getByRole('button',{name:"Didn't run",exact:true}).click();
   // Dragging the handle moves the wristband.
   await dragTo(finish.page,handle(finish.page,3045),orderRows(finish.page).first());
   await expect(orderRows(finish.page)).toHaveText(['1st3045','2nd2011','3rd2013']);
@@ -150,6 +150,55 @@ test('a 12-runner heat is fully placed on one phone screen with no sideways scro
   await expect.poll(()=>page.evaluate(()=>Math.max(window.scrollY,document.querySelector('.rz-main')?.scrollTop??0))).toBeGreaterThan(50);
   await drag.drop();
   await expect(orderRows(page).first()).not.toContainText(String(runners[0]));
+  await deleteCurrentRace(request,code);
+});
+
+test('Check the order asks about every runner nobody placed, above Save the order with neither choice lit, and saves nothing until each is answered',async({openPhone,request},info)=>{
+  const project=info.project.name,code=await ownCode(),name=`Leftover sprint ${project}`;
+  const wristband=await ownWristbands('Girl Cubs',12),runners=Array.from({length:12},(_,index)=>wristband(index));
+  const [dnf,dnr]=runners.slice(10);
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(`Leftover finish ${project}`,{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,`Leftover start ${project}`),code,runners);
+  await openRace(page,name);
+  for(const [index,number] of runners.slice(0,10).entries()) await page.getByRole('button',{name:new RegExp(`^${number} came ${index+1}(st|nd|rd|th)$`)}).click();
+  await page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
+  await expect.poll(async()=>(await flowRace(request,token,code))!.race.parts.finish.value?.order.length).toBe(10);
+  // The two left sit under "2 not placed", after the order and just above Save the order, with neither choice lit.
+  await expect(page.getByRole('heading',{level:3,name:'2 not placed'})).toBeVisible();
+  for(const number of [dnf,dnr]) for(const choice of ['Did not finish',"Didn't run"]) await expect(notPlaced(page,number).getByRole('button',{name:choice,exact:true})).toHaveAttribute('aria-pressed','false');
+  await notPlaced(page,dnr).scrollIntoViewIfNeeded();
+  const lastPlaced=(await orderRows(page).last().boundingBox())!,left=(await page.getByRole('list',{name:'Not placed'}).boundingBox())!,footer=(await page.locator('.rz-footer').boundingBox())!;
+  expect(left.y).toBeGreaterThanOrEqual(lastPlaced.y+lastPlaced.height);
+  expect(left.y+left.height).toBeLessThanOrEqual(footer.y);
+  await expect(page.getByRole('button',{name:'+ Runner not on the list',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('not-placed-unanswered.png')});
+  // Save the order with one still unanswered saves nothing, says so, and scrolls back to that runner.
+  const chosen=notPlaced(page,dnf).getByRole('button',{name:'Did not finish',exact:true});
+  await chosen.click();await expect(chosen).toHaveAttribute('aria-pressed','true');
+  let sent=0;page.on('request',sending=>{if(sending.url().endsWith('/order') && sending.method()==='POST') sent++;});
+  await page.evaluate(()=>{window.scrollTo(0,0);document.querySelector('.rz-main')?.scrollTo(0,0);});
+  await page.getByRole('button',{name:'Save the order',exact:true}).click();
+  await expect(page.getByRole('alert')).toHaveText('Say what happened to 1 runner first.');
+  await expect(notPlaced(page,dnr)).toBeInViewport();
+  const asked=(await notPlaced(page,dnr).boundingBox())!;
+  expect(asked.y+asked.height).toBeLessThanOrEqual((await page.locator('.rz-footer').boundingBox())!.y);
+  // Each row fits the screen: nothing spills past its dashed edge.
+  for(const number of [dnf,dnr]) expect(await notPlaced(page,number).evaluate(row=>row.scrollWidth<=row.clientWidth)).toBe(true);
+  await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
+  expect(sent).toBe(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('not-placed-asked.png')});
+  // Each answered, Save the order saves them as chosen: Did not finish stays in the race with no place, Didn't run leaves it.
+  await notPlaced(page,dnr).getByRole('button',{name:"Didn't run",exact:true}).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button',{name:'Save the order',exact:true}).click();
+  await expect(page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
+  const {race}=(await flowRace(request,token,code))!,saved=race.parts.runners.value!.filter(isRunner);
+  const id=(number:number)=>saved.find(runner=>runner.wristband===number)?.id;
+  expect(race.parts.finish.value!.didNotFinish).toEqual([id(dnf)]);
+  expect(id(dnr)).toBeUndefined();
+  expect(race.parts.finish.value!.order).toEqual(runners.slice(0,10).map(id));
   await deleteCurrentRace(request,code);
 });
 

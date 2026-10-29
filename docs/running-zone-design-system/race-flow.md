@@ -168,8 +168,8 @@ One route per race (`/races/:raceId`), the same shell for every role.
 #### 6b. Finish line: check the order (artboard `N6b-CheckOrder`)
 - **Prompt:** meta "Heat 4 · drag a handle to move a runner", question "Check the order".
 - **OrderRows** (44px): place, wristband, drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop.
-- **"Not placed"** heading with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with a DNF tag ("Did not finish" by default). Tapping the row toggles Did not finish / Didn't run.
-- **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast.
+- **"2 not placed"** heading, below the order and just above the footer, with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with two pill buttons, Did not finish and Didn't run (`aria-pressed`), neither chosen at the start.
+- **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast. While any unplaced runner is unanswered it saves nothing, shows the amber callout "Say what happened to 2 runners first." above the rows, and scrolls to the first unanswered row.
 - **Back** returns to 6 without losing anything.
 
 #### 7. Timer: enter times (artboard `N7-Timer`)
