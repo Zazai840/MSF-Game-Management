@@ -43,7 +43,8 @@ export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:Partial<Re
   return {...own,state:own.doneAt?'done':count>0?'in progress':'not started',count,expected,...(step==='positions'?{didNotFinish}:{})};
 }
 /** A saved finishing order in words: "10 finished · 1 did not finish". */
-export const finishedWords=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
+export const finishedCount=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished`;
+export const finishedWords=(status:StepStatus)=>`${finishedCount(status)}${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
 /** A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. */
 export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; createdAt:string; updatedAt:string; steps:Partial<Record<Step,StepStatus>> }
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
@@ -154,9 +155,12 @@ export const volunteerFinalLine=(group:FinalGroup)=>heatsRunning(group)?'A lead 
 /** A lead's card while heats run, once a heat is saved and nothing waits: "Heat 2 saved · make the final once every heat has run". */
 export const leadFinalLine=(group:FinalGroup)=>heatsRunning(group) && savedHeats(group).length?`${groupStatus(group,'lead')} · make the final once every heat has run`:null;
 /** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
-export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>`${group.event.section} heats are finished. Ask a lead to add another heat.`;
+const finishedLine=(section:string,final:boolean,ask:string)=>`${section} ${final?'final is':'heats are'} finished. Ask a lead to ${ask}.`;
+export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>finishedLine(group.event.section,false,'add another heat');
 /** A race whose stage is complete, on its screen and in the refusal of its writes: "Girl Cubs heats are finished. Ask a lead to change this race." */
-export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>`${race.event.section} ${race.kind==='final'?'final is':'heats are'} finished. Ask a lead to change this race.`;
+export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>finishedLine(race.event.section,race.kind==='final','change this race');
+/** A relay whose heats are complete, in the refusal of its team writes. */
+export const teamsFinishedLine=(relay:{section:string})=>finishedLine(relay.section,false,'change the teams');
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
 export function finalConfirm(group:FinalGroup) {
   const saved=savedHeats(group).length;

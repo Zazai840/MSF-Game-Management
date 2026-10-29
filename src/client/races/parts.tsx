@@ -1,5 +1,5 @@
 import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,finalConfirm,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 
 /** The design system's line icons (components/Icon/README.md). */
@@ -95,7 +95,7 @@ export function stepWords(step:Step,status:StepStatus) {
   if(status.state==='not started') return 'Not started';
   if(step==='runners') return `${status.count} ${status.state==='done'?'checked in':'so far'}`;
   // The Did not finish count goes on the step's own meta line: beside two other steps it would not fit on one line at 360px.
-  if(step==='positions' && status.state==='done') return `${status.count-(status.didNotFinish||0)} finished`;
+  if(step==='positions' && status.state==='done') return finishedCount(status);
   return `${status.count} of ${status.expected}`;
 }
 /**
