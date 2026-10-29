@@ -151,6 +151,7 @@ test('tapping a typed wristband changes it in the big box, checked like a new nu
   await expect(input).toBeFocused();await expect(input).toHaveValue('20');
   // Tapping the ringed number again cancels: nothing changes.
   await chip('2003').click();
+  await expect(page.getByLabel('New number for 2003',{exact:true})).toBeEditable();
   await page.getByLabel('New number for 2003',{exact:true}).pressSequentially('2099');
   await chip('2003').click();
   await expect(chips(page)).toHaveText(['2001','3065','2003']);
@@ -167,7 +168,7 @@ test('tapping a typed wristband changes it in the big box, checked like a new nu
   const after=(await flowRace(request,token,code))!.race.parts.runners.value!.filter(isRunner);
   expect(after.map(runner=>[runner.id,runner.wristband])).toEqual([[before[0],2065],[before[1],3065],[before[2],2003]]);
   // The half-typed number goes in as the next runner.
-  await input.pressSequentially('02');await input.press('Enter');
+  await expect(input).toBeEditable();await input.pressSequentially('02');await input.press('Enter');
   await expect(chips(page)).toHaveText(['2065','3065','2003','2002']);
   await page.reload();
   await expect(chips(page)).toHaveText(['2065','3065','2003','2002']);
