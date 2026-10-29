@@ -47,7 +47,8 @@ test('the start line\'s That\'s everyone and Next ride on the keyboard, and a ta
   await docksAboveKeyboard(page,box);
   const next=page.locator('footer.rz-footer').getByRole('button',{name:'Next',exact:true});
   await expect(next).toHaveAttribute('aria-disabled','true');
-  await next.tap({force:true});
+  // A phone taps; desktop has no touch, so it clicks: both press the mouse down, which must not take focus.
+  await (info.project.use.hasTouch?next.tap({force:true}):next.click({force:true}));
   await expect(box).toBeFocused();
   await expect(page.getByRole('list',{name:'Wristbands entered'})).toHaveCount(0);
 });
