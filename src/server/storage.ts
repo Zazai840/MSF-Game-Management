@@ -40,8 +40,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     UPDATE sign_ins SET level='Lead' WHERE level='Scoring team';
     ALTER TABLE sign_ins DROP CONSTRAINT IF EXISTS sign_ins_level_check;
     ALTER TABLE sign_ins ADD CONSTRAINT sign_ins_level_check CHECK (level IN ('Volunteer','Lead'));
-    -- That's me: a phone asks for a profile back. Approving gives the profile the waiting secret, so only that phone holds it;
-    -- the old phone's session token is kept so its next request is told the profile moved.
+    -- That's me: Join moves a profile to a new phone at once (ADR 0006), written as an approved row with the new secret;
+    -- the old phone's session token is kept so its next request is told the profile moved. Older builds also left waiting rows.
     CREATE TABLE IF NOT EXISTS profile_requests (
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id), profile_id uuid NOT NULL REFERENCES profiles(id),
       secret_hash text NOT NULL UNIQUE, status text NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting','approved','declined','cancelled')),
