@@ -39,7 +39,7 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
     finally {setBusy('');}
   }
   const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
-  const callouts=own.length>0 && <>{error && <p className="rz-error" role="alert">{error}</p>}{own.map(item=>{const words=toCheckWording(item);return <Callout key={item.id} message={<><strong>{words.title}.</strong> {words.explanation}</>}
+  const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);return <Callout key={item.id} message={<><strong>{words.title}.</strong> {words.explanation}</>}
     actions={acceptable(item)?<><button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button>
       <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button></>
       :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;

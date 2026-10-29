@@ -89,8 +89,8 @@ test('sign-out clears the teams hold, and the stage complete refuses team writes
   expect((await call(sam,'/api/sign-out',{})).statusCode).toBe(200);
   expect(relay(await teams(ali,'R20','hold'),'R19').teamsHolder).toBeNull();
   expect((await call(owner,'/api/lead/events/R19/complete-stage',{stage:'heats'})).statusCode).toBe(200);
-  expect((await call(ali,'/api/teams/R19/done',{legs:[101,null,null,null]})).json()).toEqual({message:'Stage complete - ask a lead'});
-  expect((await call(ali,'/api/teams/R19/hold',{})).json()).toEqual({message:'Stage complete - ask a lead'});
+  expect((await call(ali,'/api/teams/R19/done',{legs:[101,null,null,null]})).json()).toEqual({message:'Boy Beavers heats are finished. Ask a lead to change the teams.'});
+  expect((await call(ali,'/api/teams/R19/hold',{})).json()).toEqual({message:'Boy Beavers heats are finished. Ask a lead to change the teams.'});
 });
 test('a wristband already in the team or another team of the relay is refused',async()=>{
   const {sam}=await start();

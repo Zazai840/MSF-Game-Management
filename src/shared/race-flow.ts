@@ -154,6 +154,8 @@ export function leadFinalLine(group:FinalGroup) {
 }
 /** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
 export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>`${group.event.section} heats are finished. Ask a lead to add another heat.`;
+/** A race whose stage is complete, on its screen and in the refusal of its writes: "Girl Cubs heats are finished. Ask a lead to change this race." */
+export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>`${race.event.section} ${race.kind==='final'?'final is':'heats are'} finished. Ask a lead to change this race.`;
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
 export function finalConfirm(group:FinalGroup) {
   const saved=savedHeats(group).length;

@@ -9,6 +9,7 @@ import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
+import { raceFinishedLine } from '../../shared/race-flow.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { writeAuditNote } from '../rulings/records.js';
@@ -87,7 +88,7 @@ function requestedJob(body:unknown):Job {
 /** A job that can be held now: its stage is open, a final has no times, and a relay's check-in is nobody's job (ADR 0002). */
 function requireJob(screen:RaceScreenRead,job:Job) {
   if(job==='check-in' && screen.event.relay) throw new Refusal(409,'Anyone can check a relay in: tick its teams');
-  if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  if(screen.stageComplete) throw new Refusal(409,raceFinishedLine({kind:screen.race.kind,event:screen.event}));
   if(job==='times' && screen.race.kind==='final') throw new Refusal(409,'A final has no times');
 }
 const takeHold=(client:pg.PoolClient,screen:RaceScreenRead,job:Job,phone:Phone)=>client.query('INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,$2,$3) ON CONFLICT(event_id,job) DO UPDATE SET sign_in_id=EXCLUDED.sign_in_id',[screen.event.id,job,phone.id]);
@@ -301,7 +302,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/race-screen/:code/not-yet','Volunteer',(request,_reply,phone)=>{
     const raceId=tappedRace(request.body);
     return write(phone,code(request),async(client,screen,unchanged)=>{
-      if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+      if(screen.stageComplete) throw new Refusal(409,raceFinishedLine({kind:screen.race.kind,event:screen.event}));
       await requireUnsaved(client,phone,screen,raceId);
       if(raceId!==screen.race.id || screen.race.state!=='submitted') {unchanged();return;}
       await client.query("UPDATE races SET state='in progress' WHERE id=$1",[raceId]);
@@ -453,7 +454,7 @@ interface Tapped { client:pg.PoolClient; screen:RaceScreenRead; race:Pick<Curren
 async function requireTap(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,raceId:string|null,teamId:string):Promise<Tapped> {
   if(!screen.event.relay) throw new Refusal(409,'Only a relay has teams');
   // Once the final is current, a tap on another race is a tap on a heat, whose stage is complete.
-  if(screen.stageComplete || (screen.race.kind==='final' && raceId!==null && raceId!==screen.race.id)) throw new Refusal(409,'Stage complete - ask a lead');
+  if(screen.stageComplete || (screen.race.kind==='final' && raceId!==null && raceId!==screen.race.id)) throw new Refusal(409,raceFinishedLine({kind:screen.stageComplete?screen.race.kind:'heat',event:screen.event}));
   const race=await requireUnsaved(client,phone,screen,raceId);
   if(race.state==='submitted') throw new Refusal(409,`${currentRaceLabel(race)} is submitted - tap Not yet to change it`);
   const team=screen.teams!.find(item=>item.id===teamId);
@@ -468,7 +469,7 @@ function tickedEntry({race,team,entry}:Tapped):TeamEntry {
 }
 /** A race Submit Race (or Save as lead) can save: the current race, its stage open, not saved, and nothing blocking it. */
 async function requireSubmittable(client:pg.PoolClient,phone:Phone,screen:RaceScreenRead,raceId:string|null) {
-  if(screen.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  if(screen.stageComplete) throw new Refusal(409,raceFinishedLine({kind:screen.race.kind,event:screen.event}));
   await requireUnsaved(client,phone,screen,raceId);
   if(raceId!==screen.race.id) throw new Refusal(409,'Not saved - check your entries and enter it again');
   const blocker=submitBlocker(screen.race,screen.event.relay);

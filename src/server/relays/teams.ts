@@ -49,7 +49,7 @@ export async function teamsWriteRead(db:Database,dayId:string,code:string) {
 }
 export type TeamsWriteRead=Awaited<ReturnType<typeof teamsWriteRead>>;
 function requireOpen(relay:TeamsWriteRead) {
-  if(relay.heatsComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  if(relay.heatsComplete) throw new Refusal(409,`${relay.section} heats are finished. Ask a lead to change the teams.`);
 }
 const takeHold=(client:pg.PoolClient,relay:TeamsWriteRead,phone:Phone)=>client.query("INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,'teams',$2) ON CONFLICT(event_id,job) DO UPDATE SET sign_in_id=EXCLUDED.sign_in_id",[relay.id,phone.id]);
 /** A team write is the teams holder's: refused once someone took over, and taking the hold when nobody has it. */

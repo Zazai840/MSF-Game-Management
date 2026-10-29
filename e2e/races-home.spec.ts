@@ -104,6 +104,27 @@ test('New race offers this tab\'s events, each section, and the next heat; only 
   await deleteCurrentRace(request,code);
 });
 
+test('a New race the server refuses says why in the amber callout in the sheet, not at the top of Races',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Refused race ${project}`,code=await ownCode();
+  await ownEvent(request,code,name);
+  const {page}=await openPhone(`Refused race ${project}`);
+  await page.route('**/api/races',route=>route.request().method()==='POST'?route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'This event is switched off'})}):route.continue());
+  await page.getByRole('button',{name:'New race',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'New race'});
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
+  await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  await expect(sheet.getByRole('alert')).toHaveText('This event is switched off');
+  await expect(sheet.getByRole('alert')).toHaveClass('rz-callout');
+  await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('new-race-refused.png'),fullPage:true});
+  // Tried again once the server takes it, the sheet opens the race.
+  await page.unroute('**/api/races');
+  await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
+  await deleteCurrentRace(request,code);
+});
+
 test('a heat someone made a moment before the tap opens theirs: two phones making the same next heat end up in one race',async({openPhone,request},info)=>{
   const project=info.project.name,name=`Same heat ${project}`,code=await ownCode();
   await ownEvent(request,code,name);

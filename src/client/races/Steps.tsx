@@ -75,8 +75,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
           :<><p className="rz-prompt__meta">{raceName(race)} · {count} {count===1?'runner':'runners'} so far{more?' · more than usual':''}</p>
           <h2 className="rz-prompt__q">Runner {count+1}: wristband number?</h2></>}
       </div>
-      {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
-      {entry.error && <p className="rz-error" role="alert">{entry.error}</p>}
+      {flow.error && <Callout message={flow.error}/>}
       {count>0 && <ul className="rz-chips" aria-label={locked?'Checked in':'Wristbands entered'}>{entries.map(item=>{
         const runner=runners.find(other=>other.id===item.id);
         const kept=!!runner?.warnings?.length,look=kept?'rz-chip rz-chip--warn':'rz-chip';
@@ -89,6 +88,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>That's everyone</button><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button></>}/>}
       {!locked && <DigitsField id="wristband" label="Wristband number" value={entry.current} held={entry.held} onRelease={entry.fix} busy={entry.checking || writes.sending} warn={entry.held}
         onChange={digits=>{entry.type(digits);size.dismiss();}} onEnter={()=>void entry.next()} hint={count>0?'Tap a number above to remove it.':undefined}/>}
+      {entry.error && <Callout message={entry.error}/>}
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
     </main>
@@ -106,7 +106,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here</p><h2 className="rz-prompt__q">Who is here?</h2></div>
-      {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
+      {flow.error && <Callout message={flow.error}/>}
       <ul className="rz-attendance" aria-label="Who is here">{final.entries.map(entry=><li key={entry.finalEntryId} className={entry.absent?'is-absent':undefined}>
         <span className="rz-attendance__who"><span className="rz-attendance__seed">{entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`}</span><span className="label">{entry.wristband}</span></span>
         <button type="button" className={entry.absent?'rz-btn rz-btn--pill':'rz-btn rz-btn--pill rz-btn--primary'} disabled={locked || flow.busy} aria-pressed={!entry.absent} aria-label={`${entry.wristband}: ${entry.absent?'Absent. Mark here':'Here. Mark absent'}`}
@@ -158,7 +158,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   if(mode==='add') return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · {runnersText(runners.length)}</p><h2 className="rz-prompt__q">Runner not on the list: wristband number?</h2></div>
-      {entry.error && <p className="rz-error" role="alert">{entry.error}</p>}
+      {entry.error && <Callout message={entry.error}/>}
       <DigitsField id="added" label="Wristband number" value={entry.current} held={entry.held} onRelease={entry.fix} busy={entry.checking || writes.sending} warn={entry.held} onChange={entry.type} onEnter={()=>void entry.next()}/>
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
@@ -179,7 +179,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       <main className="rz-main">
         <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p><h2 className="rz-prompt__q">Check the order</h2></div>
           {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div>
-        {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
+        {flow.error && <Callout message={flow.error}/>}
         {sizeNote}
         {order.length>0 && <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>String(byId.get(id)?.wristband??'')} disabled={locked}
           look={{list:'rz-orderrows',row:'rz-orderrow',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:name=>`Move ${name}`}}
@@ -210,7 +210,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
         <p className="rz-prompt__meta">{raceName(race)} · {runnersText(runners.length)} · {unplaced.length} to place</p>
         <h2 className="rz-prompt__q">{!runners.length?'Nobody is checked in yet':!unplaced.length?'Everyone is placed':<>Who came <em>{ordinal(current+1)}?</em></>}</h2>
       </div>
-      {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
+      {flow.error && <Callout message={flow.error}/>}
       {sizeNote}
       {!runners.length && <p className="rz-empty">Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.</p>}
       {/* A heat of more than 9 gets smaller buttons, so all 12 of a full heat fit above the footer. */}
@@ -257,7 +257,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         <p className="rz-prompt__meta">{raceName(race)} · {runnersText(race.parts.runners.value?.length||0)}</p>
         <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
       </div>
-      {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
+      {flow.error && <Callout message={flow.error}/>}
       {slots>0?<ol className="rz-slots" aria-label="Place times">{Array.from({length:slots},(_,index)=>{
         const time=places[index],isWrong=wrong.has(index);
         const kind=index===target && !full?'rz-slot rz-slot--current':isWrong?'rz-slot rz-slot--warn':time===undefined?'rz-slot rz-slot--empty':'rz-slot';

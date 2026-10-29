@@ -57,7 +57,7 @@ function Join({onSignedIn}:{onSignedIn:(result:SignedIn)=>void}) {
           :<button type="button" className="rz-listrow" disabled={tap.busy} onClick={()=>signIn(profile)}><span className="rz-listrow__main"><span className="rz-listrow__label">{profile.name}</span><span className="rz-listrow__meta">Tap to sign in</span></span><Icon name="chevron-right"/></button>}
         </li>)}</ul>
         {editing && <p className="rz-field__hint">Removing a name only takes it off this phone. A lead can put it back on any phone.</p>}
-        {tap.error && <p className="rz-error" role="alert">{tap.error}</p>}
+        {tap.error && <Callout message={tap.error}/>}
       </section>}
       <h1 className="rz-screen-title">{pass && profiles.length?'Someone else? Join':'Join the Running Zone'}</h1>
       <form id="join" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>

@@ -8,7 +8,7 @@ export class Refusal extends Error {
   constructor(public statusCode: number, message: string, public details?: Record<string, unknown>) { super(message); }
 }
 /** A 401 says why whenever the server knows, so the phone clears exactly what that reason calls for. */
-export const signedOut = () => new Refusal(401, 'You are signed out. Sign in again', {reason:'signed-out'});
+export const signedOut = () => new Refusal(401, 'You are logged out. Sign in again', {reason:'signed-out'});
 export const moved = () => new Refusal(401, 'This profile is now on another phone', {reason:'moved'});
 export const passwordChanged = () => new Refusal(401, 'The password has changed. Type the new one.', {reason:'password-changed'});
 export const newDay = () => new Refusal(401, 'A new Olympics day has started. Tap your name to sign in.', {reason:'new-day'});

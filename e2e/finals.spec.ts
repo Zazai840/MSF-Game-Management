@@ -49,7 +49,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
  await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText('1015');await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText('1st: 1015');await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('1015');await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
- await expect(priya.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
+ await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
  await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await expect(final).toContainText('1015');
 });
 test('only a lead\'s + Final makes the final from the fastest, after a confirm, and an unstarted final rebuilt after a heat correction shows its new line-up live',async({page,openPhone},info)=>{
@@ -106,6 +106,13 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
  await expect(reason).toBeVisible();
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
+ // New race never offers the final the server would refuse: Final is greyed, with the reason in the hint.
+ await lena.getByRole('button',{name:'New race',exact:true}).click();
+ const sheet=lena.getByRole('dialog',{name:'New race'});
+ await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Boy Cubs ${code}`,exact:true}).click();
+ await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
+ await expect(sheet.getByText('Boy Cubs already has heat 1. Heat 1 has a time to check first.',{exact:true})).toBeVisible();
+ await lena.keyboard.press('Escape');
  await reason.click();
  await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
  await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');

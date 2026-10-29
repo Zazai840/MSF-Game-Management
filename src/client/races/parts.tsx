@@ -135,11 +135,12 @@ export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;ch
     </div>
   </div>;
 }
-/** What a lead's "+ Final" opens: the heat count to check against what they saw, before the final ends the heats. */
-export function FinalSheet({group,onMake,onClose}:{group:RaceGroup;onMake:()=>void;onClose:()=>void}) {
+/** What a lead's "+ Final" opens: the heat count to check against what they saw, before the final ends the heats. `failure` is why making it was refused. */
+export function FinalSheet({group,failure,onMake,onClose}:{group:RaceGroup;failure?:string;onMake:()=>void;onClose:()=>void}) {
   const {title,text}=finalConfirm(group);
   return <Sheet title={title} onClose={onClose}>
     <p className="rz-sheet__text">{text}</p>
+    {failure && <Callout message={failure}/>}
     <div className="rz-sheet__actions">
       <button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={onMake}>Make the final</button>
       <button type="button" className="rz-btn rz-btn--small rz-btn--block" onClick={onClose}>Not yet</button>

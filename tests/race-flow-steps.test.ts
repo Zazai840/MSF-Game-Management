@@ -104,7 +104,7 @@ test('a saved or deleted race and a complete stage refuse every step\'s writes',
   const third=await ok(await checkIn(sam,await ok(await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:3})),[2003]));
   await call(owner,`/api/lead/races/${third.race.id}/delete`,{permanent:true});
   expect((await call(owner,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
-  expect((await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:4})).json().message).toBe('Stage complete - ask a lead');
+  expect((await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:4})).json().message).toBe('Girl Cubs heats are finished. Ask a lead to add another heat.');
 });
 test('times are by place; a kept wrong time is stored for a lead, a retyped one is new, and times run no further than the runners',async()=>{
   const {owner,sam,priya,jo}=await start();

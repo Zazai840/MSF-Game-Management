@@ -1,5 +1,6 @@
 import { currentRaceLabel,type RaceScreenRead } from '../../shared/race-screen.js';
 import { decidedWithoutFinalLine } from '../../shared/event-state.js';
+import { raceFinishedLine } from '../../shared/race-flow.js';
 import { runnersText } from '../../shared/races.js';
 import { teamCount } from '../../shared/teams.js';
 import { useLive } from '../live.js';
@@ -22,7 +23,7 @@ export function RaceScreen({eventCode,phoneId,lead}:{eventCode:string;phoneId:st
   return <section className="race-screen">
     <div className="race-heading"><p className="race-line">{snapshot.decidedWithoutFinal?decidedWithoutFinalLine:`${currentRaceLabel(race)} · ${event.relay?teamCount(entries):runnersText(entries)}`}</p><h1>{event.name} {event.section}</h1></div>
     {error && <p role="status" className="calm-note">{error}</p>}
-    {snapshot.stageComplete && <p role="status" className="warning-box">Stage complete - ask a lead</p>}
+    {snapshot.stageComplete && <p role="status" className="warning-box">{raceFinishedLine({kind:snapshot.race.kind,event:snapshot.event})}</p>}
     {/* Decided without a final, the event has no further heat or final to offer. */}
     {!snapshot.decidedWithoutFinal && <>
       {saved && <p role="status" className="race-saved">{currentRaceLabel(saved)} saved</p>}
