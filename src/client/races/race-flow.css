@@ -42,6 +42,8 @@
 /* Over today's relay list, which keeps the older look below it. */
 .rz-app--top { min-height: 0; padding-bottom: var(--space-12); }
 .rz-main { flex: 1; display: flex; flex-direction: column; gap: var(--space-12); padding-top: var(--space-6); padding-bottom: var(--space-16); }
+/* The docked footer has left the page's flow: the page keeps room for it, so the last row never hides behind it. */
+html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var(--rz-footer-height, 0px)); }
 .rz-main > * { margin: 0; }
 .rz-main--form { padding-top: var(--space-16); }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }

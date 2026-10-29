@@ -1,4 +1,4 @@
-import { useEffect,useId,useRef,type ReactNode } from 'react';
+import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 
@@ -149,4 +149,18 @@ export function Callout({message,status=false,actions}:{message:ReactNode;status
     <p className="rz-callout__msg"><Icon name="warning"/><span>{message}</span></p>
     {actions && <div className="rz-callout__actions">{actions}</div>}
   </div>;
+}
+/**
+ * A race step's footer: sticky at the foot of the screen and, while the phone is typing, just above the keyboard
+ * (flow/keyboard.ts). Docked it leaves the page's flow, so the page keeps room at its end for it (--rz-footer-height).
+ */
+export function DockedFooter({children}:{children:ReactNode}) {
+  const footer=useRef<HTMLElement>(null);
+  useLayoutEffect(()=>{
+    const element=footer.current!,root=document.documentElement;
+    const observer=new ResizeObserver(()=>root.style.setProperty('--rz-footer-height',`${element.offsetHeight}px`));
+    observer.observe(element);
+    return ()=>{observer.disconnect();root.style.removeProperty('--rz-footer-height');};
+  },[]);
+  return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
 }
