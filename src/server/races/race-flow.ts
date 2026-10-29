@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { doneBlocker,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { submitBlocker,type Job } from '../../shared/race-screen.js';
 import type { RacePartName } from '../../shared/races.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -98,7 +98,7 @@ async function requireOpen(client:pg.PoolClient,phone:Phone,raceId:string) {
   const race=await readRace(client,phone.dayId,raceId);
   if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
   if(race.event.relay) throw new Refusal(409,'Relays use the relay race screen');
-  if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
   if(race.state==='saved') throw new Refusal(409,`${raceName(race)} is saved - ask a lead to change it`);
   if(race.state==='submitted') throw new Refusal(409,`${raceName(race)} is submitted - ask a lead to save it`);
   return race;
@@ -160,7 +160,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
         return (await listRaces(client,phone.dayId)).find(race=>race.event.id===event.id && race.kind==='final')!.id;
       }
       const heatKind=event.format==='timed'?'race':'heat';
-      if(stageDone(event.id,stageForRace({kind:heatKind,event}),stages)) throw new Refusal(409,'Stage complete - ask a lead');
+      if(stageDone(event.id,stageForRace({kind:heatKind,event}),stages)) throw new Refusal(409,heatsFinishedLine({event}));
       const existing=own.find(race=>race.kind===heatKind && race.number===number);
       if(existing) {unchanged();return existing.id;}
       const last=(await client.query('SELECT last_number FROM race_counters WHERE event_id=$1 AND kind=$2',[event.id,heatKind])).rows[0]?.last_number??0;
@@ -204,7 +204,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     return write(phone,id,async client=>{
       const race=await readRace(client,phone.dayId,id),step=requestedStep(request,race),part=stepParts[step];
       if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
-      if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+      if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
       const row=(await client.query('SELECT p.version,p.done_by,p.saved_by,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.saved_by WHERE p.race_id=$1 AND p.part=$2',[id,part])).rows[0];
       const corrected=race.state==='saved' && (await client.query('SELECT 1 FROM race_part_history h JOIN races r ON r.id=h.race_id WHERE h.race_id=$1 AND h.corrected_by IS NOT NULL AND h.saved_at>=r.saved_at',[id])).rowCount;
       if(row.done_by!==phone.id || row.version!==version || corrected) {

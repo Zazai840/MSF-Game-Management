@@ -1,11 +1,11 @@
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
+import { raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,StaleRequest } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
-import { FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
+import { Callout,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { useFlowWrite } from './writes.js';
@@ -43,7 +43,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
   const [fresh,setFresh]=useState(0);
   const swipe=useRef<{x:number;y:number}|null>(null);
   if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/></RaceBar>
-    <main className="rz-main"><p className={error?'rz-error':'rz-empty'} role={error?'alert':undefined}>{error||'Opening…'}</p></main></>;
+    <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
   const looking=own!==null && step!==own;
@@ -89,10 +89,10 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}
-        {failure && <p className="rz-error" role="alert">{failure}</p>}
+        {failure && <Callout message={failure}/>}
         {flow.changed && <div className="rz-callout rz-callout--status" role="status"><p className="rz-callout__msg"><Icon name="warning"/><span>{flow.changed.by?`${flow.changed.by} changed this a moment ago.`:'Someone changed this a moment ago.'}</span></p>
           <div className="rz-callout__actions"><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{flow.clearChanged();setFresh(fresh+1);}}>Show latest</button></div></div>}
-        {race.stageComplete?<p className="rz-note" role="status">Stage complete - ask a lead</p>:race.state==='saved' && !lead && <p className="rz-note" role="status">{raceName(race)} is saved. Ask a lead to change it.</p>}
+        {race.stageComplete?<p className="rz-note" role="status">{raceFinishedLine({kind:race.kind,event})}</p>:race.state==='saved' && !lead && <p className="rz-note" role="status">{raceName(race)} is saved. Ask a lead to change it.</p>}
       </div>}
       {looking?<main className="rz-main" role="tabpanel" aria-label={`${stepLabels[step]}, read-only`}>
         <div className="rz-readonly" role="status">

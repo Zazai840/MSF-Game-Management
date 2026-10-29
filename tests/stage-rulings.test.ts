@@ -40,9 +40,9 @@ test('completion refuses every race flow write and new race, while reopen restor
     ['steps/runners/done',{}]
   ];
   for(const [what,body] of writes) {
-    const response=await call(volunteer,`/api/races/${empty.id}/${what}`,body);expect(response.statusCode).toBe(409);expect(response.json().message).toBe('Stage complete - ask a lead');
+    const response=await call(volunteer,`/api/races/${empty.id}/${what}`,body);expect(response.statusCode).toBe(409);expect(response.json().message).toBe('Girl Cubs heats are finished. Ask a lead to change this race.');
   }
-  expect((await call(volunteer,'/api/races',{eventCode:'R16',kind:'heat',number:3})).json().message).toBe('Stage complete - ask a lead');
+  expect((await call(volunteer,'/api/races',{eventCode:'R16',kind:'heat',number:3})).json().message).toBe('Girl Cubs heats are finished. Ask a lead to add another heat.');
   await call(lead,'/api/lead/events/R16/reopen-stage',{stage:'event',comment:'One more race'});
   expect((await setup.checkIn(volunteer,'R16',[2003])).number).toBe(2);
 });
@@ -78,5 +78,5 @@ test('an open kept warning does not prevent completion, and leads can correct a 
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
   const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1000,1200]});
   expect(corrected.statusCode).toBe(200);expect(corrected.json().results.status).toBe('Complete');
-  expect((await call(volunteer,`/api/races/${race.id}/times`,{raceId:race.id,version:2,places:[1000,1300],keptWrong:[]})).json().message).toBe('Stage complete - ask a lead');
+  expect((await call(volunteer,`/api/races/${race.id}/times`,{raceId:race.id,version:2,places:[1000,1300],keptWrong:[]})).json().message).toBe('Girl Cubs heats are finished. Ask a lead to change this race.');
 });

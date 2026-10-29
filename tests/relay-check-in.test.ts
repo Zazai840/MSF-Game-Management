@@ -103,11 +103,11 @@ test('check-in taps are refused in order: signed out, stage complete, race delet
   expect((await call(owner,`/api/lead/races/${heat2.race.id}/delete`,{permanent:false})).statusCode).toBe(200);
   expect(await tap('take-off',{raceId:heat2.race.id,teamId:team2.id})).toBe('A lead deleted Heat 2');
   expect((await relays.screen(sam,'R20')).teams![1].races).toEqual([]);
-  // Stage complete comes before the race's own refusals; signed out before everything.
+  // Heats finished comes before the race's own refusals; signed out before everything.
   expect((await call(owner,'/api/lead/events/R20/complete-stage',{stage:'heats'})).statusCode).toBe(200);
-  expect(await tap('take-off',{raceId:heat2.race.id,teamId:team2.id})).toBe('Stage complete - ask a lead');
+  expect(await tap('take-off',{raceId:heat2.race.id,teamId:team2.id})).toBe('Girl Beavers heats are finished. Ask a lead to change this race.');
   expect((await call(sam,'/api/sign-out',{})).statusCode).toBe(200);
-  expect(await tap('take-off',{raceId:heat2.race.id,teamId:team2.id})).toBe('You are signed out. Sign in again');
+  expect(await tap('take-off',{raceId:heat2.race.id,teamId:team2.id})).toBe('You are logged out. Sign in again');
 });
 test('a relay never gets a check-in hold, and only a relay takes team taps',async()=>{
   const {sam,relays}=await start();
@@ -215,14 +215,14 @@ test('a check-in Edit is refused in order: race deleted, submitted or saved, a t
   expect(await edit(priya,'open',{teamId:team1.id})).toBe('Heat 1 is submitted - tap Not yet to change it');
   await relays.post(priya,'/api/race-screen/R22/submit',{raceId:heat1.race.id});
   expect(await done(sam,changed,[2101,2102,2103,2107])).toBe('Heat 1 is saved - ask a lead to change it');
-  // A lead deleted the race; stage complete comes before that.
+  // A lead deleted the race; heats finished comes before that.
   const heat2=await relays.tick(priya,'R22',3);
   await relays.post(sam,'/api/race-screen/R22/edit-open',{raceId:heat2.race.id,teamId:team3.id});
   expect((await call(owner,`/api/lead/races/${heat2.race.id}/delete`,{permanent:false})).statusCode).toBe(200);
   const late=()=>call(sam,'/api/race-screen/R22/edit-done',{raceId:heat2.race.id,teamId:team3.id,version:team3.version,legs:[2301,2302,2303,2307],keptWarnings:[]}).then(response=>response.json().message);
   expect(await late()).toBe('A lead deleted Heat 2');
   expect((await call(owner,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
-  expect(await late()).toBe('Stage complete - ask a lead');
+  expect(await late()).toBe('Girl Cubs heats are finished. Ask a lead to change this race.');
   // Whatever became of the race, Cancel still clears the mark.
   expect((await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/edit-cancel',{teamId:team3.id})).teams![2].changing).toBeNull();
 });

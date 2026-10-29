@@ -1,7 +1,7 @@
 import { useState,type FormEvent } from 'react';
 import { roleLabels,type Role } from '../../shared/race-flow.js';
 import { api } from '../api.js';
-import { Icon,Sheet,Star,roleDescriptions,roleIcons } from './parts.js';
+import { Callout,Icon,Sheet,Star,roleDescriptions,roleIcons } from './parts.js';
 const jobs=['start','finish','timer'] as const;
 /** A job as a radio card: its job star, name and one line. */
 export function JobCard({role,checked,onChoose}:{role:Role;checked:boolean;onChoose:()=>void}) {
@@ -45,7 +45,7 @@ export function LeadCode({onLead}:{onLead:()=>Promise<void>}) {
   return <form className="rz-field" onSubmit={become}>
     <label className="rz-field__label" htmlFor="lead-code">Lead code</label>
     <input className="rz-field__input" id="lead-code" type="password" autoComplete="off" value={code} onChange={event=>setCode(event.target.value)} required/>
-    {error && <p className="rz-error" role="alert">{error}</p>}
+    {error && <Callout message={error}/>}
     <button className="rz-btn rz-btn--primary rz-btn--block" disabled={busy}>{busy?'Checking…':'Switch to Zone lead'}</button>
   </form>;
 }
