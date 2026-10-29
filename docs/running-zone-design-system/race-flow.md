@@ -75,14 +75,14 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 **List**, grouped into sections. Hide a section that is empty.
 1. **Ready for you:** event groups with at least one race whose step for *my role* can be worked on now and isn't done. For a zone lead: groups with an open issue (see "Zone lead").
 2. **In progress:** every other group with a race that isn't fully done, or a final ready to create.
-3. **Done:** collapsed Disclosure, "Done (4)", listing groups where every race is fully done.
+3. **Done:** collapsed Disclosure, "Done (4)", listing groups whose medals are decided (Event complete, Final complete or Results without a final); until then a group stays in progress, even with every race saved.
 
 **Ordering**
 - Within Ready for you: the group whose oldest waiting race was created first comes first.
 - Elsewhere: most recently updated first.
 
 **RaceCard**, one per event group:
-- Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · 1 and 2 done").
+- Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · Heats 1 and 2 done", "Heat 1 checked in", "Heats 1 and 2 and the final done").
 - Then the **HeatChips** row: one chip per race in order, then "+" (add the next heat).
 - When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
 - Tapping a chip opens that race.

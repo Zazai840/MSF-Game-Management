@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,expect,live,lookProblems,openRace,openRaceScreen,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,deleteCurrentRace,expect,live,lookProblems,openRace,openRaceScreen,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,type Page} from './fixtures.js';
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event type'});
 const tab=(page:Page,name:string)=>tabs(page).getByRole('button',{name:new RegExp(`^${name}`)});
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
@@ -147,8 +147,8 @@ test('a heat someone made a moment before the tap opens theirs: two phones makin
   expect(groups.find((group:{event:{code:string}})=>group.event.code===code).races).toHaveLength(1);
   await deleteCurrentRace(request,code);
 });
-test('each card says in words what waits for my job, sorted into Ready for you, In progress and Done, live as others work',async({openPhone,request},info)=>{
-  const project=info.project.name,ready=`Ready sprint ${project}`,busy=`Busy sprint ${project}`,done=`Done sprint ${project}`;
+test('each card says each race\'s state in my job\'s step, sorted into Ready for you and In progress, live as others work',async({openPhone,request},info)=>{
+  const project=info.project.name,ready=`Ready sprint ${project}`,busy=`Busy sprint ${project}`,done=`Timed sprint ${project}`;
   const [readyCode,busyCode,doneCode]=[await ownCode(),await ownCode(),await ownCode()];
   for(const [code,name] of [[readyCode,ready],[busyCode,busy],[doneCode,done]]) await ownEvent(request,code,name,'Girl Cubs','timed');
   const sam=await signInThroughApi(request,`Ready Sam ${project}`);
@@ -163,23 +163,44 @@ test('each card says in words what waits for my job, sorted into Ready for you, 
   await expect(status(page,busy)).toHaveText('Heat 1 needs times');
   await expect(page.getByRole('heading',{level:2,name:'Ready for you'})).toBeVisible();
   await expect(section('Ready for you').filter({hasText:ready})).toHaveCount(1);
-  await expect(card(page,done)).toBeHidden();
-  const disclosure=page.locator('details',{hasText:/^Done \(\d+\)/});
-  await disclosure.locator('summary').click();
+  // A saved heat is done, but its event stays in progress until a lead decides the medals.
+  await expect(section('In progress').filter({hasText:done})).toHaveCount(1);
   await expect(status(page,done)).toHaveText('Heat 1 done');
-  await expect(card(page,done).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, times done');
+  await expect(card(page,done).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, done');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('sections.png'),fullPage:true});
-  // A finish line sees the same cards for its own step: the heat still checking in waits.
+  // A finish line sees the same cards in its own step's words.
   await switchJob(page,'Finish line');
-  await expect(status(page,busy)).toHaveText('Heat 1 needs positions');
-  await expect(card(page,busy).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs positions');
-  // Another phone saves Ready's positions and times: the card moves to Done, live.
+  await expect(status(page,busy)).toHaveText('Heat 1 needs the finishing order');
+  await expect(card(page,busy).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs the finishing order');
+  // Another phone saves Ready's finishing order: the card says so, live.
   await writeOrder(request,sam,readyCode,[2003,2004]);
-  await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs positions');
+  await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs the finishing order');
   await request.post(`/api/races/${(await (await request.get('/api/races',{headers:{authorization:`Bearer ${sam}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===readyCode).races[0].id}/steps/positions/done`,{headers:{authorization:`Bearer ${sam}`},data:{}});
-  await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, positions done',live);
+  await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, order saved',live);
+  await expect(status(page,ready)).toHaveText('Heat 1 order saved');
   for(const code of [readyCode,busyCode,doneCode]) await deleteCurrentRace(request,code);
+});
+test('a Hurdles event stays under In progress after its heats are saved, and moves to Done once a lead marks it Event complete',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Medals hurdles ${project}`,code=await ownCode(),owner=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(request,code,name,'Girl Cubs','timed','hurdles');
+  const w=await ownWristbands('Girl Cubs',2);
+  await recordRace(request,owner,code,[w(1)],[1200]);
+  await recordRace(request,owner,code,[w(2)],[1300]);
+  const {page}=await openPhone(`Medals timer ${project}`,{job:'timer'});
+  await tab(page,'Hurdles').click();
+  const section=(heading:string)=>page.locator(`h2:text-is("${heading}") ~ article`);
+  await expect(section('In progress').filter({hasText:name})).toHaveCount(1);
+  await expect(status(page,name)).toHaveText('Heats 1 and 2 done');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('hurdles-in-progress.png'),fullPage:true});
+  expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${owner}`},data:{stage:'event'}})).ok()).toBe(true);
+  await expect(section('In progress').filter({hasText:name})).toHaveCount(0,live);
+  const done=page.locator('details',{hasText:/^Done \(\d+\)/});
+  await done.locator('summary').click();
+  await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
+  await expect(status(page,name)).toHaveText('Heats 1 and 2 done');
+  await page.screenshot({path:info.outputPath('hurdles-done.png'),fullPage:true});
 });
 
 test('switching job on a race keeps the race open in the new view, and another job\'s step opens read-only',async({openPhone,request},info)=>{

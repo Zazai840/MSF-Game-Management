@@ -198,3 +198,26 @@ test('the timer types times before the finish line places anyone, up to the runn
   const saved=(await done(ahmed,await order(ahmed,partly,[2001,2002]),'positions')).json() as RaceFlowRead;
   expect(saved.race.state).toBe('saved');
 });
+test('an event group says its medals are decided only once a lead has Event complete, Final complete or Results without a final',async()=>{
+  const {ahmed,lena}=await start();
+  const decided=async(code:string)=>(await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code===code)!.medalsDecided;
+  const complete=(code:string,stage:string)=>call(lena,`/api/lead/events/${code}/complete-stage`,{stage,comment:'Out of time'});
+  // 60m Hurdles, decided by time: every heat saved is not the medals.
+  await heat(ahmed,'R7',1,[1,2],[1000,1100],steps);await heat(ahmed,'R7',2,[3,4],[1050,1150],steps);
+  expect(await decided('R7')).toBe(false);
+  expect((await complete('R7','event')).statusCode).toBe(200);
+  expect(await decided('R7')).toBe(true);
+  // 60m with a final: the heats complete and the final saved are not the medals; Final complete is.
+  await heat(ahmed,'R4',1,[2001,2002],[1100,1200],steps);
+  const final=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
+  await done(ahmed,final,'runners');await done(ahmed,await order(ahmed,final,[2001,2002]),'positions');
+  expect((await ok(ahmed,`/api/races/${final.race.id}`)).race.state).toBe('saved');
+  expect(await decided('R4')).toBe(false);
+  expect((await complete('R4','final')).statusCode).toBe(200);
+  expect(await decided('R4')).toBe(true);
+  // Results without a final.
+  await heat(ahmed,'R5',1,[3001,3002,3003],[1100,1200,1300],steps);
+  expect(await decided('R5')).toBe(false);
+  expect((await complete('R5','no-final')).statusCode).toBe(200);
+  expect(await decided('R5')).toBe(true);
+});
