@@ -81,7 +81,7 @@ function VariantA(props:StepProps) {
           aria-label={editing?`Changing ${item.wristband}`:`Change ${item.wristband}`} onMouseDown={event=>event.preventDefault()} onClick={()=>editing?c.cancel():c.start(item)}>
           {item.wristband} <Icon name="pencil"/></button></li>;
       })}</ul>}
-      <DigitsField id="wristband" label={target?`New number for ${target.wristband}`:'Wristband number'} value={on.current} held={on.held} busy={on.checking || c.writes.sending} warn={on.held}
+      <DigitsField id="wristband" label={target?`New number for ${target.wristband}`:'Wristband number'} value={on.current} held={on.held} onReopen={on.reopen} busy={on.checking || c.writes.sending} warn={on.held}
         onChange={on.type} onEnter={target?c.save:()=>void c.add.next()} selectKey={c.editing??'new'}
         hint={target?'Type the right number and tap Save, or Remove to take this runner off.':c.entries.length?'Tap a number above to change it.':undefined}/>
       <Held c={c} on={on}/>
@@ -116,7 +116,7 @@ function VariantB(props:StepProps) {
           onMouseDown={event=>event.preventDefault()} onClick={()=>open(item)}>{item.wristband} <Icon name="pencil"/></button></li>)}</ul>}
       <Held c={c} on={c.edit}/>
       <div className={target?'proto-dim':undefined}>
-        <DigitsField id="wristband" label="Wristband number" value={c.add.current} held={c.add.held} busy={c.add.checking || c.writes.sending} warn={c.add.held}
+        <DigitsField id="wristband" label="Wristband number" value={c.add.current} held={c.add.held} onReopen={c.add.reopen} busy={c.add.checking || c.writes.sending} warn={c.add.held}
           onChange={c.add.type} onEnter={()=>void c.add.next()} hint={c.entries.length && !target?'Tap a number above to change it.':undefined}/>
       </div>
       <Held c={c} on={c.add}/>

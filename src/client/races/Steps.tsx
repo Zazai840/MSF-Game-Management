@@ -19,10 +19,11 @@ export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWr
 /**
  * One number typed on the phone's own number pad (wristbands, times). The input stays mounted and focused between
  * entries so the keyboard never closes; it closes while a warning waits for Fix or Keep, and opens again after.
- * Enter calls `onEnter`, as the footer's Next does.
+ * Enter calls `onEnter`, as the footer's Next does. With `onReopen`, tapping the box while a warning waits drops the
+ * warning and opens the number to edit, selected, as Fix number would without clearing it.
  */
-export function DigitsField({id,label,value,onChange,onEnter,held=false,busy=false,warn=false,hint,selectKey}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
-  held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string}) {
+export function DigitsField({id,label,value,onChange,onEnter,held=false,busy=false,warn=false,hint,selectKey,onReopen}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
+  held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string;onReopen?:()=>void}) {
   const input=useRef<HTMLInputElement>(null),wasHeld=useRef(held);
   useLayoutEffect(()=>{if(held) input.current?.blur();else if(wasHeld.current) input.current?.focus();wasHeld.current=held;},[held]);
   useEffect(()=>{input.current?.focus({preventScroll:true});},[]);
@@ -30,7 +31,7 @@ export function DigitsField({id,label,value,onChange,onEnter,held=false,busy=fal
   return <div className={warn?'rz-field rz-field--warn':'rz-field'}>
     <label className="rz-field__label" htmlFor={id}>{label}</label>
     <input ref={input} className="rz-field__input" id={id} type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" spellCheck={false}
-      value={value} readOnly={busy || held} aria-describedby={hint?`${id}-hint`:undefined} onChange={event=>onChange(digitsOnly(event.target.value))}
+      value={value} readOnly={busy || held && !onReopen} onFocus={()=>{if(held && onReopen) {onReopen();requestAnimationFrame(()=>input.current?.select());}}} aria-describedby={hint?`${id}-hint`:undefined} onChange={event=>onChange(digitsOnly(event.target.value))}
       onKeyDown={event=>{if(event.key==='Enter' && !event.nativeEvent.isComposing) {event.preventDefault();onEnter();}}}/>
     {hint && <p className="rz-field__hint" id={`${id}-hint`}>{hint}</p>}
   </div>;
@@ -80,7 +81,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       })}</ul>}
       {size.showing && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>That's everyone</button><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button></>}/>}
-      {!locked && <DigitsField id="wristband" label="Wristband number" value={entry.current} held={entry.held} busy={entry.checking || writes.sending} warn={entry.held}
+      {!locked && <DigitsField id="wristband" label="Wristband number" value={entry.current} held={entry.held} onReopen={entry.reopen} busy={entry.checking || writes.sending} warn={entry.held}
         onChange={digits=>{entry.type(digits);size.dismiss();}} onEnter={()=>void entry.next()} hint={count>0?'Tap a number above to remove it.':undefined}/>}
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
@@ -152,7 +153,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · {runnersText(runners.length)}</p><h2 className="rz-prompt__q">Runner not on the list: wristband number?</h2></div>
       {entry.error && <p className="rz-error" role="alert">{entry.error}</p>}
-      <DigitsField id="added" label="Wristband number" value={entry.current} held={entry.held} busy={entry.checking || writes.sending} warn={entry.held} onChange={entry.type} onEnter={()=>void entry.next()}/>
+      <DigitsField id="added" label="Wristband number" value={entry.current} held={entry.held} onReopen={entry.reopen} busy={entry.checking || writes.sending} warn={entry.held} onChange={entry.type} onEnter={()=>void entry.next()}/>
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
     </main>

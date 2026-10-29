@@ -57,5 +57,7 @@ export function useWristbandEntry(event:DayEvent,raceId:string|null,taken:readon
   }
   return {current,pending,refused,error,checking,held:pending.length>0 || !!refused,
     type:(digits:string)=>{setCurrent(digits);setError('');},next,
-    fix:()=>{setCurrent('');setPending([]);setRefused('');},keep:()=>save(true)};
+    fix:()=>{setCurrent('');setPending([]);setRefused('');},
+    /** Puts the held number back in the box to edit, the warning dropped; Next checks it again. */
+    reopen:()=>{setPending([]);setRefused('');},keep:()=>save(true)};
 }
