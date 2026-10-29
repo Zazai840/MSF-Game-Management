@@ -130,6 +130,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-placeslot--placed { background: var(--navy); color: var(--on-navy); }
 .rz-placeslot--placed .rz-placeslot__ord { color: var(--gold); }
 .rz-placeslot--current { background: var(--gold); box-shadow: inset 0 0 0 2px var(--navy); }
+.rz-placeslot--changing { box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-placeslot--empty { border: 1.5px dashed var(--line-strong); color: var(--ink-muted); }
 
 /* ---------- RunnerButton ---------- */
