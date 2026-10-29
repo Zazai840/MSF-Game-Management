@@ -8,6 +8,7 @@ import { RacePage } from '../lead/RacePage.js';
 import { HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
+import { StartLinePrototype } from './StartLine.prototype.js';
 import { useFlowWrite } from './writes.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, and its words. */
@@ -100,7 +101,7 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
         <StepRecord read={snapshot} step={step}/>
       </main>
       :lead?<LeadStep key={`${race.id}:${step}:${fresh}`} step={step} {...props} issues={issues.items} onIssue={()=>void issues.refresh()} onResults={onResults} onActions={()=>setActions(true)}/>
-        :step==='runners'?<StartLine key={`${race.id}:${fresh}`} {...props}/>:step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
+        :step==='runners'?(import.meta.env.DEV && race.kind!=='final'?<StartLinePrototype key={`${race.id}:${fresh}`} {...props}/>:<StartLine key={`${race.id}:${fresh}`} {...props}/>):step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
     </div>
     {actions && <LeadRaceSheet raceId={race.id} eventCode={event.code} onClose={()=>{setActions(false);void issues.refresh();}} onRemoved={()=>{setActions(false);onBack();}}/>}
   </>;

@@ -21,7 +21,7 @@ export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWr
  * entries so the keyboard never closes; it closes while a warning waits for Fix or Keep, and opens again after.
  * Enter calls `onEnter`, as the footer's Next does.
  */
-function DigitsField({id,label,value,onChange,onEnter,held=false,busy=false,warn=false,hint,selectKey}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
+export function DigitsField({id,label,value,onChange,onEnter,held=false,busy=false,warn=false,hint,selectKey}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
   held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string}) {
   const input=useRef<HTMLInputElement>(null),wasHeld=useRef(held);
   useLayoutEffect(()=>{if(held) input.current?.blur();else if(wasHeld.current) input.current?.focus();wasHeld.current=held;},[held]);
@@ -36,7 +36,7 @@ function DigitsField({id,label,value,onChange,onEnter,held=false,busy=false,warn
   </div>;
 }
 /** A footer button that keeps the number pad open (the tap does not take focus from the input). */
-const KeepFocus=({className,disabled,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
+export const KeepFocus=({className,disabled,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
   <button type="button" className={className} disabled={disabled} onMouseDown={event=>event.preventDefault()} onClick={onClick}>{children}</button>;
 /** The usual-heat-size warning shows once per race per person: has this phone shown it for this race? */
 function useSizeWarning(raceId:string) {

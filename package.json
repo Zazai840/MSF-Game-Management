@@ -15,7 +15,8 @@
     "start": "node dist/server/server/main.js",
     "test:e2e": "playwright test && playwright test -c playwright.test-build.config.ts",
     "test:remote": "playwright test -c playwright.remote.config.ts",
-    "verify": "npm run lint && npm test && npm run typecheck && npm run build"
+    "verify": "npm run lint && npm test && npm run typecheck && npm run build",
+    "prototype": "(createdb msf_prototype_wipe_me 2>/dev/null || true) && DATABASE_URL=postgresql://$USER@localhost:5432/msf_prototype_wipe_me OWNER_PASSWORD=prototype HOST=0.0.0.0 tsx watch src/server/main.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
