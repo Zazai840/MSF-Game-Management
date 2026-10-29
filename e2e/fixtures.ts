@@ -184,6 +184,8 @@ async function claim(counter:string,size:number,start:number) {
 }
 /** An event code no other test in this run uses (E1, E2 and so on): every event a spec makes takes one. */
 export const ownCode=async()=>`E${await claim('code',1,1)}`;
+/** A phone or event name no other test in this run uses: the words, this project's name and, under --repeat-each, which repeat it is. */
+export const ownName=(words:string)=>{const {project,repeatEachIndex}=test.info();return `${words} ${project.name}${repeatEachIndex?` ${repeatEachIndex}`:''}`;};
 const claimed=(code:string)=>expect(code,'Claim the event code with ownCode()').toMatch(/^E\d+$/);
 const sectionStart={'Boy Beavers':1,'Girl Beavers':1,'Boy Cubs':1000,'Girl Cubs':2000,'Boy Scouts':3000,'Girl Scouts':4000} as const;
 /**

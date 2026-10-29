@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,expect,flowRace,join,leadMenuButton,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext} from './fixtures.js';
+import {ownCode,ownName,deleteCurrentRace,expect,flowRace,join,leadMenuButton,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext} from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const joinHeading='Join the Running Zone';
@@ -46,7 +46,7 @@ test('old phones see the browser message before the application opens',async({br
 test('a deployed version reloads the phone by itself',async({page},info)=>{
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   await page.goto('/');
-  await join(page,`Update ${info.project.name}`,{job:'Start line'});
+  await join(page,ownName('Update'),{job:'Start line'});
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
   const workerPath=resolve(process.env.DIST_DIR!,'web/sw.js');
@@ -69,10 +69,10 @@ test('a deployed version reloads the phone by itself',async({page},info)=>{
   } finally {await writeFile(workerPath,previous);}
 });
 
-test('a race snapshot from another build reloads the phone by itself',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Snapshot build ${project}`;
+test('a race snapshot from another build reloads the phone by itself',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Snapshot build');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Snapshot build ${project}`);
+  const {page,token}=await openPhone(name);
   await newHeat(request,token,code);
   let loads=0;page.on('load',()=>loads++);
   await page.route(/\/api\/live\/races\/[^/]+$/,route=>route.fulfill({status:200,contentType:'text/event-stream',body:`data: ${JSON.stringify({revision:1,build:'a newer build'})}\n\n`}),{times:1});
@@ -84,10 +84,10 @@ test('a race snapshot from another build reloads the phone by itself',async({ope
   await deleteCurrentRace(request,code);
 });
 
-test('a phone meeting the old and the new server in turn mid-deploy reloads once, then carries on instead of reloading again',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Reload once ${project}`;
+test('a phone meeting the old and the new server in turn mid-deploy reloads once, then carries on instead of reloading again',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Reload once');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Reload once ${project}`);
+  const {page,token}=await openPhone(name);
   await newHeat(request,token,code);
   const read=(await flowRace(request,token,code))!;
   let loads=0;page.on('load',()=>loads++);
@@ -104,8 +104,8 @@ test('a phone meeting the old and the new server in turn mid-deploy reloads once
   await deleteCurrentRace(request,code);
 });
 
-test('a failed load of the Lead area reloads the app instead of leaving a blank screen',async({openPhone},info)=>{
-  const {page}=await openPhone(`Lead load ${info.project.name}`,{lead:true});
+test('a failed load of the Lead area reloads the app instead of leaving a blank screen',async({openPhone})=>{
+  const {page}=await openPhone(ownName('Lead load'),{lead:true});
   let loads=0;page.on('load',()=>loads++);
   // An old page after a deploy: its Lead files are gone from the server. The service worker passes these requests on, so only the context sees them.
   const leadFiles=/\/assets\/Lead-[^/]+\.(js|css)$/;
@@ -120,9 +120,9 @@ test('a failed load of the Lead area reloads the app instead of leaving a blank 
 });
 
 test('a reload shows everything entered from the server, and a half-typed number is not kept on the phone',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Reload sprint ${project}`;
+  const code=await ownCode(),name=ownName('Reload sprint');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Reload ${project}`);
+  const {page,token}=await openPhone(ownName('Reload'));
   await writeCheckIn(request,token,code,[2401,2402,2403]);await writeOrder(request,token,code,[2402,2401]);await writeTimes(request,token,code,[1234]);
   await openRace(page,name);
   await page.getByLabel('Wristband number',{exact:true}).fill('25');
