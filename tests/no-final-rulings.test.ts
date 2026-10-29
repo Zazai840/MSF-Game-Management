@@ -102,8 +102,8 @@ test('a relay decided without a final locks its team list and refuses call-ups a
   for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
   await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
-  expect((await call(volunteer,'/api/teams/R22/done',{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
-  expect((await call(volunteer,'/api/teams/R22/hold',{})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
+  const relay=(await call(volunteer,'/api/races')).json().groups.find((group:{event:{code:string}})=>group.event.code==='R22').event.id;
+  expect((await call(volunteer,`/api/relays/${relay}/teams`,{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
   const team=(await call(lead,'/api/lead/events/R22/results')).json().teams[0];
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team.id})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:'any'})).statusCode).toBe(409);
