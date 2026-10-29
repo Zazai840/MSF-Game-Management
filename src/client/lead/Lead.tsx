@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api,StaleRequest } from '../api.js';
 import type { DayRead } from '../../shared/day.js';
-import type { DayLeadItem } from '../../shared/lead-results.js';
+import type { ResultsTarget } from '../../shared/lead-results.js';
 import { BackArrow } from '../flow/BackArrow.js';
 import { Results } from './Results.js';
 import { Day,Events } from './Day.js';
@@ -15,14 +15,14 @@ const daySetup:Section[]=['Day setup','Signed in today','Events'];
 /** How long the short "Saved" note stays after a lead action. */
 const savedFor=3000;
 /**
- * The lead's screens, from the lead menu on Races: Results and Day setup. The race flow put a race's issues on the
+ * The lead's screens, from the avatar menu on Races: Results and Day setup. The race flow put a race's issues on the
  * race itself, so there is no Dashboard or To check list: back goes up one level (an event to Results, Signed in
  * today to Day setup), then to Races. After Start a new day the lead lands in Day setup.
  */
-export default function Lead({initialDay=false,initialSection='Results',target:opened,onChanged,onHome,onSection}:{initialDay?:boolean;initialSection?:'Results'|'Day setup';target?:DayLeadItem;
+export default function Lead({initialDay=false,initialSection='Results',target:opened,onChanged,onHome,onSection}:{initialDay?:boolean;initialSection?:'Results'|'Day setup';target?:ResultsTarget;
   onChanged:()=>void;onHome:()=>void;onSection:(section:string)=>void}) {
   const [section,setSection] = useState<Section>(initialDay?'Day setup':initialSection);
-  const [target,setTarget]=useState<DayLeadItem|undefined>(opened);
+  const [target,setTarget]=useState<ResultsTarget|undefined>(opened);
   const [saved,setSaved]=useState(0);
   const [day,setDay] = useState<DayRead|null>(null);
   const [phones,setPhones] = useState<number|null>(null);

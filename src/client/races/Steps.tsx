@@ -1,7 +1,8 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { ordinal } from '../../shared/ordinal.js';
 import { finishedWords,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
-import { onlyRunners } from '../../shared/race-screen.js';
+import { andList,onlyRunners } from '../../shared/race-screen.js';
 import { runnersOf,runnersText,type Runner } from '../../shared/races.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
@@ -98,22 +99,39 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
     </div></DockedFooter>}
   </>;
 }
-/** A final's start line: its seeded runners, each Here or Absent; only those Here run it. */
+type Mark='here'|'absent'|null;
+/**
+ * A final's start line: every finalist unmarked at first, each row with Here and Absent; tapping a lit mark again
+ * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
+ */
 function Attendance({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,final=race.final!,absent=final.entries.filter(entry=>entry.absent).map(entry=>entry.finalEntryId);
-  const mark=(next:string[])=>void flow.write('absent',{raceId:race.id,version:race.parts.runners.version,absent:next});
-  const here=final.entries.length-absent.length;
+  const {race}=read,final=race.final!,inRace=new Set(runnersOf(race.parts.runners.value).map(runner=>runner.id));
+  const markOf=(entry:typeof final.entries[number]):Mark=>inRace.has(entry.finalEntryId)?'here':entry.absent?'absent':null;
+  const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
+  // The question appears under the list, so it is brought into view clear of the footer.
+  useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
+  const ids=(marks:Mark[],mark:Mark)=>final.entries.filter((_,index)=>marks[index]===mark).map(entry=>entry.finalEntryId);
+  const send=(marks:Mark[])=>flow.write('absent',{raceId:race.id,version:race.parts.runners.version,here:ids(marks,'here'),absent:ids(marks,'absent')});
+  const marks=final.entries.map(markOf),here=marks.filter(mark=>mark==='here').length;
+  const unmarked=final.entries.filter((_,index)=>marks[index]===null);
+  const tap=(index:number,mark:Mark)=>{setAsking(false);void send(marks.map((old,at)=>at===index?(old===mark?null:mark):old));};
+  async function recordAbsent() {
+    setAsking(false);
+    if(typeof await send(marks.map(mark=>mark??'absent'))==='object') onDone('runners');
+  }
   return <>
     <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here</p><h2 className="rz-prompt__q">Who is here?</h2></div>
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">Who is here?</h2></div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
-      <ul className="rz-attendance" aria-label="Who is here">{final.entries.map(entry=><li key={entry.finalEntryId} className={entry.absent?'is-absent':undefined}>
+      <ul className="rz-attendance" aria-label="Who is here">{final.entries.map((entry,index)=><li key={entry.finalEntryId} className={marks[index]==='absent'?'is-absent':undefined}>
         <span className="rz-attendance__who"><span className="rz-attendance__seed">{entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`}</span><span className="label">{entry.wristband}</span></span>
-        <button type="button" className={entry.absent?'rz-btn rz-btn--pill':'rz-btn rz-btn--pill rz-btn--primary'} disabled={locked || flow.busy} aria-pressed={!entry.absent} aria-label={`${entry.wristband}: ${entry.absent?'Absent. Mark here':'Here. Mark absent'}`}
-          onClick={()=>mark(entry.absent?absent.filter(id=>id!==entry.finalEntryId):[...absent,entry.finalEntryId])}>{entry.absent?'Absent':'Here'}</button>
+        {(['here','absent'] as const).map(mark=><button key={mark} type="button" className={marks[index]===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked || flow.busy}
+          aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
+      {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
+        actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button></>}/></div>}
     </main>
-    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here} onClick={()=>onDone('runners')}>That's everyone</button></DockedFooter>}
+    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button></DockedFooter>}
   </>;
 }
 
@@ -121,7 +139,7 @@ type Unplaced='dnf'|'dnr';
 /**
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one places it and moves on; tapping a placed slot makes it the place to fill
- * again. When the last runner is placed, or on "Nobody else crossed the line", Check the order: drag to move, arrow
+ * again: it stays outlined with its runner, who is a button again, until another runner takes it or Keep puts it back. When the last runner is placed, or on "Nobody else crossed the line", Check the order: drag to move, arrow
  * keys too, and each runner left is Did not finish or Didn't run. Save the order marks Finishing order done.
  */
 export function FinishLine({read,flow,onDone,locked}:StepProps) {
@@ -134,9 +152,12 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   // Everyone already placed (coming back to the step, or a lead opening the tab): straight to Check the order, never a flash of the next place.
   const [mode,setMode]=useState<'place'|'check'|'add'>(()=>runners.length && !unplaced.length && order.length?'check':'place');
   const [redo,setRedo]=useState<number|null>(null);
-  const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({});
+  const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({}),[asked,setAsked]=useState(false);
   const size=useSizeWarning(`${race.id}:finish`),applies=usualSizeApplies(event) || race.kind==='final';
   const current=redo!==null && redo<order.length?redo:order.length;
+  // A placed slot being changed keeps its runner, who is a button again until someone takes the slot.
+  const changing=current<order.length?byId.get(order[current]):undefined;
+  const choices=runners.filter(runner=>runner===changing || unplaced.includes(runner));
   const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[]},added:number[]=[],kept:number[]=[])=>
     writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept});
   // The last runner placed: on to Check the order at once (its save goes on behind), before the screen paints, so the
@@ -148,6 +169,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     return sent;
   });
   function place(runner:Runner) {
+    if(runner===changing) return setRedo(null);
     const next=[...order];
     if(current<order.length) next[current]=runner.id;else next.push(runner.id);
     setRedo(null);void send({order:next});
@@ -170,11 +192,20 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   </>;
   if(mode==='check') {
     const left=runners.filter(runner=>!order.includes(runner.id));
-    const as=(runner:Runner):Unplaced=>leftAs[runner.id]??'dnf';
+    // A runner already saved as Did not finish keeps that answer; anyone else left is asked, with nothing chosen for them.
+    const as=(runner:Runner):Unplaced|undefined=>leftAs[runner.id]??(didNotFinish.includes(runner.id)?'dnf':undefined);
+    const unanswered=left.filter(runner=>!as(runner));
     async function save() {
+      if(unanswered.length) {
+        flushSync(()=>setAsked(true)); // the callout first, so the row scrolled to stays clear of the footer
+        document.getElementById(`left-${unanswered[0].id}`)?.scrollIntoView({block:'center'});
+        return;
+      }
       const result=await send({order,didNotFinish:left.filter(runner=>as(runner)==='dnf').map(runner=>runner.id),didNotRun:left.filter(runner=>as(runner)==='dnr').map(runner=>runner.id)});
       if(typeof result==='object') onDone('positions');
     }
+    const choice=(runner:Runner,value:Unplaced,label:string)=><button type="button" className={as(runner)===value?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'}
+      disabled={locked} aria-pressed={as(runner)===value} onClick={()=>setLeftAs({...leftAs,[runner.id]:value})}>{label}</button>;
     return <>
       <main className="rz-main">
         <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p><h2 className="rz-prompt__q">Check the order</h2></div>
@@ -185,12 +216,12 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
           look={{list:'rz-orderrows',row:'rz-orderrow',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:name=>`Move ${name}`}}
           onReorder={next=>void send({order:next})}
           renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{byId.get(id)?.wristband}</span></>}/>}
-        <div className="rz-heading-row"><h3 className="rz-section">Not placed</h3>{!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('add')}>+ Runner not on the list</button>}</div>
-        {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id}>
-          <button type="button" className="rz-orderrow rz-orderrow--unplaced" disabled={locked} aria-label={`${runner.wristband}, ${as(runner)==='dnf'?'did not finish':"didn't run"}. Change`}
-            onClick={()=>setLeftAs({...leftAs,[runner.id]:as(runner)==='dnf'?'dnr':'dnf'})}>
-            <span className="rz-orderrow__place">–</span><span className="rz-orderrow__num">{runner.wristband}</span><span className="rz-tag rz-tag--dnf">{as(runner)==='dnf'?'Did not finish':"Didn't run"}</span>
-          </button></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
+        <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('add')}>+ Runner not on the list</button>}</div>
+        {asked && unanswered.length>0 && <Callout message={`Say what happened to ${runnersText(unanswered.length)} first.`}/>}
+        {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id} id={`left-${runner.id}`}>
+          <div role="group" aria-label={String(runner.wristband)} className="rz-orderrow rz-orderrow--unplaced">
+            <span className="rz-orderrow__num">{runner.wristband}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
+          </div></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
       </main>
       {!locked && <DockedFooter>
         <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save the order</button>
@@ -201,20 +232,21 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     <main className="rz-main">
       <ol className="rz-places" aria-label={`Places: ${order.length} of ${slots} recorded`}>{Array.from({length:slots},(_,index)=>{
         const runner=index===current?undefined:byId.get(order[index]);
+        if(index===current && changing) return <li key={index}><span className="rz-placeslot rz-placeslot--changing" aria-current="step" aria-label={`Changing ${ordinal(index+1)}: ${changing.wristband}`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{changing.wristband}</span></span></li>;
         if(index===current && unplaced.length) return <li key={index}><span className="rz-placeslot rz-placeslot--current" aria-current="step" aria-label={`${ordinal(index+1)} place: choosing now`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">?</span></span></li>;
         if(runner) return <li key={index}><button type="button" className="rz-placeslot rz-placeslot--placed" disabled={locked} aria-label={`${ordinal(index+1)} place: ${runner.wristband}. Change`} onClick={()=>setRedo(index)}>
           <span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{runner.wristband}</span></button></li>;
         return <li key={index}><span className="rz-placeslot rz-placeslot--empty" aria-label={`${ordinal(index+1)} place: empty`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">–</span></span></li>;
       })}</ol>
-      <div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{raceName(race)} · {runnersText(runners.length)} · {unplaced.length} to place</p>
-        <h2 className="rz-prompt__q">{!runners.length?'Nobody is checked in yet':!unplaced.length?'Everyone is placed':<>Who came <em>{ordinal(current+1)}?</em></>}</h2>
-      </div>
+      <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact">
+        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${changing.wristband}`:`${raceName(race)} · ${runnersText(runners.length)} · ${unplaced.length} to place`}</p>
+        <h2 className="rz-prompt__q">{!runners.length?'Nobody is checked in yet':!choices.length?'Everyone is placed':<>Who came <em>{ordinal(current+1)}?</em></>}</h2>
+      </div>{changing && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setRedo(null)}>Keep {changing.wristband}</button>}</div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
       {sizeNote}
       {!runners.length && <p className="rz-empty">Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.</p>}
       {/* A heat of more than 9 gets smaller buttons, so all 12 of a full heat fit above the footer. */}
-      {!locked && unplaced.length>0 && <ul className={runners.length>9?'rz-runners rz-runners--compact':'rz-runners'} aria-label="Runners not yet placed">{unplaced.map(runner=><li key={runner.id}>
+      {!locked && choices.length>0 && <ul className={runners.length>9?'rz-runners rz-runners--compact':'rz-runners'} aria-label="Runners not yet placed">{choices.map(runner=><li key={runner.id}>
         <button type="button" className="rz-runner" aria-label={`${runner.wristband} came ${ordinal(current+1)}`} onClick={()=>place(runner)}>{runner.wristband}</button>
       </li>)}</ul>}
     </main>

@@ -12,4 +12,4 @@ A row of Check the order: place, wristband and a drag handle. Arrow keys on the 
 
 **Rules**
 - 44px rows, grid `44px 1fr 44px`; `card` + `shadow-card`, `shadow-raised` while dragging.
-- An unplaced runner is a dashed button row (`rz-orderrow--unplaced`) with a DNF tag; tapping toggles Did not finish / Didn't run.
+- An unplaced runner is a dashed row (`rz-orderrow--unplaced`, a `role="group"` named by the wristband) with two pill buttons, Did not finish and Didn't run (`aria-pressed`), neither chosen until tapped.

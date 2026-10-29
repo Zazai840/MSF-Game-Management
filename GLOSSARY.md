@@ -65,7 +65,7 @@ A zone lead's call, on an event with heats, to award its medals to the 3 fastest
 _Avoid_: Skip final, cancel final, no final, heat-time medals
 
 **Absent finalist**:
-A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in lists the line-up and marks each child Here or Absent; a relay team is Absent as a whole.
+A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final. A relay team is Absent as a whole.
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
@@ -178,9 +178,13 @@ _Avoid_: Admin, race manager, supervisor
 Anyone who typed today's lead code (or the owner password), trusted with everything beyond the jobs: the live leaderboard, making rulings on a race's problems, and Day setup. Every lead can do everything. Zone leads are leads, and so are scoring team members.
 _Avoid_: Admin, organiser, superuser
 
-**Lead menu**:
-What a lead's avatar opens on Races: Results, Day setup and their details. It replaced the Dashboard.
-_Avoid_: Dashboard, admin panel, control panel
+**Avatar menu**:
+What every avatar opens, and the name in the older-look header too: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+_Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
+
+**Log out**:
+Ending the session on this phone, at once with no confirmation. The phone keeps its listed names and shows Join.
+_Avoid_: Sign out
 
 **To check**:
 The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Ready for you lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
@@ -191,7 +195,7 @@ The people outside the Running Zone who keep the Olympics scoring workbook and c
 _Avoid_: Scorers, results team, admin team
 
 **Olympics password**:
-The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone signs out on that phone. It replaces the day code. Volunteers see it as "Password" on Join; only a lead's Day setup calls it the Olympics password.
+The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone logs out on that phone. It replaces the day code. Volunteers see it as "Password" on Join; only a lead's Day setup calls it the Olympics password.
 _Avoid_: Day code, event password, PIN, access code
 
 **Profile**:
@@ -219,7 +223,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat, or for a lead the final.
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. New race lists every event, grouped under Races and Hurdles whichever tab it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:

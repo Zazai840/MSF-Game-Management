@@ -26,6 +26,7 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await input.press('Enter');await expect(input).toBeFocused();await expect(input).toHaveValue('');
   await expect(page.getByRole('heading',{level:2,name:'2nd place time?'})).toBeVisible();
   await enterTime(page,'1281');await enterTime(page,'1305');
+  await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
   await input.fill('13240');await expect(page.locator('.rz-field__hint')).toHaveText('Shows as 1:32.40. Type digits only.');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer.png'),fullPage:true});
   // The 4th place time is faster than 3rd: Fix time or Keep, with the keyboard closed.

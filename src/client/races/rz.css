@@ -331,7 +331,8 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-callout { display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-14) var(--space-16); border: 2px solid var(--warn-line); border-radius: var(--radius-lg); background: var(--warn-soft); color: var(--navy); }
 .rz-callout__msg { display: flex; gap: var(--space-10); margin: 0; font-size: 15px; line-height: 1.4; font-weight: 700; }
 .rz-callout__msg .rz-icon { color: var(--warn-ink); }
-.rz-callout__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
+.rz-callout__actions { display: flex; flex-wrap: wrap; gap: var(--space-10); }
+.rz-callout__actions .rz-btn { flex: 1 1 0; white-space: nowrap; }
 .rz-callout__actions .rz-btn:not(.rz-btn--primary) { background: var(--card); }
 
 /* ---------- IssueCard ---------- */

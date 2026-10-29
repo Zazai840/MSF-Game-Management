@@ -75,14 +75,14 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 **List**, grouped into sections. Hide a section that is empty.
 1. **Ready for you:** event groups with at least one race whose step for *my role* can be worked on now and isn't done. For a zone lead: groups with an open issue (see "Zone lead").
 2. **In progress:** every other group with a race that isn't fully done, or a final ready to create.
-3. **Done:** collapsed Disclosure, "Done (4)", listing groups where every race is fully done.
+3. **Done:** collapsed Disclosure, "Done (4)", listing groups whose medals are decided (Event complete, Final complete or Results without a final); until then a group stays in progress, even with every race saved.
 
 **Ordering**
 - Within Ready for you: the group whose oldest waiting race was created first comes first.
 - Elsewhere: most recently updated first.
 
 **RaceCard**, one per event group:
-- Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · 1 and 2 done").
+- Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · Heats 1 and 2 done", "Heat 1 checked in", "Heats 1 and 2 and the final done").
 - Then the **HeatChips** row: one chip per race in order, then "+" (add the next heat).
 - When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
 - Tapping a chip opens that race.
@@ -99,7 +99,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons, for this tab's events only.
+- **Event:** choice buttons for every event, grouped under the tab names Races and Hurdles whichever tab it was opened from, so a volunteer on the wrong tab still finds theirs. Back from the new race, Races shows that event's tab.
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.
@@ -148,6 +148,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 **PlacesBoard**
 - A 4-column grid with **one slot for every runner in the race** (1st … *n*th).
 - Placed slots are navy: gold ordinal plus wristband. Tap one to change it.
+- A slot being changed is outlined with its runner still in it; the meta reads "Changing 1st: 2014", 2014 is among the runner buttons again, and "Keep 2014" puts it back.
 - The current place is gold: "3RD ?", `aria-current="step"`.
 - Empty slots are dashed: "4TH –".
 - The grid grows with the runner count; 9–12 runners make 3 rows.
@@ -168,8 +169,8 @@ One route per race (`/races/:raceId`), the same shell for every role.
 #### 6b. Finish line: check the order (artboard `N6b-CheckOrder`)
 - **Prompt:** meta "Heat 4 · drag a handle to move a runner", question "Check the order".
 - **OrderRows** (44px): place, wristband, drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop.
-- **"Not placed"** heading with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with a DNF tag ("Did not finish" by default). Tapping the row toggles Did not finish / Didn't run.
-- **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast.
+- **"2 not placed"** heading, below the order and just above the footer, with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with two pill buttons, Did not finish and Didn't run (`aria-pressed`), neither chosen at the start.
+- **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast. While any unplaced runner is unanswered it saves nothing, shows the amber callout "Say what happened to 2 runners first." above the rows, and scrolls to the first unanswered row.
 - **Back** returns to 6 without losing anything.
 
 #### 7. Timer: enter times (artboard `N7-Timer`)

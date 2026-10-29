@@ -48,9 +48,9 @@ export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
     <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
-/** The avatar: your initials. For a lead it opens the menu with Results and Day setup. */
-export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label?:string}) {
-  return <button type="button" className="rz-avatar" aria-label={label||`${name}, your details`} onClick={onOpen}>{initials(name)}</button>;
+/** The avatar: your initials. It opens the avatar menu, which its label names. */
+export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label:string}) {
+  return <button type="button" className="rz-avatar" aria-label={label} onClick={onOpen}>{initials(name)}</button>;
 }
 /** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
 export function HomeBar({children}:{children:ReactNode}) {
@@ -70,10 +70,11 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
  * viewer's step, and every chip says its state in words. `current` is the race open now (gold with a ring); on a race
- * screen a race ready for you that is not open gets a ring and a gold dot.
+ * screen a race ready for you that is not open gets a ring and a gold dot. A final that would be refused greys "+ Final"
+ * with the reason beside it, which opens what it is about.
  */
-export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
-  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void}) {
+export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
+  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:{line:string;onOpen:()=>void}}) {
   return <ol className="rz-heats" aria-label="Heats">
     {races.map(race=>{
       const state=chipState(race,role),here=race.id===current;
@@ -84,7 +85,9 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{ra
       </button></li>;
     })}
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
-    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" onClick={onFinal}>+ Final</button></li>}
+    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
+      onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
+    {onFinal && finalReason && <li><button type="button" className="rz-heat-reason" onClick={finalReason.onOpen}><Icon name="warning"/>{finalReason.line}</button></li>}
   </ol>;
 }
 /** A step's status in words: "5 checked in", "2 of 8", "10 finished", "Not started". */

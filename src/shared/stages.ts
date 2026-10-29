@@ -38,8 +38,9 @@ export function noFinalCheckSheet(state:EventState,rows:readonly LeaderboardRow[
 export function finalCheckSheet(state:EventState,final:FinalResults|null,needsYou:readonly LeadItem[]):StageCheckSheet {
   const race=state.races.find(race=>race.id===final?.raceId);
   const mustSettleFirst:StageItem[]=[];
-  // A final nobody is running in (an empty event, or everyone Absent) has nothing to save.
-  if(!race || (race.runners.length && !raceCounts(race))) mustSettleFirst.push({id:'final-recording',kind:'incomplete',raceId:race?.id,message:'Final: awaiting finishing order'});
+  // A final nobody is running in (an empty event, or everyone Absent) has nothing to save; one still checking in has.
+  const unmarked=race?.final?.entries.some(entry=>!entry.absent && !race.runners.some(runner=>runner.id===entry.finalEntryId));
+  if(!race || ((race.runners.length || unmarked) && !raceCounts(race))) mustSettleFirst.push({id:'final-recording',kind:'incomplete',raceId:race?.id,message:'Final: awaiting finishing order'});
   const rows=final?.leaderboard.filter(row=>row.position!==null)||[];
   return {stage:'final',label:'Final complete',completed:state.completedStages?.includes('final')??false,mustSettleFirst,worthALook:needsYou.filter(item=>item.kind==='warning'&&item.raceId===final?.raceId).map(item=>({id:item.id,kind:'warning',raceId:item.raceId,entryId:item.entryId,message:item.message})),creates:[1,2,3].map(position=>stagePlace(position,rows[position-1]))};
 }

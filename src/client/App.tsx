@@ -1,10 +1,9 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Phone } from '../shared/domain.js';
-import type { DayLeadItem } from '../shared/lead-results.js';
-import type { Role } from '../shared/race-flow.js';
+import type { ResultsTarget } from '../shared/lead-results.js';
+import type { Role,Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { YourProfile } from './access/YourProfile.js';
 import { Home } from './home/Home.js';
 import { RaceScreen } from './race/RaceScreen.js';
 import { TeamsScreen } from './teams/TeamsScreen.js';
@@ -12,6 +11,7 @@ import { AppHeader } from './shell/AppHeader.js';
 import { BackArea,BackArrow } from './flow/BackArrow.js';
 import { clock } from '../shared/clock.js';
 import { reloadApp } from './shell/updates.js';
+import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,HomeBar,RoleChip,Screen } from './races/parts.js';
 import { EventTabs,RacesHome } from './races/RacesHome.js';
 import { RaceShell,type SavedStep } from './races/RaceShell.js';
@@ -21,13 +21,13 @@ const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new
 interface HomeRead { phone:Phone; needsYou?:number }
 /**
  * Where the phone is. Races (Home) and a race are the race flow; a relay's race screen, the Teams screen, the lead's
- * Results and Day setup, and your profile keep the older screens.
+ * Results and Day setup keep the older screens.
  */
-type View={kind:'races'}|{kind:'race';id:string}|{kind:'relay';code:string}|{kind:'teams'}|{kind:'lead';section:'Results'|'Day setup';target?:DayLeadItem}|{kind:'profile'};
+type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'relay';code:string}|{kind:'teams'}|{kind:'lead';section:'Results'|'Day setup';target?:ResultsTarget};
 /** A race has its own address (/races/:raceId); everything else is the app's root. */
 const fromLocation=():View=>{const id=location.pathname.match(/^\/races\/([^/]+)$/)?.[1];return id?{kind:'race',id:decodeURIComponent(id)}:{kind:'races'};};
 /** How each screen is named in a tester's bug report. */
-const screenName=(view:View,section:string)=>view.kind==='races'?'Races':view.kind==='race'?'Race':view.kind==='relay'?'Race screen':view.kind==='teams'?'Teams':view.kind==='lead'?section:'Your profile';
+const screenName=(view:View,section:string)=>view.kind==='races'?'Races':view.kind==='race'?'Race':view.kind==='relay'?'Race screen':view.kind==='teams'?'Teams':section;
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
@@ -37,6 +37,7 @@ export function App() {
   const [role,setRole]=useState<Role|null>(null);
   const [roleSheet,setRoleSheet]=useState(false);
   const [menu,setMenu]=useState(false);
+  const logOut=useSubmit();
   const [saved,setSaved]=useState<SavedStep|null>(null);
   const [openDay,setOpenDay]=useState(false);
   const [leadSection,setLeadSection]=useState('Results');
@@ -93,31 +94,33 @@ export function App() {
   if (!signedIn) return <SignIn onSignedIn={()=>setSignedIn(true)} />;
   if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
   const name=home.phone.name,toRaces=()=>go({kind:'races'});
-  if(!role) return <JoinJob name={name} onChoose={choose} onLead={refresh}/>;
-  const avatar=<div style={{position:'relative'}}>
-    <Avatar name={name} label={isLead?`${name}: Results, Day setup and your details`:undefined} onOpen={()=>isLead?setMenu(!menu):go({kind:'profile'})}/>
-    {menu && <div className="rz-menu" role="menu">
-      <button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Results'})}>Results</button>
-      <button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Day setup'})}>Day setup</button>
-      <button role="menuitem" type="button" onClick={()=>go({kind:'profile'})}>Your details</button>
-    </div>}
+  // Every avatar, and the older-look header's name, opens this one menu. Log out asks nothing: the phone keeps its listed names.
+  const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=()=>setMenu(!menu);
+  const menuList=menu && <div className="rz-menu" role="menu">
+    {isLead && <><button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Results'})}>Results</button>
+      <button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Day setup'})}>Day setup</button></>}
+    <button role="menuitem" type="button" disabled={logOut.busy} onClick={()=>void logOut.submit(async()=>{await api('sign-out',{});phoneStorage.signOut();})}>Log out</button>
+    {logOut.error && <p role="alert" className="rz-note">{logOut.error}</p>}
   </div>;
+  const avatar=<div style={{position:'relative'}}><Avatar name={name} label={menuLabel} onOpen={openMenu}/>{menuList}</div>;
+  if(!role) return <JoinJob avatar={avatar} onChoose={choose} onLead={refresh}/>;
   const sheet=roleSheet && <RoleSheet role={role} lead={isLead} onChoose={choose} onLead={refresh} onClose={()=>setRoleSheet(false)}/>;
   const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
   if(view.kind==='races' || view.kind==='race') {
     const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
-      onRace={id=>go({kind:'race',id})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
+    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
+      onRace={(id,step)=>go({kind:'race',id,step})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
     // Relays keep today's list and screens, in the older look, under the race flow's tabs.
     if(homeTab==='relays') return <><Screen screen="Races" fill={false} wide>{bar}<EventTabs tab={homeTab} onTab={pickTab}/>{sheet}</Screen>
       <main><Home tab="relays" relaysOnly onTab={pickTab} onEvent={code=>go({kind:'relay',code})} onTeams={()=>go({kind:'teams'})}/>
         <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer></main></>;
-    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={id=>go({kind:'race',id})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
+    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+      onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
-  return <><AppHeader name={name} screen={screenName(view,leadSection)} onProfile={()=>go({kind:'profile'})}/><BackArea>
+  // The older look has no race-flow tokens, so the menu brings its own .rz-screen.
+  return <><AppHeader name={name} label={menuLabel} screen={screenName(view,leadSection)} onMenu={openMenu}/>{menuList && <div className="rz-screen rz-menu-anchor">{menuList}</div>}<BackArea>
     {view.kind!=='lead' && <BackArrow to="Races" onBack={toRaces}/>}<main>
-    {view.kind==='profile'?<YourProfile phone={home.phone} onBack={toRaces}/>
-      :view.kind==='teams'?<TeamsScreen phoneId={home.phone.id}/>
+    {view.kind==='teams'?<TeamsScreen phoneId={home.phone.id}/>
       :view.kind==='relay'?<RaceScreen key={view.code} eventCode={view.code} phoneId={home.phone.id} lead={isLead}/>
       :isLead?<Suspense fallback={<p>Opening Lead…</p>}><Lead key={`${home.phone.dayId}:${view.section}:${view.target?.id??''}`} initialDay={openDay} initialSection={view.section} target={view.target}
         onChanged={()=>void refresh()} onHome={()=>{setOpenDay(false);toRaces();}} onSection={setLeadSection}/></Suspense>:<p>Lead access needed</p>}
@@ -129,9 +132,9 @@ export function App() {
  * one tap on Start line, Finish line or Timer opens Races. Zone lead asks for the lead code first. The job can be
  * switched on any race.
  */
-function JoinJob({name,onChoose,onLead}:{name:string;onChoose:(role:Role)=>void;onLead:()=>Promise<void>}) {
+function JoinJob({avatar,onChoose,onLead}:{avatar:ReactNode;onChoose:(role:Role)=>void;onLead:()=>Promise<void>}) {
   const [asking,setAsking]=useState(false);
-  return <Screen screen="Join"><HomeBar><Avatar name={name} onOpen={()=>{}}/></HomeBar>
+  return <Screen screen="Join"><HomeBar>{avatar}</HomeBar>
     <main className="rz-main rz-main--form">
       <h1 className="rz-screen-title">What's your job today?</h1>
       <JobChoice role={null} label="What's your job today?" onChoose={onChoose}/>
