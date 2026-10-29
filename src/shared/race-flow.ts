@@ -126,16 +126,20 @@ export function heatList(races:readonly Pick<RaceSummary,'kind'|'number'>[]) {
 }
 /**
  * A race's state in the viewer's step, and where it comes on a card: what waits for them (0), their step done or, for a
- * lead, the race in progress (1), the race saved (2), then a race still with others (3).
+ * lead, the race in progress (1), the race saved (2), then a race still with others (3). `joins` is how a card line
+ * puts it after the races: "Heats 3 and 4 need times", "Heat 2 is waiting", "Heat 1 checked in", "The final: check who is here".
  */
-function raceWord(race:Pick<RaceSummary,'kind'|'state'|'steps'>,role:Role):{text:string;rank:number} {
-  if(role==='lead') return race.state==='saved'?{text:'saved',rank:2}:chipState(race,role)==='ready'?{text:'needs a lead',rank:0}:{text:'in progress',rank:1};
-  if(race.state==='saved') return {text:'done',rank:2};
+type RaceWord={rank:number} & ({joins:'needs';what:string}|{joins:'is';what:'waiting'|'checking in'}|{joins:'reads';what:string}|{joins:'final check'});
+function raceWord(race:Pick<RaceSummary,'kind'|'state'|'steps'>,role:Role):RaceWord {
+  if(role==='lead') return race.state==='saved'?{joins:'reads',what:'saved',rank:2}:chipState(race,role)==='ready'?{joins:'needs',what:'a lead',rank:0}:{joins:'reads',what:'in progress',rank:1};
+  if(race.state==='saved') return {joins:'reads',what:'done',rank:2};
   const step=roleSteps[role],status=race.steps[step];
-  if(status?.state==='done') return {text:stepDone[step],rank:1};
-  if(status && workable(race,step)) return {text:race.kind==='final' && step==='runners'?'check who is here':`needs ${stepNeeds[step]}`,rank:0};
-  return {text:race.steps.runners?.state==='done'?'waiting':'checking in',rank:3};
+  if(status?.state==='done') return {joins:'reads',what:stepDone[step],rank:1};
+  if(status && workable(race,step)) return race.kind==='final' && step==='runners'?{joins:'final check',rank:0}:{joins:'needs',what:stepNeeds[step],rank:0};
+  return {joins:'is',what:race.steps.runners?.state==='done'?'waiting':'checking in',rank:3};
 }
+/** A race's word on its own, as its chip says it: "needs times", "waiting", "checked in", "check who is here". */
+const wordText=(word:RaceWord)=>word.joins==='final check'?'check who is here':word.joins==='needs'?`needs ${word.what}`:word.what;
 /**
  * A heat chip's state for a viewer: done (their step done or not on this race, or the race saved), ready (their step
  * can be worked on now; for a lead, every step done but the race not saved, so it waits for them) or waiting.
@@ -147,18 +151,19 @@ export function chipState(race:Pick<RaceSummary,'state'|'steps'>,role:Role):'don
   return workable(race,roleSteps[role])?'ready':'waiting';
 }
 /** A heat chip's name in words, so its state never rests on colour alone: "Heat 3, needs times", "Heat 1, checked in". */
-export const chipLabel=(race:Pick<RaceSummary,'kind'|'number'|'state'|'steps'>,role:Role)=>`${raceName(race)}, ${raceWord(race,role).text}`;
+export const chipLabel=(race:Pick<RaceSummary,'kind'|'number'|'state'|'steps'>,role:Role)=>`${raceName(race)}, ${wordText(raceWord(race,role))}`;
 /**
  * A race card's status line, each race's state in the viewer's step: "Heats 3 and 4 need times · Heats 1 and 2 done",
  * "Heat 1 checked in · Heat 2 is checking in", "Heats 1 and 2 and the final done", "The final: check who is here".
  */
 export function groupStatus(group:Pick<RaceGroup,'races'>,role:Role) {
-  const words=group.races.map(race=>raceWord(race,role));
-  return [...new Map(words.map(word=>[word.text,word])).values()].sort((a,b)=>a.rank-b.rank).map(({text})=>{
-    const races=group.races.filter((_,index)=>words[index].text===text),many=races.length>1;
-    if(text==='check who is here') return `${heatList(races)}: ${text}`;
-    const verb=text.startsWith('needs ') && many?text.replace('needs','need'):text==='waiting' || text==='checking in'?`${many?'are':'is'} ${text}`:text;
-    return `${heatList(races)} ${verb}`;
+  const words=group.races.map(race=>raceWord(race,role)),texts=words.map(wordText);
+  return [...new Map(words.map((word,index)=>[texts[index],word])).entries()].sort(([,a],[,b])=>a.rank-b.rank).map(([text,word])=>{
+    const races=group.races.filter((_,index)=>texts[index]===text),list=heatList(races),many=races.length>1;
+    if(word.joins==='final check') return `${list}: ${text}`;
+    if(word.joins==='needs') return `${list} ${many?'need':'needs'} ${word.what}`;
+    if(word.joins==='is') return `${list} ${many?'are':'is'} ${word.what}`;
+    return `${list} ${word.what}`;
   }).join(' · ');
 }
 type FinalGroup=Pick<RaceGroup,'event'|'races'|'heatsOpen'>;
