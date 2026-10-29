@@ -1,0 +1,75 @@
+/* PROTOTYPE - throwaway styles for Relays.prototype.tsx (map ticket #186). */
+.proto-switcher { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 999px; background: #c2185b; color: #fff; font: 700 13px/1 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.35); white-space: nowrap; }
+.proto-switcher button { width: 30px; height: 30px; border: 0; border-radius: 999px; background: rgba(255,255,255,.2); color: #fff; font: 700 20px/1 system-ui, sans-serif; }
+.proto-switcher span { padding: 0 4px; }
+.proto-switcher .proto-switcher__reset { font-size: 16px; }
+/* Event codes only for a lead (quick-fixes decision). */
+.proto-nocodes .rz-code-tag { display: none; }
+
+.proto-cardlink { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin-top: var(--space-4); padding: 0 var(--space-4) 0 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--navy); font: inherit; font-size: 15px; font-weight: 700; text-align: left; }
+.proto-cardlink .rz-icon { width: 20px; height: 20px; }
+.proto-carddetails { border-top: 1px solid var(--line); padding-top: var(--space-4); }
+.proto-carddetails > summary { min-height: 44px; display: flex; align-items: center; color: var(--navy); font-size: 15px; font-weight: 700; cursor: pointer; }
+
+.proto-segment { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: var(--space-8) var(--space-16) 0; padding: 4px; border-radius: var(--radius-pill); background: var(--line); }
+.proto-segment button { min-height: 40px; border: 0; border-radius: var(--radius-pill); background: none; color: var(--navy); font: inherit; font-weight: 700; }
+.proto-segment button[aria-selected="true"] { background: var(--card); box-shadow: var(--shadow-card); }
+.proto-teamsection { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-8); }
+
+.proto-teamrows, .proto-list, .proto-ticklist { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.proto-teamrow { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: var(--space-8); min-height: 52px; padding: var(--space-4) var(--space-8); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.proto-teamrow__num { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 28px; color: var(--navy); text-align: center; }
+.proto-teamrow__legs { display: flex; flex-direction: column; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.proto-teamrow__legs small, .proto-tick__label small { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+.proto-addrow { align-self: flex-start; }
+
+.proto-legs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.proto-leg { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-8) 0; border: 2px solid var(--line); border-radius: var(--radius-md); background: var(--card); color: var(--navy); }
+.proto-leg__ord { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.proto-leg__num { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 26px; font-variant-numeric: tabular-nums; }
+.proto-leg--current { border-color: var(--navy); background: var(--gold); }
+.proto-leg--empty:not(.proto-leg--current) .proto-leg__num { color: var(--placeholder); }
+
+.proto-four { display: flex; flex-direction: column; gap: var(--space-10); }
+.proto-four--compact { padding: var(--space-10); border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); }
+.proto-four__boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); }
+.proto-box { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.proto-box input { width: 100%; height: 48px; padding: 0 var(--space-10); border: 2px solid var(--line); border-radius: var(--radius-md); background: var(--card); color: var(--navy); font-family: var(--font-body); font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.proto-box input:focus { border-color: var(--navy); outline: none; }
+.proto-box input::placeholder { color: var(--placeholder); font-size: 16px; font-weight: 600; }
+.proto-box--warn input { background: var(--warn-soft); border-color: var(--warn-line); }
+
+.proto-centre { display: grid; place-items: center; padding: var(--space-16); }
+.proto-popup { width: min(100%, 340px); display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-20, 20px); border-radius: var(--radius-xl); background: var(--card); box-shadow: 0 12px 40px rgba(0,0,0,.3); color: var(--navy); }
+.proto-popup__text { margin: 0; font-size: 20px; line-height: 1.3; font-weight: 700; }
+.proto-popup__meta { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+.proto-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
+.proto-teamcard__head { display: flex; align-items: center; gap: var(--space-8); color: var(--navy); font-size: 18px; }
+.proto-teamcard__actions { margin-left: auto; display: flex; gap: var(--space-6); }
+
+.proto-teamtiles .rz-runner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; position: relative; }
+.proto-teamtiles .rz-runner small { font-family: var(--font-body); font-style: normal; font-stretch: 100%; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.proto-teamtiles .proto-tile--on { background: var(--gold); box-shadow: inset 0 0 0 3px var(--navy); }
+.proto-teamtiles .proto-tile--on .rz-icon { position: absolute; top: 6px; right: 8px; width: 16px; height: 16px; }
+.proto-teamtiles--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.proto-both { height: 80px; }
+.proto-both__team { font-size: 30px; }
+.proto-both__leg { font-family: var(--font-body); font-style: normal; font-stretch: 100%; font-size: 15px; font-weight: 800; color: var(--navy); }
+.proto-atfinish { position: absolute; bottom: 2px; }
+
+.proto-tick { border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); padding: var(--space-6) var(--space-10); }
+.proto-tick--on { box-shadow: inset 0 0 0 2px var(--navy); }
+.proto-tick__row { display: flex; align-items: center; gap: var(--space-10); min-height: 48px; }
+.proto-tick__box { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 2px solid var(--navy); border-radius: 8px; background: var(--card); color: var(--card); }
+.proto-tick__box[aria-pressed="true"] { background: var(--navy); }
+.proto-tick__box .rz-icon { width: 20px; height: 20px; }
+.proto-tick__label { display: flex; flex-direction: column; color: var(--navy); font-size: 17px; flex: 1; }
+.proto-legchips { padding: var(--space-4) 0 var(--space-6) 42px; }
+.proto-legchips .rz-chip small { font-size: 11px; font-weight: 700; margin-right: 4px; opacity: .7; }
+.proto-chip--here { background: var(--navy); color: var(--card); border-color: var(--navy); }
+/* The pill gets its own strip above the app bar, so it never covers the role chip. */
+body:has(.proto-switcher) { padding-top: 42px; background-image: linear-gradient(#c2185b 0 42px, transparent 42px); }
+/* The older look's global `footer { align-items: center }` (style.css) shrinks a two-button footer on main too; shown full width here. */
+.rz-screen .rz-footer { align-items: stretch; }
+.proto-switcher { position: absolute; }

@@ -15,7 +15,8 @@
     "start": "node dist/server/server/main.js",
     "test:e2e": "playwright test && playwright test -c playwright.test-build.config.ts",
     "test:remote": "playwright test -c playwright.remote.config.ts",
-    "verify": "npm run lint && npm test && npm run typecheck && npm run build"
+    "verify": "npm run lint && npm test && npm run typecheck && npm run build",
+    "prototype:relays": "vite --host 0.0.0.0 --port 5186"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

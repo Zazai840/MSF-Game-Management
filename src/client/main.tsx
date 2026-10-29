@@ -10,6 +10,10 @@ const root = document.getElementById('root')!;
 if (root.dataset.unsupported !== 'true') {
   // Ask the browser to keep the pass and profiles even when the phone is short of space; carry on if it says no.
   void navigator.storage?.persist?.().catch(()=>false);
-  startUpdates();
-  createRoot(root).render(<App />);
+  // PROTOTYPE (map ticket #186): the relays prototype, client only, never merged.
+  if(location.pathname.startsWith('/prototype/relays')) void import('./races/Relays.prototype.js').then(({RelaysPrototype})=>createRoot(root).render(<RelaysPrototype/>));
+  else {
+    startUpdates();
+    createRoot(root).render(<App />);
+  }
 }
