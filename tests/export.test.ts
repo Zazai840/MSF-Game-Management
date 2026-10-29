@@ -150,8 +150,7 @@ async function relayFinal(){
  await relays.attend(volunteer,'R19',[7]);
  // Team 2's 3rd leg is swapped at check-in, through the team list's edit with the final's race.
  const seen=(await relays.race(volunteer,'R19'))!,team2=seen.teams!.find(item=>item.number===2)!;
- await relays.post(volunteer,'/api/race-screen/R19/edit-open',{raceId:seen.race.id,teamId:team2.id});
- await relays.post(volunteer,'/api/race-screen/R19/edit-done',{raceId:seen.race.id,teamId:team2.id,version:team2.version,legs:[3001,3002,3099,3004],keptWarnings:[3001,3002,3099,3004]});
+ await relays.post(volunteer,`/api/relays/${seen.group.event.id}/teams/${team2.id}`,{raceId:seen.race.id,version:team2.version,legs:[3001,3002,3099,3004],keptWarnings:[3001,3002,3099,3004]});
  await relays.save(volunteer,'R19',[1,2,3,5,6,4]);
  const completed=await call(lead,'/api/lead/events/R19/complete-stage',{stage:'final'});expect(completed.statusCode,completed.body).toBe(200);
  return readExcelFile((await call(people.owner,'/api/day/export',{})).rawPayload);

@@ -28,7 +28,7 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;me:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
   onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
   const {snapshot,error,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   const flow=useFlowWrite(raceId,offer);
@@ -76,7 +76,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
     if(!notes.runners && usualSizeApplies(event) && (race.parts.runners.value?.length||0)>usualRunnersPerRace) notes.runners='More than usual';
   }
   const reason=lead?group.finalReason:null;
-  const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
+  const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked,me};
   return <>
     <RaceBar title={`${event.name} · ${event.section}`} code={event.code} role={role} onBack={onBack}>
       <RoleChip role={role} onOpen={onRole}/>

@@ -11,7 +11,7 @@ import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { changeStage,readCompletedStages } from '../rulings/stages.js';
-import { joiningTeam,readTeamLists } from '../relays/teams.js';
+import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { jobRace,listRaces,raceChange,readRace,type Database,type StoredRace } from './records.js';
@@ -79,8 +79,8 @@ export async function raceFlowRead(db:Database,dayId:string,raceId:string):Promi
   if(race.deleted) throw new Refusal(404,`A lead deleted ${raceName(race)}`);
   const group=(await readGroups(db,dayId,race.event.id))[0];
   if(!group) throw new Refusal(409,'This event is switched off');
-  // A relay's Start line ticks teams in from its team list.
-  const teams=race.event.relay?{teams:(await readTeamLists(db,dayId)).get(race.event.id)!.teams}:{};
+  // A relay's Start line ticks teams in from its team list; its leg boxes' warnings look through every switched-on relay's.
+  const teams=race.event.relay?await relayLists(db,dayId,race.event.id):{};
   return {revision:await dayRevision(db,dayId),group,race:jobRace(race),steps:group.races.find(item=>item.id===race.id)!.steps,...teams};
 }
 const dayRevision=async(db:Database,dayId:string)=>Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
@@ -111,6 +111,24 @@ function requestedStep(request:FastifyRequest,race:Pick<StoredRace,'kind'>):Step
   if(!steps.includes(step)) throw new Refusal(404,'Choose Runners, Finishing order or Times');
   if(!stepsOf(race).includes(step)) throw new Refusal(409,'A final has no times');
   return step;
+}
+type TeamChange=(tapped:{race:StoredRace;team:RelayTeam;entries:RaceEntry[];entry:TeamEntry|undefined},unchanged:()=>void)=>RaceEntry[]|void;
+/**
+ * A change to one team's entry in a relay race, as the race stands under the day lock: a Start line tap, or a team
+ * saved at check-in. The team is read from its team list as it now is. Raises the Runners version, so a
+ * version-checked write elsewhere still sees the change.
+ */
+export async function changeTeamEntry(client:pg.PoolClient,phone:Phone,raceId:string,teamId:string,change:TeamChange,unchanged:()=>void=()=>{}) {
+  const race=await requireOpen(client,phone,raceId);
+  if(!race.event.relay) throw new Refusal(409,'Only a relay has teams');
+  const team=(await readTeamLists(client,phone.dayId)).get(race.event.id)!.teams.find(item=>item.id===teamId);
+  if(!team) throw new Refusal(404,'Team not found');
+  const entries=race.parts.runners.value||[];
+  const runners=change({race,team,entries,entry:entries.find((entry):entry is TeamEntry=>isTeamEntry(entry) && entry.team.id===team.id)},unchanged);
+  if(!runners) return;
+  await publishPart(client,phone,race,'runners',runners);
+  await dropFromOrder(client,race,runners);
+  await saveIfDone(client,phone,raceId);
 }
 /**
  * The race flow's routes, all Volunteer (making a final needs a lead). Each write runs under the day lock, raises the
@@ -180,20 +198,9 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   // A relay's Start line taps (ADR 0002): anyone, with no version check, each applied to the race as it stands under
   // the day lock, so taps from several phones at once all land and the last tap on a child wins. Each raises the
   // Runners version, so a version-checked write elsewhere still sees the change.
-  function teamTap(request:FastifyRequest,phone:Phone,change:(tapped:{race:StoredRace;team:RelayTeam;entries:RaceEntry[];entry:TeamEntry|undefined},unchanged:()=>void)=>RaceEntry[]|void) {
+  function teamTap(request:FastifyRequest,phone:Phone,change:TeamChange) {
     const {raceId:id,teamId}=request.params as {raceId:string;teamId:string};
-    return write(phone,id,async(client,unchanged)=>{
-      const race=await requireOpen(client,phone,id);
-      if(!race.event.relay) throw new Refusal(409,'Only a relay has teams');
-      const team=(await readTeamLists(client,phone.dayId)).get(race.event.id)!.teams.find(item=>item.id===teamId);
-      if(!team) throw new Refusal(404,'Team not found');
-      const entries=race.parts.runners.value||[];
-      const runners=change({race,team,entries,entry:entries.find((entry):entry is TeamEntry=>isTeamEntry(entry) && entry.team.id===team.id)},unchanged);
-      if(!runners) return;
-      await publishPart(client,phone,race,'runners',runners);
-      await dropFromOrder(client,race,runners);
-      await saveIfDone(client,phone,id);
-    });
+    return write(phone,id,(client,unchanged)=>changeTeamEntry(client,phone,id,teamId,change,unchanged));
   }
   // Add: a team still to run goes into the heat with a copy of its four children and their kept warnings.
   action('POST','/api/races/:raceId/teams/:teamId/tick','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
