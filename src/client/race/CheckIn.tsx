@@ -32,7 +32,7 @@ export function CheckInCard({screen,phoneId,offer}:{screen:RaceScreenRead;phoneI
   const status=holder?`${mine?'You are':`${holder.name} is`} ${doing} · ${count}`:runners.length && !race.final?count:stageComplete?'Nobody':'Nobody yet · open to start';
   return <RaceCard title="Check-in Wristbands" status={status} onOpen={()=>{if(!holder && !stageComplete) void write('hold',{job:'check-in'});}}>
     {error && <p role="alert">{error}</p>}
-    {race.final?<Attendance final={race.final} marking={entering} busy={busy} onMark={absent=>void write('absent',{raceId:race.id,version:race.parts.runners.version,absent})}/>
+    {race.final?<Attendance final={race.final} marking={entering} busy={busy} onMark={absent=>void write('absent',{raceId:race.id,version:race.parts.runners.version,here:race.final!.entries.map(entry=>entry.finalEntryId).filter(id=>!absent.includes(id)),absent})}/>
     :<>{runners.length?<ul className="race-chips" aria-label="Checked in">{runners.map(runner=>{
       const dot=runner.warnings?.length?<span className="kept-dot" aria-hidden="true"/>:null;
       return <li key={runner.id}>{entering?<button disabled={busy} aria-pressed={fixing?.id===runner.id} aria-label={`Change runner ${runner.wristband}`} onClick={()=>setChanging(fixing?.id===runner.id?null:runner)}>{dot}{runner.wristband}</button>:<>{dot}{runner.wristband}</>}</li>;

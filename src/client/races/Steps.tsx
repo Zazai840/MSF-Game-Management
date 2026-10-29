@@ -2,7 +2,7 @@ import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react'
 import { flushSync } from 'react-dom';
 import { ordinal } from '../../shared/ordinal.js';
 import { finishedWords,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
-import { onlyRunners } from '../../shared/race-screen.js';
+import { andList,onlyRunners } from '../../shared/race-screen.js';
 import { runnersOf,runnersText,type Runner } from '../../shared/races.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
@@ -99,22 +99,39 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
     </div></DockedFooter>}
   </>;
 }
-/** A final's start line: its seeded runners, each Here or Absent; only those Here run it. */
+type Mark='here'|'absent'|null;
+/**
+ * A final's start line: every finalist unmarked at first, each row with Here and Absent; tapping a lit mark again
+ * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
+ */
 function Attendance({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,final=race.final!,absent=final.entries.filter(entry=>entry.absent).map(entry=>entry.finalEntryId);
-  const mark=(next:string[])=>void flow.write('absent',{raceId:race.id,version:race.parts.runners.version,absent:next});
-  const here=final.entries.length-absent.length;
+  const {race}=read,final=race.final!,inRace=new Set(runnersOf(race.parts.runners.value).map(runner=>runner.id));
+  const markOf=(entry:typeof final.entries[number]):Mark=>inRace.has(entry.finalEntryId)?'here':entry.absent?'absent':null;
+  const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
+  // The question appears under the list, so it is brought into view clear of the footer.
+  useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
+  const ids=(marks:Mark[],mark:Mark)=>final.entries.filter((_,index)=>marks[index]===mark).map(entry=>entry.finalEntryId);
+  const send=(marks:Mark[])=>flow.write('absent',{raceId:race.id,version:race.parts.runners.version,here:ids(marks,'here'),absent:ids(marks,'absent')});
+  const marks=final.entries.map(markOf),here=marks.filter(mark=>mark==='here').length;
+  const unmarked=final.entries.filter((_,index)=>marks[index]===null);
+  const tap=(index:number,mark:Mark)=>{setAsking(false);void send(marks.map((old,at)=>at===index?(old===mark?null:mark):old));};
+  async function recordAbsent() {
+    setAsking(false);
+    if(typeof await send(marks.map(mark=>mark??'absent'))==='object') onDone('runners');
+  }
   return <>
     <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here</p><h2 className="rz-prompt__q">Who is here?</h2></div>
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">Who is here?</h2></div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
-      <ul className="rz-attendance" aria-label="Who is here">{final.entries.map(entry=><li key={entry.finalEntryId} className={entry.absent?'is-absent':undefined}>
+      <ul className="rz-attendance" aria-label="Who is here">{final.entries.map((entry,index)=><li key={entry.finalEntryId} className={marks[index]==='absent'?'is-absent':undefined}>
         <span className="rz-attendance__who"><span className="rz-attendance__seed">{entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`}</span><span className="label">{entry.wristband}</span></span>
-        <button type="button" className={entry.absent?'rz-btn rz-btn--pill':'rz-btn rz-btn--pill rz-btn--primary'} disabled={locked || flow.busy} aria-pressed={!entry.absent} aria-label={`${entry.wristband}: ${entry.absent?'Absent. Mark here':'Here. Mark absent'}`}
-          onClick={()=>mark(entry.absent?absent.filter(id=>id!==entry.finalEntryId):[...absent,entry.finalEntryId])}>{entry.absent?'Absent':'Here'}</button>
+        {(['here','absent'] as const).map(mark=><button key={mark} type="button" className={marks[index]===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked || flow.busy}
+          aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
+      {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
+        actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button></>}/></div>}
     </main>
-    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here} onClick={()=>onDone('runners')}>That's everyone</button></DockedFooter>}
+    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button></DockedFooter>}
   </>;
 }
 

@@ -22,6 +22,8 @@ test('final pending facts are stage scoped, empty saved final can complete, and 
 
 test('an unsaved final blocks completion and a heat appearance is never a repeated final appearance',()=>{
  const race={...final,saved:false,finish:{order:['f2','f1'],didNotFinish:[]},final:{...final.final!,hasRun:true}};
- const result=eventResults({event,races:[heat,race],completedStages:['heats']});expect(result.checkSheet?.mustSettleFirst).toMatchObject([{kind:'incomplete',raceId:'final'}]);expect(result.finalResults?.leaderboard).toEqual([]);expect(result.heatsCheckSheet?.mustSettleFirst).toEqual([]);
+ const result=eventResults({event,races:[heat,race],completedStages:['heats']});expect(result.checkSheet?.mustSettleFirst).toMatchObject([{kind:'incomplete',raceId:'final'}]);
+ // A final not yet checked in (nobody Here, some not marked Absent) is not one nobody runs in.
+ const unmarked=eventResults({event,races:[heat,{...final,saved:false,runners:[]}],completedStages:['heats']});expect(unmarked.checkSheet?.mustSettleFirst).toMatchObject([{kind:'incomplete',raceId:'final'}]);expect(result.finalResults?.leaderboard).toEqual([]);expect(result.heatsCheckSheet?.mustSettleFirst).toEqual([]);
  const ready=eventResults({event,races:[heat,{...race,saved:true}],completedStages:['heats']});expect(ready.actionableRunners.filter(row=>row.raceId==='final')).toHaveLength(2);expect(ready.actionableRunners.filter(row=>row.raceId==='final').every(row=>!row.recordingPending)).toBe(true);expect(ready.finalResults?.leaderboard.every(row=>row.flags.every(flag=>flag.kind!=='ran-twice'))).toBe(true);
 });
