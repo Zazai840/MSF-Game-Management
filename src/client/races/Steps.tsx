@@ -4,7 +4,7 @@ import { ordinal } from '../../shared/ordinal.js';
 import { finishedWords,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { andList,onlyRunners } from '../../shared/race-screen.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
-import { changingName,filledLegs,stillToRun,teamCount,type TeamLeg } from '../../shared/teams.js';
+import { changingName,entryCount,filledLegs,stillToRun,teamCount,type TeamLeg } from '../../shared/teams.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
@@ -13,7 +13,7 @@ import { digitsOnly } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useWristbandEntry } from './wristband-entry.js';
-import { Callout,DockedFooter,Icon } from './parts.js';
+import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
 
 /** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save the order, No more finishers). */
@@ -207,8 +207,31 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
 }
 
 type Unplaced='dnf'|'dnr';
-/** An entry as the finish line names it: a child's wristband, or "Team 3"; nothing for one no longer in the race. */
-const nameOf=(entry:RaceEntry|undefined)=>entry?entryName(entry):'';
+/** The wristband of a team's 4th leg, the child the finish line sees cross, as it reads: "–" with no 4th leg. */
+const fourthLeg=(entry:RaceEntry)=>isTeamEntry(entry)?String(entry.legs[3]?.wristband??'–'):'';
+/** An entry as Check the order names it: a child's wristband, or "Team 3 · 2034" with its 4th leg; nothing for one no longer in the race. */
+const nameOf=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?`${entryName(entry)} · ${fourthLeg(entry)}`:entryName(entry);
+/** An entry on the places board: a child's wristband, or "T3", so the board stays readable. */
+const boardName=(entry:RaceEntry)=>isTeamEntry(entry)?`T${entry.team.number}`:entryName(entry);
+/**
+ * "+ Team not on the list" on a relay heat: the teams still to run, each with Add, never a typed wristband. A team
+ * someone is changing can't be added until they finish.
+ */
+function TeamPicker({read,onAdd,onClose}:{read:RaceFlowRead;onAdd:(teamId:string)=>void;onClose:()=>void}) {
+  const toRun=(read.teams||[]).filter(stillToRun);
+  return <Sheet title="Team not on the list" onClose={onClose}>
+    {toRun.length?<><p className="rz-sheet__text">Add the team whose 4th leg crossed the line. It takes the next place.</p>
+      <ul className="rz-teamrows" aria-label="Still to run">{toRun.map(team=>{
+        const changer=changingName(team);
+        return <li key={team.id} className="rz-listrow"><span className="rz-listrow__main"><span className="rz-listrow__label">Team {team.number}</span>
+          <span className="rz-listrow__meta">{team.legs.flatMap(leg=>leg.wristband===null?[]:[leg.wristband]).join(' · ')}</span>
+          {changer?<span className="rz-teamcard__note">{changer} is changing this team</span>:<RunsShort legs={team.legs}/>}</span>
+          {!changer && <button type="button" className="rz-btn rz-btn--small rz-btn--primary" aria-label={`Add Team ${team.number}`} onClick={()=>onAdd(team.id)}><Icon name="plus"/>Add</button>}
+        </li>;
+      })}</ul></>
+      :<p className="rz-sheet__text">Every team is in a heat already.</p>}
+  </Sheet>;
+}
 /**
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one places it and moves on; tapping a placed slot makes it the place to fill
@@ -216,8 +239,8 @@ const nameOf=(entry:RaceEntry|undefined)=>entry?entryName(entry):'';
  * keys too, and each runner left is Did not finish or Didn't run. Save the order marks Finishing order done.
  */
 export function FinishLine({read,flow,onDone,locked}:StepProps) {
-  const {race,group}=read,event=group.event;
-  const writes=useStepWrites<{order:string[];didNotFinish:string[];didNotRun:string[];added:number[];keptWarnings:number[]}>(flow.write,'order','finish',race.id,race.parts.finish.version);
+  const {race,group}=read,event=group.event,relay=event.relay;
+  const writes=useStepWrites<{order:string[];didNotFinish:string[];didNotRun:string[];added:number[];keptWarnings:number[];addedTeams:string[]}>(flow.write,'order','finish',race.id,race.parts.finish.version);
   const runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
   const stored=race.parts.finish.value,shown=writes.pending||{order:stored?.order||[],didNotFinish:stored?.didNotFinish||[],didNotRun:[]};
   const {order,didNotFinish}=onlyRunners(shown,runners);
@@ -225,14 +248,18 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   // Everyone already placed (coming back to the step, or a lead opening the tab): straight to Check the order, never a flash of the next place.
   const [mode,setMode]=useState<'place'|'check'|'add'>(()=>runners.length && !unplaced.length && order.length?'check':'place');
   const [redo,setRedo]=useState<number|null>(null);
-  const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({}),[asked,setAsked]=useState(false);
+  const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({}),[asked,setAsked]=useState(false),[picking,setPicking]=useState(false);
   const size=useSizeWarning(`${race.id}:finish`),applies=usualSizeApplies(event) || race.kind==='final';
   const current=redo!==null && redo<order.length?redo:order.length;
   // A placed slot being changed keeps its runner, who is a button again until someone takes the slot.
   const changing=current<order.length?byId.get(order[current]):undefined;
   const choices=runners.filter(runner=>runner===changing || unplaced.includes(runner));
-  const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[]},added:number[]=[],kept:number[]=[])=>
-    writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept});
+  const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[]},added:number[]=[],kept:number[]=[],addedTeams:string[]=[])=>
+    writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept,addedTeams});
+  // A relay final's teams are its seeds, call-ups and a lead's additions, so it has no "+ Team not on the list".
+  const canAdd=!relay || race.kind!=='final',addLabel=relay?'+ Team not on the list':'+ Runner not on the list';
+  const openAdd=()=>{if(relay) {setRedo(null);setPicking(true);} else setMode('add');};
+  const picker=picking && <TeamPicker read={read} onClose={()=>setPicking(false)} onAdd={teamId=>{setPicking(false);void send({order},[],[],[teamId]);}}/>;
   // The last runner placed: on to Check the order at once (its save goes on behind), before the screen paints, so the
   // placing screen never asks for a place past the last runner.
   useLayoutEffect(()=>{if(mode==='place' && runners.length && !unplaced.length && order.length) setMode('check');},[unplaced.length,order.length]);
@@ -281,7 +308,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       disabled={locked} aria-pressed={as(runner)===value} onClick={()=>setLeftAs({...leftAs,[runner.id]:value})}>{label}</button>;
     return <>
       <main className="rz-main">
-        <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p><h2 className="rz-prompt__q">Check the order</h2></div>
+        <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a {relay?'team':'runner'}</p><h2 className="rz-prompt__q">Check the order</h2></div>
           {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div>
         {flow.error && <Callout message={flow.error}/>}
         {sizeNote}
@@ -289,12 +316,13 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
           look={{list:'rz-orderrows',row:'rz-orderrow',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:name=>`Move ${name}`}}
           onReorder={next=>void send({order:next})}
           renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{nameOf(byId.get(id))}</span></>}/>}
-        <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('add')}>+ Runner not on the list</button>}</div>
-        {asked && unanswered.length>0 && <Callout message={`Say what happened to ${runnersText(unanswered.length)} first.`}/>}
+        <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && canAdd && <button type="button" className="rz-btn rz-btn--small" onClick={openAdd}>{addLabel}</button>}</div>
+        {asked && unanswered.length>0 && <Callout message={`Say what happened to ${relay?entryCount(unanswered.length,true):runnersText(unanswered.length)} first.`}/>}
         {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id} id={`left-${runner.id}`}>
-          <div role="group" aria-label={entryName(runner)} className="rz-orderrow rz-orderrow--unplaced">
-            <span className="rz-orderrow__num">{entryName(runner)}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
-          </div></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
+          <div role="group" aria-label={entryName(runner)} className={relay?'rz-orderrow rz-orderrow--unplaced rz-orderrow--team':'rz-orderrow rz-orderrow--unplaced'}>
+            <span className="rz-orderrow__num">{nameOf(runner)}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
+          </div></li>)}</ul>:<p className="rz-empty">{relay?'Every team has a place.':'Everyone has a place.'}</p>}
+        {picker}
       </main>
       {!locked && <DockedFooter>
         <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save the order</button>
@@ -305,27 +333,34 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     <main className="rz-main">
       <ol className="rz-places" aria-label={`Places: ${order.length} of ${slots} recorded`}>{Array.from({length:slots},(_,index)=>{
         const runner=index===current?undefined:byId.get(order[index]);
-        if(index===current && changing) return <li key={index}><span className="rz-placeslot rz-placeslot--changing" aria-current="step" aria-label={`Changing ${ordinal(index+1)}: ${entryName(changing)}`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{entryName(changing)}</span></span></li>;
+        if(index===current && changing) return <li key={index}><span className="rz-placeslot rz-placeslot--changing" aria-current="step" aria-label={`Changing ${ordinal(index+1)}: ${entryName(changing)}`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{boardName(changing)}</span></span></li>;
         if(index===current && unplaced.length) return <li key={index}><span className="rz-placeslot rz-placeslot--current" aria-current="step" aria-label={`${ordinal(index+1)} place: choosing now`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">?</span></span></li>;
         if(runner) return <li key={index}><button type="button" className="rz-placeslot rz-placeslot--placed" disabled={locked} aria-label={`${ordinal(index+1)} place: ${entryName(runner)}. Change`} onClick={()=>setRedo(index)}>
-          <span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{entryName(runner)}</span></button></li>;
+          <span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{boardName(runner)}</span></button></li>;
         return <li key={index}><span className="rz-placeslot rz-placeslot--empty" aria-label={`${ordinal(index+1)} place: empty`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">–</span></span></li>;
       })}</ol>
       <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${entryName(changing)}`:`${raceName(race)} · ${runnersText(runners.length)} · ${unplaced.length} to place`}</p>
-        <h2 className="rz-prompt__q">{!runners.length?'Nobody is checked in yet':!choices.length?'Everyone is placed':<>Who came <em>{ordinal(current+1)}?</em></>}</h2>
+        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${entryName(changing)}`:relay?`${raceName(race)} · ${teamCount(runners.length)} · ${unplaced.length} to place · tap the team whose 4th leg crossed`
+          :`${raceName(race)} · ${runnersText(runners.length)} · ${unplaced.length} to place`}</p>
+        <h2 className="rz-prompt__q">{!runners.length?(relay?'No team is in this heat yet':'Nobody is checked in yet'):!choices.length?(relay?'Every team is placed':'Everyone is placed'):<>{relay?'Which team':'Who'} came <em>{ordinal(current+1)}?</em></>}</h2>
       </div>{changing && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setRedo(null)}>Keep {entryName(changing)}</button>}</div>
       {flow.error && <Callout message={flow.error}/>}
       {sizeNote}
-      {!runners.length && <p className="rz-empty">Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.</p>}
+      {!runners.length && <p className="rz-empty">{relay?'Teams appear here as the start line adds them.':'Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.'}</p>}
+      {/* A relay's team tiles, two to a row: "Team 5" over its 4th leg's wristband, the same size, so either can be matched. */}
+      {!locked && choices.length>0 && relay && <ul className="rz-runners rz-runners--teams" aria-label="Teams not yet placed">{choices.map(runner=><li key={runner.id}>
+        <button type="button" className="rz-runner rz-runner--team" aria-label={`${entryName(runner)}, ${fourthLeg(runner)==='–'?'no 4th leg':`4th leg ${fourthLeg(runner)}`}, came ${ordinal(current+1)}`} onClick={()=>place(runner)}>
+          <span>{entryName(runner)}</span><span>{fourthLeg(runner)}</span></button>
+      </li>)}</ul>}
       {/* A heat of more than 9 gets smaller buttons, so all 12 of a full heat fit above the footer. */}
-      {!locked && choices.length>0 && <ul className={runners.length>9?'rz-runners rz-runners--compact':'rz-runners'} aria-label="Runners not yet placed">{choices.map(runner=><li key={runner.id}>
+      {!locked && choices.length>0 && !relay && <ul className={runners.length>9?'rz-runners rz-runners--compact':'rz-runners'} aria-label="Runners not yet placed">{choices.map(runner=><li key={runner.id}>
         <button type="button" className="rz-runner" aria-label={`${entryName(runner)} came ${ordinal(current+1)}`} onClick={()=>place(runner)}>{entryName(runner)}</button>
       </li>)}</ul>}
+      {picker}
     </main>
     {!locked && <DockedFooter>
-      <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode('check')}>Nobody else crossed the line</button>
-      <button type="button" className="rz-btn rz-btn--block" onClick={()=>setMode('add')}>+ Runner not on the list</button>
+      <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode('check')}>{relay?'No other team crossed the line':'Nobody else crossed the line'}</button>
+      {canAdd && <button type="button" className="rz-btn rz-btn--block" onClick={openAdd}>{addLabel}</button>}
     </DockedFooter>}
   </>;
 }
@@ -360,7 +395,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{raceName(race)} · {order.state==='done'?finishedWords(order):runnersText(race.parts.runners.value?.length||0)}</p>
+        <p className="rz-prompt__meta">{raceName(race)} · {read.group.event.relay?'one time per team, to the 4th leg crossing':order.state==='done'?finishedWords(order):runnersText(race.parts.runners.value?.length||0)}</p>
         <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
       </div>
       {flow.error && <Callout message={flow.error}/>}
@@ -375,7 +410,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
           <span className="rz-slot__ord">{ordinal(index+1)}</span><span className="rz-slot__time">{time===undefined?'–':formatTime(time)}</span>
           {isWrong && <span className="rz-slot__note">{keptWrong.includes(index)?'Kept':wrong.get(index)!.reason}</span>}
         </button></li>;
-      })}</ol>:<p className="rz-empty">Places appear here once runners are checked in.</p>}
+      })}</ol>:<p className="rz-empty">Places appear here once {read.group.event.relay?'teams are in the heat':'runners are checked in'}.</p>}
       {held && <Callout message={`${wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button>
           <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}

@@ -144,6 +144,9 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-runner:active { transform: translateY(4px); box-shadow: var(--shadow-card); }
 .rz-runners--compact { gap: var(--space-8) var(--space-10); }
 .rz-runners--compact .rz-runner { height: 48px; border-radius: 24px 24px var(--radius-md) var(--radius-md); font-size: 28px; }
+/* A relay's team tiles: two to a row, "Team 5" over "2054" at the same size. */
+.rz-runners--teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rz-runner--team { height: auto; min-height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-10) var(--space-8); font-size: 32px; }
 
 /* ---------- OrderRow ---------- */
 .rz-orderrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
@@ -154,6 +157,9 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-orderrow__handle { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--navy); touch-action: none; }
 .rz-orderrow--unplaced { grid-template-columns: 1fr auto auto; gap: var(--space-6); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); }
 .rz-orderrow--unplaced .rz-btn--pill { padding: 0 var(--space-12); }
+/* A team left over: "Team 6 · 2064" on a line of its own, its two answers side by side below. */
+.rz-orderrow--team { grid-template-columns: 1fr 1fr; padding: var(--space-8) var(--space-8) var(--space-8) var(--space-14); }
+.rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
 
 /* ---------- Toast ---------- */
 .rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
@@ -236,6 +242,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
   .rz-footer:not(.rz-footer--home) { align-items: flex-end; }
   /* Grids add columns rather than stretching tiles. */
   .rz-runners { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .rz-runners--teams { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   .rz-places { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
   .rz-slots { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .rz-choices--grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
