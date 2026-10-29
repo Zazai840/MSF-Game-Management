@@ -39,7 +39,7 @@ test('Races, Hurdles and Relays tabs show their own events, the phone keeps the 
   await deleteCurrentRace(request,racesCode);await deleteCurrentRace(request,hurdlesCode);
 });
 
-test('New race offers this tab\'s events, each section with its code, and the next heat; the final opens once every heat has times',async({openPhone,request},info)=>{
+test('New race offers this tab\'s events, each section, and the next heat; only a lead is offered the final, and once it is made no heat is offered',async({openPhone,request},info)=>{
   const project=info.project.name,name=`New race sprint ${project}`,code=await ownCode(),timed=await ownCode();
   await ownEvent(request,code,name);await ownEvent(request,timed,name,'Boy Cubs','timed');
   const {page}=await openPhone(`New race ${project}`);
@@ -48,32 +48,59 @@ test('New race offers this tab\'s events, each section with its code, and the ne
   await expect(sheet.getByRole('button',{name:'Choose the event and section',exact:true})).toBeDisabled();
   await expect(sheet.getByRole('button',{name:'60m Hurdles',exact:true})).toHaveCount(0);
   await sheet.getByRole('button',{name,exact:true}).click();
-  await expect(sheet.getByRole('button',{name:/^(Girl Cubs|Boy Cubs)/})).toHaveText([`Girl Cubs${code}`,`Boy Cubs${timed}`]);
-  await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await expect(sheet.getByRole('button',{name:/^(Girl Cubs|Boy Cubs)/})).toHaveText(['Girl Cubs','Boy Cubs']);
+  await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await expect(sheet.getByRole('button',{name:'Heat 1',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
-  await expect(sheet.getByText('Girl Cubs has no heats yet. The final opens when every heat has times, with the fastest 6 filled in.',{exact:true})).toBeVisible();
+  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toHaveCount(0);
+  await expect(sheet.getByText('Girl Cubs has no heats yet. A lead makes the final once every heat has run.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('new-race.png'),fullPage:true});
   // An event decided by time alone has no final.
-  await sheet.getByRole('button',{name:`Boy Cubs ${timed}`,exact:true}).click();
+  await sheet.getByRole('button',{name:'Boy Cubs',exact:true}).click();
   await expect(sheet.getByRole('button',{name:'Final',exact:true})).toHaveCount(0);
-  await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
   // The new race opens in my role's view.
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   await expect(page.getByRole('heading',{level:2,name:'Runner 1: wristband number?'})).toBeVisible();
-  // Heat 1 saved: the card's "+" pre-selects the event and section, and offers Heat 2 and the final.
+  // Heat 1 saved: the card's "+" pre-selects the event and section, and offers Heat 2; the final is a lead's.
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
-  await expect(status(page,name)).toHaveText('Heat 1 done · the final is ready to create',live);
+  await expect(status(page,name)).toHaveText('Heat 1 done',live);
+  await expect(card(page,name).getByText('A lead makes the final once every heat has run.',{exact:true})).toBeVisible();
+  await expect(card(page,name).getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveCount(0);
   await card(page,name).getByRole('button',{name:'Add heat 2',exact:true}).click();
   await expect(sheet.getByRole('button',{name:'Heat 2',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(sheet.getByText('Girl Cubs already has heat 1. The final opens when every heat has times, with the fastest 6 filled in.',{exact:true})).toBeVisible();
-  await sheet.getByRole('button',{name:'Final',exact:true}).click();
-  await expect(sheet.getByRole('button',{name:'Create the final',exact:true})).toBeVisible();
+  await expect(sheet.getByText('Girl Cubs already has heat 1. A lead makes the final once every heat has run.',{exact:true})).toBeVisible();
+  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
+  // A lead's New race offers the final, and asks first: Not yet makes nothing.
+  const lead=(await openPhone(`New race lead ${project}`,{lead:true})).page;
+  await lead.getByRole('button',{name:'New race',exact:true}).click();
+  const leadSheet=lead.getByRole('dialog',{name:'New race'});
+  await leadSheet.getByRole('button',{name,exact:true}).click();await leadSheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await expect(leadSheet.getByText('Girl Cubs already has heat 1. The final opens when every heat has times, with the fastest 6 filled in.',{exact:true})).toBeVisible();
+  await leadSheet.getByRole('button',{name:'Final',exact:true}).click();
+  await leadSheet.getByRole('button',{name:'Create the final',exact:true}).click();
+  const confirm=lead.getByRole('dialog',{name:'Have all Girl Cubs heats run?',exact:true});
+  await expect(confirm.locator('.rz-sheet__text')).toHaveText('1 heat saved. The final takes the fastest 6, and no more heats can be added.');
+  await expect(leadSheet).toHaveCount(0);
+  await confirm.getByRole('button',{name:'Not yet',exact:true}).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(card(lead,name).getByRole('button',{name:'Add heat 2',exact:true})).toBeVisible();
+  // The lead makes it from the card: the heats are finished for everyone.
+  await card(lead,name).getByRole('button',{name:'Create the final from the fastest 6',exact:true}).click();
+  await confirm.getByRole('button',{name:'Make the final',exact:true}).click();
+  await expect(lead.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
+  await expect(card(page,name).getByRole('button',{name:/^Add heat/})).toHaveCount(0,live);
+  await page.getByRole('button',{name:'New race',exact:true}).click();
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
+  await expect(sheet.getByText('Girl Cubs heats are finished. Ask a lead to add another heat.',{exact:true})).toBeVisible();
+  await expect(sheet.getByRole('button',{name:/^Create heat/})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('new-race-heats-finished.png'),fullPage:true});
+  await page.keyboard.press('Escape');
   await deleteCurrentRace(request,code);
 });
 
@@ -83,7 +110,7 @@ test('a heat someone made a moment before the tap opens theirs: two phones makin
   const one=await openPhone(`Same one ${project}`),two=await openPhone(`Same two ${project}`);
   await two.page.getByRole('button',{name:'New race',exact:true}).click();
   const sheet=two.page.getByRole('dialog',{name:'New race'});
-  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await expect(sheet.getByRole('button',{name:'Create heat 1',exact:true})).toBeVisible();
   // The other phone makes Heat 1 first, and the sheet hears of it live.
   const made=(await (await request.post('/api/races',{headers:{authorization:`Bearer ${one.token}`},data:{eventCode:code,kind:'heat',number:1}})).json()).race.id;

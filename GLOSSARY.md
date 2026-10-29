@@ -27,7 +27,7 @@ One running competition for one section, such as 60m for Girl Cubs. Races shows 
 _Avoid_: Competition, discipline
 
 **Event code**:
-The scoring team's identifier for an event (R1, R2, ...).
+The scoring team's identifier for an event (R1, R2, ...). It shows only in the Zone lead role; volunteers never see it.
 _Avoid_: Event ID, event number
 
 **Event format**:
@@ -53,7 +53,7 @@ A race of an event that is not its final, formed at the start line from whoever 
 _Avoid_: Qualifier, preliminary
 
 **Final**:
-The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place).
+The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place). Only a lead makes it, after confirming that every heat has run; making it completes the heats, so no more heats can be added (a final made too early is undone by reopening the heats in Results).
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
@@ -219,7 +219,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat or the final.
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat, or for a lead the final.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:

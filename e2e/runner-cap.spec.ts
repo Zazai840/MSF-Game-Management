@@ -15,7 +15,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
   const {page:phone}=await openPhone(`Eight phone ${info.project.name}`);
   await phone.getByRole('button',{name:'New race',exact:true}).click();
   const newRace=phone.getByRole('dialog',{name:'New race'});
-  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await newRace.getByRole('button',{name:'Create heat 1',exact:true}).click();
   const input=phone.getByLabel('Wristband number',{exact:true});
   for(const number of numbers) {await expect(input).toBeEditable();await input.fill(String(number));await input.press('Enter');}
