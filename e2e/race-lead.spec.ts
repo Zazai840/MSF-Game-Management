@@ -19,9 +19,9 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Heat 1: A time looks wrong');
   await expect(readyForYou(page).filter({hasText:name})).toHaveCount(1);
-  await expect(readyForYou(page).filter({hasText:calm})).toHaveCount(0);
-  await page.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
-  await expect(status(page,calm)).toHaveText('Every race saved');
+  // A calm event, every race saved, is not ready for the lead: it waits under In progress (after Ready for you) for its medals.
+  await expect(page.locator('h2:text-is("In progress") ~ article').filter({hasText:calm})).toHaveCount(1);
+  await expect(status(page,calm)).toHaveText('Heat 1 saved');
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
@@ -78,8 +78,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await expect(tabs.getByRole('tab')).not.toContainText(['to check']);
   // Nothing left to check: the card says so on Races, and the accepted issues name who accepted them.
   await backToRaces(page);
-  await page.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
-  await expect(status(page,name)).toHaveText('Every race saved');
+  await expect(status(page,name)).toHaveText('Heat 1 saved');
   const notes=(await (await request.get(`/api/lead/events/${code}/results`,{headers:{authorization:`Bearer ${owner()}`}})).json()).auditNotes.map((note:{action:string})=>note.action);
   expect(notes).toEqual(expect.arrayContaining(['mark-warning-checked','mark-added-checked']));
 });

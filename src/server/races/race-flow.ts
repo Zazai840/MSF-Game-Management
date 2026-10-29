@@ -44,7 +44,8 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,heatsOpen,updatedAt};
+    const medalsDecided=stages.some(item=>item.eventId===event.id && ['event','final','no-final'].includes(item.stage));
+    return {event,races:summaries,nextHeat:last+1,finalAvailable,heatsOpen,medalsDecided,updatedAt};
   });
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
