@@ -1,4 +1,4 @@
-import { becomeLead,expect,join,leadMenuButton,lookProblems,test,type Page } from './fixtures.js';
+import {becomeLead,expect,join,leadMenuButton,lookProblems,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:/Join( the Running Zone)?$/})).toBeVisible();
 test('a lead\'s avatar menu opens your details, and Sign out sends the phone back to Join as a volunteer',async({page},info)=>{

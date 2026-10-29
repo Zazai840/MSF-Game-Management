@@ -1,6 +1,6 @@
 import { test,expect,type Browser,type Page } from '@playwright/test';
 import readExcelFile from 'read-excel-file/node';
-import { back,enterTime,join,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,readRaceScreen,writeCheckIn,type JobName } from '../fixtures.js';
+import {back,enterTime,join,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,readRaceScreen,writeCheckIn,type JobName} from '../fixtures.js';
 import { jobWords,type Job } from '../../src/shared/race-screen.js';
 import type { RacesRead } from '../../src/shared/race-flow.js';
 

@@ -1,6 +1,6 @@
-import {back,expect,live,openLeadMenu,openRace,ownEvent,recordRace,test} from './fixtures.js';
+import {ownCode,back,expect,live,openLeadMenu,openRace,ownEvent,recordRace,test} from './fixtures.js';
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWF-${project.toUpperCase()}`,name=`No final sprint ${project}`;
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=`No final sprint ${project}`;
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // Each project's heats use Girl Cubs wristbands no other test types: heat 1 is w(1)..w(3), heat 2 is w(11)..w(13).
@@ -54,7 +54,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await expect(lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('Done · medals decided, no final');
 });
 test('once a lead decides without a final, a volunteer\'s Races shows the event done and its races offer no heat to work',async({page,openPhone},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWV-${project.toUpperCase()}`,name=`No final done ${project}`;
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=`No final done ${project}`;
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The numbers the other tests here leave free: heat 1 is w(8)..w(10), heat 2 is w(18), w(19) and w(4).
@@ -78,7 +78,7 @@ test('once a lead decides without a final, a volunteer\'s Races shows the event 
   await volunteer.screenshot({path:info.outputPath('a6-race-done.png'),fullPage:true});
 });
 test('a lead reopens results with a comment: the medals clear, the heats open again and Heats complete builds a final',async({page,openPhone},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RRO-${project.toUpperCase()}`,name=`Reopened sprint ${project}`;
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=`Reopened sprint ${project}`;
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The first test's wristbands with numbers it leaves free: heat 1 is w(5)..w(7), heat 2 is w(15)..w(17).
@@ -121,7 +121,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await expect(lead.locator('.final-panel')).toBeVisible();
 });
 test('after Heats complete, a lead chooses Results without a final before the final starts: its line-up is discarded, and Reopen results then Heats complete builds a fresh final',async({page,openPhone},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`RWH-${project.toUpperCase()}`,name=`Late no final ${project}`;
+  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=`Late no final ${project}`;
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // Girl Cubs wristbands no other test types: heat 1 is w(1)..w(3), heat 2 is w(11)..w(13).

@@ -1,4 +1,4 @@
-import {openLeadMenu,expect,join,test,back} from './fixtures.js';
+import {ownCode,openLeadMenu,expect,join,test,back} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 test('a lead edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
@@ -24,7 +24,7 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await page.getByLabel('New name for R4',{exact:true}).fill(`60m ${info.project.name}`);
     await page.getByRole('button',{name:'Save name for R4',exact:true}).click();
     await expect(page.getByRole('article',{name:'R4 · Girl Cubs'})).toContainText(`60m ${info.project.name}`);
-    const code = `DAY-${info.project.name.toUpperCase()}`;
+    const code = await ownCode();
     await page.getByLabel('New event code',{exact:true}).fill(code);
     await page.getByLabel('New event name',{exact:true}).fill('Extra sprint');
     await page.getByLabel('New event section',{exact:true}).selectOption('Girl Cubs');

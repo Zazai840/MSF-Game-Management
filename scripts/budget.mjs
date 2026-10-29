@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import { firstLoadFiles } from './first-load.mjs';
-const root = resolve(process.argv[2] || 'dist/web');
+const root = resolve(process.argv[2] || `${process.env.DIST_DIR || 'dist'}/web`);
 // Spec 43 raised the v1 100 KB budget to pay for styling and a self-hosted font; the aim is about 1 MB.
 const limit = 1_500_000;
 const manifest = JSON.parse(await readFile(resolve(root,'.vite/manifest.json'),'utf8'));

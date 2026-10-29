@@ -1,13 +1,12 @@
-import {openRelays,expect,live,lookProblems,openLeadMenu,openRaceScreen,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page} from './fixtures.js';
+import {ownWristbands,ownCode,openRelays,expect,live,lookProblems,openLeadMenu,openRaceScreen,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page} from './fixtures.js';
 
 /** A team's block in Check-in Teams, ticked or Absent. */
 const team=(page:Page,number:number)=>page.locator('.ci-list > div').filter({has:page.getByText(`Team ${number}`,{exact:true})});
 
 test('a relay Final on two phones and a lead: six seeded teams ticked, one Absent, the call-up live, a child swapped with Edit, the order only, then the medal teams with four wristbands each',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay final ${project}`,code=`RFN-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay final ${project}`,code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
-  // The test day is shared: each project's teams use Girl Scouts wristbands no other relay test types.
-  const legs=(number:number)=>[1,2,3,4].map(leg=>4300+at*40+(number-1)*4+leg),swapped=4300+at*40+36;
+  const n=await ownWristbands('Girl Scouts',40),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg)),swapped=n(36);
   const sam=await openPhone(`Sam Patel final ${project}`),priyaName=`Priya Shah final ${project}`,priya=await openPhone(priyaName);
   const lead=await openPhone(`Jo Evans final ${project}`,{lead:true});
   for(let number=1;number<=7;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});
@@ -77,9 +76,9 @@ test('a relay Final on two phones and a lead: six seeded teams ticked, one Absen
 });
 
 test('a lead adds a team to a relay Final by picking it from the relay\'s teams, and it shows Added at check-in',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),name=`Relay final add ${project}`,code=`RFA-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Relay final add ${project}`,code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
-  const legs=(number:number)=>[1,2,3,4].map(leg=>4420+at*20+(number-1)*4+leg);
+  const n=await ownWristbands('Girl Scouts',20),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg));
   const sam=await openPhone(`Sam Patel final add ${project}`),lead=await openPhone(`Jo Evans final add ${project}`,{lead:true});
   // Two teams run the heat, and Team 3 is typed after it: a lead adds it to the Final.
   for(let number=1;number<=2;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});

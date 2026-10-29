@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,test,type Locator,type Page } from '../fixtures.js';
+import {ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,test,type Locator,type Page} from '../fixtures.js';
 
 // Runs only under playwright.test-build.config.ts, which starts the server as a test build of this commit.
 const commit=process.env.E2E_TEST_BUILD_COMMIT!;
@@ -31,7 +31,7 @@ async function expectReports(page:Page,screen:string,bar:Locator=page.locator('.
 }
 
 test('a test build shows its commit and a Report a bug link on Join, Races and a race',async({page,request},info)=>{
-  const code=`TB-${info.project.name.toUpperCase()}`,name=`Test build sprint ${info.project.name}`;
+  const code=await ownCode(),name=`Test build sprint ${info.project.name}`;
   await ownEvent(request,code,name);
   await request.post('/api/races',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{eventCode:code,kind:'heat',number:1}});
   await page.goto('/');

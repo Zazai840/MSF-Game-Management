@@ -1,4 +1,4 @@
-import { back,expect,join,leadMenuButton,openLeadMenu,test,type Page } from './fixtures.js';
+import {back,expect,join,leadMenuButton,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);

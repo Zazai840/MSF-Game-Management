@@ -1,4 +1,4 @@
-import { deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,type Page } from './fixtures.js';
+import {ownCode,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
 import { isRunner } from '../src/shared/races.js';
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
@@ -8,7 +8,7 @@ const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Move ${nu
 const newHeat=(page:Page,token:string,code:string)=>page.request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
 
 test('two phones: the start line checks in, the finish line places them live, with a runner not on the list, nonfinishers and a drag',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`FO-${project.toUpperCase()}`,name=`Finish sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Finish sprint ${project}`;
   await ownEvent(request,code,name);
   const start=await openPhone(`Start finish ${project}`),finish=await openPhone(`Finish ${project}`,{job:'finish'});
   await newHeat(start.page,start.token,code);
@@ -74,7 +74,7 @@ test('two phones: the start line checks in, the finish line places them live, wi
 });
 
 test('the last runner placed goes straight to Check the order, where the handle and the arrow keys move rows and the order sent is exactly that',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`FD-${project.toUpperCase()}`,name=`Drag sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Drag sprint ${project}`;
   const [a,b,c,d]=[2301,2302,2303,2304];
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Drag finish ${project}`,{job:'finish'});
@@ -113,7 +113,7 @@ test('the last runner placed goes straight to Check the order, where the handle 
 });
 
 test('a 12-runner heat is fully placed on one phone screen with no sideways scroll, and dragging near the edge scrolls the order',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`FS-${project.toUpperCase()}`,name=`Scroll sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Scroll sprint ${project}`;
   const runners=Array.from({length:12},(_,index)=>2401+index);
   await ownEvent(request,code,name);
   const {page}=await openPhone(`Scroll finish ${project}`,{job:'finish'});
@@ -144,7 +144,7 @@ test('a 12-runner heat is fully placed on one phone screen with no sideways scro
 });
 
 test('quick taps on a slow link: taps made while a write is on its way show at once and go in one next write, the latest winning',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`FQ-${project.toUpperCase()}`,name=`Finish queue ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Finish queue ${project}`;
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Finish queue ${project}`,{job:'finish'});
   await writeCheckIn(request,token,code,[2031,2032,2033,2034]);

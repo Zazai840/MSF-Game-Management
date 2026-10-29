@@ -1,4 +1,4 @@
-import { lookProblems,back,backToRaces,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page } from './fixtures.js';
+import {ownWristbands,ownCode,lookProblems,back,backToRaces,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page} from './fixtures.js';
 
 // The design system's navy and paper.
 const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
@@ -33,7 +33,7 @@ test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'
 });
 
 test('volunteer and lead screens meet the touch, text size and contrast rules',async({page},info)=>{
-  const code=`LK-${info.project.name.toUpperCase()}`,name=`Look sprint ${info.project.name}`;
+  const code=await ownCode(),name=`Look sprint ${info.project.name}`;
   await ownEvent(page.request,code,name);
   await writeCheckIn(page.request,process.env.E2E_OWNER_TOKEN!,code,[2091,2092]);
   await page.goto('/');
@@ -93,9 +93,8 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
 });
 
 test('the Teams screen and a relay race screen meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
-  const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=`LKR-${project.toUpperCase()}`,name=`Look relay ${project}`;
-  // The test day is shared: each project types its own Boy Scouts wristbands, which no other test types.
-  const n=(offset:number)=>3800+at*10+offset;
+  const project=info.project.name,code=await ownCode(),name=`Look relay ${project}`;
+  const n=await ownWristbands('Boy Scouts',10);
   await ownRelay(code,name,'Boy Scouts');
   const {page,token}=await openPhone(`Look relay ${project}`);
   await writeTeam(request,token,code,[n(1),n(2),n(3),n(4)]);

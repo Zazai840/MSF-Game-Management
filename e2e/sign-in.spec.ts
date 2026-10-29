@@ -1,4 +1,4 @@
-import { becomeLead,expect,join,lookProblems,openLeadMenu,test,type Locator,type Page } from './fixtures.js';
+import {becomeLead,expect,join,lookProblems,openLeadMenu,test,type Locator,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the race screens. */
 async function expectDocked(page:Page,button:Locator) {

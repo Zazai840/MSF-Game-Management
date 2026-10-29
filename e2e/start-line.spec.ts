@@ -1,8 +1,8 @@
-import { deleteCurrentRace,expect,lookProblems,nextBeside,openRace,ownEvent,recordRace,submitRace,test,writeOrder,writeTimes,type Page } from './fixtures.js';
+import {ownCode,deleteCurrentRace,expect,lookProblems,nextBeside,openRace,ownEvent,recordRace,submitRace,test,writeOrder,writeTimes,type Page} from './fixtures.js';
 const chips=(page:Page)=>page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 test('wristbands go in through the phone keyboard, each saved as it is typed, and the input keeps focus between runners',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`KB-${project.toUpperCase()}`,name=`Keyboard sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Keyboard sprint ${project}`;
   await ownEvent(request,code,name);
   const {page,context,token}=await openPhone(`Keyboard ${project}`);
   await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
@@ -73,7 +73,7 @@ test('wristbands go in through the phone keyboard, each saved as it is typed, an
   await deleteCurrentRace(request,code);
 });
 test('a volunteer fixes a number that is no wristband and keeps wrong-section and already-ran warnings, which reach the lead once the heat is saved',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`WN-${project.toUpperCase()}`,name=`Warning sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Warning sprint ${project}`;
   await ownEvent(request,code,name);
   const token=process.env.E2E_OWNER_TOKEN!;
   // 2008 ran in Heat 1, which is saved.
@@ -111,7 +111,7 @@ test('a volunteer fixes a number that is no wristband and keeps wrong-section an
   await deleteCurrentRace(request,code);
 });
 test('the 6th runner brings the usual heat size note once; That\'s everyone saves Runners, back on Races with Undo',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`US-${project.toUpperCase()}`,name=`Usual size sprint ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Usual size sprint ${project}`;
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Usual ${project}`);
   await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});

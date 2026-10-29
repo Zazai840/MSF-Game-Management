@@ -1,4 +1,4 @@
-import { backToRaces,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page } from './fixtures.js';
+import {ownCode,backToRaces,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Ready for you is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
@@ -10,7 +10,7 @@ const readyForYou=(page:Page)=>page.locator('h2:text-is("Ready for you") ~ artic
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
 
 test('a lead\'s Ready for you is the groups with open issues, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead issues ${project}`,calm=`Lead calm ${project}`,code=`LI-${project.toUpperCase()}`,calmCode=`LC-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Lead issues ${project}`,calm=`Lead calm ${project}`,code=await ownCode(),calmCode=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');await ownEvent(request,calmCode,calm,'Girl Cubs','timed');
   // A kept time faster than the place before, and a calm race.
   await recordRace(request,owner(),code,[2001,2002],[1600,1305]);
@@ -40,7 +40,7 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
 });
 
 test('inside a race each issue sits on its step\'s tab; It\'s right clears it and records who accepted it',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead tabs ${project}`,code=`LB-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Lead tabs ${project}`,code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // A kept wrong-section number, a runner added at the finish, and a kept wrong time.
   await writeCheckIn(request,owner(),code,[3045,2001],[3045]);
@@ -85,7 +85,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
 });
 
 test('an issue settled elsewhere opens in Results, and the race actions open over the race',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead results ${project}`,code=`LR-${project.toUpperCase()}`;
+  const project=info.project.name,name=`Lead results ${project}`,code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // 2001 has a result in two races: the lead chooses which counts, in Results.
   await recordRace(request,owner(),code,[2001,2002],[1200,1300]);

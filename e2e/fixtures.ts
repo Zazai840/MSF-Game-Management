@@ -170,16 +170,47 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
   expect(race.state,'the race is saved').toBe('saved');
   return race;
 }
-/** Makes this test's own heats event (its code and name unique to the project), so its holds and races touch no other test. */
-export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats') {
-  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{code,name,section,format,type:'races'}})).ok()).toBe(true);
+/**
+ * Claims `size` numbers of a counter no other test in this run has used, from `start` on, and answers the first. The
+ * counters live in the run's own test database, so specs sharing the test day never clash whatever order they run
+ * in, and a worker restarted after a failure carries on from where the last one stopped.
+ */
+async function claim(counter:string,size:number,start:number) {
+  const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+  try {
+    await db.query('CREATE TABLE IF NOT EXISTS e2e_claims(counter text PRIMARY KEY,next integer NOT NULL)');
+    return Number((await db.query('INSERT INTO e2e_claims(counter,next) VALUES($1,$2::integer+$3::integer) ON CONFLICT(counter) DO UPDATE SET next=e2e_claims.next+$3::integer RETURNING next-$3::integer AS first',[counter,start,size])).rows[0].first);
+  } finally {await db.end();}
+}
+/** An event code no other test in this run uses (E1, E2 and so on): every event a spec makes takes one. */
+export const ownCode=async()=>`E${await claim('code',1,1)}`;
+const claimed=(code:string)=>expect(code,'Claim the event code with ownCode()').toMatch(/^E\d+$/);
+const sectionStart={'Boy Beavers':1,'Girl Beavers':1,'Boy Cubs':1000,'Girl Cubs':2000,'Boy Scouts':3000,'Girl Scouts':4000} as const;
+/**
+ * This test's own children for relay teams: a block of `count` wristbands of the section that no other test's teams
+ * use (a child in two relays is a warning every phone shows). Answers a namer: each new key (n(1), n(2101), any
+ * number the spec likes) takes the block's next wristband, and the same key always answers the same one.
+ */
+export async function ownWristbands(section:keyof typeof sectionStart,count:number) {
+  const first=await claim(`wristbands:${sectionStart[section]}`,count,sectionStart[section]),named=new Map<number,number>();
+  if(first+count>sectionStart[section]+(sectionStart[section]===1?999:1000)) throw new Error(`The run has used every ${section} wristband: claim fewer`);
+  return (key:number)=>{
+    if(!named.has(key)) {if(named.size===count) throw new Error(`Claim more than ${count} ${section} wristbands`);named.set(key,first+named.size);}
+    return named.get(key)!;
+  };
+}
+/** Makes this test's own event under a code from ownCode(), so its races touch no other test. */
+export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats',type:'races'|'hurdles'='races') {
+  claimed(code);
+  expect((await request.post('/api/day/events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{code,name,section,format,type}})).ok()).toBe(true);
 }
 /**
- * Makes this test's own relay (its code and name unique to the project), switched on, so its teams and races touch no
+ * Makes this test's own relay under a code from ownCode(), switched on, so its teams and races touch no
  * other test. A lead can't add a relay, so it goes straight into the e2e test database, switched off, and is switched
  * on through the API, which tells every open Home.
  */
 export async function ownRelay(code:string,name:string,section='Girl Cubs') {
+  claimed(code);
   const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
   try {
     await db.query(`INSERT INTO events(id,day_id,code,name,section,format,enabled,relay,type,programme_order)

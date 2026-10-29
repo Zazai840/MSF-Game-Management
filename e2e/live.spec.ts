@@ -1,4 +1,4 @@
-import { backToRaces,deleteCurrentRace,expect,live,lookProblems,openRace,ownEvent,setHidden,test,writeCheckIn,type APIRequestContext,type Page } from './fixtures.js';
+import {ownCode,backToRaces,deleteCurrentRace,expect,live,lookProblems,openRace,ownEvent,setHidden,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
 /** The finish line's runner buttons: the runners checked in, live from the start line. */
 const runners=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
 /** On a slow network every "the other phone sees it" check waits this long. */
@@ -14,7 +14,7 @@ async function newHeat(request:APIRequestContext,token:string,code:string) {
 }
 
 test('signal drop: once back online, phone B shows what phone A checked in while B had no signal',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LD-${project.toUpperCase()}`,name=`Signal drop ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Signal drop ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(`Ann drop ${project}`),b=await openPhone(`Ben drop ${project}`,{job:'finish'});
   await writeCheckIn(request,a.token,code,[2101]);
@@ -47,7 +47,7 @@ test('signal drop: once back online, phone B shows what phone A checked in while
 });
 
 test('app switch: once the app is back in front, phone B shows what phone A checked in while it was in the background',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LA-${project.toUpperCase()}`,name=`App switch ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`App switch ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(`Ann switch ${project}`),b=await openPhone(`Ben switch ${project}`,{job:'finish'});
   await writeCheckIn(request,a.token,code,[2201]);
@@ -64,7 +64,7 @@ test('app switch: once the app is back in front, phone B shows what phone A chec
 });
 
 test('silent link: once the watchdog gives up on a stream that went quiet, phone B shows what phone A checked in meanwhile',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LQ-${project.toUpperCase()}`,name=`Silent link ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Silent link ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(`Ann silent ${project}`),b=await openPhone(`Ben silent ${project}`,{job:'finish'});
   await newHeat(request,a.token,code);
@@ -82,7 +82,7 @@ test('silent link: once the watchdog gives up on a stream that went quiet, phone
 });
 
 test('planned end: phone B reconnects at once after the stream ends, and shows what phone A checked in since',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LP-${project.toUpperCase()}`,name=`Planned end ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Planned end ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(`Ann end ${project}`),b=await openPhone(`Ben end ${project}`,{job:'finish'});
   await writeCheckIn(request,a.token,code,[2401]);
@@ -99,7 +99,7 @@ test('planned end: phone B reconnects at once after the stream ends, and shows w
 });
 
 test('slow network: on a 3G-like link each phone sees the other\'s step within 3 s',async({openPhone,request},info)=>{
-  const project=info.project.name,code=`LT-${project.toUpperCase()}`,name=`Slow network ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Slow network ${project}`;
   await ownEvent(request,code,name);
   const a=await openPhone(`Ann slow ${project}`),b=await openPhone(`Ben slow ${project}`,{job:'finish'});
   await newHeat(request,a.token,code);

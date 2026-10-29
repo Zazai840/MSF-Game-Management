@@ -1,4 +1,4 @@
-import {lookProblems,back,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
+import {ownEvent,ownCode,lookProblems,back,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
@@ -53,8 +53,8 @@ test('the day export says when it was last downloaded and whether changes came a
   const dayExport=section(page,'Day export');
   const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
-  const code=`DS-${info.project.name.toUpperCase()}`;
-  await page.request.post('/api/day/events',{headers:headers(),data:{code,name:'Day setup sprint',section:'Girl Cubs',format:'timed',type:'races'}});
+  const code=await ownCode();
+  await ownEvent(page.request,code,'Day setup sprint','Girl Cubs','timed');
   await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-export.png'),fullPage:true});
@@ -74,7 +74,7 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
   await page.getByRole('button',{name:/^Events /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
-  const code=`DE-${info.project.name.toUpperCase()}`;
+  const code=await ownCode();
   await page.getByLabel('New event code',{exact:true}).fill(code);
   await page.getByLabel('New event name',{exact:true}).fill('Saved sprint');
   await page.getByLabel('New event section',{exact:true}).selectOption('Girl Cubs');

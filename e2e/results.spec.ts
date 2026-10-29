@@ -1,7 +1,7 @@
-import {enterTime,openLeadMenu,openRace,switchJob,becomeLead,expect,join,ownEvent,recordRace,signInThroughApi,test} from './fixtures.js';
+import {ownCode,enterTime,openLeadMenu,openRace,switchJob,becomeLead,expect,join,ownEvent,recordRace,signInThroughApi,test} from './fixtures.js';
 test('a lead sees a race worked in the race flow appear within one Results poll',async({page,openPhone},info)=>{
-  const project=info.project.name,code=`RP-${project.toUpperCase()}`,name=`Results phone ${project}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  expect((await page.request.post('/api/day/events',{headers,data:{code,name,section:'Girl Cubs',format:'heats',type:'races'}})).ok()).toBe(true);
+  const project=info.project.name,code=await ownCode(),name=`Results phone ${project}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  await ownEvent(page.request,code,name,'Girl Cubs','heats');
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await page.goto('/');await join(page,`Results lead ${project}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
@@ -29,7 +29,7 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
 });
 
 test('on a phone a medal mark sits beside its position number, not on a line of its own',async({page},info)=>{
-  const project=info.project.name,code=`MM-${project.toUpperCase()}`,name=`Medal marks ${project}`;
+  const project=info.project.name,code=await ownCode(),name=`Medal marks ${project}`;
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await recordRace(page.request,await signInThroughApi(page.request,`Medal timer ${project}`),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);

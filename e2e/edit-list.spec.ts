@@ -1,4 +1,4 @@
-import { expect,join,lookProblems,test,type Page } from './fixtures.js';
+import {expect,join,lookProblems,test,type Page} from './fixtures.js';
 const welcome=(page:Page)=>page.getByRole('region',{name:'Joined on this phone before'});
 /** Ends the session as a new day would, so Join lists the names this phone has joined with. */
 async function backToJoin(page:Page) {
