@@ -102,7 +102,8 @@ test('two prep phones type different teams of one relay at once in the teams she
   await expect(teamCards(a.page).nth(0)).toContainText(`4th${w(11)}`);
   await box(b.page,'3rd').fill(String(w(12)));
   await b.page.getByRole('button',{name:'Save team 1',exact:true}).click();
-  await expect(sheet(b.page,'Edit team 1').getByRole('status')).toContainText(`${aisha} changed this a moment ago.`);
+  // The leg boxes' drag announcements are a status too, so the callout is found by its words.
+  await expect(sheet(b.page,'Edit team 1').getByRole('status').filter({hasText:`${aisha} changed this a moment ago.`})).toBeVisible();
   await b.page.getByRole('button',{name:'Show latest',exact:true}).click();
   await expect(box(b.page,'3rd')).toHaveValue(String(w(3)));
   await expect(box(b.page,'4th')).toHaveValue(String(w(11)));

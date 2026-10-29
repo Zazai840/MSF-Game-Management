@@ -4,6 +4,7 @@ import type { RaceFlowRead,RaceGroup,RacesRead } from '../../shared/race-flow.js
 import { stillToRun,teamState,teamsSheetLine,type RelayTeam,type TeamList } from '../../shared/teams.js';
 import { ApiFailure,api } from '../api.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
+import { SortableList } from '../flow/SortableList.js';
 import { Callout,Icon,Sheet } from './parts.js';
 import { useTeamDraft,type TeamDraft } from './team-draft.js';
 /** What the sheet shows: the list, a team's leg boxes (Edit), New team's, or the Change anyway question over the list. */
@@ -70,7 +71,8 @@ export function CheckInTeamSheet({read,teamId,offer,onClose}:{read:RaceFlowRead;
   </Sheet>;
 }
 /**
- * One team's four leg boxes, 1st leg first, with Fix number / Keep, then Cancel and Save team 9. Edit on a team never
+ * One team's four leg boxes, 1st leg first, each with a grip to drag it to another leg, with Fix number / Keep, then
+ * Cancel and Save team 9. Edit on a team never
  * in a race also has Remove team 7. A Save someone overtook shows who, with Show latest to start again from theirs.
  * From check-in (`raceId`) a Save also writes the team's entry in that race, and New team joins it. While a team is
  * open, other phones see "Aisha Noor is changing this team".
@@ -110,13 +112,20 @@ function LegBoxes({team,number,relay,relays,busy,error,removing,onSave,onCancel,
   removing:boolean;onSave:(draft:TeamDraft)=>void;onCancel:()=>void;onRemove?:()=>void;removeActions:ReactNode}) {
   const entry=useTeamDraft(team,relay,relays),{boxes,refusals,warnings,amber,inputs}=entry;
   return <>
-    <div className="rz-legboxes">{boxes.map((box,index)=><label key={index} className={amber(index)?'rz-field rz-field--warn':'rz-field'}>
-      <span className="rz-field__label">{ordinal(index+1)} leg</span>
-      <input ref={input=>{inputs.current[index]=input;}} className="rz-field__input" type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint={index<3?'next':'done'}
-        placeholder="Wristband" value={box} autoFocus={index===Math.max(0,boxes.indexOf(''))} readOnly={busy}
-        onFocus={()=>entry.focus(index)} onBlur={()=>entry.focus(null)} onChange={event=>entry.type(index,digitsOnly(event.target.value))}
-        onKeyDown={event=>{if(event.key!=='Enter' || event.nativeEvent.isComposing) return;event.preventDefault();if(index<3) inputs.current[index+1]?.focus();else event.currentTarget.blur();}}/>
-    </label>)}</div>
+    {/* A grip drag reorders the draft only: Save sends it, Cancel drops it. */}
+    <SortableList label="Legs" items={entry.keys} itemKey={key=>key} onReorder={entry.move}
+      itemName={key=>{const index=entry.keys.indexOf(key);return boxes[index]||`empty ${ordinal(index+1)} leg`;}}
+      look={{list:'rz-legboxes',row:'rz-legbox',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:what=>`Move ${what}`}}
+      renderItem={(key,place)=>{
+        const index=entry.keys.indexOf(key),box=boxes[index];
+        return <label className={amber(index)?'rz-field rz-field--warn':'rz-field'}>
+          <span className="rz-field__label">{ordinal(place)} leg</span>
+          <input ref={input=>{inputs.current[index]=input;}} className="rz-field__input" type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint={index<3?'next':'done'}
+            placeholder="Wristband" value={box} autoFocus={index===Math.max(0,boxes.indexOf(''))} readOnly={busy}
+            onFocus={()=>entry.focus(index)} onBlur={()=>entry.focus(null)} onChange={event=>entry.type(index,digitsOnly(event.target.value))}
+            onKeyDown={event=>{if(event.key!=='Enter' || event.nativeEvent.isComposing) return;event.preventDefault();if(index<3) inputs.current[index+1]?.focus();else event.currentTarget.blur();}}/>
+        </label>;
+      }}/>
     {entry.legs.map((_,index)=>refusals[index]?<Callout key={index} message={refusals[index]} actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>entry.fix(index)}>Fix number</button>}/>
       :amber(index)?<Callout key={index} message={warnings[index].map(warning=>warning.message).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>entry.fix(index)}>Fix number</button><button type="button" className="rz-btn" onClick={()=>entry.keep(index)}>Keep</button></>}/>:null)}

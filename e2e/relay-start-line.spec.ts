@@ -34,7 +34,9 @@ test('two start-line phones check a relay heat in at once: Add, Take off and eve
   }
   await expect(card(one,2)).toContainText('Runs short · 3 of 4');
   await expect(card(one,1).getByText('1st leg',{exact:true})).toBeVisible();
-  await expect(card(one,2).getByText('3rd leg',{exact:true})).toHaveCount(0);
+  // A short team's empty leg reads "–", with no Here, so it can be dragged to another leg.
+  await expect(card(one,2).locator('.rz-attendance__who').nth(2)).toHaveText('3rd leg–');
+  await expect(card(one,2).getByRole('button',{name:/: Here$/})).toHaveCount(3);
   await expect(here(one,w(11))).toHaveText('Not yet');
   // Both phones tap at once, on different children of one team: both land, with no version refusal.
   await Promise.all([here(one,w(11)).click(),here(two,w(12)).click()]);

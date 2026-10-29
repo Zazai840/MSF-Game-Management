@@ -14,10 +14,13 @@ export interface Changed { by:string|null }
  */
 export function useFlowWrite(raceId:string,offer:Offer) {
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[changed,setChanged]=useState<Changed|null>(null);
-  /** Sends one write: the race once the server has it, 'refused' when the server said no, false when it could not be sent. */
+  /**
+   * Sends one write: the race once the server has it, 'refused' when the server said no, false when it could not be
+   * sent. `what` is under this race, or from "/" another route that answers with this race (a team's Save at check-in).
+   */
   async function write(what:string,body:object):Promise<RaceFlowRead|false|'refused'> {
     setBusy(true);setError('');
-    try {const answer=await api<RaceFlowRead>(`races/${raceId}/${what}`,body);offer(answer);setChanged(null);return answer;}
+    try {const answer=await api<RaceFlowRead>(what.startsWith('/')?what.slice(1):`races/${raceId}/${what}`,body);offer(answer);setChanged(null);return answer;}
     catch(failure) {
       const body=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
       if(body.reason==='changed') setChanged({by:body.by??null});
