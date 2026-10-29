@@ -9,7 +9,7 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
   const phone=(await openPhone(`Results phone ${project}`)).page;
   await phone.getByRole('button',{name:'New race',exact:true}).click();
   const sheet=phone.getByRole('dialog',{name:'New race'});
-  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
   const input=phone.getByLabel('Wristband number',{exact:true});
   await input.fill('2401');await input.press('Enter');

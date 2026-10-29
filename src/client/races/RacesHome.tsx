@@ -56,7 +56,7 @@ export function RacesHome({tab,onTab,role,onRace,saved,onSavedShown}:{tab:Exclud
   const card=(group:RaceGroup)=>{
     const own=issues.filter(item=>item.event.code===group.event.code);
     return <article key={group.event.id} className="rz-racecard" aria-label={`${group.event.name} · ${group.event.section}`}>
-      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3><span className="rz-code-tag">{group.event.code}</span></div>
+      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3>{role==='lead' && <span className="rz-code-tag">{group.event.code}</span>}</div>
       <p className="rz-racecard__status">{role==='lead'?own.length?issueLine(own):leadFinalLine(group)??(groupDone(group)?'Every race saved':'No issues'):groupStatus(group,role)}</p>
       <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
