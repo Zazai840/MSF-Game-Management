@@ -82,7 +82,7 @@ test('once decided without a final the event is done for volunteers: Home shows 
   const races=await group(volunteer);
   expect(groupDone(races)).toBe(true);
   expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'heat',number:races.nextHeat})).json()).toEqual({message:'Stage complete - ask a lead'});
-  expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'final'})).statusCode).toBe(409);
+  expect((await call(lead,'/api/races',{eventCode:'R4',kind:'final'})).statusCode).toBe(409);
   expect((await call(volunteer,`/api/races/${heat}/times`,{raceId:heat,version:1,places:[900,980,1040],keptWrong:[]})).json()).toEqual({message:'Stage complete - ask a lead'});
   expect((await call(lead,`/api/lead/races/${heat}/times`,{baseVersion:1,places:[920,980,1041]})).statusCode).toBe(200);
 });

@@ -84,7 +84,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 **RaceCard**, one per event group:
 - Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · 1 and 2 done").
 - Then the **HeatChips** row: one chip per race in order, then "+" (add the next heat).
-- When it applies, a "+ Final" chip appears; tapping it creates the final. A locked final isn't shown on the card.
+- When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
 - Tapping a chip opens that race.
 
 **Footer**: Updated-at line with Refresh, and the display-primary "+ New race".
