@@ -86,7 +86,7 @@ test('five phones share the test build: three work one race live until it saves 
   // from Races, and each step shows on the other two live. Once every step is done the race saves itself.
   await starter.getByRole('button',{name:'New race',exact:true}).click();
   const newRace=starter.getByRole('dialog',{name:'New race'});
-  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs R4',exact:true}).click();
+  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await newRace.getByRole('button',{name:`Create heat ${group!.nextHeat}`,exact:true}).click();
   await expect(starter.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   for(const page of [finisher,timer]) await openRace(page,name,'Girl Cubs',chip);

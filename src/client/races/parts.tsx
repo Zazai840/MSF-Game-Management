@@ -59,11 +59,11 @@ export function HomeBar({children}:{children:ReactNode}) {
     <div className="rz-appbar__end">{children}</div>
   </header>;
 }
-/** A race's app bar: back to Races, the event group with its code, then the role chip (and for a lead, race actions). */
-export function RaceBar({title,code,onBack,children}:{title:string;code:string;onBack:()=>void;children:ReactNode}) {
+/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then the role chip (and for a lead, race actions). */
+export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1><span className="rz-code-tag">{code}</span></div>
+      <h1>{title}</h1>{role==='lead' && <span className="rz-code-tag">{code}</span>}</div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }

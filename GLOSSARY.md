@@ -27,7 +27,7 @@ One running competition for one section, such as 60m for Girl Cubs. Races shows 
 _Avoid_: Competition, discipline
 
 **Event code**:
-The scoring team's identifier for an event (R1, R2, ...).
+The scoring team's identifier for an event (R1, R2, ...). It shows only in the Zone lead role; volunteers never see it.
 _Avoid_: Event ID, event number
 
 **Event format**:

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { RaceGroup } from '../../shared/race-flow.js';
+import type { RaceGroup,Role } from '../../shared/race-flow.js';
 import { Sheet } from './parts.js';
 /** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
 export interface NewRaceChoice { eventCode?:string; kind?:'heat'|'final'; number?:number; direct?:boolean }
@@ -10,10 +10,10 @@ function already(group:RaceGroup) {
   return heats.length===1?`${group.event.section} already has heat ${heats[0]}.`:`${group.event.section} already has heats ${heats[0]} to ${heats.at(-1)}.`;
 }
 /**
- * New race, over Races: the event (this tab's), its section with the code, and the race: the next heat, or the final
+ * New race, over Races: the event (this tab's), its section (with its code in the Zone lead role), and the race: the next heat, or the final
  * once every heat has times. Anyone can create; the server answers a heat someone made a moment ago with theirs.
  */
-export function NewRaceSheet({groups,choice,onClose,onCreate}:{groups:readonly RaceGroup[];choice:NewRaceChoice;onClose:()=>void;onCreate:(choice:Required<NewRaceChoice>)=>void}) {
+export function NewRaceSheet({groups,role,choice,onClose,onCreate}:{groups:readonly RaceGroup[];role:Role;choice:NewRaceChoice;onClose:()=>void;onCreate:(choice:Required<NewRaceChoice>)=>void}) {
   const chosen=groups.find(group=>group.event.code===choice.eventCode);
   const names=[...new Set(groups.map(group=>group.event.name))];
   const [name,setName]=useState(chosen?.event.name??(names.length===1?names[0]:''));
@@ -31,7 +31,7 @@ export function NewRaceSheet({groups,choice,onClose,onCreate}:{groups:readonly R
       {names.map(item=><button key={item} type="button" className="rz-choice" aria-pressed={item===name} onClick={()=>{setName(item);setCode('');setKind('heat');setHeat(null);}}>{item}</button>)}
     </div></fieldset>
     {name && <fieldset><legend className="rz-field__label">Section</legend><div className="rz-choices rz-choices--grid">
-      {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}<span className="rz-code-tag">{item.event.code}</span></button>)}
+      {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}{role==='lead' && <span className="rz-code-tag">{item.event.code}</span>}</button>)}
     </div></fieldset>}
     {group && <fieldset><legend className="rz-field__label">Race</legend><div className="rz-choices">
       <button type="button" className="rz-choice" aria-pressed={race==='heat'} onClick={()=>setKind('heat')}>Heat {number}</button>

@@ -52,7 +52,7 @@ export function RacesHome({tab,onTab,role,onRace,saved,onSavedShown}:{tab:Exclud
   const card=(group:RaceGroup)=>{
     const own=issues.filter(item=>item.event.code===group.event.code);
     return <article key={group.event.id} className="rz-racecard" aria-label={`${group.event.name} · ${group.event.section}`}>
-      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3><span className="rz-code-tag">{group.event.code}</span></div>
+      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3>{role==='lead' && <span className="rz-code-tag">{group.event.code}</span>}</div>
       <p className="rz-racecard__status">{role==='lead'?own.length?issueLine(own):groupDone(group)?'Every race saved':'No issues':groupStatus(group,role)}</p>
       <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
@@ -75,7 +75,7 @@ export function RacesHome({tab,onTab,role,onRace,saved,onSavedShown}:{tab:Exclud
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>New race</button>
     </footer>
     {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
-    {creating && snapshot && <NewRaceSheet groups={groups} choice={creating} onClose={()=>setCreating(null)} onCreate={choice=>{setCreating(null);void make(choice);}}/>}
+    {creating && snapshot && <NewRaceSheet groups={groups} role={role} choice={creating} onClose={()=>setCreating(null)} onCreate={choice=>{setCreating(null);void make(choice);}}/>}
   </>;
 }
 /** A lead's sections: groups with open issues are ready for them, newest issue first; the rest as for everyone. */
