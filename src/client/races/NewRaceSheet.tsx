@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { finalMade,heatsFinishedLine,volunteerFinalLine,type RaceGroup,type Step } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { Callout,FinalReasonButton,Sheet } from './parts.js';
-/** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
+/** New race's event lists, by event type, so a volunteer on the wrong tab still finds theirs. */
 const tabs=[['races','Races'],['hurdles','Hurdles']] as const;
+/** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
 export interface NewRaceChoice { eventCode?:string; kind?:'heat'|'final'; number?:number; direct?:boolean }
 /** "Girl Cubs already has heats 1 to 4." */
 function already(group:RaceGroup) {
