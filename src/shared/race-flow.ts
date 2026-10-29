@@ -5,13 +5,13 @@ import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
- * person does the one step their role names on a race. A step is one of the race's parts: Runners (check-in), Positions
- * (the finishing order) and Times. Relays keep the race screen.
+ * person does the one step their role names on a race. A step is one of the race's parts: Runners (check-in), Finishing order
+ * and Times. Relays keep the race screen.
  */
 export const steps=['runners','positions','times'] as const;
 export type Step=typeof steps[number];
 export const stepParts:Record<Step,RacePartName>={runners:'runners',positions:'finish',times:'times'};
-export const stepLabels:Record<Step,string>={runners:'Runners',positions:'Positions',times:'Times'};
+export const stepLabels:Record<Step,string>={runners:'Runners',positions:'Finishing order',times:'Times'};
 /** A final has no times: it is decided by the finishing order. */
 export const stepsOf=(race:Pick<RaceRead,'kind'>):readonly Step[]=>race.kind==='final'?['runners','positions']:steps;
 /** A person's role, kept on their phone: one volunteer step, or Zone lead, who sees every step. */
@@ -52,7 +52,7 @@ export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:numbe
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /** One race in the flow, with its group (for the heat chips) and its steps. */
 export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>> }
-/** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Positions and Times someone is in the race. */
+/** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Finishing order and Times someone is in the race. */
 export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
   const status=race.steps[step];
   if(!status || race.state==='saved' || status.state==='done') return false;
@@ -75,7 +75,7 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
 }
 /**
  * Why a step cannot be marked done yet, or null: Runners needs someone checked in (on a final, someone Here),
- * Positions needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
+ * Finishing order needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
  * a heat nobody finished).
  */
 export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'>,step:Step):string|null {

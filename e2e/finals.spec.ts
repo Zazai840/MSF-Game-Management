@@ -44,7 +44,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(priya.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
  expect(await lookProblems(priya)).toEqual([]);await priya.screenshot({path:info.outputPath('final-finishing-order.png'),fullPage:true});
  // Both steps done: the final saves itself, with no times.
- await priya.getByRole('button',{name:'Save positions',exact:true}).click();
+ await priya.getByRole('button',{name:'Save the order',exact:true}).click();
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
  await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText('1015');await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText('1st: 1015');await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('1015');await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});

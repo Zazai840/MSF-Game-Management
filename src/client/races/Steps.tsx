@@ -14,7 +14,7 @@ import { useWristbandEntry } from '../race/WristbandEntry.js';
 import { Callout,Icon } from './parts.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
 
-/** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save positions, No more finishers). */
+/** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save the order, No more finishers). */
 export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWrite>; onDone:(step:Step)=>void; locked:boolean }
 /**
  * One number typed on the phone's own number pad (wristbands, times). The input stays mounted and focused between
@@ -115,7 +115,7 @@ type Unplaced='dnf'|'dnr';
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one places it and moves on; tapping a placed slot makes it the place to fill
  * again. When the last runner is placed, or on "Nobody else crossed the line", Check the order: drag to move, arrow
- * keys too, and each runner left is Did not finish or Didn't run. Save positions marks Positions done.
+ * keys too, and each runner left is Did not finish or Didn't run. Save the order marks Finishing order done.
  */
 export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,event=group.event;
@@ -186,7 +186,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
           </button></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
       </main>
       {!locked && <footer className="rz-footer rz-footer--sticky">
-        <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save positions</button>
+        <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save the order</button>
       </footer>}
     </>;
   }

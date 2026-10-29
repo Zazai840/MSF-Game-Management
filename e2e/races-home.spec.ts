@@ -138,10 +138,10 @@ test('switching job on a race keeps the race open in the new view, and another j
   const {page}=await openPhone(`Switch ${project}`);
   await openRace(page,name);
   await expect(page.getByRole('heading',{level:2,name:'Runner 3: wristband number?'})).toBeVisible();
-  // Tapping Positions in the step strip shows it read-only, with the way back.
-  await page.getByRole('tab',{name:'Positions, Not started. View read-only',exact:true}).click();
-  const readOnly=page.getByRole('tabpanel',{name:'Positions, read-only'});
-  await expect(readOnly.getByRole('status')).toHaveText(/Viewing Positions · read-only\. It's the Finish line's step; you're the Start line\./);
+  // Tapping Finishing order in the step strip shows it read-only, with the way back.
+  await page.getByRole('tab',{name:'Finishing order, Not started. View read-only',exact:true}).click();
+  const readOnly=page.getByRole('tabpanel',{name:'Finishing order, read-only'});
+  await expect(readOnly.getByRole('status')).toHaveText(/Viewing Finishing order · read-only\. It's the Finish line's step; you're the Start line\./);
   await expect(readOnly.getByText('Nobody is placed yet.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('read-only.png'),fullPage:true});
@@ -152,6 +152,9 @@ test('switching job on a race keeps the race open in the new view, and another j
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Your job: Finish line. Change job',exact:true})).toBeVisible();
+  // The step strip keeps one line per cell: an own step not started is "You · not yet".
+  await expect(page.getByRole('tablist',{name:'Heat 1 progress'}).getByRole('tab')).toHaveText(['Runners2 so far','Finishing orderYou · not yet','TimesNot started']);
+  expect(await lookProblems(page)).toEqual([]);
   await page.reload();
   await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
   await deleteCurrentRace(request,code);
@@ -169,6 +172,8 @@ test('a saved race opens read-only for a volunteer, saying to ask a lead',async(
   await expect(page.getByRole('heading',{level:2,name:'2 runners checked in'})).toBeVisible();
   await expect(page.getByRole('list',{name:'Checked in'}).getByRole('listitem')).toHaveText(['2001','2002']);
   await expect(page.getByRole('button',{name:/^Remove /})).toHaveCount(0);
+  // Every step done: an own done step is "You · done", so the strip stays one line per cell.
+  await expect(page.getByRole('tablist',{name:'Heat 1 progress'}).getByRole('tab')).toHaveText(['RunnersYou · done','Finishing order2 of 2','Times2 of 2']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('saved.png'),fullPage:true});
 });

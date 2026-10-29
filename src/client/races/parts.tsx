@@ -95,7 +95,8 @@ export function stepWords(step:Step,status:StepStatus) {
 }
 /**
  * The race's three steps, as tabs when `onSelect` is given. A volunteer's own step is outlined and starts "You ·"; any
- * other step opens read-only. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
+ * other step opens read-only. The own status is short ("You · not yet", "You · 2 of 8", "You · done") so each cell
+ * stays on one line at 360px. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
  */
 export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
   notes?:Partial<Record<Step,string>>;label:string}) {
@@ -104,7 +105,7 @@ export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pic
     const status=race.steps[step]!,done=status.state==='done',note=notes[step];
     return <>
       <span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
-      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:`${step===own?'You · ':''}${stepWords(step,status)}`}</span>
+      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status)}`:stepWords(step,status)}</span>
     </>;
   };
   if(onSelect) return <div className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} role="tablist" aria-label={label}>

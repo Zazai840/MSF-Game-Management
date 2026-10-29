@@ -61,15 +61,15 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await dragTo(finish.page,handle(finish.page,3045),orderRows(finish.page).first());
   await expect(orderRows(finish.page)).toHaveText(['1st3045','2nd2011','3rd2013']);
   expect(await lookProblems(finish.page)).toEqual([]);await finish.page.screenshot({path:info.outputPath('check-the-order.png'),fullPage:true});
-  await finish.page.getByRole('button',{name:'Save positions',exact:true}).click();
+  await finish.page.getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(finish.page.getByRole('navigation',{name:'Event type'})).toBeVisible();
-  await expect(finish.page.locator('.rz-toast')).toContainText('Positions saved · Girl Cubs Heat 1');
+  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
   // Didn't run takes 2014 off the race, and the runner added at the finish is in it: the start line can't type 3045 again.
   const chips=start.page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
   await expect(chips).toHaveText(['2011','2012','2013','3045'],live);
   await expect(input).toBeEditable();await input.fill('3045');await input.press('Enter');
   await expect(start.page.getByRole('alert')).toContainText('3045 is already in this race. Check the wristband.');
-  await expect(start.page.getByRole('tab',{name:/^Positions/})).toContainText('Positions4 of 4',live);
+  await expect(start.page.getByRole('tab',{name:/^Finishing order/})).toContainText('Finishing order4 of 4',live);
   await deleteCurrentRace(request,code);
 });
 

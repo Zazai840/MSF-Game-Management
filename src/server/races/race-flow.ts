@@ -97,7 +97,7 @@ async function requireCurrent(client:pg.PoolClient,phone:Phone,raceId:string,par
 }
 function requestedStep(request:FastifyRequest,race:Pick<StoredRace,'kind'>):Step {
   const step=(request.params as {step:string}).step as Step;
-  if(!steps.includes(step)) throw new Refusal(404,'Choose Runners, Positions or Times');
+  if(!steps.includes(step)) throw new Refusal(404,'Choose Runners, Finishing order or Times');
   if(!stepsOf(race).includes(step)) throw new Refusal(409,'A final has no times');
   return step;
 }
@@ -163,7 +163,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     const input=timesInput(request.body),id=raceId(request);
     return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input,true);await saveIfDone(client,phone,id);});
   });
-  // Done: That's everyone, Save positions, No more finishers. Once every step is done and nothing blocks it, the race is saved.
+  // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.
   action('POST','/api/races/:raceId/steps/:step/done','Volunteer',(request,_reply,phone)=>{
     const id=raceId(request);
     return write(phone,id,async(client,unchanged)=>{
