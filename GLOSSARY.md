@@ -223,7 +223,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat, or for a lead the final.
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race lists every event, grouped under Races and Hurdles whichever tab it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:

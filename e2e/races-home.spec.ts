@@ -39,14 +39,38 @@ test('Races, Hurdles and Relays tabs show their own events, the phone keeps the 
   await deleteCurrentRace(request,racesCode);await deleteCurrentRace(request,hurdlesCode);
 });
 
-test('New race offers this tab\'s events, each section, and the next heat; only a lead is offered the final, and once it is made no heat is offered',async({openPhone,request},info)=>{
+test('New race lists every event under its tab\'s name, and a race made from the wrong tab brings Races home back on its own tab',async({openPhone,request},info)=>{
+  const project=info.project.name,races=`Grouped sprint ${project}`,hurdles=`Grouped hurdles ${project}`;
+  const [racesCode,hurdlesCode]=[await ownCode(),await ownCode()];
+  await ownEvent(request,racesCode,races);
+  await ownEvent(request,hurdlesCode,hurdles,'Girl Cubs','timed','hurdles');
+  const {page}=await openPhone(`Grouped ${project}`);
+  await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
+  await page.getByRole('button',{name:'New race',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'New race'});
+  const group=(name:string)=>sheet.getByRole('group',{name,exact:true});
+  await expect(group('Races').getByRole('button',{name:races,exact:true})).toBeVisible();
+  await expect(group('Races').getByRole('button',{name:hurdles,exact:true})).toHaveCount(0);
+  await expect(group('Hurdles').getByRole('button',{name:hurdles,exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('new-race-grouped.png'),fullPage:true});
+  await group('Hurdles').getByRole('button',{name:hurdles,exact:true}).click();
+  await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
+  await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${hurdles} · Girl Cubs`})).toBeVisible();
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');
+  await expect(card(page,hurdles)).toBeVisible();
+  await deleteCurrentRace(request,hurdlesCode);
+});
+
+test('New race offers every event, each section, and the next heat; only a lead is offered the final, and once it is made no heat is offered',async({openPhone,request},info)=>{
   const project=info.project.name,name=`New race sprint ${project}`,code=await ownCode(),timed=await ownCode();
   await ownEvent(request,code,name);await ownEvent(request,timed,name,'Boy Cubs','timed');
   const {page}=await openPhone(`New race ${project}`);
   await page.getByRole('button',{name:'New race',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'New race'});
   await expect(sheet.getByRole('button',{name:'Choose the event and section',exact:true})).toBeDisabled();
-  await expect(sheet.getByRole('button',{name:'60m Hurdles',exact:true})).toHaveCount(0);
   await sheet.getByRole('button',{name,exact:true}).click();
   await expect(sheet.getByRole('button',{name:/^(Girl Cubs|Boy Cubs)/})).toHaveText(['Girl Cubs','Boy Cubs']);
   await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();

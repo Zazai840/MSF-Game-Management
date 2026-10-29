@@ -99,7 +99,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons, for this tab's events only.
+- **Event:** choice buttons for every event, grouped under the tab names Races and Hurdles whichever tab it was opened from, so a volunteer on the wrong tab still finds theirs. Back from the new race, Races shows that event's tab.
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.
