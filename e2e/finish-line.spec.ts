@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
+import {ownCode,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
 import { isRunner } from '../src/shared/races.js';
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
@@ -32,9 +32,18 @@ test('two phones: the start line checks in, the finish line places them live, wi
   const warning=finish.page.getByRole('alert');
   await expect(warning).toContainText('2011 is already in this race. Check the wristband.');
   await expect(warning.getByRole('button',{name:'Keep',exact:true})).toHaveCount(0);
+  // Fix number keeps the number, selected, so typing replaces it.
   await warning.getByRole('button',{name:'Fix number',exact:true}).click();
-  await expect(added).toBeFocused();await expect(added).toHaveValue('');
-  await added.fill('3045');await added.press('Enter');
+  await expect(added).toBeFocused();await expect(added).toHaveValue('2011');
+  await expect.poll(()=>selected(finish.page,'Wristband number')).toBe('2011');
+  await added.pressSequentially('3045');await added.press('Enter');
+  await expect(warning).toContainText('3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.');
+  // Tapping the box does the same, and Enter checks it again.
+  await added.click();
+  await expect(warning).toHaveCount(0);
+  await expect(added).toBeFocused();await expect(added).toHaveValue('3045');
+  await expect.poll(()=>selected(finish.page,'Wristband number')).toBe('3045');
+  await added.press('Enter');
   await expect(warning).toContainText('3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.');
   await finish.page.screenshot({path:info.outputPath('finish-line-add-warning.png'),fullPage:true});
   await warning.getByRole('button',{name:'Keep',exact:true}).click();

@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
+import {ownCode,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -36,11 +36,20 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await expect(fourth).toBeVisible();
   await page.screenshot({path:info.outputPath('timer-wrong.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
-  // Fix time retypes it.
+  // Tapping the time box opens the typed time to edit, selected; Enter checks it again.
+  await input.click();
+  await expect(warning).toHaveCount(0);
+  await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
+  await expect(input).toBeFocused();await expect(input).toHaveValue('1290');
+  await expect.poll(()=>selected(page,'Place time')).toBe('1290');
+  await input.press('Enter');
+  await expect(warning).toBeVisible();
+  // Fix time does the same: the time stays, selected, so typing replaces it.
   await warning.getByRole('button',{name:'Fix time',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
-  await expect(input).toBeFocused();await expect(input).toHaveValue('');
-  await enterTime(page,'1290');
+  await expect(input).toBeFocused();await expect(input).toHaveValue('1290');
+  await expect.poll(()=>selected(page,'Place time')).toBe('1290');
+  await input.pressSequentially('1290');await input.press('Enter');
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
   // Kept: it stays marked, its note says Kept, and the next place is up.
   await expect(warning).toHaveCount(0);

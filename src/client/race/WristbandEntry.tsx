@@ -26,7 +26,7 @@ export function WristbandEntry({event,raceId,taken,busy,label='Wristband number'
 /**
  * The typing and checks behind a wristband entry, for any screen to draw: `type` the digits, `next` checks the number
  * (refused outright if already in this race, else the shared warnings and the server's), and saves it when nothing is
- * odd; `fix` clears it to retype and `keep` saves it with its warnings kept.
+ * odd; `fix` drops the warning and keeps the number to edit, and `keep` saves it with its warnings kept.
  */
 export function useWristbandEntry(event:DayEvent,raceId:string|null,taken:readonly number[],onSave:(wristband:number,kept:boolean)=>Promise<unknown>) {
   const [current,setCurrent]=useState('');
@@ -57,5 +57,5 @@ export function useWristbandEntry(event:DayEvent,raceId:string|null,taken:readon
   }
   return {current,pending,refused,error,checking,held:pending.length>0 || !!refused,
     type:(digits:string)=>{setCurrent(digits);setError('');},next,
-    fix:()=>{setCurrent('');setPending([]);setRefused('');},keep:()=>save(true)};
+    fix:()=>{setPending([]);setRefused('');},keep:()=>save(true)};
 }

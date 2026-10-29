@@ -320,6 +320,10 @@ export function nextBeside(page:Page,label:string) {
   return page.locator('.number-entry-row',{has:page.getByLabel(label,{exact:true})}).getByRole('button',{name:'Next',exact:true})
     .or(page.locator('.rz-footer').getByRole('button',{name:'Next',exact:true}));
 }
+/** The text selected in a number box, found by its label: what the next digit typed replaces. */
+export function selected(page:Page,label:string) {
+  return page.getByLabel(label,{exact:true}).evaluate((input:HTMLInputElement)=>document.activeElement===input?input.value.slice(input.selectionStart!,input.selectionEnd!):'');
+}
 /** Types one wristband into the phone number input and taps the Next beside it, as a volunteer would. */
 export async function enterWristband(page:Page,number:number|string,label='Wristband number') {
   await page.getByLabel(label,{exact:true}).fill(String(number));
