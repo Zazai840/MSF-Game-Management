@@ -10,8 +10,8 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   // A volunteer starts Heat 2 from the card and checks a runner in.
   const job=(await openPhone(`Stage starter ${info.project.name}`)).page;
   const card=job.getByRole('article',{name:`${name} · Girl Cubs`});
-  // Every heat saved, the event sits under Done.
-  await job.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
+  // Every heat saved, the event stays in progress: it reaches Done only once a lead confirms its medals.
+  await expect(job.locator('details',{hasText:/^Done \(\d+\)/}).filter({has:card})).toHaveCount(0);
   await card.getByRole('button',{name:'Add heat 2',exact:true}).click();
   await job.getByRole('dialog',{name:'New race'}).getByRole('button',{name:'Create heat 2',exact:true}).click();
   const input=job.getByLabel('Wristband number',{exact:true});await input.fill('2603');await input.press('Enter');
