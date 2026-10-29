@@ -1,6 +1,5 @@
 import type { DayEvent } from '../../shared/day.js';
-import { currentRaceLabel,type CurrentRace } from '../../shared/race-screen.js';
-import { Refusal } from '../access/permissions.js';
+import type { CurrentRace } from '../../shared/race-screen.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { jobRace,listRaces,type Database,type StoredRace } from './records.js';
 const emptyParts:CurrentRace['parts']={runners:{version:0,value:null},finish:{version:0,value:null},times:{version:0,value:null}};
@@ -22,13 +21,4 @@ export async function currentRaces(db:Database,dayId:string,events:readonly DayE
     const last=counters.find(counter=>counter.event_id===event.id && counter.kind===kind)?.last_number??0;
     return [event.id,{id:null,kind,number:last+1,state:'in progress',parts:emptyParts}];
   }));
-}
-/**
- * On a relay, Re-run and Restore make a race the relay's current race, so they wait while its current race has
- * check-ins. An individual event has no current race (ADR 0003): its races run side by side, so they never wait.
- */
-export async function requireCurrentUnstarted(db:Database,dayId:string,event:DayEvent,command:'re-run'|'restore') {
-  if(!event.relay) return;
-  const race=(await currentRaces(db,dayId,[event])).get(event.id)!;
-  if(race.state!=='saved' && race.parts.runners.value?.length) throw new Refusal(409,`${currentRaceLabel(race)} is in progress - ${command} after it's saved`);
 }

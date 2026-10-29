@@ -4,7 +4,7 @@ import { createApp } from '../src/server/app.js';
 import type { EventResultsRead,LeadRaceRead } from '../src/shared/lead-results.js';
 import { isTeamEntry,type TeamEntry } from '../src/shared/races.js';
 import { signInOwner } from './support/sign-in.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -15,19 +15,17 @@ async function start() {
   const people=await signInOwner(app,'relay-corrections-owner','Aisha');
   await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
-  const relays=relaySetup(app);
+  const relays=relayFlowSetup(app);
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',legs(number));}
   /** Ticks the teams in with all four children marked here and saves the heat with them placed in the order given; answers the saved heat's id. */
   async function heat(placed:number[]) {
     for(const number of placed) {await relays.tick(sam,'R22',number);for(const leg of [0,1,2,3]) await relays.here(sam,'R22',number,leg);}
-    const before=await relays.screen(sam,'R22');
-    await relays.save(sam,'R22',placed,placed.map((_,index)=>1400+index*100));
-    return before.race.id!;
+    return (await relays.save(sam,'R22',placed,placed.map((_,index)=>1400+index*100))).race.id;
   }
   const race=async(id:string)=>((await call(lead,`/api/lead/races/${id}`)).json() as LeadRaceRead).race;
   const teamEntries=async(id:string)=>((await race(id)).parts.runners.value||[]).filter(isTeamEntry);
-  /** R22's team list as the race screen carries it: each team's four wristbands and the heats holding it. */
-  const teamList=async()=>(await relays.screen(sam,'R22')).teams!.map(team=>({number:team.number,wristbands:team.legs.map(leg=>leg.wristband),heats:team.races.map(item=>item.number)}));
+  /** R22's team list as the lead's Results carries it: each team's four wristbands and the heats holding it. */
+  const teamList=async()=>((await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead).teams!.map(team=>({number:team.number,wristbands:team.legs.map(leg=>leg.wristband),heats:team.races.map(item=>item.number)}));
   return {sam,lead,relays,teams,heat,race,teamEntries,teamList};
 }
 
@@ -52,7 +50,7 @@ test('Delete race makes its teams still to run, Restore counts them as run again
   const first=await heat([1,2]);
   // An unsaved heat deleted: its team is still to run again.
   await relays.tick(sam,'R22',3);
-  const unsaved=(await relays.screen(sam,'R22')).race.id!;
+  const unsaved=(await relays.race(sam,'R22'))!.race.id;
   expect((await call(lead,`/api/lead/races/${unsaved}/delete`,{permanent:false})).statusCode).toBe(200);
   expect((await teamList()).map(team=>team.heats)).toEqual([[1],[1],[]]);
   // A saved heat deleted: both its teams are still to run, and Team 1 runs again in the next heat.
@@ -121,7 +119,7 @@ test('Correct teams on a saved heat takes a team off (still to run again), adds 
   await teams(4);
   const first=await heat([1,2,3]);
   const entries=await teamEntries(first),entryOf=(number:number)=>entries.find(entry=>entry.team.number===number)!;
-  const teamId=async(number:number)=>(await relays.screen(sam,'R22')).teams!.find(team=>team.number===number)!.id;
+  const teamId=async(number:number)=>(await relays.teams(sam,'R22')).find(team=>team.number===number)!.id;
   const saved=await race(first),versions={baseVersion:saved.parts.runners.version,finishVersion:saved.parts.finish.version};
   const correct=(body:object)=>call(lead,`/api/lead/races/${first}/teams`,{...versions,...body});
   const kept={entryId:entryOf(1).id},edited={entryId:entryOf(2).id,legs:[2201,2202,2299,2204]};
@@ -144,4 +142,20 @@ test('Correct teams on a saved heat takes a team off (still to run again), adds 
   expect(await refused({teams:[kept]})).toEqual([409,'This race has changed - open it again']);
   await relays.tick(sam,'R22',3);
   expect((await call(lead,`/api/lead/races/${first}/teams`,{baseVersion:now.parts.runners.version,finishVersion:now.parts.finish.version,teams:[...after.map(entry=>({entryId:entry.id})),{teamId:await teamId(3)}]})).json().message).toBe('Team 3 has already run');
+});
+
+test('Re-run and Restore on a relay never wait on another heat in progress: the relay\'s heats run side by side',async()=>{
+  const {sam,lead,relays,teams,heat,teamList}=await start();
+  await teams(4);
+  const first=await heat([1,2]);
+  // Heat 2 has Team 3 checked in; deleted, then Heat 3 takes Team 4 in.
+  await relays.tick(sam,'R22',3);
+  const second=(await relays.race(sam,'R22'))!.race.id;
+  expect((await call(lead,`/api/lead/races/${second}/delete`,{permanent:false})).statusCode).toBe(200);
+  await relays.tick(sam,'R22',4);
+  const restored=await call(lead,`/api/lead/races/${second}/restore`,{});
+  expect([restored.statusCode,restored.json().message]).toEqual([200,undefined]);
+  const rerun=await call(lead,`/api/lead/races/${first}/re-run`,{});
+  expect([rerun.statusCode,rerun.json().message]).toEqual([200,undefined]);
+  expect((await teamList()).map(team=>team.heats)).toEqual([[4],[4],[2],[3]]);
 });

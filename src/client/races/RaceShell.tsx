@@ -85,7 +85,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={reason?{line:reason.line,onOpen:()=>reason.step===null?onResults({event}):reason.raceId===race.id?setTab(reason.step):onRace(reason.raceId,reason.step)}:undefined}/></nav>
-    <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes}/>
+    <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes} relay={event.relay}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}

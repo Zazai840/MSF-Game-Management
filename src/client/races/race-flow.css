@@ -230,12 +230,17 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-teamlegs__leg { min-width: 56px; font-size: 13px; font-weight: 700; color: var(--ink-muted); }
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 .rz-lead-rows { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
-.rz-lead-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: var(--space-8); min-height: var(--size-touch); padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-lead-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; text-align: left; gap: var(--space-8); min-height: var(--size-touch); padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-lead-row--warn { background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-line); }
 .rz-lead-row__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; text-transform: uppercase; }
 .rz-lead-row__num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-lead-row__end { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
 .rz-lead-row__note { grid-column: 2 / -1; font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+/* A relay team as a lead reads it: "Team 5" over its four children in leg order. */
+.rz-team-legs { display: block; font-size: 14px; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.rz-lead-row__legs { grid-column: 2 / -1; margin-top: calc(-1 * var(--space-8)); }
+.rz-chip--team { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); }
+.rz-callout__team { display: block; margin-top: var(--space-4); font-variant-numeric: tabular-nums; }
 .rz-callout--status { border-color: var(--navy); background: var(--card); }
 
 /* ---------- TeamSheet: a relay's teams, and a team's four leg boxes ---------- */

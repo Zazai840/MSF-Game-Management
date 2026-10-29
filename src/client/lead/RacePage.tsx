@@ -14,6 +14,8 @@ import { api } from '../api.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { flagText } from '../../shared/runner-rulings.js';
+// Its rows, action sheets and runner actions share Results' styles, also when it opens over a race outside Results.
+import './results.css';
 /** A lead's page for one race. It has no back button of its own: the back arrow above it leads back. */
 export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
