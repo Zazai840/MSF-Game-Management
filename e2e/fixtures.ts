@@ -51,12 +51,12 @@ export async function signOwnerBackIn(request:APIRequestContext) {
 /** A volunteer's job on the Join form and in the job sheet, as the radio cards name it. */
 export type JobName='Start line'|'Finish line'|'Timer';
 /**
- * Joins as a person would on the Join form: the Olympics password (the lead code instead joins as Zone lead,
- * and the owner password as the owner), the full name and, for a volunteer, today's job. Then taps Join.
+ * Joins as a person would on the Join form: the full name, the Password (the Olympics password; the lead code instead
+ * joins as Zone lead, and the owner password as the owner) and, for a volunteer, today's job. Then taps Join.
  */
 export async function join(page:Page,name:string,{code=process.env.E2E_OLYMPICS_PASSWORD!,job}:{code?:string;job?:JobName}={}) {
-  await page.getByLabel('Olympics password',{exact:true}).fill(code);
   await page.getByLabel('Full name',{exact:true}).fill(name);
+  await page.getByLabel('Password',{exact:true}).fill(code);
   if(job) await page.getByRole('radiogroup',{name:"What's your job today?"}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
   await page.getByRole('button',{name:'Join',exact:true}).click();
 }

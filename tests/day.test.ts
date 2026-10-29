@@ -142,5 +142,5 @@ test('the day read shows a lead the Olympics password and there is no day code t
   expect(day.olympicsPassword).toMatch(/^[A-Z0-9]{8}$/);
   expect(Object.keys(day).filter(key=>/day.?code/i.test(key))).toEqual([]);
   expect((await call(token,'/api/day/day-code',{})).statusCode).toBe(404);
-  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.olympicsPassword,name:'Sam Patel'}})).json().kind).toBe('volunteer');
+  expect((await app.inject({method:'POST',url:'/api/join',payload:{code:day.olympicsPassword,name:'Sam Patel',job:'start'}})).json().kind).toBe('volunteer');
 });

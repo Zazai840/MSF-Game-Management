@@ -60,7 +60,7 @@ test('five phones share the test build: three work one race live until it saves 
   // A mistyped code on one phone does not block another phone (all phones here share one address, as in a school hall).
   const [starter,finisher,timer,mistyped]=await Promise.all([1,2,3,4].map(()=>phone(browser,use)));
   await join(mistyped,`Smoke Volunteer 4 ${run}`,{code:'wrong-olympics-password',job:'Start line'});
-  await expect(mistyped.getByRole('alert')).toHaveText("That is not the Olympics password or today's lead code. Check with a lead and try again.");
+  await expect(mistyped.getByRole('alert')).toHaveText("That password isn't right. Check it with a lead and try again.");
   for(const [index,[page,job]] of ([[starter,'Start line'],[finisher,'Finish line'],[timer,'Timer'],[mistyped,'Start line']] as Array<[Page,JobName]>).entries()) {
     await join(page,`Smoke Volunteer ${index+1} ${run}`,{job});
     await races(page);

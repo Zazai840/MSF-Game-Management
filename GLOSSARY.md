@@ -191,7 +191,7 @@ The people outside the Running Zone who keep the Olympics scoring workbook and c
 _Avoid_: Scorers, results team, admin team
 
 **Olympics password**:
-The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone signs out on that phone. It replaces the day code.
+The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone signs out on that phone. It replaces the day code. Volunteers see it as "Password" on Join; only a lead's Day setup calls it the Olympics password.
 _Avoid_: Day code, event password, PIN, access code
 
 **Profile**:
@@ -227,7 +227,7 @@ One part of a race as the race flow works it: Runners (check-in), Positions (the
 _Avoid_: Job (the relay race screen's), stage (an event's)
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Positions), Timer (Times), or Zone lead, who sees every step. Chosen after signing in and switched from the role chip; Zone lead needs the lead code once per day.
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Positions), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day.
 _Avoid_: Job, station, position
 
 **Undo**:
