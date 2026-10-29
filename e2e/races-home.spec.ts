@@ -1,10 +1,10 @@
-import {ownCode,ownWristbands,deleteCurrentRace,expect,live,lookProblems,openRace,openRaceScreen,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,deleteCurrentRace,expect,flowPost,live,lookProblems,openRace,openRelays,ownEvent,ownRelay,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,writeTeam,type Page} from './fixtures.js';
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event type'});
 const tab=(page:Page,name:string)=>tabs(page).getByRole('button',{name:new RegExp(`^${name}`)});
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 const status=(page:Page,name:string,section='Girl Cubs')=>card(page,name,section).locator('.rz-racecard__status');
 
-test('Races, Hurdles and Relays tabs show their own events, the phone keeps the last tab, and Relays keeps its list and race screens',async({openPhone,request},info)=>{
+test('Races, Hurdles and Relays tabs show their own events, the phone keeps the last tab, and a relay\'s race goes back to Relays',async({openPhone,request},info)=>{
   const project=info.project.name,races=`Tab sprint ${project}`,hurdles=`Tab hurdles ${project}`,relay=`Tab relay ${project}`;
   const [racesCode,hurdlesCode,relayCode]=[await ownCode(),await ownCode(),await ownCode()];
   await ownEvent(request,racesCode,races);
@@ -12,11 +12,13 @@ test('Races, Hurdles and Relays tabs show their own events, the phone keeps the 
   await ownRelay(relayCode,relay);
   const token=process.env.E2E_OWNER_TOKEN!;
   await writeCheckIn(request,token,racesCode,[2001]);await writeCheckIn(request,token,hurdlesCode,[2002]);
+  await writeTeam(request,token,relayCode,[(await ownWristbands('Girl Cubs',1))(1),null,null,null]);
+  await flowPost(request,token,'/api/races',{eventCode:relayCode,kind:'heat',number:1});
   const {page}=await openPhone(`Tabs ${project}`);
   // A phone that has never switched opens on Races.
   await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
   await expect(card(page,races)).toBeVisible();await expect(card(page,hurdles)).toHaveCount(0);
-  await expect(tab(page,'Relays')).toHaveAccessibleName('Relays Beta');
+  await expect(tab(page,'Relays')).toHaveAccessibleName('Relays');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('races.png'),fullPage:true});
   await tab(page,'Hurdles').click();
@@ -24,19 +26,19 @@ test('Races, Hurdles and Relays tabs show their own events, the phone keeps the 
   await expect(card(page,hurdles)).toBeVisible();await expect(card(page,races)).toHaveCount(0);
   await page.reload();
   await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');await expect(card(page,hurdles)).toBeVisible();
-  // Relays keeps today's list of relay events, and the back arrow from a relay's race screen returns to Relays.
+  // Relays lists its relays as race cards, and the back arrow from a relay's race returns to Relays.
   await openRelays(page);
   await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
-  await expect(page.getByRole('region',{name:relay,exact:true}).getByRole('button')).toHaveText(['Girl CubsNo teams yet']);
+  await expect(card(page,relay)).toBeVisible();
   await expect(card(page,races)).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relays.png'),fullPage:true});
-  await openRaceScreen(page,relay);
+  await openRace(page,relay);
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
   await tab(page,'Races').click();
   await expect(card(page,races)).toBeVisible();
-  await deleteCurrentRace(request,racesCode);await deleteCurrentRace(request,hurdlesCode);
+  for(const code of [racesCode,hurdlesCode,relayCode]) await deleteCurrentRace(request,code);
 });
 
 test('New race lists every event under its tab\'s name, and a race made from the wrong tab brings Races home back on its own tab',async({openPhone,request},info)=>{

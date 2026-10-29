@@ -79,14 +79,14 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
 .rz-tabs button { gap: var(--space-6); }
-/* Relays keep today's screens while the race flow is built for them. */
-.rz-beta { display: inline-block; transform: skewX(var(--skew-tag)); padding: 1px var(--space-6); border-radius: var(--radius-xs); background: var(--gold); color: var(--navy); font-family: var(--font-body); font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 
 /* ---------- RaceCard ---------- */
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-racecard__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
 .rz-racecard__title { margin: 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; }
 .rz-racecard__status { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--ink-muted); }
+/* A relay card's Teams row: opens its teams sheet. */
+.rz-racecard__teams { min-height: var(--size-touch); display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); margin-top: var(--space-4); padding: var(--space-6) 0 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--navy); font-family: var(--font-body); font-size: 16px; font-weight: 700; text-align: left; }
 
 /* ---------- HeatChips: states follow the viewer's step ---------- */
 .rz-heats { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
@@ -170,6 +170,9 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 /* ---------- Sheet bits: choice buttons and radio cards ---------- */
 .rz-scrim { z-index: 10; }
 .rz-sheet { max-height: 90dvh; overflow-y: auto; }
+/* While the phone is typing (flow/keyboard.ts), a sheet sits on the keyboard, its foot's actions in reach. */
+html[data-keyboard="open"] .rz-scrim { top: var(--vv-top); bottom: auto; height: var(--vv-height); }
+html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(--space-24)); }
 /* Over a phone's width a sheet becomes a centred dialog. */
 @media (min-width: 700px) {
   .rz-scrim { align-items: center; justify-content: center; padding: var(--space-24); }
@@ -234,6 +237,31 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-lead-row__end { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
 .rz-lead-row__note { grid-column: 2 / -1; font-size: 13px; font-weight: 700; color: var(--warn-ink); }
 .rz-callout--status { border-color: var(--navy); background: var(--card); }
+
+/* ---------- TeamSheet: a relay's teams, and a team's four leg boxes ---------- */
+.rz-teamsheet { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.rz-teamsheet__team { width: 100%; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-10) var(--space-12); border: 1.5px solid var(--line); border-radius: var(--radius-lg); background: none; color: var(--navy); font: inherit; text-align: left; }
+.rz-teamsheet__team--tap { background: var(--card); box-shadow: var(--shadow-card); }
+.rz-teamsheet__head { min-height: 28px; display: flex; align-items: baseline; gap: var(--space-8); }
+.rz-teamsheet__name { font-size: 18px; font-weight: 800; white-space: nowrap; }
+.rz-teamsheet__state { flex: 1; font-size: 14px; font-weight: 600; color: var(--ink-muted); }
+.rz-teamsheet__head .rz-icon { align-self: center; flex: none; }
+.rz-teamsheet__legs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); }
+.rz-teamsheet__leg { display: flex; flex-direction: column; align-items: center; padding: var(--space-4) 0; border-radius: var(--radius-sm); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rz-teamsheet__team--tap .rz-teamsheet__leg { background: var(--paper); }
+.rz-teamsheet__ord { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.rz-teamsheet__remove { color: var(--red-ink); }
+.rz-legboxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
+.rz-legboxes .rz-field__input { height: var(--size-action); padding: 0 var(--space-12); font-size: 26px; }
+.rz-legboxes .rz-field__input::placeholder { font-size: 18px; }
+/* The sheet's actions stay at its foot while the list or the boxes scroll (sticky stops at the sheet's padding, hence the offset). */
+.rz-sheet__foot { position: sticky; bottom: calc(-1 * var(--space-24)); display: flex; flex-direction: column; gap: var(--space-8); margin: 0 calc(-1 * var(--space-20)) calc(-1 * var(--space-24)); padding: var(--space-10) var(--space-20) var(--space-24); background: var(--paper); }
+/* Change anyway: a question over the sheet, answered before the leg boxes open. */
+.rz-confirm { position: fixed; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center; padding: var(--space-20); background: var(--overlay); }
+.rz-confirm__box { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-20); border-radius: var(--radius-xl); background: var(--card); color: var(--navy); box-shadow: var(--shadow-raised); }
+.rz-confirm__title { margin: 0; font-size: 20px; line-height: 1.3; font-weight: 700; }
+.rz-confirm__text { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink-muted); }
+.rz-footer__pair--home .rz-btn { width: 100%; }
 .rz-old { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .rz-runner:active { transform: none; } }
 
@@ -245,7 +273,8 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
   .rz-disclosure__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
   /* Races' footer: the Updated-at line, then New race at its own width. */
   .rz-footer--home { flex-direction: row; align-items: center; justify-content: space-between; }
-  .rz-footer--home .rz-btn--display { width: auto; min-width: 320px; padding: 0 var(--space-32); }
+  .rz-footer--home > .rz-btn--display { width: auto; min-width: 320px; padding: 0 var(--space-32); }
+  .rz-footer__pair--home { min-width: 480px; }
   /* A race: the footer's actions keep a phone's reach, at the column's right. */
   .rz-footer:not(.rz-footer--home) > * { width: 100%; max-width: 520px; margin-left: auto; }
   .rz-footer:not(.rz-footer--home) { align-items: flex-end; }

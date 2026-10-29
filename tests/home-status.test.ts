@@ -25,7 +25,7 @@ test('a relay with no teams reads No teams yet',()=>{
 });
 test('a relay tile counts the teams still to run, then the teams ticked while checking in',()=>{
   const heat1={id:'h1',kind:'heat',number:1,state:'saved'} as const,heat2={id:'h2',kind:'heat',number:2,state:'in progress'} as const;
-  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races,legs:[{wristband:2101+number,warnings:[]}]});
+  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,changedBy:null,changing:null,races,legs:[{wristband:2101+number,warnings:[]}]});
   const relay=(teams:RelayTeam[],change:Partial<HomeEvent>={})=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{id:null,kind:'heat',number:1,state:'in progress'},teams,...change});
   expect(homeStatus(relay([1,2,3,4,5].map(number=>team(number))))).toBe('Heat 1 · 5 teams to run');
   expect(homeStatus(relay([team(1)]))).toBe('Heat 1 · 1 team to run');
@@ -42,7 +42,7 @@ test('a relay tile counts the teams still to run, then the teams ticked while ch
 });
 test('a relay tile reads Heats done · Final next once no team is still to run and the current heat is empty, whoever still holds the order',()=>{
   const heat1={id:'h1',kind:'heat',number:1,state:'saved'} as const,heat2={id:'h2',kind:'heat',number:2,state:'in progress'} as const;
-  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races,legs:[{wristband:2101+number,warnings:[]}]});
+  const team=(number:number,races:TeamRace[]=[]):RelayTeam=>({id:`t${number}`,number,version:1,changedBy:null,changing:null,races,legs:[{wristband:2101+number,warnings:[]}]});
   const relay=(teams:RelayTeam[],change:Partial<HomeEvent>={})=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:{id:null,kind:'heat',number:2,state:'in progress'},teams,...change});
   // The order and times holders keep their holds into the next heat: an empty heat still reads by its teams.
   expect(homeStatus(relay([team(1,[heat1]),team(2)],{holds:{order:jo,times:sam}}))).toBe('Heat 2 · 1 team to run');
@@ -54,7 +54,7 @@ test('a relay tile reads Heats done · Final next once no team is still to run a
 });
 test('a relay Final\'s tile reads Final, then Final · Finishing order · Jo, then the submitted line, then Done',()=>{
   const final={id:'f',kind:'final',number:1,state:'in progress'} as const,heat1={id:'h1',kind:'heat',number:1,state:'saved'} as const;
-  const team=(number:number):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races:[heat1,final],legs:[{wristband:2101+number,warnings:[]}]});
+  const team=(number:number):RelayTeam=>({id:`t${number}`,number,version:1,changedBy:null,changing:null,races:[heat1,final],legs:[{wristband:2101+number,warnings:[]}]});
   const relay=(change:Partial<HomeEvent>={})=>event({code:'R22',name:'4x50m Relay',section:'Girl Cubs',relay:true,race:final,teams:[1,2,3,4,5,6].map(team),...change});
   expect(homeStatus(relay())).toBe('Final');
   expect(homeStatus(relay({holds:{order:jo}}))).toBe('Final · Finishing order · Jo');

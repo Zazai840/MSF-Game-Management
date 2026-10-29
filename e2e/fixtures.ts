@@ -238,13 +238,36 @@ export async function openTeam(request:APIRequestContext,token:string,relayCode:
   return home.events.find(event=>event.code===relayCode)!.teams!.find(team=>team.id===teamId)!.version;
 }
 /**
- * Writes a team as that phone, as its Done does: takes the relay's teams hold, opens the team (with no `teamId`, a new
- * team), then sends the four boxes (null for an empty box) and the wristbands whose warnings it kept.
+ * Writes a team as that phone, as Save in its teams sheet does: the four boxes (null for an empty box) and the
+ * wristbands whose warnings it kept, a new team with no `teamId`, else against the version it sees. Returns the races list.
  */
 export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{teamId,keptWarnings=[]}:{teamId?:string;keptWarnings?:number[]}={}) {
-  await takeTeams(request,token,relayCode);
-  const version=teamId?await openTeam(request,token,relayCode,teamId):undefined;
-  return teamsWrite(request,token,relayCode,'done',{teamId,version,legs,keptWarnings});
+  const group=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(item=>item.event.code===relayCode)!;
+  const version=teamId?group.teams!.find(team=>team.id===teamId)!.version:undefined;
+  const response=await request.post(`/api/relays/${group.event.id}/teams${teamId?`/${teamId}`:''}`,{headers:bearer(token),data:{version,legs,keptWarnings}});
+  expect(response.ok(),await response.text()).toBe(true);
+  return await response.json() as RacesRead;
+}
+/** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
+export const flowPost=(request:APIRequestContext,token:string,url:string,data:object)=>postOk<RaceFlowRead>(request,token,url,data);
+/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, each child here, placed in list order and timed. */
+export async function runHeat(request:APIRequestContext,token:string,code:string,teams:number) {
+  const post=(url:string,data:object)=>flowPost(request,token,url,data);
+  const groups=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups;
+  let read=await post('/api/races',{eventCode:code,kind:'heat',number:groups.find(group=>group.event.code===code)!.nextHeat});
+  const id=read.race.id;
+  for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) {
+    read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
+    for(const leg of [0,1,2,3]) read=await post(`/api/races/${id}/teams/${team.id}/here`,{leg,here:true});
+  }
+  read=await post(`/api/races/${id}/steps/runners/done`,{});
+  const order=(read.race.parts.runners.value||[]).filter(isTeamEntry).sort((a,b)=>a.team.number-b.team.number).map(entry=>entry.id);
+  read=await post(`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order,didNotFinish:[],didNotRun:[],added:[]});
+  read=await post(`/api/races/${id}/steps/positions/done`,{});
+  read=await post(`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:order.map((_,index)=>1400+index*50),keptWrong:[]});
+  read=await post(`/api/races/${id}/steps/times/done`,{});
+  expect(read.race.state).toBe('saved');
+  return read;
 }
 /** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
 async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'take-off'|'here'|'edit-open',number:number,data:object={}) {
@@ -286,12 +309,13 @@ export async function openTeams(page:Page) {
   await expect(page.getByRole('heading',{level:1,name:'Teams',exact:true})).toBeVisible();
 }
 /**
- * Deletes the event's races not yet saved for good (a relay's current race), as a lead does a race opened by
- * mistake, so no race a test left unsaved lingers on the shared test day. A saved race stays.
+ * Deletes the event's races not yet saved for good, as a lead does a race opened by mistake, so no race a test left
+ * unsaved lingers on the shared test day. A saved race stays.
  */
 export async function deleteCurrentRace(request:APIRequestContext,code:string) {
-  const owner=process.env.E2E_OWNER_TOKEN!,group=await raceGroup(request,owner,code);
-  const ids=group?group.races.filter(race=>race.state!=='saved').map(race=>race.id):[(await readRaceScreen(request,owner,code)).race].filter(race=>race.id!==null && race.state!=='saved').map(race=>race.id!);
+  const owner=process.env.E2E_OWNER_TOKEN!;
+  const group=((await (await request.get('/api/races',{headers:bearer(owner)})).json()) as RacesRead).groups.find(item=>item.event.code===code)!;
+  const ids=group.races.filter(race=>race.state!=='saved').map(race=>race.id);
   for(const id of ids) expect((await request.post(`/api/lead/races/${id}/delete`,{headers:bearer(owner),data:{permanent:true}})).ok()).toBe(true);
 }
 /** From Races: taps a race's chip on its event group's card ("H1", "Final"), opening Done when the group is done, and waits for the race. */

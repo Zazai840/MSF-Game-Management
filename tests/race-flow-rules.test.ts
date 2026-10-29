@@ -1,5 +1,6 @@
 import { expect,test } from 'vitest';
-import { chipLabel,chipState,finalConfirm,groupDone,groupStatus,leadFinalLine,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { chipLabel,chipState,finalConfirm,groupDone,groupStatus,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { teamState,teamsReadyLine,teamsRow,teamsSheetLine,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,createdAt:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,createdAt,updatedAt:createdAt,steps});
 const group=(code:string,races:RaceSummary[],updatedAt:string,finalAvailable=false,medalsDecided=false)=>({event:{code},races,updatedAt,finalAvailable,medalsDecided}) as unknown as RaceGroup;
@@ -98,4 +99,29 @@ test('only a lead is offered the final: a volunteer\'s card says who makes it, a
   }
   expect(finalConfirm(cubs([saved(1),saved(2),saved(3)]))).toEqual({title:'Have all Girl Cubs heats run?',text:'3 heats saved. The final takes the fastest 6, and no more heats can be added.'});
   expect(finalConfirm(cubs([saved(1)])).text).toBe('1 heat saved. The final takes the fastest 6, and no more heats can be added.');
+});
+test('a relay with teams and no heats sits in Teams ready, no heats yet, after In progress; one with neither is not listed',()=>{
+  const team=(number:number,races:RelayTeam['races']=[]):RelayTeam=>({id:`t${number}`,number,legs:[],version:1,changedBy:null,changing:null,races});
+  const relay=(code:string,teams:RelayTeam[],races:RaceSummary[]=[])=>({...group(code,races,'2026-06-01T10:00:00Z'),teams}) as RaceGroup;
+  const groups=[relay('ready',[team(1),team(2)]),relay('empty',[]),relay('running',[team(1)],[race('a','2026-06-01T10:00:00Z',{runners:status('in progress'),positions:status('not started'),times:status('not started')})]),group('race',[],'')];
+  for(const sections of [raceSections(groups,'start'),leadSections(groups,[])]) {
+    expect(sections.teamsReady.map(item=>item.event.code)).toEqual(['ready']);
+    expect([...sections.ready,...sections.inProgress,...sections.done].map(item=>item.event.code)).toEqual(['running']);
+  }
+  expect(finalConfirm({...relay('cubs',[team(1)],[{...race('h1','2026-06-01T10:00:00Z',{},'saved'),number:1}]),event:{format:'heats',section:'Girl Cubs',relay:true}} as unknown as RaceGroup).text)
+    .toBe('1 heat saved. The final takes the fastest 6 teams, and no more heats can be added.');
+});
+test('a relay\'s Teams row and teams sheet say how many teams there are, which are still to run, and what each team is doing',()=>{
+  const legs=(filled:number)=>[0,1,2,3].map(index=>({wristband:index<filled?2001+index:null,warnings:[]}));
+  const team=(number:number,races:RelayTeam['races']=[],filled=4):RelayTeam=>({id:`t${number}`,number,legs:legs(filled),version:1,changedBy:null,changing:null,races});
+  const ran=team(1,[{id:'h1',kind:'heat',number:1,state:'saved'}]),checking=team(2,[{id:'h2',kind:'heat',number:2,state:'in progress'}]);
+  const final=team(3,[{id:'h1',kind:'heat',number:1,state:'saved'},{id:'f',kind:'final',number:1,state:'in progress'}]);
+  expect([ran,checking,final,team(4),team(5,[],3)].map(teamState)).toEqual(['Heat 1 · ran','Heat 2 · change it at check-in','Final · change it at check-in','Still to run','Still to run · 3 of 4']);
+  expect(teamsRow([ran,checking,team(4),team(5,[],3)])).toBe('Teams 4 · 2 still to run');
+  expect(teamsRow([ran,checking])).toBe('Teams 2');
+  expect(teamsSheetLine([ran,team(4)],true)).toBe('2 teams · 1 still to run. Tap a team still to run to change it.');
+  expect(teamsSheetLine([team(4)],true)).toBe('1 team · 1 still to run. Tap a team still to run to change it.');
+  expect(teamsSheetLine([],true)).toBe('No teams yet. Tap New team to type the first.');
+  expect(teamsSheetLine([ran],false)).toBe('The final has been made, so the teams can\'t change. A lead can correct a team in Results.');
+  expect(teamsReadyLine([team(1),team(2),team(3)])).toBe('3 teams ready · no heats yet');
 });

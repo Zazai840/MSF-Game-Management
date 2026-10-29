@@ -7,7 +7,7 @@ import './race-page.css';
 /** One team of the race as Correct teams sends it: kept as it is, its four children corrected, or added from the team list. */
 type TeamChoice={entryId:string;legs?:Array<number|null>}|{teamId:string};
 /** A team in the race as the team editor reads a team: its four children as they ran in this race. */
-const asTeam=(entry:TeamEntry):RelayTeam=>({id:entry.team.id,number:entry.team.number,legs:entry.legs,version:0,changing:null,races:[]});
+const asTeam=(entry:TeamEntry):RelayTeam=>({id:entry.team.id,number:entry.team.number,legs:entry.legs,version:0,changedBy:null,changing:null,races:[]});
 /**
  * Correct teams, a relay race's "Correct runner list": tap a team to correct its four children (they keep the team's
  * place and time, and on the team's latest race the Teams screen changes too), take a team off the race (it is still to

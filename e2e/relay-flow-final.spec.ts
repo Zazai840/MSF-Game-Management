@@ -1,34 +1,10 @@
-import type { APIRequestContext } from '@playwright/test';
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import { isTeamEntry } from '../src/shared/races.js';
-import {expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
+import {expect,live,lookProblems,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const markButton=(page:Page,team:number,mark:'Here'|'Absent')=>card(page,team).getByRole('button',{name:`Team ${team}: ${mark}`,exact:true});
-async function post(request:APIRequestContext,token:string,url:string,data:object) {
-  const response=await request.post(url,{headers:{authorization:`Bearer ${token}`},data});
-  expect(response.ok(),`${url}: ${await response.text()}`).toBe(true);
-  return await response.json() as RaceFlowRead;
-}
-/** Runs heat 1 to saved through the race flow: every team in it with each child here, placed in list order and timed. */
-async function runHeat(request:APIRequestContext,token:string,code:string,teams:number) {
-  let read=await post(request,token,'/api/races',{eventCode:code,kind:'heat',number:1});
-  const id=read.race.id;
-  for(const team of read.teams!.slice(0,teams)) {
-    read=await post(request,token,`/api/races/${id}/teams/${team.id}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await post(request,token,`/api/races/${id}/teams/${team.id}/here`,{leg,here:true});
-  }
-  read=await post(request,token,`/api/races/${id}/steps/runners/done`,{});
-  const order=(read.race.parts.runners.value||[]).filter(isTeamEntry).sort((a,b)=>a.team.number-b.team.number).map(entry=>entry.id);
-  read=await post(request,token,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order,didNotFinish:[],didNotRun:[],added:[]});
-  read=await post(request,token,`/api/races/${id}/steps/positions/done`,{});
-  read=await post(request,token,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:order.map((_,index)=>1400+index*50),keptWrong:[]});
-  read=await post(request,token,`/api/races/${id}/steps/times/done`,{});
-  expect(read.race.state).toBe('saved');
-}
-
 test('a lead makes a relay final and two phones run it: Here / Absent per seeded team, That\'s everyone asking about the unmarked one, and the final saving itself with no Times',async({openPhone,request},info)=>{
   const project=info.project.name,code=await ownCode(),name=`Relay final ${project}`;
   await ownRelay(code,name,'Girl Cubs');
@@ -40,7 +16,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // Only a lead makes the final; it seeds the fastest 6 teams, Team 7 left out.
   const refused=await request.post('/api/races',{headers:{authorization:`Bearer ${sam.token}`},data:{eventCode:code,kind:'final'}});
   expect(refused.status()).toBe(403);
-  const raceId=(await post(request,lead.token,'/api/races',{eventCode:code,kind:'final'})).race.id;
+  const raceId=(await flowPost(request,lead.token,'/api/races',{eventCode:code,kind:'final'})).race.id;
   const read=async()=>await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead;
   for(const phone of [sam,finish]) await phone.page.goto(`/races/${raceId}`);
   const [one,line]=[sam.page,finish.page];

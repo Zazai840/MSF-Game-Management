@@ -21,6 +21,7 @@ import { raceScreenRoutes } from './races/race-screen.js';
 import { raceFlowRoutes } from './races/race-flow.js';
 import { liveRoutes } from './live/routes.js';
 import { teamRoutes } from './relays/teams.js';
+import { teamSheetRoutes } from './relays/team-sheet.js';
 export interface AppSettings {
   databaseUrl: string; ownerPassword: string; resetTestDay?: boolean; trustedProxyHops?: number;
   // Turns on request logging (JSON lines); codes and the owner password only travel in bodies, which Fastify never logs.
@@ -70,6 +71,7 @@ export async function createApp(settings: AppSettings) {
   raceScreenRoutes(app,pool);
   raceFlowRoutes(app,pool);
   teamRoutes(app,pool);
+  teamSheetRoutes(app,pool);
   resultsRoutes(app,pool);
   rulingRoutes(app,pool);
   runnerRulingRoutes(app,pool);
