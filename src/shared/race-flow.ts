@@ -3,7 +3,7 @@ import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
 import { andList } from './race-screen.js';
 import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
-import type { RelayTeam } from './teams.js';
+import { entryCount,type RelayTeam } from './teams.js';
 import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
@@ -92,12 +92,12 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
  * Finishing order needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
  * a heat nobody finished).
  */
-export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'>,step:Step):string|null {
-  const runners:RaceEntry[]=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?'Nobody is marked Here yet':'Nobody is checked in yet';
+export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step):string|null {
+  const runners:RaceEntry[]=race.parts.runners.value||[],finish=race.parts.finish.value,relay=race.event.relay;
+  if(!runners.length) return race.kind==='final'?(relay?'No team is marked Here yet':'Nobody is marked Here yet'):relay?'No team is in this heat yet':'Nobody is checked in yet';
   if(step==='positions') {
     const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-    return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} runners have no place yet`;
+    return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;
   }
   if(step==='times') {
     const times=race.parts.times.value;
