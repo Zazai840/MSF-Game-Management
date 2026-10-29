@@ -27,7 +27,7 @@ One running competition for one section, such as 60m for Girl Cubs. Races shows 
 _Avoid_: Competition, discipline
 
 **Event code**:
-The scoring team's identifier for an event (R1, R2, ...).
+The scoring team's identifier for an event (R1, R2, ...). It shows only in the Zone lead role; volunteers never see it.
 _Avoid_: Event ID, event number
 
 **Event format**:
@@ -53,7 +53,7 @@ A race of an event that is not its final, formed at the start line from whoever 
 _Avoid_: Qualifier, preliminary
 
 **Final**:
-The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place).
+The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats, and can hold more runners when a lead adds them (for example both children in a tie for 6th place). Only a lead makes it, after confirming that every heat has run; making it completes the heats, so no more heats can be added (a final made too early is undone by reopening the heats in Results).
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
@@ -191,7 +191,7 @@ The people outside the Running Zone who keep the Olympics scoring workbook and c
 _Avoid_: Scorers, results team, admin team
 
 **Olympics password**:
-The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone signs out on that phone. It replaces the day code.
+The one password for the whole Olympics that lets a phone in, the same on every Olympics day. A phone types it once and stays in until a lead changes it or someone signs out on that phone. It replaces the day code. Volunteers see it as "Password" on Join; only a lead's Day setup calls it the Olympics password.
 _Avoid_: Day code, event password, PIN, access code
 
 **Profile**:
@@ -215,7 +215,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat or the final.
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. New race makes the next heat, or for a lead the final.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:
@@ -227,7 +227,7 @@ One part of a race as the race flow works it: Runners (check-in), Positions (the
 _Avoid_: Job (the relay race screen's), stage (an event's)
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Positions), Timer (Times), or Zone lead, who sees every step. Chosen after signing in and switched from the role chip; Zone lead needs the lead code once per day.
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Positions), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day.
 _Avoid_: Job, station, position
 
 **Undo**:

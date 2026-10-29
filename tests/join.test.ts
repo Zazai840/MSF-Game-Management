@@ -12,29 +12,29 @@ async function start() {
 }
 test('the Olympics password makes a new name a volunteer profile, and the same phone joins again by its name',async()=>{
   const {olympics}=await start();
-  const first=await join({code:olympics,name:'  Amina   Yusuf ',profiles:[]});
+  const first=await join({code:olympics,job:'start',name:'  Amina   Yusuf ',profiles:[]});
   expect(first.statusCode).toBe(200);
   const made=first.json();
   expect(made).toMatchObject({kind:'volunteer',profile:{name:'Amina Yusuf'},phone:{level:'Volunteer'}});
   expect(made.pass).toEqual(expect.any(String));expect(made.profile.secret).toEqual(expect.any(String));
-  const again=(await join({code:olympics,name:'amina yusuf',profiles:[{id:made.profile.id,secret:made.profile.secret}]})).json();
+  const again=(await join({code:olympics,job:'start',name:'amina yusuf',profiles:[{id:made.profile.id,secret:made.profile.secret}]})).json();
   expect(again).toMatchObject({kind:'volunteer',profile:{id:made.profile.id}});
   expect(again.profile.secret).toBeUndefined();
 });
 test('a name held on another phone joins as the next free number, and the first phone keeps its own',async()=>{
   const {olympics}=await start();
-  const first=(await join({code:olympics,name:'Tom Barker',profiles:[]})).json();
-  const second=await join({code:olympics,name:'tom barker',profiles:[]});
+  const first=(await join({code:olympics,job:'start',name:'Tom Barker',profiles:[]})).json();
+  const second=await join({code:olympics,job:'start',name:'tom barker',profiles:[]});
   expect(second.statusCode).toBe(200);
   expect(second.json()).toMatchObject({kind:'volunteer',profile:{name:'Tom Barker 2'},phone:{level:'Volunteer'}});
   expect(second.json().profile.id).not.toBe(first.profile.id);
-  expect((await join({code:olympics,name:'Tom Barker',profiles:[]})).json().profile.name).toBe('Tom Barker 3');
+  expect((await join({code:olympics,job:'start',name:'Tom Barker',profiles:[]})).json().profile.name).toBe('Tom Barker 3');
   // The first phone still joins as itself.
-  expect((await join({code:olympics,name:'Tom Barker',profiles:[{id:first.profile.id,secret:first.profile.secret}]})).json().profile.id).toBe(first.profile.id);
+  expect((await join({code:olympics,job:'start',name:'Tom Barker',profiles:[{id:first.profile.id,secret:first.profile.secret}]})).json().profile.id).toBe(first.profile.id);
 });
 test('today\'s lead code alone signs in as a lead, numbering a name taken on another phone; the owner password signs in the owner',async()=>{
   const {olympics,leadCode}=await start();
-  await join({code:olympics,name:'Sam Patel',profiles:[]});
+  await join({code:olympics,job:'start',name:'Sam Patel',profiles:[]});
   const lead=(await join({code:leadCode.toLowerCase(),name:'Sam Patel',profiles:[]})).json();
   expect(lead).toMatchObject({kind:'lead',profile:{name:'Sam Patel 2'},phone:{level:'Lead'},pass:expect.any(String)});
   const owner=(await join({code:'join-owner',name:'Aisha',profiles:[]})).json();
@@ -45,9 +45,23 @@ test('a wrong code is refused plainly and backs off per address after five',asyn
   for(let attempt=0;attempt<5;attempt++) {
     const wrong=await join({code:'NOPE',name:'Jo'},'10.0.0.9');
     expect(wrong.statusCode).toBe(403);
-    expect(wrong.json().message).toBe("That is not the Olympics password or today's lead code. Check with a lead and try again.");
+    expect(wrong.json().message).toBe("That password isn't right. Check it with a lead and try again.");
   }
   expect((await join({code:'NOPE',name:'Jo'},'10.0.0.9')).statusCode).toBe(429);
   expect((await join({code:'NOPE',name:'Jo'},'10.0.0.10')).statusCode).toBe(403);
-  expect((await join({code:'',name:'Jo'})).json().message).toBe('Type the Olympics password');
+  expect((await join({code:'',name:'Jo'})).json().message).toBe('Type the password');
+});
+test('a phone whose password pass is out of date is told the password has changed',async()=>{
+  const {olympics}=await start();
+  const made=(await join({code:olympics,job:'start',name:'Lena Old',profiles:[]})).json();
+  const stale=await app.inject({method:'POST',url:'/api/sign-in',payload:{pass:'old-pass',profileId:made.profile.id,secret:made.profile.secret}});
+  expect(stale.statusCode).toBe(401);
+  expect(stale.json()).toMatchObject({message:'The password has changed. Type the new one.',reason:'password-changed'});
+});
+test('the Olympics password without a job keeps the person on Join: nobody is signed in and the name stays free',async()=>{
+  const {olympics}=await start();
+  const refused=await join({code:olympics,name:'Rae Nojob',profiles:[]});
+  expect(refused.statusCode).toBe(400);
+  expect(refused.json()).toMatchObject({message:'Choose your job',reason:'choose-job'});
+  expect((await join({code:olympics,name:'Rae Nojob',job:'timer',profiles:[]})).json().profile.name).toBe('Rae Nojob');
 });

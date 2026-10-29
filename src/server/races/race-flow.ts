@@ -102,8 +102,8 @@ function requestedStep(request:FastifyRequest,race:Pick<StoredRace,'kind'>):Step
   return step;
 }
 /**
- * The race flow's routes, all Volunteer. Each write runs under the day lock, raises the day revision when it changes
- * anything (which wakes every open stream), and answers with the race as it then stands.
+ * The race flow's routes, all Volunteer (making a final needs a lead). Each write runs under the day lock, raises the
+ * day revision when it changes anything (which wakes every open stream), and answers with the race as it then stands.
  */
 export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool),raceId=(request:FastifyRequest)=>(request.params as {raceId:string}).raceId;
@@ -115,12 +115,14 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('GET','/api/races','Volunteer',(_request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>racesRead(db,phone.dayId)));
   action('GET','/api/races/:raceId','Volunteer',(request,_reply,phone)=>read(phone,raceId(request)));
   // New race: the next heat of an event group, or its final. Two phones making the same next heat get one race: the
-  // second is answered with the race the first made. A final runs today's Heats complete checks and seeds the fastest 6.
+  // second is answered with the race the first made. Only a lead makes the final: it runs today's Heats complete checks
+  // and seeds the fastest 6.
   action('POST','/api/races','Volunteer',(request,_reply,phone)=>{
     const body=(request.body||{}) as {eventCode?:unknown;kind?:unknown;number?:unknown};
     if(typeof body.eventCode!=='string') throw new Refusal(400,'Choose an event and section');
     if(body.kind!=='heat' && body.kind!=='final') throw new Refusal(400,'Choose a heat or the final');
     if(body.kind==='heat' && !Number.isSafeInteger(body.number)) throw new Refusal(400,'Choose the heat number');
+    if(body.kind==='final' && phone.level!=='Lead') throw new Refusal(403,'Ask a lead to make the final');
     const {eventCode,kind}=body,number=Number(body.number);
     return write(phone,'',async(client,unchanged)=>{
       const event:DayEvent|undefined=(await readEvents(client,false,phone.dayId)).find(event=>event.code===eventCode);

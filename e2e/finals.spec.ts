@@ -52,15 +52,36 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(priya.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
  await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await expect(final).toContainText('1015');
 });
-test('+ Final on a card makes the final from the fastest, and an unstarted final rebuilt after a heat correction shows its new line-up live',async({page,openPhone},info)=>{
+test('only a lead\'s + Final makes the final from the fastest, after a confirm, and an unstarted final rebuilt after a heat correction shows its new line-up live',async({page,openPhone},info)=>{
  const project=info.project.name,code=await ownCode(),name=`Short sprint ${project}`;
  const [heat]=await heatsToFinal(page,code,name,[[[1041,1042],[900,1000]]],`Short final lead ${project}`);
  await expect(page.getByRole('list',{name:'Provisional leaderboard'}).getByText('Qualifying line',{exact:true})).toBeVisible();
- // A volunteer makes the final from the card on Races.
+ // A volunteer is not offered the final: the card says who makes it.
  const sam=await openPhone(`Short final phone ${project}`);
  const card=sam.page.getByRole('article',{name:`${name} · Boy Cubs`});
- await expect(card.locator('.rz-racecard__status')).toContainText('the final is ready to create');
- await card.getByRole('button',{name:'Create the final from the fastest 6',exact:true}).click();
+ await expect(card.locator('.rz-racecard__status')).toHaveText('Heat 1 done');
+ await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toBeVisible();
+ await expect(card.getByRole('button',{name:/final/i})).toHaveCount(0);
+ // A lead makes it from the card, after a confirm with the heat count; Not yet changes nothing.
+ const lena=(await openPhone(`Short final card lead ${project}`,{lead:true})).page;
+ const leadCard=lena.getByRole('article',{name:`${name} · Boy Cubs`});
+ await expect(leadCard.locator('.rz-racecard__status')).toHaveText('Heat 1 saved · make the final once every heat has run');
+ const plusFinal=leadCard.getByRole('button',{name:'Create the final from the fastest 6',exact:true});
+ await plusFinal.click();
+ const confirm=lena.getByRole('dialog',{name:'Have all Boy Cubs heats run?',exact:true});
+ await expect(confirm.locator('.rz-sheet__text')).toHaveText('1 heat saved. The final takes the fastest 6, and no more heats can be added.');
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('make-the-final.png'),fullPage:true});
+ await confirm.getByRole('button',{name:'Not yet',exact:true}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(leadCard.getByRole('button',{name:'Add heat 2',exact:true})).toBeVisible();
+ await expect(leadCard.getByRole('button',{name:/^Final[, ]/})).toHaveCount(0);
+ await plusFinal.click();await confirm.getByRole('button',{name:'Make the final',exact:true}).click();
+ await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
+ await expect(lena.getByRole('tablist',{name:'Final steps'})).toBeVisible();
+ // Once the final is made nobody is offered another heat, and the volunteer opens the final from the card.
+ await expect(card.getByRole('button',{name:/^Add heat/})).toHaveCount(0,live);
+ await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toHaveCount(0);
+ await openRace(sam.page,name,'Boy Cubs','Final');
  await expect(sam.page.getByRole('heading',{level:2,name:'Who is here?'})).toBeVisible();
  await expect(attendance(sam.page)).toHaveText([/1st seed\s*1041\s*Here/,/2nd seed\s*1042\s*Here/]);
  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};

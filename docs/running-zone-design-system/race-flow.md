@@ -57,9 +57,11 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ## Screens
 
 ### 1. Join (artboard `N1-Join`)
-- Fields: Olympics password, Full name, "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
-- Copy under the cards: "You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password."
-- Typing the lead code into the code field signs in as Zone lead and skips the job choice.
+- Fields: Full name, Password (the Olympics password, shown as typed), "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
+- Copy under the cards: "You can switch job on any race. Zone lead? Type your lead code as the password."
+- Typing the lead code as the password signs in as Zone lead and skips the job choice.
+- A wrong password shows "That password isn't right. Check it with a lead and try again." in the amber warning callout under the Password box. Join with no job stays on the form with "Choose your job" in amber under the cards. The keyboard's Go key joins.
+- A signed-in phone with no job yet (a name tapped under Welcome back, or a lead's access ended) shows only the job cards: one tap opens Races; Zone lead asks for the lead code first.
 - Display-primary "Join" goes to Races.
 
 ### 2. Races: Home (artboard `N2-Races`)
@@ -82,7 +84,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 **RaceCard**, one per event group:
 - Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · 1 and 2 done").
 - Then the **HeatChips** row: one chip per race in order, then "+" (add the next heat).
-- When it applies, a "+ Final" chip appears; tapping it creates the final. A locked final isn't shown on the card.
+- When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
 - Tapping a chip opens that race.
 
 **Footer**: Updated-at line with Refresh, and the display-primary "+ New race".

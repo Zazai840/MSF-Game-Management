@@ -123,9 +123,9 @@ export function chipLabel(race:Pick<RaceSummary,'kind'|'number'|'state'|'steps'>
 }
 /**
  * A race card's status line, written for the viewer's role: "Heats 3 and 4 need times · 1 and 2 done",
- * "Heat 1 needs times · Heat 2 is checking in", "All 3 heats done · the final is ready to create".
+ * "Heat 1 needs times · Heat 2 is checking in", "All 3 heats done". Only a lead makes the final, so it is not offered here.
  */
-export function groupStatus(group:Pick<RaceGroup,'races'|'finalAvailable'>,role:Exclude<Role,'lead'>) {
+export function groupStatus(group:Pick<RaceGroup,'races'>,role:Exclude<Role,'lead'>) {
   const step=roleSteps[role],races=group.races;
   const ready=races.filter(race=>workable(race,step)),done=races.filter(race=>doneFor(race,role));
   const rest=races.filter(race=>!ready.includes(race) && !done.includes(race));
@@ -134,6 +134,23 @@ export function groupStatus(group:Pick<RaceGroup,'races'|'finalAvailable'>,role:
   if(done.length===races.length && races.length>1) parts.push(`All ${races.length} heats done`);
   else if(done.length) parts.push(`${ready.length?numbers(done):heatList(done)} done`);
   if(rest.length) parts.push(`${heatList(rest)} ${rest.length>1?'are':'is'} ${rest.some(race=>race.steps.runners?.state!=='done')?'checking in':'waiting'}`);
-  if(group.finalAvailable) parts.push('the final is ready to create');
   return parts.join(' · ');
+}
+type FinalGroup=Pick<RaceGroup,'event'|'races'|'heatsOpen'>;
+/** Heats still running towards a final: a heats event whose heats are not complete (no final made, no results without one). */
+const heatsRunning=(group:FinalGroup)=>group.event.format==='heats' && group.heatsOpen;
+const savedHeats=(group:FinalGroup)=>group.races.filter(race=>race.kind!=='final' && race.state==='saved');
+/** Under a volunteer's chips while heats run: who makes the final, and when. */
+export const volunteerFinalLine=(group:FinalGroup)=>heatsRunning(group)?'A lead makes the final once every heat has run.':null;
+/** A lead's card while heats run and nothing waits: "Heat 2 saved · make the final once every heat has run". */
+export function leadFinalLine(group:FinalGroup) {
+  const saved=savedHeats(group);
+  return heatsRunning(group) && saved.length?`${heatList(saved)} saved · make the final once every heat has run`:null;
+}
+/** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
+export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>`${group.event.section} heats are finished. Ask a lead to add another heat.`;
+/** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
+export function finalConfirm(group:FinalGroup) {
+  const saved=savedHeats(group).length;
+  return {title:`Have all ${group.event.section} heats run?`,text:`${saved} ${saved===1?'heat':'heats'} saved. The final takes the fastest 6, and no more heats can be added.`};
 }
