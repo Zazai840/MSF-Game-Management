@@ -210,7 +210,9 @@ test('an event group says its medals are decided only once a lead has Event comp
   expect(await decided('R7')).toBe(true);
   // 60m with a final: the heats complete and the final saved are not the medals; Final complete is.
   await heat(ahmed,'R4',1,[2001,2002],[1100,1200],steps);
-  const final=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
+  const made=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
+  // A final's check-in starts with nobody marked: both finalists are Here.
+  const final=await ok(ahmed,`/api/races/${made.race.id}/absent`,{raceId:made.race.id,version:made.race.parts.runners.version,here:made.race.final!.entries.map(entry=>entry.finalEntryId),absent:[]});
   await done(ahmed,final,'runners');await done(ahmed,await order(ahmed,final,[2001,2002]),'positions');
   expect((await ok(ahmed,`/api/races/${final.race.id}`)).race.state).toBe('saved');
   expect(await decided('R4')).toBe(false);
