@@ -3,7 +3,8 @@ import { flushSync } from 'react-dom';
 import { ordinal } from '../../shared/ordinal.js';
 import { finishedWords,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { andList,onlyRunners } from '../../shared/race-screen.js';
-import { entryName,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
+import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
+import { changingName,filledLegs,stillToRun,teamCount,type TeamLeg } from '../../shared/teams.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
@@ -79,6 +80,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
     return sent;
   });
   if(race.kind==='final') return <Attendance {...{read,flow,onDone,locked}}/>;
+  if(event.relay) return <TeamStartLine {...{read,flow,onDone,locked}}/>;
   const count=entries.length,more=applies && count>usualRunnersPerRace,on=target?change:entry;
   const cancel=()=>{change.fix();setAsking(false);setChanging(null);};
   const start=(item:Entry)=>{change.fix();change.type(String(item.wristband));setAsking(false);setSaid('');setChanging(item);};
@@ -126,6 +128,46 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>That's everyone</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>{entry.checking?'Checking…':'Next'}</KeepFocus>
     </div>}</DockedFooter>}
+  </>;
+}
+/** A team short of four children runs short: it never blocks the race, and a lead checks it once saved. */
+const RunsShort=({legs}:{legs:TeamLeg[]})=>filledLegs({legs})<4?<span className="rz-teamcard__note">Runs short · {filledLegs({legs})} of 4</span>:null;
+/**
+ * A relay heat's Start line: the teams in this heat as cards, each child in leg order with Here / Not yet and Take off
+ * while none of its children is here, then Still to run, each team with Add. Taps count from anyone as the race stands
+ * (ADR 0002), so phones tapping at once all land and the last tap on a child wins. That's everyone marks Runners done.
+ */
+function TeamStartLine({read,flow,onDone,locked}:StepProps) {
+  const {race}=read,teams=read.teams||[],entries=(race.parts.runners.value||[]).filter(isTeamEntry),toRun=teams.filter(stillToRun);
+  const here=entries.reduce((sum,entry)=>sum+entry.legs.filter(leg=>leg.here).length,0);
+  const tap=(teamId:string,what:string,body:object={})=>void flow.write(`teams/${teamId}/${what}`,body);
+  return <>
+    <main className="rz-main">
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · {teamCount(entries.length)} · {here} {here===1?'child':'children'} here</p>
+        <h2 className="rz-prompt__q">Which teams are running?</h2></div>
+      {flow.error && <Callout message={flow.error}/>}
+      {entries.map(entry=><section key={entry.id} className="rz-teamcard" aria-label={`Team ${entry.team.number}`}>
+        <div className="rz-teamcard__head"><h3 className="rz-teamcard__name">Team {entry.team.number}</h3><RunsShort legs={entry.legs}/>
+          {!locked && !entry.legs.some(leg=>leg.here) && <button type="button" className="rz-btn rz-btn--small" onClick={()=>tap(entry.team.id,'take-off')}>Take off</button>}</div>
+        <ul className="rz-attendance rz-attendance--one">{entry.legs.map((leg,index)=>leg.wristband!==null && <li key={index} className={leg.here?undefined:'is-absent'}>
+          <span className="rz-attendance__who"><span className="rz-attendance__seed">{ordinal(index+1)} leg</span><span className="label">{leg.wristband}</span></span>
+          <button type="button" className={leg.here?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked} aria-pressed={leg.here} aria-label={`${leg.wristband}: Here`}
+            onClick={()=>tap(entry.team.id,'here',{leg:index,here:!leg.here})}>{leg.here?'Here':'Not yet'}</button>
+        </li>)}</ul>
+      </section>)}
+      {!locked && <>
+        <h3 className="rz-section">Still to run</h3>
+        {toRun.length?<ul className="rz-teamrows" aria-label="Still to run">{toRun.map(team=>{
+          const changer=changingName(team);
+          return <li key={team.id} className="rz-listrow"><span className="rz-listrow__main"><span className="rz-listrow__label">Team {team.number}</span>
+            <span className="rz-listrow__meta">{team.legs.flatMap(leg=>leg.wristband===null?[]:[leg.wristband]).join(' · ')}</span>
+            {changer?<span className="rz-teamcard__note">{changer} is changing this team</span>:<RunsShort legs={team.legs}/>}</span>
+            {!changer && <button type="button" className="rz-btn rz-btn--small rz-btn--primary" aria-label={`Add Team ${team.number}`} onClick={()=>tap(team.id,'tick')}><Icon name="plus"/>Add</button>}
+          </li>;
+        })}</ul>:<p className="rz-empty">{teams.length?'Every team on the list is in a heat.':'No teams on the list yet.'}</p>}
+      </>}
+    </main>
+    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!entries.length || flow.busy} onClick={()=>onDone('runners')}>That's everyone</button></DockedFooter>}
   </>;
 }
 type Mark='here'|'absent'|null;

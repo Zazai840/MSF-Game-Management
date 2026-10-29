@@ -93,9 +93,9 @@ async function postOk<T>(request:APIRequestContext,token:string,url:string,data:
   expect(response.ok(),`${url}: ${await response.text()}`).toBe(true);
   return await response.json() as T;
 }
-/** The event's group in the races list, or undefined for a relay. */
+/** The event's group in the races list, or undefined for a relay: these helpers still save a relay on its race screen. */
 async function raceGroup(request:APIRequestContext,token:string,eventCode:string) {
-  return ((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(group=>group.event.code===eventCode);
+  return ((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(group=>group.event.code===eventCode && !group.event.relay);
 }
 /** The race an individual event is at as that phone sees it now, making its next heat when it has none; null for a relay. */
 export async function flowRace(request:APIRequestContext,token:string,eventCode:string) {
