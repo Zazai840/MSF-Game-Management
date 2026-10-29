@@ -119,8 +119,8 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button></>}/>}
     </main>
     {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
-      <KeepFocus className="rz-btn" onClick={cancel}>Cancel</KeepFocus>
-      <KeepFocus className="rz-btn rz-btn--remove" onClick={remove}>Remove</KeepFocus>
+      <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
+      <button type="button" className="rz-btn rz-btn--remove" onClick={remove}>Remove</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!change.current || change.held || change.checking} onClick={save}>{change.checking?'Checking…':'Save'}</KeepFocus>
     </div>:<div className="rz-footer__pair">
       <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>That's everyone</button>

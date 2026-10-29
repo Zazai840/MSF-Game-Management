@@ -18,6 +18,8 @@ async function withKeyboard(session:PhoneSession) {
   return session;
 }
 const keyboard=(page:Page,height:number|null)=>page.evaluate(height=>(window as unknown as {keyboard:(height:number|null)=>void}).keyboard(height),height);
+/** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
+const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
 const footerBottom=async(footer:Locator)=>{const box=(await footer.boundingBox())!;return box.y+box.height;};
 /** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen. */
 async function docksAboveKeyboard(page:Page,box:Locator,footer=page.locator('footer.rz-footer')) {
@@ -47,12 +49,11 @@ test('the start line\'s That\'s everyone and Next ride on the keyboard, and a ta
   await docksAboveKeyboard(page,box);
   const next=page.locator('footer.rz-footer').getByRole('button',{name:'Next',exact:true});
   await expect(next).toHaveAttribute('aria-disabled','true');
-  // A phone taps; desktop has no touch, so it clicks: both press the mouse down, which must not take focus.
-  await (info.project.use.hasTouch?next.tap({force:true}):next.click({force:true}));
+  await press(next,true);
   await expect(box).toBeFocused();
   await expect(page.getByRole('list',{name:'Wristbands entered'})).toHaveCount(0);
 });
-test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard',async({openPhone,request},info)=>{
+test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard, and Cancel or Remove lets it close',async({openPhone,request},info)=>{
   const code=await ownCode(),name=`Docked change ${info.project.name}`;
   await ownEvent(request,code,name);
   const {page,token}=await withKeyboard(await openPhone(`Docked change ${info.project.name}`));
@@ -61,6 +62,16 @@ test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard',
   await page.getByRole('button',{name:'2015, Change',exact:true}).click();
   await expect(page.locator('footer.rz-footer').getByRole('button')).toHaveText(['Cancel','Remove','Save']);
   await docksAboveKeyboard(page,page.getByLabel('New number for 2015',{exact:true}));
+  // Cancel and Remove end the typing, so a press on either takes focus from the box and the keyboard can close.
+  const typing=()=>page.evaluate(()=>document.activeElement?.tagName==='INPUT');
+  const footer=page.locator('footer.rz-footer');
+  await press(footer.getByRole('button',{name:'Cancel',exact:true}));
+  expect(await typing()).toBe(false);
+  await page.getByRole('button',{name:'2015, Change',exact:true}).click();
+  await page.getByLabel('New number for 2015',{exact:true}).focus();
+  await press(footer.getByRole('button',{name:'Remove',exact:true}));
+  await expect(page.getByRole('button',{name:'2015, Change',exact:true})).toHaveCount(0);
+  expect(await typing()).toBe(false);
 });
 test('the finish line\'s Back and Add runner ride on the keyboard',async({openPhone,request},info)=>{
   const code=await ownCode(),name=`Docked finish ${info.project.name}`;
