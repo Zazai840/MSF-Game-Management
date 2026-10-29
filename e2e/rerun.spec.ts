@@ -20,7 +20,7 @@ test('a heat replaced by a re-run says which heat replaced it, offers no Restore
   const steps=page.getByRole('tablist',{name:'Heat 2 steps'});
   await expect(steps.getByRole('tab',{name:/^Runners/})).toContainText('3 so far');
   await expect(page.getByRole('list',{name:'Wristbands entered'}).getByRole('button')).toHaveText(['2011','2012','2013']);
-  await expect(page.getByRole('button',{name:/kept for a lead to check$/})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/kept for a lead to check/})).toHaveCount(0);
   await expect(steps.getByRole('tab',{name:/^Finishing order/})).toContainText('Not started');
   await expect(steps.getByRole('tab',{name:/^Times/})).toContainText('Not started');
   await page.screenshot({path:info.outputPath('rerun-race.png'),fullPage:true});
