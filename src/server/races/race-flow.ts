@@ -52,6 +52,7 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
   const events=(await readEvents(db,true,dayId)).filter(event=>!event.relay && (!only || event.id===only));
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const counters=(await db.query("SELECT c.event_id,c.last_number FROM race_counters c JOIN events e ON e.id=c.event_id WHERE e.day_id=$1 AND c.kind<>'final'",[dayId])).rows;
+  const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
   return Promise.all(events.map(async event=>{
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
@@ -62,7 +63,10 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
     const medalsDecided=stages.some(item=>item.eventId===event.id && ['event','final','no-final'].includes(item.stage));
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,updatedAt};
+    // Results without a final never waits: the lead's call decides the medals at once.
+    const stage=event.format==='timed'?'event' as const:own.some(race=>race.kind==='final')?'final' as const:null;
+    const medalsWaiting=stage && own.length && !medalsDecided && own.every(race=>race.state==='saved')?{stage,since:own.map(race=>savedAt.get(race.id)??'').sort().at(-1)!}:null;
+    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt};
   }));
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {

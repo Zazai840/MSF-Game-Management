@@ -1,7 +1,9 @@
 import type { DayEvent } from './day.js';
+import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
 import { andList } from './race-screen.js';
 import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
+import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
@@ -54,8 +56,11 @@ export interface FinalReason { raceId:string; step:Step|null; line:string }
  * `finalReason`, while `finalAvailable`, is the first thing the heats check would refuse the final for.
  * `heatsOpen` is whether a new heat can be made: false once its heats (a timed event: the event) are complete.
  * `medalsDecided` is whether a lead has decided its medals: Event complete, Final complete or Results without a final.
+ * `medalsWaiting` is the lead's Confirm the medals waits on, while every race so far is saved and the medals are not
+ * decided: Final complete once the final is saved, or Event complete on a timed event; `since` is its last race's save.
  */
-export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean; updatedAt:string }
+export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean;
+  medalsWaiting:{stage:'final'|'event';since:string}|null; updatedAt:string }
 /** The races list, versioned by the day revision: every switched-on event that is not a relay, in programme order. */
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /** One race in the flow, with its group (for the heat chips) and its steps. */
@@ -161,4 +166,28 @@ export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'
 export function finalConfirm(group:FinalGroup) {
   const saved=savedHeats(group).length;
   return {title:`Have all ${group.event.section} heats run?`,text:`${saved} ${saved===1?'heat':'heats'} saved. The final takes the fastest 6, and no more heats can be added.`};
+}
+const ownIssues=(group:Pick<RaceGroup,'event'>,issues:readonly DayLeadItem[])=>issues.filter(item=>item.event.code===group.event.code);
+/** The check sheet a lead's Confirm the medals opens on this card, shown only once nothing of the event is in To check. */
+export const medalsToConfirm=(group:Pick<RaceGroup,'event'|'medalsWaiting'>,issues:readonly DayLeadItem[])=>!ownIssues(group,issues).length && group.medalsWaiting?.stage||null;
+/**
+ * A lead's card status line: the event's To check line first, then what its medals wait on, "Medals decided" once
+ * confirmed, else the final's line or each race's state.
+ */
+export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medalsDecided'|'medalsWaiting'>,issues:readonly DayLeadItem[]) {
+  const own=ownIssues(group,issues),stage=medalsToConfirm(group,issues);
+  if(own.length) return issueLine(own);
+  if(stage) return stage==='final'?'Final saved · confirm the medals':'Every race saved · confirm the medals after the last race';
+  return group.medalsDecided?'Medals decided':leadFinalLine(group)??groupStatus(group,'lead');
+}
+/**
+ * A lead's sections: Ready for you is the groups with open issues or medals waiting on the lead, the one that started
+ * waiting last first (its newest issue, or its last race's save); the rest as for everyone.
+ */
+export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {
+  const listed=groups.filter(group=>group.races.length),newest=(a:RaceGroup,b:RaceGroup)=>b.updatedAt.localeCompare(a.updatedAt);
+  const waitingSince=(group:RaceGroup)=>[...ownIssues(group,issues).map(item=>item.at),group.medalsWaiting?.since??''].sort().at(-1);
+  const ready=listed.filter(waitingSince).sort((a,b)=>waitingSince(b)!.localeCompare(waitingSince(a)!));
+  const rest=listed.filter(group=>!ready.includes(group));
+  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),done:rest.filter(groupDone).sort(newest)};
 }
