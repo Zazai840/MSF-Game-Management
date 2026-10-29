@@ -129,19 +129,19 @@ export function App() {
   </main></BackArea></>;
 }
 /**
- * The job choice after signing in, once per day on this phone: Start line, Finish line or Timer, each with its job
- * star. A zone lead types the lead code instead. The job can be switched on any race.
+ * The job choice for a signed-in phone with no job yet (a name tapped under Welcome back, or a lead's access ended):
+ * one tap on Start line, Finish line or Timer opens Races. Zone lead asks for the lead code first. The job can be
+ * switched on any race.
  */
 function JoinJob({name,onChoose,onLead}:{name:string;onChoose:(role:Role)=>void;onLead:()=>Promise<void>}) {
-  const [job,setJob]=useState<Role|null>(null),[asking,setAsking]=useState(false);
+  const [asking,setAsking]=useState(false);
   return <Screen screen="Join"><HomeBar><Avatar name={name} onOpen={()=>{}}/></HomeBar>
     <main className="rz-main rz-main--form">
       <h1 className="rz-screen-title">What's your job today?</h1>
-      <JobChoice role={job} label="What's your job today?" onChoose={next=>{setJob(next);setAsking(false);}}/>
+      <JobChoice role={null} label="What's your job today?" onChoose={onChoose}/>
       <p className="rz-empty">You can switch job on any race. Zone lead? Tap Zone lead and type the lead code.</p>
-      <JobCard role="lead" checked={asking} onChoose={()=>{setAsking(true);setJob(null);}}/>
+      <JobCard role="lead" checked={asking} onChoose={()=>setAsking(true)}/>
       {asking && <LeadCode onLead={async()=>{await onLead();onChoose('lead');}}/>}
     </main>
-    {!asking && <footer className="rz-footer rz-footer--sticky"><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!job} onClick={()=>job && onChoose(job)}>Join</button></footer>}
   </Screen>;
 }

@@ -63,13 +63,15 @@ test('once a lead decides without a final, a volunteer\'s Races shows the event 
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(18),w(19),w(4)],[935,990,1060]);
   const volunteer=(await openPhone(`No final volunteer ${project}`)).page;
   const card=volunteer.getByRole('article',{name:`${name} · Girl Cubs`});
-  await expect(card.locator('.rz-racecard__status')).toHaveText('All 2 heats done · the final is ready to create');
+  await expect(card.locator('.rz-racecard__status')).toHaveText('All 2 heats done');
+  await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toBeVisible();
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{stage:'no-final',comment:'Out of time'}})).ok()).toBe(true);
   // Done: under Done on Races, with no next heat and no final to make.
   await expect(volunteer.locator('details',{hasText:/^Done \(\d+\)/})).toBeVisible(live);
   await volunteer.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
   await expect(card.locator('.rz-racecard__status')).toHaveText('All 2 heats done');
   await expect(card.getByRole('button',{name:/^Add heat|^Create the final/})).toHaveCount(0);
+  await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toHaveCount(0);
   await volunteer.screenshot({path:info.outputPath('a5-races-done.png'),fullPage:true});
   await openRace(volunteer,name,'Girl Cubs','H2');
   await expect(volunteer.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
