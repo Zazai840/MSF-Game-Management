@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { submitBlocker,type Job } from '../../shared/race-screen.js';
 import type { RacePartName } from '../../shared/races.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -39,13 +39,9 @@ async function finalReason(db:Database,dayId:string,code:string,own:readonly Sto
   if(!item) return null;
   const raceId=item.raceId??results.ties.find(tie=>tie.id===item.tieId)!.entries[0]!.raceId;
   const race=own.find(race=>race.id===raceId),name=race?raceName(race):'A heat';
-  if(item.kind==='ran-twice') return {raceId,step:null,line:`${resultName(results.leaderboard.find(row=>row.raceId===raceId && row.entryId===item.entryId)!)} ran twice: choose which result counts first`};
-  if(item.kind==='tie') return {raceId,step:'times',line:`${name} has a tie to settle first`};
-  const reason=results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0];
-  if(reason==='times out of order' || reason==="finishers and times don't agree") return {raceId,step:'times',line:`${name} has a time to check first`};
-  if(reason==='awaiting times') return {raceId,step:'times',line:`${name} needs its times first`};
-  if(reason==='awaiting finishing order' || reason==='checked in') return {raceId,step:'positions',line:`${name} needs its finishing order first`};
-  return {raceId,step:null,line:`${name} is not saved yet`};
+  if(item.kind==='ran-twice') return {raceId,...finalHold('ran-twice',resultName(results.leaderboard.find(row=>row.raceId===raceId && row.entryId===item.entryId)!))};
+  if(item.kind==='tie') return {raceId,...finalHold('tie',name)};
+  return {raceId,...finalHold(results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0],name)};
 }
 /** Each switched-on event that is not a relay as an event group, its races in order (heats, then the final). */
 async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGroup[]> {
@@ -56,7 +52,7 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
-    const finalAvailable=event.format==='heats' && !own.some(race=>race.kind==='final') && heats.length>0 && heats.every(race=>race.state==='saved')
+    const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
       && !stageDone(event.id,'heats',stages);
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';

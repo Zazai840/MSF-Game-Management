@@ -149,7 +149,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       await requirePass(client, body?.pass);
       const day = await runningDay(client);
       const taken = (await client.query('SELECT name FROM profiles WHERE lower(name)=lower($1)', [name])).rows[0];
-      if (taken) throw new Refusal(409, `${taken.name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`, {taken:true});
+      if (taken) throw new Refusal(409, `${taken.name} already has a profile. If that's you, tap That's me. If not, add your middle name or initial.`, {taken:true});
       const profile = await createProfile(client, name);
       return {profile, ...await signIn(client, day.id, profile)};
     });

@@ -2,6 +2,7 @@ import type { DayEvent } from './day.js';
 import { ordinal } from './ordinal.js';
 import { andList } from './race-screen.js';
 import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
+import type { NotRankedReason } from './results-rules.js';
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
@@ -43,11 +44,24 @@ export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:Partial<Re
   return {...own,state:own.doneAt?'done':count>0?'in progress':'not started',count,expected,...(step==='positions'?{didNotFinish}:{})};
 }
 /** A saved finishing order in words: "10 finished · 1 did not finish". */
-export const finishedWords=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
+export const finishedCount=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished`;
+export const finishedWords=(status:StepStatus)=>`${finishedCount(status)}${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
 /** A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. */
 export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; createdAt:string; updatedAt:string; steps:Partial<Record<Step,StepStatus>> }
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
+/**
+ * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs), a tie,
+ * or why the heat is not ranked yet (`name` is the heat's). "Heat 1 has a time to check first".
+ */
+export function finalHold(kind:'ran-twice'|'tie'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
+  if(kind==='ran-twice') return {step:null,line:`${name} ran twice: choose which result counts first`};
+  if(kind==='tie') return {step:'times',line:`${name} has a tie to settle first`};
+  if(kind==='times out of order' || kind==="finishers and times don't agree") return {step:'times',line:`${name} has a time to check first`};
+  if(kind==='awaiting times') return {step:'times',line:`${name} needs its times first`};
+  if(kind==='awaiting finishing order' || kind==='checked in') return {step:'positions',line:`${name} needs its finishing order first`};
+  return {step:null,line:`${name} is not saved yet`};
+}
 /**
  * An event group: one event × one section, with its races in order. `nextHeat` is the number "+" makes, and
  * `finalAvailable` says "+ Final" can be tapped: a heats event with no final yet, every heat with runners saved.
@@ -68,6 +82,8 @@ export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
 }
 /** A group is done once its medals are decided; until then it stays in progress, even with every race saved. */
 export const groupDone=(group:Pick<RaceGroup,'medalsDecided'>)=>group.medalsDecided;
+/** Whether an event group's final is made: New race then opens it, and nobody makes another. */
+export const finalMade=(group:{races:readonly Pick<RaceSummary,'kind'>[]})=>group.races.some(race=>race.kind==='final');
 /**
  * Home's sections for a volunteer role: Ready for you (a race whose step for the role can be worked on now, the
  * group whose oldest such race was made first coming first), In progress (every other group not done, most recently
@@ -110,16 +126,20 @@ export function heatList(races:readonly Pick<RaceSummary,'kind'|'number'>[]) {
 }
 /**
  * A race's state in the viewer's step, and where it comes on a card: what waits for them (0), their step done or, for a
- * lead, the race in progress (1), the race saved (2), then a race still with others (3).
+ * lead, the race in progress (1), the race saved (2), then a race still with others (3). `joins` is how a card line
+ * puts it after the races: "Heats 3 and 4 need times", "Heat 2 is waiting", "Heat 1 checked in", "The final: check who is here".
  */
-function raceWord(race:Pick<RaceSummary,'kind'|'state'|'steps'>,role:Role):{text:string;rank:number} {
-  if(role==='lead') return race.state==='saved'?{text:'saved',rank:2}:chipState(race,role)==='ready'?{text:'needs a lead',rank:0}:{text:'in progress',rank:1};
-  if(race.state==='saved') return {text:'done',rank:2};
+type RaceWord={rank:number} & ({joins:'needs';what:string}|{joins:'is';what:'waiting'|'checking in'}|{joins:'reads';what:string}|{joins:'final check'});
+function raceWord(race:Pick<RaceSummary,'kind'|'state'|'steps'>,role:Role):RaceWord {
+  if(role==='lead') return race.state==='saved'?{joins:'reads',what:'saved',rank:2}:chipState(race,role)==='ready'?{joins:'needs',what:'a lead',rank:0}:{joins:'reads',what:'in progress',rank:1};
+  if(race.state==='saved') return {joins:'reads',what:'done',rank:2};
   const step=roleSteps[role],status=race.steps[step];
-  if(status?.state==='done') return {text:stepDone[step],rank:1};
-  if(status && workable(race,step)) return {text:race.kind==='final' && step==='runners'?'check who is here':`needs ${stepNeeds[step]}`,rank:0};
-  return {text:race.steps.runners?.state==='done'?'waiting':'checking in',rank:3};
+  if(status?.state==='done') return {joins:'reads',what:stepDone[step],rank:1};
+  if(status && workable(race,step)) return race.kind==='final' && step==='runners'?{joins:'final check',rank:0}:{joins:'needs',what:stepNeeds[step],rank:0};
+  return {joins:'is',what:race.steps.runners?.state==='done'?'waiting':'checking in',rank:3};
 }
+/** A race's word on its own, as its chip says it: "needs times", "waiting", "checked in", "check who is here". */
+const wordText=(word:RaceWord)=>word.joins==='final check'?'check who is here':word.joins==='needs'?`needs ${word.what}`:word.what;
 /**
  * A heat chip's state for a viewer: done (their step done or not on this race, or the race saved), ready (their step
  * can be worked on now; for a lead, every step done but the race not saved, so it waits for them) or waiting.
@@ -131,18 +151,19 @@ export function chipState(race:Pick<RaceSummary,'state'|'steps'>,role:Role):'don
   return workable(race,roleSteps[role])?'ready':'waiting';
 }
 /** A heat chip's name in words, so its state never rests on colour alone: "Heat 3, needs times", "Heat 1, checked in". */
-export const chipLabel=(race:Pick<RaceSummary,'kind'|'number'|'state'|'steps'>,role:Role)=>`${raceName(race)}, ${raceWord(race,role).text}`;
+export const chipLabel=(race:Pick<RaceSummary,'kind'|'number'|'state'|'steps'>,role:Role)=>`${raceName(race)}, ${wordText(raceWord(race,role))}`;
 /**
  * A race card's status line, each race's state in the viewer's step: "Heats 3 and 4 need times · Heats 1 and 2 done",
  * "Heat 1 checked in · Heat 2 is checking in", "Heats 1 and 2 and the final done", "The final: check who is here".
  */
 export function groupStatus(group:Pick<RaceGroup,'races'>,role:Role) {
-  const words=group.races.map(race=>raceWord(race,role));
-  return [...new Map(words.map(word=>[word.text,word])).values()].sort((a,b)=>a.rank-b.rank).map(({text})=>{
-    const races=group.races.filter((_,index)=>words[index].text===text),many=races.length>1;
-    if(text==='check who is here') return `${heatList(races)}: ${text}`;
-    const verb=text.startsWith('needs ') && many?text.replace('needs','need'):text==='waiting' || text==='checking in'?`${many?'are':'is'} ${text}`:text;
-    return `${heatList(races)} ${verb}`;
+  const words=group.races.map(race=>raceWord(race,role)),texts=words.map(wordText);
+  return [...new Map(words.map((word,index)=>[texts[index],word])).entries()].sort(([,a],[,b])=>a.rank-b.rank).map(([text,word])=>{
+    const races=group.races.filter((_,index)=>texts[index]===text),list=heatList(races),many=races.length>1;
+    if(word.joins==='final check') return `${list}: ${text}`;
+    if(word.joins==='needs') return `${list} ${many?'need':'needs'} ${word.what}`;
+    if(word.joins==='is') return `${list} ${many?'are':'is'} ${word.what}`;
+    return `${list} ${word.what}`;
   }).join(' · ');
 }
 type FinalGroup=Pick<RaceGroup,'event'|'races'|'heatsOpen'>;
@@ -154,9 +175,12 @@ export const volunteerFinalLine=(group:FinalGroup)=>heatsRunning(group)?'A lead 
 /** A lead's card while heats run, once a heat is saved and nothing waits: "Heat 2 saved · make the final once every heat has run". */
 export const leadFinalLine=(group:FinalGroup)=>heatsRunning(group) && savedHeats(group).length?`${groupStatus(group,'lead')} · make the final once every heat has run`:null;
 /** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
-export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>`${group.event.section} heats are finished. Ask a lead to add another heat.`;
+const finishedLine=(section:string,final:boolean,ask:string)=>`${section} ${final?'final is':'heats are'} finished. Ask a lead to ${ask}.`;
+export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>finishedLine(group.event.section,false,'add another heat');
 /** A race whose stage is complete, on its screen and in the refusal of its writes: "Girl Cubs heats are finished. Ask a lead to change this race." */
-export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>`${race.event.section} ${race.kind==='final'?'final is':'heats are'} finished. Ask a lead to change this race.`;
+export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>finishedLine(race.event.section,race.kind==='final','change this race');
+/** A relay whose heats are complete, in the refusal of its team writes. */
+export const teamsFinishedLine=(relay:{section:string})=>finishedLine(relay.section,false,'change the teams');
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
 export function finalConfirm(group:FinalGroup) {
   const saved=savedHeats(group).length;

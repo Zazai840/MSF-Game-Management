@@ -156,9 +156,9 @@ test('tapping a typed wristband changes it in the big box, checked like a new nu
   await chip('2003').click();
   await expect(chips(page)).toHaveText(['2001','3065','2003']);
   await expect(input).toBeFocused();await expect(input).toHaveValue('20');
-  // Cancel does too.
+  // Cancel does too, and ends the typing: the box lets go so the keyboard can close, the half-typed number kept.
   await chip('2001').click();await footerButton(page,'Cancel').click();
-  await expect(input).toBeFocused();await expect(input).toHaveValue('20');
+  await expect(input).not.toBeFocused();await expect(input).toHaveValue('20');
   // The changed runner keeps its entry: the server's list has the same ids.
   const before=(await flowRace(request,token,code))!.race.parts.runners.value!.filter(isRunner).map(runner=>runner.id);
   await chip('2001').click();

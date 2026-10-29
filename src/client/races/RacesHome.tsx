@@ -1,11 +1,11 @@
 import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { groupDone,groupStatus,leadFinalLine,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
+import { finalMade,groupDone,groupStatus,leadFinalLine,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { issueLine } from '../../shared/to-check.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
-import { Callout,FinalSheet,HeatChips,Icon } from './parts.js';
+import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import type { SavedStep } from './RaceShell.js';
 import { Toast } from './Toast.js';
@@ -59,14 +59,14 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
     catch(failure) {setFailure(failure instanceof Error?failure.message:'Could not connect - please try again');}
   }
   const card=(group:RaceGroup)=>{
-    const own=issues.filter(item=>item.event.code===group.event.code),reason=group.finalReason;
+    const own=issues.filter(item=>item.event.code===group.event.code);
     return <article key={group.event.id} className="rz-racecard" aria-label={`${group.event.name} · ${group.event.section}`}>
-      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3>{role==='lead' && <span className="rz-code-tag">{group.event.code}</span>}</div>
+      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3><CodeTag code={group.event.code} role={role}/></div>
       <p className="rz-racecard__status">{role!=='lead'?groupStatus(group,role):own.length?issueLine(own):leadFinalLine(group)??groupStatus(group,role)}</p>
       <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
         onFinal={role==='lead' && group.finalAvailable?()=>setConfirming(group.event.code):undefined}
-        finalReason={role==='lead' && reason?{line:reason.line,onOpen:()=>reason.step?onRace(reason.raceId,reason.step):onResults({event:group.event})}:undefined}/>
+        finalReason={role==='lead' && group.finalReason?<FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>:undefined}/>
       {role!=='lead' && volunteerFinalLine(group) && <p className="rz-field__hint">{volunteerFinalLine(group)}</p>}
     </article>;
   };
@@ -85,8 +85,8 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>New race</button>
     </footer>
     {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
-    {creating && snapshot && <NewRaceSheet groups={all} lead={role==='lead'} choice={creating} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
-      const made=all.find(group=>group.event.code===choice.eventCode)?.races.some(race=>race.kind==='final');
+    {creating && snapshot && <NewRaceSheet groups={all} role={role} choice={creating} onRace={onRace} onResults={onResults} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
+      const group=all.find(item=>item.event.code===choice.eventCode),made=group && finalMade(group);
       if(choice.kind==='final' && !made) {setCreating(null);setConfirming(choice.eventCode);} else void make(choice);
     }}/>}
     {finalFor && <FinalSheet group={finalFor} failure={failure} onClose={()=>{setConfirming(null);setFailure('');}} onMake={()=>void make({eventCode:finalFor.event.code,kind:'final',number:0,direct:true})}/>}

@@ -119,8 +119,8 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button></>}/>}
     </main>
     {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
-      <KeepFocus className="rz-btn" onClick={cancel}>Cancel</KeepFocus>
-      <KeepFocus className="rz-btn rz-btn--remove" onClick={remove}>Remove</KeepFocus>
+      <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
+      <button type="button" className="rz-btn rz-btn--remove" onClick={remove}>Remove</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!change.current || change.held || change.checking} onClick={save}>{change.checking?'Checking…':'Save'}</KeepFocus>
     </div>:<div className="rz-footer__pair">
       <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>That's everyone</button>
@@ -237,8 +237,10 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       disabled={locked} aria-pressed={as(runner)===value} onClick={()=>setLeftAs({...leftAs,[runner.id]:value})}>{label}</button>;
     return <>
       <main className="rz-main">
-        <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p><h2 className="rz-prompt__q">Check the order</h2></div>
-          {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div>
+        {/* The line above spans the screen, so it stays on one line at 360px; Back sits beside the question. */}
+        <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p>
+          <div className="rz-heading-row"><h2 className="rz-prompt__q">Check the order</h2>
+            {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div></div>
         {flow.error && <Callout message={flow.error}/>}
         {sizeNote}
         {order.length>0 && <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>String(byId.get(id)?.wristband??'')} disabled={locked}
@@ -328,7 +330,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         return <li key={index}><button type="button" className={kind} aria-current={index===target && !full?'step':undefined} disabled={locked || held || (time===undefined && index!==places.length)}
           aria-label={`${ordinal(index+1)} place: ${time===undefined?'no time yet':formatTime(time)}${isWrong?`, ${wrong.get(index)!.reason}`:''}`}
           onClick={()=>{setRetype(time===undefined?null:index);setTyped(time===undefined?'':digitsForTime(time));}}>
-          <span className="rz-slot__ord">{ordinal(index+1)}</span><span className="rz-slot__time">{time===undefined?'–':formatTime(time)}</span>
+          <span className="rz-slot__ord">{ordinal(index+1)}{isWrong && <Icon name="warning" className="rz-slot__flag"/>}</span><span className="rz-slot__time">{time===undefined?'–':formatTime(time)}</span>
           {isWrong && <span className="rz-slot__note">{keptWrong.includes(index)?'Kept':wrong.get(index)!.reason}</span>}
         </button></li>;
       })}</ol>:<p className="rz-empty">Places appear here once runners are checked in.</p>}

@@ -3,9 +3,14 @@ import { afterEach,expect,test,vi } from 'vitest';
 import type pg from 'pg';
 import { openDatabase } from '../src/server/storage.js';
 import { createRace } from '../src/server/races/create.js';
-import { listRaces,readRace } from '../src/server/races/records.js';
+import { listRaces,readRace,requireStageOpen } from '../src/server/races/records.js';
 let pool:pg.Pool;
 afterEach(async()=>{vi.restoreAllMocks();await pool?.end();});
+
+test('a lead\'s write to a finished final is refused in the same words as the race screen\'s',()=>{
+  expect(()=>requireStageOpen({stageComplete:true,kind:'final',event:{section:'Girl Cubs'}})).toThrow('Girl Cubs final is finished. Ask a lead to change this race.');
+  expect(()=>requireStageOpen({stageComplete:false,kind:'final',event:{section:'Girl Cubs'}})).not.toThrow();
+});
 
 test('batched pool and client reads match individual reads, preserve ordering, and isolate days/deleted races',async()=>{
   pool=await openDatabase(process.env.TEST_DATABASE_URL!,true);

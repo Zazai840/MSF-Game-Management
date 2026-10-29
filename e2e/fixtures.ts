@@ -454,6 +454,8 @@ export async function lookProblems(page:Page) {
       const tops=[...strip.querySelectorAll('.rz-step__label')].map(label=>Math.round(label.getBoundingClientRect().top));
       if(new Set(tops).size>1) problems.push(`step labels out of line ${describe(strip)}`);
     }
+    // A prompt's line above its question ("Heat 1 · drag a handle to move a runner") on one line, never a word left on a second.
+    for(const meta of document.querySelectorAll('.rz-prompt__meta')) if(visible(meta)&&meta.getBoundingClientRect().height>parseFloat(getComputedStyle(meta).lineHeight)*1.5) problems.push(`wrapped ${describe(meta)}`);
     // A button's label on one line: every line box of its text starts at the same height.
     for(const button of document.querySelectorAll('.rz-btn')) {
       if(!visible(button)) continue;

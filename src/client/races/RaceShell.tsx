@@ -5,7 +5,7 @@ import { raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usual
 import { api,StaleRequest } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
-import { Callout,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
+import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { useFlowWrite } from './writes.js';
@@ -75,7 +75,6 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
     for(const item of issues.items) {const at=issueStep(item);notes[at]=`${issues.items.filter(other=>issueStep(other)===at).length} to check`;}
     if(!notes.runners && usualSizeApplies(event) && (race.parts.runners.value?.length||0)>usualRunnersPerRace) notes.runners='More than usual';
   }
-  const reason=lead?group.finalReason:null;
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
     <RaceBar title={`${event.name} · ${event.section}`} code={event.code} role={role} onBack={onBack}>
@@ -84,7 +83,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
-      finalReason={reason?{line:reason.line,onOpen:()=>reason.step===null?onResults({event}):reason.raceId===race.id?setTab(reason.step):onRace(reason.raceId,reason.step)}:undefined}/></nav>
+      finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>

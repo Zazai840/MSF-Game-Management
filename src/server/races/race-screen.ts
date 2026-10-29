@@ -366,7 +366,7 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   const lineup=runnersOf([...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)]);
   if([...here,...absent].some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
-  if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
+  if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Two runners marked Here have the same wristband number. Ask a lead to check the final.');
   await publishPart(client,phone,race,'runners',runners);
   await markFinalAbsent(client,race.id,absent);
   await dropFromOrder(client,target.race,runners);

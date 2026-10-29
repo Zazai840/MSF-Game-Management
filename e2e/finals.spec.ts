@@ -1,4 +1,4 @@
-import {ownCode,ownWristbands,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,backToRaces,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -28,7 +28,10 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // Heats are complete, so no phone offers another heat, on the race or on its card.
  await expect(sam.getByRole('button',{name:/^Add heat/})).toHaveCount(0);
  await sam.getByRole('button',{name:'Back to Races',exact:true}).click();
- await expect(sam.getByRole('article',{name:`${name} · Boy Cubs`}).getByRole('button',{name:/^Add heat/})).toHaveCount(0);
+ const samCard=sam.getByRole('article',{name:`${name} · Boy Cubs`});
+ await expect(samCard.getByRole('button',{name:/^Add heat/})).toHaveCount(0);
+ // The card names the final apart from the heats, in the start line's words.
+ await expect(samCard.locator('.rz-racecard__status')).toHaveText('The final: check who is here · Heats 1 and 2 done');
  await openRace(sam,name,'Boy Cubs','Final');
  // A final has two steps: who is here, and the finishing order.
  await expect(sam.getByRole('tablist',{name:'Final progress'}).getByRole('tab')).toHaveCount(2);
@@ -58,6 +61,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await priya.getByRole('button',{name:'Save the order',exact:true}).click();
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
+ await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
  await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText('1015');await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText('1st: 1015');await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('1015');await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
@@ -117,17 +121,25 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  await expect(lena.getByRole('dialog')).toHaveCount(0);
  const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
  await expect(reason).toBeVisible();
+ // Its warning icon is navy, an approved colour pair on the card and on paper (accessibility.md).
+ expect(await reason.locator('.rz-icon').evaluate(icon=>getComputedStyle(icon).color)).toBe('rgb(30, 43, 81)');
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
- // New race never offers the final the server would refuse: Final is greyed, with the reason in the hint.
+ // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's Times tab too.
  await lena.getByRole('button',{name:'New race',exact:true}).click();
  const sheet=lena.getByRole('dialog',{name:'New race'});
  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Boy Cubs ${code}`,exact:true}).click();
  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
- await expect(sheet.getByText('Boy Cubs already has heat 1. Heat 1 has a time to check first.',{exact:true})).toBeVisible();
- await lena.keyboard.press('Escape');
+ await expect(sheet.getByText('Boy Cubs already has heat 1.',{exact:true})).toBeVisible();
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-sheet.png')});
+ await sheet.getByRole('button',{name:'Heat 1 has a time to check first',exact:true}).click();
+ const opened=async()=>{
+  await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
+  await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
+ };
+ await opened();
+ await backToRaces(lena);
  await reason.click();
- await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
- await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
+ await opened();
  const onRace=lena.getByRole('navigation',{name:'Heats'});
  await expect(onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveAttribute('aria-disabled','true');
  await expect(onRace.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toBeVisible();

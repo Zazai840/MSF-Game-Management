@@ -64,6 +64,8 @@ test('a new phone joins with its name, the password and its job, stays signed in
   await welcome.getByRole('button',{name:new RegExp(`^${name}`)}).click();
   await expect(page.getByRole('heading',{level:1,name:"What's your job today?"})).toBeVisible();
   await expect(page.getByRole('button',{name:'Join',exact:true})).toHaveCount(0);
+  // One help line under the cards.
+  await expect(page.getByRole('main').locator('p.rz-empty')).toHaveText(['You can switch job on any race.']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('job-cards.png')});
   await page.getByRole('radio',{name:/^Timer/}).click();
