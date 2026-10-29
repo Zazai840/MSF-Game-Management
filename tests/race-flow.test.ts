@@ -149,9 +149,32 @@ test('only a lead makes the final, once every heat is saved, seeded with the fas
   await heat(ahmed,'R1',2,[7],[1500],steps);
   const tied=await call(lena,'/api/races',{eventCode:'R1',kind:'final'});
   expect(tied.statusCode).toBe(409);
-  expect(tied.json().message).toBe('Must settle first - open the completion check sheet');
-  expect(tied.json().mustSettleFirst[0]).toMatch(/^Tie/);
+  expect(tied.json()).toMatchObject({message:'Heat 1 has a tie to settle first',step:'times'});
   expect((await call(lena,'/api/races',{eventCode:'R16',kind:'final'})).json().message).toBe('This event has no final');
+});
+test("the races read gives a lead's final the reason it would be refused, the same one making it gives, naming the race and step",async()=>{
+  const {ahmed,lena}=await start();
+  const group=async(code:string)=>(await ok<RacesRead>(lena,'/api/races')).groups.find(group=>group.event.code===code)!;
+  // Heat 1 keeps a wrong time: the heats are saved, but the final waits on a lead.
+  const made=await newHeat(ahmed,'R4',1);
+  let first=await ok(ahmed,`/api/races/${made.race.id}/check-in`,{raceId:made.race.id,version:1,runners:[{wristband:2001},{wristband:2002}]});
+  first=await order(ahmed,first,[2001,2002]);
+  first=await ok(ahmed,`/api/races/${first.race.id}/times`,{raceId:first.race.id,version:first.race.parts.times.version,places:[1300,1200],keptWrong:[1]});
+  for(const step of steps) await done(ahmed,first,step);
+  await heat(ahmed,'R4',2,[2003,2004],[1100,1400],steps);
+  const reason={raceId:first.race.id,step:'times',line:'Heat 1 has a time to check first'};
+  expect(await group('R4')).toMatchObject({finalAvailable:true,finalReason:reason});
+  const refused=await call(lena,'/api/races',{eventCode:'R4',kind:'final'});
+  expect(refused.statusCode).toBe(409);
+  expect(refused.json()).toMatchObject({message:reason.line,raceId:reason.raceId,step:reason.step});
+  // Once the lead accepts the time, nothing holds the final back.
+  await ok(lena,`/api/lead/races/${first.race.id}/times`,{baseVersion:first.race.parts.times.version,places:[1300,1200],acceptOutOfOrder:true});
+  expect(await group('R4')).toMatchObject({finalAvailable:true,finalReason:null});
+  // Wristband 1 ran in both heats of Boy Beavers: which result counts is chosen in Results, so the reason has no step.
+  const twice=await heat(ahmed,'R1',1,[1,2],[1000,1100],steps);
+  await heat(ahmed,'R1',2,[1,3],[1050,1200],steps);
+  expect((await group('R1')).finalReason).toEqual({raceId:twice.race.id,step:null,line:'1 ran twice: choose which result counts first'});
+  expect((await call(lena,'/api/races',{eventCode:'R1',kind:'final'})).json()).toMatchObject({message:'1 ran twice: choose which result counts first',step:null});
 });
 test('the races list and a race come live: a write from another phone reaches an open stream',async()=>{
   const {ahmed,tom}=await start();

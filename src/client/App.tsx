@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { Phone } from '../shared/domain.js';
-import type { DayLeadItem } from '../shared/lead-results.js';
-import type { Role } from '../shared/race-flow.js';
+import type { ResultsTarget } from '../shared/lead-results.js';
+import type { Role,Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
 import { YourProfile } from './access/YourProfile.js';
@@ -23,7 +23,7 @@ interface HomeRead { phone:Phone; needsYou?:number }
  * Where the phone is. Races (Home) and a race are the race flow; a relay's race screen, the Teams screen, the lead's
  * Results and Day setup, and your profile keep the older screens.
  */
-type View={kind:'races'}|{kind:'race';id:string}|{kind:'relay';code:string}|{kind:'teams'}|{kind:'lead';section:'Results'|'Day setup';target?:DayLeadItem}|{kind:'profile'};
+type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'relay';code:string}|{kind:'teams'}|{kind:'lead';section:'Results'|'Day setup';target?:ResultsTarget}|{kind:'profile'};
 /** A race has its own address (/races/:raceId); everything else is the app's root. */
 const fromLocation=():View=>{const id=location.pathname.match(/^\/races\/([^/]+)$/)?.[1];return id?{kind:'race',id:decodeURIComponent(id)}:{kind:'races'};};
 /** How each screen is named in a tester's bug report. */
@@ -106,13 +106,14 @@ export function App() {
   const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
   if(view.kind==='races' || view.kind==='race') {
     const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
-      onRace={id=>go({kind:'race',id})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
+    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
+      onRace={(id,step)=>go({kind:'race',id,step})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
     // Relays keep today's list and screens, in the older look, under the race flow's tabs.
     if(homeTab==='relays') return <><Screen screen="Races" fill={false} wide>{bar}<EventTabs tab={homeTab} onTab={pickTab}/>{sheet}</Screen>
       <main><Home tab="relays" relaysOnly onTab={pickTab} onEvent={code=>go({kind:'relay',code})} onTeams={()=>go({kind:'teams'})}/>
         <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer></main></>;
-    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={id=>go({kind:'race',id})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
+    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+      onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
   return <><AppHeader name={name} screen={screenName(view,leadSection)} onProfile={()=>go({kind:'profile'})}/><BackArea>
     {view.kind!=='lead' && <BackArrow to="Races" onBack={toRaces}/>}<main>

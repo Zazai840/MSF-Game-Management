@@ -1,4 +1,4 @@
-import {ownCode,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -90,6 +90,36 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm, 
  // The rebuilt final is a new line-up: 1042 is now the top seed, and everyone is Here.
  await expect(attendance(sam.page)).toHaveText([/1st seed\s*1042\s*Here/,/2nd seed\s*1041\s*Here/],live);
  expect(await lookProblems(sam.page)).toEqual([]);await sam.page.screenshot({path:info.outputPath('final-rebuilt.png'),fullPage:true});
+});
+test('a lead\'s + Final is greyed with why the final cannot be made yet, the reason opens that heat\'s Times tab, and accepting the time frees it',async({openPhone,request},info)=>{
+ const project=info.project.name,code=await ownCode(),name=`Final reason ${project}`,n=await ownWristbands('Boy Cubs',2);
+ await ownEvent(request,code,name,'Boy Cubs');
+ // Heat 1 is saved with a wrong time kept: 2nd place faster than 1st.
+ await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1000,900]);
+ const lena=(await openPhone(`Final reason lead ${project}`,{lead:true})).page;
+ const card=lena.getByRole('article',{name:`${name} · Boy Cubs`});
+ const plusFinal=card.getByRole('button',{name:'Create the final from the fastest 6',exact:true});
+ await expect(plusFinal).toHaveAttribute('aria-disabled','true');
+ // Tapping the greyed chip anyway opens nothing.
+ await plusFinal.click({force:true});
+ await expect(lena.getByRole('dialog')).toHaveCount(0);
+ const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
+ await expect(reason).toBeVisible();
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
+ await reason.click();
+ await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
+ await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
+ const onRace=lena.getByRole('navigation',{name:'Heats'});
+ await expect(onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveAttribute('aria-disabled','true');
+ await expect(onRace.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toBeVisible();
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-race.png'),fullPage:true});
+ // The lead accepts the time: "+ Final" is tappable again, and opens the confirm.
+ await lena.getByRole('button',{name:"It's right",exact:true}).click();
+ await expect(onRace.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toHaveCount(0,live);
+ const freed=onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true});
+ await expect(freed).not.toHaveAttribute('aria-disabled','true');
+ await freed.click();
+ await expect(lena.getByRole('dialog',{name:'Have all Boy Cubs heats run?',exact:true})).toBeVisible();
 });
 test('two start line phones mark Here / Absent on one final, each seeing the other\'s marks live',async({openPhone,request},info)=>{
  const project=info.project.name,code=await ownCode(),name=`Final read ${project}`;

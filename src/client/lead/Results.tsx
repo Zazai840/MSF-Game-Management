@@ -4,7 +4,7 @@ import type { Stage,StageCheckSheet,StageItem } from '../../shared/stages.js';
 import { DeletedRaces } from './DeletedRaces.js';
 import { Fragment,useEffect,useState,useRef } from 'react';
 import { api } from '../api.js';
-import type { DayLeadItem,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
+import type { ResultsRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { RacePage } from './RacePage.js';
 import { RunnerActions } from './RunnerActions.js';
 import { flagText } from '../../shared/runner-rulings.js';
@@ -24,7 +24,7 @@ const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fi
  * then one race. Its back arrow goes up one level: a race to its event, an event to Results, Results to the Dashboard;
  * whatever a To check item opened goes back to the Dashboard, where To check lives. No to-check count shows anywhere here.
  */
-export function Results({target,onDashboard,onChanged,backTo='Dashboard'}:{target?:DayLeadItem;onDashboard:()=>void;onChanged?:()=>void;backTo?:string}) {
+export function Results({target,onDashboard,onChanged,backTo='Dashboard'}:{target?:ResultsTarget;onDashboard:()=>void;onChanged?:()=>void;backTo?:string}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
   // The check sheet a tie was opened from: from Results without a final it is settled against medal places.
