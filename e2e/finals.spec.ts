@@ -121,6 +121,8 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  await expect(lena.getByRole('dialog')).toHaveCount(0);
  const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
  await expect(reason).toBeVisible();
+ // Its warning icon is navy, an approved colour pair on the card and on paper (accessibility.md).
+ expect(await reason.locator('.rz-icon').evaluate(icon=>getComputedStyle(icon).color)).toBe('rgb(30, 43, 81)');
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
  // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's Times tab too.
  await lena.getByRole('button',{name:'New race',exact:true}).click();
