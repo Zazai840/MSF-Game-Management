@@ -51,7 +51,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await expect(status(page,name)).toContainText('Heat 1: ');
   await openRace(page,name);
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
-  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check$/,/^Positions.*1 to check$/,/^Times.*1 to check$/]);
+  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check$/,/^Finishing order.*1 to check$/,/^Times.*1 to check$/]);
   // Runners: the kept number, with Fix and It's right.
   const runners=page.getByRole('alert').filter({hasText:'3045'});
   await expect(runners).toContainText('A wristband number needs checking. 3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.');
@@ -60,9 +60,9 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await runners.getByRole('button',{name:"It's right",exact:true}).click();
   await expect(page.getByRole('alert').filter({hasText:'3045'})).toHaveCount(0);
   await expect(tabs.getByRole('tab',{name:/^Runners/})).not.toContainText('to check');
-  // Positions: the runner added at the finish.
-  await tabs.getByRole('tab',{name:/^Positions/}).click();
-  await expect(tabs.getByRole('tab',{name:/^Positions/})).toHaveAttribute('aria-selected','true');
+  // Finishing order: the runner added at the finish.
+  await tabs.getByRole('tab',{name:/^Finishing order/}).click();
+  await expect(tabs.getByRole('tab',{name:/^Finishing order/})).toHaveAttribute('aria-selected','true');
   const added=page.getByRole('alert').filter({hasText:'2002'});
   await expect(added).toBeVisible();
   await added.getByRole('button',{name:"It's right",exact:true}).click();

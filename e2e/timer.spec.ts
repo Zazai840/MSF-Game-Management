@@ -113,16 +113,16 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await expect(timer.page.getByRole('tab',{name:/^Runners/})).toContainText('3 so far',live);
   await start.page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(timer.page.getByRole('tab',{name:/^Runners/})).toContainText('3 checked in',live);
-  // Positions and times go in at the same time; neither waits for the other.
+  // The finishing order and times go in at the same time; neither waits for the other.
   await finish.page.getByRole('button',{name:'2202 came 1st',exact:true}).click();
   await enterTime(timer.page,'1234');
   await finish.page.getByRole('button',{name:'2201 came 2nd',exact:true}).click();
   await enterTime(timer.page,'1301');
   await expect(finish.page.getByRole('tab',{name:/^Times/})).toContainText('2 of 3',live);
-  await expect(timer.page.getByRole('tab',{name:/^Positions/})).toContainText('2 of 3',live);
+  await expect(timer.page.getByRole('tab',{name:/^Finishing order/})).toContainText('2 of 3',live);
   await finish.page.getByRole('button',{name:'2203 came 3rd',exact:true}).click();
-  await finish.page.getByRole('button',{name:'Save positions',exact:true}).click();
-  await expect(finish.page.locator('.rz-toast')).toContainText('Positions saved · Girl Cubs Heat 1');
+  await finish.page.getByRole('button',{name:'Save the order',exact:true}).click();
+  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
   // Every step done and agreeing: the last one saves the race.
   await enterTime(timer.page,'1350');
   await expect(timer.page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');

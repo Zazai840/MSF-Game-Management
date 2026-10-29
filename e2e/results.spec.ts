@@ -18,7 +18,7 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Finish line');
   await phone.getByRole('button',{name:'2401 came 1st',exact:true}).click();await phone.getByRole('button',{name:'3045 came 2nd',exact:true}).click();
-  await phone.getByRole('button',{name:'Save positions',exact:true}).click();
+  await phone.getByRole('button',{name:'Save the order',exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Timer');
   await enterTime(phone,1234);await enterTime(phone,1334);
   await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');

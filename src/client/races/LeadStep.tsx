@@ -9,7 +9,7 @@ import { toCheckWording } from '../../shared/to-check.js';
 import { api } from '../api.js';
 import { Callout,Icon } from './parts.js';
 import { FinishLine,StartLine,Timer,type StepProps } from './Steps.js';
-/** Which step a lead item is about: a runner's warning to Runners, an addition at the finish to Positions, times and ties to Times. */
+/** Which step a lead item is about: a runner's warning to Runners, an addition at the finish to Finishing order, times and ties to Times. */
 export function issueStep(item:DayLeadItem):Step {
   if(item.kind==='added-at-finish') return 'positions';
   if(item.kind==='times-out-of-order' || item.kind==='tie') return item.race?.kind==='final'?'positions':'times';
