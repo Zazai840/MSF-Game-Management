@@ -103,10 +103,11 @@ test('the last runner placed goes straight to Check the order, where the handle 
   await expect(orderRows(page)).toHaveText([`1st${d}`,`2nd${a}`,`3rd${b}`,`4th${c}`]);
   expect((await saving).postDataJSON()).toMatchObject({order:[d,a,b,c].map(id),didNotFinish:[],didNotRun:[],added:[]});
   // The arrow keys on a handle move its row one place at once.
+  const moved=page.waitForResponse(response=>response.url().endsWith(`/api/races/${race.id}/order`) && response.request().method()==='POST');
   await handle(page,c).focus();await page.keyboard.press('ArrowUp');
   await expect(orderRows(page)).toHaveText([`1st${d}`,`2nd${a}`,`3rd${c}`,`4th${b}`]);
   // The order is saved as it changes: the race opened again shows it, straight on Check the order.
-  await page.reload();
+  await moved;await page.reload();
   await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
   await expect(orderRows(page)).toHaveText([`1st${d}`,`2nd${a}`,`3rd${c}`,`4th${b}`]);
   await deleteCurrentRace(request,code);

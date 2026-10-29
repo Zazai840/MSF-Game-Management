@@ -11,7 +11,7 @@ import { digitsOnly } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useWristbandEntry } from '../race/WristbandEntry.js';
-import { Callout,Icon } from './parts.js';
+import { Callout,DockedFooter,Icon } from './parts.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
 
 /** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save positions, No more finishers). */
@@ -35,9 +35,12 @@ function DigitsField({id,label,value,onChange,onEnter,held=false,busy=false,warn
     {hint && <p className="rz-field__hint" id={`${id}-hint`}>{hint}</p>}
   </div>;
 }
-/** A footer button that keeps the number pad open (the tap does not take focus from the input). */
-const KeepFocus=({className,disabled,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
-  <button type="button" className={className} disabled={disabled} onMouseDown={event=>event.preventDefault()} onClick={onClick}>{children}</button>;
+/**
+ * A footer button that keeps the number pad open (the tap does not take focus from the input). Greyed out it is
+ * aria-disabled, not disabled: a disabled button gets no mousedown to cancel, so a tap on it would close the keyboard.
+ */
+const KeepFocus=({className,disabled=false,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
+  <button type="button" className={className} aria-disabled={disabled || undefined} onMouseDown={event=>event.preventDefault()} onClick={()=>{if(!disabled) onClick();}}>{children}</button>;
 /** The usual-heat-size warning shows once per race per person: has this phone shown it for this race? */
 function useSizeWarning(raceId:string) {
   const [showing,setShowing]=useState(false);
@@ -85,10 +88,10 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
     </main>
-    {!locked && <footer className="rz-footer rz-footer--sticky"><div className="rz-footer__pair">
+    {!locked && <DockedFooter><div className="rz-footer__pair">
       <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>That's everyone</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>{entry.checking?'Checking…':'Next'}</KeepFocus>
-    </div></footer>}
+    </div></DockedFooter>}
   </>;
 }
 /** A final's start line: its seeded runners, each Here or Absent; only those Here run it. */
@@ -106,7 +109,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
           onClick={()=>mark(entry.absent?absent.filter(id=>id!==entry.finalEntryId):[...absent,entry.finalEntryId])}>{entry.absent?'Absent':'Here'}</button>
       </li>)}</ul>
     </main>
-    {!locked && <footer className="rz-footer rz-footer--sticky"><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here} onClick={()=>onDone('runners')}>That's everyone</button></footer>}
+    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here} onClick={()=>onDone('runners')}>That's everyone</button></DockedFooter>}
   </>;
 }
 
@@ -156,10 +159,10 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
     </main>
-    <footer className="rz-footer rz-footer--sticky"><div className="rz-footer__pair">
+    <DockedFooter><div className="rz-footer__pair">
       <button type="button" className="rz-btn" onClick={()=>{entry.fix();setMode('place');}}>Back</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>Add runner</KeepFocus>
-    </div></footer>
+    </div></DockedFooter>
   </>;
   if(mode==='check') {
     const left=runners.filter(runner=>!order.includes(runner.id));
@@ -185,9 +188,9 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
             <span className="rz-orderrow__place">–</span><span className="rz-orderrow__num">{runner.wristband}</span><span className="rz-tag rz-tag--dnf">{as(runner)==='dnf'?'Did not finish':"Didn't run"}</span>
           </button></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
       </main>
-      {!locked && <footer className="rz-footer rz-footer--sticky">
+      {!locked && <DockedFooter>
         <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save positions</button>
-      </footer>}
+      </DockedFooter>}
     </>;
   }
   return <>
@@ -211,10 +214,10 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
         <button type="button" className="rz-runner" aria-label={`${runner.wristband} came ${ordinal(current+1)}`} onClick={()=>place(runner)}>{runner.wristband}</button>
       </li>)}</ul>}
     </main>
-    {!locked && <footer className="rz-footer rz-footer--sticky">
+    {!locked && <DockedFooter>
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode('check')}>Nobody else crossed the line</button>
       <button type="button" className="rz-btn rz-btn--block" onClick={()=>setMode('add')}>+ Runner not on the list</button>
-    </footer>}
+    </DockedFooter>}
   </>;
 }
 
@@ -266,10 +269,10 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{setRetype(unkept!.index);setTyped('');}}>Fix time</button>
           <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}
     </main>
-    {!locked && <footer className="rz-footer rz-footer--sticky"><div className="rz-footer__trio">
+    {!locked && <DockedFooter><div className="rz-footer__trio">
       <KeepFocus className="rz-btn" disabled={target===0 && retype===null && !places.length} onClick={()=>{const back=Math.max(0,(retype??places.length)-1);if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Back</KeepFocus>
       <button type="button" className="rz-btn" disabled={!places.length || held || writes.sending} onClick={()=>onDone('times')}>No more finishers</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || held || full} onClick={()=>void next()}>Next</KeepFocus>
-    </div></footer>}
+    </div></DockedFooter>}
   </>;
 }

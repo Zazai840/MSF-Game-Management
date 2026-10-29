@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
+import { followKeyboard } from './flow/keyboard.js';
 import { startUpdates } from './shell/updates.js';
 import './theme.css';
 import './style.css';
@@ -11,5 +12,6 @@ if (root.dataset.unsupported !== 'true') {
   // Ask the browser to keep the pass and profiles even when the phone is short of space; carry on if it says no.
   void navigator.storage?.persist?.().catch(()=>false);
   startUpdates();
+  followKeyboard();
   createRoot(root).render(<App />);
 }
