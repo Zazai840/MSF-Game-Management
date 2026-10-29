@@ -128,7 +128,7 @@ test('a reload shows everything entered from the server, and a half-typed number
   await page.getByLabel('Wristband number',{exact:true}).fill('25');
   await page.reload();
   await expect(page.getByRole('list',{name:'Wristbands entered'}).getByRole('button')).toHaveText(['2401','2402','2403']);
-  await expect(page.getByRole('tab',{name:/^Positions/})).toContainText('2 of 3');
+  await expect(page.getByRole('tab',{name:/^Finishing order/})).toContainText('2 of 3');
   await expect(page.getByRole('tab',{name:/^Times/})).toContainText('1 of 3');
   await expect(page.getByLabel('Wristband number',{exact:true})).toHaveValue('');
   expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:draft:')))).toEqual([]);

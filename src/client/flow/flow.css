@@ -23,14 +23,16 @@
 .number-input-held {border-color:var(--amber-line); background:var(--amber-fill); color:var(--amber-text);}
 
 /* Bottom bar riding above the keyboard; the spacer keeps the page's end clear of it. */
-.action-bar {position:fixed; left:0; right:0; z-index:10; background:var(--surface); padding:10px 16px calc(10px + env(safe-area-inset-bottom));}
+.action-bar {position:fixed; left:0; right:0; bottom:0; z-index:10; background:var(--surface); padding:10px 16px calc(10px + env(safe-area-inset-bottom));}
+/* While the phone is typing (keyboard.ts), the bar sits on the keyboard, with no home-indicator room. */
+html[data-keyboard="open"] .action-bar {top:0; bottom:auto; transform:translateY(calc(var(--vv-top) + var(--vv-height) - 100%)); padding-bottom:10px;}
 .action-bar-inner {max-width:calc(48rem - 32px); margin:0 auto; display:flex; gap:10px;}
 .action-bar-inner > * {flex:1; min-width:0;}
 .action-bar-inner > .button-secondary {font-size:16px;}
 .action-bar-stacked .action-bar-inner {flex-direction:column;}
 body main {padding-bottom:calc(20px + var(--action-bar-height, 0px));}
-/* Scrolling something into view (a focused input, a dragged row) keeps it above the bar, not under it. */
-html {scroll-padding-bottom:calc(12px + var(--action-bar-height, 0px));}
+/* Scrolling something into view (a focused input, a dragged row) keeps it above the bar or a race step's footer, not under it. */
+html {scroll-padding-bottom:calc(12px + var(--action-bar-height, 0px) + var(--rz-footer-height, 0px));}
 @media(min-width:800px) {body main {padding-bottom:calc(28px + var(--action-bar-height, 0px));}}
 
 /* Drag-and-drop list (SortableList): rows with a grip handle on the right; the dragged row lifts. */

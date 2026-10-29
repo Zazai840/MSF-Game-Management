@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest';
-import { toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
+import { issueLine,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
 const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true,type:'races' as const,relay:false};
 const race={id:'r',kind:'heat' as const,number:2,checkedInAt:'2026-10-14T10:00:00Z'};
@@ -29,5 +29,15 @@ describe('To check wording',()=>{
     expect(toCheckHeading(0)).toBe('Nothing to check');
     expect(toCheckHeading(1)).toBe('1 thing needs a zone lead');
     expect(toCheckHeading(2)).toBe('2 things need a zone lead');
+  });
+  it("groups a lead's card issues by race and kind and counts them, two groups then how many more",()=>{
+    const heat=(number:number)=>({id:`r${number}`,kind:'heat' as const,number,checkedInAt:'2026-10-14T10:00:00Z'});
+    const wristbands=Array.from({length:9},(_,index)=>item({kind:'warning',message:'odd',race:heat(2),raceId:'r2',wristband:3000+index}));
+    expect(issueLine([...wristbands,item({kind:'times-out-of-order',message:'Times out of order',race:heat(1),raceId:'r1'})])).toBe('Heat 2: 9 wristbands to check · Heat 1: 1 time to check');
+    expect(issueLine([item({kind:'added-at-finish',message:'a',race:heat(3),raceId:'r3',wristband:2001}),item({kind:'added-at-finish',message:'b',race:heat(3),raceId:'r3',wristband:2002})]))
+      .toBe('Heat 3: 2 runners added at the finish');
+    expect(issueLine([...wristbands,item({kind:'warning',message:'odd',race:heat(1),raceId:'r1'}),item({kind:'times-out-of-order',message:'t',race:heat(2),raceId:'r2'}),
+      item({kind:'ran-twice',message:'t',race:heat(2),raceId:'r2',wristband:2001}),item({kind:'tie',message:'t',race:undefined,raceId:undefined})]))
+      .toBe('Heat 2: 9 wristbands to check · Heat 1: 1 wristband to check · 3 more');
   });
 });

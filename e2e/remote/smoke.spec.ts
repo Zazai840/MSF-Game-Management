@@ -86,7 +86,7 @@ test('five phones share the test build: three work one race live until it saves 
   // from Races, and each step shows on the other two live. Once every step is done the race saves itself.
   await starter.getByRole('button',{name:'New race',exact:true}).click();
   const newRace=starter.getByRole('dialog',{name:'New race'});
-  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs R4',exact:true}).click();
+  await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await newRace.getByRole('button',{name:`Create heat ${group!.nextHeat}`,exact:true}).click();
   await expect(starter.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   for(const page of [finisher,timer]) await openRace(page,name,'Girl Cubs',chip);
@@ -97,8 +97,8 @@ test('five phones share the test build: three work one race live until it saves 
   await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · Girl Cubs ${heat}`);
   for(const [number,place] of [[second,'1st'],[third,'2nd'],[first,'3rd']] as const) await finisher.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
-  await expect(timer.getByRole('tab',{name:/^Positions/})).toContainText('3 of 3',crossPhone);
-  await finisher.getByRole('button',{name:'Save positions',exact:true}).click();
+  await expect(timer.getByRole('tab',{name:/^Finishing order/})).toContainText('3 of 3',crossPhone);
+  await finisher.getByRole('button',{name:'Save the order',exact:true}).click();
   for(const digits of ['1210','1250']) await enterTime(timer,digits);
   await expect(finisher.getByRole('article',{name:`${name} · Girl Cubs`})).toBeVisible();
   await enterTime(timer,'1320');

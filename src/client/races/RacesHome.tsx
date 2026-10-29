@@ -1,8 +1,8 @@
 import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead } from '../../shared/lead-results.js';
-import { groupDone,groupStatus,leadFinalLine,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role } from '../../shared/race-flow.js';
-import { toCheckWording } from '../../shared/to-check.js';
+import { groupDone,groupStatus,leadFinalLine,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role } from '../../shared/race-flow.js';
+import { issueLine } from '../../shared/to-check.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { FinalSheet,HeatChips,Icon } from './parts.js';
@@ -28,8 +28,6 @@ function useLeadItems(on:boolean) {
   },[on]);
   return items;
 }
-/** A lead's status line for a group with issues: "Heat 3: A time looks wrong". */
-const issueLine=(items:readonly DayLeadItem[])=>items.slice(0,2).map(item=>`${item.race?raceName(item.race):'Event'}: ${toCheckWording(item).title}`).join(' · ')+(items.length>2?` · ${items.length-2} more`:'');
 /**
  * Races, the new Home: the event groups of this tab behind Races · Hurdles · Relays, live from the races stream, in
  * Ready for you (a race my step can be worked on now; for a lead, a group with open issues), In progress and Done.
@@ -56,7 +54,7 @@ export function RacesHome({tab,onTab,role,onRace,saved,onSavedShown}:{tab:Exclud
   const card=(group:RaceGroup)=>{
     const own=issues.filter(item=>item.event.code===group.event.code);
     return <article key={group.event.id} className="rz-racecard" aria-label={`${group.event.name} · ${group.event.section}`}>
-      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3><span className="rz-code-tag">{group.event.code}</span></div>
+      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3>{role==='lead' && <span className="rz-code-tag">{group.event.code}</span>}</div>
       <p className="rz-racecard__status">{role!=='lead'?groupStatus(group,role):own.length?issueLine(own):leadFinalLine(group)??groupStatus(group,role)}</p>
       <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
