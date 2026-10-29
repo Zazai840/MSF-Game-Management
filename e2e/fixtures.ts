@@ -148,7 +148,7 @@ export async function writeTimes(request:APIRequestContext,token:string,eventCod
 }
 /**
  * Saves the event's race as that phone: on an individual event, marks every step not yet done done (That's everyone,
- * Save positions, No more finishers), which saves it once nothing blocks it; on a relay, presses Submit Race, which
+ * Save the order, No more finishers), which saves it once nothing blocks it; on a relay, presses Submit Race, which
  * saves it once everyone asked has pressed.
  */
 export async function submitRace(request:APIRequestContext,token:string,eventCode:string) {
@@ -320,6 +320,10 @@ export function nextBeside(page:Page,label:string) {
   return page.locator('.number-entry-row',{has:page.getByLabel(label,{exact:true})}).getByRole('button',{name:'Next',exact:true})
     .or(page.locator('.rz-footer').getByRole('button',{name:'Next',exact:true}));
 }
+/** The text selected in a number box, found by its label: what the next digit typed replaces. */
+export function selected(page:Page,label:string) {
+  return page.getByLabel(label,{exact:true}).evaluate((input:HTMLInputElement)=>document.activeElement===input?input.value.slice(input.selectionStart!,input.selectionEnd!):'');
+}
 /** Types one wristband into the phone number input and taps the Next beside it, as a volunteer would. */
 export async function enterWristband(page:Page,number:number|string,label='Wristband number') {
   await page.getByLabel(label,{exact:true}).fill(String(number));
@@ -430,6 +434,13 @@ export async function lookProblems(page:Page) {
     }
     if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
     for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
+    // The step strip: each cell's label and status on one line, and the labels in line across the strip.
+    for(const strip of document.querySelectorAll('.rz-steps')) {
+      if(!visible(strip)) continue;
+      for(const line of strip.querySelectorAll('.rz-step__label,.rz-step__status')) if(line.getBoundingClientRect().height>parseFloat(getComputedStyle(line).lineHeight)*1.5) problems.push(`wrapped ${describe(line)}`);
+      const tops=[...strip.querySelectorAll('.rz-step__label')].map(label=>Math.round(label.getBoundingClientRect().top));
+      if(new Set(tops).size>1) problems.push(`step labels out of line ${describe(strip)}`);
+    }
     for(const heading of document.querySelectorAll('h1,h2')) {
       const size=parseFloat(getComputedStyle(heading).fontSize);
       if(visible(heading)&&!designSystem(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);

@@ -42,7 +42,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
   // "Show latest" starts the step's body afresh from what the server has.
   const [fresh,setFresh]=useState(0);
   const swipe=useRef<{x:number;y:number}|null>(null);
-  if(!snapshot) return <><RaceBar title="Race" code="" onBack={onBack}><RoleChip role={role} onOpen={onRole}/></RaceBar>
+  if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/></RaceBar>
     <main className="rz-main"><p className={error?'rz-error':'rz-empty'} role={error?'alert':undefined}>{error||'Opening…'}</p></main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
@@ -78,7 +78,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
   const reason=lead?group.finalReason:null;
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
-    <RaceBar title={`${event.name} · ${event.section}`} code={event.code} onBack={onBack}>
+    <RaceBar title={`${event.name} · ${event.section}`} code={event.code} role={role} onBack={onBack}>
       <RoleChip role={role} onOpen={onRole}/>
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>

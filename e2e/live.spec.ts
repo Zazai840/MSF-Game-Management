@@ -114,6 +114,6 @@ test('slow network: on a 3G-like link each phone sees the other\'s step within 3
   await expect(runners(b.page)).toHaveText(['2501','2502'],slowLive);
   // The finish line places one, and the start line's step strip follows the same way.
   await b.page.getByRole('button',{name:'2502 came 1st',exact:true}).click();
-  await expect(a.page.getByRole('tab',{name:/^Positions/})).toContainText('1 of 2',slowLive);
+  await expect(a.page.getByRole('tab',{name:/^Finishing order/})).toContainText('1 of 2',slowLive);
   await deleteCurrentRace(request,code);
 });
