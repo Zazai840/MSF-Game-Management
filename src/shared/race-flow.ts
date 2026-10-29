@@ -3,7 +3,7 @@ import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
 import { andList } from './race-screen.js';
 import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
-import { entryCount,type RelayTeam } from './teams.js';
+import { entryCount,type RelayTeam,type TeamList } from './teams.js';
 import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
@@ -66,7 +66,7 @@ export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:numbe
 /** The races list, versioned by the day revision: every switched-on event, in programme order. */
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /** One race in the flow, with its group (for the heat chips) and its steps; a relay's race also its team list, for check-in. */
-export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[] }
+export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[] }
 /** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Finishing order and Times someone is in the race. */
 export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
   const status=race.steps[step];
