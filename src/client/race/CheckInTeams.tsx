@@ -6,7 +6,8 @@ import { isTeamEntry,type TeamEntry } from '../../shared/races.js';
 import { changingName,filledLegs,stillToRun,teamCount,type RelayTeam } from '../../shared/teams.js';
 import { RaceCard } from './RaceCard.js';
 import { useRaceWrite,type Offer } from './Hold.js';
-import { ChangeAnyway,TeamEdit,type Done } from '../teams/TeamsScreen.js';
+import { TeamEdit,type Done } from '../lead/TeamEdit.js';
+import { ChangeAnyway } from '../teams/TeamsScreen.js';
 
 const here=(entry:TeamEntry)=>entry.legs.filter(leg=>leg.here).length;
 /**
