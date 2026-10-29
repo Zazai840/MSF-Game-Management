@@ -3,11 +3,11 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { ResultsRead } from '../src/shared/lead-results.js';
 import { toCheckWording } from '../src/shared/to-check.js';
-import type { RaceScreenRead } from '../src/shared/race-screen.js';
+import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { isTeamEntry,type TeamEntry } from '../src/shared/races.js';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 import { signInOwner } from './support/sign-in.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -16,7 +16,7 @@ async function start() {
   const people=await signInOwner(app,'relay-to-check-owner','Aisha');
   await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
-  const relays=relaySetup(app);
+  const relays=relayFlowSetup(app);
   /** Ticks the relay's teams in, marks the children here (all four unless `here` says how many of a team's), then saves the heat in that order. */
   async function heat(code:string,placed:number[],here:Record<number,number>={}) {
     for(const number of placed) {
@@ -66,12 +66,13 @@ test('a team added at the finish is a To check item cleared by Mark addition che
   await relays.tick(sam,'R22',1);
   for(const leg of [0,1,2,3]) await relays.here(sam,'R22',1,leg);
   // Team 2 was never checked in: the order adds it with "Add team".
-  const race=(await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/take-over',{job:'order'})).race,teams=(await relays.screen(sam,'R22')).teams!;
-  const team1=race.parts.runners.value!.find(entry=>isTeamEntry(entry) && entry.team.number===1)!.id;
-  const ordered=await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/order',{raceId:race.id,version:race.parts.finish.version,order:[team1],didNotFinish:[],didNotRun:[],added:[],addedTeams:[teams.find(team=>team.number===2)!.id]});
-  const timed=(await relays.post<RaceScreenRead>(sam,'/api/race-screen/R22/take-over',{job:'times'})).race;
-  await relays.post(sam,'/api/race-screen/R22/times',{raceId:timed.id,version:timed.parts.times.version,places:[1400,1500],keptWrong:[]});
-  await relays.post(sam,'/api/race-screen/R22/submit',{raceId:race.id});
+  const read=(await relays.race(sam,'R22'))!,raceId=read.race.id,url=(what:string)=>`/api/races/${raceId}/${what}`;
+  const team1=read.race.parts.runners.value!.find(entry=>isTeamEntry(entry) && entry.team.number===1)!.id;
+  await relays.post(sam,url('steps/runners/done'),{});
+  const ordered=await relays.post<RaceFlowRead>(sam,url('order'),{raceId,version:read.race.parts.finish.version,order:[team1],didNotFinish:[],didNotRun:[],added:[],addedTeams:[read.teams!.find(team=>team.number===2)!.id]});
+  await relays.post(sam,url('steps/positions/done'),{});
+  await relays.post(sam,url('times'),{raceId,version:ordered.race.parts.times.version,places:[1400,1500],keptWrong:[]});
+  await relays.post(sam,url('steps/times/done'),{});
   const items=await toCheck();
   expect(items.map(({kind,title,explanation})=>({kind,title,explanation})).sort((a,b)=>a.kind.localeCompare(b.kind))).toEqual([
     {kind:'added-at-finish',title:'A team was added at the finish',explanation:'Team 2 crossed the line but was not checked in at the start. Check it ran in this race.'},
