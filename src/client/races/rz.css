@@ -225,8 +225,12 @@
 html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom: auto; left: 0; right: 0; transform: translateY(calc(var(--vv-top) + var(--vv-height) - 100%)); }
 .rz-refresh { display: flex; align-items: center; gap: var(--space-12); margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
 .rz-footer__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
-.rz-footer__trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); }
-.rz-footer__trio .rz-btn { padding: 0 var(--space-8); }
+/* Narrower sides keep "That's everyone" on one line at 360px. */
+.rz-footer__pair .rz-btn { padding: 0 var(--space-12); }
+/* The middle button takes the room the short end ones leave, so "No more finishers" stays on one line at 360px. */
+.rz-footer__trio { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-8); }
+.rz-footer__trio .rz-btn { padding: 0 var(--space-12); white-space: nowrap; }
+.rz-footer__reason { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--warn-ink); }
 
 /* ---------- JobCard ---------- */
 .rz-jobs { display: flex; flex-direction: column; gap: var(--space-12); margin: 0; padding: 0; list-style: none; }
@@ -290,9 +294,17 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-slot__ord { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 15px; line-height: 1.1; text-transform: uppercase; }
 .rz-slot__time { font-size: 18px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-slot__note { font-size: 12px; line-height: 1.3; font-weight: 700; }
-.rz-slot--current { background: var(--gold); box-shadow: none; }
+/* Held while a warning waits, the other slots still read as they are: no fading. */
+.rz-slot:disabled { opacity: 1; color: var(--navy); cursor: default; }
+.rz-slot--current { background: var(--gold); box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-slot--warn { background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-line); }
 .rz-slot--empty .rz-slot__time, .rz-slot--none .rz-slot__time { color: var(--ink-muted); font-weight: 700; font-size: 14px; }
+/* Over 9 places: 4 across and 44px tall, as the PlacesBoard; the warn look and the callout say why a time is wrong. */
+.rz-slots--compact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); }
+.rz-slots--compact .rz-slot { min-height: var(--size-touch); gap: 0; padding: 2px var(--space-8); border-radius: var(--radius-sm); }
+.rz-slots--compact .rz-slot__ord { font-size: 13px; line-height: 1; }
+.rz-slots--compact .rz-slot__time { font-size: 16px; line-height: 1.15; }
+.rz-slots--compact .rz-slot__note { display: none; }
 
 /* ---------- ReorderList ---------- */
 .rz-order { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }

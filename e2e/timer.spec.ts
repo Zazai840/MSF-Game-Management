@@ -1,6 +1,6 @@
-import {ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
+import {ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
 // The design system's warn-soft.
-const amber='rgb(255, 241, 199)';
+const amber='rgb(255, 241, 199)',gold='rgb(255, 184, 0)',navy='rgb(30, 43, 81)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
 /** A timed race of five Girl Cubs, checked in by another phone, waiting for times. */
 async function raceWaitingForTimes(request:APIRequestContext,code:string,name:string) {
@@ -80,6 +80,39 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await enterTime(page,'1400');
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await deleteCurrentRace(request,code);
+});
+
+test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, Fix time and Keep sit just above the number box, in view, with the footer saying why it waits',async({openPhone,request},info)=>{
+  const project=info.project.name,code=await ownCode(),name=`Times big ${project}`,n=await ownWristbands('Girl Cubs',12);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await writeCheckIn(request,await signInThroughApi(request,`Start ${name}`),code,Array.from({length:12},(_,index)=>n(index)));
+  const {page}=await openPhone(`Big heat ${project}`,{job:'timer'});
+  await openRace(page,name);
+  const slots=page.getByRole('list',{name:'Place times'}).getByRole('listitem');
+  await expect(slots).toHaveCount(12);
+  const rows=await slots.evaluateAll(items=>items.map(item=>Math.round(item.getBoundingClientRect().top)));
+  expect(new Set(rows).size).toBe(3);
+  await enterTime(page,'1100');await enterTime(page,'1200');
+  // The current slot: gold with the navy ring, as on the finish line's board.
+  const style=(target:Locator)=>target.evaluate(element=>{const style=getComputedStyle(element);return {background:style.backgroundColor,ring:style.boxShadow,color:style.color,opacity:style.opacity};});
+  expect(await style(slot(page,'3rd place: no time yet'))).toEqual({background:gold,ring:`${navy} 0px 0px 0px 2px inset`,color:navy,opacity:'1'});
+  const input=page.getByLabel('Place time',{exact:true});
+  await input.fill('1150');await input.press('Enter');
+  const warning=page.getByRole('alert').filter({hasText:'The 3rd place time is faster than 2nd.'});
+  await expect(warning).toBeVisible();
+  await expect(page.locator('footer.rz-footer')).toContainText('Fix or keep the 3rd place time first');
+  await inViewAboveFooter(page,[warning,warning.getByRole('button',{name:'Fix time',exact:true}),warning.getByRole('button',{name:'Keep',exact:true})]);
+  // Directly above the number box.
+  const [callout,box]=[(await warning.boundingBox())!,(await input.boundingBox())!];
+  expect(box.y-(callout.y+callout.height)).toBeGreaterThanOrEqual(0);expect(box.y-(callout.y+callout.height)).toBeLessThan(48);
+  // The wrong time in the amber warning look; the other slots not faded while it waits.
+  expect((await style(slot(page,'3rd place: 11.50, Faster than 2nd place'))).background).toBe(amber);
+  expect(await style(slot(page,'1st place: 11.00'))).toMatchObject({color:navy,opacity:'1'});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer-big-wrong.png')});
+  await warning.getByRole('button',{name:'Keep',exact:true}).click();
+  await expect(page.locator('footer.rz-footer')).not.toContainText('Fix or keep');
+  await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
   await deleteCurrentRace(request,code);
 });
 
