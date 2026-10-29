@@ -452,11 +452,49 @@ export async function lookProblems(page:Page) {
       const tops=[...strip.querySelectorAll('.rz-step__label')].map(label=>Math.round(label.getBoundingClientRect().top));
       if(new Set(tops).size>1) problems.push(`step labels out of line ${describe(strip)}`);
     }
-    // A footer button's label on one line: every line box of its text starts at the same height.
-    for(const button of document.querySelectorAll('.rz-footer .rz-btn')) {
+    // A button's label on one line: every line box of its text starts at the same height.
+    for(const button of document.querySelectorAll('.rz-btn')) {
       if(!visible(button)) continue;
       const lines=[...button.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).flatMap(node=>{const range=document.createRange();range.selectNodeContents(node);return [...range.getClientRects()];});
       if(lines.length && Math.max(...lines.map(line=>line.top))-Math.min(...lines.map(line=>line.top))>Math.min(...lines.map(line=>line.height))/2) problems.push(`wrapped ${describe(button)}`);
+    }
+    // A phone's footer spans the screen with its content on the 20px gutter, and the Updated-at line is centred in it.
+    for(const footer of document.querySelectorAll('.rz-footer')) {
+      if(!visible(footer) || innerWidth>=600) continue;
+      const box=footer.getBoundingClientRect(),style=getComputedStyle(footer);
+      if(Math.abs(box.left)>0.5||Math.abs(box.right-document.documentElement.clientWidth)>0.5||parseFloat(style.paddingLeft)!==20||parseFloat(style.paddingRight)!==20) problems.push(`footer off the gutter ${describe(footer)}`);
+      for(const child of footer.children) {
+        const edge=child.getBoundingClientRect();
+        if(visible(child)&&(edge.left<box.left+19.5||edge.right>box.right-19.5)) problems.push(`footer content off the gutter ${describe(child)}`);
+      }
+      for(const line of footer.querySelectorAll('.rz-refresh')) {
+        const range=document.createRange();range.selectNodeContents(line);const text=range.getBoundingClientRect();
+        if(Math.abs((text.left-box.left)-(box.right-text.right))>1) problems.push(`not centred ${describe(line)}`);
+      }
+    }
+    // A choice group's label starts in line with its buttons.
+    for(const group of document.querySelectorAll('.rz-screen fieldset')) {
+      const legend=group.querySelector(':scope > legend'),first=group.querySelector('.rz-choices > *');
+      if(!legend||!first||!visible(legend)||!visible(first)) continue;
+      const range=document.createRange();range.selectNodeContents(legend);
+      if(Math.abs(range.getBoundingClientRect().left-first.getBoundingClientRect().left)>0.5) problems.push(`label out of line ${describe(legend)}`);
+    }
+    // A section heading sits nearer the cards it heads than what is above it.
+    for(const heading of document.querySelectorAll('.rz-main > .rz-section')) {
+      const above=heading.previousElementSibling??heading.parentElement!.previousElementSibling,below=heading.nextElementSibling;
+      if(!visible(heading)||!above||!below) continue;
+      const box=heading.getBoundingClientRect();
+      if(box.top-above.getBoundingClientRect().bottom<=below.getBoundingClientRect().top-box.bottom) problems.push(`heading closer to what is above ${describe(heading)}`);
+    }
+    // No empty tag (an event code still on its way), and an open menu never covers the avatar that opened it.
+    for(const tag of document.querySelectorAll('.rz-code-tag')) if(visible(tag)&&!tag.textContent!.trim()) problems.push('empty code tag');
+    for(const menu of document.querySelectorAll('[role=menu]')) {
+      if(!visible(menu)) continue;
+      const area=menu.getBoundingClientRect();
+      for(const avatar of document.querySelectorAll('.rz-avatar,.app-header-person')) {
+        const box=avatar.getBoundingClientRect();
+        if(visible(avatar)&&area.left<box.right&&area.right>box.left&&area.top<box.bottom&&area.bottom>box.top) problems.push(`menu covers ${describe(avatar)}`);
+      }
     }
     for(const heading of document.querySelectorAll('h1,h2')) {
       const size=parseFloat(getComputedStyle(heading).fontSize);

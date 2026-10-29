@@ -30,11 +30,11 @@ export function reportLink({reportUrl,commit}:TestBuild,screen:string) {
  * The signed-in person's name and initials open the avatar menu.
  * On a test build it also shows the commit and a Report a bug link that names the current screen.
  */
-export function AppHeader({name,label,dayName,screen,onMenu}:{name?:string;label?:string;dayName?:string;screen:string;onMenu?:()=>void}) {
+export function AppHeader({name,label,dayName,screen,onMenu}:{name?:string;label?:string;dayName?:string;screen:string;onMenu?:(anchor:HTMLElement)=>void}) {
   const testBuild=useTestBuild();
   return <header className="app-header">
     <div className="app-header-title"><strong>Running Zone</strong>{dayName && <span>{dayName}</span>}</div>
-    {name && <button className="app-header-person" aria-label={label} onClick={onMenu}><span>{name}</span><span className="avatar" aria-hidden="true">{initials(name)}</span></button>}
+    {name && <button className="app-header-person" aria-label={label} onClick={event=>onMenu?.(event.currentTarget)}><span>{name}</span><span className="avatar" aria-hidden="true">{initials(name)}</span></button>}
     {testBuild && <div className="app-header-test"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
   </header>;
 }

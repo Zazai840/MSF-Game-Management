@@ -49,8 +49,8 @@ export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
   </button>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */
-export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label:string}) {
-  return <button type="button" className="rz-avatar" aria-label={label} onClick={onOpen}>{initials(name)}</button>;
+export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
+  return <button type="button" className="rz-avatar" aria-label={label} onClick={event=>onOpen(event.currentTarget)}>{initials(name)}</button>;
 }
 /** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
 export function HomeBar({children}:{children:ReactNode}) {
@@ -63,7 +63,7 @@ export function HomeBar({children}:{children:ReactNode}) {
 export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1>{role==='lead' && <span className="rz-code-tag">{code}</span>}</div>
+      <h1>{title}</h1>{role==='lead' && code && <span className="rz-code-tag">{code}</span>}</div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }
