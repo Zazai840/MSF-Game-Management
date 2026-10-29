@@ -125,7 +125,8 @@ export function StepStrip({race,role,selected,onSelect,notes={},label,relay=fals
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
   const id=useId(),sheet=useRef<HTMLDivElement>(null);
   useEffect(()=>{
-    sheet.current?.focus();
+    // A box inside that took focus as it opened (a leg box's autoFocus) keeps it, so its number pad stays open.
+    if(!sheet.current?.contains(document.activeElement)) sheet.current?.focus();
     const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};
     addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);
   },[]);

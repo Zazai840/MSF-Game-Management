@@ -1,6 +1,6 @@
-import { useId,useState,type ReactNode } from 'react';
+import { useEffect,useId,useState,type ReactNode } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import type { RaceGroup,RacesRead } from '../../shared/race-flow.js';
+import type { RaceFlowRead,RaceGroup,RacesRead } from '../../shared/race-flow.js';
 import { stillToRun,teamState,teamsSheetLine,type RelayTeam,type TeamList } from '../../shared/teams.js';
 import { ApiFailure,api } from '../api.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
@@ -58,23 +58,44 @@ function ChangeAnyway({team,onCancel,onChange}:{team:RelayTeam;onCancel:()=>void
   </div>;
 }
 /**
+ * The teams sheet opened from a team card at check-in: Edit opens the team's leg boxes straight away (no Change
+ * anyway), and New team's saved team joins this heat. Each Save answers with the race as it then stands.
+ */
+export function CheckInTeamSheet({read,teamId,offer,onClose}:{read:RaceFlowRead;teamId:string|null;offer:(next:RaceFlowRead)=>void;onClose:()=>void}) {
+  const {group}=read,teams=read.teams||[],team=teamId===null?null:teams.find(item=>item.id===teamId);
+  if(team===undefined) return null;
+  return <Sheet title={team?`Edit team ${team.number}`:'New team · joins this heat'} onClose={onClose}>
+    <TeamForm team={team} number={team?.number??group.nextTeam!} eventId={group.event.id} raceId={read.race.id} offer={offer} onDone={onClose}
+      relay={{code:group.event.code,name:group.event.name,section:group.event.section,teams}} relays={read.relays||[]}/>
+  </Sheet>;
+}
+/**
  * One team's four leg boxes, 1st leg first, with Fix number / Keep, then Cancel and Save team 9. Edit on a team never
  * in a race also has Remove team 7. A Save someone overtook shows who, with Show latest to start again from theirs.
+ * From check-in (`raceId`) a Save also writes the team's entry in that race, and New team joins it. While a team is
+ * open, other phones see "Aisha Noor is changing this team".
  */
-function TeamForm({team,number,eventId,relay,relays,offer,onDone}:{team:RelayTeam|null;number:number;eventId:string;relay:TeamList;relays:readonly TeamList[];offer:(next:RacesRead)=>void;onDone:()=>void}) {
+function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}:{team:RelayTeam|null;number:number;eventId:string;raceId?:string;relay:TeamList;relays:readonly TeamList[];offer:(next:Answer)=>void;onDone:()=>void}) {
   /** The version this team was opened at: Save and Remove send it, so a change made meanwhile refuses them. */
   const [version,setVersion]=useState(team?.version),[fresh,setFresh]=useState(0);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[changed,setChanged]=useState<{by:string|null}|null>(null),[removing,setRemoving]=useState(false);
+  // The mark is only a courtesy to other phones, so a failed open or close is not shown; a Save or sign-out clears it too.
+  useEffect(()=>{
+    if(!team) return;
+    const mark=(what:string)=>void api(`relays/${eventId}/teams/${team.id}/${what}`,{}).catch(()=>{});
+    mark('open');
+    return ()=>mark('close');
+  },[]);
   async function send(path:string,body:object) {
     setBusy(true);setError('');
-    try {offer(await api<RacesRead>(`relays/${eventId}/teams${path}`,body));onDone();}
+    try {offer(await api<Answer>(`relays/${eventId}/teams${path}`,body));onDone();}
     catch(failure) {
       const refused=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
       if(refused.reason==='changed') setChanged({by:refused.by??null});
       else setError(failure instanceof Error?failure.message:'Could not connect - please try again');
     } finally {setBusy(false);}
   }
-  const save=(draft:TeamDraft)=>void send(team?`/${team.id}`:'',{...(team?{version}:{}),...draft});
+  const save=(draft:TeamDraft)=>void send(team?`/${team.id}`:'',{...draft,...(team?{version,raceId}:{joinRaceId:raceId})});
   return <>
     <p className="rz-sheet__text">{relay.name} · {relay.section}<br/>Type each child's wristband in running order, 1st leg first.</p>
     {changed && <Callout status message={`${changed.by?`${changed.by} changed this`:'Someone changed this'} a moment ago.`}

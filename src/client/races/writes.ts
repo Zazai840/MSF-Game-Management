@@ -25,7 +25,7 @@ export function useFlowWrite(raceId:string,offer:Offer) {
       return failure instanceof ApiFailure?'refused':false;
     } finally {setBusy(false);}
   }
-  return {busy,error,setError,changed,clearChanged:()=>setChanged(null),write};
+  return {busy,error,setError,changed,clearChanged:()=>setChanged(null),write,offer};
 }
 /**
  * One step's writes, latest wins (latestWins): each change sends the whole step with the part version last answered.
