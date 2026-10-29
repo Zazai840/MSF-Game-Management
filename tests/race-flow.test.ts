@@ -88,6 +88,22 @@ test('a race saves itself once every step is done, and a step that is not comple
   expect(history.map(row=>[row.part,row.author])).toEqual([['runners','Ahmed'],['finish','Tom Barker'],['times','Ahmed']]);
   expect((await call(tom,`/api/races/${id}/order`,{raceId:id,version:2,order:[],didNotFinish:[],didNotRun:[],added:[]})).json().message).toBe('Heat 1 is saved - ask a lead to change it');
 });
+test('changing or taking off a wristband after That\'s everyone leaves Runners done, and a changed number keeps its entry and its place',async()=>{
+  const {ahmed,tom}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:made.race.parts.runners.version,runners:[{wristband:2001},{wristband:2015},{wristband:2003}]});
+  const marked=(await done(ahmed,checked,'runners')).json() as RaceFlowRead;
+  const placed=await order(tom,marked,[2015,2001,2003]);
+  const [first,second,third]=ids(placed,[2001,2015,2003]);
+  const changed=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:placed.race.parts.runners.version,runners:[{id:first,wristband:2001},{id:second,wristband:2065},{id:third,wristband:2003}],keptWarnings:[]});
+  expect(changed.steps.runners).toMatchObject({state:'done',doneBy:'Ahmed'});
+  expect(ids(changed,[2065])).toEqual([second]);
+  expect(changed.race.parts.finish.value!.order).toEqual([second,first,third]);
+  // Taking a placed runner off drops their place; the step stays done.
+  const removed=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:changed.race.parts.runners.version,runners:[{id:first,wristband:2001},{id:third,wristband:2003}],keptWarnings:[]});
+  expect(removed.steps.runners!.state).toBe('done');
+  expect(removed.race.parts.finish.value!.order).toEqual([first,third]);
+});
 test('Undo reverses only my own done mark and the save it made, and steps aside once someone else changed the step',async()=>{
   const {ahmed,tom}=await start();
   const saved=await heat(ahmed,'R4',1,[2001,2002],[1100,1200],steps),id=saved.race.id;

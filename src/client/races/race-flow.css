@@ -23,7 +23,7 @@
 :where(.rz-screen) footer button { text-decoration: none; }
 :where(.rz-screen) h1, :where(.rz-screen) h2, :where(.rz-screen) h3, :where(.rz-screen) p { margin: 0; color: inherit; }
 :where(.rz-screen) main { max-width: none; margin: 0; padding: 0; }
-:where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; font-size: inherit; color: inherit; }
+:where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; align-items: normal; font-size: inherit; color: inherit; }
 :where(.rz-screen) label { display: block; }
 :where(.rz-screen) form { display: flex; flex-direction: column; gap: var(--space-8); }
 :where(.rz-screen) input { min-height: 0; }
