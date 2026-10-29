@@ -3,7 +3,6 @@ import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { doneBlocker,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
-import { submitBlocker,type Job } from '../../shared/race-screen.js';
 import type { RacePartName } from '../../shared/races.js';
 import { resultName } from '../../shared/results-rules.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
@@ -12,10 +11,8 @@ import { readEvents } from '../day/events.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { createRace } from './create.js';
-import { absentInput,checkIn,checkInInput,markAbsent,orderInput,saveRace,timesInput,writeOrder,writeTimes,type WriteTarget } from './race-screen.js';
+import { absentInput,checkIn,checkInInput,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { jobRace,listRaces,raceChange,readRace,type Database,type StoredRace } from './records.js';
-/** The part each race-screen job writes, so a saved race's history names who marked each step done. */
-const jobSteps:Record<Job,Step>={'check-in':'runners',order:'positions',times:'times'};
 /** Who last changed each part of each race of the day and who marked it done, by race id and part. */
 async function readStepMeta(db:Database,dayId:string) {
   const rows=(await db.query(`SELECT p.race_id,p.part,p.version,p.saved_at,s.name AS saved_name,p.done_at,d.name AS done_name
@@ -79,19 +76,6 @@ export async function raceFlowRead(db:Database,dayId:string,raceId:string):Promi
   const group=(await readGroups(db,dayId,race.event.id))[0];
   if(!group) throw new Refusal(409,'This event is switched off');
   return {revision:await dayRevision(db,dayId),group,race:jobRace(race),steps:group.races.find(item=>item.id===race.id)!.steps};
-}
-/**
- * Saves a race whose steps are all done once nothing blocks it (finishers and times agree), with history naming who
- * marked each step done. A done mark checks, and so does every step write: a timer who drops a time left over saves a
- * race whose steps were already all done.
- */
-async function saveIfDone(client:pg.PoolClient,phone:Phone,raceId:string) {
-  const race=await readRace(client,phone.dayId,raceId);
-  if(race.state!=='in progress' || race.deleted) return;
-  const done=(await client.query('SELECT p.part,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.done_by WHERE p.race_id=$1 AND p.done_at IS NOT NULL',[raceId])).rows as Array<{part:RacePartName;name:string|null}>;
-  if(stepsOf(race).every(step=>done.some(row=>row.part===stepParts[step])) && !submitBlocker(race)) {
-    await saveRace(client,phone,race,job=>done.find(row=>row.part===stepParts[jobSteps[job]])?.name??null);
-  }
 }
 const dayRevision=async(db:Database,dayId:string)=>Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
 /**

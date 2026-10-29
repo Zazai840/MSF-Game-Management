@@ -2,8 +2,7 @@ import { useState } from 'react';
 import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { isTeamEntry,raceLabel,type TeamEntry } from '../../shared/races.js';
 import { stillToRun,type RelayTeam,type TeamList } from '../../shared/teams.js';
-import { TeamCells,TeamEdit } from '../teams/TeamsScreen.js';
-import '../teams/teams.css';
+import { TeamCells,TeamEdit } from './TeamEdit.js';
 import './race-page.css';
 /** One team of the race as Correct teams sends it: kept as it is, its four children corrected, or added from the team list. */
 type TeamChoice={entryId:string;legs?:Array<number|null>}|{teamId:string};
