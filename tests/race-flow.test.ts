@@ -13,7 +13,7 @@ async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'race-flow-owner',resetTestDay:true});
   const people=await signInOwner(app,'race-flow-owner'),owner=people.owner.token as string;
   await call(owner,'/api/day/confirm-events',{});
-  return {owner,ahmed:(await people.volunteer('Ahmed')).token,tom:(await people.volunteer('Tom Barker')).token};
+  return {owner,ahmed:(await people.volunteer('Ahmed')).token,tom:(await people.volunteer('Tom Barker')).token,lena:(await people.lead('Lena')).token};
 }
 async function ok<T=RaceFlowRead>(token:string,url:string,body?:unknown) {
   const response=await call(token,url,body);
@@ -106,31 +106,36 @@ test('Undo reverses only my own done mark and the save it made, and steps aside 
   expect(late.statusCode).toBe(409);
   expect(late.json()).toMatchObject({message:'Tom Barker changed this since. Open the race to edit it.',reason:'changed-since'});
 });
-test('the final opens to anyone once every heat is saved, seeded with the fastest, and a tie blocks it',async()=>{
-  const {ahmed}=await start();
-  await heat(ahmed,'R4',1,[2001,2002,2003],[1100,1200,1300],steps);
-  const running=await heat(ahmed,'R4',2,[2004],[1000]);
-  expect((await call(ahmed,'/api/races',{eventCode:'R4',kind:'final'})).json().message).toBe('The final opens when every heat has times');
+test('only a lead makes the final, once every heat is saved, seeded with the fastest 6, and a tie blocks it',async()=>{
+  const {ahmed,lena}=await start();
+  await heat(ahmed,'R4',1,[2001,2002,2003,2004,2005],[1100,1200,1300,1400,1500],steps);
+  const running=await heat(ahmed,'R4',2,[2006,2007],[1000,1600]);
+  expect((await call(lena,'/api/races',{eventCode:'R4',kind:'final'})).json().message).toBe('The final opens when every heat has times');
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')!.finalAvailable).toBe(false);
   await done(ahmed,running,'runners');await done(ahmed,running,'positions');await done(ahmed,running,'times');
   // An empty heat made by mistake does not hold the final back.
   await newHeat(ahmed,'R4',3);
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')!.finalAvailable).toBe(true);
-  const final=await ok(ahmed,'/api/races',{eventCode:'R4',kind:'final'});
+  // A volunteer's phone cannot make it, whatever it sends: the heats stay open.
+  const refused=await call(ahmed,'/api/races',{eventCode:'R4',kind:'final'});
+  expect(refused.statusCode).toBe(403);
+  expect(refused.json().message).toBe('Ask a lead to make the final');
+  expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')).toMatchObject({heatsOpen:true,finalAvailable:true});
+  const final=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
   expect(final.race.kind).toBe('final');
-  expect(final.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([2004,2001,2002,2003]);
+  expect(final.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([2006,2001,2002,2003,2004,2005]);
   expect(Object.keys(final.steps)).toEqual(['runners','positions']);
   // Making the final completes the heats: the group offers no more heats.
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')!.heatsOpen).toBe(false);
-  expect((await ok(ahmed,'/api/races',{eventCode:'R4',kind:'final'})).race.id).toBe(final.race.id);
+  expect((await ok(lena,'/api/races',{eventCode:'R4',kind:'final'})).race.id).toBe(final.race.id);
   // Boy Beavers: 6th and 7th tie on time across two heats, so who takes the last place in the final is not decided.
   await heat(ahmed,'R1',1,[1,2,3,4,5,6],[1000,1100,1200,1300,1400,1500],steps);
   await heat(ahmed,'R1',2,[7],[1500],steps);
-  const tied=await call(ahmed,'/api/races',{eventCode:'R1',kind:'final'});
+  const tied=await call(lena,'/api/races',{eventCode:'R1',kind:'final'});
   expect(tied.statusCode).toBe(409);
   expect(tied.json().message).toBe('Must settle first - open the completion check sheet');
   expect(tied.json().mustSettleFirst[0]).toMatch(/^Tie/);
-  expect((await call(ahmed,'/api/races',{eventCode:'R16',kind:'final'})).json().message).toBe('This event has no final');
+  expect((await call(lena,'/api/races',{eventCode:'R16',kind:'final'})).json().message).toBe('This event has no final');
 });
 test('the races list and a race come live: a write from another phone reaches an open stream',async()=>{
   const {ahmed,tom}=await start();

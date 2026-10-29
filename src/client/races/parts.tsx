@@ -1,5 +1,5 @@
 import { useEffect,useId,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,roleLabels,roleSteps,stepLabels,stepsOf,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { chipLabel,chipName,chipState,finalConfirm,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 
 /** The design system's line icons (components/Icon/README.md). */
@@ -68,7 +68,7 @@ export function RaceBar({title,code,onBack,children}:{title:string;code:string;o
   </header>;
 }
 /**
- * One chip per race of an event group, then "+" for the next heat and, when it applies, "+ Final". States follow the
+ * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
  * viewer's step, and every chip says its state in words. `current` is the race open now (gold with a ring); on a race
  * screen a race ready for you that is not open gets a ring and a gold dot.
  */
@@ -130,6 +130,17 @@ export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;ch
       {children}
     </div>
   </div>;
+}
+/** What a lead's "+ Final" opens: the heat count to check against what they saw, before the final ends the heats. */
+export function FinalSheet({group,onMake,onClose}:{group:RaceGroup;onMake:()=>void;onClose:()=>void}) {
+  const {title,text}=finalConfirm(group);
+  return <Sheet title={title} onClose={onClose}>
+    <p className="rz-sheet__text">{text}</p>
+    <div className="rz-sheet__actions">
+      <button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={onMake}>Make the final</button>
+      <button type="button" className="rz-btn rz-btn--small rz-btn--block" onClick={onClose}>Not yet</button>
+    </div>
+  </Sheet>;
 }
 /** The amber warning with its two actions (Fix / Keep); `status` makes it a calm note rather than an alert. */
 export function Callout({message,status=false,actions}:{message:ReactNode;status?:boolean;actions?:ReactNode}) {
