@@ -99,7 +99,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - Numeric TextField "Place time", hint "Shows as <strong>12.34</strong>" and "Type digits only: 1234 shows as 12.34, 13240 as 1:32.40. Tap a place to retype it."
 - Footer trio: secondary "Back", secondary "No more finishers", primary "Next".
 
-**18 Times: time faster than the place before.** The current slot and the field take the warn state; the slot note reads "Faster than 1st place". A WarningCallout follows: "The 2nd place time is faster than 1st. Fix it, or keep it if the timer really shows that." with "Fix time" and "Keep".
+**18 Times: time faster than the place before.** The current slot and the field take the warn state; the slot note reads "Faster than 1st place". A WarningCallout sits directly above the field: "The 2nd place time is faster than 1st. Fix it, or keep it if the timer really shows that." with "Fix time" and "Keep".
 
 **19 Times: check the times**
 - `display-screen` "Check the times" with an ok StatusTag "4 times · 4 finishers".

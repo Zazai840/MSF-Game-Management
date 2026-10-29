@@ -399,6 +399,17 @@ export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
   await nextBeside(page,'Place time').click();
 }
+/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer (or the keyboard). */
+export async function inViewAboveFooter(page:Page,targets:Locator[]) {
+  const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
+    footer:document.querySelector('footer.rz-footer')?.getBoundingClientRect().top??Infinity}));
+  expect(scrolled).toBe(0);
+  for(const target of targets) {
+    const box=(await target.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y+box.height,`${await target.textContent()} above the footer`).toBeLessThanOrEqual(Math.min(visible,footer)+0.5);
+  }
+}
 /**
  * Every rule of the look that can be measured on the screen currently shown. The race flow's screens (inside
  * `.rz-screen`) follow the Running Zone design system (docs/running-zone-design-system/accessibility.md): 44px
@@ -441,6 +452,12 @@ export async function lookProblems(page:Page) {
       const tops=[...strip.querySelectorAll('.rz-step__label')].map(label=>Math.round(label.getBoundingClientRect().top));
       if(new Set(tops).size>1) problems.push(`step labels out of line ${describe(strip)}`);
     }
+    // A footer button's label on one line: every line box of its text starts at the same height.
+    for(const button of document.querySelectorAll('.rz-footer .rz-btn')) {
+      if(!visible(button)) continue;
+      const lines=[...button.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).flatMap(node=>{const range=document.createRange();range.selectNodeContents(node);return [...range.getClientRects()];});
+      if(lines.length && Math.max(...lines.map(line=>line.top))-Math.min(...lines.map(line=>line.top))>Math.min(...lines.map(line=>line.height))/2) problems.push(`wrapped ${describe(button)}`);
+    }
     for(const heading of document.querySelectorAll('h1,h2')) {
       const size=parseFloat(getComputedStyle(heading).fontSize);
       if(visible(heading)&&!designSystem(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);
@@ -448,7 +465,8 @@ export async function lookProblems(page:Page) {
     const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     for(let node=walker.nextNode();node;node=walker.nextNode()) {
       const element=node.parentElement!;
-      if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled,script,style')) continue;
+      // A greyed-out button's label is exempt, but not a Timer slot's: slots held while a warning waits must still read.
+      if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled:not(.rz-slot),script,style')) continue;
       const style=getComputedStyle(element);
       const size=parseFloat(style.fontSize);
       if(!designSystem(element)&&element.closest('p,li,label,dd,dt,td,th,button,output,a')&&!element.closest('small,.badge,h1,h2,h3')&&size<15) problems.push(`text ${describe(element)} is ${style.fontSize}`);

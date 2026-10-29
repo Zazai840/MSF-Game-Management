@@ -228,7 +228,8 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
 /**
  * Timer: one slot per place (each finisher once the order is saved, before that each runner), the current one gold; tap any
  * to retype it. Digits only: the app puts the point in. A time faster than an earlier place waits for Fix time or
- * Keep. The last place's time, or No more finishers, marks Times done. Times never wait for the finish line.
+ * Keep, its warning just above the time box and its reason in the footer. The last place's time, or No more finishers,
+ * marks Times done. Times never wait for the finish line.
  */
 export function Timer({read,flow,onDone,locked}:StepProps) {
   const {race}=read,status=read.steps.times!,order=read.steps.positions!;
@@ -258,9 +259,10 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
       </div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
-      {slots>0?<ol className="rz-slots" aria-label="Place times">{Array.from({length:slots},(_,index)=>{
+      {/* A heat of more than 9 gets the compact grid, 4 across, so a warning and the time box stay above the footer. */}
+      {slots>0?<ol className={slots>9?'rz-slots rz-slots--compact':'rz-slots'} aria-label="Place times">{Array.from({length:slots},(_,index)=>{
         const time=places[index],isWrong=wrong.has(index);
-        const kind=index===target && !full?'rz-slot rz-slot--current':isWrong?'rz-slot rz-slot--warn':time===undefined?'rz-slot rz-slot--empty':'rz-slot';
+        const kind=isWrong?'rz-slot rz-slot--warn':index===target && !full?'rz-slot rz-slot--current':time===undefined?'rz-slot rz-slot--empty':'rz-slot';
         return <li key={index}><button type="button" className={kind} aria-current={index===target && !full?'step':undefined} disabled={locked || held || (time===undefined && index!==places.length)}
           aria-label={`${ordinal(index+1)} place: ${time===undefined?'no time yet':formatTime(time)}${isWrong?`, ${wrong.get(index)!.reason}`:''}`}
           onClick={()=>{setRetype(time===undefined?null:index);setTyped(time===undefined?'':digitsForTime(time));}}>
@@ -268,13 +270,13 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
           {isWrong && <span className="rz-slot__note">{keptWrong.includes(index)?'Kept':wrong.get(index)!.reason}</span>}
         </button></li>;
       })}</ol>:<p className="rz-empty">Places appear here once runners are checked in.</p>}
-      {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held} onChange={setTyped} onEnter={()=>void next()}
-        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={digits?<>Shows as <strong>{formatTimeDigits(digits)}</strong>. Type digits only.</>:'Type digits only: 1234 shows as 12.34.'}/>}
       {held && <Callout message={`${wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button>
           <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}
+      {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held} onChange={setTyped} onEnter={()=>void next()}
+        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={digits?<>Shows as <strong>{formatTimeDigits(digits)}</strong>. Type digits only.</>:'Type digits only: 1234 shows as 12.34.'}/>}
     </main>
-    {!locked && <DockedFooter><div className="rz-footer__trio">
+    {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
       <KeepFocus className="rz-btn" disabled={target===0 && retype===null && !places.length} onClick={()=>{const back=Math.max(0,(retype??places.length)-1);if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Back</KeepFocus>
       <button type="button" className="rz-btn" disabled={!places.length || held || writes.sending} onClick={()=>onDone('times')}>No more finishers</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || held || full} onClick={()=>void next()}>Next</KeepFocus>
