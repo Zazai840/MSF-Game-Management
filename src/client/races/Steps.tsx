@@ -1,4 +1,5 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { ordinal } from '../../shared/ordinal.js';
 import { raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { onlyRunners } from '../../shared/race-screen.js';
@@ -163,7 +164,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   // Everyone already placed (coming back to the step, or a lead opening the tab): straight to Check the order, never a flash of the next place.
   const [mode,setMode]=useState<'place'|'check'|'add'>(()=>runners.length && !unplaced.length && order.length?'check':'place');
   const [redo,setRedo]=useState<number|null>(null);
-  const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({});
+  const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({}),[asked,setAsked]=useState(false);
   const size=useSizeWarning(`${race.id}:finish`),applies=usualSizeApplies(event) || race.kind==='final';
   const current=redo!==null && redo<order.length?redo:order.length;
   const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[]},added:number[]=[],kept:number[]=[])=>
@@ -199,11 +200,20 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   </>;
   if(mode==='check') {
     const left=runners.filter(runner=>!order.includes(runner.id));
-    const as=(runner:Runner):Unplaced=>leftAs[runner.id]??'dnf';
+    // A runner already saved as Did not finish keeps that answer; anyone else left is asked, with nothing chosen for them.
+    const as=(runner:Runner):Unplaced|undefined=>leftAs[runner.id]??(didNotFinish.includes(runner.id)?'dnf':undefined);
+    const unanswered=left.filter(runner=>!as(runner));
     async function save() {
+      if(unanswered.length) {
+        flushSync(()=>setAsked(true)); // the callout first, so the row scrolled to stays clear of the footer
+        document.getElementById(`left-${unanswered[0].id}`)?.scrollIntoView({block:'center'});
+        return;
+      }
       const result=await send({order,didNotFinish:left.filter(runner=>as(runner)==='dnf').map(runner=>runner.id),didNotRun:left.filter(runner=>as(runner)==='dnr').map(runner=>runner.id)});
       if(typeof result==='object') onDone('positions');
     }
+    const choice=(runner:Runner,value:Unplaced,label:string)=><button type="button" className={as(runner)===value?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'}
+      disabled={locked} aria-pressed={as(runner)===value} onClick={()=>setLeftAs({...leftAs,[runner.id]:value})}>{label}</button>;
     return <>
       <main className="rz-main">
         <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a runner</p><h2 className="rz-prompt__q">Check the order</h2></div>
@@ -214,12 +224,12 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
           look={{list:'rz-orderrows',row:'rz-orderrow',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:name=>`Move ${name}`}}
           onReorder={next=>void send({order:next})}
           renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{byId.get(id)?.wristband}</span></>}/>}
-        <div className="rz-heading-row"><h3 className="rz-section">Not placed</h3>{!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('add')}>+ Runner not on the list</button>}</div>
-        {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id}>
-          <button type="button" className="rz-orderrow rz-orderrow--unplaced" disabled={locked} aria-label={`${runner.wristband}, ${as(runner)==='dnf'?'did not finish':"didn't run"}. Change`}
-            onClick={()=>setLeftAs({...leftAs,[runner.id]:as(runner)==='dnf'?'dnr':'dnf'})}>
-            <span className="rz-orderrow__place">–</span><span className="rz-orderrow__num">{runner.wristband}</span><span className="rz-tag rz-tag--dnf">{as(runner)==='dnf'?'Did not finish':"Didn't run"}</span>
-          </button></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
+        <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('add')}>+ Runner not on the list</button>}</div>
+        {asked && unanswered.length>0 && <Callout message={`Say what happened to ${runnersText(unanswered.length)} first.`}/>}
+        {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id} id={`left-${runner.id}`}>
+          <div role="group" aria-label={String(runner.wristband)} className="rz-orderrow rz-orderrow--unplaced">
+            <span className="rz-orderrow__num">{runner.wristband}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
+          </div></li>)}</ul>:<p className="rz-empty">Everyone has a place.</p>}
       </main>
       {!locked && <DockedFooter>
         <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save the order</button>

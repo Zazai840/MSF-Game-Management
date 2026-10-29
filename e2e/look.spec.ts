@@ -14,7 +14,7 @@ test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'
   const header=page.getByRole('banner');
   await expect(header).toContainText('MSF Olympics');await expect(header).toContainText('Running Zone');
   expect(await header.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(navy);
-  const avatar=header.getByRole('button',{name:`Abdulaziz ${info.project.name} Zazai, your details`,exact:true});
+  const avatar=header.getByRole('button',{name:`Abdulaziz ${info.project.name} Zazai: Log out`,exact:true});
   await expect(avatar).toHaveText('AZ');
   expect(await avatar.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(paper);
   expect(await page.locator('.rz-screen').evaluate(element=>getComputedStyle(element).fontFamily)).toMatch(/^Nunito, /);

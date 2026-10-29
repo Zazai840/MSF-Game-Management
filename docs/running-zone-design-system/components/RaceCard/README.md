@@ -7,7 +7,7 @@ One event group (an event in one section) on Races: its title, code, a status li
 ```html
 <article class="rz-racecard">
   <div class="rz-racecard__head"><h3 class="rz-racecard__title">60m · Girl Cubs</h3><span class="rz-code-tag">R4</span></div>
-  <p class="rz-racecard__status">Heats 3 and 4 need times · 1 and 2 done</p>
+  <p class="rz-racecard__status">Heats 3 and 4 need times · Heats 1 and 2 done</p>
   <ol class="rz-heats" aria-label="Heats">…</ol>
 </article>
 ```

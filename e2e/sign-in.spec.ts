@@ -49,7 +49,7 @@ test('a new phone joins with its name, the password and its job, stays signed in
   await page.getByLabel('Password',{exact:true}).press('Enter');
   await races(page);
   await expect(jobChip(page,'Start line')).toBeVisible();
-  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`${name}: Log out`,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem('e2e:persist'))).toBe('asked');
   await page.reload();
   await races(page);await expect(jobChip(page,'Start line')).toBeVisible();
@@ -110,7 +110,7 @@ test('a name held on another phone asks "Is this you on a new phone?": That\'s m
     await other.getByRole('button',{name:'Join',exact:true}).click();
     await question(other).getByRole('button',{name:"That's me",exact:true}).click();
     await races(other);
-    await expect(other.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+    await expect(other.getByRole('button',{name:`${name}: Log out`,exact:true})).toBeVisible();
     await expect(jobChip(other,'Finish line')).toBeVisible();
     await expect(other.getByRole('status')).toHaveCount(0);
   } finally {await second.close();}
@@ -126,7 +126,7 @@ test('the lead code joins as Zone lead on its own, and a name held on another ph
     await question(other).getByRole('button',{name:"That's me",exact:true}).click();
     await races(other);
     await expect(jobChip(other,'Zone lead')).toBeVisible();
-    await expect(other.getByRole('button',{name:`${name}: Results, Day setup and your details`,exact:true})).toBeVisible();
+    await expect(other.getByRole('button',{name:`${name}: Results, Day setup and Log out`,exact:true})).toBeVisible();
     expect(await lookProblems(other)).toEqual([]);
     await other.screenshot({path:info.outputPath('lead-thats-me.png')});
   } finally {await second.close();}

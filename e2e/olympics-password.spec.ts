@@ -45,7 +45,7 @@ test('changing the Olympics password sends both phones back to Join with their p
     // Wrong passwords share one backoff per IP across the whole run, so the old password's refusal is left to the server tests.
     // Joining with the new password, today's role comes back: still a lead.
     await join(other,lead,{code:changed,job:'Start line'});await races(other);
-    await expect(other.getByRole('button',{name:`${lead}: Results, Day setup and your details`,exact:true})).toBeVisible();
+    await expect(other.getByRole('button',{name:`${lead}: Results, Day setup and Log out`,exact:true})).toBeVisible();
     // The owner gets back in with the owner password and reads the new password off the card.
     await join(page,owner,{code:'e2e-owner-fixture'});await races(page);
     await openLeadMenu(page,'Day setup');

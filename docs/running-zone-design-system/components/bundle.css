@@ -386,7 +386,8 @@
 .rz-orderrow__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; line-height: 1; text-transform: uppercase; }
 .rz-orderrow__num { font-size: 18px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-orderrow__handle { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--navy); touch-action: none; }
-.rz-orderrow--unplaced { width: 100%; grid-template-columns: 44px 1fr auto; padding-right: var(--space-10); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); text-align: left; font: inherit; }
+.rz-orderrow--unplaced { grid-template-columns: 1fr auto auto; gap: var(--space-6); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); }
+.rz-orderrow--unplaced .rz-btn--pill { padding: 0 var(--space-12); }
 
 /* ---------- Toast ---------- */
 .rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
