@@ -499,10 +499,14 @@ function FinalHere({ctx,race,change,done}:StepBody) {
     <footer className="rz-footer rz-footer--sticky"><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here} onClick={()=>done('runners')}>That's everyone</button></footer>
   </>;
 }
-/** Which label is large on a team: A the team number, B the 4th leg's wristband (today), C both, side by side. */
+/**
+ * Which label is large on a team: A the team number, B the 4th leg's wristband (today), C both, side by side.
+ * D (owner, 29 Oct): "Team 5" then the 4th leg's wristband, equal size, nothing else.
+ */
 function tileLabel(variant:Variant,team:Team,inline=false):ReactNode {
   const last=lastLeg(team);
-  if(variant==='A' || variant==='D') return inline?`Team ${team.number}`:<><small>Team</small>{team.number}</>;
+  if(variant==='D') return inline?`Team ${team.number} · ${last??'–'}`:<><span className="proto-equal">Team {team.number}</span><span className="proto-equal">{last??'–'}</span></>;
+  if(variant==='A') return inline?`Team ${team.number}`:<><small>Team</small>{team.number}</>;
   if(variant==='B') return last===null?<>{`Team ${team.number}`}<small>no 4th leg</small></>:inline?`${last} (Team ${team.number})`:<>{last}<small>Team {team.number}</small></>;
   return inline?`Team ${team.number} · ${last??'no 4th leg'}`:<><span className="proto-both__team">Team {team.number}</span><span className="proto-both__leg">4th leg {last??'–'}</span></>;
 }
@@ -550,8 +554,8 @@ function FinishLine({ctx,race,change,done}:StepBody) {
       })}</ol>
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · {running.length} teams · {unplaced.length} to place · tap the team whose 4th leg crossed</p>
         <h2 className="rz-prompt__q">{!running.length?'No teams checked in yet':<>Which team came <em>{ordinal(current+1)}?</em></>}</h2></div>
-      {unplaced.length>0 && <ul className={variant==='C'?'rz-runners proto-teamtiles proto-teamtiles--two':'rz-runners proto-teamtiles'}>{unplaced.map(entry=>{const team=teamOf(day,entry.teamId);return <li key={team.id}>
-        <button type="button" className={variant==='C'?'rz-runner proto-both':'rz-runner'} onClick={()=>change(next=>{next.order.push(team.id);})}>{tileLabel(variant,team)}{entry.atFinish && <small className="proto-atfinish">At finish</small>}</button></li>;})}</ul>}
+      {unplaced.length>0 && <ul className={variant==='C' || variant==='D'?'rz-runners proto-teamtiles proto-teamtiles--two':'rz-runners proto-teamtiles'}>{unplaced.map(entry=>{const team=teamOf(day,entry.teamId);return <li key={team.id}>
+        <button type="button" className={variant==='C' || variant==='D'?'rz-runner proto-both':'rz-runner'} onClick={()=>change(next=>{next.order.push(team.id);})}>{tileLabel(variant,team)}{entry.atFinish && <small className="proto-atfinish">At finish</small>}</button></li>;})}</ul>}
     </main>
     <footer className="rz-footer rz-footer--sticky">
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode('check')}>No other team crossed the line</button>

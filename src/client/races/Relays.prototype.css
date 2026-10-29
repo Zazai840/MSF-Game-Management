@@ -84,3 +84,4 @@ body:has(.proto-switcher) { padding-top: 42px; background-image: linear-gradient
 .proto-member { display: flex; flex-direction: column; align-items: center; padding: var(--space-4) 0; border-radius: var(--radius-sm, 8px); background: var(--paper); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .proto-member small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
 .proto-member--empty { color: var(--placeholder); }
+.proto-equal { font-size: 30px; line-height: 1.05; }

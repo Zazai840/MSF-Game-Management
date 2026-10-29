@@ -112,6 +112,18 @@ for(const variant of ['A','B','C']) {
   await page.goto(`${base}/prototype/relays?variant=D&race=r22-h2&role=start`);
   await page.locator('main').getByRole('button',{name:'New team'}).tap();await page.waitForTimeout(250);
   await shot('09-new-team-at-check-in');
+  const job=async label=>{await page.getByRole('button',{name:/^Your job/}).tap();await page.getByRole('button',{name:label,exact:true}).tap();};
+  await page.goto(`${base}/prototype/relays?variant=D&race=r22-h2&role=start`);
+  await page.locator('.rz-listrow').filter({hasText:'Team 7'}).getByRole('button',{name:'Add'}).tap();
+  await job('Finish line');await page.waitForTimeout(200);
+  await shot('10-finish-line');
+  await page.locator('.proto-teamtiles button').nth(1).tap();await page.waitForTimeout(150);
+  await shot('11-finish-one-placed');
+  await page.getByRole('button',{name:'No other team crossed the line',exact:true}).tap();await page.waitForTimeout(200);
+  await shot('12-check-the-order');
+  await page.goto(`${base}/prototype/relays?variant=D&race=r27-f&role=finish`);
+  await page.waitForTimeout(300);
+  await shot('13-final-finish-line');
   await context.close();
 }
 await browser.close();
