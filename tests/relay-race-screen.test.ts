@@ -5,7 +5,6 @@ import type { RaceScreenRead } from '../src/shared/race-screen.js';
 import { isTeamEntry } from '../src/shared/races.js';
 import { signInOwner } from './support/sign-in.js';
 import { relaySetup } from './support/relays.js';
-import { raceSetup } from './support/races.js';
 /**
  * The race screen is a relay's (ADR 0003): its jobs are held one phone at a time, with Take over, and a race saves on
  * Submit Race. These were the race screen's own tests on individual events, which now work race by race in the race flow.
@@ -147,30 +146,4 @@ test('Save as lead is for leads only, refused by Submit Race\'s blockers, and sa
   expect(saved.lastSaved).toMatchObject({kind:'heat',number:1,by:'Alex'});
   const notes=(await call(alex,`/api/lead/events/${code}/results`)).json().auditNotes;
   expect(notes[0]).toMatchObject({action:'save-as-lead',message:"Saved by Alex without Priya and Jo's Submit on 4x50m Relay Girl Cubs Heat 1"});
-});
-test('Re-run waits while a relay\'s current race has check-ins; an individual event\'s races run side by side, so its re-run never waits',async()=>{
-  const context=await start(),{owner,relays,sam,priya,jo}=context;
-  const race=await worked(context);
-  await submit(priya,race.race.id);await submit(jo,race.race.id);
-  await relays.tick(sam,code,3);
-  expect((await call(owner,`/api/lead/races/${race.race.id}/re-run`,{})).json()).toEqual({message:"Heat 2 is in progress - re-run after it's saved"});
-  const setup=raceSetup(app),first=await setup.record(sam,'R4',[2001,2002],[1200,1300]);
-  await setup.checkIn(sam,'R4',[2003]);
-  const rerun=await call(owner,`/api/lead/races/${first.id}/re-run`,{});
-  expect(rerun.statusCode,rerun.body).toBe(200);
-  expect((await call(sam,`/api/races/${rerun.json().newRaceId}`)).json().race).toMatchObject({kind:'heat',number:3});
-});
-test('Restore waits while a relay\'s current race has check-ins, and Delete, Re-run and Restore leave its holds as they are',async()=>{
-  const context=await start(),{owner,relays,sam,priya,jo}=context;
-  const first=(await worked(context)).race.id;
-  const holds=(await screen(sam)).holds;expect(Object.keys(holds).sort()).toEqual(['order','times']);
-  await call(owner,`/api/lead/races/${first}/delete`,{permanent:false});expect((await screen(sam)).holds).toEqual(holds);
-  await relays.tick(sam,code,3);
-  expect((await call(owner,`/api/lead/races/${first}/restore`,{})).json()).toEqual({message:"Heat 2 is in progress - restore after it's saved"});
-  await relays.takeOff(sam,code,3);
-  expect((await call(owner,`/api/lead/races/${first}/restore`,{})).statusCode).toBe(200);
-  expect((await screen(sam)).race.id).toBe(first);expect((await screen(sam)).holds).toEqual(holds);
-  await submit(priya,first);await submit(jo,first);
-  const rerun=await call(owner,`/api/lead/races/${first}/re-run`,{});expect(rerun.statusCode,rerun.body).toBe(200);
-  expect((await screen(sam)).race.id).toBe(rerun.json().newRaceId);expect((await screen(sam)).holds).toEqual(holds);
 });

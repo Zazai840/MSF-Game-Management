@@ -5,7 +5,7 @@ import type { EventResultsRead } from '../src/shared/lead-results.js';
 import { isTeamEntry,type TeamEntry } from '../src/shared/races.js';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
 import { signInOwner } from './support/sign-in.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -14,7 +14,7 @@ async function start() {
   const people=await signInOwner(app,'relay-results-owner','Aisha');
   await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
-  const relays=relaySetup(app);
+  const relays=relayFlowSetup(app);
   /** Types one Girl Cubs team per entry of `teams` on R22's team list: Team 1 is 2101-2104, Team 2 is 2201-2204, ... */
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));}
   /** Ticks the teams in with all four children marked here, then saves the heat with them placed in the order given and timed by place. */
