@@ -228,6 +228,11 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-teamlegs { margin: 0; padding: 0; list-style: none; }
 .rz-teamlegs li { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); border-top: 1px solid var(--line); }
 .rz-teamlegs__leg { min-width: 56px; font-size: 13px; font-weight: 700; color: var(--ink-muted); }
+/* A start-line team's legs with grips: the grip ends each row, and the dragged row lifts over the others. */
+.rz-teamgrips li[data-dragging="true"] { position: relative; z-index: 1; border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-raised); }
+.rz-attendance.rz-teamgrips li { grid-template-columns: 1fr auto var(--size-touch); padding-right: var(--space-4); }
+.rz-attendance.rz-teamgrips .rz-orderrow__handle { grid-column: 3; }
+.rz-teamlegs.rz-teamgrips .rz-orderrow__handle { margin-left: auto; }
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 .rz-lead-rows { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-lead-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; text-align: left; gap: var(--space-8); min-height: var(--size-touch); padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
@@ -256,7 +261,11 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-teamsheet__team--tap .rz-teamsheet__leg { background: var(--paper); }
 .rz-teamsheet__ord { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
 .rz-teamsheet__remove { color: var(--red-ink); }
-.rz-legboxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
+/* One leg per row, its label left of the box and its grip at the end, so a grip drag moves it up or down. */
+.rz-legboxes { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.rz-legbox { display: grid; grid-template-columns: 1fr var(--size-touch); align-items: center; gap: var(--space-4); border-radius: var(--radius-lg); }
+.rz-legbox[data-dragging="true"] { position: relative; z-index: 1; background: var(--paper); box-shadow: var(--shadow-raised); }
+.rz-legbox .rz-field { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: var(--space-8); }
 .rz-legboxes .rz-field__input { height: var(--size-action); padding: 0 var(--space-12); font-size: 26px; }
 .rz-legboxes .rz-field__input::placeholder { font-size: 18px; }
 /* The sheet's actions stay at its foot while the list or the boxes scroll (sticky stops at the sheet's padding, hence the offset). */
