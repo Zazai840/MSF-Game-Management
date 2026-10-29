@@ -28,7 +28,10 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // Heats are complete, so no phone offers another heat, on the race or on its card.
  await expect(sam.getByRole('button',{name:/^Add heat/})).toHaveCount(0);
  await sam.getByRole('button',{name:'Back to Races',exact:true}).click();
- await expect(sam.getByRole('article',{name:`${name} · Boy Cubs`}).getByRole('button',{name:/^Add heat/})).toHaveCount(0);
+ const samCard=sam.getByRole('article',{name:`${name} · Boy Cubs`});
+ await expect(samCard.getByRole('button',{name:/^Add heat/})).toHaveCount(0);
+ // The card names the final apart from the heats, in the start line's words.
+ await expect(samCard.locator('.rz-racecard__status')).toHaveText('The final: check who is here · Heats 1 and 2 done');
  await openRace(sam,name,'Boy Cubs','Final');
  // A final has two steps: who is here, and the finishing order.
  await expect(sam.getByRole('tablist',{name:'Final progress'}).getByRole('tab')).toHaveCount(2);
@@ -58,6 +61,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await priya.getByRole('button',{name:'Save the order',exact:true}).click();
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
+ await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
  await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText('1015');await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText('1st: 1015');await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('1015');await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
@@ -187,6 +191,7 @@ test('a final\'s check-in starts with nobody marked; That\'s everyone asks befor
  await ask.getByRole('button',{name:'Record them absent',exact:true}).click();
  await expect.poll(()=>marks(jo),live).toEqual(['Here','Here','Absent','Absent']);
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
+ await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
  // The finish line places only those Here.
  await expect(runnerButtons(priya)).toHaveText([/1051/,/1052/],live);
  expect(await lookProblems(jo)).toEqual([]);await jo.screenshot({path:info.outputPath('final-attendance.png'),fullPage:true});
