@@ -6,7 +6,7 @@ async function openRelayResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
 }
-/** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+/** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
 async function runHeat(request:APIRequestContext,token:string,code:string,placed:number[],times:number[]) {
   for(const team of placed) await tickTeam(request,token,code,team);
   await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);
@@ -56,7 +56,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await expect(team(1)).toContainText('Team 1Still to run');
   expect(await lookProblems(volunteer.page)).toEqual([]);
   await volunteer.page.screenshot({path:info.outputPath('correct-teams-teams-sheet.png')});
-  // Correct number on one child of Team 2, from its leaderboard row: the Teams screen changes live.
+  // Correct number on one child of Team 2, from its leaderboard row: the teams sheet changes live.
   await back(page,`${name} Boy Scouts`);
   await page.getByRole('button',{name:`Team 2 · ${fixed.join(' · ')} · Heat 1`,exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();

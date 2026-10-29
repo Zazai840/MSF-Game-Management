@@ -15,7 +15,7 @@ export interface Event { code:string; name:string; section:Section; format:'heat
 export interface RaceReference { id:string; kind:'heat'|'final'|'race'; number:number; checkedInAt:string }
 /** Complete, persisted facts for one race. Versions and storage details do not affect ranking. */
 export interface ResultsRace extends RaceReference { deleted:boolean;
-  /** Saved through Submit Race (or Save as lead): only a saved race counts. */
+  /** Saved once every step is done: only a saved race counts. */
   saved:boolean; leadTimes?:Partial<Record<'runners'|'finish'|'times'|`warning:${string}`|`added:${string}`,string>>; runners:readonly RaceEntry[]; finish:FinishingOrder|null; times:RaceTimes|null; final?:FinalField }
 export interface EventState { event:Event; races:readonly ResultsRace[]; rulings?:readonly RunnerRuling[]; auditNotes?:readonly AuditNote[]; tieSettlements?:readonly TieSettlement[]; completedStages?:readonly Stage[];
   /** On a relay: the day's switched-on relays' team lists, for "A child is in two relays". */

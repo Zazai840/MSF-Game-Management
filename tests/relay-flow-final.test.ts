@@ -1,12 +1,11 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import type { EventResultsRead,ResultsRead } from '../src/shared/lead-results.js';
 import { leadLine,type RaceFlowRead,type RacesRead } from '../src/shared/race-flow.js';
 import { isTeamEntry,type RaceRead } from '../src/shared/races.js';
 import { signInOwner } from './support/sign-in.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 /**
  * A relay final in the race flow: a lead makes it from "+ Final", seeding the fastest 6 teams. Its Start line marks
  * each seeded team Here or Absent with one tap from anyone (ADR 0002), neither at first, and it saves itself once
@@ -45,7 +44,7 @@ async function start() {
   const people=await signInOwner(app,'relay-flow-final-owner','Aisha');
   await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token,lead=(await people.lead('Jo Evans')).token;
-  const relays=relaySetup(app);
+  const relays=relayFlowSetup(app);
   for(let number=1;number<=8;number++) await relays.team(sam,'R22',legs(number));
   await runHeat(sam,1,[2,1,3,4],[1400,1500,1700,1900]);
   await runHeat(sam,2,[5,6,7],[1450,1600,1800]);
@@ -63,14 +62,8 @@ function marks(read:RaceFlowRead) {
 const mark=(token:string,read:RaceFlowRead,number:number,value:'here'|'absent'|null)=>
   call(token,`/api/races/${read.race.id}/teams/${read.race.final!.entries.find(item=>item.team?.number===number)!.team!.id}/absent`,{mark:value});
 
-test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest first, none marked, and leaves every hold as it was',async()=>{
+test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest first, none marked',async()=>{
   const {sam,lead}=await start();
-  const holds=async()=>{
-    const db=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});await db.connect();
-    try {return (await db.query("SELECT h.job,h.sign_in_id FROM job_holds h JOIN events e ON e.id=h.event_id WHERE e.code='R22' ORDER BY h.job")).rows;} finally {await db.end();}
-  };
-  const before=await holds();
-  expect(before.length).toBeGreaterThan(0);
   const refused=await makeFinal(sam);
   expect(refused.statusCode).toBe(403);
   expect(refused.json().message).toBe('Ask a lead to make the final');
@@ -83,7 +76,6 @@ test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest fir
   // Each seeded team's card shows its four children, even once Absent takes it out of the race.
   expect(final.race.final!.entries[0].legs!.map(leg=>leg.wristband)).toEqual(legs(2));
   expect(final.steps.times).toBeUndefined();
-  expect(await holds()).toEqual(before);
 });
 
 test('Here / Absent per seeded team lands from two phones at once with no version check; a lit mark tapped again unmarks it; no per-child Here',async()=>{

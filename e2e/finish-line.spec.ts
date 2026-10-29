@@ -90,7 +90,7 @@ test('a slip on a placed slot never loses its runner: it reads Changing, the run
   await writeCheckIn(request,await signInThroughApi(request,`Slip start ${project}`),code,[first,second,third]);
   await openRace(page,name);
   await page.getByRole('button',{name:`${first} came 1st`,exact:true}).click();
-  await expect.poll(async()=>(await flowRace(request,token,code))!.race.parts.finish.value?.order.length).toBe(1);
+  await expect.poll(async()=>(await flowRace(request,token,code)).race.parts.finish.value?.order.length).toBe(1);
   // The slip: the slot stays outlined with its runner, the screen says what is changing, and the runner is a button again.
   await page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true}).click();
   await expect(page.getByText(`Changing 1st: ${first}`,{exact:true})).toBeVisible();
@@ -123,7 +123,7 @@ test('the last runner placed goes straight to Check the order, where the handle 
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(`Drag finish ${project}`,{job:'finish'});
   await writeCheckIn(request,await signInThroughApi(request,`Drag start ${project}`),code,[a,b,c,d]);
-  const {race}=(await flowRace(request,token,code))!;
+  const {race}=(await flowRace(request,token,code));
   await openRace(page,name);
   for(const [number,place] of [[a,'1st'],[b,'2nd'],[c,'3rd'],[d,'4th']] as const) await page.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
@@ -199,7 +199,7 @@ test('Check the order asks about every runner nobody placed, above Save the orde
   for(const [index,number] of runners.slice(0,10).entries()) await page.getByRole('button',{name:new RegExp(`^${number} came ${index+1}(st|nd|rd|th)$`)}).click();
   await page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
-  await expect.poll(async()=>(await flowRace(request,token,code))!.race.parts.finish.value?.order.length).toBe(10);
+  await expect.poll(async()=>(await flowRace(request,token,code)).race.parts.finish.value?.order.length).toBe(10);
   // The two left sit under "2 not placed", after the order and just above Save the order, with neither choice lit.
   await expect(page.getByRole('heading',{level:3,name:'2 not placed'})).toBeVisible();
   for(const number of [dnf,dnr]) for(const choice of ['Did not finish',"Didn't run"]) await expect(notPlaced(page,number).getByRole('button',{name:choice,exact:true})).toHaveAttribute('aria-pressed','false');
@@ -229,7 +229,7 @@ test('Check the order asks about every runner nobody placed, above Save the orde
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
-  const {race}=(await flowRace(request,token,code))!,saved=race.parts.runners.value!.filter(isRunner);
+  const {race}=(await flowRace(request,token,code)),saved=race.parts.runners.value!.filter(isRunner);
   const id=(number:number)=>saved.find(runner=>runner.wristband===number)?.id;
   expect(race.parts.finish.value!.didNotFinish).toEqual([id(dnf)]);
   expect(id(dnr)).toBeUndefined();
@@ -251,7 +251,7 @@ test('quick taps on a slow link: taps made while a write is on its way show at o
   await expect(places(page)).toHaveAccessibleName('Places: 3 of 4 recorded');
   expect(sent).toHaveLength(1);
   release();
-  await expect.poll(async()=>(await flowRace(request,token,code))!.race.parts.finish.value?.order.length).toBe(3);
+  await expect.poll(async()=>(await flowRace(request,token,code)).race.parts.finish.value?.order.length).toBe(3);
   // One more write carries both later taps, at the version the first one was answered with.
   expect(sent).toHaveLength(2);
   expect(sent[0].order).toHaveLength(1);expect(sent[1].order).toHaveLength(3);

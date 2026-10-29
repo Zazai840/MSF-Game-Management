@@ -1,8 +1,7 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { ordinal } from '../../shared/ordinal.js';
-import { finishedWords,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
-import { andList,onlyRunners } from '../../shared/race-screen.js';
+import { andList,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { changingName,entryCount,filledLegs,stillToRun,teamCount,type TeamLeg } from '../../shared/teams.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';

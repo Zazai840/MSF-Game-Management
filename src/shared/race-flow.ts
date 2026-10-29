@@ -1,9 +1,8 @@
 import type { DayEvent } from './day.js';
 import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
-import { andList } from './race-screen.js';
-import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
-import { entryCount,type RelayTeam,type TeamList } from './teams.js';
+import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
+import { entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
 import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
@@ -28,6 +27,34 @@ export const usualSizeApplies=(event:Pick<DayEvent,'type'>)=>event.type==='races
 /** Every run is "Heat n", whatever its event format; an event has one final. */
 export const raceName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':`Heat ${race.number}`;
 export const chipName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'F':`H${race.number}`;
+/** "Sam", "Sam and Jo", "Sam, Priya and Jo". */
+export const andList=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`;
+/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
+export function onlyRunners(finish:FinishingOrder,runners:readonly RaceEntry[]):FinishingOrder {
+  const on=(id:string)=>runners.some(runner=>runner.id===id);
+  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
+}
+/**
+ * Why a race whose steps are all done does not save itself yet, or null: nobody checked in (on a relay, no team in it;
+ * on a final, everyone Absent), a runner or team with no place (nor Did not finish), a placed runner with no time, a
+ * time at a place with no runner (left when a runner came off the order), or a wrong time neither kept nor retyped.
+ * Kept wristband warnings, and relay teams short of four here, never block it.
+ */
+export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'>,relay=false):string|null {
+  const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
+  if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
+  const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
+  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${entryNoun(relay)}s have no place yet`;
+  if(race.kind==='final') return null;
+  const times=race.parts.times.value,places=times?.places||[];
+  const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
+  if(untimed>=0) return `Place ${untimed+1} has no time`;
+  // Finishers and times disagree only after a lead's correction, never on a saved race.
+  const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
+  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
+  const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
+  return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
+}
 /** Who last changed a step and when, and who marked it done and when. */
 export interface StepMeta { version:number; by:string|null; at:string|null; doneBy:string|null; doneAt:string|null }
 /**

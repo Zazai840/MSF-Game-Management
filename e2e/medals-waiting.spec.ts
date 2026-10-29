@@ -25,7 +25,7 @@ async function confirmAndFindDone(page:Page,name:string,sheetName:string) {
 /** The final made by a lead, everyone marked Here, placed in this order and saved. */
 async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
   expect((await request.post('/api/races',{headers:headers(),data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
-  const {race}=(await flowRace(request,owner(),code))!;
+  const {race}=(await flowRace(request,owner(),code));
   const here=race.final!.entries.map(entry=>entry.finalEntryId);
   expect((await request.post(`/api/races/${race.id}/absent`,{headers:headers(),data:{raceId:race.id,version:race.parts.runners.version,here,absent:[]}})).ok()).toBe(true);
   await writeOrder(request,owner(),code,order);

@@ -16,7 +16,7 @@ export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],
   const active=state.races.filter(race=>!race.deleted && race.kind!=='final');
   const mustSettleFirst:StageItem[]=ties.map(tie=>({id:`tie:${tie.id}`,kind:'tie',tieId:tie.id,message:`Tie: ${tie.entries.map(resultName).join(', ')}`}));
   for(const item of pending) if(item.reasons.includes('in progress')) {
-    // A race not saved yet waits on its Submit Race; with nobody checked in it is just the empty current race.
+    // A race not saved yet waits on its steps; with nobody checked in it is just an empty heat.
     const entries=state.races.find(race=>race.id===item.race.id)?.runners||[];
     if(entries.length) mustSettleFirst.push({id:`race:${item.race.id}`,kind:'incomplete',raceId:item.race.id,message:`${raceLabel(item.race)} is in progress (${entries.some(isTeamEntry)?teamCount(entries.length):entries.length} checked in) - submit it or delete it`});
   } else mustSettleFirst.push({id:`race:${item.race.id}`,kind:'incomplete',raceId:item.race.id,message:`${raceLabel(item.race)}: ${item.reasons.join(' · ')}`});

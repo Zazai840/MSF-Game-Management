@@ -93,7 +93,6 @@ async function requireOpen(client:pg.PoolClient,phone:Phone,raceId:string) {
   if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
   if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
   if(race.state==='saved') throw new Refusal(409,`${raceName(race)} is saved - ask a lead to change it`);
-  if(race.state==='submitted') throw new Refusal(409,`${raceName(race)} is submitted - ask a lead to save it`);
   return race;
 }
 /** A write's target, refused when the phone saw an older version of the part: someone changed it since, never overwritten silently. */
@@ -178,7 +177,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       return (await createRace(client,[],{dayId:phone.dayId,eventId:event.id,kind:heatKind,savedBy:phone.id})).id;
     });
   });
-  // The step writes: the race screen's own, addressed by race, with no hold.
+  // The step writes, addressed by race, with no hold.
   action('POST','/api/races/:raceId/check-in','Volunteer',(request,_reply,phone)=>{
     const input=checkInInput(request.body),id=raceId(request);
     return write(phone,id,async client=>{await checkIn(client,phone,await requireCurrent(client,phone,id,'runners',input),input);await saveIfDone(client,phone,id);});
@@ -193,7 +192,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
   action('POST','/api/races/:raceId/times','Volunteer',(request,_reply,phone)=>{
     const input=timesInput(request.body),id=raceId(request);
-    return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input,true);await saveIfDone(client,phone,id);});
+    return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input);await saveIfDone(client,phone,id);});
   });
   // A relay's Start line taps (ADR 0002): anyone, with no version check, each applied to the race as it stands under
   // the day lock, so taps from several phones at once all land and the last tap on a child wins. Each raises the

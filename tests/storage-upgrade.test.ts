@@ -1,8 +1,11 @@
 import { afterEach,expect,test } from 'vitest';
-import { isRunner } from '../src/shared/races.js';
+import { isRunner,isTeamEntry } from '../src/shared/races.js';
+import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import { raceSetup } from './support/races.js';
+import { relayFlowSetup } from './support/relays.js';
+import { signInOwner } from './support/sign-in.js';
 const adminUrl=process.env.PG_ADMIN_URL || `postgresql://${process.env.USER}@localhost:5432/postgres`;
 const name=`msf_spec22_${Date.now()}_test`;
 const databaseUrl=Object.assign(new URL(adminUrl),{pathname:`/${name}`}).href;
@@ -17,8 +20,8 @@ test('the boot script starts on a database an older build left, competing saves 
   // The older build: no holds, race state, saved mark, Submit presses or holders in history, a final's presence
   // confirm, and a competing Times save.
   const old=new pg.Client({connectionString:databaseUrl});await old.connect();
-  await old.query('DROP TABLE submit_presses');
-  await old.query('DROP TABLE job_holds');
+  await old.query('DROP TABLE IF EXISTS submit_presses');
+  await old.query('DROP TABLE IF EXISTS job_holds');
   await old.query('ALTER TABLE race_finals ADD COLUMN presence_confirmed boolean NOT NULL DEFAULT false');
   await old.query('ALTER TABLE races DROP COLUMN state, DROP COLUMN saved_at, DROP COLUMN saved_by');
   await old.query('ALTER TABLE race_part_history DROP COLUMN held_by, DROP COLUMN IF EXISTS saved_at, DROP COLUMN IF EXISTS corrected_by');
@@ -85,18 +88,17 @@ test('starting up turns an older build\'s Scoring team sign-ins into leads, allo
     await expect(db.query("UPDATE sign_ins SET level='Scoring team'")).rejects.toThrow(/sign_ins_level_check/);
   } finally {await db.end();}
 });
-test('the boot script adds the relay mark, the team store and the teams job to a day the current build started, leaving its events and races as they were and adding no relays',async()=>{
+test('the boot script adds the relay mark and the team store to a day the current build started, leaving its events and races as they were and adding no relays',async()=>{
   await admin(`CREATE DATABASE "${name}"`);
   let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
   const owner=(await app.inject({method:'POST',url:'/api/owner-sign-in',payload:{password:'upgrade-owner',name:'Aisha',profiles:[]}})).json().token as string;
   const race=await raceSetup(app).checkIn(owner,'R4',[2001,2002]);
   await app.close();
-  // The current build: its day has the 20 individual events, no relay mark, no team store and only the race jobs.
+  // The current build: its day has the 20 individual events, no relay mark and no team store.
   const current=new pg.Client({connectionString:databaseUrl});await current.connect();
   await current.query("DELETE FROM events WHERE code IN ('R19','R20','R21','R22','R27','R28')");
   await current.query('ALTER TABLE events DROP COLUMN relay');
   await current.query('DROP TABLE relay_teams');
-  await current.query("ALTER TABLE job_holds DROP CONSTRAINT job_holds_job_check, ADD CONSTRAINT job_holds_job_check CHECK (job IN ('check-in','order','times'))");
   await current.end();
   app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
   try {
@@ -109,7 +111,63 @@ test('the boot script adds the relay mark, the team store and the teams job to a
     const db=new pg.Client({connectionString:databaseUrl});await db.connect();
     try {
       expect((await db.query("SELECT to_regclass('relay_teams') IS NOT NULL AS teams")).rows).toEqual([{teams:true}]);
-      expect((await db.query("SELECT pg_get_constraintdef(oid) AS jobs FROM pg_constraint WHERE conname='job_holds_job_check'")).rows[0].jobs).toContain("'teams'");
     } finally {await db.end();}
+  } finally {await app.close();}
+});
+test('a day under way on the old relay path upgrades without retyping: a relay race waiting on Submit presses carries on in progress with its entries and no step done, and the holds, presses and team-changing marks are gone',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const people=await signInOwner(app,'upgrade-owner','Aisha'),owner=people.owner,sam=await people.volunteer('Sam Patel');
+  await app.inject({method:'POST',url:'/api/day/confirm-events',headers:{authorization:`Bearer ${owner.token}`}});
+  const relays=relayFlowSetup(app);
+  for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,2302,2303,2304]]) await relays.team(sam.token,'R22',legs);
+  // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams ticked and one child here.
+  await relays.tick(sam.token,'R22',1);
+  for(const leg of [0,1,2,3]) await relays.here(sam.token,'R22',1,leg);
+  const saved=(await relays.save(sam.token,'R22',[1],[1500])).race;
+  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);await relays.here(sam.token,'R22',2,0);
+  const waiting=(await relays.worked(sam.token,'R22')).race;
+  await app.close();
+  const untouched=async(db:pg.Client)=>({
+    teams:(await db.query('SELECT id,number,legs,removed,version,changed_by FROM relay_teams ORDER BY event_id,number')).rows,
+    saved:(await db.query('SELECT r.state,r.saved_at,r.saved_by,p.part,p.version,p.value,p.done_at FROM races r JOIN race_parts p ON p.race_id=r.id WHERE r.id=$1 ORDER BY p.part',[saved.id])).rows,
+    history:(await db.query('SELECT part,version,value,held_by,saved_at FROM race_part_history WHERE race_id=$1 ORDER BY part,version',[saved.id])).rows,
+    counters:(await db.query('SELECT * FROM race_counters ORDER BY event_id,kind')).rows,
+    notes:(await db.query('SELECT id,message FROM audit_notes ORDER BY sequence_number')).rows,
+  });
+  // The old build: Heat 2 waiting on Submit presses (Sam has pressed), job holds on the relay including its teams
+  // hold, and Team 3 open on Sam's phone.
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  let before;
+  try {
+    await old.query(`CREATE TABLE IF NOT EXISTS job_holds (event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      job text NOT NULL CHECK (job IN ('check-in','order','times','teams')), sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE, PRIMARY KEY(event_id,job))`);
+    await old.query(`CREATE TABLE IF NOT EXISTS submit_presses (race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
+      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE, pressed_at timestamptz NOT NULL DEFAULT clock_timestamp(), PRIMARY KEY(race_id,sign_in_id))`);
+    await old.query('ALTER TABLE races DROP CONSTRAINT races_state_check');
+    await old.query("ALTER TABLE races ADD CONSTRAINT races_state_check CHECK (state IN ('in progress','submitted','saved'))");
+    await old.query("UPDATE races SET state='submitted' WHERE id=$1",[waiting.id]);
+    await old.query('INSERT INTO submit_presses(race_id,sign_in_id) VALUES($1,$2)',[waiting.id,sam.phone.id]);
+    const relay=(await old.query("SELECT id FROM events WHERE code='R22'")).rows[0].id;
+    await old.query("INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,'check-in',$2),($1,'teams',$2),($1,'order',$3)",[relay,sam.phone.id,owner.phone.id]);
+    await old.query('UPDATE relay_teams SET changing_by=$1,changing_since=now() WHERE number=3',[sam.phone.id]);
+    before=await untouched(old);
+  } finally {await old.end();}
+  app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+  try {
+    const read=(await app.inject({url:`/api/races/${waiting.id}`,headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead;
+    expect(read.race).toMatchObject({id:waiting.id,state:'in progress'});
+    expect(read.race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[2,[true,false,false,false]],[3,[false,false,false,false]]]);
+    expect(Object.values(read.steps).map(step=>step!.state)).not.toContain('done');
+    expect(read.teams!.map(team=>team.changing)).toEqual([null,null,null]);
+    const db=new pg.Client({connectionString:databaseUrl});await db.connect();
+    try {
+      expect((await db.query("SELECT to_regclass('job_holds') AS holds,to_regclass('submit_presses') AS presses")).rows).toEqual([{holds:null,presses:null}]);
+      expect((await db.query('SELECT count(*)::int AS marked FROM relay_teams WHERE changing_by IS NOT NULL OR changing_since IS NOT NULL')).rows).toEqual([{marked:0}]);
+      await expect(db.query("UPDATE races SET state='submitted' WHERE id=$1",[waiting.id])).rejects.toThrow(/races_state_check/);
+      expect(await untouched(db)).toEqual(before);
+    } finally {await db.end();}
+    // The people on it carry on in the race flow, and it saves itself.
+    expect((await relayFlowSetup(app).save(sam.token,'R22',[2,3],[1500,1600])).race).toMatchObject({id:waiting.id,state:'saved'});
   } finally {await app.close();}
 });

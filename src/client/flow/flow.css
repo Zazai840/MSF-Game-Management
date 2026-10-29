@@ -10,11 +10,8 @@
   .action-bar-inner {max-width:calc(48rem - 48px);}
 }
 
-/* Phone number entry; on the race screen Next sits beside the input. */
+/* Phone number entry. */
 .number-entry {display:grid; gap:12px;}
-.number-entry-row {display:flex; align-items:flex-end; gap:10px;}
-.number-entry-row label {flex:1; min-width:0;}
-.number-entry-row .action-next {flex:none; min-width:96px; min-height:60px;}
 .time-shows {margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .time-shows strong {color:var(--text); font-variant-numeric:tabular-nums;}
 .number-input {height:60px; padding:0 16px; font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.02em;}

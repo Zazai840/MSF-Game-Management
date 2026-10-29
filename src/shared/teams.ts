@@ -5,7 +5,7 @@ export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-rela
 /** One leg of a relay team: its child's wristband (null while the box is empty) and that child's kept warnings. */
 export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
 /** A race holding a relay team: one of its relay's races that is not deleted. */
-export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number; state:'in progress'|'submitted'|'saved' }
+export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number; state:'in progress'|'saved' }
 /**
  * A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order, who last set it
  * ("Aisha Noor has already set this team."), who has it open to change ("Priya Shah is changing this team") since
@@ -19,7 +19,7 @@ export interface TeamList { code:string; name:string; section:Section; teams:rea
 export const filledLegs=(team:Pick<RelayTeam,'legs'>)=>team.legs.filter(leg=>leg.wristband!==null).length;
 /** Still to run: no race of its relay holds the team, apart from deleted races. Removed teams are not on the list at all. */
 export const stillToRun=(team:Pick<RelayTeam,'races'>)=>!team.races.length;
-/** The unsaved race holding the team, if any: on the Teams screen it reads "In heat 2" and can't be changed there. */
+/** The unsaved race holding the team, if any: the team is changed only at that race's check-in, and a lead's Correct teams reads "In heat 2". */
 export const unsavedRace=(team:Pick<RelayTeam,'races'>)=>team.races.find(race=>race.state!=='saved')??null;
 /**
  * Who is changing the team now, or null: the name on its "being changed by" marker. A team being changed can't be
@@ -57,18 +57,6 @@ export const entryCount=(count:number,relay:boolean)=>`${count} ${entryNoun(rela
 export const teamCount=(count:number)=>entryCount(count,true);
 /** A word as it starts a sentence or a column: "Team", "Runners". */
 export const capitalised=(word:string)=>word[0].toUpperCase()+word.slice(1);
-/** A relay card's status line on the Teams screen: "You are entering · 5 teams · Team 5 is 3 of 4", "Sam Patel is entering · 5 teams", "5 teams" or "No teams yet · open to start". */
-export function teamsStatus({teams,teamsHolder}:{teams:readonly RelayTeam[];teamsHolder:{id:string;name:string}|null},phoneId:string) {
-  // Only the holder is told which team is not complete.
-  const mine=teamsHolder?.id===phoneId,short=mine?teams.find(team=>filledLegs(team)<4):undefined;
-  return [teamsHolder?(mine?'You are entering':`${teamsHolder.name} is entering`):'',teams.length?teamCount(teams.length):'No teams yet',
-    short?`Team ${short.number} is ${filledLegs(short)} of 4`:'',!teamsHolder && !teams.length?'open to start':''].filter(Boolean).join(' · ');
-}
-/** The Teams button's badge: every relay's teams, then how many are not complete; empty with no teams. */
-export function teamsBadge(relays:ReadonlyArray<{teams?:readonly RelayTeam[]}>) {
-  const teams=relays.flatMap(relay=>relay.teams||[]),short=teams.filter(team=>filledLegs(team)<4).length;
-  return teams.length?[teamCount(teams.length),short?`${short} not complete`:''].filter(Boolean).join(' · '):'';
-}
 /** Why the number in box `index` can't go in: it is already in another box of this team, or in another team of the relay. */
 export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:readonly (number|null)[],index:number):string|null {
   const number=legs[index];

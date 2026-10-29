@@ -107,3 +107,20 @@ test('a team in an unsaved race is changed only at check-in; a team ever in a ra
   for(const [path,body] of [['',{legs:[2301,null,null,null],keptWarnings:[]}],[`/${team2.id}`,{version:1,legs:[2201,2202,null,null],keptWarnings:[]}],[`/${team2.id}/remove`,{version:1}]] as const)
     expect((await call(sam,`${url}${path}`,body)).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
 });
+test('two new teams saved at the same moment both land, with different numbers',async()=>{
+  const {sam,priya,id}=await start();
+  await Promise.all([ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[2201,null,null,null],keptWarnings:[]}),ok(priya,`/api/relays/${id('R22')}/teams`,{legs:[2301,null,null,null],keptWarnings:[]})]);
+  const teams=group(await ok(sam,'/api/races'),'R22').teams!;
+  expect(teams.map(team=>team.number)).toEqual([1,2]);
+  expect(teams.map(team=>team.legs[0].wristband).sort()).toEqual([2201,2301]);
+});
+test('Start new day clears every team list and "is changing" mark with the day',async()=>{
+  const {owner,sam,id}=await start();
+  const team=group(await ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[2101,null,null,null],keptWarnings:[]}),'R22').teams![0];
+  await ok(sam,`/api/relays/${id('R22')}/teams/${team.id}/open`,{});
+  expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
+  expect((await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(200);
+  const fresh=await ok(owner,'/api/races');
+  expect(group(fresh,'R22').teams).toEqual([]);
+  expect(group(fresh,'R21').teams).toEqual([]);
+});

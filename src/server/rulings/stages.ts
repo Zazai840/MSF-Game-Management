@@ -42,10 +42,9 @@ export async function changeStage(client:pg.PoolClient,current:Phone,code:string
   if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
   else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
   if(sheet.stage==='heats') await seedFinal(client,current,detail.event,detail.results.qualifiers);
-  // Decided without a final, the event has no race left to work, so nobody keeps a job on it. An unrun final goes
+  // Decided without a final, the event has no race left to work. An unrun final goes
   // with its line-up, call-ups and added runners, and the heats are no longer complete: Reopen results opens them.
   if(!reopening && sheet.stage==='no-final') {
-    await client.query('DELETE FROM job_holds WHERE event_id=$1',[detail.event.id]);
     if(detail.results.finalResults) await client.query('DELETE FROM races WHERE id=$1',[detail.results.finalResults.raceId]);
     // The next final is Final 1 again, unless a deleted final keeps its number.
     await client.query("DELETE FROM race_counters WHERE event_id=$1 AND kind='final' AND NOT EXISTS(SELECT 1 FROM races WHERE event_id=$1 AND kind='final')",[detail.event.id]);

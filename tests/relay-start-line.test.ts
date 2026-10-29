@@ -6,7 +6,7 @@ import type { RaceFlowRead,RacesRead } from '../src/shared/race-flow.js';
 import { isTeamEntry,type RaceRead } from '../src/shared/races.js';
 import { toCheckWording } from '../src/shared/to-check.js';
 import { signInOwner } from './support/sign-in.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 /**
  * A relay heat's Start line in the race flow: New race makes the heat, and anyone ticks teams in, takes them off and
  * marks each child here, the last tap winning (ADR 0002). That's everyone marks Runners done.
@@ -24,7 +24,7 @@ async function start() {
   const people=await signInOwner(app,'relay-start-line-owner','Aisha');
   await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token,lead=(await people.lead('Jo Evans')).token;
-  return {sam,priya,lead,relays:relaySetup(app)};
+  return {sam,priya,lead,relays:relayFlowSetup(app)};
 }
 const newHeat=(token:string,number:number,eventCode='R22')=>ok(token,'/api/races',{eventCode,kind:'heat',number});
 const teamId=(read:RaceFlowRead,number:number)=>read.teams!.find(team=>team.number===number)!.id;
@@ -104,4 +104,13 @@ test('a team tap on a race that is not a relay\'s is refused',async()=>{
   const refused=await call(sam,`/api/races/${race.race.id}/teams/00000000-0000-0000-0000-000000000000/tick`,{});
   expect(refused.statusCode).toBe(409);
   expect(refused.json().message).toBe('Only a relay has teams');
+});
+test('a team someone is changing in the teams sheet can\'t be added until they save or cancel',async()=>{
+  const {sam,priya,relays}=await start();
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  const heat=await newHeat(priya,1),teams=`/api/relays/${heat.group.event.id}/teams/${teamId(heat,1)}`;
+  await ok(sam,`${teams}/open`,{});
+  expect((await tap(priya,heat,'tick',1)).json()).toEqual({message:'Sam Patel is changing Team 1'});
+  await ok(sam,`${teams}/close`,{});
+  expect((await tap(priya,heat,'tick',1)).statusCode).toBe(200);
 });
