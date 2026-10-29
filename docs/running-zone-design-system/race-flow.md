@@ -148,6 +148,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 **PlacesBoard**
 - A 4-column grid with **one slot for every runner in the race** (1st … *n*th).
 - Placed slots are navy: gold ordinal plus wristband. Tap one to change it.
+- A slot being changed is outlined with its runner still in it; the meta reads "Changing 1st: 2014", 2014 is among the runner buttons again, and "Keep 2014" puts it back.
 - The current place is gold: "3RD ?", `aria-current="step"`.
 - Empty slots are dashed: "4TH –".
 - The grid grows with the runner count; 9–12 runners make 3 rows.

@@ -82,6 +82,41 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await deleteCurrentRace(request,code);
 });
 
+test('a slip on a placed slot never loses its runner: it reads Changing, the runner is back among the buttons, and Keep puts it back',async({openPhone,request},info)=>{
+  const project=info.project.name,code=await ownCode(),name=`Slip sprint ${project}`;
+  const wristband=await ownWristbands('Girl Cubs',3),[first,second,third]=[wristband(0),wristband(1),wristband(2)];
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(`Slip finish ${project}`,{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,`Slip start ${project}`),code,[first,second,third]);
+  await openRace(page,name);
+  await page.getByRole('button',{name:`${first} came 1st`,exact:true}).click();
+  await expect.poll(async()=>(await flowRace(request,token,code))!.race.parts.finish.value?.order.length).toBe(1);
+  // The slip: the slot stays outlined with its runner, the screen says what is changing, and the runner is a button again.
+  await page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true}).click();
+  await expect(page.getByText(`Changing 1st: ${first}`,{exact:true})).toBeVisible();
+  const changing=places(page).getByLabel(`Changing 1st: ${first}`,{exact:true});
+  await expect(changing).toHaveText(`1st${first}`);await expect(changing).toHaveAttribute('aria-current','step');
+  await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
+  await expect(runnerButtons(page)).toHaveText([String(first),String(second),String(third)]);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('finish-line-changing.png'),fullPage:true});
+  // Keep puts it back with nothing sent.
+  let sent=0;page.on('request',sending=>{if(sending.url().endsWith('/order') && sending.method()==='POST') sent++;});
+  await page.getByRole('button',{name:`Keep ${first}`,exact:true}).click();
+  await expect(page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Who came 2nd?'})).toBeVisible();
+  await expect(runnerButtons(page)).toHaveText([String(second),String(third)]);
+  await expect(page.getByRole('button',{name:`Keep ${first}`,exact:true})).toHaveCount(0);
+  expect(sent).toBe(0);
+  // Choosing another runner for the slot puts them there and the first back among the runners to place.
+  await page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true}).click();
+  await page.getByRole('button',{name:`${second} came 1st`,exact:true}).click();
+  await expect(page.getByRole('button',{name:`1st place: ${second}. Change`,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Who came 2nd?'})).toBeVisible();
+  await expect(runnerButtons(page)).toHaveText([String(first),String(third)]);
+  await expect(page.getByText(`Changing 1st: ${first}`,{exact:true})).toHaveCount(0);
+  await deleteCurrentRace(request,code);
+});
+
 test('the last runner placed goes straight to Check the order, where the handle and the arrow keys move rows and the order sent is exactly that',async({openPhone,request},info)=>{
   const project=info.project.name,code=await ownCode(),name=`Drag sprint ${project}`;
   const [a,b,c,d]=[2301,2302,2303,2304];
