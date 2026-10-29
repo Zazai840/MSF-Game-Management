@@ -93,6 +93,9 @@
 .rz-heat--pending::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 1.5px var(--navy); }
 .rz-heat--add { min-width: var(--size-touch); width: var(--size-touch); padding: 0; background: none; box-shadow: none; border: 2px dashed var(--line-strong); }
 .rz-heat--final { padding: 0 var(--space-12); background: none; box-shadow: none; border: 2px dashed var(--navy); }
+.rz-heat--final[aria-disabled="true"] { border: 0; background: var(--disabled-fill); color: var(--disabled-ink); cursor: not-allowed; }
+.rz-heat-reason { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-4); padding: 0; border: 0; background: none; color: var(--navy); font-size: 14px; font-weight: 700; text-align: left; text-decoration: underline; }
+.rz-heat-reason .rz-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.6; color: var(--warn-ink); }
 
 /* ---------- StepStrip ---------- */
 .rz-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }

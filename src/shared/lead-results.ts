@@ -5,6 +5,8 @@ import type { RaceRead,RacePartName } from './races.js';
 import type { AuditNote } from './rulings.js';
 import type { RaceReference,LeadItem,EventResults } from './results-rules.js';
 export interface DayLeadItem extends LeadItem { race?:RaceReference; event:DayEvent }
+/** What Results opens on: a lead item, or only its event. */
+export type ResultsTarget=Pick<DayLeadItem,'event'> & Partial<DayLeadItem>;
 export interface EventSummary { needsYou:number; event:DayEvent; status:EventResults['status']; decidedWithoutFinal:boolean; raceCount:number; provisional:boolean; latestNoteAt:string|null }
 /** A waiting That's me request: a day-level To check item that opens no race. */
 export interface ProfileRequest { id:string; name:string; at:string }

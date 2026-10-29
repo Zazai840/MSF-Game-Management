@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
-import type { DayLeadItem,EventResultsRead,ResultsRead } from '../../shared/lead-results.js';
+import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,StaleRequest } from '../api.js';
 import { useLive } from '../live.js';
@@ -28,12 +28,12 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;role:Role;onRole:()=>void;onBack:()=>void;onRace:(id:string)=>void;
-  onSaved:(saved:SavedStep)=>void;onResults:(item?:DayLeadItem)=>void}) {
+export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+  onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
   const {snapshot,error,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   const flow=useFlowWrite(raceId,offer);
   const lead=role==='lead',issues=useRaceIssues(raceId,lead);
-  const [tab,setTab]=useState<Step>('runners');
+  const [tab,setTab]=useState<Step>(opened??'runners');
   // Another role's step, opened read-only from the step strip.
   const [viewing,setViewing]=useState<Step|null>(null);
   const [actions,setActions]=useState(false);
@@ -75,6 +75,7 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
     for(const item of issues.items) {const at=issueStep(item);notes[at]=`${issues.items.filter(other=>issueStep(other)===at).length} to check`;}
     if(!notes.runners && usualSizeApplies(event) && (race.parts.runners.value?.length||0)>usualRunnersPerRace) notes.runners='More than usual';
   }
+  const reason=lead?group.finalReason:null;
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
     <RaceBar title={`${event.name} · ${event.section}`} code={event.code} onBack={onBack}>
@@ -82,7 +83,8 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
-      onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}/></nav>
+      onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
+      finalReason={reason?{line:reason.line,onOpen:()=>reason.step===null?onResults({event}):reason.raceId===race.id?setTab(reason.step):onRace(reason.raceId,reason.step)}:undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>

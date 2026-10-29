@@ -2,13 +2,14 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,raceName,stepParts,stepStatus,steps,stepsOf,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { doneBlocker,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { submitBlocker,type Job } from '../../shared/race-screen.js';
 import type { RacePartName } from '../../shared/races.js';
+import { resultName } from '../../shared/results-rules.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
-import { resultsSnapshot } from '../results/read.js';
+import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { createRace } from './create.js';
 import { absentInput,checkIn,checkInInput,markAbsent,orderInput,saveRace,timesInput,writeOrder,writeTimes,type WriteTarget } from './race-screen.js';
@@ -30,12 +31,29 @@ function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={})
   const changes=[race.checkedInAt,...Object.values(meta).flatMap(item=>[item.at,item.doneAt])].filter((at):at is string=>!!at).sort();
   return {id:race.id,kind:race.kind,number:race.number,state:race.state,createdAt:race.checkedInAt,updatedAt:changes.at(-1)!,steps:statuses};
 }
+/**
+ * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
+ * it: "Heat 1 has a time to check first". Which result counts for a child who ran twice is chosen in Results: no step.
+ */
+async function finalReason(db:Database,dayId:string,code:string,own:readonly StoredRace[]):Promise<FinalReason|null> {
+  const {results}=await readEventResults(db,dayId,code),item=results.heatsCheckSheet?.mustSettleFirst[0];
+  if(!item) return null;
+  const raceId=item.raceId??results.ties.find(tie=>tie.id===item.tieId)!.entries[0]!.raceId;
+  const race=own.find(race=>race.id===raceId),name=race?raceName(race):'A heat';
+  if(item.kind==='ran-twice') return {raceId,step:null,line:`${resultName(results.leaderboard.find(row=>row.raceId===raceId && row.entryId===item.entryId)!)} ran twice: choose which result counts first`};
+  if(item.kind==='tie') return {raceId,step:'times',line:`${name} has a tie to settle first`};
+  const reason=results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0];
+  if(reason==='times out of order' || reason==="finishers and times don't agree") return {raceId,step:'times',line:`${name} has a time to check first`};
+  if(reason==='awaiting times') return {raceId,step:'times',line:`${name} needs its times first`};
+  if(reason==='awaiting finishing order' || reason==='checked in') return {raceId,step:'positions',line:`${name} needs its finishing order first`};
+  return {raceId,step:null,line:`${name} is not saved yet`};
+}
 /** Each switched-on event that is not a relay as an event group, its races in order (heats, then the final). */
 async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGroup[]> {
   const events=(await readEvents(db,true,dayId)).filter(event=>!event.relay && (!only || event.id===only));
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const counters=(await db.query("SELECT c.event_id,c.last_number FROM race_counters c JOIN events e ON e.id=c.event_id WHERE e.day_id=$1 AND c.kind<>'final'",[dayId])).rows;
-  return events.map(event=>{
+  return Promise.all(events.map(async event=>{
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
@@ -44,8 +62,8 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,heatsOpen,updatedAt};
-  });
+    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,updatedAt};
+  }));
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
   return {revision:await dayRevision(db,dayId),groups:await readGroups(db,dayId)};
@@ -136,6 +154,8 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
         if(final) {unchanged();return final.id;}
         const heats=own.filter(race=>race.parts.runners.value?.length);
         if(!heats.length || heats.some(race=>race.state!=='saved')) throw new Refusal(409,'The final opens when every heat has times');
+        const reason=await finalReason(client,phone.dayId,event.code,own);
+        if(reason) throw new Refusal(409,reason.line,{raceId:reason.raceId,step:reason.step});
         await changeStage(client,phone,event.code,'heats',false,null);
         return (await listRaces(client,phone.dayId)).find(race=>race.event.id===event.id && race.kind==='final')!.id;
       }

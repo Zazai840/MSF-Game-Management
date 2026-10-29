@@ -70,10 +70,11 @@ export function RaceBar({title,code,onBack,children}:{title:string;code:string;o
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
  * viewer's step, and every chip says its state in words. `current` is the race open now (gold with a ring); on a race
- * screen a race ready for you that is not open gets a ring and a gold dot.
+ * screen a race ready for you that is not open gets a ring and a gold dot. A final that would be refused greys "+ Final"
+ * with the reason beside it, which opens what it is about.
  */
-export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
-  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void}) {
+export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
+  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:{line:string;onOpen:()=>void}}) {
   return <ol className="rz-heats" aria-label="Heats">
     {races.map(race=>{
       const state=chipState(race,role),here=race.id===current;
@@ -84,7 +85,9 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{ra
       </button></li>;
     })}
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
-    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" onClick={onFinal}>+ Final</button></li>}
+    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
+      onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
+    {onFinal && finalReason && <li><button type="button" className="rz-heat-reason" onClick={finalReason.onOpen}><Icon name="warning"/>{finalReason.line}</button></li>}
   </ol>;
 }
 /** A step's status in words: "5 checked in", "2 of 8", "Not started". */
