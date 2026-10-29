@@ -112,11 +112,10 @@ test('a child in two relays\' teams is a To check item on the team that ran, kep
   // The Girl Scouts team has not run, so its relay has nothing to check yet.
   expect(await toCheck('R28')).toEqual([]);
   // Fixing the Girl Scouts team list clears it; typing the child back brings it back.
-  const team=snapshot.events.find(event=>event.code==='R28')!.teams!.find(team=>team.number===2)!;
+  const relay=snapshot.groups.find(group=>group.event.code==='R28')!,team=relay.teams!.find(team=>team.number===2)!;
   async function change(legs:number[]) {
-    const opened=await relays.post<typeof snapshot>(sam,'/api/teams/R28/open',{teamId:team.id});
-    const version=opened.events.find(event=>event.code==='R28')!.teams!.find(other=>other.id===team.id)!.version;
-    await relays.post(sam,'/api/teams/R28/done',{teamId:team.id,version,legs,keptWarnings:legs});
+    const version=(await relays.teams(sam,'R28')).find(other=>other.id===team.id)!.version;
+    await relays.post(sam,`/api/relays/${relay.event.id}/teams/${team.id}`,{version,legs,keptWarnings:legs});
   }
   await change([4201,4202,4203,4204]);
   expect(await toCheck()).toEqual([]);

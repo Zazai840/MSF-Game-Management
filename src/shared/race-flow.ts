@@ -9,7 +9,7 @@ import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
  * person does the one step their role names on a race. A step is one of the race's parts: Runners (check-in), Finishing order
- * and Times. Relays keep the race screen.
+ * and Times. Relays run in it too, a relay's teams typed in its teams sheet.
  */
 export const steps=['runners','positions','times'] as const;
 export type Step=typeof steps[number];
@@ -59,9 +59,10 @@ export interface FinalReason { raceId:string; step:Step|null; line:string }
  * `medalsDecided` is whether a lead has decided its medals: Event complete, Final complete or Results without a final.
  * `medalsWaiting` is the lead's Confirm the medals waits on, while every race so far is saved and the medals are not
  * decided: Final complete once the final is saved, or Event complete on a timed event; `since` is its last race's save.
+ * A relay's group also carries its team list (the teams sheet's) and `nextTeam`, the number New team takes.
  */
 export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean;
-  medalsWaiting:{stage:'final'|'event';since:string}|null; updatedAt:string }
+  medalsWaiting:{stage:'final'|'event';since:string}|null; updatedAt:string; teams?:RelayTeam[]; nextTeam?:number }
 /** The races list, versioned by the day revision: every switched-on event, in programme order. */
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /** One race in the flow, with its group (for the heat chips) and its steps; a relay's race also its team list, for check-in. */
@@ -74,10 +75,13 @@ export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
 }
 /** A group is done once its medals are decided; until then it stays in progress, even with every race saved. */
 export const groupDone=(group:Pick<RaceGroup,'medalsDecided'>)=>group.medalsDecided;
+/** A relay with teams and no heats yet: listed under Teams ready, no heats yet, after In progress. */
+const teamsReady=(groups:readonly RaceGroup[])=>groups.filter(group=>!group.races.length && group.teams?.length);
 /**
  * Home's sections for a volunteer role: Ready for you (a race whose step for the role can be worked on now, the
  * group whose oldest such race was made first coming first), In progress (every other group not done, most recently
- * updated first) and Done. A group with no races is not listed: New race makes its first.
+ * updated first), Teams ready (a relay with teams and no heats) and Done. Any other group with no races is not
+ * listed: New race makes its first.
  */
 export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead'>) {
   const step=roleSteps[role],listed=groups.filter(group=>group.races.length);
@@ -85,7 +89,7 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
   const ready=listed.filter(waitingSince).sort((a,b)=>waitingSince(a).localeCompare(waitingSince(b)));
   const newest=(a:RaceGroup,b:RaceGroup)=>b.updatedAt.localeCompare(a.updatedAt);
   const rest=listed.filter(group=>!ready.includes(group));
-  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),done:rest.filter(groupDone).sort(newest)};
+  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),teamsReady:teamsReady(groups),done:rest.filter(groupDone).sort(newest)};
 }
 /**
  * Why a step cannot be marked done yet, or null: Runners needs someone checked in (on a final, someone Here),
@@ -166,7 +170,7 @@ export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
 export function finalConfirm(group:FinalGroup) {
   const saved=savedHeats(group).length;
-  return {title:`Have all ${group.event.section} heats run?`,text:`${saved} ${saved===1?'heat':'heats'} saved. The final takes the fastest 6, and no more heats can be added.`};
+  return {title:`Have all ${group.event.section} heats run?`,text:`${saved} ${saved===1?'heat':'heats'} saved. The final takes the fastest 6${group.event.relay?' teams':''}, and no more heats can be added.`};
 }
 const ownIssues=(group:Pick<RaceGroup,'event'>,issues:readonly DayLeadItem[])=>issues.filter(item=>item.event.code===group.event.code);
 /** The check sheet a lead's Confirm the medals opens on this card, shown only once nothing of the event is in To check. */
@@ -190,5 +194,5 @@ export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLead
   const waitingSince=(group:RaceGroup)=>[...ownIssues(group,issues).map(item=>item.at),group.medalsWaiting?.since??''].sort().at(-1);
   const ready=listed.filter(waitingSince).sort((a,b)=>waitingSince(b)!.localeCompare(waitingSince(a)!));
   const rest=listed.filter(group=>!ready.includes(group));
-  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),done:rest.filter(groupDone).sort(newest)};
+  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),teamsReady:teamsReady(groups),done:rest.filter(groupDone).sort(newest)};
 }

@@ -1,6 +1,6 @@
 import { expect,test } from 'vitest';
 import { teamsBadge,teamsStatus,type RelayTeam } from '../src/shared/teams.js';
-const team=(number:number,...wristbands:Array<number|null>):RelayTeam=>({id:`t${number}`,number,version:1,changing:null,races:[],legs:wristbands.map(wristband=>({wristband,warnings:[]}))});
+const team=(number:number,...wristbands:Array<number|null>):RelayTeam=>({id:`t${number}`,number,version:1,changedBy:null,changing:null,races:[],legs:wristbands.map(wristband=>({wristband,warnings:[]}))});
 const full=(number:number)=>team(number,1,2,3,4);
 const sam={id:'s',name:'Sam Patel'};
 test('a relay card\'s status line says who is entering, how many teams and the first team not complete',()=>{

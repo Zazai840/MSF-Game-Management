@@ -1,4 +1,4 @@
-import {ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page} from './fixtures.js';
+import {ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,openLeadMenu,openRace,openRelays,ownEvent,ownRelay,expect,switchJob,test,writeCheckIn,writeTeam,type Page} from './fixtures.js';
 
 // The design system's navy and paper.
 const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
@@ -92,52 +92,26 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   expect(await lookProblems(page)).toEqual([]);
 });
 
-test('the Teams screen and a relay race screen meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
+test('the Relays tab and a relay\'s teams sheet meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
   const project=info.project.name,code=await ownCode(),name=`Look relay ${project}`;
   const n=await ownWristbands('Boy Scouts',10);
   await ownRelay(code,name,'Boy Scouts');
   const {page,token}=await openPhone(`Look relay ${project}`);
   await writeTeam(request,token,code,[n(1),n(2),n(3),n(4)]);
   await writeTeam(request,token,code,[n(5),n(6),null,null]);
-  // The Teams screen: this phone holds the relay, one team open for changing.
-  await openTeams(page);
-  await page.getByRole('region',{name,exact:true}).getByRole('button',{name:/^Boy Scouts/}).click();
-  await expect(page.getByText('Tap a team to change it.',{exact:true})).toBeVisible();
+  await openRelays(page);
+  const card=page.getByRole('article',{name:`${name} · Boy Scouts`,exact:true});
+  await expect(card).toContainText('2 teams ready · no heats yet');
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:'Change Team 2',exact:true}).click();
-  await expect(page.getByLabel('Team 2 1st leg',{exact:true})).toHaveValue(String(n(5)));
+  await card.getByRole('button',{name:/^Teams 2/}).click();
+  await expect(page.getByText('2 teams · 2 still to run. Tap a team still to run to change it.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('teams-screen.png'),fullPage:true});
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
-  // The relay's race screen: Check-in Teams with both teams ticked, one short of four here, opened.
-  for(const number of [1,2]) await tickTeam(request,token,code,number);
-  await markHere(request,token,code,2,1);
-  await openRelays(page);await openRaceScreen(page,name,'Boy Scouts');
-  await page.getByRole('button',{name:/^Check-in Teams/}).click();
-  await expect(page.getByText(/A team can run short/)).toBeVisible();
+  await page.screenshot({path:info.outputPath('teams-sheet.png')});
+  await page.getByRole('button',{name:/^Change Team 2:/}).click();
+  await expect(page.getByLabel('1st leg',{exact:true})).toHaveValue(String(n(5)));
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('relay-check-in.png'),fullPage:true});
-  // Order and Times with this phone holding both: the team buttons, then a team with no place.
-  await page.getByRole('button',{name:/^Check-in Teams/}).click();
-  await page.getByRole('button',{name:/^Order and Times/}).click();
-  await page.getByRole('button',{name:'Do the order',exact:true}).click();
-  await page.getByRole('button',{name:'Do the times',exact:true}).click();
-  await page.locator('.race-numbers').getByRole('button',{name:/Team 1$/}).click();
-  await expect(page.getByLabel('Place time',{exact:true})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('relay-order-and-times.png'),fullPage:true});
-  await page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
-  await page.getByRole('button',{name:'Did not finish',exact:true}).click();
-  const noPlace=page.getByRole('list',{name:'No place'}).getByRole('listitem');
-  await expect(noPlace).toHaveText(/^Team 2\s*Did not finish\s*Give a place$/);
-  expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('relay-did-not-finish.png'),fullPage:true});
-  // Each part of the row stays on one line, even on a 360px phone.
-  for(const part of [noPlace.locator('strong'),noPlace.locator('span'),noPlace.getByRole('button')]) expect(await part.evaluate(element=>{const range=document.createRange();range.selectNodeContents(element);return new Set([...range.getClientRects()].map(rect=>Math.round(rect.top))).size;})).toBe(1);
-  await deleteCurrentRace(request,code);
+  await page.screenshot({path:info.outputPath('teams-sheet-edit.png')});
 });
-
 test('each race-flow screen on a test build, from Races to every job\'s race and a lead\'s, meets the look rules',async({openPhone,request},info)=>{
   const project=info.project.name,code=await ownCode(),hurdles=await ownCode(),name=`Look walk ${project}`,n=await ownWristbands('Girl Cubs',6);
   await ownEvent(request,code,name);await ownEvent(request,hurdles,`Look hurdles ${project}`,'Girl Cubs','heats','hurdles');

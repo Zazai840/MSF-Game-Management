@@ -48,7 +48,7 @@ test('Done saves a team in one write: a new team takes the next number, half-typ
   const opened=await teams(sam,'R22','hold');
   const first=await teams(sam,'R22','done',{legs:[2101,2134,null,2150]});
   expect(first.revision).toBeGreaterThan(opened.revision);
-  expect(relay(first,'R22').teams).toEqual([{id:expect.any(String),number:1,version:1,legs:[{wristband:2101,warnings:[]},{wristband:2134,warnings:[]},{wristband:null,warnings:[]},{wristband:2150,warnings:[]}],changing:null,races:[]}]);
+  expect(relay(first,'R22').teams).toEqual([{id:expect.any(String),number:1,version:1,legs:[{wristband:2101,warnings:[]},{wristband:2134,warnings:[]},{wristband:null,warnings:[]},{wristband:2150,warnings:[]}],changedBy:'Sam Patel',changing:null,races:[]}]);
   // Two Done presses adding new teams at the same moment both land, with different numbers.
   await Promise.all([teams(sam,'R22','done',{legs:[2201,null,null,null]}),teams(sam,'R22','done',{legs:[2301,null,null,null]})]);
   const added=relay(await teams(priya,'R22','hold'),'R22').teams;

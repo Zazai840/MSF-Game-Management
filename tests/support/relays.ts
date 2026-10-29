@@ -50,10 +50,10 @@ export function relaySetup(app:FastifyInstance) {
 /**
  * Relays in the race flow, as the phone whose token is given: the Start line taps, step writes and done marks a
  * volunteer's taps make, on the race the relay is at (its final once it has one, else its latest race not saved, else
- * a new next heat). Teams are typed on the team list with `team`, and named by their number.
+ * a new next heat). Teams are typed on the team list with `team`, as the teams sheet's Save does, and named by their number.
  */
 export function relayFlowSetup(app:FastifyInstance) {
-  const {post,team}=relaySetup(app);
+  const {post}=relaySetup(app);
   async function get<T>(token:string,url:string) {
     const response=await app.inject({url,headers:{authorization:`Bearer ${token}`}});
     if(response.statusCode!==200) throw new Error(`${url} answered ${response.statusCode}: ${response.body}`);
@@ -69,12 +69,11 @@ export function relayFlowSetup(app:FastifyInstance) {
   async function worked(token:string,code:string) {
     return await race(token,code) ?? post<RaceFlowRead>(token,'/api/races',{eventCode:code,kind:'heat',number:(await group(token,code)).nextHeat});
   }
-  /** The relay's team list, as any of its races' reads carries it. */
-  async function teams(token:string,code:string) {
-    const any=(await group(token,code)).races[0];
-    if(!any) throw new Error(`${code} has no race yet`);
-    return (await get<RaceFlowRead>(token,`/api/races/${any.id}`)).teams!;
-  }
+  /** Adds a team to the relay's team list, as the teams sheet's New team does, keeping every warning. */
+  const team=async(token:string,code:string,legs:Array<number|null>)=>
+    post<RacesRead>(token,`/api/relays/${(await group(token,code)).event.id}/teams`,{legs,keptWarnings:legs.filter(leg=>leg!==null)});
+  /** The relay's team list, as the races list carries it. */
+  const teams=async(token:string,code:string)=>(await group(token,code)).teams!;
   /** A Start line tap on Team `number`: tick, take-off or here. */
   async function tap(token:string,code:string,what:'tick'|'take-off'|'here',number:number,body:object={}) {
     const read=await worked(token,code),teamId=read.teams!.find(item=>item.number===number)!.id;

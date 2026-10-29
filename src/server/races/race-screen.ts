@@ -247,7 +247,7 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
     const done=requestedDone(request.body);
     return tap(request,phone,async tapped=>{
       const {client,screen,team,entries}=tapped,entry=tickedEntry(tapped);
-      const legs=await writeTeam(client,await teamsWriteRead(client,phone.dayId,screen.event.code),team,phone,done);
+      const legs=await writeTeam(client,await teamsWriteRead(client,phone.dayId,{code:screen.event.code}),team,phone,done);
       return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:entry.legs.some(was=>was.here && was.wristband===leg.wristband)}))}:other);
     });
   });

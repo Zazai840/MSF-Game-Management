@@ -1,4 +1,4 @@
-import {ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRaceScreen,openRelays,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRelays,signInThroughApi,test,writeCheckIn,writeTeam,type Locator,type Page,type PhoneSession} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -111,17 +111,14 @@ test('Join\'s button stays at the foot of the screen while typing',async({page})
   await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
   expect(Math.abs(await footerBottom(footer)-foot)).toBeLessThanOrEqual(1);
 });
-test('the older screens\' button bar rides on the keyboard too',async({openPhone,request},info)=>{
+test('a relay\'s teams sheet keeps Cancel and Save on the keyboard while the leg boxes are typed',async({openPhone,request},info)=>{
   const code=await ownCode(),name=`Docked relay ${info.project.name}`;
   await ownRelay(code,name,'Boy Cubs');
   const {page,token}=await withKeyboard(await openPhone(`Docked relay ${info.project.name}`));
-  const n=await ownWristbands('Boy Cubs',8);
-  for(const legs of [[0,1,2,3],[4,5,6,7]].map(team=>team.map(n))) await writeTeam(request,token,code,legs,{keptWarnings:legs});
-  await tickTeam(request,token,code,1);await tickTeam(request,token,code,2);
-  await writeTeamOrder(request,token,code,[1,2]);await takeJob(request,token,code,'times');
-  await openRelays(page);await openRaceScreen(page,name,'Boy Cubs');
-  await page.getByRole('button',{name:/^Order and Times/}).click();
-  const box=page.getByLabel('Place time',{exact:true});
-  await box.focus();
-  await docksAboveKeyboard(page,box,page.locator('.action-bar'));
+  await writeTeam(request,token,code,[(await ownWristbands('Boy Cubs',1))(1),null,null,null]);
+  await openRelays(page);
+  await page.getByRole('article',{name:`${name} · Boy Cubs`,exact:true}).getByRole('button',{name:/^Teams 1/}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'New team',exact:true}).click();
+  const box=page.getByLabel('1st leg',{exact:true});
+  await docksAboveKeyboard(page,box,page.locator('.rz-sheet__foot'));
 });
