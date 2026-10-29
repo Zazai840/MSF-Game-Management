@@ -1,8 +1,8 @@
 import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead } from '../../shared/lead-results.js';
-import { groupDone,groupStatus,raceName,raceSections,type RaceGroup,type RacesRead,type Role } from '../../shared/race-flow.js';
-import { toCheckWording } from '../../shared/to-check.js';
+import { groupDone,groupStatus,raceSections,type RaceGroup,type RacesRead,type Role } from '../../shared/race-flow.js';
+import { issueLine } from '../../shared/to-check.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { HeatChips,Icon } from './parts.js';
@@ -28,8 +28,6 @@ function useLeadItems(on:boolean) {
   },[on]);
   return items;
 }
-/** A lead's status line for a group with issues: "Heat 3: A time looks wrong". */
-const issueLine=(items:readonly DayLeadItem[])=>items.slice(0,2).map(item=>`${item.race?raceName(item.race):'Event'}: ${toCheckWording(item).title}`).join(' · ')+(items.length>2?` · ${items.length-2} more`:'');
 /**
  * Races, the new Home: the event groups of this tab behind Races · Hurdles · Relays, live from the races stream, in
  * Ready for you (a race my step can be worked on now; for a lead, a group with open issues), In progress and Done.

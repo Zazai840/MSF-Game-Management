@@ -6,6 +6,7 @@ import { raceName,stepLabels,type Step } from '../../shared/race-flow.js';
 import { runnersOf } from '../../shared/races.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { toCheckWording } from '../../shared/to-check.js';
+import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { Callout,Icon } from './parts.js';
 import { FinishLine,StartLine,Timer,type StepProps } from './Steps.js';
@@ -62,7 +63,7 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
 export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;onEdit?:()=>void}) {
   const {race}=read,runners=runnersOf(race.parts.runners.value),byId=new Map(runners.map(runner=>[runner.id,runner]));
   const finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
-  const rows=Math.max(places.length,finish?.order.length||0);
+  const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places).map(time=>time.index));
   return <>
     <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'positions and times joined up':step==='positions'?'the finishing order':`${runners.length} checked in`}</p>
     {step==='runners' && (runners.length?<ul className="rz-chips" aria-label="Checked in">{runners.map(runner=><li key={runner.id}><span className={runner.warnings?.length?'rz-chip rz-chip--warn':'rz-chip'}>{runner.wristband}</span></li>)}</ul>
@@ -72,7 +73,7 @@ export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;
       {finish.didNotFinish.map(id=><li key={id} className="rz-lead-row"><span className="rz-lead-row__place">–</span><span className="rz-lead-row__num">{byId.get(id)?.wristband}</span><span className="rz-tag rz-tag--dnf">Did not finish</span></li>)}
     </ol>:<p className="rz-empty">Nobody is placed yet.</p>)}
     {step==='times' && (rows?<ol className="rz-lead-rows" aria-label="Times">{Array.from({length:rows},(_,index)=>{
-      const runner=byId.get(finish?.order[index]||''),time=places[index],warn=race.parts.times.value?.outOfOrder && time!=null;
+      const runner=byId.get(finish?.order[index]||''),time=places[index],warn=wrong.has(index);
       const content=<><span className="rz-lead-row__place">{ordinal(index+1)}</span><span className="rz-lead-row__num">{runner?.wristband??'–'}</span>
         <span className="rz-lead-row__end">{time==null?'No time':formatTime(time)}{onEdit && <> <Icon name="pencil" className="rz-icon--sm"/></>}</span></>;
       const label=`${ordinal(index+1)}, ${runner?.wristband??'no wristband'}, ${time==null?'no time yet':formatTime(time)}`;

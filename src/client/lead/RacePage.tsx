@@ -36,7 +36,7 @@ export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:s
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;
 }
-/** The race's places and times, a wrong time in amber with its reason as on the Times screens, each child's or relay team's warnings beside them (grey once settled), and v1's count check. */
+/** The race's places and times in place order (no place last), a wrong time in amber with its reason as on the Times screens, each child's or relay team's warnings beside them (grey once settled), and v1's count check. */
 function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryId:string)=>LeaderboardRow|undefined;onRunner:(entryId:string)=>void}) {
   const times=race.kind==='final'?null:race.parts.times.value;
   const wrong=times?wrongTimesByPlace(times.places):new Map<number,WrongTime>();
@@ -44,7 +44,7 @@ function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:
   return <>
     {times && <TimeCount times={times.places.filter(time=>time!==null).length} finishers={race.parts.finish.value?.order.length??null} mismatch={mismatch}/>}
     {mismatch && <p className="warning-box">{mismatch}</p>}
-    <ol className="record-rows" aria-label="Current record">{race.recording.results.map(row=>{
+    <ol className="record-rows" aria-label="Current record">{[...race.recording.results].sort((a,b)=>(a.place??Infinity)-(b.place??Infinity) || 0).map(row=>{
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
       const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,result=rowFor(row.entryId);
       return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
