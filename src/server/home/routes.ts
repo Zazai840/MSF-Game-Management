@@ -8,6 +8,6 @@ export function homeRoutes(app: FastifyInstance, pool: pg.Pool) {
   // `waiting: {}` is for the switch-over release only: an older build still open reads `waiting[job]` and goes white
   // without it. Remove it in the release after.
   action('GET', '/api/home', 'Volunteer', (_request, _reply, phone) => resultsSnapshot(pool,phone.dayId,async db=>({phone,waiting:{},
-    ...(phone.level === 'Volunteer' ? {} : {needsYou:await readResults(db,phone.dayId).then(read=>read.needsYou.length+read.profileRequests.length)})})));
+    ...(phone.level === 'Volunteer' ? {} : {needsYou:await readResults(db,phone.dayId).then(read=>read.needsYou.length)})})));
   action('GET', '/api/lead', 'Lead', (_request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>readResults(db,phone.dayId)));
 }

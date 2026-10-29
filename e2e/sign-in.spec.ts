@@ -79,42 +79,58 @@ test('a new phone joins with its name, the password and its job, stays signed in
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(true);
 });
-test('a volunteer joining with a name taken on another phone is numbered, and the first phone keeps its own',async({page,browser},info)=>{
+/** The first phone's next request is told the name moved: it forgets the name and shows Join without it. */
+async function forgotten(page:Page,name:string) {
+  await page.reload();
+  await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
+  await expect(page.getByText(name,{exact:true})).toHaveCount(0);
+  expect(await page.evaluate(()=>localStorage.getItem('msf:profiles'))).toBe('[]');
+}
+const question=(page:Page)=>page.locator('.rz-callout',{hasText:'Is this you on a new phone?'});
+test('a name held on another phone asks "Is this you on a new phone?": That\'s me signs the second phone in as that name and the first phone forgets it',async({page,browser},info)=>{
   const name=`Amina Taken ${info.project.name}`;
   await page.goto('/');await join(page,name,{job:'Finish line'});await races(page);
   const second=await browser.newContext({...info.project.use});
   try {
     const other=await second.newPage();await other.goto('/');await join(other,name.toLowerCase(),{job:'Finish line'});
-    await races(other);
-    await expect(other.getByRole('status')).toHaveText(`${name} is already taken, so you're signed in as ${name} 2`);
-    await expect(other.getByRole('button',{name:`${name} 2, your details`,exact:true})).toBeVisible();
-    await expect(jobChip(other,'Finish line')).toBeVisible();
+    // The question sits under the Full name box, above the Password box.
+    await expect(question(other)).toBeVisible();
+    const asked=(await question(other).boundingBox())!,nameBox=(await other.getByLabel('Full name',{exact:true}).boundingBox())!;
+    expect(asked.y).toBeGreaterThanOrEqual(nameBox.y+nameBox.height);
+    expect(asked.y+asked.height).toBeLessThanOrEqual((await other.getByLabel('Password',{exact:true}).boundingBox())!.y);
     expect(await lookProblems(other)).toEqual([]);
-    await other.screenshot({path:info.outputPath('join-numbered.png')});
+    await other.screenshot({path:info.outputPath('join-taken.png')});
+    // No, I'm someone else closes the question and focuses the name box with the hint.
+    await question(other).getByRole('button',{name:"No, I'm someone else",exact:true}).click();
+    await expect(question(other)).toHaveCount(0);
+    await expect(other.getByLabel('Full name',{exact:true})).toBeFocused();
+    await expect(other.getByText('Add a middle name or initial, for example Sara K Ahmed.',{exact:true})).toBeVisible();
+    expect(await lookProblems(other)).toEqual([]);
+    await other.screenshot({path:info.outputPath('join-someone-else.png')});
+    await other.getByRole('button',{name:'Join',exact:true}).click();
+    await question(other).getByRole('button',{name:"That's me",exact:true}).click();
+    await races(other);
+    await expect(other.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+    await expect(jobChip(other,'Finish line')).toBeVisible();
+    await expect(other.getByRole('status')).toHaveCount(0);
   } finally {await second.close();}
-  await page.reload();
-  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
+  await forgotten(page,name);
 });
-test('the lead code joins as Zone lead on its own, and a name taken on another phone is numbered',async({page,browser},info)=>{
+test('the lead code joins as Zone lead on its own, and a name held on another phone gets the same That\'s me',async({page,browser},info)=>{
   const name=`Sara Taken Lead ${info.project.name}`;
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);
   const second=await browser.newContext({...info.project.use});
   try {
     const other=await second.newPage();await other.goto('/');
     await join(other,name.toLowerCase(),{code:process.env.E2E_LEAD_CODE});
+    await question(other).getByRole('button',{name:"That's me",exact:true}).click();
     await races(other);
     await expect(jobChip(other,'Zone lead')).toBeVisible();
-    await expect(other.getByRole('status')).toHaveText(`${name} is already taken, so you're signed in as ${name} 2`);
-    await expect(other.getByRole('status').locator('strong')).toHaveText(`${name} 2`);
-    // Initials skip the number: "Sara Taken Lead iPhone 2" is SI, not S2.
-    await expect(other.getByRole('button',{name:`${name} 2: Results, Day setup and your details`,exact:true})).toHaveText(`S${info.project.name[0].toUpperCase()}`);
+    await expect(other.getByRole('button',{name:`${name}: Results, Day setup and your details`,exact:true})).toBeVisible();
     expect(await lookProblems(other)).toEqual([]);
-    await other.screenshot({path:info.outputPath('lead-numbered.png')});
+    await other.screenshot({path:info.outputPath('lead-thats-me.png')});
   } finally {await second.close();}
-  // The first phone's profile is untouched.
-  await page.reload();
-  await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
-  await expect(jobChip(page,'Start line')).toBeVisible();
+  await forgotten(page,name);
 });
 test('the owner password joins as the owner lead on the running day without touching it',async({page},info)=>{
   const before=await (await page.request.get('/api/day',{headers:headers()})).json();

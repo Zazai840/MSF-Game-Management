@@ -21,22 +21,34 @@ test('the Olympics password makes a new name a volunteer profile, and the same p
   expect(again).toMatchObject({kind:'volunteer',profile:{id:made.profile.id}});
   expect(again.profile.secret).toBeUndefined();
 });
-test('a name held on another phone joins as the next free number, and the first phone keeps its own',async()=>{
+test('a name held on another phone is refused as taken; That\'s me moves it to this phone at once and the first phone is told it moved',async()=>{
   const {olympics}=await start();
   const first=(await join({code:olympics,job:'start',name:'Tom Barker',profiles:[]})).json();
-  const second=await join({code:olympics,job:'start',name:'tom barker',profiles:[]});
-  expect(second.statusCode).toBe(200);
-  expect(second.json()).toMatchObject({kind:'volunteer',profile:{name:'Tom Barker 2'},phone:{level:'Volunteer'}});
-  expect(second.json().profile.id).not.toBe(first.profile.id);
-  expect((await join({code:olympics,job:'start',name:'Tom Barker',profiles:[]})).json().profile.name).toBe('Tom Barker 3');
-  // The first phone still joins as itself.
-  expect((await join({code:olympics,job:'start',name:'Tom Barker',profiles:[{id:first.profile.id,secret:first.profile.secret}]})).json().profile.id).toBe(first.profile.id);
+  const taken=await join({code:olympics,job:'start',name:'tom barker',profiles:[]});
+  expect(taken.statusCode).toBe(409);
+  expect(taken.json()).toMatchObject({taken:true,message:'Is this you on a new phone?'});
+  const moved=await join({code:olympics,job:'start',name:'tom barker',profiles:[],thatsMe:true});
+  expect(moved.statusCode).toBe(200);
+  const second=moved.json();
+  expect(second).toMatchObject({kind:'volunteer',profile:{id:first.profile.id,name:'Tom Barker',secret:expect.any(String)},phone:{level:'Volunteer'}});
+  expect(second.profile.secret).not.toBe(first.profile.secret);
+  // The first phone's session and its held secret both answer moved, so it forgets the name.
+  const old=await app.inject({method:'GET',url:'/api/home',headers:{authorization:`Bearer ${first.token}`}});
+  expect(old.statusCode).toBe(401);expect(old.json().reason).toBe('moved');
+  const oldTap=await app.inject({method:'POST',url:'/api/sign-in',payload:{pass:first.pass,profileId:first.profile.id,secret:first.profile.secret}});
+  expect(oldTap.json().reason).toBe('moved');
+  expect((await app.inject({method:'GET',url:'/api/home',headers:{authorization:`Bearer ${second.token}`}})).statusCode).toBe(200);
+  // The new phone holds the name now: joining with it again signs in, with no question.
+  expect((await join({code:olympics,job:'start',name:'Tom Barker',profiles:[{id:first.profile.id,secret:second.profile.secret}]})).json().profile.id).toBe(first.profile.id);
 });
-test('today\'s lead code alone signs in as a lead, numbering a name taken on another phone; the owner password signs in the owner',async()=>{
+test('today\'s lead code alone signs in as a lead and asks the same question of a taken name; That\'s me moves it, and the lead role only with the lead code',async()=>{
   const {olympics,leadCode}=await start();
-  await join({code:olympics,job:'start',name:'Sam Patel',profiles:[]});
-  const lead=(await join({code:leadCode.toLowerCase(),name:'Sam Patel',profiles:[]})).json();
-  expect(lead).toMatchObject({kind:'lead',profile:{name:'Sam Patel 2'},phone:{level:'Lead'},pass:expect.any(String)});
+  const lead=(await join({code:leadCode,name:'Sam Patel',profiles:[]})).json();
+  expect(lead).toMatchObject({kind:'lead',profile:{name:'Sam Patel'},phone:{level:'Lead'},pass:expect.any(String)});
+  expect((await join({code:leadCode.toLowerCase(),name:'Sam Patel',profiles:[]})).json()).toMatchObject({taken:true});
+  expect((await join({code:leadCode,name:'Sam Patel',profiles:[],thatsMe:true})).json()).toMatchObject({kind:'lead',profile:{id:lead.profile.id,name:'Sam Patel'},phone:{level:'Lead'}});
+  // A third phone with only the Olympics password takes the name but not the lead role.
+  expect((await join({code:olympics,job:'timer',name:'Sam Patel',profiles:[],thatsMe:true})).json()).toMatchObject({kind:'volunteer',profile:{id:lead.profile.id},phone:{level:'Volunteer'}});
   const owner=(await join({code:'join-owner',name:'Aisha',profiles:[]})).json();
   expect(owner).toMatchObject({kind:'owner',phone:{level:'Lead'}});
 });
