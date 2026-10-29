@@ -123,7 +123,8 @@ test('only a lead makes the final, once every heat is saved, seeded with the fas
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')).toMatchObject({heatsOpen:true,finalAvailable:true});
   const final=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
   expect(final.race.kind).toBe('final');
-  expect(final.race.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([2006,2001,2002,2003,2004,2005]);
+  expect(final.race.final!.entries.map(entry=>entry.wristband)).toEqual([2006,2001,2002,2003,2004,2005]);
+  expect(final.race.parts.runners.value).toEqual([]);
   expect(Object.keys(final.steps)).toEqual(['runners','positions']);
   // Making the final completes the heats: the group offers no more heats.
   expect((await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code==='R4')!.heatsOpen).toBe(false);
@@ -197,4 +198,41 @@ test('the timer types times before the finish line places anyone, up to the runn
   expect((await done(ahmed,partly,'positions')).statusCode).toBe(409);
   const saved=(await done(ahmed,await order(ahmed,partly,[2001,2002]),'positions')).json() as RaceFlowRead;
   expect(saved.race.state).toBe('saved');
+});
+test('an event group says its medals are decided only once a lead has Event complete, Final complete or Results without a final',async()=>{
+  const {ahmed,lena}=await start();
+  const decided=async(code:string)=>(await ok<RacesRead>(ahmed,'/api/races')).groups.find(group=>group.event.code===code)!.medalsDecided;
+  const complete=(code:string,stage:string)=>call(lena,`/api/lead/events/${code}/complete-stage`,{stage,comment:'Out of time'});
+  // 60m Hurdles, decided by time: every heat saved is not the medals.
+  await heat(ahmed,'R7',1,[1,2],[1000,1100],steps);await heat(ahmed,'R7',2,[3,4],[1050,1150],steps);
+  expect(await decided('R7')).toBe(false);
+  expect((await complete('R7','event')).statusCode).toBe(200);
+  expect(await decided('R7')).toBe(true);
+  // 60m with a final: the heats complete and the final saved are not the medals; Final complete is.
+  await heat(ahmed,'R4',1,[2001,2002],[1100,1200],steps);
+  const made=await ok(lena,'/api/races',{eventCode:'R4',kind:'final'});
+  // A final's check-in starts with nobody marked: both finalists are Here.
+  const final=await ok(ahmed,`/api/races/${made.race.id}/absent`,{raceId:made.race.id,version:made.race.parts.runners.version,here:made.race.final!.entries.map(entry=>entry.finalEntryId),absent:[]});
+  await done(ahmed,final,'runners');await done(ahmed,await order(ahmed,final,[2001,2002]),'positions');
+  expect((await ok(ahmed,`/api/races/${final.race.id}`)).race.state).toBe('saved');
+  expect(await decided('R4')).toBe(false);
+  expect((await complete('R4','final')).statusCode).toBe(200);
+  expect(await decided('R4')).toBe(true);
+  // Results without a final.
+  await heat(ahmed,'R5',1,[3001,3002,3003],[1100,1200,1300],steps);
+  expect(await decided('R5')).toBe(false);
+  expect((await complete('R5','no-final')).statusCode).toBe(200);
+  expect(await decided('R5')).toBe(true);
+});
+test('Times expects every runner until the finishing order is saved, then only the finishers',async()=>{
+  const {ahmed,tom}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002},{wristband:2003}]});
+  const ordered=await ok(tom,`/api/races/${id}/order`,{raceId:id,version:checked.race.parts.finish.version,order:ids(checked,[2002,2001]),didNotFinish:ids(checked,[2003]),didNotRun:[],added:[]});
+  expect(ordered.steps.times).toMatchObject({count:0,expected:3});
+  const saved=(await done(tom,ordered,'positions')).json() as RaceFlowRead;
+  expect(saved.steps.positions).toMatchObject({state:'done',count:3,expected:3,didNotFinish:1});
+  expect(saved.steps.times).toMatchObject({count:0,expected:2});
+  const list=await ok<RacesRead>(ahmed,'/api/races');
+  expect(list.groups.find(group=>group.event.code==='R4')!.races[0].steps.times).toMatchObject({expected:2});
 });

@@ -48,9 +48,9 @@ export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
     <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
-/** The avatar: your initials. For a lead it opens the menu with Results and Day setup. */
-export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label?:string}) {
-  return <button type="button" className="rz-avatar" aria-label={label||`${name}, your details`} onClick={onOpen}>{initials(name)}</button>;
+/** The avatar: your initials. It opens the avatar menu, which its label names. */
+export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label:string}) {
+  return <button type="button" className="rz-avatar" aria-label={label} onClick={onOpen}>{initials(name)}</button>;
 }
 /** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
 export function HomeBar({children}:{children:ReactNode}) {
@@ -90,10 +90,12 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,n
     {onFinal && finalReason && <li><button type="button" className="rz-heat-reason" onClick={finalReason.onOpen}><Icon name="warning"/>{finalReason.line}</button></li>}
   </ol>;
 }
-/** A step's status in words: "5 checked in", "2 of 8", "Not started". */
+/** A step's status in words: "5 checked in", "2 of 8", "10 finished", "Not started". */
 export function stepWords(step:Step,status:StepStatus) {
   if(status.state==='not started') return 'Not started';
   if(step==='runners') return `${status.count} ${status.state==='done'?'checked in':'so far'}`;
+  // The Did not finish count goes on the step's own meta line: beside two other steps it would not fit on one line at 360px.
+  if(step==='positions' && status.state==='done') return `${status.count-(status.didNotFinish||0)} finished`;
   return `${status.count} of ${status.expected}`;
 }
 /**

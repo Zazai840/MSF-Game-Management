@@ -15,3 +15,4 @@ The finish line's places: one slot for every runner in the race, so a full heat 
 **Rules**
 - 4 columns of 44px slots on a phone (9–12 runners make 3 rows); more columns on wider screens.
 - Placed: `navy` with a gold Saira ordinal; tap to fill that place again. Current: `gold` + 2px `navy` ring. Empty: dashed `line-strong`.
+- Changing a placed slot: `rz-placeslot--changing`, the 2px `navy` ring with its runner still shown, `aria-label="Changing 1st: 2033"`. The prompt meta reads "Changing 1st: 2033", 2033 is among the runner buttons again, and a small "Keep 2033" button beside the prompt puts it back.

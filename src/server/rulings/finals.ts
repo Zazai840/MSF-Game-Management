@@ -38,17 +38,19 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
   await client.query('DELETE FROM job_holds WHERE event_id=$1',[event.id]);
   const id=existing?.id||randomUUID();
   const entries:FinalEntry[]=qualifiers.map((row,index)=>({finalEntryId:randomUUID(),heatRaceId:row.raceId,heatEntryId:row.entryId,heatWristband:row.wristband,heatRank:row.position!,seed:index+1,kind:'qualifier',absent:false}));
-  const teams=await relayTeams(client,phone.dayId,event.id),runners=entries.map((entry,index)=>finalist(teams,qualifiers[index],entry.finalEntryId));
+  const teams=await relayTeams(client,phone.dayId,event.id),lineup=entries.map((entry,index)=>finalist(teams,qualifiers[index],entry.finalEntryId));
+  // A child's final starts with nobody Here: each is marked at the start line. A relay's teams start in, none here yet.
+  const runners=event.relay?lineup:[];
   if(existing) {
     await publishPart(client,phone,existing,'runners',runners);
     await publishPart(client,phone,existing,'finish',null);
   } else {
     const counter=(await client.query('INSERT INTO race_counters(event_id,kind,last_number) VALUES($1,\'final\',1) ON CONFLICT(event_id,kind) DO UPDATE SET last_number=race_counters.last_number+1 RETURNING last_number',[event.id])).rows[0];
-    await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,\'final\',$4,$5)',[id,phone.dayId,event.id,counter.last_number,originalRunners(runners)]);
+    await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,\'final\',$4,$5)',[id,phone.dayId,event.id,counter.last_number,originalRunners(lineup)]);
     for(const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,clock_timestamp())',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,phone.id]);
   }
   // Keep each runner's copy for Here / Absent without recording attendance while seeding the line-up.
-  await client.query("INSERT INTO race_finals(race_id,entries,generation) VALUES($1,$2,$3) ON CONFLICT(race_id) DO UPDATE SET entries=EXCLUDED.entries,additional_entries='[]',generation=EXCLUDED.generation",[id,JSON.stringify(entries.map((entry,index)=>({...entry,runner:runners[index]}))),randomUUID()]);
+  await client.query("INSERT INTO race_finals(race_id,entries,generation) VALUES($1,$2,$3) ON CONFLICT(race_id) DO UPDATE SET entries=EXCLUDED.entries,additional_entries='[]',generation=EXCLUDED.generation",[id,JSON.stringify(entries.map((entry,index)=>({...entry,runner:lineup[index]}))),randomUUID()]);
 }
 export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
@@ -60,8 +62,10 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!final || !final.heatsComplete || final.hasRun || !final.vacancy || !final.nextCallUp) throw new Refusal(409,'There is no open place to call up a runner');
       const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
       const next=final.nextCallUp;if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
-      const entry:FinalEntry={finalEntryId:randomUUID(),heatRaceId:next.raceId,heatEntryId:next.entryId,heatWristband:next.wristband,heatRank:next.position!,seed:final.vacancy.seed,kind:'call-up',absent:false,replacesEntryId:final.vacancy.finalEntryId};
-      const runners=[...(race.parts.runners.value||[]),finalist(await relayTeams(client,current.dayId,detail.event.id),next,entry.finalEntryId)];
+      const id=randomUUID(),called=finalist(await relayTeams(client,current.dayId,detail.event.id),next,id);
+      const entry:FinalEntry={finalEntryId:id,heatRaceId:next.raceId,heatEntryId:next.entryId,heatWristband:next.wristband,heatRank:next.position!,seed:final.vacancy.seed,kind:'call-up',absent:false,runner:called,replacesEntryId:final.vacancy.finalEntryId};
+      // A called-up child is not marked yet, like every finalist; a called-up relay team joins the race, none here yet.
+      const runners=[...(race.parts.runners.value||[]),...(detail.event.relay?[called]:[])];
       await client.query('UPDATE race_finals SET entries=$1 WHERE race_id=$2',[JSON.stringify([...final.entries,entry]),race.id]);
       await publishPart(client,current,race,'runners',runners);
       // An absent child is named by the wristband seeded; an absent team by its number, from its copy kept when it left.

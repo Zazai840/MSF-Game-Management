@@ -45,18 +45,24 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
   const [confirming,setConfirming]=useState<string|null>(null);
   const [failure,setFailure]=useState('');
   const issues=useLeadItems(role==='lead');
-  const groups=(snapshot?.groups||[]).filter(group=>group.event.type===tab);
-  const finalFor=groups.find(group=>group.event.code===confirming);
+  const all=snapshot?.groups||[],groups=all.filter(group=>group.event.type===tab);
+  const finalFor=all.find(group=>group.event.code===confirming);
   async function make(choice:Required<NewRaceChoice>) {
     setFailure('');
-    try {const made=await api<{race:{id:string}}>('races',choice);onRace(made.race.id);}
+    try {
+      const made=await api<{race:{id:string}}>('races',choice);
+      // New race lists every tab's events: back from the race, Races home shows this one's tab.
+      const type=all.find(group=>group.event.code===choice.eventCode)?.event.type;
+      if(type && type!==tab) onTab(type);
+      onRace(made.race.id);
+    }
     catch(failure) {setFailure(failure instanceof Error?failure.message:'Could not connect - please try again');}
   }
   const card=(group:RaceGroup)=>{
     const own=issues.filter(item=>item.event.code===group.event.code),reason=group.finalReason;
     return <article key={group.event.id} className="rz-racecard" aria-label={`${group.event.name} · ${group.event.section}`}>
       <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3>{role==='lead' && <span className="rz-code-tag">{group.event.code}</span>}</div>
-      <p className="rz-racecard__status">{role==='lead'?own.length?issueLine(own):leadFinalLine(group)??(groupDone(group)?'Every race saved':'No issues'):groupStatus(group,role)}</p>
+      <p className="rz-racecard__status">{role!=='lead'?groupStatus(group,role):own.length?issueLine(own):leadFinalLine(group)??groupStatus(group,role)}</p>
       <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
         onFinal={role==='lead' && group.finalAvailable?()=>setConfirming(group.event.code):undefined}
@@ -79,8 +85,8 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>New race</button>
     </footer>
     {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
-    {creating && snapshot && <NewRaceSheet groups={groups} lead={role==='lead'} choice={creating} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
-      const made=groups.find(group=>group.event.code===choice.eventCode)?.races.some(race=>race.kind==='final');
+    {creating && snapshot && <NewRaceSheet groups={all} lead={role==='lead'} choice={creating} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
+      const made=all.find(group=>group.event.code===choice.eventCode)?.races.some(race=>race.kind==='final');
       if(choice.kind==='final' && !made) {setCreating(null);setConfirming(choice.eventCode);} else void make(choice);
     }}/>}
     {finalFor && <FinalSheet group={finalFor} failure={failure} onClose={()=>{setConfirming(null);setFailure('');}} onMake={()=>void make({eventCode:finalFor.event.code,kind:'final',number:0,direct:true})}/>}

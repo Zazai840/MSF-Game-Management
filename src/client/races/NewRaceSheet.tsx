@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { heatsFinishedLine,volunteerFinalLine,type RaceGroup } from '../../shared/race-flow.js';
 import { Callout,Sheet } from './parts.js';
 /** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
+const tabs=[['races','Races'],['hurdles','Hurdles']] as const;
 export interface NewRaceChoice { eventCode?:string; kind?:'heat'|'final'; number?:number; direct?:boolean }
 /** "Girl Cubs already has heats 1 to 4." */
 function already(group:RaceGroup) {
@@ -10,7 +11,7 @@ function already(group:RaceGroup) {
   return heats.length===1?`${group.event.section} already has heat ${heats[0]}.`:`${group.event.section} already has heats ${heats[0]} to ${heats.at(-1)}.`;
 }
 /**
- * New race, over Races: the event (this tab's), its section (with its code in the Zone lead role), and the race: the next heat, or for a lead
+ * New race, over Races: the event (every tab's, under Races and Hurdles, so a volunteer on the wrong tab still finds theirs), its section (with its code in the Zone lead role), and the race: the next heat, or for a lead
  * the final once every heat has times. Anyone can make a heat; the server answers a heat someone made a moment ago with
  * theirs. Once a section's heats are complete it offers no heat, and says so.
  */
@@ -30,9 +31,12 @@ export function NewRaceSheet({groups,lead,choice,failure,onClose,onCreate}:{grou
   const blocked=!finalMade && (!group?.finalAvailable || !!group.finalReason);
   const race=group && (kind==='final' && hasFinal?'final':'heat'),number=heat??group?.nextHeat;
   return <Sheet title="New race" onClose={onClose}>
-    <fieldset><legend className="rz-field__label">Event</legend><div className="rz-choices">
-      {names.map(item=><button key={item} type="button" className="rz-choice" aria-pressed={item===name} onClick={()=>{setName(item);setCode('');setKind('heat');setHeat(null);}}>{item}</button>)}
-    </div></fieldset>
+    {tabs.map(([type,label])=>{
+      const listed=names.filter(item=>groups.some(group=>group.event.name===item && group.event.type===type));
+      return listed.length>0 && <fieldset key={type}><legend className="rz-field__label">{label}</legend><div className="rz-choices">
+        {listed.map(item=><button key={item} type="button" className="rz-choice" aria-pressed={item===name} onClick={()=>{setName(item);setCode('');setKind('heat');setHeat(null);}}>{item}</button>)}
+      </div></fieldset>;
+    })}
     {name && <fieldset><legend className="rz-field__label">Section</legend><div className="rz-choices rz-choices--grid">
       {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}{lead && <span className="rz-code-tag">{item.event.code}</span>}</button>)}
     </div></fieldset>}

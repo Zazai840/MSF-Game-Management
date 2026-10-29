@@ -134,34 +134,55 @@ async function final() {
   const groups=(await call(people.sam,'/api/races')).json().groups,id=groups.find((group:{event:{code:string}})=>group.event.code==='R4').races.find((race:{kind:string})=>race.kind==='final').id;
   return {...people,read:()=>call(people.sam,`/api/races/${id}`).then(ok)};
 }
-const absent=(token:string,read:RaceFlowRead,marked:number[])=>call(token,`/api/races/${read.race.id}/absent`,{raceId:read.race.id,version:read.race.parts.runners.version,absent:read.race.final!.entries.filter(entry=>marked.includes(entry.wristband!)).map(entry=>entry.finalEntryId)});
-test('a final\'s order can start before anyone marks attendance, and a runner marked Absent leaves the order until marked Here again',async()=>{
+/** The final's whole check-in by wristband: those marked Here and those marked Absent; everyone else is unmarked. */
+const attend=(token:string,read:RaceFlowRead,here:number[],absent:number[]=[])=>{
+  const ids=(marked:number[])=>read.race.final!.entries.filter(entry=>marked.includes(entry.wristband!)).map(entry=>entry.finalEntryId);
+  return call(token,`/api/races/${read.race.id}/absent`,{raceId:read.race.id,version:read.race.parts.runners.version,here:ids(here),absent:ids(absent)});
+};
+const marks=(read:RaceFlowRead)=>read.race.final!.entries.map(entry=>[entry.wristband,wristbands(read).includes(entry.wristband!)?'here':entry.absent?'absent':'unmarked']);
+test('a new final has nobody Here or Absent; the marks round-trip to every phone, and only those Here are its runners',async()=>{
   const {sam,priya,read}=await final();
   const seeded=await read();
   expect(seeded.race.kind).toBe('final');
   expect(Object.keys(seeded.steps)).toEqual(['runners','positions']);
+  expect(wristbands(seeded)).toEqual([]);
+  expect(marks(seeded)).toEqual([2001,2002,2003,2004,2005,2006].map(wristband=>[wristband,'unmarked']));
+  expect((await done(sam,seeded.race.id,'runners')).json().message).toBe('Nobody is marked Here yet');
+  const marked=await ok(await attend(sam,seeded,[2001,2003,2004],[2002]));
+  const seen=await ok(await call(priya,`/api/races/${seeded.race.id}`));
+  expect(marks(seen)).toEqual([[2001,'here'],[2002,'absent'],[2003,'here'],[2004,'here'],[2005,'unmarked'],[2006,'unmarked']]);
+  expect(wristbands(seen)).toEqual([2001,2003,2004]);
+  // Tapping a lit mark again unmarks it.
+  const unmarked=await ok(await attend(sam,marked,[2001,2004]));
+  expect(marks(unmarked).filter(([,mark])=>mark!=='unmarked')).toEqual([[2001,'here'],[2004,'here']]);
+  expect((await attend(sam,unmarked,[2001],[2001])).statusCode).toBe(400);
+});
+test('a final\'s order can start once someone is Here, and a runner marked Absent leaves the order until marked Here again',async()=>{
+  const {sam,priya,read}=await final();
+  const seeded=await ok(await attend(sam,await read(),[2001,2002,2003,2004,2005,2006]));
   expect(wristbands(seeded)).toEqual([2001,2002,2003,2004,2005,2006]);
   const ordered=await ok(await order(priya,seeded,{order:[idOf(seeded,2003),idOf(seeded,2001)]}));
-  const away=await ok(await absent(sam,ordered,[2003]));
+  const away=await ok(await attend(sam,ordered,[2001,2002,2004,2005,2006],[2003]));
   expect(wristbands(away)).toEqual([2001,2002,2004,2005,2006]);
   expect(away.race.final!.entries.find(entry=>entry.wristband===2003)!.absent).toBe(true);
   expect(placed(away)).toEqual([2001]);
-  const back=await ok(await absent(sam,away,[]));
+  const back=await ok(await attend(sam,away,[2001,2002,2003,2004,2005,2006]));
   expect(wristbands(back)).toEqual([2001,2002,2003,2004,2005,2006]);
   expect((await checkIn(sam,back,[2009])).json().message).toBe('Mark the final\'s runners Here or Absent');
-  expect((await call(sam,`/api/races/${back.race.id}/absent`,{raceId:back.race.id,version:back.race.parts.runners.version,absent:['not-in-this-final']})).statusCode).toBe(400);
+  expect((await call(sam,`/api/races/${back.race.id}/absent`,{raceId:back.race.id,version:back.race.parts.runners.version,here:[],absent:['not-in-this-final']})).statusCode).toBe(400);
   expect((await call(sam,`/api/races/${back.race.id}/steps/times/done`,{})).json().message).toBe('A final has no times');
 });
-test('a lead\'s call-up for an absent runner shows on the final',async()=>{
+test('a lead\'s call-up for an absent runner shows on the final, unmarked like every finalist',async()=>{
   const {people,sam,read}=await final();
-  const away=await ok(await absent(sam,await read(),[2002]));
+  const away=await ok(await attend(sam,await read(),[2001,2003,2004,2005,2006],[2002]));
   const lead=(await people.lead('Lena')).token;
   const results=(await call(lead,'/api/lead/events/R4/results')).json();
   expect(results.results.finalResults.nextCallUp.wristband).toBe(2007);
   expect((await call(lead,'/api/lead/events/R4/call-up',{expectedHeatEntryId:results.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
   const called=await read();
   expect(called.revision).toBeGreaterThan(away.revision);
-  expect(wristbands(called)).toEqual([2001,2003,2004,2005,2006,2007]);
+  expect(marks(called).slice(-2)).toEqual([[2006,'here'],[2007,'unmarked']]);
+  expect(wristbands(await ok(await attend(sam,called,[2001,2003,2004,2005,2006,2007],[2002])))).toEqual([2001,2003,2004,2005,2006,2007]);
 });
 test('a database an older build left, with its "Is everyone here?" confirm column, boots and still seeds the final',async()=>{
   const old=await openDatabase(process.env.TEST_DATABASE_URL!,true);
@@ -197,7 +218,7 @@ test('only saved races count for results, ranking, To check and the export, and 
   expect(results.leaderboard.map((row:{wristband:number;position:number|null})=>[row.wristband,row.position])).toEqual([[2001,1],[3045,2]]);
   expect((await call(alex,'/api/lead')).json().needsYou.map((item:{kind:string})=>item.kind)).toEqual(['warning']);
   expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
-  await setup.order(priya,'R4',[2001,3045]);
+  await setup.attend(sam,'R4');await setup.order(priya,'R4',[2001,3045]);
   expect((await call(alex,'/api/lead/events/R4/results')).json().results.finalResults.hasRun).toBe(false);
   const saved=await setup.submit(priya,'R4');
   expect(saved.race).toMatchObject({kind:'final',state:'saved'});
@@ -215,9 +236,9 @@ test('a race with every runner Did not finish needs no times, and Absent runners
   await setup.record(priya,'R4',[2003,2004],[1200,1300]);
   expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(await call(sam,`/api/races/${(await setup.screen(sam,'R4')).race.id}`));
-  const everyone=await ok(await absent(sam,final,[2003,2004]));
-  expect((await done(sam,final.race.id,'runners')).json().message).toBe('Everyone is marked Absent');
-  await ok(await absent(sam,everyone,[2004]));
+  const everyone=await ok(await attend(sam,final,[],[2003,2004]));
+  expect((await done(sam,final.race.id,'runners')).json().message).toBe('Nobody is marked Here yet');
+  await ok(await attend(sam,everyone,[2003],[2004]));
   await setup.order(priya,'R4',[2003]);await setup.submit(sam,'R4');
   const results=(await call((await people.lead('Alex')).token,'/api/lead/events/R4/results')).json().results.finalResults;
   expect(results.runners.map((runner:{wristband:number})=>runner.wristband)).toEqual([2003]);

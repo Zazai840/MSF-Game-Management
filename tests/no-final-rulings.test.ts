@@ -27,7 +27,8 @@ const group=async(token:string)=>((await call(token,'/api/races')).json().groups
 /** A Here / Absent list on the final, at the version the phone sees now: these final entries Absent, everyone else Here. */
 async function absent(token:string,id:string,which:(entries:NonNullable<RaceFlowRead['race']['final']>['entries'])=>string[]=()=>[]) {
   const {race}=(await call(token,`/api/races/${id}`)).json() as RaceFlowRead;
-  const response=await call(token,`/api/races/${id}/absent`,{raceId:id,version:race.parts.runners.version,absent:which(race.final!.entries)});
+  const marked=which(race.final!.entries),here=race.final!.entries.map(entry=>entry.finalEntryId).filter(entry=>!marked.includes(entry));
+  const response=await call(token,`/api/races/${id}/absent`,{raceId:id,version:race.parts.runners.version,here,absent:marked});
   expect(response.statusCode,response.body).toBe(200);
   return response.json() as RaceFlowRead;
 }
@@ -200,7 +201,7 @@ test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, 
     await absent(volunteer,final,entries=>kind==='Absent'?entries.map(entry=>entry.finalEntryId):[]);
   } else {
     const runners=[2001,2011,2002,2012,2003,2013];
-    await setup.order(volunteer,'R4',kind==='order'?runners:[],{didNotFinish:kind==='DNF'?runners:[]});
+    await setup.attend(volunteer,'R4');await setup.order(volunteer,'R4',kind==='order'?runners:[],{didNotFinish:kind==='DNF'?runners:[]});
   }
   const before=await results(),screen=await setup.screen(volunteer,'R4'),revision=(await call(owner,'/api/day')).json().revision;
   expect(before.results.finalResults).toMatchObject({started:true,hasRun:false});
@@ -213,7 +214,7 @@ test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, 
 });
 test('deleting a started final offers it again; the deleted final stays restorable once the results are reopened, and the next final is Final 2',async()=>{
   const {lead,volunteer,setup,results,final}=await finalBuilt();
-  await setup.order(volunteer,'R4',[2001,2011,2002,2012,2003,2013]);
+  await setup.attend(volunteer,'R4');await setup.order(volunteer,'R4',[2001,2011,2002,2012,2003,2013]);
   expect((await results()).results.noFinalCheckSheet).toBeNull();
   expect((await call(lead,`/api/lead/races/${final}/delete`,{permanent:false})).statusCode).toBe(200);
   expect((await results()).results.noFinalCheckSheet).toMatchObject({stage:'no-final'});

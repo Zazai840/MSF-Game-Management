@@ -25,9 +25,8 @@ async function readStepMeta(db:Database,dayId:string) {
   for(const row of rows) meta.set(row.race_id,{...meta.get(row.race_id),[row.part]:{version:row.version,by:row.saved_name??null,at:row.saved_at?.toISOString()??null,doneBy:row.done_name??null,doneAt:row.done_at?.toISOString()??null}});
   return meta;
 }
-const noMeta:StepMeta={version:0,by:null,at:null,doneBy:null,doneAt:null};
 function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
-  const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta[stepParts[step]]??noMeta)]));
+  const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
   const changes=[race.checkedInAt,...Object.values(meta).flatMap(item=>[item.at,item.doneAt])].filter((at):at is string=>!!at).sort();
   return {id:race.id,kind:race.kind,number:race.number,state:race.state,createdAt:race.checkedInAt,updatedAt:changes.at(-1)!,steps:statuses};
 }
@@ -62,7 +61,8 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,updatedAt};
+    const medalsDecided=stages.some(item=>item.eventId===event.id && ['event','final','no-final'].includes(item.stage));
+    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,updatedAt};
   }));
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {

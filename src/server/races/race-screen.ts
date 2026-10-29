@@ -20,6 +20,7 @@ import { createRace } from './create.js';
 import { currentRaces } from './current.js';
 import { raceChange,readRace,type Database } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
+import { markFinalAbsent } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** The race part each job writes. */
 const jobParts:Record<Job,RacePartName>={'check-in':'runners',order:'finish',times:'times'};
@@ -164,8 +165,8 @@ export function raceScreenRoutes(app:FastifyInstance,pool:pg.Pool) {
       await checkIn(client,phone,screen,input);
     });
   });
-  // Here / Absent on the final: the check-in holder's whole list of absent seeded runners, by entry. Only those Here
-  // are the final's runners, so one marked Absent leaves the order holder's list, and comes back when marked Here.
+  // Here / Absent on the final: the check-in holder's whole lists of those Here and those Absent, by entry. Only those
+  // Here are the final's runners, so one marked Absent (or unmarked) leaves the order holder's list.
   action('POST','/api/race-screen/:code/absent','Volunteer',(request,_reply,phone)=>{
     const input=absentInput(request.body);
     return write(phone,code(request),async(client,screen)=>{
@@ -351,21 +352,23 @@ export async function checkIn(client:pg.PoolClient,phone:Phone,target:WriteTarge
 }
 export type AbsentInput=ReturnType<typeof absentInput>;
 export function absentInput(body:unknown) {
-  const input=(body||{}) as {raceId?:unknown;version?:unknown;absent?:unknown};
+  const input=(body||{}) as {raceId?:unknown;version?:unknown;here?:unknown;absent?:unknown};
   const {raceId,version}=seenRace(input,'Open the final before marking who is here');
-  if(!Array.isArray(input.absent) || input.absent.some(id=>typeof id!=='string') || new Set(input.absent).size!==input.absent.length) throw new Refusal(400,'Choose the absent runners');
-  return {raceId,version,absent:input.absent as string[]};
+  const ids=(value:unknown)=>Array.isArray(value) && value.every(id=>typeof id==='string')?value as string[]:null;
+  const here=ids(input.here),absent=ids(input.absent);
+  if(!here || !absent || new Set([...here,...absent]).size!==here.length+absent.length) throw new Refusal(400,'Mark each runner Here or Absent once');
+  return {raceId,version,here,absent};
 }
-/** Here / Absent's write: the runner list becomes the final's line-up minus those marked Absent. */
-export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,absent}:AbsentInput) {
+/** Here / Absent's write: those Here are the runner list, those Absent are marked so, and everyone else is not marked yet. */
+export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,here,absent}:AbsentInput) {
   if(raceId===null || target.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
   const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=runnersOf(race.parts.runners.value);
   const lineup=runnersOf([...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)]);
-  if(absent.some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
-  const runners=lineup.filter(runner=>!absent.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
+  if([...here,...absent].some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
+  const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
   if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
-  // The runner list is the attendance: publishing it marks everyone else Absent on the final's line-up.
   await publishPart(client,phone,race,'runners',runners);
+  await markFinalAbsent(client,race.id,absent);
   await dropFromOrder(client,target.race,runners);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
