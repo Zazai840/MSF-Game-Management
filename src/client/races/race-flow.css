@@ -203,6 +203,14 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-attendance li.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
 .rz-attendance__who { display: flex; flex-direction: column; }
 .rz-attendance__seed { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.rz-attendance--one li { grid-template-columns: 1fr auto; }
+/* A relay heat's Start line: a card per team in the heat, then the teams still to run. */
+.rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
+.rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
+.rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
+.rz-teamcard__head .rz-btn { margin-left: auto; }
+.rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+.rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 .rz-lead-rows { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-lead-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: var(--space-8); min-height: var(--size-touch); padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-lead-row--warn { background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-line); }
