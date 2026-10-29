@@ -95,7 +95,7 @@ test('New race offers this tab\'s events, each section, and the next heat; only 
   await expect(lead.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   await expect(card(page,name).getByRole('button',{name:/^Add heat/})).toHaveCount(0,live);
   await page.getByRole('button',{name:'New race',exact:true}).click();
-  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Girl Cubs ${code}`,exact:true}).click();
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await expect(sheet.getByText('Girl Cubs heats are finished. Ask a lead to add another heat.',{exact:true})).toBeVisible();
   await expect(sheet.getByRole('button',{name:/^Create heat/})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
