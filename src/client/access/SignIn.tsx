@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiFailure, phoneStorage, type HeldProfile } from '../api.js';
 import type { Phone } from '../../shared/domain.js';
 import type { Role } from '../../shared/race-flow.js';
-import { HomeBar,Icon,Screen as RzScreen } from '../races/parts.js';
+import { Callout,HomeBar,Icon,Screen as RzScreen } from '../races/parts.js';
 import { JobChoice } from '../races/RoleSheet.js';
 import { useSubmit } from '../flow/useSubmit.js';
 import './access.css';
@@ -14,14 +14,14 @@ function signedIn({token,phone,pass,profile}:SignedIn) {
   if(profile) phoneStorage.rememberProfile(profile);
   phoneStorage.signIn(token,phone.profileId);
 }
-/** Signing in: the race flow's Join (one form: the Olympics password, your full name and your job). A phone that has joined before lists its names to tap. */
+/** Signing in: the race flow's Join (one form: your full name, the Password and your job). A phone that has joined before lists its names to tap. */
 export function SignIn({onSignedIn}:{onSignedIn:(renamed?:Renamed)=>void}) {
   return <Join onSignedIn={(result,renamed)=>{signedIn(result);onSignedIn(renamed);}}/>;
 }
 const tidyFullName=(name:string)=>name.trim().replace(/\s+/g,' ').toLowerCase();
 interface Joined extends SignedIn { kind:'volunteer'|'lead'|'owner'; pass:string; profile:{id:string;name:string;secret?:string} }
 /**
- * Join (race-flow.md screen 1): the Olympics password, your full name and your job. The code is the Olympics password, or
+ * Join (race-flow.md screen 1): your full name, the Password and your job. The Password is the Olympics password, or
  * today's lead code to join as Zone lead (which skips the job), or the owner password. A name this phone has joined
  * with before signs in again; one held on another phone joins as the next free number ("Sam Patel 2", ADR 0005).
  * Names this phone holds are listed to tap.
@@ -37,11 +37,13 @@ function Join({onSignedIn}:{onSignedIn:(result:SignedIn,renamed?:Renamed)=>void}
   const pass=phoneStorage.pass(),held=()=>profiles.map(({id,secret})=>({id,secret}));
   /** Signs in, then keeps the job for today on this phone (a lead is Zone lead): signing in clears the last session's. */
   const enter=(result:SignedIn,role:Role|null,renamed?:Renamed)=>{onSignedIn(result,renamed);if(role) phoneStorage.rememberRole(result.phone.dayId,role);};
+  // "Choose your job" sits under the job cards; every other refusal under the Password box.
+  const [noJob,setNoJob]=useState(false);
   const submit=(event:FormEvent)=>{event.preventDefault();void join.submit(async()=>{
-    const result=await api<Joined>('join',{code,name,profiles:held()});
+    const result=await api<Joined>('join',{code,name,job,profiles:held()});
     const final=result.profile.name,renamed=tidyFullName(final)===tidyFullName(name)?undefined:{taken:final.replace(/ \d+$/,''),name:final};
     enter(result,result.kind==='volunteer'?job:'lead',renamed);
-  });};
+  },error=>setNoJob(error instanceof ApiFailure && error.body.reason==='choose-job'));};
   const signIn=(profile:HeldProfile)=>void tap.submit(async()=>enter(await api<SignedIn>('sign-in',{pass,profileId:profile.id,secret:profile.secret}),null),error=>{
     // The profile went to another phone by That's me: this phone forgets it. A changed password needs the new one typed.
     if(error instanceof ApiFailure && error.body.reason==='moved') {phoneStorage.forgetProfile(profile.id);setProfiles(phoneStorage.profiles());}
@@ -61,14 +63,16 @@ function Join({onSignedIn}:{onSignedIn:(result:SignedIn,renamed?:Renamed)=>void}
       </section>}
       <h1 className="rz-screen-title">{pass && profiles.length?'Someone else? Join':'Join the Running Zone'}</h1>
       <form id="join" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
-        <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="join-code">Olympics password</label>
-          <input className="rz-field__input" id="join-code" type="password" autoComplete="off" autoCapitalize="characters" value={code} onChange={event=>setCode(event.target.value)} required/></div>
         <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="join-name">Full name</label>
-          <input className="rz-field__input" id="join-name" autoComplete="name" maxLength={80} value={name} onChange={event=>setName(event.target.value)} required/></div>
+          <input className="rz-field__input" id="join-name" autoComplete="name" enterKeyHint="go" maxLength={80} value={name} onChange={event=>setName(event.target.value)} required/></div>
+        {/* Shown as typed, so a typo is seen before Join; no capitals or corrections, since the password may be lower case. */}
+        <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="join-code">Password</label>
+          <input className="rz-field__input" id="join-code" type="text" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="go" value={code} onChange={event=>setCode(event.target.value)} required/></div>
+        {join.error && !noJob && <div ref={refusal}><Callout message={join.error}/></div>}
         <fieldset style={{border:0,margin:0,padding:0,display:'flex',flexDirection:'column',gap:10}}><legend className="rz-field__label" style={{marginBottom:6,padding:0}}>What's your job today?</legend>
-          <JobChoice role={job} label="What's your job today?" onChoose={setJob}/></fieldset>
-        <p className="rz-field__hint">You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password.</p>
-        {join.error && <div ref={refusal}><p className="rz-error" role="alert">{join.error}</p></div>}
+          <JobChoice role={job} label="What's your job today?" onChoose={next=>{setJob(next);if(noJob) join.setError('');}}/></fieldset>
+        {join.error && noJob && <div ref={refusal}><Callout message={join.error}/></div>}
+        <p className="rz-field__hint">You can switch job on any race. Zone lead? Type your lead code as the password.</p>
       </form>
     </main>
     <footer className="rz-footer rz-footer--sticky"><button form="join" className="rz-btn rz-btn--display rz-btn--block" disabled={join.busy}>{join.busy?'Joining…':'Join'}</button></footer>

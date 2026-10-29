@@ -1,4 +1,4 @@
-import {becomeLead,expect,join,lookProblems,openLeadMenu,test,type Locator,type Page} from './fixtures.js';
+import {expect,join,lookProblems,openLeadMenu,test,type Locator,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the race screens. */
 async function expectDocked(page:Page,button:Locator) {
@@ -8,25 +8,45 @@ async function expectDocked(page:Page,button:Locator) {
 }
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const jobChip=(page:Page,job:string)=>page.getByRole('button',{name:`Your job: ${job}. Change job`,exact:true});
-test('a new phone joins with the Olympics password, its name and its job, stays signed in, and taps its name to sign in again',async({page},info)=>{
+test('a new phone joins with its name, the password and its job, stays signed in, and taps its name to sign in again',async({page},info)=>{
   await page.addInitScript(()=>{Object.defineProperty(navigator.storage,'persist',{value:()=>{localStorage.setItem('e2e:persist','asked');return Promise.resolve(false);}});});
   const downloaded:string[]=[];
   page.on('request',request=>{if(request.url().endsWith('.js')) downloaded.push(request.url());});
   await page.goto('/');
   await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
-  await expect(page.getByText('You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password.',{exact:true})).toBeVisible();
+  // Full name first, then Password shown as typed, then the job cards and the help line.
+  const boxes=page.locator('#join').getByRole('textbox');
+  await expect(boxes).toHaveCount(2);
+  await expect(boxes.nth(0)).toHaveAccessibleName('Full name');
+  await expect(boxes.nth(1)).toHaveAccessibleName('Password');
+  await expect(boxes.nth(1)).toHaveAttribute('type','text');
+  const cards=page.getByRole('radiogroup',{name:"What's your job today?"}),help=page.getByText('You can switch job on any race. Zone lead? Type your lead code as the password.',{exact:true});
+  await expect(help).toBeVisible();
+  expect((await help.boundingBox())!.y).toBeGreaterThan((await cards.boundingBox())!.y);
   await expectDocked(page,page.getByRole('button',{name:'Join',exact:true}));
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('join.png')});
   // A real wrong code would count against the shared test IP's backoff, so the refusal is replayed here; the API test covers it.
-  await page.route('**/api/join',route=>route.fulfill({status:403,json:{message:"That is not the Olympics password or today's lead code. Check with a lead and try again."}}),{times:1});
+  const wrong="That password isn't right. Check it with a lead and try again.";
+  await page.route('**/api/join',route=>route.fulfill({status:403,json:{message:wrong}}),{times:1});
   await join(page,'Nobody',{code:'wrong-fixture'});
-  await expect(page.getByRole('alert')).toHaveText("That is not the Olympics password or today's lead code. Check with a lead and try again.");
-  // The refusal comes out from under the docked Join.
-  const refusal=(await page.getByRole('alert').boundingBox())!;
-  expect(refusal.y+refusal.height).toBeLessThanOrEqual((await page.getByRole('button',{name:'Join',exact:true}).boundingBox())!.y);
+  await expect(page.getByRole('alert')).toHaveText(wrong);
+  // The refusal is the amber callout under the Password box, above the job cards.
+  const callout=(await page.locator('.rz-callout',{hasText:wrong}).boundingBox())!,password=(await page.getByLabel('Password',{exact:true}).boundingBox())!;
+  expect(callout.y).toBeGreaterThanOrEqual(password.y+password.height);
+  expect(callout.y+callout.height).toBeLessThanOrEqual((await cards.boundingBox())!.y);
+  await page.screenshot({path:info.outputPath('join-wrong-password.png')});
+  // Join with no job keeps the form, with "Choose your job" in amber under the cards.
   const name=`Ahmed Sign ${info.project.name}`;
-  await join(page,`  Ahmed   Sign ${info.project.name} `,{job:'Start line'});
+  await join(page,`  Ahmed   Sign ${info.project.name} `);
+  await expect(page.getByRole('alert')).toHaveText('Choose your job');
+  await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
+  const choose=(await page.locator('.rz-callout',{hasText:'Choose your job'}).boundingBox())!,cardsBox=(await cards.boundingBox())!;
+  expect(choose.y).toBeGreaterThanOrEqual(cardsBox.y+cardsBox.height);
+  await page.screenshot({path:info.outputPath('join-choose-job.png')});
+  // The keyboard's Go key joins.
+  await page.getByRole('radio',{name:/^Start line/}).click();
+  await page.getByLabel('Password',{exact:true}).press('Enter');
   await races(page);
   await expect(jobChip(page,'Start line')).toBeVisible();
   await expect(page.getByRole('button',{name:`${name}, your details`,exact:true})).toBeVisible();
@@ -34,19 +54,27 @@ test('a new phone joins with the Olympics password, its name and its job, stays 
   await page.reload();
   await races(page);await expect(jobChip(page,'Start line')).toBeVisible();
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
-  // The session ends (as after a new day) but the phone keeps its pass and its name: tap it, then choose today's job.
-  await page.evaluate(()=>localStorage.removeItem('msf:token'));await page.reload();
+  // The session ends (as after a new day) but the phone keeps its pass and its name: tap it, then one tap on today's job.
+  const sessionEnds=async()=>{await page.evaluate(()=>localStorage.removeItem('msf:token'));await page.reload();};
+  await sessionEnds();
   await expect(page.getByRole('heading',{level:1,name:'Someone else? Join'})).toBeVisible();
   const welcome=page.getByRole('region',{name:'Joined on this phone before'});
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('welcome-back.png')});
   await welcome.getByRole('button',{name:new RegExp(`^${name}`)}).click();
   await expect(page.getByRole('heading',{level:1,name:"What's your job today?"})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Join',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Join',exact:true})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('job-cards.png')});
   await page.getByRole('radio',{name:/^Timer/}).click();
-  await page.getByRole('button',{name:'Join',exact:true}).click();
   await races(page);await expect(jobChip(page,'Timer')).toBeVisible();
-  await becomeLead(page);
+  // Zone lead there asks for the lead code, then opens Races.
+  await sessionEnds();
+  await welcome.getByRole('button',{name:new RegExp(`^${name}`)}).click();
+  await page.getByRole('radio',{name:/^Zone lead/}).click();
+  await page.getByLabel('Lead code',{exact:true}).fill(process.env.E2E_LEAD_CODE!);
+  await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
+  await races(page);await expect(jobChip(page,'Zone lead')).toBeVisible();
   await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(true);

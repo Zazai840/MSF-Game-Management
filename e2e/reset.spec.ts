@@ -39,7 +39,7 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     // Tapping the name signs in; the job is chosen afresh for the new day, and the old day's race is gone.
     await other.getByRole('button',{name:new RegExp(`^Reset helper ${info.project.name}`)}).click();
     await expect(other.getByRole('heading',{level:1,name:"What's your job today?"})).toBeVisible();
-    await other.getByRole('radio',{name:/^Start line/}).click();await other.getByRole('button',{name:'Join',exact:true}).click();
+    await other.getByRole('radio',{name:/^Start line/}).click();
     await races(other);await expect(other.getByText('No races yet. Tap New race when a race lines up.',{exact:true})).toBeVisible();
     await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await welcomeBack(other);await expect(newDayLine).toHaveCount(0);
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
