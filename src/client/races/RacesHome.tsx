@@ -5,7 +5,7 @@ import { groupDone,groupStatus,leadFinalLine,raceSections,volunteerFinalLine,typ
 import { issueLine } from '../../shared/to-check.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
-import { FinalSheet,HeatChips,Icon } from './parts.js';
+import { Callout,FinalSheet,HeatChips,Icon } from './parts.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import type { SavedStep } from './RaceShell.js';
 import { Toast } from './Toast.js';
@@ -74,8 +74,7 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
   return <>
     <EventTabs tab={tab} onTab={onTab}/>
     <main className="rz-main rz-main--cards">
-      {!snapshot?<p className={error?'rz-error':'rz-empty'} role={error?'alert':undefined}>{error||'Opening…'}</p>:error && <p className="rz-note" role="status">{error}</p>}
-      {failure && <p className="rz-error" role="alert">{failure}</p>}
+      {!snapshot?error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>:error && <p className="rz-note" role="status">{error}</p>}
       {snapshot && !groups.some(group=>group.races.length) && <p className="rz-empty">No races yet. Tap New race when a race lines up.</p>}
       {sections.ready.length>0 && <><h2 className="rz-section">Ready for you</h2>{sections.ready.map(card)}</>}
       {sections.inProgress.length>0 && <><h2 className="rz-section">In progress</h2>{sections.inProgress.map(card)}</>}
@@ -86,12 +85,11 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>New race</button>
     </footer>
     {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
-    {creating && snapshot && <NewRaceSheet groups={all} lead={role==='lead'} choice={creating} onClose={()=>setCreating(null)} onCreate={choice=>{
-      setCreating(null);
+    {creating && snapshot && <NewRaceSheet groups={all} lead={role==='lead'} choice={creating} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
       const made=all.find(group=>group.event.code===choice.eventCode)?.races.some(race=>race.kind==='final');
-      if(choice.kind==='final' && !made) setConfirming(choice.eventCode);else void make(choice);
+      if(choice.kind==='final' && !made) {setCreating(null);setConfirming(choice.eventCode);} else void make(choice);
     }}/>}
-    {finalFor && <FinalSheet group={finalFor} onClose={()=>setConfirming(null)} onMake={()=>{setConfirming(null);void make({eventCode:finalFor.event.code,kind:'final',number:0,direct:true});}}/>}
+    {finalFor && <FinalSheet group={finalFor} failure={failure} onClose={()=>{setConfirming(null);setFailure('');}} onMake={()=>void make({eventCode:finalFor.event.code,kind:'final',number:0,direct:true})}/>}
   </>;
 }
 /** A lead's sections: groups with open issues are ready for them, newest issue first; the rest as for everyone. */

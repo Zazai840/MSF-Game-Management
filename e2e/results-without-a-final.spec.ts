@@ -74,7 +74,7 @@ test('once a lead decides without a final, a volunteer\'s Races shows the event 
   await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toHaveCount(0);
   await volunteer.screenshot({path:info.outputPath('a5-races-done.png'),fullPage:true});
   await openRace(volunteer,name,'Girl Cubs','H2');
-  await expect(volunteer.getByRole('status').filter({hasText:'Stage complete - ask a lead'})).toBeVisible();
+  await expect(volunteer.getByRole('status').filter({hasText:'Girl Cubs heats are finished. Ask a lead to change this race.'})).toBeVisible();
   await expect(volunteer.getByLabel('Wristband number',{exact:true})).toHaveCount(0);
   await expect(volunteer.getByRole('button',{name:/^Add heat|^Create the final/})).toHaveCount(0);
   await volunteer.screenshot({path:info.outputPath('a6-race-done.png'),fullPage:true});
