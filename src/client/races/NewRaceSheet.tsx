@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { finalMade,heatsFinishedLine,volunteerFinalLine,type RaceGroup,type Step } from '../../shared/race-flow.js';
+import { finalMade,heatsFinishedLine,volunteerFinalLine,type RaceGroup,type Role,type Step } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
-import { Callout,FinalReasonButton,Sheet } from './parts.js';
+import { Callout,CodeTag,FinalReasonButton,Sheet } from './parts.js';
 /** New race's event lists, by event type, so a volunteer on the wrong tab still finds theirs. */
 const tabs=[['races','Races'],['hurdles','Hurdles']] as const;
 /** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
@@ -17,9 +17,9 @@ function already(group:RaceGroup) {
  * the final once every heat has times. Anyone can make a heat; the server answers a heat someone made a moment ago with
  * theirs. Once a section's heats are complete it offers no heat, and says so.
  */
-export function NewRaceSheet({groups,lead,choice,failure,onClose,onCreate,onRace,onResults}:{groups:readonly RaceGroup[];lead:boolean;choice:NewRaceChoice;failure:string;onClose:()=>void;
+export function NewRaceSheet({groups,role,choice,failure,onClose,onCreate,onRace,onResults}:{groups:readonly RaceGroup[];role:Role;choice:NewRaceChoice;failure:string;onClose:()=>void;
   onCreate:(choice:Required<NewRaceChoice>)=>void;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
-  const chosen=groups.find(group=>group.event.code===choice.eventCode);
+  const lead=role==='lead',chosen=groups.find(group=>group.event.code===choice.eventCode);
   const names=[...new Set(groups.map(group=>group.event.name))];
   const [name,setName]=useState(chosen?.event.name??(names.length===1?names[0]:''));
   const [code,setCode]=useState(chosen?.event.code??'');
@@ -41,7 +41,7 @@ export function NewRaceSheet({groups,lead,choice,failure,onClose,onCreate,onRace
       </div></fieldset>;
     })}
     {name && <fieldset><legend className="rz-field__label">Section</legend><div className="rz-choices rz-choices--grid">
-      {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}{lead && <span className="rz-code-tag">{item.event.code}</span>}</button>)}
+      {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}<CodeTag code={item.event.code} role={role}/></button>)}
     </div></fieldset>}
     {group && <fieldset><legend className="rz-field__label">Race</legend>{(group.heatsOpen || hasFinal) && <div className="rz-choices">
       {group.heatsOpen && <button type="button" className="rz-choice" aria-pressed={race==='heat'} onClick={()=>setKind('heat')}>Heat {number}</button>}
