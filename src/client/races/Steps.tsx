@@ -27,7 +27,7 @@ function DigitsField({id,label,value,onChange,onEnter,onRelease,held=false,busy=
   const input=useRef<HTMLInputElement>(null),wasHeld=useRef(held);
   useLayoutEffect(()=>{if(held) input.current?.blur();else if(wasHeld.current) {input.current?.focus();input.current?.select();}wasHeld.current=held;},[held]);
   useEffect(()=>{input.current?.focus({preventScroll:true});},[]);
-  useLayoutEffect(()=>{if(selectKey!==undefined && !held) input.current?.select();},[selectKey]);
+  useLayoutEffect(()=>{if(selectKey!==undefined && !held) {input.current?.focus({preventScroll:true});input.current?.select();}},[selectKey]);
   return <div className={warn?'rz-field rz-field--warn':'rz-field'}>
     <label className="rz-field__label" htmlFor={id}>{label}</label>
     <input ref={input} className="rz-field__input" id={id} type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" spellCheck={false}
@@ -51,51 +51,80 @@ function useSizeWarning(raceId:string) {
   return {showing,show:()=>{if(phoneStorage.warnedSize(raceId)) return;phoneStorage.rememberWarnedSize(raceId);setShowing(true);},dismiss:()=>setShowing(false)};
 }
 
+type Entry={id?:string;wristband:number};
 /**
  * Start line: wristbands checked in one at a time, each saved as it is typed, with the existing warnings as Fix
- * number / Keep. Tap a number to take it off. "That's everyone" marks Runners done. On a Races-tab event the 6th
- * runner brings the usual-heat-size note, once. On a final it is the Here / Absent list of the seeded runners.
+ * number / Keep. Tapping a typed number changes it: its number moves into the big box, checked like a new one when
+ * saved (the entry, so any finish place, kept), or Remove takes the runner off (asking first if the finish line has
+ * placed them). A half-typed next number waits meanwhile. "That's everyone" marks Runners done. On a Races-tab event
+ * the 6th runner brings the usual-heat-size note, once. On a final it is the Here / Absent list of the seeded runners.
  */
 export function StartLine({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,event=group.event,runners=runnersOf(race.parts.runners.value);
-  const writes=useStepWrites<{runners:Array<{id?:string;wristband:number}>;keptWarnings:number[]}>(flow.write,'check-in','runners',race.id,race.parts.runners.version);
+  const writes=useStepWrites<{runners:Entry[];keptWarnings:number[]}>(flow.write,'check-in','runners',race.id,race.parts.runners.version);
   const size=useSizeWarning(race.id),applies=usualSizeApplies(event) && race.kind!=='final';
-  const entries=writes.pending?.runners||runners.map(({id,wristband})=>({id,wristband}));
+  const entries:Entry[]=writes.pending?.runners||runners.map(({id,wristband})=>({id,wristband}));
+  // The entry being changed, found again by id once saved (a number just typed has none until the server answers).
+  const [changing,setChanging]=useState<Entry|null>(null),[asking,setAsking]=useState(false),[said,setSaid]=useState('');
+  const target=changing && entries.find(item=>changing.id!==undefined?item.id===changing.id:item.wristband===changing.wristband)||null;
   const entry=useWristbandEntry(event,race.id,entries.map(item=>item.wristband),async(wristband,kept)=>{
     const sent=await writes.send({runners:[...entries,{wristband}],keptWarnings:kept?[wristband]:[]});
     if(typeof sent==='object' && applies && entries.length+1===usualRunnersPerRace) size.show();
     return sent;
   });
+  const change=useWristbandEntry(event,race.id,entries.filter(item=>item!==target).map(item=>item.wristband),async(wristband,kept)=>{
+    const sent=await writes.send({runners:entries.map(item=>item===target?{...item,wristband}:item),keptWarnings:kept?[wristband]:[]});
+    if(typeof sent==='object') {setSaid(`${target!.wristband} changed to ${wristband}`);setChanging(null);}
+    return sent;
+  });
   if(race.kind==='final') return <Attendance {...{read,flow,onDone,locked}}/>;
-  const count=entries.length,more=applies && count>usualRunnersPerRace;
+  const count=entries.length,more=applies && count>usualRunnersPerRace,on=target?change:entry;
+  const cancel=()=>{change.fix();setAsking(false);setChanging(null);};
+  const start=(item:Entry)=>{change.fix();change.type(String(item.wristband));setAsking(false);setSaid('');setChanging(item);};
+  // An unchanged number just closes the change; any other is checked like a new number.
+  const save=()=>{if(Number(change.current)===target!.wristband) cancel();else void change.next();};
+  const place=target?.id?(race.parts.finish.value?.order||[]).indexOf(target.id):-1;
+  function remove() {
+    if(place>=0 && !asking) {setAsking(true);return;}
+    void writes.send({runners:entries.filter(item=>item!==target),keptWarnings:[]});
+    setSaid(`${target!.wristband} taken off this heat`);cancel();
+  }
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact">
         {locked?<><p className="rz-prompt__meta">{raceName(race)}</p><h2 className="rz-prompt__q">{runnersText(count)} checked in</h2></>
           :<><p className="rz-prompt__meta">{raceName(race)} · {count} {count===1?'runner':'runners'} so far{more?' · more than usual':''}</p>
-          <h2 className="rz-prompt__q">Runner {count+1}: wristband number?</h2></>}
+          <h2 className="rz-prompt__q">{target?`Change wristband ${target.wristband}`:`Runner ${count+1}: wristband number?`}</h2></>}
       </div>
       {flow.error && <p className="rz-error" role="alert">{flow.error}</p>}
-      {entry.error && <p className="rz-error" role="alert">{entry.error}</p>}
+      {on.error && <p className="rz-error" role="alert">{on.error}</p>}
+      {said && !target && <p className="rz-note" role="status">{said}</p>}
       {count>0 && <ul className="rz-chips" aria-label={locked?'Checked in':'Wristbands entered'}>{entries.map(item=>{
         const runner=runners.find(other=>other.id===item.id);
-        const kept=!!runner?.warnings?.length,look=kept?'rz-chip rz-chip--warn':'rz-chip';
-        // A locked race lists its runners, with nothing to remove.
+        const kept=!!runner?.warnings?.length,look=['rz-chip',kept?'rz-chip--warn':'',item===target?'rz-chip--changing':''].filter(Boolean).join(' ');
+        // A locked race lists its runners, with nothing to change.
         if(locked) return <li key={item.id||item.wristband}><span className={look}>{item.wristband}</span></li>;
-        return <li key={item.id||item.wristband}><button type="button" className={look} aria-label={`Remove ${item.wristband}${kept?', kept for a lead to check':''}`}
-          onClick={()=>void writes.send({runners:entries.filter(other=>other!==item),keptWarnings:[]})}>{item.wristband} <Icon name="close"/></button></li>;
+        return <li key={item.id||item.wristband}><button type="button" className={look} aria-pressed={item===target} aria-label={`${item.wristband}, ${kept?'kept for a lead to check. ':''}Change`}
+          onMouseDown={event=>event.preventDefault()} onClick={()=>item===target?cancel():start(item)}>{item.wristband} <Icon name="pencil"/></button></li>;
       })}</ul>}
-      {size.showing && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}
+      {size.showing && !target && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>That's everyone</button><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button></>}/>}
-      {!locked && <DigitsField id="wristband" label="Wristband number" value={entry.current} held={entry.held} onRelease={entry.fix} busy={entry.checking || writes.sending} warn={entry.held}
-        onChange={digits=>{entry.type(digits);size.dismiss();}} onEnter={()=>void entry.next()} hint={count>0?'Tap a number above to remove it.':undefined}/>}
-      {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
+      {!locked && <DigitsField id="wristband" label={target?`New number for ${target.wristband}`:'Wristband number'} value={on.current} held={on.held} onRelease={on.fix} busy={on.checking || writes.sending} warn={on.held}
+        onChange={digits=>{if(target) change.type(digits);else {entry.type(digits);size.dismiss();setSaid('');}}} onEnter={target?save:()=>void entry.next()} selectKey={target?String(target.id??target.wristband):undefined}
+        hint={target?'Type the right number and tap Save, or Remove to take this runner off.':count>0?'Tap a number above to change it.':undefined}/>}
+      {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
+        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}</>}/>}
+      {target && asking && <Callout message={`${target.wristband} is already placed ${ordinal(place+1)} at the finish. Take them off anyway?`}
+        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button></>}/>}
     </main>
-    {!locked && <DockedFooter><div className="rz-footer__pair">
+    {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
+      <KeepFocus className="rz-btn" onClick={cancel}>Cancel</KeepFocus>
+      <KeepFocus className="rz-btn rz-btn--remove" onClick={remove}>Remove</KeepFocus>
+      <KeepFocus className="rz-btn rz-btn--primary" disabled={!change.current || change.held || change.checking} onClick={save}>{change.checking?'Checking…':'Save'}</KeepFocus>
+    </div>:<div className="rz-footer__pair">
       <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>That's everyone</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>{entry.checking?'Checking…':'Next'}</KeepFocus>
-    </div></DockedFooter>}
+    </div>}</DockedFooter>}
   </>;
 }
 /** A final's start line: its seeded runners, each Here or Absent; only those Here run it. */

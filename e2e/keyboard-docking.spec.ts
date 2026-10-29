@@ -51,6 +51,16 @@ test('the start line\'s That\'s everyone and Next ride on the keyboard, and a ta
   await expect(box).toBeFocused();
   await expect(page.getByRole('list',{name:'Wristbands entered'})).toHaveCount(0);
 });
+test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=`Docked change ${info.project.name}`;
+  await ownEvent(request,code,name);
+  const {page,token}=await withKeyboard(await openPhone(`Docked change ${info.project.name}`));
+  await writeCheckIn(request,token,code,[2015]);
+  await openRace(page,name);
+  await page.getByRole('button',{name:'2015, Change',exact:true}).click();
+  await expect(page.locator('footer.rz-footer').getByRole('button')).toHaveText(['Cancel','Remove','Save']);
+  await docksAboveKeyboard(page,page.getByLabel('New number for 2015',{exact:true}));
+});
 test('the finish line\'s Back and Add runner ride on the keyboard',async({openPhone,request},info)=>{
   const code=await ownCode(),name=`Docked finish ${info.project.name}`;
   await ownEvent(request,code,name);

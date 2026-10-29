@@ -109,6 +109,7 @@
 .rz-btn--primary { background: var(--navy); color: var(--on-navy); }
 .rz-btn--display { min-height: var(--size-action); background: var(--navy); color: var(--on-navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-size: 20px; line-height: 1; letter-spacing: .03em; text-transform: uppercase; }
 .rz-btn--danger { background: var(--red-ink); border-color: var(--red-ink); color: var(--on-navy); }
+.rz-btn--remove { border-color: var(--red-ink); color: var(--red-ink); }
 .rz-btn--small { min-height: var(--size-touch); padding: 0 var(--space-16); border-color: var(--line); border-radius: var(--radius-pill); background: var(--card); font-size: 14px; }
 .rz-btn--pill { min-height: var(--size-touch); padding: 0 var(--space-16); border-radius: var(--radius-pill); font-size: 14px; white-space: nowrap; }
 .rz-btn--primary.rz-btn--small { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
@@ -165,6 +166,7 @@
 .rz-chip { min-height: var(--size-touch); display: inline-flex; align-items: center; gap: var(--space-6); padding: 0 var(--space-12) 0 var(--space-16); border: 2px solid var(--line); border-radius: var(--radius-pill); background: var(--card); color: var(--navy); font-family: var(--font-body); font-size: 18px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-chip .rz-icon { width: 18px; height: 18px; stroke-width: 2.6; }
 .rz-chip--warn { background: var(--warn-soft); border-color: var(--warn-line); }
+.rz-chip--changing { border-color: var(--navy); box-shadow: 0 0 0 3px var(--navy); }
 
 /* ---------- PlaceTrail ---------- */
 .rz-trail { display: flex; flex-wrap: wrap; gap: var(--space-10); margin: 0; padding: 0 0 0 var(--space-4); list-style: none; }
