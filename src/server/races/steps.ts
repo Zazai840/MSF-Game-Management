@@ -1,22 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
+import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { onlyRunners,submitBlocker,type CurrentRace,type RaceScreenRead } from '../../shared/race-screen.js';
-import { runnersOf,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
-import { entryWord } from '../../shared/teams.js';
+import { onlyRunners,submitBlocker,type CurrentRace } from '../../shared/race-screen.js';
+import { entryName,runnersOf,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
+import { entryWord,type RelayTeam } from '../../shared/teams.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
 import { Refusal } from '../access/permissions.js';
-import { joiningTeam } from '../relays/teams.js';
+import { joiningTeam,readTeamLists } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { markFinalAbsent } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
-/** What a step write acts on: the event, the race as it stands (null id for the empty next race) and, on a relay, its team list. */
-export type WriteTarget=Pick<RaceScreenRead,'event'|'race'|'teams'>;
+/** What a step write acts on: the event and the race as it stands (null id for the empty next race). */
+export interface WriteTarget { event:DayEvent; race:CurrentRace }
 export type CheckInInput=ReturnType<typeof checkInInput>;
 /** A check-in body: the race and runners version the phone saw, and its whole list of wristbands, a fixed number sent with its entry. */
 export function checkInInput(body:unknown) {
@@ -35,6 +36,8 @@ export function checkInInput(body:unknown) {
 /** The Runners step's write: the runner list as sent. The first write on the empty next race creates it. */
 export async function checkIn(client:pg.PoolClient,phone:Phone,target:WriteTarget,{entries,ids,kept}:CheckInInput) {
   if(target.race.kind==='final') throw new Refusal(409,"Mark the final's runners Here or Absent");
+  // A relay's entries are teams, added and marked here one tap at a time: a list of wristbands would replace them.
+  if(target.event.relay) throw new Refusal(409,'Add the teams that are running');
   const previous=runnersOf(target.race.parts.runners.value),id=target.race.id||randomUUID();
   // A fixed number keeps its entry, so its place follows it. A number sent without its entry keeps the entry
   // already holding that number. Unchanged numbers keep their warnings; a new or fixed one gets the server's.
@@ -65,11 +68,12 @@ export function absentInput(body:unknown) {
 /** A final's Here / Absent: those Here are the runner list, those Absent are marked so, and everyone else is not marked yet. */
 export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,here,absent}:AbsentInput) {
   if(raceId===null || target.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
-  const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=runnersOf(race.parts.runners.value);
-  const lineup=runnersOf([...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)]);
+  const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=race.parts.runners.value||[];
+  // A child finalist or a relay team: a seeded child never yet checked in is named by their heat wristband.
+  const lineup:RaceEntry[]=[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
   if([...here,...absent].some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
-  if(new Set(runners.map(runner=>runner.wristband)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
+  if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
   await publishPart(client,phone,race,'runners',runners);
   await markFinalAbsent(client,race.id,absent);
   await dropFromOrder(client,target.race,runners);
@@ -104,7 +108,8 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   const previous=target.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
   const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
-  const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(target,teamId));
+  const teams=addedTeams.length?(await readTeamLists(client,phone.dayId)).get(target.event.id)!.teams:[];
+  const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId));
   // A team keeps the warnings its team list gave it. A final's runners all ran in its heats, so "already ran in this event" does not apply.
   const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
@@ -139,8 +144,8 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
  * A team added at the finish ("Add team"): a copy of its four children and their kept warnings, those on
  * the list marked here since they crossed the line. Only a team still to run that nobody is changing can be added.
  */
-function addedAtFinish(screen:WriteTarget,teamId:string):TeamEntry {
-  const team=screen.teams!.find(item=>item.id===teamId);
+function addedAtFinish(teams:readonly RelayTeam[],teamId:string):TeamEntry {
+  const team=teams.find(item=>item.id===teamId);
   if(!team) throw new Refusal(404,'Team not found');
   return joiningTeam(team,{here:true,addedAtFinish:true});
 }
@@ -153,7 +158,7 @@ export async function saveIfDone(client:pg.PoolClient,phone:Phone,raceId:string)
   const race=await readRace(client,phone.dayId,raceId);
   if(race.state!=='in progress' || race.deleted) return;
   const done=(await client.query('SELECT p.part,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.done_by WHERE p.race_id=$1 AND p.done_at IS NOT NULL',[raceId])).rows as Array<{part:RacePartName;name:string|null}>;
-  if(stepsOf(race).every(step=>done.some(row=>row.part===stepParts[step])) && !submitBlocker(race)) {
+  if(stepsOf(race).every(step=>done.some(row=>row.part===stepParts[step])) && !submitBlocker(race,race.event.relay)) {
     await saveRace(client,phone,race,step=>done.find(row=>row.part===stepParts[step])?.name??null);
   }
 }
