@@ -1,4 +1,4 @@
-import { useEffect,useId,useRef,type ReactNode } from 'react';
+import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 
@@ -59,11 +59,11 @@ export function HomeBar({children}:{children:ReactNode}) {
     <div className="rz-appbar__end">{children}</div>
   </header>;
 }
-/** A race's app bar: back to Races, the event group with its code, then the role chip (and for a lead, race actions). */
-export function RaceBar({title,code,onBack,children}:{title:string;code:string;onBack:()=>void;children:ReactNode}) {
+/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then the role chip (and for a lead, race actions). */
+export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1><span className="rz-code-tag">{code}</span></div>
+      <h1>{title}</h1>{role==='lead' && <span className="rz-code-tag">{code}</span>}</div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }
@@ -95,7 +95,8 @@ export function stepWords(step:Step,status:StepStatus) {
 }
 /**
  * The race's three steps, as tabs when `onSelect` is given. A volunteer's own step is outlined and starts "You ·"; any
- * other step opens read-only. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
+ * other step opens read-only. The own status is short ("You · not yet", "You · 2 of 8", "You · done") so each cell
+ * stays on one line at 360px. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
  */
 export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
   notes?:Partial<Record<Step,string>>;label:string}) {
@@ -104,7 +105,7 @@ export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pic
     const status=race.steps[step]!,done=status.state==='done',note=notes[step];
     return <>
       <span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
-      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:`${step===own?'You · ':''}${stepWords(step,status)}`}</span>
+      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status)}`:stepWords(step,status)}</span>
     </>;
   };
   if(onSelect) return <div className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} role="tablist" aria-label={label}>
@@ -148,4 +149,18 @@ export function Callout({message,status=false,actions}:{message:ReactNode;status
     <p className="rz-callout__msg"><Icon name="warning"/><span>{message}</span></p>
     {actions && <div className="rz-callout__actions">{actions}</div>}
   </div>;
+}
+/**
+ * A race step's footer: sticky at the foot of the screen and, while the phone is typing, just above the keyboard
+ * (flow/keyboard.ts). Docked it leaves the page's flow, so the page keeps room at its end for it (--rz-footer-height).
+ */
+export function DockedFooter({children}:{children:ReactNode}) {
+  const footer=useRef<HTMLElement>(null);
+  useLayoutEffect(()=>{
+    const element=footer.current!,root=document.documentElement;
+    const observer=new ResizeObserver(()=>root.style.setProperty('--rz-footer-height',`${element.offsetHeight}px`));
+    observer.observe(element);
+    return ()=>{observer.disconnect();root.style.removeProperty('--rz-footer-height');};
+  },[]);
+  return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
 }

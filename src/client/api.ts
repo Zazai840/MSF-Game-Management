@@ -47,7 +47,6 @@ export const phoneStorage = {
   },
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
   forgetProfile,
-  /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
   /** The Home tab this phone used last: Races on a phone that never switched, or when storage fails. */
   homeTab:():HomeTab=>{try {const tab=localStorage.getItem(homeTabKey) as HomeTab;return homeTabs.includes(tab)?tab:'races';} catch {return 'races';}},
   rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},

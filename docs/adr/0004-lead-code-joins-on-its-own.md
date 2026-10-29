@@ -1,5 +1,7 @@
 # Today's lead code joins on its own
 
+Narrowed by ADR 0006: a name held on another phone now asks "Is this you on a new phone?" at Join instead of joining numbered.
+
 Until the race flow, a phone joined with the Olympics password, then a lead signed in by typing the lead code as well (`/api/lead-sign-in` needs the pass and the code). The race flow's Join (race-flow.md screen 1) is one form: a code, a full name and a job, where "Zone lead? Type the lead code instead of the day code." So `POST /api/join` accepts today's lead code alone and signs the phone in as Lead, never refusing a name (a name held on another phone is numbered, as Lead sign-in already did). It answers with the Olympics pass too, so the phone can tap its name next time.
 
 The lead code was already a day secret given only to leads, at least as strong as the Olympics password (6 random characters, made afresh by Start new day and by New lead code, which also demotes every other lead). Join's wrong codes share the Olympics password's backoff per address, so the lead code gains no new guessing surface.

@@ -9,7 +9,6 @@ import type { Socket } from 'node:net';
 import { phoneManagementRoutes } from './access/management.js';
 import { openDatabase } from './storage.js';
 import { accessRoutes } from './access/routes.js';
-import { thatsMeRoutes } from './access/thats-me.js';
 import { dayRoutes } from './day/routes.js';
 import { homeRoutes } from './home/routes.js';
 import { Refusal } from './access/permissions.js';
@@ -62,7 +61,6 @@ export async function createApp(settings: AppSettings) {
   const testBuild = settings.testBuild && {commit:settings.testBuild.commit || 'unknown', reportUrl:bugReportUrl};
   app.get('/api/health', () => testBuild ? {ok:true, testBuild} : {ok:true});
   accessRoutes(app, pool, settings.ownerPassword);
-  thatsMeRoutes(app, pool);
   phoneManagementRoutes(app,pool);
   dayRoutes(app, pool);
   resetRoutes(app,pool);

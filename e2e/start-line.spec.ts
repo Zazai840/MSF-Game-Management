@@ -1,4 +1,4 @@
-import {ownCode,deleteCurrentRace,expect,lookProblems,nextBeside,openRace,ownEvent,recordRace,submitRace,test,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownCode,deleteCurrentRace,expect,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,submitRace,test,writeOrder,writeTimes,type Page} from './fixtures.js';
 const chips=(page:Page)=>page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 test('wristbands go in through the phone keyboard, each saved as it is typed, and the input keeps focus between runners',async({openPhone,request},info)=>{
@@ -40,21 +40,46 @@ test('wristbands go in through the phone keyboard, each saved as it is typed, an
   await input.press('Enter');
   await expect(chips(page)).toHaveText(['2001','2002','2004']);
   await expect(input).toBeEditable();
-  // A warning closes the keyboard so the choice shows; Fix number reopens it, cleared.
+  // A warning closes the keyboard so the choice shows; tapping the box drops it and opens the number to edit, selected.
   await input.pressSequentially('3045');await input.press('Enter');
   const warning=page.getByRole('alert');
   await expect(warning).toContainText('3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.');
   await expect(input).not.toBeFocused();
   await page.screenshot({path:info.outputPath('start-line-warning.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
+  await input.click();
+  await expect(warning).toHaveCount(0);
+  await expect(input).toBeFocused();await expect(input).toBeEditable();await expect(input).toHaveValue('3045');
+  await expect.poll(()=>selected(page,'Wristband number')).toBe('3045');
+  // The tap selects again a frame later: let it land before moving the caret.
+  await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(()=>done(null)))));
+  // Correcting a digit and Next checks it again and adds it.
+  await input.press('ArrowLeft');await input.press('Delete');await input.pressSequentially('2');
+  await expect(input).toHaveValue('2045');
+  await nextBeside(page,'Wristband number').click();
+  await expect(chips(page)).toHaveText(['2001','2002','2004','2045']);
+  await expect(input).toHaveValue('');await expect(input).toBeFocused();
+  // Fix number does the same: the number stays, selected, so typing replaces it.
+  await input.pressSequentially('3047');await input.press('Enter');
+  await expect(warning).toContainText('3047 is not a Girl Cubs number.');
   await warning.getByRole('button',{name:'Fix number',exact:true}).click();
-  await expect(input).toBeFocused();await expect(input).toHaveValue('');
-  // A number already in the race is refused: Fix number only.
+  await expect(warning).toHaveCount(0);
+  await expect(input).toBeFocused();await expect(input).toHaveValue('3047');
+  await expect.poll(()=>selected(page,'Wristband number')).toBe('3047');
+  await input.pressSequentially('2047');await expect(input).toHaveValue('2047');
+  await input.press('Enter');
+  await expect(chips(page)).toHaveText(['2001','2002','2004','2045','2047']);
+  for(const number of ['2045','2047']) await page.getByRole('button',{name:`Remove ${number}`,exact:true}).click();
+  await expect(chips(page)).toHaveText(['2001','2002','2004']);
+  await expect(input).toBeEditable();
+  await input.click();
+  // A number already in the race is refused: Fix number only, which keeps it selected too.
   await input.pressSequentially('2001');await input.press('Enter');
   await expect(warning).toContainText('2001 is already in this race. Check the wristband.');
   await expect(warning.getByRole('button',{name:'Keep',exact:true})).toHaveCount(0);
   await warning.getByRole('button',{name:'Fix number',exact:true}).click();
-  await expect(input).toBeFocused();
+  await expect(input).toBeFocused();await expect(input).toHaveValue('2001');
+  await expect.poll(()=>selected(page,'Wristband number')).toBe('2001');
   // Keep adds the number, amber, and its name says so.
   await input.pressSequentially('3046');await input.press('Enter');
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
@@ -87,7 +112,7 @@ test('a volunteer fixes a number that is no wristband and keeps wrong-section an
   await input.fill('0');await nextBeside(page,'Wristband number').click();
   await expect(page.getByRole('alert')).toContainText('0 is not a wristband number. Wristbands are 1 to 4999.');
   await page.getByRole('button',{name:'Fix number',exact:true}).click();
-  await expect(input).toHaveValue('');
+  await expect(input).toHaveValue('0');
   await input.fill('2009');
   await nextBeside(page,'Wristband number').click();
   await expect(input).toBeEditable();await expect(input).toHaveValue('');

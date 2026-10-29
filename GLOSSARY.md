@@ -27,7 +27,7 @@ One running competition for one section, such as 60m for Girl Cubs. Races shows 
 _Avoid_: Competition, discipline
 
 **Event code**:
-The scoring team's identifier for an event (R1, R2, ...).
+The scoring team's identifier for an event (R1, R2, ...). It shows only in the Zone lead role; volunteers never see it.
 _Avoid_: Event ID, event number
 
 **Event format**:
@@ -195,15 +195,19 @@ The one password for the whole Olympics that lets a phone in, the same on every 
 _Avoid_: Day code, event password, PIN, access code
 
 **Profile**:
-A person's lasting identity in the app, made once with their full name and kept across Olympics days. Each phone shows only the profiles made on it. A profile's role (volunteer or lead) starts again as volunteer on each new Olympics day. No two profiles share a full name, so a name is one person across the whole Olympics. Someone whose profile is gone from their phone gets it back on another phone once a lead has checked in person that it's them. A profile is never renamed, and removing it from a phone only forgets it there.
+A person's lasting identity in the app, made once with their full name and kept across Olympics days. Each phone shows only the profiles made on it. A profile's role (volunteer or lead) starts again as volunteer on each new Olympics day. No two profiles share a full name, so a name is one person across the whole Olympics. Someone whose profile is on another phone gets it back by tapping That's me at Join, once they have typed the password; it moves at once and the old phone forgets it. A profile is never renamed, and removing it from a phone only forgets it there.
 _Avoid_: Account, user, login
+
+**That's me**:
+Join's answer to "Is this you on a new phone?", asked when the name typed belongs to a profile held on another phone. It moves that profile to this phone at once, with no lead to wait for, and the old phone forgets the name on its next request (ADR 0006). "No, I'm someone else" asks for a middle name or initial instead.
+_Avoid_: Claim profile, transfer
 
 **Signed in**:
 A profile using the app on the current Olympics day, with its role for that day. A lead sees everyone signed in today and can change anyone else's role or sign them out, though nobody can make the owner a volunteer.
 _Avoid_: Joined phone, logged in, online
 
 **Lead code**:
-The secret a person types to make their profile a lead for the current Olympics day: with their full name before signing in, or on its own once signed in. Holding it is trust enough to make a new profile, so a lead whose name is already taken by a profile on another phone gets a new profile with a number added to the name. Making a new lead code turns every other lead back into a volunteer, except whoever made it and the owner.
+The secret a person types to make their profile a lead for the current Olympics day: with their full name before signing in, or on its own once signed in. Holding it is trust enough to make a new profile; a name already taken by a profile on another phone gets That's me at Join, as with the Olympics password. Making a new lead code turns every other lead back into a volunteer, except whoever made it and the owner.
 _Avoid_: Admin password, lead PIN
 
 **Owner password**:
@@ -223,11 +227,11 @@ One race of the race flow (/races/:raceId): its event's heat chips, its steps, a
 _Avoid_: Race page (the lead's), job screen
 
 **Step**:
-One part of a race as the race flow works it: Runners (check-in), Positions (the finishing order) or Times. A final has no Times. Each step is done when marked (That's everyone, Save positions, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, positions by wristband.
-_Avoid_: Job (the relay race screen's), stage (an event's)
+One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband.
+_Avoid_: Job (the relay race screen's), stage (an event's), Positions
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Positions), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day.
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day.
 _Avoid_: Job, station, position
 
 **Undo**:

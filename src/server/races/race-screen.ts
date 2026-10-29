@@ -419,7 +419,7 @@ export function timesInput(body:unknown) {
 }
 /**
  * The times' write. On the race screen only a place with a wristband takes a time (a time left at a place that has
- * since lost its wristband stays as it is). In the race flow Times never waits for Positions (`anyPlace`): a time can
+ * since lost its wristband stays as it is). In the race flow Times never waits for Finishing order (`anyPlace`): a time can
  * go in before its place has a runner, up to the race's runner count, and the race saves only once they agree.
  */
 export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,places,keptWrong}:TimesInput,anyPlace=false) {

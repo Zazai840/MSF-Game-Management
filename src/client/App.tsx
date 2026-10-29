@@ -3,7 +3,7 @@ import type { Phone } from '../shared/domain.js';
 import type { DayLeadItem } from '../shared/lead-results.js';
 import type { Role } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
-import { SignIn, type Renamed } from './access/SignIn.js';
+import { SignIn } from './access/SignIn.js';
 import { YourProfile } from './access/YourProfile.js';
 import { Home } from './home/Home.js';
 import { RaceScreen } from './race/RaceScreen.js';
@@ -42,7 +42,6 @@ export function App() {
   const [leadSection,setLeadSection]=useState('Results');
   const [updated,setUpdated] = useState('');
   const [error,setError] = useState('');
-  const [renamed,setRenamed]=useState<Renamed>();
   const request=useRef(0);
   async function refresh() {
     const generation=++request.current;
@@ -76,8 +75,6 @@ export function App() {
     window.addEventListener('msf:session',session);
     return ()=>{window.removeEventListener('msf:removed',removed);window.removeEventListener('msf:session',session);};
   },[]);
-  // The numbered-name line shows on Races until the phone moves on.
-  useEffect(()=>{if(view.kind!=='races') setRenamed(undefined);},[view.kind]);
   useEffect(()=>{
     if (!signedIn) return;
     void refresh(); const timer=window.setInterval(()=>void refresh(),5000);
@@ -93,7 +90,7 @@ export function App() {
     setRole(held==='lead' && !isLead?null:held??(isLead?'lead':null));
   },[dayId,isLead]);
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
-  if (!signedIn) return <SignIn onSignedIn={numbered=>{setRenamed(numbered);setSignedIn(true);}} />;
+  if (!signedIn) return <SignIn onSignedIn={()=>setSignedIn(true)} />;
   if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
   const name=home.phone.name,toRaces=()=>go({kind:'races'});
   if(!role) return <JoinJob name={name} onChoose={choose} onLead={refresh}/>;
@@ -109,14 +106,13 @@ export function App() {
   const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
   if(view.kind==='races' || view.kind==='race') {
     const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-    const note=renamed && <p role="status" className="rz-note" style={{margin:'12px 20px 0'}}>{renamed.taken} is already taken, so you're signed in as <strong>{renamed.name}</strong></p>;
     if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
       onRace={id=>go({kind:'race',id})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
     // Relays keep today's list and screens, in the older look, under the race flow's tabs.
-    if(homeTab==='relays') return <><Screen screen="Races" fill={false} wide>{bar}{note}<EventTabs tab={homeTab} onTab={pickTab}/>{sheet}</Screen>
+    if(homeTab==='relays') return <><Screen screen="Races" fill={false} wide>{bar}<EventTabs tab={homeTab} onTab={pickTab}/>{sheet}</Screen>
       <main><Home tab="relays" relaysOnly onTab={pickTab} onEvent={code=>go({kind:'relay',code})} onTeams={()=>go({kind:'teams'})}/>
         <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer></main></>;
-    return <Screen screen="Races" wide>{bar}{note}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={id=>go({kind:'race',id})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
+    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={id=>go({kind:'race',id})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
   return <><AppHeader name={name} screen={screenName(view,leadSection)} onProfile={()=>go({kind:'profile'})}/><BackArea>
     {view.kind!=='lead' && <BackArrow to="Races" onBack={toRaces}/>}<main>
