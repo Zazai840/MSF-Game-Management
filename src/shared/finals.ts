@@ -6,7 +6,7 @@ import { resultHolder,type EventState,type LeaderboardRow,type ResultsRace } fro
 export interface FinalEntry { finalEntryId:string; heatRaceId:string; heatEntryId:string; heatWristband:number|null; seed:number; heatRank:number; kind:'qualifier'|'call-up'; absent:boolean; wasHere?:boolean; runner?:RaceEntry; replacesEntryId?:string }
 export interface FinalAddition { runner:RaceEntry; absent:boolean; wasHere?:boolean }
 export interface FinalField { generation:string; entries:FinalEntry[]; additionalEntries?:FinalAddition[]; hasRun:boolean; heatsComplete:boolean }
-export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number|null;team?:TeamEntry['team'];seed:number|null;absent:boolean;calledUp:boolean}> }
+export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number|null;team?:TeamEntry['team'];legs?:TeamEntry['legs'];seed:number|null;absent:boolean;calledUp:boolean}> }
 export interface FinalResults extends FinalField { raceId:string; runners:readonly RaceEntry[]; leaderboard:LeaderboardRow[]; nextCallUp:LeaderboardRow|null; vacancy:FinalEntry|null;
   /** Attendance has been published (an individual Here or Absent, or a relay child Here), or a finishing order recorded. */
   started:boolean }

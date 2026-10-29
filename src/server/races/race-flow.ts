@@ -212,10 +212,30 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(!Number.isInteger(body.leg) || Number(body.leg)<0 || Number(body.leg)>3 || typeof body.here!=='boolean') throw new Refusal(400,'Choose a child and whether they are here');
     const index=Number(body.leg),here=body.here;
     return teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
+      if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
       if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${raceName(race)}`);
       if(entry.legs[index].wristband===null) throw new Refusal(400,'Choose a child in this team');
       if(entry.legs[index].here===here) {unchanged();return;}
       return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
+    });
+  });
+  // Here / Absent on a final's team, or neither: Here marks each of its children here, Absent takes the team out of
+  // the race (freeing its seed), and neither puts it back with its children as they were, none here.
+  action('POST','/api/races/:raceId/teams/:teamId/absent','Volunteer',(request,_reply,phone)=>{
+    const mark=((request.body||{}) as {mark?:unknown}).mark;
+    if(mark!=='here' && mark!=='absent' && mark!==null) throw new Refusal(400,'Choose Here, Absent or neither');
+    return teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
+      if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
+      const final=race.final!,kept=entry??[...final.entries.map(item=>item.runner),...(final.additionalEntries||[]).map(item=>item.runner)]
+        .find((item):item is TeamEntry=>item!==undefined && isTeamEntry(item) && item.team.id===team.id);
+      if(!kept) throw new Refusal(409,`Team ${team.number} is not in the final`);
+      if(mark==='absent') {
+        if(!entry) {unchanged();return;}
+        return entries.filter(other=>other!==entry);
+      }
+      const marked={...kept,legs:kept.legs.map(leg=>({...leg,here:mark==='here' && leg.wristband!==null}))};
+      if(entry && JSON.stringify(marked)===JSON.stringify(entry)) {unchanged();return;}
+      return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
     });
   });
   // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.
