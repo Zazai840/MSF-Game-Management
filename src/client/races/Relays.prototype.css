@@ -73,3 +73,14 @@ body:has(.proto-switcher) { padding-top: 42px; background-image: linear-gradient
 /* The older look's global `footer { align-items: center }` (style.css) shrinks a two-button footer on main too; shown full width here. */
 .rz-screen .rz-footer { align-items: stretch; }
 .proto-switcher { position: absolute; }
+/* Variant D: teams in a bottom sheet. */
+.proto-sheetlist { max-height: 52dvh; overflow-y: auto; margin: 0 calc(-1 * var(--space-4)); padding: var(--space-4); }
+.proto-memberrow { width: 100%; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-10) var(--space-12); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font: inherit; text-align: left; }
+.proto-memberrow--ran { background: none; box-shadow: inset 0 0 0 1.5px var(--line); }
+.proto-member__head { display: flex; align-items: baseline; gap: var(--space-8); font-size: 17px; }
+.proto-member__head small { font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+.proto-member__head .rz-icon { margin-left: auto; width: 18px; height: 18px; align-self: center; }
+.proto-members { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); }
+.proto-member { display: flex; flex-direction: column; align-items: center; padding: var(--space-4) 0; border-radius: var(--radius-sm, 8px); background: var(--paper); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.proto-member small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.proto-member--empty { color: var(--placeholder); }

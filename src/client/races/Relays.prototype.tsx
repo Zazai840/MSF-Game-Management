@@ -2,6 +2,7 @@
  * PROTOTYPE - throwaway, never merged (map ticket #186: what do the Relays tab, New relay, New team and a relay race
  * look like in the race flow?). Client only, at /prototype/relays: an in-memory relay day on the real race-flow
  * components and styles, no server. Three variants, switched by the pink pill at the top (or ?variant=A|B|C):
+ *   D - (owner's pick, 29 Oct) the card's Teams row opens a bottom sheet of every team and its members; New team and Edit in that sheet.
  *   A - Team list on its own screen: New team typed one leg at a time; tick a team in, then each leg Here; finish tiles big team number.
  *   B - Races | Teams switch: New team in a sheet with four boxes; start line in two stages; finish tiles big 4th-leg wristband (today).
  *   C - Team list inside the card: New team typed inline; one tick list with tappable children; finish tiles show both.
@@ -18,8 +19,8 @@ import { Avatar,Callout,HeatChips,HomeBar,Icon,RaceBar,RoleChip,Screen,Sheet,Ste
 import { EventTabs } from './RacesHome.js';
 import './Relays.prototype.css';
 
-type Variant='A'|'B'|'C';
-const variantNames:Record<Variant,string>={A:'Team list on its own screen',B:'Races | Teams switch',C:'Team list inside the card'};
+type Variant='A'|'B'|'C'|'D';
+const variantNames:Record<Variant,string>={A:'Team list on its own screen',B:'Races | Teams switch',C:'Team list inside the card',D:'Teams in a bottom sheet'};
 const me='Sam Patel';
 interface Relay { code:string; name:string; section:DayEvent['section'] }
 interface Team { id:string; code:string; number:number; legs:Array<number|null>; by:string }
@@ -184,7 +185,7 @@ function PickRelay({title,onPick,onClose}:{title:string;onPick:(code:string)=>vo
 type View={kind:'home'}|{kind:'teams';code:string}|{kind:'team';code:string;teamId:string|null;raceId?:string}|{kind:'race';id:string};
 function firstVariant():Variant {
   const asked=new URLSearchParams(location.search).get('variant');
-  return asked==='B' || asked==='C'?asked:'A';
+  return asked==='B' || asked==='C' || asked==='D'?asked:'A';
 }
 export function RelaysPrototype() {
   const [variant,setVariant]=useState<Variant>(firstVariant);
@@ -196,7 +197,7 @@ export function RelaysPrototype() {
   useEffect(()=>{document.body.classList.toggle('proto-nocodes',role!=='lead');},[role]);
   useEffect(()=>{if(!toast) return;const timer=setTimeout(()=>setToast(''),5000);return ()=>clearTimeout(timer);},[toast]);
   function cycle(step:number) {
-    const keys:Variant[]=['A','B','C'],next=keys[(keys.indexOf(variant)+step+3)%3]!;
+    const keys:Variant[]=['A','B','C','D'],next=keys[(keys.indexOf(variant)+step+keys.length)%keys.length]!;
     const params=new URLSearchParams(location.search);params.set('variant',next);history.replaceState(null,'',`${location.pathname}?${params}`);setVariant(next);
   }
   useEffect(()=>{
@@ -254,13 +255,14 @@ function RelaysHome({ctx}:{ctx:Ctx}) {
   const [newRelay,setNewRelay]=useState(false),[pickFor,setPickFor]=useState(false);
   const [segment,setSegment]=useState<'races'|'teams'>('races');
   const [open,setOpen]=useState<string|null>(null),[typing,setTyping]=useState<{code:string;teamId:string|null}|null>(null),[sheet,setSheet]=useState<{code:string;teamId:string|null}|null>(null);
-  const [asking,setAsking]=useState<Team|null>(null);
+  const [asking,setAsking]=useState<Team|null>(null),[teamsSheet,setTeamsSheet]=useState<string|null>(null);
   const groups=relays.map(relay=>group(day,relay));
   /** Edit team on the Relays tab: someone else's team asks first. */
   const edit=(team:Team)=>team.by===me?openEditor(team.code,team.id):setAsking(team);
   function openEditor(code:string,teamId:string|null) {
     if(variant==='A') ctx.go({kind:'team',code,teamId});
     else if(variant==='B') setSheet({code,teamId});
+    else if(variant==='D') {setTeamsSheet(code);setSheet({code,teamId});}
     else {setOpen(code);setTyping({code,teamId});}
   }
   const teamRows=(code:string)=>{
@@ -284,7 +286,7 @@ function RelaysHome({ctx}:{ctx:Ctx}) {
       <p className="rz-racecard__status">{status}</p>
       {group.races.length>0 && <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={id=>ctx.go({kind:'race',id})}
         onAdd={group.heatsOpen?()=>ctx.createRace(code,'heat'):undefined} onFinal={group.finalAvailable?()=>ctx.createRace(code,'final'):undefined}/>}
-      {variant==='A' && <button type="button" className="proto-cardlink" onClick={()=>ctx.go({kind:'teams',code})}><span>Teams <strong>{teams.length}</strong>{toRun>0 && ` · ${toRun} still to run`}</span><Icon name="chevron-right"/></button>}
+      {(variant==='A' || variant==='D') && <button type="button" className="proto-cardlink" onClick={()=>variant==='A'?ctx.go({kind:'teams',code}):setTeamsSheet(code)}><span>Teams <strong>{teams.length}</strong>{toRun>0 && ` · ${toRun} still to run`}</span><Icon name="chevron-right"/></button>}
       {variant==='C' && <details className="proto-carddetails" open={open===code} onToggle={event=>{const now=(event.target as HTMLDetailsElement).open;if(now) setOpen(code);else if(open===code) setOpen(null);}}>
         <summary>Teams ({teams.length}){toRun>0 && ` · ${toRun} still to run`}</summary>{teamRows(code)}</details>}
     </article>;
@@ -310,10 +312,33 @@ function RelaysHome({ctx}:{ctx:Ctx}) {
     </div></footer>
     {newRelay && <NewRaceSheet groups={groups} choice={{}} onClose={()=>setNewRelay(false)} onCreate={choice=>{setNewRelay(false);ctx.createRace(choice.eventCode,choice.kind);}}/>}
     {pickFor && <PickRelay title="New team" onClose={()=>setPickFor(false)} onPick={code=>{setPickFor(false);if(variant==='B') setSegment('teams');openEditor(code,null);}}/>}
-    {sheet && <Sheet title={sheet.teamId?`Edit team ${day.teams.find(team=>team.id===sheet.teamId)!.number}`:`New team · ${relayOf(sheet.code).name} ${relayOf(sheet.code).section}`} onClose={()=>setSheet(null)}>
+    {teamsSheet && <TeamsSheet day={day} code={teamsSheet} editing={sheet?.code===teamsSheet?sheet:null} onClose={()=>{setTeamsSheet(null);setSheet(null);}}
+      onTeam={edit} onNew={()=>setSheet({code:teamsSheet,teamId:null})} onDone={()=>setSheet(null)} onSave={(teamId,legs)=>{ctx.saveTeam(teamsSheet,teamId,legs);setSheet(null);}}/>}
+    {sheet && variant!=='D' && <Sheet title={sheet.teamId?`Edit team ${day.teams.find(team=>team.id===sheet.teamId)!.number}`:`New team · ${relayOf(sheet.code).name} ${relayOf(sheet.code).section}`} onClose={()=>setSheet(null)}>
       <FourBoxes day={day} relay={relayOf(sheet.code)} team={day.teams.find(team=>team.id===sheet.teamId)??null} onCancel={()=>setSheet(null)} onSave={legs=>{ctx.saveTeam(sheet.code,sheet.teamId,legs);setSheet(null);}}/></Sheet>}
     {asking && <ChangeAnyway team={asking} onCancel={()=>setAsking(null)} onChange={()=>{setAsking(null);openEditor(asking.code,asking.id);}}/>}
   </>;
+}
+/**
+ * Variant D (the owner's answer, 29 Oct): the card's Teams row opens a bottom sheet with every team and its four
+ * members; tapping a team, or New team, turns the same sheet into the four leg boxes, and Save or Cancel comes back.
+ */
+function TeamsSheet({day,code,editing,onClose,onTeam,onNew,onDone,onSave}:{day:Day;code:string;editing:{teamId:string|null}|null;onClose:()=>void;onTeam:(team:Team)=>void;
+  onNew:()=>void;onDone:()=>void;onSave:(teamId:string|null,legs:Array<number|null>)=>void}) {
+  const relay=relayOf(code),teams=day.teams.filter(team=>team.code===code),team=editing?.teamId?teams.find(item=>item.id===editing.teamId)!:null;
+  if(editing) return <Sheet title={team?`Edit team ${team.number}`:`New team ${nextNumber(day,code)}`} onClose={onClose}>
+    <p className="rz-field__hint">{relay.name} · {relay.section}</p>
+    <FourBoxes key={editing.teamId??'new'} day={day} relay={relay} team={team} onCancel={onDone} onSave={legs=>onSave(editing.teamId,legs)}/></Sheet>;
+  return <Sheet title={`${relay.name} · ${relay.section}`} onClose={onClose}>
+    <p className="rz-field__hint">{teams.length} teams · {stillToRun(day,code).length} still to run. Tap a team still to run to change it.</p>
+    <ul className="proto-list proto-sheetlist">{teams.map(item=>{
+      const race=inRace(day,item),body=<>
+        <span className="proto-member__head"><strong>Team {item.number}</strong><small>{race?`${raceName(race)}${race.done.times?' · ran':' · change it at check-in'}`:filled(item)<4?`Still to run · ${filled(item)} of 4`:'Still to run'}</small>{!race && <Icon name="pencil"/>}</span>
+        <span className="proto-members">{item.legs.map((leg,index)=><span key={index} className={leg===null?'proto-member proto-member--empty':'proto-member'}><small>{ordinal(index+1)}</small>{leg??'–'}</span>)}</span></>;
+      return <li key={item.id}>{race?<div className="proto-memberrow proto-memberrow--ran">{body}</div>:<button type="button" className="proto-memberrow" onClick={()=>onTeam(item)}>{body}</button>}</li>;
+    })}</ul>
+    <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={onNew}><Icon name="plus"/>New team</button>
+  </Sheet>;
 }
 /** Variant A: a relay's team list, its own screen from the card. */
 function TeamListScreen({ctx,code}:{ctx:Ctx;code:string}) {
@@ -358,7 +383,7 @@ function RaceView({ctx,raceId}:{ctx:Ctx;raceId:string}) {
     <StepStrip race={summary(race)} role={role} label={`${raceName(race)} steps`} selected={step} onSelect={role==='lead'?setTab:at=>setViewing(at===own?null:at)}/>
     {own && step!==own?<main className="rz-main"><div className="rz-readonly" role="status"><p className="rz-readonly__text"><Icon name="eye"/><span>Viewing {stepLabels[step]} · read-only.</span></p>
       <div className="rz-readonly__actions"><button type="button" className="rz-btn rz-btn--small rz-btn--primary" onClick={()=>setViewing(null)}>Back to {stepLabels[own]}</button></div></div></main>
-      :step==='runners'?(race.kind==='final'?<FinalHere {...props}/>:ctx.variant==='A'?<StartA {...props}/>:ctx.variant==='B'?<StartB {...props}/>:<StartC {...props}/>)
+      :step==='runners'?(race.kind==='final'?<FinalHere {...props}/>:ctx.variant==='A' || ctx.variant==='D'?<StartA {...props}/>:ctx.variant==='B'?<StartB {...props}/>:<StartC {...props}/>)
       :step==='positions'?<FinishLine {...props}/>:steps.includes('times')?<Timer {...props}/>:null}
   </>;
 }
@@ -370,7 +395,7 @@ const shortNote=(team:Team)=>filled(team)<4?<span className="rz-tag rz-tag--kept
 function useNewTeamAtCheckIn({ctx,race,relay}:StepBody) {
   const [typing,setTyping]=useState<string|null|false>(false);
   const open=(teamId:string|null)=>ctx.variant==='A'?ctx.go({kind:'team',code:relay.code,teamId,raceId:race.id}):setTyping(teamId);
-  const editor=typing!==false && (ctx.variant==='B'
+  const editor=typing!==false && (ctx.variant==='B' || ctx.variant==='D'
     ?<Sheet title={typing?`Edit team ${teamOf(ctx.day,typing).number}`:'New team · joins this heat'} onClose={()=>setTyping(false)}>
       <FourBoxes day={ctx.day} relay={relay} team={typing?teamOf(ctx.day,typing):null} onCancel={()=>setTyping(false)} onSave={legs=>{ctx.saveTeam(relay.code,typing,legs,race.id);setTyping(false);}}/></Sheet>
     :<FourBoxes compact day={ctx.day} relay={relay} team={typing?teamOf(ctx.day,typing):null} onCancel={()=>setTyping(false)} onSave={legs=>{ctx.saveTeam(relay.code,typing,legs,race.id);setTyping(false);}}/>);
@@ -477,7 +502,7 @@ function FinalHere({ctx,race,change,done}:StepBody) {
 /** Which label is large on a team: A the team number, B the 4th leg's wristband (today), C both, side by side. */
 function tileLabel(variant:Variant,team:Team,inline=false):ReactNode {
   const last=lastLeg(team);
-  if(variant==='A') return inline?`Team ${team.number}`:<><small>Team</small>{team.number}</>;
+  if(variant==='A' || variant==='D') return inline?`Team ${team.number}`:<><small>Team</small>{team.number}</>;
   if(variant==='B') return last===null?<>{`Team ${team.number}`}<small>no 4th leg</small></>:inline?`${last} (Team ${team.number})`:<>{last}<small>Team {team.number}</small></>;
   return inline?`Team ${team.number} · ${last??'no 4th leg'}`:<><span className="proto-both__team">Team {team.number}</span><span className="proto-both__leg">4th leg {last??'–'}</span></>;
 }
