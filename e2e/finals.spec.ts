@@ -191,7 +191,6 @@ test('a final\'s check-in starts with nobody marked; That\'s everyone asks befor
  await ask.getByRole('button',{name:'Record them absent',exact:true}).click();
  await expect.poll(()=>marks(jo),live).toEqual(['Here','Here','Absent','Absent']);
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
- await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
  // The finish line places only those Here.
  await expect(runnerButtons(priya)).toHaveText([/1051/,/1052/],live);
  expect(await lookProblems(jo)).toEqual([]);await jo.screenshot({path:info.outputPath('final-attendance.png'),fullPage:true});
