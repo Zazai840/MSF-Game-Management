@@ -57,9 +57,11 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ## Screens
 
 ### 1. Join (artboard `N1-Join`)
-- Fields: Olympics password, Full name, "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
-- Copy under the cards: "You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password."
-- Typing the lead code into the code field signs in as Zone lead and skips the job choice.
+- Fields: Full name, Password (the Olympics password, shown as typed), "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
+- Copy under the cards: "You can switch job on any race. Zone lead? Type your lead code as the password."
+- Typing the lead code as the password signs in as Zone lead and skips the job choice.
+- A wrong password shows "That password isn't right. Check it with a lead and try again." in the amber warning callout under the Password box. Join with no job stays on the form with "Choose your job" in amber under the cards. The keyboard's Go key joins.
+- A signed-in phone with no job yet (a name tapped under Welcome back, or a lead's access ended) shows only the job cards: one tap opens Races; Zone lead asks for the lead code first.
 - Display-primary "Join" goes to Races.
 
 ### 2. Races: Home (artboard `N2-Races`)

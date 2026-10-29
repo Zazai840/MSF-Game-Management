@@ -9,7 +9,7 @@ import { WrongAccessCode, type failureBackoff } from './failures.js';
 export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 const wrongPassword = 'That is not the Olympics password. Check with a lead and try again.';
 const wrongLeadCode = "That is not today's lead code. Ask a lead for it.";
-const wrongJoinCode = "That is not the Olympics password or today's lead code. Check with a lead and try again.";
+const wrongJoinCode = "That password isn't right. Check it with a lead and try again.";
 /** Full names are stored tidied (trimmed, inner spaces collapsed), so lower(name) is the form compared for uniqueness. */
 export function fullName(value: unknown) {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -161,15 +161,15 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
     }));
   });
   /**
-   * Join, the race flow's one form: a code, a full name and the phone's profiles. The code is the owner password (sign
-   * in as the owner, starting the first day if none is running), the Olympics password (a name this phone holds signs
+   * Join, the race flow's one form: a code, a full name, the job and the phone's profiles. The code is the owner password (sign
+   * in as the owner, starting the first day if none is running), the Olympics password (needs a job; a name this phone holds signs
    * in; a new name makes a profile; a name held on another phone joins as the next free number, ADR 0005), or
    * today's lead code on its own (sign in as Lead, never refusing a name: ADR 0004). Wrong codes share the password
    * backoff per IP. Each answers `kind` with the sign-in and the pass, so the phone can tap its name next time.
    */
   app.post('/api/join', async (request, reply) => {
-    const body = request.body as {code?: unknown; name?: unknown; profiles?: unknown} | null;
-    if (typeof body?.code !== 'string' || !body.code.trim()) throw new Refusal(400, 'Type the Olympics password');
+    const body = request.body as {code?: unknown; name?: unknown; job?: unknown; profiles?: unknown} | null;
+    if (typeof body?.code !== 'string' || !body.code.trim()) throw new Refusal(400, 'Type the password');
     const code = body.code.trim(), name = fullName(body.name);
     return passwordFailures([request.ip], reply, () => signInTransaction(pool, async client => {
       if (matches(code, ownerPassword)) {
@@ -181,6 +181,8 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       if (!day || !settings) throw new WrongAccessCode(wrongJoinCode);
       const pass = passFor(settings);
       if (matches(code, settings.password)) {
+        // The job stays on the phone; a volunteer without one is kept on Join before anything is made.
+        if (!body.job) throw new Refusal(400, 'Choose your job', {reason:'choose-job'});
         const profile = await profileByName(client, name, body.profiles);
         return {kind:'volunteer', pass, profile, ...await signIn(client, day.id, profile)};
       }
