@@ -5,7 +5,7 @@ import { raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,us
 import { api,StaleRequest } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
-import { HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
+import { FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { useFlowWrite } from './writes.js';
@@ -37,6 +37,7 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
   // Another role's step, opened read-only from the step strip.
   const [viewing,setViewing]=useState<Step|null>(null);
   const [actions,setActions]=useState(false);
+  const [confirmingFinal,setConfirmingFinal]=useState(false);
   const [failure,setFailure]=useState('');
   // "Show latest" starts the step's body afresh from what the server has.
   const [fresh,setFresh]=useState(0);
@@ -81,7 +82,7 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
-      onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={group.finalAvailable?()=>void create('final'):undefined}/></nav>
+      onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
@@ -102,6 +103,7 @@ export function RaceShell({raceId,role,onRole,onBack,onRace,onSaved,onResults}:{
       :lead?<LeadStep key={`${race.id}:${step}:${fresh}`} step={step} {...props} issues={issues.items} onIssue={()=>void issues.refresh()} onResults={onResults} onActions={()=>setActions(true)}/>
         :step==='runners'?<StartLine key={`${race.id}:${fresh}`} {...props}/>:step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
     </div>
+    {confirmingFinal && <FinalSheet group={group} onClose={()=>setConfirmingFinal(false)} onMake={()=>{setConfirmingFinal(false);void create('final');}}/>}
     {actions && <LeadRaceSheet raceId={race.id} eventCode={event.code} onClose={()=>{setActions(false);void issues.refresh();}} onRemoved={()=>{setActions(false);onBack();}}/>}
   </>;
 }
