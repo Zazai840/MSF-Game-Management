@@ -1,8 +1,10 @@
 import { afterEach,expect,test } from 'vitest';
 import { once } from 'node:events';
+import pg from 'pg';
 import { connect as connectSocket,type AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { createApp,type AppSettings } from '../src/server/app.js';
+import { dayChanged } from '../src/server/live/changes.js';
 import { frameData,newerSnapshot,splitFrames } from '../src/shared/live.js';
 import type { RaceFlowRead,RacesRead } from '../src/shared/race-flow.js';
 import { homeStatus,type HomeSnapshot,type RaceScreenRead } from '../src/shared/race-screen.js';
@@ -141,6 +143,25 @@ test('a change elsewhere in the day that leaves the revision alone sends nothing
   expect(newerSnapshot(first,first)).toBe(true);
   expect(newerSnapshot(first,newer)).toBe(true);
   expect(newerSnapshot(null,older)).toBe(true);
+});
+test('a change made while a stream reads its first snapshot still reaches it',async()=>{
+  const {volunteer}=await start();
+  const db=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});await db.connect();
+  try {
+    const dayId=(await db.query('SELECT id FROM olympics_days WHERE active')).rows[0].id as string;
+    // Hold the stream's first read part way, after its snapshot is taken, by locking a table it reads later.
+    const lock=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});await lock.connect();
+    await lock.query('BEGIN');await lock.query('LOCK TABLE race_counters IN ACCESS EXCLUSIVE MODE');
+    const opening=openStream(volunteer,'races');
+    const waiting=async()=>(await db.query("SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE '%race_counters%'")).rowCount;
+    while(!(await waiting())) await new Promise(resolve=>setTimeout(resolve,10));
+    // A change commits and is told while the read is held.
+    await db.query('UPDATE olympics_days SET revision=revision+1 WHERE id=$1',[dayId]);dayChanged(dayId);
+    await lock.query('ROLLBACK');await lock.end();
+    const stream=await opening,first=await stream.snapshot<RacesRead>();
+    expect((await stream.snapshot<RacesRead>()).revision).toBeGreaterThan(first.revision);
+    await stream.close();
+  } finally {await db.end();}
 });
 test('Start new day ends the old day\'s streams, so their phones reconnect and are told a new day has started',async()=>{
   const {owner,volunteer}=await start();
