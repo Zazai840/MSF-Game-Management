@@ -39,7 +39,7 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await footer(one).getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(one.locator('.rz-toast')).toContainText('Runners saved');
 
-  // The finish line: team tiles two to a row, "Team 1" over its 4th leg's wristband, "–" with no 4th leg.
+  // The finish line: team tiles two to a row on a phone (wider screens add columns, race-flow.css), "Team 1" over its 4th leg's wristband, "–" with no 4th leg.
   await expect(tiles(line)).toHaveCount(3,live);
   await expect(meta(line)).toHaveText('Heat 1 · 3 teams · 3 to place');
   await expect(line.getByRole('heading',{level:2,name:'Which team came 1st?'})).toBeVisible();
@@ -47,7 +47,8 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await expect(line.getByRole('button',{name:`Team 1, 4th leg ${w(14)}, came 1st`,exact:true})).toBeVisible();
   await expect(line.getByRole('button',{name:'Team 3, no 4th leg, came 1st',exact:true})).toBeVisible();
   const [a,b,c]=await Promise.all([0,1,2].map(index=>tiles(line).nth(index).boundingBox()));
-  expect(a!.y).toBe(b!.y);expect(c!.y).toBeGreaterThan(a!.y);expect(a!.width).toBeGreaterThan(140);
+  const phone=line.viewportSize()!.width<700;
+  expect(a!.y).toBe(b!.y);if(phone) expect(c!.y).toBeGreaterThan(a!.y);else expect(c!.y).toBe(a!.y);expect(a!.width).toBeGreaterThan(140);
   const [name1,number1]=await tiles(line).first().locator('span').evaluateAll(spans=>spans.map(span=>getComputedStyle(span).fontSize));
   expect(name1).toBe(number1);
   expect(await lookProblems(line)).toEqual([]);
