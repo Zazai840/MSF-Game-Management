@@ -1,7 +1,7 @@
 /*
  * The race flow's look: the Running Zone design system (docs/running-zone-design-system), copied from its
  * tokens.css and components/bundle.css. Its tokens are scoped to .rz-screen, not :root, so they never reach the
- * screens that keep the older look (theme.css): Results, Day setup, Teams and the relay race screen.
+ * screens that keep the older look (theme.css): Results, Day setup and the lead's race actions.
  * Saira is self-hosted (race-flow.css); the fallbacks only show while it loads.
  */
 .rz-screen {

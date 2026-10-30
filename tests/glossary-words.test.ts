@@ -5,7 +5,7 @@ import { expect, test } from 'vitest';
 const glossary=readFileSync('GLOSSARY.md','utf8');
 const terms=[...glossary.matchAll(/^\*\*(.+?)\*\*/gm)].map(([,term])=>term);
 const avoided=[...glossary.matchAll(/^_Avoid_: (.+)$/gm)].flatMap(([,list])=>list.split(',').map(word=>word.replace(/\(.*\)/,'').trim()))
-  // A word one entry avoids that is another entry's own term (Job, Role, Section) means that term where it is used.
+  // A word one entry avoids that is another entry's own term (Didn't run) means that term where it is used.
   .filter((word,at,all)=>word&&all.findIndex(other=>other.toLowerCase()===word.toLowerCase())===at&&!terms.some(term=>term.toLowerCase()===word.toLowerCase()));
 /** Avoided words the screens keep on purpose: everywhere, or only in files under `in`. */
 const lead='src/client/lead/';
@@ -14,10 +14,10 @@ const allowed:Array<{word:string;in?:string;reason:string}>=[
   {word:'Results',reason:"the lead's Results screen and an event's results; the finishing order is never called results"},
   {word:'Result',reason:'a child\'s result in an event (choose which result counts), never a time'},
   {word:'absent',reason:"Absent marks the glossary's absent finalist (or team) at a final's check-in"},
-  {word:'beta',in:'src/client/races/RacesHome.tsx',reason:'the Relays tab\'s Beta badge marks a new feature, not the test build'},
+  {word:'Job',reason:"the everyday word for a role on Join and the role chip (What's your job today?, Switch job); the relay race screen's jobs are gone"},
+  {word:'remove',reason:'deleting a runner, a phone or a team from its list; Take off is only a team taken out of a heat at check-in'},
   // Spec #194 left Results, Day setup and the relay screens as they were: their words change with their own spec.
   {word:'line-up',in:lead,reason:"a final's seeded line-up, the glossary's Finals line-up"},
-  {word:'Confirm',in:lead,reason:'lead-only Results and Day setup keep their Confirm buttons'},
   {word:'comment',in:lead,reason:"lead-only rulings keep their Comment box (an audit note's comment)"},
   {word:'Official',in:lead,reason:"lead-only Results keeps its Official leaderboard"},
   {word:'Positions',in:lead,reason:"lead-only Results keeps a final's Final positions"},
@@ -58,7 +58,7 @@ const files=['src/client','src/shared'].flatMap(root=>readdirSync(root,{recursiv
 test('the glossary lists words to avoid, and none of them is a term of its own',()=>{
   expect(avoided.length).toBeGreaterThan(100);
   expect(avoided).toContain('Sign out');
-  expect(avoided).not.toContain('Job');
+  expect(avoided).not.toContain("Didn't run");
 });
 test('no screen shows a word the glossary says to avoid',()=>{
   const leftovers=files.flatMap(file=>shownText(file).flatMap(({text,line})=>words(text)

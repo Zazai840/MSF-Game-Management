@@ -1,4 +1,4 @@
-import {ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openTeams,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
 
 /** A lead's Results for the relay, then its event page. */
@@ -6,13 +6,13 @@ async function openRelayResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
 }
-/** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+/** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
 async function runHeat(request:APIRequestContext,token:string,code:string,placed:number[],times:number[]) {
   for(const team of placed) await tickTeam(request,token,code,team);
   await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);
 }
 
-test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, takes a team off and adds one, and the Teams screen shows the fix',async({openPhone,request},info)=>{
+test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, takes a team off and adds one, and the teams sheet shows the fix',async({openPhone,request},info)=>{
   test.setTimeout(60000);
   const name=ownName('Correct teams'),code=await ownCode();
   await ownRelay(code,name,'Boy Scouts');
@@ -47,15 +47,16 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await page.screenshot({path:info.outputPath('correct-teams.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();
   await expect(page.getByText('Teams: Team 2 · Team 3',{exact:true})).toBeVisible();
-  // Heat 1 is Team 2's latest race, so the Teams screen has the fix: the typo won't come back at the Final.
-  await openTeams(volunteer.page);
-  const card=volunteer.page.getByRole('region',{name,exact:true});
-  await card.getByRole('button',{name:/^Boy Scouts/}).click();
-  await expect(card.locator('.team-row').filter({hasText:'Team 2'})).toContainText(fixed.join(''),live);
-  await expect(card.locator('.team-row').filter({hasText:'Team 1'})).not.toContainText('In heat');
+  // Heat 1 is Team 2's latest race, so the teams sheet has the fix: the typo won't come back at the Final.
+  await openRelays(volunteer.page);
+  await volunteer.page.getByRole('article',{name:`${name} · Boy Scouts`,exact:true}).getByRole('button',{name:/^Teams 3/}).click();
+  const team=(number:number)=>volunteer.page.getByRole('list',{name:'Teams',exact:true}).getByRole('listitem').filter({hasText:`Team ${number}`});
+  const legsOf=(wristbands:number[])=>wristbands.map((wristband,index)=>`${['1st','2nd','3rd','4th'][index]}${wristband}`).join('');
+  await expect(team(2)).toContainText(`Team 2Heat 1 · ran${legsOf(fixed)}`,live);
+  await expect(team(1)).toContainText('Team 1Still to run');
   expect(await lookProblems(volunteer.page)).toEqual([]);
-  await volunteer.page.screenshot({path:info.outputPath('correct-teams-teams-screen.png'),fullPage:true});
-  // Correct number on one child of Team 2, from its leaderboard row: the Teams screen changes live.
+  await volunteer.page.screenshot({path:info.outputPath('correct-teams-teams-sheet.png')});
+  // Correct number on one child of Team 2, from its leaderboard row: the teams sheet changes live.
   await back(page,`${name} Boy Scouts`);
   await page.getByRole('button',{name:`Team 2 · ${fixed.join(' · ')} · Heat 1`,exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();
@@ -66,7 +67,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('correct-number-team.png'),fullPage:true});
   await page.getByRole('button',{name:'Save correction',exact:true}).click();
-  await expect(card.locator('.team-row').filter({hasText:'Team 2'})).toContainText([legs(2)[0],n(14),n(13),legs(2)[3]].join(''),live);
+  await expect(team(2)).toContainText(legsOf([legs(2)[0],n(14),n(13),legs(2)[3]]),live);
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText(`corrected ${legs(2)[1]} to ${n(14)} in Team 2 (Heat 1)`);
 });
 

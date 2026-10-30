@@ -12,8 +12,9 @@ const upAndDown:Modifier=({transform})=>({...transform,x:0});
  * the page never moves a row. The dragged row lifts, `renderItem` gets each row's place
  * as it will be if dropped now (so place labels update live), and the page scrolls by
  * itself when dragging near the top or bottom edge. `onReorder` gets the new order on drop;
- * `isAllowed` can refuse an order, which then springs back. `look` swaps in another screen's classes, handle icon and
- * handle name (the race flow's order rows: "Move 2033"); there, the arrow keys on a handle also move its row at once.
+ * `isAllowed` can refuse an order, which then springs back. `look` swaps in another screen's classes (a row's can follow
+ * its item), handle icon and handle name (the race flow's order rows: "Move 2033"); there, the arrow keys on a handle
+ * also move its row at once.
  */
 export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReorder,isAllowed,disabled=false,look}:{
   /** The list's accessible name, for example "Finishing order". */
@@ -27,7 +28,7 @@ export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReord
   onReorder:(next:T[])=>void;
   isAllowed?:(next:T[])=>boolean;
   disabled?:boolean;
-  look?:{list:string;row:string;handle:string;icon:ReactNode;handleName:(name:string)=>string};
+  look?:{list:string;row:string|((item:T)=>string);handle:string;icon:ReactNode;handleName:(name:string)=>string};
 }) {
   const sensors=useSensors(useSensor(PointerSensor),useSensor(KeyboardSensor,{coordinateGetter:sortableKeyboardCoordinates}));
   const [active,setActive]=useState<UniqueIdentifier|null>(null);
@@ -63,19 +64,19 @@ export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReord
     onDragEnd={end} onDragCancel={()=>{setActive(null);setOver(null);}}>
     <SortableContext items={ids} strategy={verticalListSortingStrategy} disabled={disabled}>
       <ol className={look?.list??'sortable-list'} aria-label={label}>
-        {items.map((item,index)=><Row key={ids[index]} id={ids[index]} name={itemName(item)} look={look} onStep={look?by=>step(index,by):undefined}>{renderItem(item,projected.indexOf(ids[index])+1)}</Row>)}
+        {items.map((item,index)=><Row key={ids[index]} id={ids[index]} name={itemName(item)} look={look} className={typeof look?.row==='function'?look.row(item):look?.row} onStep={look?by=>step(index,by):undefined}>{renderItem(item,projected.indexOf(ids[index])+1)}</Row>)}
       </ol>
     </SortableContext>
   </DndContext>;
 }
-function Row({id,name,look,onStep,children}:{id:string;name:string;look?:Parameters<typeof SortableList>[0]['look'];onStep?:(by:number)=>void;children:ReactNode}) {
+function Row({id,name,look,className,onStep,children}:{id:string;name:string;look?:{handle:string;icon:ReactNode;handleName:(name:string)=>string};className?:string;onStep?:(by:number)=>void;children:ReactNode}) {
   const {attributes,listeners,setNodeRef,setActivatorNodeRef,transform,transition,isDragging}=useSortable({id});
   const move=CSS.Translate.toString(transform);
   const keyDown=(event:KeyboardEvent<HTMLButtonElement>)=>{
     if(onStep && !isDragging && (event.key==='ArrowUp' || event.key==='ArrowDown')) {event.preventDefault();onStep(event.key==='ArrowUp'?-1:1);return;}
     listeners?.onKeyDown?.(event);
   };
-  return <li ref={setNodeRef} className={look?.row??'sortable-row'} data-dragging={isDragging?'true':undefined} style={{transform:isDragging?`${move||''} scale(1.02)`:move,transition}}>
+  return <li ref={setNodeRef} className={className??'sortable-row'} data-dragging={isDragging?'true':undefined} style={{transform:isDragging?`${move||''} scale(1.02)`:move,transition}}>
     {children}
     <button type="button" ref={setActivatorNodeRef} className={look?.handle??'sortable-handle'} {...attributes} {...listeners} onKeyDown={keyDown} aria-label={look?look.handleName(name):`Drag to move ${name}`} aria-roledescription="drag handle">
       {look?.icon??<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>}

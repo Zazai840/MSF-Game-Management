@@ -1,4 +1,4 @@
-import {ownName,ownCode,back,becomeLead,expect,join,openLeadMenu,openRace,openTeams,ownEvent,recordRace,test,type Page} from './fixtures.js';
+import {ownName,ownCode,back,becomeLead,expect,join,openLeadMenu,openRace,ownEvent,recordRace,test,type Page} from './fixtures.js';
 
 const row=(page:Page)=>page.getByRole('navigation',{name:'Back',exact:true});
 /** The back arrow shows bare at the left of the row under the header, names where it goes and is at least 44px to tap. */
@@ -16,7 +16,7 @@ async function onRaces(page:Page) {
   await expect(page.getByRole('button',{name:/^Back to /})).toHaveCount(0);
 }
 
-test('Races has no back arrow; a race and the Teams screen each go back to Races',async({page,request},info)=>{
+test('Races has no back arrow; a race goes back to Races',async({page,request},info)=>{
   const name=ownName('Back arrow heat'),code=await ownCode();
   await ownEvent(request,code,name);
   await page.goto('/');await join(page,ownName('Back arrow volunteer'),{job:'Start line'});
@@ -28,10 +28,6 @@ test('Races has no back arrow; a race and the Teams screen each go back to Races
   expect(box.width).toBeGreaterThanOrEqual(44);expect(box.height).toBeGreaterThanOrEqual(44);expect(box.x).toBeLessThan(page.viewportSize()!.width/4);
   await page.screenshot({path:info.outputPath('race.png')});
   await link.click();await onRaces(page);
-  await openTeams(page);
-  await arrowGoesBackTo(page,'Races');
-  await back(page,'Races');await onRaces(page);
-  await expect(page.getByRole('navigation',{name:'Event type'}).getByRole('button',{name:/^Relays/})).toHaveAttribute('aria-current','page');
 });
 
 test('on lead screens the back arrow goes up one level: a race to its event, event results to Results, Results and Day setup to Races',async({page,request},info)=>{

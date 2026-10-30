@@ -9,7 +9,7 @@ const status=(page:Page,name:string)=>card(page,name).locator('.rz-racecard__sta
 const readyForYou=(page:Page)=>page.locator('h2:text-is("Ready for you") ~ article');
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
 
-test('a lead\'s Ready for you is the groups with open issues, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
+test('a lead\'s Ready for you is the groups with open issues or medals to confirm, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
   const name=ownName('Lead issues'),calm=ownName('Lead calm'),code=await ownCode(),calmCode=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');await ownEvent(request,calmCode,calm,'Girl Cubs','timed');
   // A kept time faster than the place before, and a calm race.
@@ -19,9 +19,9 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
   await expect(readyForYou(page).filter({hasText:name})).toHaveCount(1);
-  // A calm event, every race saved, is not ready for the lead: it waits under In progress (after Ready for you) for its medals.
-  await expect(page.locator('h2:text-is("In progress") ~ article').filter({hasText:calm})).toHaveCount(1);
-  await expect(status(page,calm)).toHaveText('Heat 1 saved');
+  // A calm event, every race saved, is ready for the lead too: its medals wait on the lead's Confirm.
+  await expect(readyForYou(page).filter({hasText:calm})).toHaveCount(1);
+  await expect(status(page,calm)).toHaveText('Every race saved · confirm the medals after the last race');
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
@@ -78,9 +78,9 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await time.getByRole('button',{name:"It's right",exact:true}).click();
   await expect(time).toHaveCount(0);
   await expect(tabs.getByRole('tab')).not.toContainText(['to check']);
-  // Nothing left to check: the card says so on Races, and the accepted issues name who accepted them.
+  // Nothing left to check: the card turns to the medals, and the accepted issues name who accepted them.
   await backToRaces(page);
-  await expect(status(page,name)).toHaveText('Heat 1 saved');
+  await expect(status(page,name)).toHaveText('Every race saved · confirm the medals after the last race');
   const notes=(await (await request.get(`/api/lead/events/${code}/results`,{headers:{authorization:`Bearer ${owner()}`}})).json()).auditNotes.map((note:{action:string})=>note.action);
   expect(notes).toEqual(expect.arrayContaining(['mark-warning-checked','mark-added-checked']));
 });
@@ -136,4 +136,28 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   await actions.screenshot({path:info.outputPath('race-actions.png')});
   await page.keyboard.press('Escape');
   await expect(actions).toHaveCount(0);
+});
+
+test('a tie between two heats shows on both heats\' Times tab, and Open in Results opens the tie',async({openPhone,request},info)=>{
+  const name=ownName('Lead tie'),code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  // 2041 in Heat 1 and 2043 in Heat 2 share a time.
+  await recordRace(request,owner(),code,[2041,2042],[1000,1100]);
+  await recordRace(request,owner(),code,[2043],[1000]);
+  const {page}=await openPhone(ownName('Lead tie'),{lead:true});
+  for(const chip of ['H1','H2']) {
+    if(chip==='H2') await backToRaces(page);
+    await openRace(page,name,'Girl Cubs',chip);
+    const tabs=page.getByRole('tablist',{name:`Heat ${chip.slice(1)} steps`});
+    await expect(tabs.getByRole('tab',{name:/^Times/})).toContainText('1 to check');
+    await tabs.getByRole('tab',{name:/^Times/}).click();
+    const tie=page.getByRole('alert').filter({hasText:'Runners tied on time'});
+    await expect(tie).toContainText('2041 and 2043 both have 10.00. Decide whether a run-off is needed.');
+    await expect(tie.getByRole('button',{name:"It's right",exact:true})).toHaveCount(0);
+    expect(await lookProblems(page)).toEqual([]);
+    await page.screenshot({path:info.outputPath(`lead-tie-${chip}.png`),fullPage:true});
+  }
+  await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();
 });

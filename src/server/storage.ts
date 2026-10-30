@@ -84,8 +84,13 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       delete_reason text, request_id text, original_runners jsonb,
       UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
     );
-    -- A race moves in progress -> submitted (the first Submit press) -> saved (the last press), which is who and when.
-    ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','submitted','saved'));
+    -- A race is in progress until it saves itself (every step done), which is who and when.
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','saved'));
+    -- A relay race the old race screen left waiting on Submit presses carries on as an ordinary race-flow race: it keeps
+    -- every entry, and its steps start not done, so its people mark them done again and it saves itself.
+    UPDATE races SET state='in progress' WHERE state='submitted';
+    ALTER TABLE races DROP CONSTRAINT IF EXISTS races_state_check;
+    ALTER TABLE races ADD CONSTRAINT races_state_check CHECK (state IN ('in progress','saved'));
     ALTER TABLE races ADD COLUMN IF NOT EXISTS saved_at timestamptz;
     ALTER TABLE races ADD COLUMN IF NOT EXISTS saved_by text;
     CREATE TABLE IF NOT EXISTS race_finals (
@@ -141,16 +146,9 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE, stage text NOT NULL,
       PRIMARY KEY(event_id,stage)
     );
-    -- Holds: at most one signed-in phone per event and job. They belong to the event, so they carry over to its next race.
-    CREATE TABLE IF NOT EXISTS job_holds (
-      event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-      job text NOT NULL CHECK (job IN ('check-in','order','times','teams')),
-      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
-      PRIMARY KEY(event_id,job)
-    );
-    -- A relay's team list has a hold too: the teams job. Older builds' check names only the race jobs.
-    ALTER TABLE job_holds DROP CONSTRAINT IF EXISTS job_holds_job_check;
-    ALTER TABLE job_holds ADD CONSTRAINT job_holds_job_check CHECK (job IN ('check-in','order','times','teams'));
+    -- No part of the race flow has holds (ADR 0003), nor Submit presses: older builds kept them for relays here.
+    DROP TABLE IF EXISTS job_holds;
+    DROP TABLE IF EXISTS submit_presses;
     -- A relay's team list: one row per team, numbered within the relay and never renumbered. Legs are four
     -- {wristband,warnings} in leg order. A removed team keeps its row, so its number is never used again.
     CREATE TABLE IF NOT EXISTS relay_teams (
@@ -162,13 +160,12 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_since timestamptz;
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by text;
-    -- Submit presses on a race: who pressed and when. Not yet clears them; Take over removes the old holder's.
-    CREATE TABLE IF NOT EXISTS submit_presses (
-      race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
-      sign_in_id uuid NOT NULL REFERENCES sign_ins(id) ON DELETE CASCADE,
-      pressed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-      PRIMARY KEY(race_id,sign_in_id)
-    );
+    -- Whose profile last changed a team, so Change anyway asks only when it was someone else; the name stays for display.
+    -- Older rows take the profile of that name (profile names are unique and never change).
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by_profile uuid REFERENCES profiles(id);
+    UPDATE relay_teams t SET changed_by_profile=p.id FROM profiles p WHERE t.changed_by_profile IS NULL AND t.changed_by IS NOT NULL AND lower(p.name)=lower(t.changed_by);
+    -- No phone has a team's leg boxes open across a restart, so nobody is still changing a team.
+    UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE changing_by IS NOT NULL OR changing_since IS NOT NULL;
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       tie_id text NOT NULL, settlement jsonb NOT NULL,

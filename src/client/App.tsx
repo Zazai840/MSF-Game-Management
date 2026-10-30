@@ -4,30 +4,23 @@ import type { ResultsTarget } from '../shared/lead-results.js';
 import type { Role,Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { Home } from './home/Home.js';
-import { RaceScreen } from './race/RaceScreen.js';
-import { TeamsScreen } from './teams/TeamsScreen.js';
 import { AppHeader } from './shell/AppHeader.js';
-import { BackArea,BackArrow } from './flow/BackArrow.js';
-import { clock } from '../shared/clock.js';
+import { BackArea } from './flow/BackArrow.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,HomeBar,RoleChip,Screen } from './races/parts.js';
-import { EventTabs,RacesHome } from './races/RacesHome.js';
+import { RacesHome } from './races/RacesHome.js';
 import { RaceShell,type SavedStep } from './races/RaceShell.js';
 import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 // A failed load (often an old page after a deploy) reloads the app; until then the Opening Lead line stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 interface HomeRead { phone:Phone; needsYou?:number }
-/**
- * Where the phone is. Races (Home) and a race are the race flow; a relay's race screen, the Teams screen, the lead's
- * Results and Day setup keep the older screens.
- */
-type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'relay';code:string}|{kind:'teams'}|{kind:'lead';section:'Results'|'Day setup';target?:ResultsTarget};
+/** Where the phone is. Races (Home) and a race are the race flow, relays too; the lead's Results and Day setup keep the older screens. */
+type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'lead';section:'Results'|'Day setup';target?:ResultsTarget};
 /** A race has its own address (/races/:raceId); everything else is the app's root. */
 const fromLocation=():View=>{const id=location.pathname.match(/^\/races\/([^/]+)$/)?.[1];return id?{kind:'race',id:decodeURIComponent(id)}:{kind:'races'};};
 /** How each screen is named in a tester's bug report. */
-const screenName=(view:View,section:string)=>view.kind==='races'?'Races':view.kind==='race'?'Race':view.kind==='relay'?'Race screen':view.kind==='teams'?'Teams':section;
+const screenName=(view:View,section:string)=>view.kind==='races'?'Races':view.kind==='race'?'Race':section;
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
@@ -42,7 +35,6 @@ export function App() {
   const [saved,setSaved]=useState<SavedStep|null>(null);
   const [openDay,setOpenDay]=useState(false);
   const [leadSection,setLeadSection]=useState('Results');
-  const [updated,setUpdated] = useState('');
   const [error,setError] = useState('');
   const request=useRef(0);
   async function refresh() {
@@ -51,7 +43,7 @@ export function App() {
       const data = await api<HomeRead>('home');if(generation!==request.current) return;
       const previous=phoneStorage.dayId();
       if(previous && previous!==data.phone.dayId) {phoneStorage.newDay(data.phone.dayId);return;}
-      phoneStorage.rememberDay(data.phone.dayId);setHome(data);setUpdated(clock());setError('');
+      phoneStorage.rememberDay(data.phone.dayId);setHome(data);setError('');
     }
     catch (error) { if(generation!==request.current || error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect - tap Refresh'); }
   }
@@ -112,21 +104,15 @@ export function App() {
   const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
   if(view.kind==='races' || view.kind==='race') {
     const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
+    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} me={home.phone.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
       onRace={(id,step)=>go({kind:'race',id,step})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
-    // Relays keep today's list and screens, in the older look, under the race flow's tabs.
-    if(homeTab==='relays') return <><Screen screen="Races" fill={false} wide>{bar}<EventTabs tab={homeTab} onTab={pickTab}/>{sheet}</Screen>
-      <main><Home tab="relays" relaysOnly onTab={pickTab} onEvent={code=>go({kind:'relay',code})} onTeams={()=>go({kind:'teams'})}/>
-        <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer></main></>;
-    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={home.phone.profileId} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
       onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
   // The older look has no race-flow tokens, so the menu brings its own .rz-screen.
   return <><AppHeader name={name} label={menuLabel} screen={screenName(view,leadSection)} onMenu={openMenu}/>{menuList && <div className="rz-screen">{menuList}</div>}<BackArea>
-    {view.kind!=='lead' && <BackArrow to="Races" onBack={toRaces}/>}<main>
-    {view.kind==='teams'?<TeamsScreen phoneId={home.phone.id}/>
-      :view.kind==='relay'?<RaceScreen key={view.code} eventCode={view.code} phoneId={home.phone.id} lead={isLead}/>
-      :isLead?<Suspense fallback={<p>Opening Lead…</p>}><Lead key={`${home.phone.dayId}:${view.section}:${view.target?.id??''}`} initialDay={openDay} initialSection={view.section} target={view.target}
+<main>
+    {isLead?<Suspense fallback={<p>Opening Lead…</p>}><Lead key={`${home.phone.dayId}:${view.section}:${view.target?.id??''}`} initialDay={openDay} initialSection={view.section} target={view.target}
         onChanged={()=>void refresh()} onHome={()=>{setOpenDay(false);toRaces();}} onSection={setLeadSection}/></Suspense>:<p>Lead access needed</p>}
     {error && <p role="alert">{error}</p>}
   </main></BackArea></>;

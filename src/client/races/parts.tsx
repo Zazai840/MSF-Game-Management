@@ -2,7 +2,7 @@ import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
-
+import { entryCount } from '../../shared/teams.js';
 /** The design system's line icons (components/Icon/README.md). */
 const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
@@ -101,10 +101,10 @@ export function FinalReasonButton({group,onRace,onResults}:{group:Pick<RaceGroup
   const reason=group.finalReason!;
   return <button type="button" className="rz-heat-reason" onClick={()=>reason.step===null?onResults({event:group.event}):onRace(reason.raceId,reason.step)}><Icon name="warning"/>{reason.line}</button>;
 }
-/** A step's status in words: "5 checked in", "2 of 8", "10 finished", "Not started". */
-export function stepWords(step:Step,status:StepStatus) {
+/** A step's status in words: "5 checked in" (on a relay "5 teams"), "2 of 8", "10 finished", "Not started". */
+export function stepWords(step:Step,status:StepStatus,relay=false) {
   if(status.state==='not started') return 'Not started';
-  if(step==='runners') return `${status.count} ${status.state==='done'?'checked in':'so far'}`;
+  if(step==='runners') return status.state==='done'?(relay?entryCount(status.count,true):`${status.count} checked in`):`${status.count} so far`;
   // The Did not finish count goes on the step's own meta line: beside two other steps it would not fit on one line at 360px.
   if(step==='positions' && status.state==='done') return finishedCount(status);
   return `${status.count} of ${status.expected}`;
@@ -114,19 +114,19 @@ export function stepWords(step:Step,status:StepStatus) {
  * other step opens read-only. The own status is short ("You · not yet", "You · 2 of 8", "You · done") so each cell
  * stays on one line at 360px. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
  */
-export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
-  notes?:Partial<Record<Step,string>>;label:string}) {
+export function StepStrip({race,role,selected,onSelect,notes={},label,relay=false}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
+  notes?:Partial<Record<Step,string>>;label:string;relay?:boolean}) {
   const own=role==='lead'?null:roleSteps[role],shown=stepsOf(race);
   const cell=(step:Step)=>{
     const status=race.steps[step]!,done=status.state==='done',note=notes[step];
     return <>
       <span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
-      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status)}`:stepWords(step,status)}</span>
+      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status,relay)}`:stepWords(step,status,relay)}</span>
     </>;
   };
   if(onSelect) return <div className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} role="tablist" aria-label={label}>
     {shown.map(step=><button key={step} type="button" role="tab" className={step===own?'rz-step rz-step--mine':'rz-step'} aria-selected={step===selected}
-      aria-label={step===own || role==='lead'?undefined:`${stepLabels[step]}, ${stepWords(step,race.steps[step]!)}. View read-only`} onClick={()=>onSelect(step)}>{cell(step)}</button>)}
+      aria-label={step===own || role==='lead'?undefined:`${stepLabels[step]}, ${stepWords(step,race.steps[step]!,relay)}. View read-only`} onClick={()=>onSelect(step)}>{cell(step)}</button>)}
   </div>;
   return <ul className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} aria-label={label}>
     {shown.map(step=><li key={step} className={step===own?'rz-step rz-step--mine':'rz-step'}>{cell(step)}</li>)}
@@ -136,7 +136,8 @@ export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pic
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
   const id=useId(),sheet=useRef<HTMLDivElement>(null);
   useEffect(()=>{
-    sheet.current?.focus();
+    // A box inside that took focus as it opened (a leg box's autoFocus) keeps it, so its number pad stays open.
+    if(!sheet.current?.contains(document.activeElement)) sheet.current?.focus();
     const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};
     addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);
   },[]);

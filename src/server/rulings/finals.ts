@@ -34,13 +34,11 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
   const races=await listRaces(client,phone.dayId),existing=races.find(race=>race.event.id===event.id && race.kind==='final');
   if(existing?.final?.hasRun) return;
   await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[event.id]);
-  // Holds carry over from heat to heat, but the final starts with nobody holding anything.
-  await client.query('DELETE FROM job_holds WHERE event_id=$1',[event.id]);
   const id=existing?.id||randomUUID();
   const entries:FinalEntry[]=qualifiers.map((row,index)=>({finalEntryId:randomUUID(),heatRaceId:row.raceId,heatEntryId:row.entryId,heatWristband:row.wristband,heatRank:row.position!,seed:index+1,kind:'qualifier',absent:false}));
   const teams=await relayTeams(client,phone.dayId,event.id),lineup=entries.map((entry,index)=>finalist(teams,qualifiers[index],entry.finalEntryId));
-  // A child's final starts with nobody Here: each is marked at the start line. A relay's teams start in, none here yet.
-  const runners=event.relay?lineup:[];
+  // A final starts with nobody Here, children and relay teams alike: each is marked at the start line, and only those Here run it.
+  const runners:RaceEntry[]=[];
   if(existing) {
     await publishPart(client,phone,existing,'runners',runners);
     await publishPart(client,phone,existing,'finish',null);
@@ -64,18 +62,16 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       const next=final.nextCallUp;if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
       const id=randomUUID(),called=finalist(await relayTeams(client,current.dayId,detail.event.id),next,id);
       const entry:FinalEntry={finalEntryId:id,heatRaceId:next.raceId,heatEntryId:next.entryId,heatWristband:next.wristband,heatRank:next.position!,seed:final.vacancy.seed,kind:'call-up',absent:false,runner:called,replacesEntryId:final.vacancy.finalEntryId};
-      // A called-up child is not marked yet, like every finalist; a called-up relay team joins the race, none here yet.
-      const runners=[...(race.parts.runners.value||[]),...(detail.event.relay?[called]:[])];
+      // A call-up is not marked yet, like every finalist: it runs once marked Here.
       await client.query('UPDATE race_finals SET entries=$1 WHERE race_id=$2',[JSON.stringify([...final.entries,entry]),race.id]);
-      await publishPart(client,current,race,'runners',runners);
       // An absent child is named by the wristband seeded; an absent team by its number, from its copy kept when it left.
       const absent=final.vacancy.heatWristband??(final.vacancy.runner?entryName(final.vacancy.runner):'');
       await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${resultName(next)} (heat rank ${next.position}) for absent ${absent}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
     });
   });
-  // Adding a team to a relay's Final: picked from its team list, it joins with its four children as they stand now,
-  // none here yet, and check-in shows it as Added.
+  // Adding a team to a relay's Final: picked from its team list, it joins the line-up with its four children as they
+  // stand now, not marked yet, and check-in shows it as Added.
   action('POST','/api/lead/events/:code/add-team','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false);
     if(typeof value.teamId!=='string') throw new Refusal(400,'Choose a team');
@@ -88,8 +84,9 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
       const lineup=[...race.parts.runners.value||[],...final.entries.flatMap(entry=>entry.runner?[entry.runner]:[]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
       if(lineup.some(entry=>isTeamEntry(entry) && entry.team.id===team.id)) throw new Refusal(409,`Team ${team.number} is already in the Final`);
+      // Not marked yet, like every finalist: it runs once marked Here.
       const entry=teamEntry(team,randomUUID());
-      await publishPart(client,current,race,'runners',[...race.parts.runners.value||[],entry]);
+      await client.query("UPDATE race_finals SET additional_entries=COALESCE(additional_entries,'[]'::jsonb)||$1::jsonb WHERE race_id=$2",[JSON.stringify([{runner:entry,absent:false}]),race.id]);
       await writeAuditNote(client,current,detail.event.id,{action:'add-team',comment,message:`${current.name} added Team ${team.number} to the Final${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
     });

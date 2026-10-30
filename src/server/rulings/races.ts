@@ -1,5 +1,4 @@
 import { createRace } from '../races/create.js';
-import { requireCurrentUnstarted } from '../races/current.js';
 import type { Runner,FinishingOrder,RaceEntry,TeamEntry } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -14,12 +13,12 @@ import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
-import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { entryName,entryNumber,inProgressLine,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { entryCount } from '../../shared/teams.js';
 import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
-/** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
+/** Lead corrections and Re-run change a saved race only: until then, its entries belong to its steps. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
-  if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
+  if(race.state!=='saved') throw new Refusal(409,inProgressLine(race));
 }
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
 function requireNotRelay(race:{event:{relay:boolean}}) {
@@ -84,7 +83,6 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!race.deleted) throw new Refusal(409,'This race is already in the event');
       if(race.deleteReason==='re-run') throw new Refusal(409,'This race was replaced by a re-run and cannot be restored');
       if(race.kind==='final' && (await client.query("SELECT 1 FROM event_stages WHERE event_id=$1 AND stage='no-final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
-      if(race.state!=='saved') await requireCurrentUnstarted(client,current.dayId,race.event,'restore');
       await client.query('UPDATE races SET deleted=false,delete_reason=null WHERE id=$1',[race.id]);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
@@ -97,7 +95,6 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
-      await requireCurrentUnstarted(client,current.dayId,race.event,'re-run');
       requireSaved(race);
       // The same children in new entries: a team keeps its four children as they ran, a child their warnings.
       const runners:RaceEntry[]=race.parts.runners.value!.map(entry=>isTeamEntry(entry)?{id:randomUUID(),team:entry.team,legs:entry.legs}:{id:randomUUID(),wristband:entry.wristband,warnings:(entry.warnings||[]).filter(warning=>warning.kind!=='already-ran')});

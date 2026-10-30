@@ -1,13 +1,15 @@
 import type { DayEvent } from './day.js';
+import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
-import { andList } from './race-screen.js';
-import { entryName,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
+import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
 import type { NotRankedReason } from './results-rules.js';
+import { entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
+import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
  * person does the one step their role names on a race. A step is one of the race's parts: Runners (check-in), Finishing order
- * and Times. Relays keep the race screen.
+ * and Times. Relays run in it too, a relay's teams typed in its teams sheet.
  */
 export const steps=['runners','positions','times'] as const;
 export type Step=typeof steps[number];
@@ -26,6 +28,34 @@ export const usualSizeApplies=(event:Pick<DayEvent,'type'>)=>event.type==='races
 /** Every run is "Heat n", whatever its event format; an event has one final. */
 export const raceName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'Final':`Heat ${race.number}`;
 export const chipName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'F':`H${race.number}`;
+/** "Sam", "Sam and Jo", "Sam, Priya and Jo". */
+export const andList=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`;
+/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
+export function onlyRunners(finish:FinishingOrder,runners:readonly RaceEntry[]):FinishingOrder {
+  const on=(id:string)=>runners.some(runner=>runner.id===id);
+  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
+}
+/**
+ * Why a race whose steps are all done does not save itself yet, or null: nobody checked in (on a relay, no team in it;
+ * on a final, everyone Absent), a runner or team with no place (nor Did not finish), a placed runner with no time, a
+ * time at a place with no runner (left when a runner came off the order), or a wrong time neither kept nor retyped.
+ * Kept wristband warnings, and relay teams short of four here, never block it.
+ */
+export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'>,relay=false):string|null {
+  const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
+  if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
+  const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
+  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${entryNoun(relay)}s have no place yet`;
+  if(race.kind==='final') return null;
+  const times=race.parts.times.value,places=times?.places||[];
+  const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
+  if(untimed>=0) return `Place ${untimed+1} has no time`;
+  // Finishers and times disagree only after a lead's correction, never on a saved race.
+  const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
+  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
+  const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
+  return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
+}
 /** Who last changed a step and when, and who marked it done and when. */
 export interface StepMeta { version:number; by:string|null; at:string|null; doneBy:string|null; doneAt:string|null }
 /**
@@ -68,12 +98,16 @@ export function finalHold(kind:'ran-twice'|'tie'|NotRankedReason|undefined,name:
  * `finalReason`, while `finalAvailable`, is the first thing the heats check would refuse the final for.
  * `heatsOpen` is whether a new heat can be made: false once its heats (a timed event: the event) are complete.
  * `medalsDecided` is whether a lead has decided its medals: Event complete, Final complete or Results without a final.
+ * `medalsWaiting` is the lead's Confirm the medals waits on, while every race so far is saved and the medals are not
+ * decided: Final complete once the final is saved, or Event complete on a timed event; `since` is its last race's save.
+ * A relay's group also carries its team list (the teams sheet's) and `nextTeam`, the number New team takes.
  */
-export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean; updatedAt:string }
-/** The races list, versioned by the day revision: every switched-on event that is not a relay, in programme order. */
+export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean;
+  medalsWaiting:{stage:'final'|'event';since:string}|null; updatedAt:string; teams?:RelayTeam[]; nextTeam?:number }
+/** The races list, versioned by the day revision: every switched-on event, in programme order. */
 export interface RacesRead { revision:number; groups:RaceGroup[] }
-/** One race in the flow, with its group (for the heat chips) and its steps. */
-export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>> }
+/** One race in the flow, with its group (for the heat chips) and its steps; a relay's race also its team list, for check-in. */
+export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[] }
 /** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Finishing order and Times someone is in the race. */
 export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
   const status=race.steps[step];
@@ -84,10 +118,13 @@ export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
 export const groupDone=(group:Pick<RaceGroup,'medalsDecided'>)=>group.medalsDecided;
 /** Whether an event group's final is made: New race then opens it, and nobody makes another. */
 export const finalMade=(group:{races:readonly Pick<RaceSummary,'kind'>[]})=>group.races.some(race=>race.kind==='final');
+/** A relay with teams and no heats yet: listed under Teams ready, no heats yet, after In progress. */
+const teamsReady=(groups:readonly RaceGroup[])=>groups.filter(group=>!group.races.length && group.teams?.length);
 /**
  * Home's sections for a volunteer role: Ready for you (a race whose step for the role can be worked on now, the
  * group whose oldest such race was made first coming first), In progress (every other group not done, most recently
- * updated first) and Done. A group with no races is not listed: New race makes its first.
+ * updated first), Teams ready (a relay with teams and no heats) and Done. Any other group with no races is not
+ * listed: New race makes its first.
  */
 export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead'>) {
   const step=roleSteps[role],listed=groups.filter(group=>group.races.length);
@@ -95,19 +132,21 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
   const ready=listed.filter(waitingSince).sort((a,b)=>waitingSince(a).localeCompare(waitingSince(b)));
   const newest=(a:RaceGroup,b:RaceGroup)=>b.updatedAt.localeCompare(a.updatedAt);
   const rest=listed.filter(group=>!ready.includes(group));
-  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),done:rest.filter(groupDone).sort(newest)};
+  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),teamsReady:teamsReady(groups),done:rest.filter(groupDone).sort(newest)};
 }
+/** A race nobody is in yet, on its finish line and as That's everyone's refusal: on a final, nobody is marked Here yet. */
+export const emptyRaceLine=(race:{kind:RaceRead['kind'];event:{relay:boolean}})=>race.kind==='final'?(race.event.relay?'No team is marked Here yet':'Nobody is marked Here yet'):race.event.relay?'No team is in this heat yet':'Nobody is checked in yet';
 /**
  * Why a step cannot be marked done yet, or null: Runners needs someone checked in (on a final, someone Here),
  * Finishing order needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
  * a heat nobody finished).
  */
-export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'>,step:Step):string|null {
-  const runners:RaceEntry[]=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?'Nobody is marked Here yet':'Nobody is checked in yet';
+export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step):string|null {
+  const runners:RaceEntry[]=race.parts.runners.value||[],finish=race.parts.finish.value,relay=race.event.relay;
+  if(!runners.length) return emptyRaceLine(race);
   if(step==='positions') {
     const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-    return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} runners have no place yet`;
+    return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;
   }
   if(step==='times') {
     const times=race.parts.times.value;
@@ -184,5 +223,31 @@ export const teamsFinishedLine=(relay:{section:string})=>finishedLine(relay.sect
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
 export function finalConfirm(group:FinalGroup) {
   const saved=savedHeats(group).length;
-  return {title:`Have all ${group.event.section} heats run?`,text:`${saved} ${saved===1?'heat':'heats'} saved. The final takes the fastest 6, and no more heats can be added.`};
+  return {title:`Have all ${group.event.section} heats run?`,text:`${saved} ${saved===1?'heat':'heats'} saved. The final takes the fastest 6${group.event.relay?' teams':''}, and no more heats can be added.`};
 }
+const ownIssues=(group:Pick<RaceGroup,'event'>,issues:readonly DayLeadItem[])=>issues.filter(item=>item.event.code===group.event.code);
+/** The check sheet a lead's Confirm the medals opens on this card, shown only once nothing of the event is in To check. */
+export const medalsToConfirm=(group:Pick<RaceGroup,'event'|'medalsWaiting'>,issues:readonly DayLeadItem[])=>!ownIssues(group,issues).length && group.medalsWaiting?.stage||null;
+/**
+ * A lead's card status line: the event's To check line first, then what its medals wait on, "Medals decided" once
+ * confirmed, else the final's line or each race's state.
+ */
+export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medalsDecided'|'medalsWaiting'>,issues:readonly DayLeadItem[]) {
+  const own=ownIssues(group,issues),stage=medalsToConfirm(group,issues);
+  if(own.length) return issueLine(own);
+  if(stage) return stage==='final'?'Final saved · confirm the medals':'Every race saved · confirm the medals after the last race';
+  return group.medalsDecided?'Medals decided':leadFinalLine(group)??groupStatus(group,'lead');
+}
+/**
+ * A lead's sections: Ready for you is the groups with open issues or medals waiting on the lead, the one that started
+ * waiting last first (its newest issue, or its last race's save); the rest as for everyone.
+ */
+export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {
+  const listed=groups.filter(group=>group.races.length),newest=(a:RaceGroup,b:RaceGroup)=>b.updatedAt.localeCompare(a.updatedAt);
+  const waitingSince=(group:RaceGroup)=>[...ownIssues(group,issues).map(item=>item.at),group.medalsWaiting?.since??''].sort().at(-1);
+  const ready=listed.filter(waitingSince).sort((a,b)=>waitingSince(b)!.localeCompare(waitingSince(a)!));
+  const rest=listed.filter(group=>!ready.includes(group));
+  return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),teamsReady:teamsReady(groups),done:rest.filter(groupDone).sort(newest)};
+}
+/** A write refused because someone changed it first: "Tom Barker changed this a moment ago", or "Someone ..." when nobody is named. */
+export const changedLine=(by:string|null)=>`${by??'Someone'} changed this a moment ago`;

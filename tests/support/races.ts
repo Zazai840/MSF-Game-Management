@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
 import { isRunner } from '../../src/shared/races.js';
-import type { RaceScreenRead } from '../../src/shared/race-screen.js';
 import { stepsOf,type RaceFlowRead,type RacesRead } from '../../src/shared/race-flow.js';
 /** What the helpers answer: the race worked on, with its event (and in the race flow, its group and steps). */
 type Worked=Pick<RaceFlowRead,'race'> & Partial<RaceFlowRead> & {event?:RaceFlowRead['group']['event']};
@@ -9,8 +8,8 @@ type Worked=Pick<RaceFlowRead,'race'> & Partial<RaceFlowRead> & {event?:RaceFlow
  * taps make, failing the test unless the server accepts each. Wristbands name the runners.
  *
  * An individual event is worked in the race flow (ADR 0003), on the race the event is at: its final once it has one,
- * else its latest race not saved, else a new next heat. Submit marks every step done, which saves the race. A relay
- * keeps its race screen (`write` reaches it), where each write takes over its job first.
+ * else its latest race not saved, else a new next heat. Submit marks every step done, which saves the race. Relays
+ * have their own helpers (`relayFlowSetup`).
  */
 export function raceSetup(app:FastifyInstance) {
   async function post<T>(token:string,url:string,body:object) {
@@ -23,7 +22,6 @@ export function raceSetup(app:FastifyInstance) {
     if(response.statusCode!==200) throw new Error(`${url} answered ${response.statusCode}: ${response.body}`);
     return response.json() as T;
   }
-  const write=(token:string,code:string,what:string,body:object)=>post<RaceScreenRead>(token,`/api/race-screen/${code}/${what}`,body);
   const group=async(token:string,code:string)=>(await get<RacesRead>(token,'/api/races')).groups.find(item=>item.event.code===code);
   /** The race an individual event is at, or null when it has none to work (a new heat is made on the first write). */
   async function at(token:string,code:string) {
@@ -35,7 +33,7 @@ export function raceSetup(app:FastifyInstance) {
   /** The race an individual event is at, making its next heat when it has none. */
   async function worked(token:string,code:string) {
     const {own,race}=await at(token,code);
-    if(!own) throw new Error(`${code} is a relay or switched off: use the relay helpers`);
+    if(!own) throw new Error(`${code} is switched off`);
     return race??await post<RaceFlowRead>(token,'/api/races',{eventCode:code,kind:'heat',number:own.nextHeat});
   }
   const id=(race:RaceFlowRead['race'],wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
@@ -66,7 +64,7 @@ export function raceSetup(app:FastifyInstance) {
   /** The event's race as that phone sees it now: an empty next heat (id null) when it has none yet. */
   async function screen(token:string,code:string):Promise<Worked> {
     const {own,race}=await at(token,code);
-    if(!own) throw new Error(`${code} is a relay or switched off: use the relay helpers`);
+    if(!own) throw new Error(`${code} is switched off`);
     if(race) return {...race,event:race.group.event};
     const empty={version:0,value:null};
     return {event:own.event,race:{id:null,kind:own.event.format==='timed'?'race':'heat',number:own.nextHeat,state:'in progress',parts:{runners:empty,finish:empty,times:empty}} as unknown as RaceFlowRead['race']};
@@ -88,5 +86,5 @@ export function raceSetup(app:FastifyInstance) {
     await submit(token,code);
     return race;
   }
-  return {screen,checkIn,attend,order,times,submit,record,write};
+  return {screen,checkIn,attend,order,times,submit,record};
 }

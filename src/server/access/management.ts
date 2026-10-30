@@ -5,7 +5,7 @@ import { actions, Refusal } from './permissions.js';
 import { levels, type Level, type Phone } from '../../shared/domain.js';
 import { canMakeRole } from '../../shared/phones.js';
 import { rulingChange, readAuditNotes, writeAuditNote } from '../rulings/records.js';
-import { clearHolds } from '../races/race-screen.js';
+import { clearTeamMarks } from '../relays/teams.js';
 export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('GET','/api/day/phones','Lead',async(_request,_reply,phone)=>({
@@ -54,7 +54,7 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
     const target=await signedInRow(client,current,(request.params as {phoneId:string}).phoneId,'Use Log out to remove yourself');
     // The phone's next request fails with reason signed-out; signing back in starts again as a volunteer, except the owner, who stays a lead.
     await client.query("UPDATE sign_ins SET signed_out=true, level=CASE WHEN owner THEN level ELSE 'Volunteer' END WHERE id=$1",[target.id]);
-    await clearHolds(client,target.id);
+    await clearTeamMarks(client,target.id);
     await writeAuditNote(client,current,null,{action:'Removed',message:`Removed ${target.name}`,comment:null,touches:[]});
     return {status:'saved'};
   }));

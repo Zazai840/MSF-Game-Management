@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`},...(body===undefined?{}:{payload:body as object})});
 afterEach(async()=>{await app?.close();});
@@ -42,11 +42,11 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   expect((await call(lead,'/api/lead/events/R7/settle-tie',{tieId:tied.id,outcome:'no-run-off'})).statusCode).toBe(200);
   await call(lead,`/api/lead/races/${first.id}/runners/${first.parts.runners.value![0].id}/disqualify`,{reason:'Obstruction'});
   await record('R3',1001);const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);const finalId=complete.json().results.finalResults.raceId;
-  // A race left in progress with a step done, and a relay with a team, a tick and a hold: Start new day clears them all.
+  // A race left in progress with a step done, and a relay with a team ticked into a heat and open on a phone: Start new day clears them all.
   const running=await setup.checkIn(volunteer,'R4',[2001]);await setup.order(lead,'R4',[2001]);
   expect((await call(volunteer,`/api/races/${running.id}/steps/runners/done`,{})).statusCode).toBe(200);
-  const relays=relaySetup(app);await relays.team(volunteer,'R19',[101,102,103,104]);await relays.tick(volunteer,'R19',1);
-  expect((await relays.post<{holds:object}>(lead,'/api/race-screen/R19/hold',{job:'order'})).holds).toHaveProperty('order');
+  const relays=relayFlowSetup(app);await relays.team(volunteer,'R19',[101,102,103,104]);await relays.tick(volunteer,'R19',1);
+  const team=(await relays.teams(lead,'R19'))[0];await relays.post(lead,`/api/relays/${(await relays.race(lead,'R19'))!.group.event.id}/teams/${team.id}/open`,{});
   await call(lead,`/api/lead/races/${second.id}/delete`,{permanent:false});
   expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
   const reset=await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'});expect(reset.statusCode).toBe(200);
@@ -54,7 +54,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   const fresh=(await call(owner,'/api/day')).json();expect(fresh.leadCode).not.toBe(day.leadCode);expect(fresh.eventsConfirmed).toBe(false);expect(fresh.exportedAt).toBeNull();expect(fresh.exportedRevision).toBeNull();expect(fresh.events).toHaveLength(26);expect(fresh.events.every((event:any)=>event.enabled)).toBe(true);expect(fresh.events.find((event:any)=>event.code==='R4').name).toBe('60m');expect(fresh.events.some((event:any)=>event.code==='EXTRA')).toBe(false);
   expect((await call(owner,'/api/home')).json()).toMatchObject({needsYou:0});
   expect(await setup.screen(owner,'R4')).toMatchObject({race:{id:null,number:1}});
-  expect(await relays.screen(owner,'R19')).toMatchObject({race:{id:null,number:1},holds:{},asked:[],pressed:[],lastSaved:null,teams:[]});
+  expect(await relays.race(owner,'R19')).toBeNull();expect(await relays.teams(owner,'R19')).toEqual([]);
   const phones=(await call(owner,'/api/day/phones')).json();expect(phones.phones).toMatchObject([{id:before.id,name:'Owner',level:'Lead'}]);expect(phones.auditNotes).toEqual([]);
   for(const token of [volunteer,lead,otherOwner]) expect((await call(token,'/api/home')).statusCode).toBe(401);
   for(const id of [first.id,second.id,running.id,finalId]) expect((await call(owner,`/api/lead/races/${id}`)).statusCode).toBe(404);

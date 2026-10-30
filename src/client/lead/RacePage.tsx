@@ -14,6 +14,8 @@ import { api } from '../api.js';
 import { TimeCount,WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { flagText } from '../../shared/runner-rulings.js';
+// Its rows, action sheets and runner actions share Results' styles, also when it opens over a race outside Results.
+import './results.css';
 /** A lead's page for one race. It has no back button of its own: the back arrow above it leads back. */
 export function RacePage({raceId,onSaved,onClose,actionableRunners=[]}:{raceId:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
@@ -47,7 +49,7 @@ function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:
     <ol className="record-rows" aria-label="Current record">{[...race.recording.results].sort((a,b)=>(a.place??Infinity)-(b.place??Infinity) || 0).map(row=>{
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
       const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,result=rowFor(row.entryId);
-      return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
+      return <li key={row.entryId} className={`record-row${team?' record-row--team':''}${wrongTime?' time-wrong':''}`}>
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
         <span className="record-text">{result?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
           {team?.addedAtFinish && <small className="record-note">At finish</small>}

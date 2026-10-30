@@ -1,4 +1,5 @@
 import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
+import { ordinal } from './ordinal.js';
 import { raceCounts } from './race-counts.js';
 import { isTeamEntry,type FinishingOrder,type RaceEntry,type TeamEntry } from './races.js';
 import { resultHolder,type EventState,type LeaderboardRow,type ResultsRace } from './results-rules.js';
@@ -6,7 +7,7 @@ import { resultHolder,type EventState,type LeaderboardRow,type ResultsRace } fro
 export interface FinalEntry { finalEntryId:string; heatRaceId:string; heatEntryId:string; heatWristband:number|null; seed:number; heatRank:number; kind:'qualifier'|'call-up'; absent:boolean; wasHere?:boolean; runner?:RaceEntry; replacesEntryId?:string }
 export interface FinalAddition { runner:RaceEntry; absent:boolean; wasHere?:boolean }
 export interface FinalField { generation:string; entries:FinalEntry[]; additionalEntries?:FinalAddition[]; hasRun:boolean; heatsComplete:boolean }
-export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number|null;team?:TeamEntry['team'];seed:number|null;absent:boolean;calledUp:boolean}> }
+export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete:boolean;entries:Array<{finalEntryId:string;wristband:number|null;team?:TeamEntry['team'];legs?:TeamEntry['legs'];seed:number|null;absent:boolean;calledUp:boolean}> }
 export interface FinalResults extends FinalField { raceId:string; runners:readonly RaceEntry[]; leaderboard:LeaderboardRow[]; nextCallUp:LeaderboardRow|null; vacancy:FinalEntry|null;
   /** Attendance has been published (an individual Here or Absent, or a relay child Here), or a finishing order recorded. */
   started:boolean }
@@ -33,3 +34,5 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
     || race.runners.some(runner=>isTeamEntry(runner) && runner.legs.some(leg=>leg.here));
   return {...race.final,raceId:race.id,runners:race.runners,leaderboard:finalRows(state,race),nextCallUp,vacancy,started};
 }
+/** A finalist's place in the line-up at the final's check-in: "1st seed", "Called up" or "Added". */
+export const seedLabel=(entry:Pick<FinalPresence['entries'][number],'calledUp'|'seed'>)=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`;

@@ -3,10 +3,11 @@ import type { RelayTeam,TeamList } from './teams.js';
 import type { FinalField } from './finals.js';
 import type { RaceRead,RacePartName } from './races.js';
 import type { AuditNote } from './rulings.js';
+import type { Stage } from './stages.js';
 import type { RaceReference,LeadItem,EventResults } from './results-rules.js';
 export interface DayLeadItem extends LeadItem { race?:RaceReference; event:DayEvent }
-/** What Results opens on: a lead item, or only its event. */
-export type ResultsTarget=Pick<DayLeadItem,'event'> & Partial<DayLeadItem>;
+/** What Results opens on: a lead item, or only its event, maybe with its check sheet open (Confirm the medals). */
+export type ResultsTarget=Pick<DayLeadItem,'event'> & Partial<DayLeadItem> & {stage?:Stage};
 export interface EventSummary { needsYou:number; event:DayEvent; status:EventResults['status']; decidedWithoutFinal:boolean; raceCount:number; provisional:boolean; latestNoteAt:string|null }
 export interface ResultsRead { needsYou:DayLeadItem[]; eventsConfirmed:boolean; groups:Array<{name:string;events:EventSummary[]}> }
 /** A relay's also carries its team list, which a lead picks a team to add to its Final from. */

@@ -37,7 +37,6 @@ const scaleFor=(property:string)=>
   :undefined;
 /** Lengths kept on purpose, each with why. */
 const allowed:Array<{file:string;selector:string;property:string;value:number;reason:string}>=[
-  {file:'src/client/races/race-flow.css',selector:'.rz-beta',property:'padding',value:1,reason:'the Beta tag takes the TIE tag\'s 1px top and bottom'},
   {file:'src/client/races/race-flow.css',selector:'.rz-toast',property:'bottom',value:110,reason:'the toast clears the wide screen\'s shorter footer, a position not a gap'},
   {file:'src/client/races/race-flow.css',selector:'.rz-runners--compact .rz-runner',property:'height',value:48,reason:'12 runners fit above the footer on a 360x800 phone'},
   {file:'src/client/races/race-flow.css',selector:'.rz-runners--compact .rz-runner',property:'border-radius',value:24,reason:'the compact runner\'s arch, half its 48px height as the full one\'s 36px is of 72px'},

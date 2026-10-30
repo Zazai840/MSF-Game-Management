@@ -2,17 +2,16 @@ import { useState } from 'react';
 import type { LeadRaceRead } from '../../shared/lead-results.js';
 import { isTeamEntry,raceLabel,type TeamEntry } from '../../shared/races.js';
 import { stillToRun,type RelayTeam,type TeamList } from '../../shared/teams.js';
-import { TeamCells,TeamEdit } from '../teams/TeamsScreen.js';
-import '../teams/teams.css';
+import { TeamCells,TeamEdit } from './TeamEdit.js';
 import './race-page.css';
 /** One team of the race as Correct teams sends it: kept as it is, its four children corrected, or added from the team list. */
 type TeamChoice={entryId:string;legs?:Array<number|null>}|{teamId:string};
 /** A team in the race as the team editor reads a team: its four children as they ran in this race. */
-const asTeam=(entry:TeamEntry):RelayTeam=>({id:entry.team.id,number:entry.team.number,legs:entry.legs,version:0,changing:null,races:[]});
+const asTeam=(entry:TeamEntry):RelayTeam=>({id:entry.team.id,number:entry.team.number,legs:entry.legs,version:0,changedBy:null,changing:null,races:[]});
 /**
  * Correct teams, a relay race's "Correct runner list": tap a team to correct its four children (they keep the team's
- * place and time, and on the team's latest race the Teams screen changes too), take a team off the race (it is still to
- * run again) or add a team still to run. Each change saves at once, checked as the Teams screen checks a team.
+ * place and time, and on the team's latest race the teams sheet changes too), take a team off the race (it is still to
+ * run again) or add a team still to run. Each change saves at once, checked as the teams sheet checks a team.
  */
 export function RaceTeamsEditor({race,teams,relays,busy,onSave,onClose}:{race:LeadRaceRead['race'];teams:readonly RelayTeam[];relays:readonly TeamList[];busy:boolean;onSave:(body:unknown)=>Promise<void>;onClose:()=>void}) {
   const entries=(race.parts.runners.value||[]).filter(isTeamEntry),label=raceLabel(race);
@@ -24,7 +23,7 @@ export function RaceTeamsEditor({race,teams,relays,busy,onSave,onClose}:{race:Le
     await onSave({baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,teams:next,keptWarnings});
   }
   return <div className="sheet-stack">
-    <p className="sheet-hint">Tap a team to correct its children: the team keeps its place and time. On the team's latest race, the Teams screen changes too.</p>
+    <p className="sheet-hint">Tap a team to correct its children: the team keeps its place and time. On the team's latest race, the teams sheet changes too.</p>
     <ol className="lead-team-rows" aria-label="Teams">{entries.map(entry=>{
       const name=`Team ${entry.team.number}`;
       return <li key={entry.id}>{editing===entry.id?<TeamEdit team={asTeam(entry)} relay={relay} relays={relays} busy={busy} onCancel={()=>setEditing(null)}

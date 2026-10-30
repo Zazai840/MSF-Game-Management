@@ -8,7 +8,7 @@ import { legRefusal,legWarnings } from '../../shared/teams.js';
 /**
  * A lead corrects one runner's wristband on the phone's own number pad (as on check-in):
  * Check number, then Fix number (clears it and reopens the keyboard) or Keep for any warning, then Save.
- * On a team, the lead first picks the child, and the number is checked as the Teams screen checks a box.
+ * On a team, the lead first picks the child, and the number is checked as the teams sheet checks a box.
  */
 export function RunnerNumber({row,eventCode,onSaved,onClose,onBusyChange}:{row:LeaderboardRow;eventCode:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;onBusyChange:(busy:boolean)=>void}) {
   const [team]=useState(row.team);

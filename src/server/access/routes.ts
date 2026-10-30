@@ -5,7 +5,7 @@ import { rulingChange,writeAuditNote } from '../rulings/records.js';
 import { failureBackoff,WrongAccessCode } from './failures.js';
 import { matches, signInRoutes } from './sign-in.js';
 import { raceChange } from '../races/records.js';
-import { clearHolds } from '../races/race-screen.js';
+import { clearTeamMarks } from '../relays/teams.js';
 export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string) {
   // Olympics and owner password attempts share one backoff per IP.
   const passwordFailures=failureBackoff(),leadFailures=failureBackoff();
@@ -13,10 +13,10 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
   const action = actions(app, pool);
   action('GET', '/api/me', 'Volunteer', (_request, _reply, phone) => phone);
   // Signing yourself out is not a decision, so it writes no audit note. Tapping the name again signs in as a volunteer.
-  // It clears the phone's holds and, like every change of the day, raises the revision and wakes the live streams.
+  // It clears the phone's team-changing marks and, like every change of the day, raises the revision and wakes the live streams.
   action('POST', '/api/sign-out', 'Volunteer', (_request, _reply, phone) => raceChange(pool, phone, async client => {
     await client.query("UPDATE sign_ins SET signed_out=true, level='Volunteer' WHERE id=$1", [phone.id]);
-    await clearHolds(client, phone.id);
+    await clearTeamMarks(client,phone.id);
     return {status:'signed-out'};
   }));
   action('POST', '/api/become-lead', 'Volunteer', async (request, reply, phone) => {

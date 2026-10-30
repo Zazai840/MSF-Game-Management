@@ -11,10 +11,10 @@ export type StoredRace=Omit<RaceRead,'final'> & {final?:FinalField};
 /** Jobs receive attendance only; heat ranking and provenance stay within Lead reads. */
 export function jobRace(race:StoredRace):RaceRead {
   const {final,...rest}=race,runners=race.parts.runners.value||[];
-  // A line-up entry reads as it is in the race now, else as it was when last there (an Absent one): a child's wristband, or a team.
+  // A line-up entry reads as it is in the race now, else as it was when last there (an Absent one): a child's wristband, or a team with its children.
   const named=(id:string,copy:RaceEntry|undefined,heatWristband:number|null)=>{
     const entry=runners.find(current=>current.id===id)??copy;
-    return entry && isTeamEntry(entry)?{wristband:null,team:entry.team}:{wristband:entry?.wristband??heatWristband};
+    return entry && isTeamEntry(entry)?{wristband:null,team:entry.team,legs:entry.legs}:{wristband:entry?.wristband??heatWristband};
   };
   return {...rest,...(final?{final:{generation:final.generation,hasRun:final.hasRun,heatsComplete:final.heatsComplete,entries:[...final.entries.map(({finalEntryId,heatWristband,seed,absent,runner,kind})=>({finalEntryId,...named(finalEntryId,runner,heatWristband),seed,absent,calledUp:kind==='call-up'})),...(final.additionalEntries||[]).map(({runner,absent})=>({finalEntryId:runner.id,...named(runner.id,runner,null),seed:null,absent,calledUp:false}))]}}:{})};
 }

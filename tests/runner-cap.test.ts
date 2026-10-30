@@ -31,7 +31,7 @@ test('a times save still checks each value when there are more than 6 places',as
   const {volunteer,setup}=await start();
   await setup.checkIn(volunteer,'R4',eight);
   const race=await setup.order(volunteer,'R4',eight);
-  const refused=await call(volunteer,'/api/race-screen/R4/times',{raceId:race.id,version:0,places:[...eightTimes.slice(0,7),-1],keptWrong:[]});
+  const refused=await call(volunteer,`/api/races/${race.id}/times`,{raceId:race.id,version:0,places:[...eightTimes.slice(0,7),-1],keptWrong:[]});
   expect(refused.statusCode).toBe(400);expect(refused.json().message).toBe('Enter whole hundredths for every place');
 });
 

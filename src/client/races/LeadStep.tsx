@@ -3,9 +3,10 @@ import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem } from '../../shared/lead-results.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { raceName,stepLabels,type Step } from '../../shared/race-flow.js';
-import { runnersOf } from '../../shared/races.js';
+import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
+import { entryCount,legsText } from '../../shared/teams.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { toCheckWording } from '../../shared/to-check.js';
+import { itemTeams,toCheckWording } from '../../shared/to-check.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { Callout,Icon } from './parts.js';
@@ -38,8 +39,9 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
     } catch(failure) {setError(failure instanceof Error?failure.message:'Not saved - try again');}
     finally {setBusy('');}
   }
-  const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
-  const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);return <Callout key={item.id} message={<><strong>{words.title}.</strong> {words.explanation}</>}
+  const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='two-relays' || item.kind==='ran-short' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
+  const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);
+    return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
     actions={acceptable(item)?<><button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button>
       <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button></>
       :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;
@@ -56,27 +58,32 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
     <footer className="rz-footer"><p className="rz-refresh" aria-live="polite">Updated at {updated}</p></footer>
   </>;
 }
+/** A relay team's four children on the line under its name, in a chip or across a row; nothing for a child. */
+const TeamLegs=({entry,className='rz-team-legs'}:{entry:RaceEntry|undefined;className?:string})=>entry && isTeamEntry(entry)?<span className={className}>{legsText(entry.legs)}</span>:null;
+const nameOf=(entry:RaceEntry|undefined)=>entry?entryName(entry):'–';
+/** A kept warning on a child, or on any child of a relay team. */
+const kept=(entry:RaceEntry)=>isTeamEntry(entry)?entry.legs.some(leg=>leg.warnings.length):!!entry.warnings?.length;
 /**
  * A step's record, read-only: the runners, the finishing order, or the times joined to wristbands by place. A lead
  * sees it on a saved race (each time opens the race actions); anyone sees it when looking at another role's step.
  */
 export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;onEdit?:()=>void}) {
-  const {race}=read,runners=runnersOf(race.parts.runners.value),byId=new Map(runners.map(runner=>[runner.id,runner]));
+  const {race}=read,relay=race.event.relay,runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
   const finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
   const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places).map(time=>time.index));
   return <>
-    <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'places and times joined up':step==='positions'?'the finishing order':`${runners.length} checked in`}</p>
-    {step==='runners' && (runners.length?<ul className="rz-chips" aria-label="Checked in">{runners.map(runner=><li key={runner.id}><span className={runner.warnings?.length?'rz-chip rz-chip--warn':'rz-chip'}>{runner.wristband}</span></li>)}</ul>
-      :<p className="rz-empty">Nobody is checked in yet.</p>)}
+    <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'places and times joined up':step==='positions'?'the finishing order':`${relay?entryCount(runners.length,true):runners.length} checked in`}</p>
+    {step==='runners' && (runners.length?<ul className="rz-chips" aria-label="Checked in">{runners.map(runner=><li key={runner.id}><span className={['rz-chip',kept(runner) && 'rz-chip--warn',relay && 'rz-chip--team'].filter(Boolean).join(' ')}>{entryName(runner)}<TeamLegs entry={runner}/></span></li>)}</ul>
+      :<p className="rz-empty">{relay?'No team is checked in yet.':'Nobody is checked in yet.'}</p>)}
     {step==='positions' && (finish?<ol className="rz-lead-rows" aria-label="Finishing order">
-      {finish.order.map((id,index)=><li key={id} className="rz-lead-row"><span className="rz-lead-row__place">{ordinal(index+1)}</span><span className="rz-lead-row__num">{byId.get(id)?.wristband}</span><span/></li>)}
-      {finish.didNotFinish.map(id=><li key={id} className="rz-lead-row"><span className="rz-lead-row__place">–</span><span className="rz-lead-row__num">{byId.get(id)?.wristband}</span><span className="rz-tag rz-tag--dnf">Did not finish</span></li>)}
-    </ol>:<p className="rz-empty">Nobody is placed yet.</p>)}
+      {finish.order.map((id,index)=><li key={id} className="rz-lead-row"><span className="rz-lead-row__place">{ordinal(index+1)}</span><span className="rz-lead-row__num">{nameOf(byId.get(id))}</span><span/><TeamLegs entry={byId.get(id)} className="rz-team-legs rz-lead-row__legs"/></li>)}
+      {finish.didNotFinish.map(id=><li key={id} className="rz-lead-row"><span className="rz-lead-row__place">–</span><span className="rz-lead-row__num">{nameOf(byId.get(id))}</span><span className="rz-tag rz-tag--dnf">Did not finish</span><TeamLegs entry={byId.get(id)} className="rz-team-legs rz-lead-row__legs"/></li>)}
+    </ol>:<p className="rz-empty">{relay?'No team is placed yet.':'Nobody is placed yet.'}</p>)}
     {step==='times' && (rows?<ol className="rz-lead-rows" aria-label="Times">{Array.from({length:rows},(_,index)=>{
       const runner=byId.get(finish?.order[index]||''),time=places[index],warn=wrong.has(index);
-      const content=<><span className="rz-lead-row__place">{ordinal(index+1)}</span><span className="rz-lead-row__num">{runner?.wristband??'–'}</span>
-        <span className="rz-lead-row__end">{time==null?'No time':formatTime(time)}{onEdit && <> <Icon name="pencil" className="rz-icon--sm"/></>}</span></>;
-      const label=`${ordinal(index+1)}, ${runner?.wristband??'no wristband'}, ${time==null?'no time yet':formatTime(time)}`;
+      const content=<><span className="rz-lead-row__place">{ordinal(index+1)}</span><span className="rz-lead-row__num">{nameOf(runner)}</span>
+        <span className="rz-lead-row__end">{time==null?'No time':formatTime(time)}{onEdit && <> <Icon name="pencil" className="rz-icon--sm"/></>}</span><TeamLegs entry={runner} className="rz-team-legs rz-lead-row__legs"/></>;
+      const label=`${ordinal(index+1)}, ${runner?(isTeamEntry(runner)?`${entryName(runner)} · ${legsText(runner.legs)}`:entryName(runner)):relay?'no team':'no wristband'}, ${time==null?'no time yet':formatTime(time)}`;
       return <li key={index}>{onEdit?<button type="button" className={warn?'rz-lead-row rz-lead-row--warn':'rz-lead-row'} style={{width:'100%'}} onClick={onEdit} aria-label={`${label}. Edit`}>{content}</button>
         :<div className={warn?'rz-lead-row rz-lead-row--warn':'rz-lead-row'} aria-label={label}>{content}</div>}</li>;
     })}</ol>:<p className="rz-empty">No times yet.</p>)}

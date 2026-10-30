@@ -32,8 +32,8 @@ export const raceParts=['runners','finish','times'] as const;
 export type RacePartName=typeof raceParts[number];
 export type PartValue=RaceEntry[]|FinishingOrder|RaceTimes|null;
 export const partLabel=(part:RacePartName)=>part==='runners'?'Runners':part==='finish'?'Finishing order':'Times';
-/** A race moves in progress -> submitted (the first Submit press) -> saved (the last required press). Only saved races count. */
-export type RaceState='in progress'|'submitted'|'saved';
+/** A race is in progress until it saves itself, once every step is done. Only saved races count. */
+export type RaceState='in progress'|'saved';
 export interface RaceRead {
   id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; state:RaceState; stageComplete?:boolean; final?:FinalPresence; deleteReason?:string|null;
   /** Lead reads only: the race that replaced this one in a re-run, or null when it can no longer be found. */
@@ -42,6 +42,8 @@ export interface RaceRead {
 }
 /** Every run of every event type is a Heat (race-flow.md decision 1), the final a Final. */
 export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='final'?'Final':'Heat'} ${race.number}`;
+/** A race not saved yet, on a lead's race page and in a correction's refusal: it saves itself once its steps are done. */
+export const inProgressLine=(race:Pick<RaceRead,'kind'|'number'>)=>`${raceLabel(race)} is in progress - finish its steps on Races`;
 export const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
 /** How a lead sees a race deleted by a re-run: it can never be restored, so it names its replacement instead. */
 export const replacedByRerun=(race:Pick<RaceRead,'deleted'|'deleteReason'|'replacedBy'>)=>race.deleted && race.deleteReason==='re-run'?(race.replacedBy?`Replaced by ${race.replacedBy} (re-run)`:'Replaced by a re-run'):null;

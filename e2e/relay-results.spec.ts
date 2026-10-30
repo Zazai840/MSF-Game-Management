@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -60,7 +60,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   const n=await ownWristbands('Girl Cubs',30),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg)),borrowed=(await ownWristbands('Boy Cubs',1))(1);
   const token=await signInThroughApi(request,ownName('Relay results volunteer'));
   for(let team=1;team<=7;team++) await writeTeam(request,token,code,team===4?[legs(4)[0],borrowed,legs(4)[2],legs(4)[3]]:legs(team),{keptWarnings:team===4?[borrowed]:[]});
-  /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+  /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
   async function heat(placed:number[],times:number[]) {
     for(const team of placed) await tickTeam(request,token,code,team);
     await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);
@@ -90,6 +90,12 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   const kept=record.nth(3).locator('.record-warning').filter({hasText:String(borrowed)});
   await expect(kept).toHaveText(`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`);
   expect(await kept.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe('rgb(255, 244, 220)');
+  // Each team's button keeps its four children on one line, at 360 as at 390.
+  const lines=await page.locator('.record-team .result-legs').evaluateAll(all=>all.map(legs=>{
+    const range=document.createRange();range.selectNodeContents(legs);
+    return new Set([...range.getClientRects()].map(line=>Math.round(line.top))).size;
+  }));
+  expect(lines).toEqual([1,1,1,1]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page.png'),fullPage:true});
   await page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button').click();
@@ -104,7 +110,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await expect(page.locator('.final-lineup li')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${index+1}: Team ${number} · ${legs(number).join(' · ')}`));
   // The final runs (its race screen is another slice's), then the Final leaderboard and Input - Running name each
   // medal team's four children.
-  await writeTeamOrder(request,token,code,[3,2,5,1,6,7]);await submitRace(request,token,code);
+  await markFinalHere(request,token,code,[3,2,5,1,6,7]);await writeTeamOrder(request,token,code,[3,2,5,1,6,7]);await submitRace(request,token,code);
   await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await expect(page.getByRole('list',{name:'Final leaderboard',exact:true}).getByRole('button',{name:`Team 3 · ${legs(3).join(' · ')} · Final`,exact:true})).toContainText('1st');
   await page.getByRole('button',{name:'Final complete',exact:true}).click();
@@ -123,7 +129,7 @@ async function scoutsRelay(request:APIRequestContext,info:TestInfo,title:string,
   const n=await ownWristbands('Boy Scouts',count*4),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
   const token=await signInThroughApi(request,ownName(`${title} volunteer`));
   for(let team=1;team<=count;team++) await writeTeam(request,token,code,legs(team));
-  /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+  /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
   async function heat(placed:number[],times:number[]) {
     for(const team of placed) await tickTeam(request,token,code,team);
     await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);

@@ -3,11 +3,10 @@ import type { FastifyInstance } from 'fastify';
 import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import type { EventResultsRead } from '../src/shared/lead-results.js';
-import type { HomeSnapshot } from '../src/shared/race-screen.js';
 import { groupDone,type RaceFlowRead,type RaceGroup } from '../src/shared/race-flow.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
@@ -72,14 +71,11 @@ test('only a lead may choose it, and never on a timed event',async()=>{
   await setup.record(volunteer,'R16',[2001],[1000]);
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(409);
 });
-test('once decided without a final the event is done for volunteers: Home shows it done, no further heat is offered and its heats need a lead',async()=>{
+test('once decided without a final the event is done for volunteers: Races shows it done, no further heat is offered and its heats need a lead',async()=>{
   const {lead,volunteer,results}=await start();
   const heat=(await results()).results.leaderboard[0].raceId;
   await call(lead,'/api/lead/events/R4/settle-tie',{tieId:(await results()).results.noFinalTies[0].id,stage:'no-final',outcome:'no-run-off'});
   expect((await call(lead,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
-  // Any teams write answers Home as it then stands.
-  const home=(await call(volunteer,'/api/teams/R19/hold',{})).json() as HomeSnapshot;
-  expect(home.events.find(event=>event.code==='R4')).toMatchObject({done:true});
   const races=await group(volunteer);
   expect(groupDone(races)).toBe(true);
   expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'heat',number:races.nextHeat})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to add another heat.'});
@@ -97,13 +93,13 @@ test('the day export has the podium from heat times and no Finals rows for an ev
 });
 test('a relay decided without a final locks its team list and refuses call-ups and added teams',async()=>{
   const {lead,volunteer}=await start();
-  const relays=relaySetup(app);
+  const relays=relayFlowSetup(app);
   for(const number of [1,2,3]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
   for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
   await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
-  expect((await call(volunteer,'/api/teams/R22/done',{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
-  expect((await call(volunteer,'/api/teams/R22/hold',{})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
+  const relay=(await call(volunteer,'/api/races')).json().groups.find((group:{event:{code:string}})=>group.event.code==='R22').event.id;
+  expect((await call(volunteer,`/api/relays/${relay}/teams`,{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
   const team=(await call(lead,'/api/lead/events/R22/results')).json().teams[0];
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team.id})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:'any'})).statusCode).toBe(409);
@@ -226,9 +222,9 @@ test('deleting a started final offers it again; the deleted final stays restorab
   expect((await call(lead,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   expect((await setup.screen(volunteer,'R4')).race).toMatchObject({kind:'final',number:2});
 });
-test('a relay final with a team added and no child marked here is discarded; once a child is marked here it has started',async()=>{
+test('a relay final with a team added and no child marked here is discarded; once a team is marked Here it has started',async()=>{
   const {lead,volunteer}=await start();
-  const relays=relaySetup(app);
+  const relays=relayFlowSetup(app);
   for(const number of [1,2,3,4]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
   for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
   await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
@@ -238,7 +234,10 @@ test('a relay final with a team added and no child marked here is discarded; onc
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   await call(lead,'/api/lead/events/R22/reopen-stage',{stage:'no-final',comment:'Final fits after all'});
   const rebuilt=await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'});
-  expect(rebuilt.json().results.finalResults.runners.map((entry:{team:{number:number}})=>entry.team.number)).toEqual([2,1,3]);
-  await relays.here(volunteer,'R22',2,0);
+  // Rebuilt from the heats alone: the added team is gone, and nobody runs it until marked Here.
+  expect(rebuilt.json().results.finalResults.entries.map((entry:{runner:{team:{number:number}}})=>entry.runner.team.number)).toEqual([2,1,3]);
+  expect(rebuilt.json().results.finalResults.additionalEntries).toEqual([]);
+  const final=(await relays.race(volunteer,'R22'))!;
+  await relays.post(volunteer,`/api/races/${final.race.id}/teams/${final.race.final!.entries.find(entry=>entry.team?.number===2)!.team!.id}/absent`,{mark:'here'});
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(409);
 });

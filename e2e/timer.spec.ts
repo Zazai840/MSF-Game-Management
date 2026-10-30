@@ -7,7 +7,7 @@ async function raceWaitingForTimes(request:APIRequestContext,code:string,name:st
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await writeCheckIn(request,await signInThroughApi(request,`Start ${name}`),code,[2601,2602,2603,2604,2605]);
 }
-const savedTimes=async(request:APIRequestContext,code:string)=>(await flowRace(request,process.env.E2E_OWNER_TOKEN!,code))!.race.parts.times.value;
+const savedTimes=async(request:APIRequestContext,code:string)=>(await flowRace(request,process.env.E2E_OWNER_TOKEN!,code)).race.parts.times.value;
 
 test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one stays marked, and a retyped place clears it',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Times wrong');

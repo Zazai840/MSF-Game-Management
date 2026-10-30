@@ -26,6 +26,8 @@ const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fi
  */
 export function Results({target,onDashboard,onChanged,backTo}:{target?:ResultsTarget;onDashboard:()=>void;onChanged?:()=>void;backTo:string}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
+  // Confirm the medals opens the event on its check sheet, once, when its results first arrive.
+  const [stageToOpen,setStageToOpen]=useState(target?.stage);
   const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
   // The check sheet a tie was opened from: from Results without a final it is settled against medal places.
   const [tieStage,setTieStage]=useState<Stage>();
@@ -46,6 +48,12 @@ export function Results({target,onDashboard,onChanged,backTo}:{target?:ResultsTa
       setUpdated(clock());setError('');
     } catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
+  useEffect(()=>{
+    if(!detail || !stageToOpen) return;
+    const sheet=[detail.results.checkSheet,detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet].find(sheet=>sheet?.stage===stageToOpen);
+    if(sheet && !sheet.completed) setSelectedStage(sheet);
+    setStageToOpen(undefined);
+  },[detail]);
   useEffect(()=>{
     void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
     return()=>{request.current++;clearInterval(timer);};

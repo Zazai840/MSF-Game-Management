@@ -38,7 +38,7 @@ test('a tie for 3rd settled No run-off needed for qualifying comes back, and set
 });
 test('a heat in progress, a heat not ranked yet and a ran-twice row in the top 6 block it; open warnings are worth a look',()=>{
   const open=heat(3,[]);open.saved=false;open.runners=[{id:'h3-1',wristband:2021}];open.finish=null;open.times=null;
-  expect(eventResults({event,races:[heat(1,[900]),open]}).noFinalCheckSheet?.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 3 is in progress (1 checked in) - submit it or delete it']);
+  expect(eventResults({event,races:[heat(1,[900]),open]}).noFinalCheckSheet?.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 3 is in progress (1 checked in) - finish its steps or delete it']);
   const untimed=heat(2,[1000]);untimed.times=null;
   expect(eventResults({event,races:[heat(1,[900]),untimed]}).noFinalCheckSheet?.mustSettleFirst).toMatchObject([{kind:'incomplete',raceId:'heat2'}]);
   const again=(time:number)=>{const race=heat(2,[time]);race.runners=[{id:'h2-1',wristband:2001}];return race;};

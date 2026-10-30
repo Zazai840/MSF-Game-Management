@@ -1,7 +1,6 @@
 import { test,expect,type Browser,type Page } from '@playwright/test';
 import readExcelFile from 'read-excel-file/node';
-import {back,enterTime,join,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,readRaceScreen,writeCheckIn,type JobName} from '../fixtures.js';
-import { jobWords,type Job } from '../../src/shared/race-screen.js';
+import {back,enterTime,join,openLeadMenu,openRace,openRelays,writeCheckIn,type JobName} from '../fixtures.js';
 import type { RacesRead } from '../../src/shared/race-flow.js';
 
 // Runs only under playwright.remote.config.ts, against a deployed test build whose day is shared with real testers:
@@ -27,22 +26,6 @@ async function expectDeployedCommitShown(page:Page) {
   await expect(marker).toHaveText(/^Test build · [0-9a-f]{7}$/);
   await expect(page.getByRole('link',{name:'Report a bug',exact:true})).toBeVisible();
 }
-const orderCard=(page:Page)=>page.getByRole('button',{name:/^Order and Times/});
-/**
- * Takes a job on a relay's race screen as a volunteer would. Opening the card takes it when it is the card's one free
- * job; with both columns free, Do the order or Do the times picks one. The day is shared and holds outlast a saved
- * race, so a tester or an earlier run may still hold the job: then it needs Take over.
- */
-async function holdJob(page:Page,eventCode:string,job:Exclude<Job,'check-in'>) {
-  const {holds}=await readRaceScreen(page.request,(await token(page))!,eventCode);
-  await orderCard(page).click();
-  if(holds[job]) {
-    await page.getByRole('button',{name:`Take over ${jobWords[job]}`,exact:true}).click();
-    await page.getByRole('button',{name:'Take over',exact:true}).click();
-  } else if(!holds[job==='order'?'times':'order']) await page.getByRole('button',{name:`Do ${jobWords[job]}`,exact:true}).click();
-  await expect(orderCard(page)).toHaveAccessibleName({order:/Order: You/,times:/Times: You/}[job]);
-}
-
 test('five phones share the test build: three work one race live until it saves itself, four work one relay heat, a mistyped code, 70 live writes and the export',async({browser},info)=>{
   test.setTimeout(360_000);
   const use={...info.project.use};
@@ -114,14 +97,17 @@ test('five phones share the test build: three work one race live until it saves 
   // The loop's race was never saved, so the owner deletes it and leaves only the smoke race on the day.
   expect((await owner.request.post(`/api/lead/races/${race.id}/delete`,{headers:ownerHeaders,data:{permanent:true}})).ok()).toBe(true);
 
-  // One relay on top, R22 (4x50m Relay Girl Cubs), seeded by Start new day: two teams typed on the Teams screen on one
-  // phone, checked in from two phones, the order on a third and the times on a fourth, then Submit Race by both holders.
-  const relayName='4x50m Relay';
-  const relayBefore=await readRaceScreen(starter.request,starterToken,'R22');
-  expect(relayBefore.event.enabled,'R22 (4x50m Relay Girl Cubs) must be on the day and switched on').toBe(true);
-  expect(relayBefore.race.kind,'R22 must still be running heats: a lead has completed its heats').toBe('heat');
+  // One relay on top, R22 (4x50m Relay Girl Cubs), seeded by Start new day, worked in the race flow like any race: two
+  // teams typed in its teams sheet on one phone while another watches, then one heat checked in from two phones, placed
+  // on a third and timed on a fourth, saving itself.
+  const relayName='4x50m Relay',relaySection='Girl Cubs';
+  const relayGroups=async(page:Page)=>((await (await page.request.get('/api/races',{headers:{authorization:`Bearer ${await token(page)}`}})).json()) as RacesRead).groups;
+  const relayGroup=async(page:Page)=>(await relayGroups(page)).find(item=>item.event.code==='R22');
+  const relayBefore=await relayGroup(starter);
+  expect(relayBefore,'R22 (4x50m Relay Girl Cubs) must be on the day and switched on').toBeTruthy();
+  expect(relayBefore!.heatsOpen,'R22 must still be running heats: a lead has completed its heats').toBe(true);
   // Girl Cubs wristbands in no relay's team yet, so no leg needs Keep on a day earlier runs and testers have used.
-  const inTeams=new Set([...relayBefore.teams!,...relayBefore.relays!.flatMap(other=>other.teams)].flatMap(team=>team.legs.map(leg=>leg.wristband)));
+  const inTeams=new Set((await relayGroups(starter)).flatMap(item=>item.teams||[]).flatMap(team=>team.legs.map(leg=>leg.wristband)));
   const legs:number[]=[];
   while(legs.length<8) {
     const number=2000+Math.floor(Math.random()*1000);
@@ -135,70 +121,60 @@ test('five phones share the test build: three work one race live until it saves 
     if(await raceBack.isVisible()) await raceBack.click();else await back(page,'Races');
     await races(page);
   };
-  const openRelay=async(page:Page)=>{await openRelays(page);await openRaceScreen(page,relayName);};
-  const checkInTeams=(page:Page)=>page.getByRole('button',{name:/^Check-in Teams/});
-  // The 4th phone watches Check-in Teams while the 1st types the teams on the Teams screen.
-  await openRelay(mistyped);
-  await checkInTeams(mistyped).click();
-  for(const page of [starter,finisher,timer]) await toRaces(page);
-  await openTeams(starter);
-  await starter.getByRole('region',{name:relayName,exact:true}).getByRole('button',{name:/^Girl Cubs/}).click();
-  const addTeam=starter.getByRole('button',{name:'+ Add team',exact:true}),takeOverTeams=starter.getByRole('button',{name:'Take over the teams',exact:true});
-  // An earlier run or a tester may still hold R22's teams: then it needs Take over.
-  await expect(addTeam.or(takeOverTeams)).toBeVisible();
-  if(await takeOverTeams.isVisible()) {
-    await takeOverTeams.click();
-    await starter.getByRole('button',{name:'Take over',exact:true}).click();
-  }
+  const sheet=(page:Page,title:string|RegExp)=>page.getByRole('dialog',{name:title});
+  const teamsSheet=(page:Page)=>sheet(page,`${relayName} · ${relaySection}`);
+  const teamCards=(page:Page)=>page.getByRole('list',{name:'Teams',exact:true}).getByRole('listitem');
+  const legsText=(team:number[])=>['1st','2nd','3rd','4th'].map((leg,index)=>`${leg}${team[index]}`).join('');
+  for(const page of [starter,finisher,timer,mistyped]) {await toRaces(page);await openRelays(page);}
+  // The first team from New team at the foot of Relays, which asks which relay first; the second from the teams sheet.
+  await starter.locator('footer').getByRole('button',{name:'New team',exact:true}).click();
+  const which=sheet(starter,'New team');
+  await which.getByRole('button',{name:relayName,exact:true}).click();
+  await which.getByRole('button',{name:new RegExp(`^${relaySection}`)}).click();
+  await which.getByRole('button',{name:'Type a new team',exact:true}).click();
   const teamNumbers:number[]=[];
-  for(const team of teamLegs) {
-    await addTeam.click();
-    for(const [index,leg] of ['1st','2nd','3rd','4th'].entries()) await starter.getByLabel(`New team ${leg} leg`,{exact:true}).fill(String(team[index]));
-    await starter.getByRole('button',{name:'Done',exact:true}).click();
-    await expect(addTeam).toBeVisible();
-    const {teams}=await readRaceScreen(starter.request,starterToken,'R22');
-    const number=teams!.find(saved=>saved.legs[0].wristband===team[0])!.number;
-    teamNumbers.push(number);
-    await expect(mistyped.getByRole('button',{name:new RegExp(`^Team ${number} `)})).toContainText(team.join(' · '),crossPhone);
+  for(const [index,team] of teamLegs.entries()) {
+    if(index) await teamsSheet(starter).getByRole('button',{name:'New team',exact:true}).click();
+    const typing=sheet(starter,/^New team \d+$/);
+    for(const [leg,label] of ['1st','2nd','3rd','4th'].entries()) await typing.getByLabel(`${label} leg`,{exact:true}).fill(String(team[leg]));
+    await typing.getByRole('button',{name:/^Save team \d+$/}).click();
+    await expect(teamCards(starter).filter({hasText:legsText(team)})).toHaveCount(1);
+    teamNumbers.push((await relayGroup(starter))!.teams!.find(saved=>saved.legs[0].wristband===team[0])!.number);
+    // The 4th phone watches the relay's teams sheet: each team shows there as it is saved.
+    if(!index) await mistyped.getByRole('article',{name:`${relayName} · ${relaySection}`,exact:true}).getByRole('button',{name:/^Teams \d/}).click();
+    await expect(teamCards(mistyped).filter({hasText:legsText(team)})).toHaveCount(1,crossPhone);
   }
   const [teamA,teamB]=teamNumbers,[legsA,legsB]=teamLegs;
-  await toRaces(starter);
-  await openRelay(starter);
-  await checkInTeams(starter).click();
-  let relayRace:string|null=null;
+  for(const page of [starter,mistyped]) await teamsSheet(page).getByRole('button',{name:'Close',exact:true}).click();
+  // New relay makes the next heat; the other three open it from its card.
+  const relayHeatNumber=(await relayGroup(starter))!.nextHeat,relayHeat=`Heat ${relayHeatNumber}`;
+  await starter.locator('footer').getByRole('button',{name:'New relay',exact:true}).click();
+  const newRelay=sheet(starter,'New relay');
+  await newRelay.getByRole('button',{name:relayName,exact:true}).click();
+  await newRelay.getByRole('button',{name:new RegExp(`^${relaySection}`)}).click();
+  await newRelay.getByRole('button',{name:`Create heat ${relayHeatNumber}`,exact:true}).click();
+  await expect(starter.getByRole('heading',{level:1,name:`${relayName} · ${relaySection}`})).toBeVisible();
+  const relayRace=(await relayGroup(starter))!.races.find(race=>race.kind==='heat' && race.number===relayHeatNumber)!.id;
   try {
-    // Two phones check in a team each: tick it, then tap each child here. Both see all eight children here.
-    const ticked=(page:Page,number:number)=>page.locator('.ci-team').filter({has:page.getByText(`Team ${number}`,{exact:true})});
-    for(const [page,number] of [[starter,teamA],[mistyped,teamB]] as const) {
-      await page.getByRole('button',{name:new RegExp(`^Team ${number} `)}).click();
-      relayRace??=(await readRaceScreen(page.request,(await token(page))!,'R22')).race.id;
-      for(const leg of ['1st','2nd','3rd','4th']) await ticked(page,number).getByRole('button',{name:new RegExp(`^${leg} `)}).click();
+    for(const page of [mistyped,finisher,timer]) await openRace(page,relayName,relaySection,`H${relayHeatNumber}`);
+    // Two start-line phones add a team each and tap each child here; both see all eight children here.
+    const meta=(page:Page)=>page.locator('.rz-prompt__meta');
+    for(const [page,number,team] of [[starter,teamA,legsA],[mistyped,teamB,legsB]] as const) {
+      await page.getByRole('list',{name:'Still to run'}).getByRole('button',{name:`Add Team ${number}`,exact:true}).click();
+      for(const wristband of team) await page.getByRole('button',{name:`${wristband}: Here`,exact:true}).click();
     }
-    for(const page of [starter,mistyped]) await expect(checkInTeams(page)).toContainText('2 teams in · 8 of 8 here',crossPhone);
-    const relayHeat=(await starter.locator('.race-line').innerText()).split(' · ')[0];
-    await expect(mistyped.locator('.race-line')).toHaveText(`${relayHeat} · 2 teams`);
-    // The order on the 2nd phone, by each team's 4th-leg button; the times on the 3rd. Each shows on the others live.
-    const [finisherName,timerName]=[2,3].map(index=>`Smoke Volunteer ${index} ${run}`);
-    const rows=(page:Page)=>page.getByRole('table',{name:'Order and times'}).getByRole('row');
-    const dockSays=(page:Page,text:string)=>expect(page.getByRole('status').filter({hasText:text})).toHaveText(text,crossPhone);
-    for(const page of [finisher,timer]) await openRelay(page);
-    await holdJob(finisher,'R22','order');
-    await holdJob(timer,'R22','times');
-    for(const page of [starter,mistyped]) {
-      await orderCard(page).click();
-      await expect(orderCard(page)).toHaveAccessibleName(`Order and Times Order: ${finisherName} · Times: ${timerName}`,crossPhone);
-    }
-    for(const [number,team] of [[teamB,legsB],[teamA,legsA]] as const) await finisher.locator('.race-numbers').getByRole('button',{name:new RegExp(`^${team[3]}\\s*Team ${number}$`)}).click();
-    await expect(rows(timer)).toHaveText([/^Place\s*Team\s*Time$/,new RegExp(`^1st\\s*${legsB[3]}\\s*Team ${teamB}\\s*(Next)?$`),new RegExp(`^2nd\\s*${legsA[3]}\\s*Team ${teamA}\\s*$`)],crossPhone);
+    for(const page of [starter,mistyped]) await expect(meta(page)).toHaveText(`${relayHeat} · 2 teams · 8 children here`,crossPhone);
+    await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
+    await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · ${relaySection} ${relayHeat}`);
+    // The finish line taps each team's tile as its 4th leg crosses; the timer types one time per team, and the last saves the heat.
+    await finisher.getByRole('button',{name:`Team ${teamB}, 4th leg ${legsB[3]}, came 1st`,exact:true}).click();
+    await finisher.getByRole('button',{name:`Team ${teamA}, 4th leg ${legsA[3]}, came 2nd`,exact:true}).click();
+    await finisher.getByRole('button',{name:'Save the order',exact:true}).click();
+    await expect(finisher.locator('.rz-toast')).toContainText('Finishing order saved');
+    await expect(timer.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(2,crossPhone);
     for(const digits of ['1520','1610']) await enterTime(timer,digits);
-    for(const page of [starter,mistyped,finisher]) await expect(rows(page)).toHaveText([/^Place/,new RegExp(`^1st\\s*${legsB[3]}\\s*Team ${teamB}\\s*15\\.20$`),new RegExp(`^2nd\\s*${legsA[3]}\\s*Team ${teamA}\\s*16\\.10$`)],crossPhone);
-    // Only the two holders are asked: the check-in phones have no Submit Race.
-    for(const page of [starter,mistyped]) await expect(page.getByRole('button',{name:'Submit Race',exact:true})).toHaveCount(0);
-    await finisher.getByRole('button',{name:'Submit Race',exact:true}).click();
-    await dockSays(timer,'Waiting on you');
-    await dockSays(finisher,`You submitted. Waiting on ${timerName}`);
-    await timer.getByRole('button',{name:'Submit Race',exact:true}).click();
-    for(const page of [starter,mistyped,finisher,timer]) await expect(page.getByText(`${relayHeat} saved`,{exact:true})).toBeVisible(crossPhone);
+    await expect(timer.locator('.rz-toast')).toContainText(`Times saved · ${relaySection} ${relayHeat}`);
+    await expect.poll(async()=>(await relayGroup(owner))!.races.find(race=>race.id===relayRace)?.state,crossPhone).toBe('saved');
 
     // The owner downloads the day export: the relay heat is in All results, one row per child with its team and leg (by place here).
     const download=owner.waitForEvent('download');
@@ -215,7 +191,7 @@ test('five phones share the test build: three work one race live until it saves 
     expect(allResults.filter(row=>row[0]==='R4' && row[3]===heat && [first,second,third].includes(row[4] as number))).toHaveLength(3);
   } finally {
     // A run that fails mid-heat deletes the heat it opened, so the next run's heat starts with no teams.
-    const left=(await readRaceScreen(owner.request,(await token(owner))!,'R22')).race;
-    if(relayRace && left.id===relayRace && left.state!=='saved') expect((await owner.request.post(`/api/lead/races/${relayRace}/delete`,{headers:ownerHeaders,data:{permanent:true}})).ok()).toBe(true);
+    const left=(await relayGroups(owner)).find(item=>item.event.code==='R22')!.races.find(race=>race.id===relayRace);
+    if(left && left.state!=='saved') expect((await owner.request.post(`/api/lead/races/${relayRace}/delete`,{headers:ownerHeaders,data:{permanent:true}})).ok()).toBe(true);
   }
 });

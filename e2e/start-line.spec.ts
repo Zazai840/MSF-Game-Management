@@ -160,12 +160,12 @@ test('tapping a typed wristband changes it in the big box, checked like a new nu
   await chip('2001').click();await footerButton(page,'Cancel').click();
   await expect(input).not.toBeFocused();await expect(input).toHaveValue('20');
   // The changed runner keeps its entry: the server's list has the same ids.
-  const before=(await flowRace(request,token,code))!.race.parts.runners.value!.filter(isRunner).map(runner=>runner.id);
+  const before=(await flowRace(request,token,code)).race.parts.runners.value!.filter(isRunner).map(runner=>runner.id);
   await chip('2001').click();
   await page.getByLabel('New number for 2001',{exact:true}).pressSequentially('2065');await footerButton(page,'Save').click();
   await expect(chips(page)).toHaveText(['2065','3065','2003']);
   await expect(page.getByRole('status').filter({hasText:'2001 changed to 2065'})).toBeVisible();
-  const after=(await flowRace(request,token,code))!.race.parts.runners.value!.filter(isRunner);
+  const after=(await flowRace(request,token,code)).race.parts.runners.value!.filter(isRunner);
   expect(after.map(runner=>[runner.id,runner.wristband])).toEqual([[before[0],2065],[before[1],3065],[before[2],2003]]);
   // The half-typed number goes in as the next runner.
   await expect(input).toBeEditable();await input.pressSequentially('02');await input.press('Enter');
@@ -184,7 +184,7 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   await openRace(page,name);
   const progress=page.getByRole('tablist',{name:'Heat 1 progress'}),chip=(number:string)=>chips(page).filter({hasText:new RegExp(`^${number}`)});
   await expect(progress).toContainText('You · done');
-  const order=async()=>{const {race}=(await flowRace(request,token,code))!,runners=race.parts.runners.value!.filter(isRunner);return race.parts.finish.value!.order.map(id=>runners.find(runner=>runner.id===id)?.wristband);};
+  const order=async()=>{const {race}=(await flowRace(request,token,code)),runners=race.parts.runners.value!.filter(isRunner);return race.parts.finish.value!.order.map(id=>runners.find(runner=>runner.id===id)?.wristband);};
   // A change keeps the step done and the place follows the runner.
   await chip('2002').click();
   await page.getByLabel('New number for 2002',{exact:true}).pressSequentially('2062');await footerButton(page,'Save').click();

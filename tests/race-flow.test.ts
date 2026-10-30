@@ -34,10 +34,10 @@ async function heat(token:string,eventCode:string,number:number,runners:number[]
   return read;
 }
 const steps:Step[]=['runners','positions','times'];
-test('the races list has every switched-on event that is not a relay, each with its races and their steps',async()=>{
+test('the races list has every switched-on event, relays too, each with its races and their steps',async()=>{
   const {ahmed}=await start();
   const empty=await ok<RacesRead>(ahmed,'/api/races');
-  expect(empty.groups.some(group=>group.event.relay)).toBe(false);
+  expect(empty.groups.find(group=>group.event.code==='R19')!.event).toMatchObject({type:'relays',relay:true});
   expect(empty.groups.find(group=>group.event.code==='R7')!.event.type).toBe('hurdles');
   expect(empty.groups.find(group=>group.event.code==='R4')).toMatchObject({event:{type:'races'},races:[],nextHeat:1,finalAvailable:false,heatsOpen:true});
   const made=await newHeat(ahmed,'R4',1);
@@ -56,7 +56,6 @@ test('two phones making the same next heat at once get one race, and a heat that
   expect(skipped.statusCode).toBe(409);expect(skipped.json()).toMatchObject({message:'Heat 2 is next',next:2});
   // A 200m run is stored as a race, and named a heat.
   expect((await newHeat(ahmed,'R16',1)).race).toMatchObject({kind:'race',number:1});
-  expect((await call(ahmed,'/api/races',{eventCode:'R19',kind:'heat',number:1})).json().message).toBe('Relays use the relay race screen');
 });
 test('anyone writes any step with no hold, and a write made on an older version names who changed it',async()=>{
   const {ahmed,tom}=await start();

@@ -48,7 +48,7 @@ test('lead-accepted time order is fully recorded but count mismatches still bloc
 test('a race not saved yet must be settled, saying how many are checked in, while one with nobody checked in is ignored',()=>{
   const inProgress=(id:string,number:number,wristbands:number[]):ResultsRace=>({...race(id,number,0),saved:false,runners:wristbands.map(wristband=>({id:`entry-${wristband}`,wristband})),finish:null,times:null});
   const heats={...event,code:'R1',format:'heats' as const},heat=(r:ResultsRace):ResultsRace=>({...r,kind:'heat'});
-  expect(eventResults({event,races:[race('a',1,1000),inProgress('b',2,[2004,2005,2006,2007])]}).checkSheet?.mustSettleFirst).toEqual([{id:'race:b',kind:'incomplete',raceId:'b',message:'Heat 2 is in progress (4 checked in) - submit it or delete it'}]);
-  expect(eventResults({event:heats,races:[heat(race('a',1,1000)),heat(inProgress('b',3,[2004]))]}).heatsCheckSheet?.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 3 is in progress (1 checked in) - submit it or delete it']);
+  expect(eventResults({event,races:[race('a',1,1000),inProgress('b',2,[2004,2005,2006,2007])]}).checkSheet?.mustSettleFirst).toEqual([{id:'race:b',kind:'incomplete',raceId:'b',message:'Heat 2 is in progress (4 checked in) - finish its steps or delete it'}]);
+  expect(eventResults({event:heats,races:[heat(race('a',1,1000)),heat(inProgress('b',3,[2004]))]}).heatsCheckSheet?.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 3 is in progress (1 checked in) - finish its steps or delete it']);
   expect(eventResults({event:heats,races:[heat(race('a',1,1000)),heat(inProgress('b',2,[]))]}).heatsCheckSheet?.mustSettleFirst).toEqual([]);
 });

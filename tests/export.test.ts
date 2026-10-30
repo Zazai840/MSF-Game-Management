@@ -5,9 +5,8 @@ import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
-import { relaySetup } from './support/relays.js';
+import { relayFlowSetup } from './support/relays.js';
 import type { EventResultsRead } from '../src/shared/lead-results.js';
-import { isTeamEntry } from '../src/shared/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`},...(body===undefined?{}:{payload:body as object})});
 afterEach(async()=>{await app?.close();});
@@ -119,7 +118,7 @@ test('removed and demoted lead phones cannot refresh export metadata',async()=>{
 /** Boy Beavers relay R19's teams in leg order: Team 1 opens with a Girl Cub, Team 2 has no Beaver at all, the rest are Beavers. */
 const relayTeams=[[2001,101,102,103],[3001,3002,3003,3004],[301,302,303,304],[401,402,403,404],[501,502,503,504],[601,602,603,604],[701,702,703,704]];
 test('day export recomputes two-relay warnings from the current switched-on team lists',async()=>{
- const {owner,volunteer,lead}=await start(),relays=relaySetup(app);
+ const {owner,volunteer,lead}=await start(),relays=relayFlowSetup(app);
  await relays.team(volunteer,'R22',[2101,2102,2103,2104]);
  await relays.tick(volunteer,'R22',1);
  for(let leg=0;leg<4;leg++) await relays.here(volunteer,'R22',1,leg);
@@ -140,20 +139,19 @@ test('day export recomputes two-relay warnings from the current switched-on team
 });
 
 async function relayFinal(){
- const people=await start(),relays=relaySetup(app),{volunteer,lead}=people;
+ const people=await start(),relays=relayFlowSetup(app),{volunteer,lead}=people;
  for(const legs of relayTeams) await relays.team(volunteer,'R19',legs);
  for(const [placed,times] of [[[1,2,3,4],[1400,1500,1600,1900]],[[5,6,7],[1450,1550,1700]]]){for(const number of placed) await relays.tick(volunteer,'R19',number);await relays.save(volunteer,'R19',placed,times);}
  expect((await call(lead,'/api/lead/events/R19/complete-stage',{stage:'heats'})).statusCode).toBe(200);
  // Seeds: Team 1, 5, 2, 6, 3, 7. Team 7 is absent and Team 4 (heat rank 7) is called up; Team 2 swaps its 3rd leg at check-in.
- const seen=await relays.screen(volunteer,'R19'),team=(number:number)=>seen.teams!.find(item=>item.number===number)!;
- await relays.post(volunteer,'/api/race-screen/R19/absent-team',{raceId:seen.race.id,teamId:team(7).id,absent:true});
+ await relays.attend(volunteer,'R19',[7]);
  const next=((await call(lead,'/api/lead/events/R19/results')).json() as EventResultsRead).results.finalResults!.nextCallUp!;
  expect((await call(lead,'/api/lead/events/R19/call-up',{expectedHeatEntryId:next.entryId})).statusCode).toBe(200);
- await relays.post(volunteer,'/api/race-screen/R19/edit-open',{raceId:seen.race.id,teamId:team(2).id});
- await relays.post(volunteer,'/api/race-screen/R19/edit-done',{raceId:seen.race.id,teamId:team(2).id,version:team(2).version,legs:[3001,3002,3099,3004],keptWarnings:[3001,3002,3099,3004]});
- const race=(await relays.post<any>(volunteer,'/api/race-screen/R19/take-over',{job:'order'})).race,id=(number:number)=>race.parts.runners.value.filter(isTeamEntry).find((entry:any)=>entry.team.number===number).id;
- await relays.post(volunteer,'/api/race-screen/R19/order',{raceId:race.id,version:race.parts.finish.version,order:[1,2,3,5,6,4].map(id),didNotFinish:[],didNotRun:[],added:[]});
- await relays.post(volunteer,'/api/race-screen/R19/submit',{raceId:race.id});
+ await relays.attend(volunteer,'R19',[7]);
+ // Team 2's 3rd leg is swapped at check-in, through the team list's edit with the final's race.
+ const seen=(await relays.race(volunteer,'R19'))!,team2=seen.teams!.find(item=>item.number===2)!;
+ await relays.post(volunteer,`/api/relays/${seen.group.event.id}/teams/${team2.id}`,{raceId:seen.race.id,version:team2.version,legs:[3001,3002,3099,3004],keptWarnings:[3001,3002,3099,3004]});
+ await relays.save(volunteer,'R19',[1,2,3,5,6,4]);
  const completed=await call(lead,'/api/lead/events/R19/complete-stage',{stage:'final'});expect(completed.statusCode,completed.body).toBe(200);
  return readExcelFile((await call(people.owner,'/api/day/export',{})).rawPayload);
 }

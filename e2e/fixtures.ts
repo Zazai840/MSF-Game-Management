@@ -3,7 +3,6 @@ import { isRunner,isTeamEntry } from '../src/shared/races.js';
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import type { RaceFlowRead,RacesRead,Role } from '../src/shared/race-flow.js';
-import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
@@ -102,45 +101,28 @@ export async function back(page:Page,to:string) {
   throw new Error(`No way back to ${to}`);
 }
 // Race setup: every spec that needs a race entered or saved before it starts goes through these, so they are the one
-// place that knows how a race is entered and saved. Each acts as the phone whose token it is given. An individual event
-// works in the race flow (ADR 0003) on the race it is at: its final once it has one, else its latest race not saved,
-// else a new next heat. A relay keeps its race screen: each write takes the job as opening its card does, then writes
-// the whole column at the version it sees.
+// place that knows how a race is entered and saved. Each acts as the phone whose token it is given, in the race flow
+// (ADR 0003), on the race the event is at: its final once it has one, else its latest race not saved, else a new next heat.
 const bearer=(token:string)=>({authorization:`Bearer ${token}`});
 async function postOk<T>(request:APIRequestContext,token:string,url:string,data:object) {
   const response=await request.post(url,{headers:bearer(token),data});
   expect(response.ok(),`${url}: ${await response.text()}`).toBe(true);
   return await response.json() as T;
 }
-/** The event's group in the races list, or undefined for a relay. */
+/** The event's group in the races list. */
 async function raceGroup(request:APIRequestContext,token:string,eventCode:string) {
-  return ((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(group=>group.event.code===eventCode);
+  return ((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(group=>group.event.code===eventCode)!;
 }
-/** The race an individual event is at as that phone sees it now, making its next heat when it has none; null for a relay. */
+/** The race the event is at as that phone sees it now, making its next heat when it has none. */
 export async function flowRace(request:APIRequestContext,token:string,eventCode:string) {
   const group=await raceGroup(request,token,eventCode);
-  if(!group) return null;
   const race=group.races.find(item=>item.kind==='final') ?? group.races.filter(item=>item.state!=='saved').at(-1);
   if(!race) return postOk<RaceFlowRead>(request,token,'/api/races',{eventCode,kind:'heat',number:group.nextHeat});
   return (await (await request.get(`/api/races/${race.id}`,{headers:bearer(token)})).json()) as RaceFlowRead;
 }
-/** One race screen write on a relay as that phone; fails unless the server accepts it, and returns the race screen as it then stands. */
-function raceScreenWrite(request:APIRequestContext,token:string,eventCode:string,what:string,data:object) {
-  return postOk<RaceScreenRead>(request,token,`/api/race-screen/${eventCode}/${what}`,data);
-}
-/** A relay's race screen as that phone sees it now. */
-export async function readRaceScreen(request:APIRequestContext,token:string,eventCode:string) {
-  const response=await request.get(`/api/race-screen/${eventCode}`,{headers:bearer(token)});
-  expect(response.ok(),await response.text()).toBe(true);
-  return await response.json() as RaceScreenRead;
-}
-/** Takes a job's hold on a relay's race screen as that phone, as opening the job's card does (nothing changes if someone holds it). */
-export function takeJob(request:APIRequestContext,token:string,eventCode:string,job:Job) {
-  return raceScreenWrite(request,token,eventCode,'hold',{job});
-}
 /** Checks runners in to an individual event's race as that phone: the whole list, at the version it sees. */
 export async function writeCheckIn(request:APIRequestContext,token:string,eventCode:string,runners:Array<number|{fix:number;to:number}>,keptWarnings:number[]=[]) {
-  const {race}=(await flowRace(request,token,eventCode))!;
+  const {race}=await flowRace(request,token,eventCode);
   // A fix keeps the entry of the number it replaces, as fixing a number does.
   const entry=(runner:number|{fix:number;to:number})=>typeof runner==='number'?{wristband:runner}:{id:race.parts.runners.value!.filter(isRunner).find(old=>old.wristband===runner.fix)!.id,wristband:runner.to};
   return postOk<RaceFlowRead>(request,token,`/api/races/${race.id}/check-in`,{raceId:race.id,version:race.parts.runners.version,runners:runners.map(entry),keptWarnings});
@@ -151,28 +133,24 @@ export async function writeCheckIn(request:APIRequestContext,token:string,eventC
  * them in `order` too).
  */
 export async function writeOrder(request:APIRequestContext,token:string,eventCode:string,order:number[],{didNotFinish=[],didNotRun=[],added=[],keptWarnings=[]}:{didNotFinish?:number[];didNotRun?:number[];added?:number[];keptWarnings?:number[]}={}) {
-  let {race}=(await flowRace(request,token,eventCode))!;
+  let {race}=await flowRace(request,token,eventCode);
   const url=`/api/races/${race.id}/order`;
   // A runner typed at the finish has no entry until a write adds it: added first, then placed.
   if(added.length) race=(await postOk<RaceFlowRead>(request,token,url,{raceId:race.id,version:race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added,keptWarnings})).race;
   const id=(wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   return postOk<RaceFlowRead>(request,token,url,{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[]});
 }
-/** Writes the times as that phone, in hundredths by place; `keptWrong` are the places (0-based) whose wrong time it kept. A relay takes the times job first. */
-export async function writeTimes(request:APIRequestContext,token:string,eventCode:string,places:number[],keptWrong:number[]=[]):Promise<{race:RaceFlowRead['race']|RaceScreenRead['race']}> {
-  const flow=await flowRace(request,token,eventCode);
-  if(flow) return postOk<RaceFlowRead>(request,token,`/api/races/${flow.race.id}/times`,{raceId:flow.race.id,version:flow.race.parts.times.version,places,keptWrong});
-  const {race}=await takeJob(request,token,eventCode,'times');
-  return raceScreenWrite(request,token,eventCode,'times',{raceId:race.id,version:race.parts.times.version,places,keptWrong});
+/** Writes the times as that phone, in hundredths by place; `keptWrong` are the places (0-based) whose wrong time it kept. */
+export async function writeTimes(request:APIRequestContext,token:string,eventCode:string,places:number[],keptWrong:number[]=[]) {
+  const {race}=await flowRace(request,token,eventCode);
+  return postOk<RaceFlowRead>(request,token,`/api/races/${race.id}/times`,{raceId:race.id,version:race.parts.times.version,places,keptWrong});
 }
 /**
- * Saves the event's race as that phone: on an individual event, marks every step not yet done done (That's everyone,
- * Save the order, No more finishers), which saves it once nothing blocks it; on a relay, presses Submit Race, which
- * saves it once everyone asked has pressed.
+ * Saves the event's race as that phone: marks every step not yet done done (That's everyone, Save the order, No more
+ * finishers), which saves it once nothing blocks it.
  */
 export async function submitRace(request:APIRequestContext,token:string,eventCode:string) {
   let flow=await flowRace(request,token,eventCode);
-  if(!flow) return raceScreenWrite(request,token,eventCode,'submit',{raceId:(await readRaceScreen(request,token,eventCode)).race.id});
   for(const [step,status] of Object.entries(flow.steps)) if(status!.state!=='done') flow=await postOk<RaceFlowRead>(request,token,`/api/races/${flow.race.id}/steps/${step}/done`,{});
   return flow;
 }
@@ -185,7 +163,7 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
   await writeCheckIn(request,token,eventCode,runners,keptWarnings);
   await writeOrder(request,token,eventCode,runners.slice(0,places.length),{didNotFinish:runners.slice(places.length)});
   await writeTimes(request,token,eventCode,places,wrongTimes(places).map(wrong=>wrong.index));
-  const {race}=await submitRace(request,token,eventCode) as RaceFlowRead;
+  const {race}=await submitRace(request,token,eventCode);
   expect(race.state,'the race is saved').toBe('saved');
   return race;
 }
@@ -241,81 +219,78 @@ export async function ownRelay(code:string,name:string,section='Girl Cubs') {
   try {expect((await api.post(`/api/day/events/${code}/enabled`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{enabled:true}})).ok()).toBe(true);}
   finally {await api.dispose();}
 }
-/** One Teams screen write as that phone; fails unless the server accepts it, and returns Home as it then stands. */
-async function teamsWrite(request:APIRequestContext,token:string,relayCode:string,what:string,data:object) {
-  const response=await request.post(`/api/teams/${relayCode}/${what}`,{headers:{authorization:`Bearer ${token}`},data});
-  expect(response.ok(),`${what}: ${await response.text()}`).toBe(true);
-  return await response.json() as HomeSnapshot;
-}
-/** Takes the relay's teams hold as that phone, whoever has it, as Take over does. */
-export function takeTeams(request:APIRequestContext,token:string,relayCode:string) {
-  return teamsWrite(request,token,relayCode,'take-over',{});
-}
-/** Opens a team to change it as that phone, as tapping it does ("Priya Shah is changing this team" elsewhere); returns the version it opened. */
-export async function openTeam(request:APIRequestContext,token:string,relayCode:string,teamId:string,changeAnyway=false) {
-  const home=await teamsWrite(request,token,relayCode,'open',{teamId,changeAnyway});
-  return home.events.find(event=>event.code===relayCode)!.teams!.find(team=>team.id===teamId)!.version;
-}
 /**
- * Writes a team as that phone, as its Done does: takes the relay's teams hold, opens the team (with no `teamId`, a new
- * team), then sends the four boxes (null for an empty box) and the wristbands whose warnings it kept.
+ * Writes a team as that phone, as Save in its teams sheet does: the four boxes (null for an empty box) and the
+ * wristbands whose warnings it kept, a new team with no `teamId`, else against the version it sees. Returns the races list.
  */
 export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{teamId,keptWarnings=[]}:{teamId?:string;keptWarnings?:number[]}={}) {
-  await takeTeams(request,token,relayCode);
-  const version=teamId?await openTeam(request,token,relayCode,teamId):undefined;
-  return teamsWrite(request,token,relayCode,'done',{teamId,version,legs,keptWarnings});
+  const group=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(item=>item.event.code===relayCode)!;
+  const version=teamId?group.teams!.find(team=>team.id===teamId)!.version:undefined;
+  const response=await request.post(`/api/relays/${group.event.id}/teams${teamId?`/${teamId}`:''}`,{headers:bearer(token),data:{version,legs,keptWarnings}});
+  expect(response.ok(),await response.text()).toBe(true);
+  return await response.json() as RacesRead;
 }
-/** A relay check-in tap as that phone on the race it sees now, naming the team by its number, as tapping it does. */
-async function checkInTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'take-off'|'here'|'edit-open',number:number,data:object={}) {
-  const seen=await readRaceScreen(request,token,relayCode);
-  return raceScreenWrite(request,token,relayCode,what,{raceId:seen.race.id,teamId:seen.teams!.find(team=>team.number===number)!.id,...data});
+/** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
+export const flowPost=(request:APIRequestContext,token:string,url:string,data:object)=>postOk<RaceFlowRead>(request,token,url,data);
+/** A relay Start line tap as that phone on the race the relay is at, naming the team by its number, as tapping it does. */
+async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here'|'absent',number:number,data:object={}) {
+  const read=await flowRace(request,token,relayCode);
+  return flowPost(request,token,`/api/races/${read.race.id}/teams/${read.teams!.find(team=>team.number===number)!.id}/${what}`,data);
 }
-/** Ticks Team `number` into the relay's current heat as that phone (anyone can: there is no check-in hold on a relay). */
+/** Adds Team `number` to the heat the relay is at as that phone, as Add does (anyone can: ADR 0002). */
 export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
-  return checkInTap(request,token,relayCode,'tick',number);
-}
-/**
- * Leaves Team `number` open as that phone, as an Edit at check-in left open does, on a team since taken off the heat:
- * the team is still to run, and other phones see "Priya Shah is changing this team" with Change anyway.
- */
-export async function leaveTeamOpen(request:APIRequestContext,token:string,relayCode:string,number:number) {
-  await tickTeam(request,token,relayCode,number);
-  await checkInTap(request,token,relayCode,'edit-open',number);
-  await checkInTap(request,token,relayCode,'take-off',number);
+  return teamTap(request,token,relayCode,'tick',number);
 }
 /** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
 export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
-  return checkInTap(request,token,relayCode,'here',number,{leg:leg-1,here});
+  return teamTap(request,token,relayCode,'here',number,{leg:leg-1,here});
+}
+/** Marks a relay final's teams Here as that phone, as its start line's Here does, naming each team by its number. */
+export async function markFinalHere(request:APIRequestContext,token:string,relayCode:string,numbers:number[]) {
+  for(const number of numbers) await teamTap(request,token,relayCode,'absent',number,{mark:'here'});
 }
 /**
- * Writes a relay heat's finishing order as that phone, naming teams by their number: takes the order, then writes the
- * whole column at the version it sees. Every ticked team goes in `order`, `didNotFinish` or `didNotRun`.
+ * Writes a relay heat's finishing order as that phone, naming teams by their number, at the version it sees. Every
+ * team in the heat goes in `order`, `didNotFinish` or `didNotRun`; `addedTeams` (still to run) take the places after `order`.
  */
 export async function writeTeamOrder(request:APIRequestContext,token:string,relayCode:string,order:number[],{didNotFinish=[],didNotRun=[],addedTeams=[]}:{didNotFinish?:number[];didNotRun?:number[];addedTeams?:number[]}={}) {
-  const {race}=await takeJob(request,token,relayCode,'order');
+  const {race,teams}=await flowRace(request,token,relayCode);
   const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
-  // Teams still to run added at the finish ("Add team") take the places after `order`.
-  const listed=addedTeams.length?(await readRaceScreen(request,token,relayCode)).teams!:[];
-  return raceScreenWrite(request,token,relayCode,'order',{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>listed.find(team=>team.number===number)!.id)});
+  return flowPost(request,token,`/api/races/${race.id}/order`,{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>teams!.find(team=>team.number===number)!.id)});
 }
-/** From Races: the Relays tab, then the Teams button, and waits for the Teams screen. */
-export async function openTeams(page:Page) {
-  await openRelays(page);
-  await page.getByRole('button',{name:/^Teams Type each relay's teams at the prep area/}).click();
-  await expect(page.getByRole('heading',{level:1,name:'Teams',exact:true})).toBeVisible();
+/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, each child here, placed in list order and timed. */
+export async function runHeat(request:APIRequestContext,token:string,code:string,teams:number) {
+  const post=(url:string,data:object)=>flowPost(request,token,url,data);
+  const groups=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups;
+  let read=await post('/api/races',{eventCode:code,kind:'heat',number:groups.find(group=>group.event.code===code)!.nextHeat});
+  const id=read.race.id;
+  for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) {
+    read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
+    for(const leg of [0,1,2,3]) read=await post(`/api/races/${id}/teams/${team.id}/here`,{leg,here:true});
+  }
+  read=await post(`/api/races/${id}/steps/runners/done`,{});
+  const order=(read.race.parts.runners.value||[]).filter(isTeamEntry).sort((a,b)=>a.team.number-b.team.number).map(entry=>entry.id);
+  read=await post(`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order,didNotFinish:[],didNotRun:[],added:[]});
+  read=await post(`/api/races/${id}/steps/positions/done`,{});
+  read=await post(`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:order.map((_,index)=>1400+index*50),keptWrong:[]});
+  read=await post(`/api/races/${id}/steps/times/done`,{});
+  expect(read.race.state).toBe('saved');
+  return read;
 }
 /**
- * Deletes the event's races not yet saved for good (a relay's current race), as a lead does a race opened by
- * mistake, so no race a test left unsaved lingers on the shared test day. A saved race stays.
+ * Deletes the event's races not yet saved for good, as a lead does a race opened by mistake, so no race a test left
+ * unsaved lingers on the shared test day. A saved race stays.
  */
 export async function deleteCurrentRace(request:APIRequestContext,code:string) {
-  const owner=process.env.E2E_OWNER_TOKEN!,group=await raceGroup(request,owner,code);
-  const ids=group?group.races.filter(race=>race.state!=='saved').map(race=>race.id):[(await readRaceScreen(request,owner,code)).race].filter(race=>race.id!==null && race.state!=='saved').map(race=>race.id!);
+  const owner=process.env.E2E_OWNER_TOKEN!;
+  const group=((await (await request.get('/api/races',{headers:bearer(owner)})).json()) as RacesRead).groups.find(item=>item.event.code===code)!;
+  const ids=group.races.filter(race=>race.state!=='saved').map(race=>race.id);
   for(const id of ids) expect((await request.post(`/api/lead/races/${id}/delete`,{headers:bearer(owner),data:{permanent:true}})).ok()).toBe(true);
 }
 /** From Races: taps a race's chip on its event group's card ("H1", "Final"), opening Done when the group is done, and waits for the race. */
 export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H1') {
-  const label=chip==='Final'?/^Final[, ]/:new RegExp(`^Heat ${chip.slice(1)}[, ]`),card=page.getByRole('article',{name:`${name} · ${section}`,exact:true});
+  // A chip is "Heat 1, saved": a lead's line under the chips ("Heat 1 has a tie to settle") names a heat too.
+  const label=chip==='Final'?/^Final,/:new RegExp(`^Heat ${chip.slice(1)},`),card=page.getByRole('article',{name:`${name} · ${section}`,exact:true});
   // Once the races have come in, a group that is done waits under the closed Done disclosure.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   const done=page.locator('details:not([open])',{has:page.locator('summary',{hasText:/^Done \(/})});
@@ -326,11 +301,6 @@ export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H
 /** On Races: the Relays tab. */
 export async function openRelays(page:Page) {
   await page.getByRole('navigation',{name:'Event type'}).getByRole('button',{name:/^Relays/}).click();
-}
-/** From the Relays tab: taps the relay's tile and waits for its race screen. */
-export async function openRaceScreen(page:Page,name:string,section='Girl Cubs') {
-  await page.getByRole('region',{name,exact:true}).getByRole('button',{name:new RegExp(`^${name} ${section} · `)}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} ${section}`,exact:true})).toBeVisible();
 }
 /** Hides the page as an app switch does (the race screen's stream closes), or shows it again (it reconnects). */
 export async function setHidden(page:Page,hidden:boolean) {
