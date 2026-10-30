@@ -16,3 +16,8 @@ One event group (an event in one section) on Races: its title, code, a status li
 - `card`, `shadow-card`, `radius-xl`, padding 12/14; title in `display-card`; status in `meta` + `ink-muted`.
 - The status line is written for the viewer's role; a lead's names open issues ("Heat 3: A time looks wrong").
 - Over 700px wide, cards flow into columns of at least 320px.
+- A relay's card ends with its **Teams row**, a full-width button under a 1px `line` rule (16px/700 `navy`, at least 44px, chevron at the end): "Teams 8 · 2 still to run", or "Teams 6" once none is left to run. It opens the relay's [TeamSheet](../TeamSheet/README.md). A relay with teams and no heats has no chips and reads "3 teams ready · no heats yet".
+
+```html
+<button type="button" class="rz-racecard__teams">Teams 8 · 2 still to run<svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- chevron-right --></svg></button>
+```

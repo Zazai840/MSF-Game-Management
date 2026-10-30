@@ -19,7 +19,6 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 - Simple: four volunteer screens (Join, Races, Race, plus sheets) instead of 19.
 
 **Non-goals (this phase)**
-- **Relays.** Keep the Relays tab, showing an empty state ("Relays are coming soon."). Don't design or build the relay flow.
 - **Results and Day setup.** Keep their behaviour; only their entry point moves (see "Zone lead").
 - **Any visual restyle** beyond what this plan and the design system specify.
 
@@ -28,7 +27,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 | Concept | Meaning | Notes |
 |---|---|---|
 | Event type | Races, Hurdles, Relays | The three tabs on Home. |
-| Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles) | Comes from Day setup's event list; New race only offers confirmed, switched-on events. |
+| Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's event list; New race only offers confirmed, switched-on events. |
 | Section | Boy Beavers … Girl Scouts, with a code per event (R1–R6 for 60m; other events have their own codes, such as R16) | Use the existing code data. |
 | Event group | One event × one section ("60m · Girl Cubs · R4") | One card on Home. Holds its races. |
 | Race | One run of an event group: Heat *n* or the Final | Heat numbers count up per event group. Every event type uses "Heat": 200m and 400m runs that today's app calls "Race 1" become "Heat 1". Chips read "H1", "H2"; everywhere else write "Heat 1". |
@@ -44,9 +43,9 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 - **Per race, per step, keep:** status (not started / in progress / done), count done, count expected, last editor, last updated time.
 
 **Finals**
-- Only events whose rules have finals get one. Per the rulebook that is **60m** (and relays, out of scope). 60m Hurdles, 200m and 400m are decided by fastest overall time, with no final.
-- The Final becomes available on an event group once **every heat has Times done**. Anyone can create it.
-- On creation, the final's runners are pre-filled with the fastest 6 across the heats. Ties at 6th are resolved by the existing tie flow before creation; a tie at 6th blocks the final with a lead issue.
+- Only events whose rules have finals get one. Per the rulebook that is **60m** and the **relays**. 60m Hurdles, 200m and 400m are decided by fastest overall time, with no final.
+- The Final becomes available on an event group once **every heat has Times done**. Only a lead (Zone lead role) makes it, behind a confirm (see RaceCard).
+- On creation, the final's runners are pre-filled with the fastest 6 across the heats (on a relay, the fastest 6 teams). Ties at 6th are resolved by the existing tie flow before creation; a tie at 6th blocks the final with a lead issue.
 - One final per event group.
 
 **Role**
@@ -70,24 +69,35 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 
 **EventTabs:** Races · Hurdles · Relays.
 - Remember the last tab per device. Default to Races.
-- Relays shows the empty state only.
+- Relays lists the relay cards the same way (see "9. Relays").
 
 **List**, grouped into sections. Hide a section that is empty.
-1. **Ready for you:** event groups with at least one race whose step for *my role* can be worked on now and isn't done. For a zone lead: groups with an open issue (see "Zone lead").
+1. **Ready for you:** event groups with at least one race whose step for *my role* can be worked on now and isn't done. For a zone lead: groups with an open issue (see "Zone lead"), and groups whose medals wait on the lead's **Confirm the medals** (see "Medals waiting on the lead" below).
 2. **In progress:** every other group with a race that isn't fully done, or a final ready to create.
-3. **Done:** collapsed Disclosure, "Done (4)", listing groups whose medals are decided (Event complete, Final complete or Results without a final); until then a group stays in progress, even with every race saved.
+3. **Teams ready, no heats yet** (Relays only): a relay with teams and no races yet. Its status line reads "3 teams ready · no heats yet".
+4. **Done:** collapsed Disclosure, "Done (4)", listing groups whose medals are decided (Event complete, Final complete or Results without a final); until then a group stays in progress, even with every race saved. A lead's card in Done reads "Medals decided".
 
 **Ordering**
-- Within Ready for you: the group whose oldest waiting race was created first comes first.
+- Within Ready for you: the group whose oldest waiting race was created first comes first. A lead's Ready for you puts the group that started waiting last first: its newest issue, or for medals waiting, its last race's save.
 - Elsewhere: most recently updated first.
 
 **RaceCard**, one per event group:
 - Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · Heats 1 and 2 done", "Heat 1 checked in", "Heats 1 and 2 and the final done").
 - Then the **HeatChips** row: one chip per race in order, then "+" (add the next heat).
-- When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
+- When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet; on a relay "the fastest 6 teams"). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
 - Tapping a chip opens that race.
 
-**Footer**: Updated-at line with Refresh, and the display-primary "+ New race".
+**Medals waiting on the lead** (every tab, Zone lead role only)
+- A lead's card waits once every race so far is saved and its medals wait on the lead's Confirm in Results: a final saved (Final complete), or a timed event (200m, 400m, 60m Hurdles: Event complete). Results without a final never waits: the lead's call decides the medals at once.
+- A waiting card sits in the lead's **Ready for you**. Its status line reads:
+  - "Final saved · confirm the medals" for a saved final;
+  - "Every race saved · confirm the medals after the last race" for a timed event;
+  - the event's To check line instead, while it has anything to check. The confirm wording comes only once To check is clear.
+- Under the status line, while To check is clear, a primary **Confirm the medals** button opens Results on that event with its Final complete or Event complete check sheet open. The back arrow returns to Races.
+- Once the Confirm is recorded the card moves to Done and reads "Medals decided".
+- Volunteers' cards keep their wording and sections.
+
+**Footer**: Updated-at line with Refresh, and the display-primary "+ New race" (on Relays, "+ New team" and "+ New relay" side by side).
 
 **After saving any step**, return here and show the **Toast**: "Times saved · Girl Cubs Heat 2" with **Undo**.
 - The toast lasts 6 seconds.
@@ -188,7 +198,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 #### 8. Zone lead (artboard `N8-Lead`)
 - **Shell differences**
   - The RoleChip reads "Lead" on a `jumping` fill.
-  - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list, Disqualify runner.
+  - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
   - These are today's lead actions from screens 24, 27 and 28, moved here.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
 - **Each tab shows that step's data, editable:**
@@ -196,8 +206,65 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - Finishing order: OrderRows.
   - Times: rows joining place, wristband and time, each with a pencil button.
 - **Problems sit on the row they're about.** A kept warning or a count mismatch shows as an inline WarningCallout with actions: "Fix time" and "It's right". "It's right" clears the issue and records who accepted it.
-- **No To-check screen.** Issues live on races. On Home, a lead's "Ready for you" section is the groups with open issues, and each card's status line names them ("Heat 3: a time looks wrong").
-- **Lead menu:** the avatar opens a menu with Results and Day setup, the existing screens.
+- **No To-check screen.** Issues live on races. On Home, a lead's "Ready for you" section is the groups with open issues (and those whose medals wait on the lead), and each card's status line names them ("Heat 3: a time looks wrong").
+- **Avatar menu:** the avatar opens a menu with Results and Day setup, the existing screens, then Log out.
+
+### 9. Relays
+
+Relays run in the race flow like Races and Hurdles: a step per role, each step marked done, the race saving itself, Undo on the toast. There is no Submit Race, no hold and no Take over ([ADR 0003](../adr/0003-race-flow-drops-holds.md)); the Runners step of a relay takes taps from anyone ([ADR 0002](../adr/0002-relay-check-in-takes-taps-from-anyone.md)). Anything not named here works as on races. A relay race's entries are teams: "Team 5" with its four children in leg order, the 4th leg being the child the finish line sees cross.
+
+**Relays tab**
+- One RaceCard per relay and section ("4x50m Relay · Girl Cubs") with its usual status line ("Heat 1 needs runners") and HeatChips, then a **Teams row**: "Teams 8 · 2 still to run ›", or "Teams 6 ›" once none is left to run. Tapping it opens the teams sheet.
+- A relay with teams and no heats sits under **Teams ready, no heats yet** (after In progress), reading "3 teams ready · no heats yet". A relay with no teams and no races is not listed. With nothing listed: "No relay teams yet. Tap New team to type the first."
+- The footer holds **+ New team** (secondary) and **+ New relay** (display-primary) side by side.
+  - + New relay is New race titled New relay, listing only the relays; it makes the next heat. Several heats of one relay can be open at once.
+  - + New team with one relay on the day opens New team in that relay's teams sheet. With more, a sheet titled New team asks for the event and section first ("Type a new team").
+
+**Teams sheet** (TeamSheet)
+- A Sheet titled with the relay ("4x50m Relay · Girl Cubs"). Its line reads "8 teams · 2 still to run. Tap a team still to run to change it." ("No teams yet. Tap New team to type the first." while empty).
+- Each team is a card: "Team 1", what it is doing ("Heat 1 · ran", "Heat 2 · change it at check-in", "Still to run", "Still to run · 3 of 4"), and its four wristbands in a row under 1st 2nd 3rd 4th, "–" for an empty leg. Only a team still to run is tappable (a raised card with a pencil); the others are flat outlines.
+- **+ New team** is docked at the foot of the sheet.
+- **Change anyway.** Tapping a team someone else set first asks, over the sheet: "**Aisha Noor** has already set this team." with "Team 7 · 2071 · 2072 · 2073 · 2074", then **Change anyway** and **Cancel**, stacked. Change anyway opens the leg boxes; the Save is still checked against the team's version.
+- **Edit team 7 / New team 9.** The same sheet swaps to the relay's name and "Type each child's wristband in running order, 1st leg first.", then the four **leg boxes**, one per row: the label ("1st leg"), the big number box, and a grip.
+  - A number already in this team or another team of the relay is refused as it is typed ("2071 is already in Team 3. Check the wristband.") with **Fix number** only.
+  - An unknown number, another section's, or a child already in another relay's team is warned once its box is left, with **Fix number** / **Keep**.
+  - Dragging a grip moves that number to another leg, in the draft only: Save sends it, Cancel drops it. The grip reads "Move 2071", or "Move empty 4th leg".
+  - The docked footer pairs **Cancel** and **Save team 9**. Edit on a team still to run also has a quiet **Remove team 7** under them, which asks "Remove Team 7? Its number won't be used again." with Remove / Keep it.
+  - A Save on a team someone changed meanwhile is refused: "Aisha Noor changed this a moment ago." with **Show latest**, which starts the boxes again from theirs.
+- Each team saves on its own and nothing locks: two phones can type different teams of one relay at once. While a team's boxes are open, other phones see "Aisha Noor is changing this team" on it.
+- Once the final is made the list is read-only: no team is tappable, there is no + New team, and the line reads "The final has been made, so the teams can't change. A lead can correct a team in Results."
+
+**Start line on a heat** (TeamCard)
+- Prompt meta "Heat 2 · 2 teams · 2 children here", question "Which teams are running?".
+- A card per team in the heat: "Team 5" with **Edit**, and **Take off** while none of its children is here. Beside the name, "Runs short · 3 of 4" for a team short of four (it never blocks the race), or "Aisha Noor is changing this team" while another phone has it open. Then a row per leg: "1st leg" over the wristband, **Here** / **Not yet** (`aria-pressed`), and a grip. An empty leg reads "–" with no Here.
+- Dragging a grip moves the child to another leg. The drop is the team's edit with its legs in the new order: it saves the race and the team list together, and each Here mark follows its child. A short team's empty leg drags like a child, so the 4th leg can be a real child. Two drops at once: the second is refused as changed and the phone shows the latest.
+- Grips are hidden on a team another phone has open, and on every card while this phone has a team open in Edit. They stay until the race is saved; a drop after That's everyone keeps Runners done.
+- **Edit** opens the team's leg boxes in the teams sheet straight away, titled "Edit team 5", with no Change anyway; its Save also writes the team's entry in this race.
+- **Still to run** follows the cards: each team with its wristbands and **Add**, then **+ New team**, which opens "New team · joins this heat"; the saved team is ticked into the heat. With none left: "Every team on the list is in a heat."
+- Every tap (Add, Take off, Here) counts from anyone at once, and the last tap wins. The docked footer holds **That's everyone**, which marks Runners done.
+
+**Start line on a final**
+- Prompt meta "Final · 5 of 6 teams here", question "Which teams are here?".
+- A card per seeded team (and any team a lead called up or added): "1st seed · Team 2" with **Edit** beside the name, then **Here** / **Absent** for the whole team, neither lit at first; tapping a lit mark again clears it. Its legs follow ("1st leg", wristband), with no per-child Here. An Absent card is dashed.
+- Once a team is Here, its legs have grips and Edit works, as on a heat.
+- That's everyone with a team unmarked asks first: "Team 4 is not marked. Record them absent?" with Record them absent / Go back.
+
+**Finish line**
+- Team tiles (RunnerButton, team tile), two to a row: "Team 5" over its 4th leg's wristband "2054" (or "–"), the same size. `aria-label="Team 5, 4th leg 2054, came 1st"`.
+- The PlacesBoard names a placed team "T5". Prompt meta "Heat 2 · 3 teams · 3 to place · tap the team whose 4th leg crossed", question "Which team came *1st?*".
+- Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
+- **Check the order** rows read "Team 6 · 2064". A team left over has its name on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run. While a slot is being changed: "Changing 1st: Team 5" with **Keep Team 5**.
+
+**Timer**
+- As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · one time per team, to the 4th leg crossing" (no finished count). A final has no Times.
+
+**Finals**
+- "+ Final" on a relay card is the lead's, behind the same confirm, worded for teams: "Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6 teams, and no more heats can be added." Volunteers see "A lead makes the final once every heat has run."
+
+**Zone lead**
+- Every step tab shows "Team 5" with its four children in leg order wherever a team appears (Runners chips, Finishing order rows, Times rows, To check callouts). Relay problems (a team that ran short, a child in two relays, a kept warning, a wrong time) sit on the step they are about, with It's right or the way to settle it. A team that ran short reads "A team ran short".
+- "⋯" race actions are a race's, with Correct teams in place of Correct runner list.
+- Results, the race page, Correct teams and the final's line-up keep their older look.
 
 ## Soft warning: usual heat size
 
@@ -232,6 +299,9 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | **RunnerButton** | Compact runner tile: 3-column grid, 72px tall, radius 36/36/12/12 (a shallow arch), `card`, `shadow-tile`, Saira 900 34px tabular. On press, move down 4px and drop to `shadow-card`. `aria-label="2032 came 3rd"`. This **replaces** the 150px RunnerTile on the finish line. |
 | **OrderRow** | 44px row, grid `44px 1fr 44px`: Saira ordinal, wristband 18px/800, a drag handle button. `card` + `shadow-card`; while dragging, `shadow-raised`. An unplaced row is dashed `line-strong`, with a DNF StatusTag. |
 | **Toast** | Fixed above the footer, `navy`, `radius-lg`-ish (14px), `shadow-raised`. Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 6 seconds, paused while focused. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this since. Open the race to edit it." |
+| **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4", "Aisha Noor is changing this team"), then small Buttons Edit and Take off at the end. On a heat its legs are attendance rows (`card`, `shadow-card`, `radius-md`): "1st leg" 12px/700 `ink-muted` over the wristband, a Here / Not yet pill, and a 44px grip. On a final the whole card is one `card` with "1st seed · " before the name, Here / Absent pills in the head, and each leg a 44px row under a 1px `line` rule; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
+| **TeamSheet** | A Sheet. List: a card per team, 1.5px `line` outline and `radius-lg`; a team that can be changed is `card` + `shadow-card` with a pencil, its four legs on `paper` in a 4-column grid under 12px ordinals. Edit / New team: one leg box per row, grid `56px 1fr 44px` (label, a 56px tall TextField at 26px, grip). Its actions stay docked at the sheet's foot (`paper`). Change anyway is a centred question over the sheet (`card`, `radius-xl`, `overlay` scrim), its two buttons stacked. |
+| **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, two lines of equal size (32px), "Team 5" over its 4th leg's wristband "2054". `aria-label="Team 5, 4th leg 2054, came 1st"`. |
 
 Update existing READMEs where the new flow changes them:
 - RunnerTile: superseded by RunnerButton.
@@ -255,8 +325,9 @@ Update existing READMEs where the new flow changes them:
 | 20–21 Become a zone lead / lead home | The Zone lead row in the role sheet; Races as lead |
 | 22–23 Dashboard / To check | Removed: issues show on race cards and in the lead's race tabs |
 | 24, 27, 28 Settle tie, runner actions, race detail | The "⋯" race actions sheet and the lead tabs |
-| 25–26, 29 Results, leaderboard, heats complete | Unchanged; reached from the lead menu. The final now comes from "+ Final" on the card. |
-| 30–32 Day setup | Unchanged; reached from the lead menu |
+| 25–26, 29 Results, leaderboard, heats complete | Unchanged; reached from the avatar menu. The final now comes from "+ Final" on the card. |
+| 30–32 Day setup | Unchanged; reached from the avatar menu |
+| Relay race screen (holds, Take over, Submit Race) and the Teams screen | Relays tab in the race flow, with each relay's teams sheet (see "9. Relays") |
 
 ## Build order
 
@@ -278,7 +349,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
    - *Done when:* a 12-runner heat can be fully placed and saved on a 390 × 844 screen with no horizontal scroll.
 6. **Timer body**, moved onto the shell. Behaviour unchanged.
 7. **Zone lead.**
-   - Tabs, editable steps, inline issues with "It's right", the "⋯" actions, the lead menu, Ready for you for leads.
+   - Tabs, editable steps, inline issues with "It's right", the "⋯" actions, the avatar menu, Ready for you for leads.
    - Remove the Dashboard and To-check screens.
 8. **Finals:** "+ Final" on the card and in the sheet, the fastest 6 pre-filled, the tie block.
 9. **Toast with Undo**, and removal of the Saved screen.
