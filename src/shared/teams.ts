@@ -7,12 +7,12 @@ export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
 /** A race holding a relay team: one of its relay's races that is not deleted. */
 export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number; state:'in progress'|'saved' }
 /**
- * A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order, who last set it
- * ("Aisha Noor has already set this team."), who has it open to change ("Priya Shah is changing this team") since
+ * A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order, whose profile last set it
+ * ("Aisha Noor has already set this team.", asked only of another profile), who has it open to change ("Priya Shah is changing this team") since
  * when, or null, and the races holding it (worked out from the races, never stored), oldest first. A team any race
  * holds can't be removed.
  */
-export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changedBy:string|null; changing:{id:string;name:string;since:string}|null; races:TeamRace[] }
+export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changedBy:{id:string|null;name:string}|null; changing:{id:string;name:string;since:string}|null; races:TeamRace[] }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
 export interface TeamList { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */

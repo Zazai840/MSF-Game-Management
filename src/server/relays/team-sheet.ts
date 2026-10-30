@@ -17,7 +17,7 @@ import { checkedLegs,joiningTeam,requestedDone,requestedTeam,requireNotInRace,re
 function requireVersion(team:RelayTeam,phone:Phone,version:number) {
   if(version===team.version) return;
   const by=team.changedBy;
-  throw new Refusal(409,by && by!==phone.name?`${by} changed this a moment ago`:'Not saved - check your entries and enter it again',{reason:'changed',by});
+  throw new Refusal(409,by && by.id!==phone.profileId?`${by.name} changed this a moment ago`:'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
 }
 /** The race a check-in write names, or none from the teams sheet. */
 function requestedRace(raceId:unknown) {
@@ -48,7 +48,7 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
     const {wristbands,kept}=requestedDone({...(request.body as object),teamId:undefined}),joinRaceId=requestedRace((request.body as {joinRaceId?:unknown}).joinRaceId);
     return write(phone,params(request).eventId,joinRaceId,async(client,relay)=>{
       const legs=checkedLegs(relay,null,wristbands,kept),id=randomUUID();
-      await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4 FROM relay_teams WHERE event_id=$2',[id,relay.id,JSON.stringify(legs),phone.name]);
+      await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by,changed_by_profile) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4,$5 FROM relay_teams WHERE event_id=$2',[id,relay.id,JSON.stringify(legs),phone.name,phone.profileId]);
       if(joinRaceId!==undefined) await changeTeamEntry(client,phone,joinRaceId,id,({race,team,entries})=>{
         if(race.kind==='final') throw new Refusal(409,'A new team can\'t join the final');
         return [...entries,joiningTeam(team)];
@@ -65,7 +65,7 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(raceId===undefined) requireNotInRace(team);
       requireVersion(team,phone,done.version!);
       const legs=checkedLegs(relay,team.id,done.wristbands,done.kept);
-      await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name]);
+      await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name,phone.profileId]);
       if(raceId===undefined) return;
       // A final's kept copy of the team (for Here / Absent) takes the new legs too: through its runner list while the
       // team is Here, else straight away. A final has no per-child Here: a team Here is here whole.
@@ -106,7 +106,7 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
       const ran=await client.query(`SELECT 1 FROM races r JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
         WHERE r.event_id=$1 AND jsonb_typeof(p.value)='array' AND p.value @> jsonb_build_array(jsonb_build_object('team',jsonb_build_object('id',$2::text)))`,[relay.id,team.id]);
       if(team.races.length || ran.rowCount) throw new Refusal(409,`Team ${team.number} has been in a race - it can't be removed`);
-      await client.query('UPDATE relay_teams SET removed=true,version=version+1,changed_by=$2,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,phone.name]);
+      await client.query('UPDATE relay_teams SET removed=true,version=version+1,changed_by=$2,changed_by_profile=$3,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,phone.name,phone.profileId]);
     });
   });
 }

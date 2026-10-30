@@ -106,7 +106,7 @@ export function App() {
     const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
     if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} me={home.phone.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
       onRace={(id,step)=>go({kind:'race',id,step})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
-    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={name} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={home.phone.profileId} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
       onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
   // The older look has no race-flow tokens, so the menu brings its own .rz-screen.

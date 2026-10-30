@@ -18,11 +18,11 @@ export async function readTeamLists(db:Database,dayId:string):Promise<Map<string
   for(const relay of (await db.query("SELECT id,code,name,section,enabled FROM events WHERE day_id=$1 AND type='relays'",[dayId])).rows) lists.set(relay.id,{...relay,teams:[],nextTeam:1});
   // A removed team keeps its number: the next team takes one more than the highest the relay has ever used.
   for(const row of (await db.query('SELECT t.event_id,MAX(t.number) AS last FROM relay_teams t JOIN events e ON e.id=t.event_id WHERE e.day_id=$1 GROUP BY t.event_id',[dayId])).rows) lists.get(row.event_id)!.nextTeam=row.last+1;
-  const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version,t.changed_by,t.changing_since,s.id AS changing_id,s.name AS changing_name FROM relay_teams t JOIN events e ON e.id=t.event_id LEFT JOIN sign_ins s ON s.id=t.changing_by WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
+  const teams=(await db.query('SELECT t.id,t.event_id,t.number,t.legs,t.version,t.changed_by,t.changed_by_profile,t.changing_since,s.id AS changing_id,s.name AS changing_name FROM relay_teams t JOIN events e ON e.id=t.event_id LEFT JOIN sign_ins s ON s.id=t.changing_by WHERE e.day_id=$1 AND NOT t.removed ORDER BY t.number',[dayId])).rows;
   const held=(await db.query(`SELECT r.id,r.kind,r.number,r.state,entry->'team'->>'id' AS team_id FROM races r JOIN events e ON e.id=r.event_id JOIN race_parts p ON p.race_id=r.id AND p.part='runners'
     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.value)='array' THEN p.value ELSE '[]' END) entry
     WHERE e.day_id=$1 AND e.type='relays' AND NOT r.deleted AND entry ? 'team' ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
-  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,changedBy:team.changed_by??null,
+  for(const team of teams) lists.get(team.event_id)!.teams.push({id:team.id,number:team.number,legs:team.legs,version:team.version,changedBy:team.changed_by===null?null:{id:team.changed_by_profile,name:team.changed_by},
     changing:team.changing_id?{id:team.changing_id,name:team.changing_name,since:team.changing_since.toISOString()}:null,
     races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
   return lists;
@@ -108,7 +108,7 @@ export function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId
 export async function correctTeam(client:pg.PoolClient,lead:Phone,race:{id:string;event:{id:string}},entry:TeamEntry,wristbands:Array<number|null>,kept:unknown[]):Promise<TeamEntry> {
   const lists=await readTeamLists(client,lead.dayId),relay={...lists.get(race.event.id)!,relays:switchedOn(lists)};
   const legs=checkedLegs(relay,entry.team.id,wristbands,kept),team=relay.teams.find(item=>item.id===entry.team.id);
-  if(team?.races.at(-1)?.id===race.id) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3 WHERE id=$1',[team.id,JSON.stringify(legs),lead.name]);
+  if(team?.races.at(-1)?.id===race.id) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4 WHERE id=$1',[team.id,JSON.stringify(legs),lead.name,lead.profileId]);
   const stays=(wristband:number|null)=>legs.some(leg=>leg.wristband===wristband);
   return {...entry,legs:legs.map((leg,index)=>{
     const was=entry.legs.find(old=>old.wristband!==null && old.wristband===leg.wristband)??(stays(entry.legs[index].wristband)?undefined:entry.legs[index]);

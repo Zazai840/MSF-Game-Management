@@ -37,7 +37,7 @@ test('Edit at check-in saves the team list and this race\'s entry together, each
   const saved=await ok(priya,url,{version:one.version,legs:[2102,2199,2101,2104],keptWarnings:[],raceId:ticked.race.id});
   expect(saved.race.id).toBe(ticked.race.id);
   expect(teamsOf(saved.race)[0].legs.map(leg=>[leg.wristband,leg.here])).toEqual([[2102,true],[2199,false],[2101,true],[2104,false]]);
-  expect(team(saved,1)).toMatchObject({version:one.version+1,changedBy:'Priya Noor',legs:[{wristband:2102},{wristband:2199},{wristband:2101},{wristband:2104}]});
+  expect(team(saved,1)).toMatchObject({version:one.version+1,changedBy:{name:'Priya Noor'},legs:[{wristband:2102},{wristband:2199},{wristband:2101},{wristband:2104}]});
   expect(saved.race.parts.runners.version).toBeGreaterThan(seen.race.parts.runners.version);
   // The Save is checked against the team's version, and the team must still be in this race.
   expect((await call(sam,url,{version:one.version,legs:[2101,null,null,null],keptWarnings:[],raceId:ticked.race.id})).json()).toMatchObject({reason:'changed',by:'Priya Noor'});

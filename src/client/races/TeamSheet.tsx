@@ -27,7 +27,7 @@ export function TeamSheet({group,relays,me,start,onClose,offer}:{group:RaceGroup
     <TeamForm key={shown?.id??'new'} team={shown??null} number={shown?.number??group.nextTeam!} eventId={group.event.id} relay={relay} relays={relays} offer={offer} onDone={toList}/>
   </Sheet>;
   function choose(team:RelayTeam) {
-    setMode(team.changedBy && team.changedBy!==me?{kind:'asking',teamId:team.id}:{kind:'edit',teamId:team.id});
+    setMode(team.changedBy && team.changedBy.id!==me?{kind:'asking',teamId:team.id}:{kind:'edit',teamId:team.id});
   }
   return <Sheet title={`${group.event.name} · ${group.event.section}`} onClose={onClose}>
     <p className="rz-sheet__text">{teamsSheetLine(teams,open)}</p>
@@ -48,7 +48,7 @@ function ChangeAnyway({team,onCancel,onChange}:{team:RelayTeam;onCancel:()=>void
   const id=useId();
   return <div className="rz-confirm" role="alertdialog" aria-modal="true" aria-labelledby={id}>
     <div className="rz-confirm__box">
-      <p className="rz-confirm__title" id={id}><strong>{team.changedBy}</strong> has already set this team.</p>
+      <p className="rz-confirm__title" id={id}><strong>{team.changedBy?.name}</strong> has already set this team.</p>
       <p className="rz-confirm__text">Team {team.number} · {wristbands(team).join(' · ')}</p>
       {/* Stacked: side by side, "Change anyway" wraps at 360px. */}
       <div className="rz-sheet__actions">

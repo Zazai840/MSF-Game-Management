@@ -35,7 +35,7 @@ function useLeadItems(on:boolean) {
  * Confirm), In progress and Done.
  * Each card's chips open a race; "+" makes the next heat and a lead's "+ Final", after a confirm, the final. A relay's
  * card also has its Teams row, which opens its teams sheet, and Relays lists a relay with teams but no heats under Teams
- * ready, no heats yet. `me` is this person's name: a team someone else set asks before it is changed.
+ * ready, no heats yet. `me` is this person's profile id: a team another profile set asks before it is changed.
  */
 export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown}:{tab:HomeTab;me:string;onTab:(tab:HomeTab)=>void;role:Role;
   onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void;

@@ -151,6 +151,8 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
     const relay=(await old.query("SELECT id FROM events WHERE code='R22'")).rows[0].id;
     await old.query("INSERT INTO job_holds(event_id,job,sign_in_id) VALUES($1,'check-in',$2),($1,'teams',$2),($1,'order',$3)",[relay,sam.phone.id,owner.phone.id]);
     await old.query('UPDATE relay_teams SET changing_by=$1,changing_since=now() WHERE number=3',[sam.phone.id]);
+    // The old build named who last set a team, with no profile.
+    await old.query('ALTER TABLE relay_teams DROP COLUMN changed_by_profile');
     before=await untouched(old);
   } finally {await old.end();}
   app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
@@ -160,6 +162,8 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
     expect(read.race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[2,[true,false,false,false]],[3,[false,false,false,false]]]);
     expect(Object.values(read.steps).map(step=>step!.state)).not.toContain('done');
     expect(read.teams!.map(team=>team.changing)).toEqual([null,null,null]);
+    // Who last set each team is known by profile, so Change anyway asks only another profile.
+    expect(read.teams!.map(team=>team.changedBy)).toEqual(Array(3).fill({id:sam.profile.id,name:'Sam Patel'}));
     const db=new pg.Client({connectionString:databaseUrl});await db.connect();
     try {
       expect((await db.query("SELECT to_regclass('job_holds') AS holds,to_regclass('submit_presses') AS presses")).rows).toEqual([{holds:null,presses:null}]);
