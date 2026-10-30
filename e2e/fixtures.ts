@@ -270,7 +270,8 @@ export async function deleteCurrentRace(request:APIRequestContext,code:string) {
 }
 /** From Races: taps a race's chip on its event group's card ("H1", "Final"), opening Done when the group is done, and waits for the race. */
 export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H1') {
-  const label=chip==='Final'?/^Final[, ]/:new RegExp(`^Heat ${chip.slice(1)}[, ]`),card=page.getByRole('article',{name:`${name} · ${section}`,exact:true});
+  // A chip is "Heat 1, saved": a lead's line under the chips ("Heat 1 has a tie to settle") names a heat too.
+  const label=chip==='Final'?/^Final,/:new RegExp(`^Heat ${chip.slice(1)},`),card=page.getByRole('article',{name:`${name} · ${section}`,exact:true});
   // Once the races have come in, a group that is done waits under the closed Done disclosure.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   const done=page.locator('details:not([open])',{has:page.locator('summary',{hasText:/^Done \(/})});

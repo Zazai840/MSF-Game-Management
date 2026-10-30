@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { isTeamEntry } from '../src/shared/races.js';
-import {expect,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam} from './fixtures.js';
+import {expect,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam} from './fixtures.js';
 /**
  * A zone lead on a relay race in the race flow: every step tab shows "Team 5" over its four children in leg order,
  * relay problems sit on the step they are about with It's right, and the race actions keep Correct teams, Re-run and Delete.
@@ -77,4 +77,29 @@ test('a lead\'s step tabs on a relay name each team with its four children, sett
   await actions.getByRole('button',{name:'Re-run race',exact:true}).click();
   await expect(page.getByText(/current race/)).toHaveCount(0);
   await page.screenshot({path:info.outputPath('relay-lead-rerun.png'),fullPage:true});
+});
+
+test('a tie between two relay heats shows on both heats\' Times tab with each team\'s four children, and Open in Results opens the tie',async({openPhone,request},info)=>{
+  const project=info.project.name,code=await ownCode(),name=`Relay tie ${project}`;
+  await ownRelay(code,name,'Girl Cubs');
+  const w=await ownWristbands('Girl Cubs',8);
+  const {page,token}=await openPhone(`Relay tie ${project}`,{lead:true});
+  await writeTeam(request,token,code,[w(11),w(12),w(13),w(14)]);
+  await writeTeam(request,token,code,[w(21),w(22),w(23),w(24)]);
+  // One team in each heat, both timed 14.00.
+  const heats=[(await runHeat(request,token,code,1)).race.id,(await runHeat(request,token,code,1)).race.id];
+  for(const [index,raceId] of heats.entries()) {
+    await page.goto(`/races/${raceId}`);
+    const tabs=page.getByRole('tablist',{name:`Heat ${index+1} steps`});
+    await expect(tabs.getByRole('tab',{name:/^Times/})).toContainText('1 to check');
+    await tabs.getByRole('tab',{name:/^Times/}).click();
+    const tie=page.getByRole('alert').filter({hasText:'Teams tied on time'});
+    await expect(tie).toContainText('Team 1 and Team 2 both have 14.00.');
+    await expect(tie.locator('.rz-callout__team')).toHaveText([`Team 1 · ${w(11)} · ${w(12)} · ${w(13)} · ${w(14)}`,`Team 2 · ${w(21)} · ${w(22)} · ${w(23)} · ${w(24)}`]);
+    expect(await lookProblems(page)).toEqual([]);
+    await page.screenshot({path:info.outputPath(`relay-lead-tie-heat-${index+1}.png`),fullPage:true});
+  }
+  await page.getByRole('alert').filter({hasText:'Teams tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog',{name:'Tie at 14.00',exact:true})).toBeVisible();
 });

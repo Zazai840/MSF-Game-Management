@@ -137,3 +137,27 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   await page.keyboard.press('Escape');
   await expect(actions).toHaveCount(0);
 });
+
+test('a tie between two heats shows on both heats\' Times tab, and Open in Results opens the tie',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Lead tie ${project}`,code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  // 2041 in Heat 1 and 2043 in Heat 2 share a time.
+  await recordRace(request,owner(),code,[2041,2042],[1000,1100]);
+  await recordRace(request,owner(),code,[2043],[1000]);
+  const {page}=await openPhone(`Lead tie ${project}`,{lead:true});
+  for(const chip of ['H1','H2']) {
+    if(chip==='H2') await backToRaces(page);
+    await openRace(page,name,'Girl Cubs',chip);
+    const tabs=page.getByRole('tablist',{name:`Heat ${chip.slice(1)} steps`});
+    await expect(tabs.getByRole('tab',{name:/^Times/})).toContainText('1 to check');
+    await tabs.getByRole('tab',{name:/^Times/}).click();
+    const tie=page.getByRole('alert').filter({hasText:'Runners tied on time'});
+    await expect(tie).toContainText('2041 and 2043 both have 10.00. Decide whether a run-off is needed.');
+    await expect(tie.getByRole('button',{name:"It's right",exact:true})).toHaveCount(0);
+    expect(await lookProblems(page)).toEqual([]);
+    await page.screenshot({path:info.outputPath(`lead-tie-${chip}.png`),fullPage:true});
+  }
+  await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();
+});

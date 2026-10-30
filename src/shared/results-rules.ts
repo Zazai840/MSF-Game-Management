@@ -56,7 +56,8 @@ export interface LeadItem {
   team?:number; warnings?:string[];
   wrongTime?:{ place:number; time:number; earlierPlace:number; earlierTime:number };
   /** The tied children's wristbands, or teams ("Team 3"), and on a relay the tied teams with their four children. */
-  tie?:{ time:number; names:string[]; teams?:ResultTeam[] };
+  /** A tie's time and names, its relay teams, and the races it is between (it shows on each one's step). */
+  tie?:{ time:number; names:string[]; raceIds:string[]; teams?:ResultTeam[] };
 }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
 export interface EventResults {
