@@ -15,7 +15,7 @@ export interface SavedStep { raceId:string; step:Step; version:number; message:s
 /** This race's open lead items (To check), read while a lead has it open. */
 function useRaceIssues(raceId:string,on:boolean) {
   const [items,setItems]=useState<DayLeadItem[]>([]);
-  const refresh=()=>api<ResultsRead>('lead').then(read=>setItems(read.needsYou.filter(item=>item.raceId===raceId || item.tieId && item.race?.id===raceId))).catch(error=>{if(!(error instanceof StaleRequest)) {/* keep the last */}});
+  const refresh=()=>api<ResultsRead>('lead').then(read=>setItems(read.needsYou.filter(item=>item.raceId===raceId || item.tie?.raceIds.includes(raceId)))).catch(error=>{if(!(error instanceof StaleRequest)) {/* keep the last */}});
   useEffect(()=>{
     if(!on) return;
     void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
