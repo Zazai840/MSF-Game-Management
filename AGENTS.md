@@ -12,6 +12,10 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 
 Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+### Testing
+
+Running or writing tests (Node 22 like CI, e2e on all three projects, `ownName` / `press`, look checks): see `docs/agents/testing.md`.
+
 ### Coding standards
 
 Reviewing a change: check it against `CODING_STANDARDS.md`.
