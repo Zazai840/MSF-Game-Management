@@ -50,8 +50,9 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const counters=(await db.query("SELECT c.event_id,c.last_number FROM race_counters c JOIN events e ON e.id=c.event_id WHERE e.day_id=$1 AND c.kind<>'final'",[dayId])).rows;
   const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
-  const teamLists=await readTeamLists(db,dayId);
-  return Promise.all(events.map(async event=>{
+  const teamLists=await readTeamLists(db,dayId),groups:RaceGroup[]=[];
+  // One event at a time: a final's reason reads through the same client, which runs one query at a time.
+  for(const event of events) {
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
@@ -65,8 +66,9 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const stage=event.format==='timed'?'event' as const:own.some(race=>race.kind==='final')?'final' as const:null;
     const medalsWaiting=stage && own.length && !medalsDecided && own.every(race=>race.state==='saved')?{stage,since:own.map(race=>savedAt.get(race.id)??'').sort().at(-1)!}:null;
     const list=teamLists.get(event.id),teams=list?{teams:list.teams,nextTeam:list.nextTeam}:{};
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt,...teams};
-  }));
+    groups.push({event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt,...teams});
+  }
+  return groups;
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
   return {revision:await dayRevision(db,dayId),groups:await readGroups(db,dayId)};

@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {expect,live,lookProblems,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
@@ -20,6 +20,9 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   const read=async()=>await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead;
   for(const phone of [sam,finish]) await phone.page.goto(`/races/${raceId}`);
   const [one,line]=[sam.page,finish.page];
+  // As on a children's final, only teams marked Here run it: before the start line marks anyone, there is no team to place.
+  await expect(line.getByRole('heading',{level:2,name:'No team is in this race yet'})).toBeVisible();
+  await expect(line.getByRole('list',{name:'Teams not yet placed'})).toHaveCount(0);
 
   // The start line: each seeded team's card, fastest first, its four children, Here / Absent with neither lit.
   await expect(meta(one)).toHaveText('Final · 0 of 6 teams here · 6 not marked');
@@ -35,9 +38,11 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await one.screenshot({path:info.outputPath('relay-final-start-line.png'),fullPage:true});
   await one.screenshot({path:info.outputPath('relay-final-start-line-viewport.png')});
 
-  // Taps land at once on the finish line: those Here are its tiles.
+  // Taps land at once on the finish line: those Here are its tiles, and the Absent or unmarked are not.
   for(const team of [1,2,3,4]) await markButton(one,team,'Here').click();
   await markButton(one,5,'Absent').click();
+  const tiles=line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
+  await expect(tiles).toHaveText([1,2,3,4].map(team=>`Team ${team}${w(team*10+4)}`),live);
   await expect(meta(one)).toHaveText('Final · 4 of 6 teams here · 1 not marked');
   await expect(markButton(one,5,'Absent')).toHaveAttribute('aria-pressed','true');
   // Tapping a lit mark again unmarks it.
@@ -57,7 +62,6 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   expect((await read()).steps.runners!.state).toBe('done');
 
   // The finish line: the four teams Here, and no + Team not on the list on a final.
-  const tiles=line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
   await expect(tiles).toHaveCount(4,live);
   await expect(footer(line).getByRole('button',{name:'+ Team not on the list',exact:true})).toHaveCount(0);
   for(const team of [3,1,4,2]) await line.getByRole('button',{name:new RegExp(`^Team ${team}, 4th leg `)}).click();
@@ -67,4 +71,29 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // A final has no Times: it saves itself now.
   await expect.poll(async()=>(await read()).race.state).toBe('saved');
   expect((await read()).steps.times).toBeUndefined();
+
+  // The lead's Races home: the relay waits on the lead. Confirm the medals opens Final complete; once confirmed the card
+  // is in Done as Medals decided, and Results names every child of each team.
+  const boss=lead.page,legs=(team:number)=>[1,2,3,4].map(leg=>w(team*10+leg)).join(' · ');
+  await boss.reload();
+  await openRelays(boss);
+  const relayCard=boss.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
+  await expect(relayCard.locator('.rz-racecard__status')).toHaveText('Final saved · confirm the medals',live);
+  expect(await lookProblems(boss)).toEqual([]);
+  await boss.screenshot({path:info.outputPath('relay-final-waiting.png'),fullPage:true});
+  await relayCard.getByRole('button',{name:'Confirm the medals',exact:true}).click();
+  const sheet=boss.getByRole('dialog',{name:'Final complete',exact:true});
+  await expect(sheet.locator('.stage-creates li')).toHaveText([3,1,4].map((team,index)=>`${['1st','2nd','3rd'][index]}: Team ${team} · ${legs(team)}`));
+  await boss.screenshot({path:info.outputPath('relay-final-complete-sheet.png'),fullPage:true});
+  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(sheet).toHaveCount(0);
+  const board=boss.getByRole('list',{name:'Final leaderboard',exact:true});
+  for(const team of [3,1,4,2]) await expect(board.getByRole('button',{name:`Team ${team} · ${legs(team)} · Final`,exact:true})).toBeVisible();
+  expect(await lookProblems(boss)).toEqual([]);
+  await boss.screenshot({path:info.outputPath('relay-final-results.png'),fullPage:true});
+  await boss.getByRole('button',{name:'Back to Races',exact:true}).click();
+  const done=boss.locator('details',{hasText:/^Done \(\d+\)/});
+  await done.locator('summary').click();
+  await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');
+  await expect(relayCard.getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
 });

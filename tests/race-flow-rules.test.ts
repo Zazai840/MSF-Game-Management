@@ -138,7 +138,7 @@ test('a team reads the same on every screen: who else is changing it, whether it
   expect(teamListOf({event:{code:'R22',name:'4x50m Relay',section:'Girl Cubs'},teams:[open]})).toEqual({code:'R22',name:'4x50m Relay',section:'Girl Cubs',teams:[open]});
 });
 test('the finish line and Timer word a relay\'s teams and a race\'s runners from one place',()=>{
-  expect(entryWords(true)).toMatchObject({add:'+ Team not on the list',noneIn:'No team is in this heat yet',allPlaced:'Every team is placed',who:'Which team',noneElse:'No other team crossed the line',timerMeta:'time each team\'s 4th leg'});
+  expect(entryWords(true)).toMatchObject({add:'+ Team not on the list',noneIn:'No team is in this race yet',allPlaced:'Every team is placed',who:'Which team',noneElse:'No other team crossed the line',appear:'Teams appear here as the start line adds them or marks them Here.',timerMeta:'time each team\'s 4th leg'});
   expect(entryWords(false)).toMatchObject({add:'+ Runner not on the list',noneIn:'Nobody is checked in yet',allPlaced:'Everyone is placed',who:'Who',noneElse:'Nobody else crossed the line',timerMeta:null});
 });
 test('a write someone overtook names them, on a race step and a relay team alike',()=>{

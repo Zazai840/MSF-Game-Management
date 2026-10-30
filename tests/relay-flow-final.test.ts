@@ -75,6 +75,15 @@ test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest fir
   expect(marks(final).map(([,state])=>state)).toEqual(Array(6).fill('unmarked'));
   // As on a children's final, nobody runs it until marked Here: the finish line has no team to place yet.
   expect(teamsOf(final.race)).toEqual([]);
+  // Each seeded team is in the final all the same (its teams sheet reads "Final · change it at check-in"); Team 4 is not.
+  const inFinal=(read:RaceFlowRead)=>read.teams!.filter(team=>team.races.some(race=>race.kind==='final')).map(team=>team.number).sort();
+  expect(inFinal(final)).toEqual([1,2,3,5,6,7]);
+  expect(final.teams!.find(team=>team.number===2)!.races.map(race=>race.kind)).toEqual(['heat','final']);
+  // Marked Here it is listed once; marked Absent it is out of the final.
+  await mark(sam,final,2,'here');
+  expect((await ok(sam,`/api/races/${final.race.id}`)).teams!.find(team=>team.number===2)!.races.map(race=>race.kind)).toEqual(['heat','final']);
+  await mark(sam,final,5,'absent');
+  expect(inFinal(await ok(sam,`/api/races/${final.race.id}`))).toEqual([1,2,3,6,7]);
   // Each seeded team's card shows its four children, even once Absent takes it out of the race.
   expect(final.race.final!.entries[0].legs!.map(leg=>leg.wristband)).toEqual(legs(2));
   expect(final.steps.times).toBeUndefined();

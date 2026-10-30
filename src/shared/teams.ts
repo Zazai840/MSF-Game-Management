@@ -71,8 +71,8 @@ export const entryCount=(count:number,relay:boolean)=>`${count} ${entryNoun(rela
 export const teamCount=(count:number)=>entryCount(count,true);
 /** The finish line's and Timer's words, for a relay's teams or a race's runners. */
 export const entryWords=(relay:boolean)=>relay?{
-  add:'+ Team not on the list',noneIn:'No team is in this heat yet',allPlaced:'Every team is placed',who:'Which team',noneElse:'No other team crossed the line',
-  hasPlace:'Every team has a place.',appear:'Teams appear here as the start line adds them.',placesWhen:'teams are in the heat',timerMeta:"time each team's 4th leg",
+  add:'+ Team not on the list',noneIn:'No team is in this race yet',allPlaced:'Every team is placed',who:'Which team',noneElse:'No other team crossed the line',
+  hasPlace:'Every team has a place.',appear:'Teams appear here as the start line adds them or marks them Here.',placesWhen:'teams are in the heat',timerMeta:"time each team's 4th leg",
 }:{
   add:'+ Runner not on the list',noneIn:'Nobody is checked in yet',allPlaced:'Everyone is placed',who:'Who',noneElse:'Nobody else crossed the line',
   hasPlace:'Everyone has a place.',appear:'Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.',placesWhen:'runners are checked in',timerMeta:null,

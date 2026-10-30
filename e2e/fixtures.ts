@@ -214,7 +214,7 @@ export async function writeTeam(request:APIRequestContext,token:string,relayCode
 /** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
 export const flowPost=(request:APIRequestContext,token:string,url:string,data:object)=>postOk<RaceFlowRead>(request,token,url,data);
 /** A relay Start line tap as that phone on the race the relay is at, naming the team by its number, as tapping it does. */
-async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here',number:number,data:object={}) {
+async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here'|'absent',number:number,data:object={}) {
   const read=await flowRace(request,token,relayCode);
   return flowPost(request,token,`/api/races/${read.race.id}/teams/${read.teams!.find(team=>team.number===number)!.id}/${what}`,data);
 }
@@ -225,6 +225,10 @@ export function tickTeam(request:APIRequestContext,token:string,relayCode:string
 /** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
 export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
   return teamTap(request,token,relayCode,'here',number,{leg:leg-1,here});
+}
+/** Marks a relay final's teams Here as that phone, as its start line's Here does, naming each team by its number. */
+export async function markFinalHere(request:APIRequestContext,token:string,relayCode:string,numbers:number[]) {
+  for(const number of numbers) await teamTap(request,token,relayCode,'absent',number,{mark:'here'});
 }
 /**
  * Writes a relay heat's finishing order as that phone, naming teams by their number, at the version it sees. Every
