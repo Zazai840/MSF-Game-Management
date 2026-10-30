@@ -57,8 +57,10 @@ test('Heats complete waits on a heat with check-ins, ignores an empty current he
   const {jo,lead,setup,screen}=await start();
   const heat2=await setup.checkIn(jo,'R1',[1004,1005,1006,1007]);
   const sheet=(await call(lead,'/api/lead/events/R1/results')).json().results.heatsCheckSheet;
-  expect(sheet.mustSettleFirst).toEqual([{id:`race:${heat2.id}`,kind:'incomplete',raceId:heat2.id,message:'Heat 2 is in progress (4 checked in) - submit it or delete it'}]);
+  expect(sheet.mustSettleFirst).toEqual([{id:`race:${heat2.id}`,kind:'incomplete',raceId:heat2.id,message:'Heat 2 is in progress (4 checked in) - finish its steps or delete it'}]);
   expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).json().message).toBe('Must settle first - open the completion check sheet');
+  // A lead corrects only a saved race: one in progress is finished in its steps.
+  expect((await call(lead,`/api/lead/races/${heat2.id}/re-run`,{})).json().message).toBe('Heat 2 is in progress - finish its steps on Races');
   // Every runner taken off: Heat 2 is the empty current heat again, and heats complete over it.
   await setup.checkIn(jo,'R1',[]);
   expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).statusCode).toBe(200);

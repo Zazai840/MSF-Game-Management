@@ -13,12 +13,12 @@ import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
-import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { entryName,entryNumber,inProgressLine,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { entryCount } from '../../shared/teams.js';
 import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
-/** Lead corrections and Re-run change a saved race only: until then, its entries belong to the race screen. */
+/** Lead corrections and Re-run change a saved race only: until then, its entries belong to its steps. */
 function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
-  if(race.state!=='saved') throw new Refusal(409,`${raceLabel(race)} is in progress - open the race screen`);
+  if(race.state!=='saved') throw new Refusal(409,inProgressLine(race));
 }
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
 function requireNotRelay(race:{event:{relay:boolean}}) {

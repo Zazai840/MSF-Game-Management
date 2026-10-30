@@ -55,7 +55,9 @@ test('Heats complete on a relay seeds the six fastest teams into the final, each
   expect(complete.statusCode).toBe(200);
   const final=(complete.json() as EventResultsRead).results.finalResults!;
   expect(final.entries.map(entry=>entry.seed)).toEqual([1,2,3,4,5,6]);
-  expect(final.runners.map(entry=>isTeamEntry(entry) && [entry.team.number,entry.legs.map(leg=>[leg.wristband,leg.here])])).toEqual([2,5,1,6,3,7].map(number=>[number,legs(number).map(wristband=>[wristband,false])]));
+  expect(final.entries.map(entry=>entry.runner && isTeamEntry(entry.runner) && [entry.runner.team.number,entry.runner.legs.map(leg=>[leg.wristband,leg.here])])).toEqual([2,5,1,6,3,7].map(number=>[number,legs(number).map(wristband=>[wristband,false])]));
+  // Nobody runs it until marked Here at the start line, as on a children's final.
+  expect(final.runners).toEqual([]);
 });
 
 test('equal team times in different heats are a tie that must be settled before Heats complete',async()=>{
@@ -78,7 +80,7 @@ test('Heats complete ignores a relay\'s empty current heat and waits on one with
   await relays.tick(sam,'R22',3);await relays.takeOff(sam,'R22',3);
   expect((await results()).heatsCheckSheet!.mustSettleFirst).toEqual([]);
   await relays.tick(sam,'R22',3);
-  expect((await results()).heatsCheckSheet!.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 2 is in progress (1 team checked in) - submit it or delete it']);
+  expect((await results()).heatsCheckSheet!.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 2 is in progress (1 team checked in) - finish its steps or delete it']);
 });
 
 test('a relay final\'s leaderboard and Input - Running name every placed team with its four children',()=>{
