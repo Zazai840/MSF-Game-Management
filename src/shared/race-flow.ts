@@ -247,3 +247,5 @@ export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLead
   const rest=listed.filter(group=>!ready.includes(group));
   return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),teamsReady:teamsReady(groups),done:rest.filter(groupDone).sort(newest)};
 }
+/** A write refused because someone changed it first: "Tom Barker changed this a moment ago", or "Someone ..." when nobody is named. */
+export const changedLine=(by:string|null)=>`${by??'Someone'} changed this a moment ago`;

@@ -1,15 +1,15 @@
 import { useEffect,useId,useState,type ReactNode } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import type { RaceFlowRead,RaceGroup,RacesRead } from '../../shared/race-flow.js';
-import { stillToRun,teamState,teamsSheetLine,type RelayTeam,type TeamList } from '../../shared/teams.js';
-import { ApiFailure,api } from '../api.js';
+import { changedLine,type RaceFlowRead,type RaceGroup,type RacesRead } from '../../shared/race-flow.js';
+import { legsText,stillToRun,teamListOf,teamState,teamsSheetLine,type RelayTeam,type TeamList } from '../../shared/teams.js';
+import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { Callout,Icon,Sheet } from './parts.js';
 import { useTeamDraft,type TeamDraft } from './team-draft.js';
+import { useWrites } from './writes.js';
 /** What the sheet shows: the list, a team's leg boxes (Edit), New team's, or the Change anyway question over the list. */
 type Mode={kind:'list'}|{kind:'new'}|{kind:'edit';teamId:string}|{kind:'asking';teamId:string};
-const wristbands=(team:RelayTeam)=>team.legs.map(leg=>leg.wristband??'–');
 /**
  * A relay's teams sheet, over the Relays tab: every team with its four children in leg order and what it is doing.
  * Tapping a team still to run turns the sheet into its leg boxes; + New team opens empty ones. Each team saves on its
@@ -18,7 +18,7 @@ const wristbands=(team:RelayTeam)=>team.legs.map(leg=>leg.wristband??'–');
  */
 export function TeamSheet({group,relays,me,start,onClose,offer}:{group:RaceGroup;relays:readonly TeamList[];me:string;start:'list'|'new';onClose:()=>void;offer:(next:RacesRead)=>void}) {
   const [mode,setMode]=useState<Mode>({kind:start});
-  const teams=group.teams||[],open=group.heatsOpen,relay={code:group.event.code,name:group.event.name,section:group.event.section,teams};
+  const relay=teamListOf(group),teams=relay.teams,open=group.heatsOpen;
   const shown=mode.kind==='edit' || mode.kind==='asking'?teams.find(team=>team.id===mode.teamId):undefined;
   // A team that left the list (removed) or a list frozen meanwhile puts the sheet back on the list.
   const current:Mode=(mode.kind==='new' && !open) || ((mode.kind==='edit' || mode.kind==='asking') && !shown)?{kind:'list'}:mode;
@@ -34,9 +34,9 @@ export function TeamSheet({group,relays,me,start,onClose,offer}:{group:RaceGroup
     {teams.length>0 && <ul className="rz-teamsheet" aria-label="Teams">{teams.map(team=>{
       const tappable=open && stillToRun(team),body=<>
         <span className="rz-teamsheet__head"><span className="rz-teamsheet__name">Team {team.number}</span><span className="rz-teamsheet__state">{teamState(team)}</span>{tappable && <Icon name="pencil"/>}</span>
-        <span className="rz-teamsheet__legs">{wristbands(team).map((wristband,index)=><span key={index} className="rz-teamsheet__leg"><span className="rz-teamsheet__ord">{ordinal(index+1)}</span>{wristband}</span>)}</span>
+        <span className="rz-teamsheet__legs">{team.legs.map((leg,index)=><span key={index} className="rz-teamsheet__leg"><span className="rz-teamsheet__ord">{ordinal(index+1)}</span>{leg.wristband??'–'}</span>)}</span>
       </>;
-      return <li key={team.id}>{tappable?<button type="button" className="rz-teamsheet__team rz-teamsheet__team--tap" aria-label={`Change Team ${team.number}: ${wristbands(team).join(' · ')}`} onClick={()=>choose(team)}>{body}</button>
+      return <li key={team.id}>{tappable?<button type="button" className="rz-teamsheet__team rz-teamsheet__team--tap" aria-label={`Change Team ${team.number}: ${legsText(team.legs)}`} onClick={()=>choose(team)}>{body}</button>
         :<div className="rz-teamsheet__team">{body}</div>}</li>;
     })}</ul>}
     {open && <div className="rz-sheet__foot"><button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode({kind:'new'})}><Icon name="plus"/>New team</button></div>}
@@ -49,7 +49,7 @@ function ChangeAnyway({team,onCancel,onChange}:{team:RelayTeam;onCancel:()=>void
   return <div className="rz-confirm" role="alertdialog" aria-modal="true" aria-labelledby={id}>
     <div className="rz-confirm__box">
       <p className="rz-confirm__title" id={id}><strong>{team.changedBy?.name}</strong> has already set this team.</p>
-      <p className="rz-confirm__text">Team {team.number} · {wristbands(team).join(' · ')}</p>
+      <p className="rz-confirm__text">Team {team.number} · {legsText(team.legs)}</p>
       {/* Stacked: side by side, "Change anyway" wraps at 360px. */}
       <div className="rz-sheet__actions">
         <button type="button" className="rz-btn rz-btn--primary rz-btn--block" autoFocus onClick={onChange}>Change anyway</button>
@@ -63,11 +63,11 @@ function ChangeAnyway({team,onCancel,onChange}:{team:RelayTeam;onCancel:()=>void
  * anyway), and New team's saved team joins this heat. Each Save answers with the race as it then stands.
  */
 export function CheckInTeamSheet({read,teamId,offer,onClose}:{read:RaceFlowRead;teamId:string|null;offer:(next:RaceFlowRead)=>void;onClose:()=>void}) {
-  const {group}=read,teams=read.teams||[],team=teamId===null?null:teams.find(item=>item.id===teamId);
+  const {group}=read,relay=teamListOf({...group,teams:read.teams}),team=teamId===null?null:relay.teams.find(item=>item.id===teamId);
   if(team===undefined) return null;
   return <Sheet title={team?`Edit team ${team.number}`:'New team · joins this heat'} onClose={onClose}>
     <TeamForm team={team} number={team?.number??group.nextTeam!} eventId={group.event.id} raceId={read.race.id} offer={offer} onDone={onClose}
-      relay={{code:group.event.code,name:group.event.name,section:group.event.section,teams}} relays={read.relays||[]}/>
+      relay={relay} relays={read.relays||[]}/>
   </Sheet>;
 }
 /**
@@ -80,7 +80,7 @@ export function CheckInTeamSheet({read,teamId,offer,onClose}:{read:RaceFlowRead;
 function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}:{team:RelayTeam|null;number:number;eventId:string;raceId?:string;relay:TeamList;relays:readonly TeamList[];offer:(next:Answer)=>void;onDone:()=>void}) {
   /** The version this team was opened at: Save and Remove send it, so a change made meanwhile refuses them. */
   const [version,setVersion]=useState(team?.version),[fresh,setFresh]=useState(0);
-  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[changed,setChanged]=useState<{by:string|null}|null>(null),[removing,setRemoving]=useState(false);
+  const [removing,setRemoving]=useState(false),{busy,error,changed,clearChanged,send:write}=useWrites<Answer>(offer);
   // The mark is only a courtesy to other phones, so a failed open or close is not shown; a Save or sign-out clears it too.
   useEffect(()=>{
     if(!team) return;
@@ -89,19 +89,13 @@ function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}
     return ()=>mark('close');
   },[]);
   async function send(path:string,body:object) {
-    setBusy(true);setError('');
-    try {offer(await api<Answer>(`relays/${eventId}/teams${path}`,body));onDone();}
-    catch(failure) {
-      const refused=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
-      if(refused.reason==='changed') setChanged({by:refused.by??null});
-      else setError(failure instanceof Error?failure.message:'Could not connect - please try again');
-    } finally {setBusy(false);}
+    if(typeof await write(`relays/${eventId}/teams${path}`,body)==='object') onDone();
   }
   const save=(draft:TeamDraft)=>void send(team?`/${team.id}`:'',{...draft,...(team?{version,raceId}:{joinRaceId:raceId})});
   return <>
     <p className="rz-sheet__text">{relay.name} · {relay.section}<br/>Type each child's wristband in running order, 1st leg first.</p>
-    {changed && <Callout status message={`${changed.by?`${changed.by} changed this`:'Someone changed this'} a moment ago.`}
-      actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>{setChanged(null);setVersion(team?.version);setFresh(fresh+1);}}>Show latest</button>}/>}
+    {changed && <Callout status message={`${changedLine(changed.by)}.`}
+      actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>{clearChanged();setVersion(team?.version);setFresh(fresh+1);}}>Show latest</button>}/>}
     <LegBoxes key={fresh} team={team} number={number} relay={relay} relays={relays} busy={busy} error={error} removing={removing}
       onSave={save} onCancel={onDone} onRemove={team && stillToRun(team)?()=>setRemoving(true):undefined}
       removeActions={team && <><button type="button" className="rz-btn rz-btn--danger" disabled={busy} onClick={()=>void send(`/${team.id}/remove`,{version})}>Remove</button>

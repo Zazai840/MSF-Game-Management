@@ -5,19 +5,19 @@ import type { Phone } from '../../shared/domain.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
-import { raceName,type RaceFlowRead,type RacesRead } from '../../shared/race-flow.js';
+import { changedLine,raceName,type RaceFlowRead,type RacesRead } from '../../shared/race-flow.js';
 import { changeTeamEntry,raceFlowRead,racesRead } from '../races/race-flow.js';
 import { keepFinalistLegs } from '../races/final-field.js';
 import { raceChange } from '../races/records.js';
 import { checkedLegs,joiningTeam,requestedDone,requestedTeam,requireNotInRace,requireOpen,teamsWriteRead,type TeamsWriteRead } from './teams.js';
 /**
- * A Save on the version the phone last saw, or refused as changed ("Aisha Noor changed this a moment ago", or on this
- * person's own other screen, to check and enter it again). Nothing holds a team: two phones change two teams at once.
+ * A Save on the version the phone last saw, or refused as changed ("Aisha Noor changed this a moment ago", or by this
+ * person's own profile on another screen, to check and enter it again). Nothing holds a team: two phones change two teams at once.
  */
 function requireVersion(team:RelayTeam,phone:Phone,version:number) {
   if(version===team.version) return;
   const by=team.changedBy;
-  throw new Refusal(409,by && by.id!==phone.profileId?`${by.name} changed this a moment ago`:'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
+  throw new Refusal(409,by && by.id!==phone.profileId?changedLine(by.name):'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
 }
 /** The race a check-in write names, or none from the teams sheet. */
 function requestedRace(raceId:unknown) {

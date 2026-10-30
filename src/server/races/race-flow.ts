@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -98,7 +98,7 @@ async function requireCurrent(client:pg.PoolClient,phone:Phone,raceId:string,par
   const race=await requireOpen(client,phone,raceId);
   if(seen.version!==race.parts[part].version) {
     const by=(await client.query('SELECT s.id,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.saved_by WHERE p.race_id=$1 AND p.part=$2',[raceId,part])).rows[0];
-    throw new Refusal(409,by?.name && by.id!==phone.id?`${by.name} changed this a moment ago`:'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
+    throw new Refusal(409,by?.name && by.id!==phone.id?changedLine(by.name):'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
   }
   return {event:race.event,race:jobRace(race)};
 }
@@ -202,7 +202,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/races/:raceId/teams/:teamId/tick','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
     if(entry) {unchanged();return;}
     if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
-    return [...entries,joiningTeam(team)];
+    return [...entries,joiningTeam(team,{me:phone.id})];
   }));
   // Take off: only while none of its children is marked here.
   action('POST','/api/races/:raceId/teams/:teamId/take-off','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{

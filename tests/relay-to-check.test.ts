@@ -2,7 +2,7 @@ import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { ResultsRead } from '../src/shared/lead-results.js';
-import { toCheckWording } from '../src/shared/to-check.js';
+import { itemTeams,toCheckWording } from '../src/shared/to-check.js';
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { isTeamEntry,type TeamEntry } from '../src/shared/races.js';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
@@ -97,6 +97,12 @@ test('a time out of order, teams tied on time and a team ran twice are today\'s 
   expect(items.find(item=>item.kind==='ran-twice')).toMatchObject({title:'A team ran twice',explanation:'Team 1 has a result in more than one race of this event. Choose which result counts.'});
   expect(items.find(item=>item.kind==='tie')).toMatchObject({title:'Teams tied on time',explanation:'Team 2 and Team 3 both have 15.00. Decide whether a run-off is needed.'});
   expect(items.find(item=>item.kind==='times-out-of-order')).toMatchObject({title:'A time looks wrong',explanation:'2nd place (16.00) is faster than 1st (17.00). The timer kept it as typed.'});
+  // A lead's step tab lists each team an item is about with its four children: both tied teams, or the one team a race entry names.
+  const needsYou=eventResults({event,races}).needsYou;
+  expect(itemTeams(needsYou.find(item=>item.kind==='tie')!,races[1].runners)).toEqual(['Team 2 · 2201 · 2202 · 2203 · 2204','Team 3 · 2301 · 2302 · 2303 · 2304']);
+  const twice=needsYou.find(item=>item.kind==='ran-twice' && item.raceId==='h2')!;
+  expect(itemTeams(twice,races[1].runners)).toEqual(['Team 1 · 2101 · 2102 · 2103 · 2104']);
+  expect(itemTeams(twice,[])).toEqual([]);
 });
 
 test('a child in two relays\' teams is a To check item on the team that ran, kept or not, cleared by fixing the team list or Mark checked',async()=>{

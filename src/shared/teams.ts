@@ -16,23 +16,37 @@ export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:n
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
 export interface TeamList { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
-export const filledLegs=(team:Pick<RelayTeam,'legs'>)=>team.legs.filter(leg=>leg.wristband!==null).length;
+export const filledLegs=(team:{legs:ReadonlyArray<{wristband:number|null}>})=>team.legs.filter(leg=>leg.wristband!==null).length;
 /** Still to run: no race of its relay holds the team, apart from deleted races. Removed teams are not on the list at all. */
 export const stillToRun=(team:Pick<RelayTeam,'races'>)=>!team.races.length;
 /** The unsaved race holding the team, if any: the team is changed only at that race's check-in, and a lead's Correct teams reads "In heat 2". */
 export const unsavedRace=(team:Pick<RelayTeam,'races'>)=>team.races.find(race=>race.state!=='saved')??null;
 /**
- * Who is changing the team now, or null: the name on its "being changed by" marker. A team being changed can't be
- * ticked into a race, and other phones see "Priya Shah is changing this team" under it.
+ * Who else is changing the team now, or null: the name on its "being changed by" marker, unless it is this phone's own
+ * (`me`, its sign-in id). A team someone else is changing can't be added to a race, and shows "Priya Shah is changing
+ * this team" under it.
  */
-export const changingName=(team:Pick<RelayTeam,'changing'>)=>team.changing?.name??null;
+export const changerOf=(team:Pick<RelayTeam,'changing'>,me:string|null=null)=>team.changing && team.changing.id!==me?team.changing.name:null;
+/** Under a team someone else has open: "Priya Shah is changing this team". */
+export const changingLine=(name:string)=>`${name} is changing this team`;
+/** How full a team short of four children is, "3 of 4", or null for a full team. */
+const shortBy=(team:{legs:ReadonlyArray<{wristband:number|null}>})=>filledLegs(team)<4?`${filledLegs(team)} of 4`:null;
+/** A team short of four children runs short: "Runs short · 3 of 4", or null. It never blocks a race, and a lead checks it once saved. */
+export const runsShortLine=(team:{legs:ReadonlyArray<{wristband:number|null}>})=>shortBy(team) && `Runs short · ${shortBy(team)}`;
+/** A team's four children in leg order, "–" for an empty leg: "2101 · 2134 · 2187 · –". */
+export const legsText=(legs:ReadonlyArray<{wristband:number|null}>)=>legs.map(leg=>leg.wristband??'–').join(' · ');
+/** "1 child", "3 children": how many of a heat's children are here. */
+export const childCount=(count:number)=>`${count} ${count===1?'child':'children'}`;
+/** A relay group as its team checks see it: the relay and its teams. */
+export const teamListOf=(group:{event:Pick<TeamList,'code'|'name'|'section'>;teams?:readonly RelayTeam[]}):TeamList=>
+  ({code:group.event.code,name:group.event.name,section:group.event.section,teams:group.teams||[]});
 /**
  * What a team is doing, in the teams sheet: "Heat 1 · ran", "Heat 2 · change it at check-in" (its latest race), or
  * "Still to run", with "· 3 of 4" while it is short.
  */
 export function teamState(team:Pick<RelayTeam,'races'|'legs'>) {
-  const race=team.races.at(-1),name=race?.kind==='final'?'Final':`Heat ${race?.number}`,filled=filledLegs(team);
-  return race?`${name} · ${race.state==='saved'?'ran':'change it at check-in'}`:`Still to run${filled<4?` · ${filled} of 4`:''}`;
+  const race=team.races.at(-1),name=race?.kind==='final'?'Final':`Heat ${race?.number}`,short=shortBy(team);
+  return race?`${name} · ${race.state==='saved'?'ran':'change it at check-in'}`:`Still to run${short?` · ${short}`:''}`;
 }
 /** A relay card's Teams row: "Teams 8 · 2 still to run", or "Teams 6" once none is left to run. */
 export function teamsRow(teams:readonly Pick<RelayTeam,'races'>[]) {
@@ -55,6 +69,14 @@ export const entryWord=(relay:boolean)=>relay?'team':'wristband';
 export const entryCount=(count:number,relay:boolean)=>`${count} ${entryNoun(relay)}${count===1?'':'s'}`;
 /** "1 team", "5 teams". */
 export const teamCount=(count:number)=>entryCount(count,true);
+/** The finish line's and Timer's words, for a relay's teams or a race's runners. */
+export const entryWords=(relay:boolean)=>relay?{
+  add:'+ Team not on the list',noneIn:'No team is in this heat yet',allPlaced:'Every team is placed',who:'Which team',noneElse:'No other team crossed the line',
+  hasPlace:'Every team has a place.',appear:'Teams appear here as the start line adds them.',placesWhen:'teams are in the heat',timerMeta:"time each team's 4th leg",
+}:{
+  add:'+ Runner not on the list',noneIn:'Nobody is checked in yet',allPlaced:'Everyone is placed',who:'Who',noneElse:'Nobody else crossed the line',
+  hasPlace:'Everyone has a place.',appear:'Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.',placesWhen:'runners are checked in',timerMeta:null,
+};
 /** A word as it starts a sentence or a column: "Team", "Runners". */
 export const capitalised=(word:string)=>word[0].toUpperCase()+word.slice(1);
 /** Why the number in box `index` can't go in: it is already in another box of this team, or in another team of the relay. */

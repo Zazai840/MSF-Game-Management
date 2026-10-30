@@ -2,7 +2,7 @@ import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { finalMade,groupStatus,leadLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
-import { teamsReadyLine,teamsRow,type TeamList } from '../../shared/teams.js';
+import { teamListOf,teamsReadyLine,teamsRow } from '../../shared/teams.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
@@ -53,7 +53,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
   const all=snapshot?.groups||[],groups=all.filter(group=>group.event.type===tab);
   const finalFor=all.find(group=>group.event.code===confirming);
   const relayGroups=all.filter(group=>group.teams),teamsFor=relayGroups.find(group=>group.event.code===teamsOf?.code);
-  const relays:TeamList[]=relayGroups.map(group=>({code:group.event.code,name:group.event.name,section:group.event.section,teams:group.teams!}));
+  const relays=relayGroups.map(teamListOf);
   /** + New team at the foot of Relays: straight to the leg boxes with one relay, else which relay first. */
   const newTeam=()=>setTeamsOf({code:relayGroups.length===1?relayGroups[0].event.code:null,start:'new'});
   async function make(choice:Required<NewRaceChoice>) {

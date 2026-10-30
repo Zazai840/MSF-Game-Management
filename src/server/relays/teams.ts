@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { raceName,teamsFinishedLine } from '../../shared/race-flow.js';
-import { changingName,legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
+import { changerOf,legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
 import { Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
 import type { TeamEntry } from '../../shared/races.js';
@@ -64,16 +64,16 @@ export async function clearTeamMarks(client:pg.PoolClient,signInId:string) {
   await client.query('UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE changing_by=$1',[signInId]);
 }
 /**
- * A team joining a race from its team list (ticked at check-in, added at the finish, or by a lead's Correct teams):
- * only a team still to run, and one nobody is changing unless `evenIfChanging`. The race takes a copy of its four
+ * A team joining a race from its team list (added at check-in or at the finish, or by a lead's Correct teams): only a
+ * team still to run, and one nobody else (`me`, the phone adding it) is changing unless `evenIfChanging`. The race takes a copy of its four
  * children and their kept warnings, each child on the list marked here when `here` (they crossed the line).
  */
-export function joiningTeam(team:RelayTeam,{here=false,addedAtFinish=false,evenIfChanging=false}={}):TeamEntry {
+export function joiningTeam(team:RelayTeam,{here=false,addedAtFinish=false,evenIfChanging=false,me=null as string|null}={}):TeamEntry {
   // A team in a race not saved yet hasn't run: say which race holds it.
   const holding=unsavedRace(team);
   if(holding) throw new Refusal(409,`Team ${team.number} is already in ${raceName(holding)}`);
   if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
-  const changer=evenIfChanging?null:changingName(team);
+  const changer=evenIfChanging?null:changerOf(team,me);
   if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
   return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:here && leg.wristband!==null})),...(addedAtFinish?{addedAtFinish:true}:{})};
 }

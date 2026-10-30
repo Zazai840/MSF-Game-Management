@@ -1,7 +1,7 @@
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
+import { changedLine,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,StaleRequest } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
@@ -89,7 +89,7 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}
         {failure && <Callout message={failure}/>}
-        {flow.changed && <div className="rz-callout rz-callout--status" role="status"><p className="rz-callout__msg"><Icon name="warning"/><span>{flow.changed.by?`${flow.changed.by} changed this a moment ago.`:'Someone changed this a moment ago.'}</span></p>
+        {flow.changed && <div className="rz-callout rz-callout--status" role="status"><p className="rz-callout__msg"><Icon name="warning"/><span>{changedLine(flow.changed.by)}.</span></p>
           <div className="rz-callout__actions"><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{flow.clearChanged();setFresh(fresh+1);}}>Show latest</button></div></div>}
         {race.stageComplete?<p className="rz-note" role="status">{raceFinishedLine({kind:race.kind,event})}</p>:race.state==='saved' && !lead && <p className="rz-note" role="status">{raceName(race)} is saved. Ask a lead to change it.</p>}
       </div>}
