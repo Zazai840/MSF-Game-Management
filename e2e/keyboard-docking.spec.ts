@@ -1,4 +1,4 @@
-import {ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRaceScreen,openRelays,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRaceScreen,openRelays,press,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -18,8 +18,6 @@ async function withKeyboard(session:PhoneSession) {
   return session;
 }
 const keyboard=(page:Page,height:number|null)=>page.evaluate(height=>(window as unknown as {keyboard:(height:number|null)=>void}).keyboard(height),height);
-/** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
-const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
 const footerBottom=async(footer:Locator)=>{const box=(await footer.boundingBox())!;return box.y+box.height;};
 /** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen. */
 async function docksAboveKeyboard(page:Page,box:Locator,footer=page.locator('footer.rz-footer')) {
