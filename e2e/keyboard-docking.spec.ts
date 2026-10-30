@@ -131,6 +131,15 @@ test('a relay\'s teams sheet keeps Cancel and Save on the keyboard while the leg
   await openRelays(page);
   await page.getByRole('article',{name:`${name} · Boy Cubs`,exact:true}).getByRole('button',{name:/^Teams 1/}).click();
   await page.getByRole('dialog').getByRole('button',{name:'New team',exact:true}).click();
-  const box=page.getByLabel('1st leg',{exact:true});
-  await docksAboveKeyboard(page,box,page.locator('.rz-sheet__foot'));
+  const box=page.getByLabel('1st leg',{exact:true}),foot=page.locator('.rz-sheet__foot');
+  if(page.viewportSize()!.width<700) return docksAboveKeyboard(page,box,foot);
+  // Over a phone's width the sheet is a centred dialog (race-flow.css), not a sheet at the foot: it shrinks to what
+  // shows above the keyboard, Cancel and Save wholly in view there.
+  const open=Math.round(page.viewportSize()!.height*0.55);
+  await expect(box).toBeFocused();
+  expect(await footerBottom(foot)).toBeGreaterThan(open);
+  await keyboard(page,open);
+  await expect.poll(()=>footerBottom(foot)).toBeLessThanOrEqual(open);
+  await inViewAboveFooter(page,[foot.getByRole('button',{name:'Cancel',exact:true}),foot.getByRole('button',{name:'Save team 2',exact:true})]);
+  await page.screenshot({path:info.outputPath('docked.png')});
 });
