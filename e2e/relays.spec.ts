@@ -216,12 +216,10 @@ test('a relay with no teams says where they are typed, and the Teams screen show
 /** The ids of a relay's teams, in number order, from the Home snapshot a team write answers. */
 const teamIds=(home:Awaited<ReturnType<typeof writeTeam>>,code:string)=>home.events.find(event=>event.code===code)!.teams!.map(team=>team.id);
 
-for(const action of ['done','remove']) test(`a refused ${action} closes the team, keeps its refusal and clears this phone's mark`,async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=ownName(`Teams refused ${action}`);
+for(const action of ['done','remove']) test(`a refused ${action} closes the team, keeps its refusal and clears this phone's mark`,async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName(`Teams refused ${action}`),number=(await ownWristbands('Girl Cubs',1))(1);
   const sam=ownName(`Sam Patel refused ${action}`),phone=await openPhone(sam);
   await ownRelay(code,name,'Girl Cubs');
-  // Clear of the typing test's numbers (2101 + 200 per project and up), which another project's relay would warn about.
-  const number=2410+['iPhone','Android','desktop'].indexOf(project)*40+(action==='done'?1:2);
   const home=await writeTeam(request,phone.token,code,[number,null,null,null]),teamId=teamIds(home,code)[0];
   await openTeams(phone.page);
   await card(phone.page,name,'Girl Cubs').click();
