@@ -1,15 +1,15 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
 /** A team's card at check-in, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const sheet=(page:Page,title:string)=>page.getByRole('dialog',{name:title,exact:true});
 const here=(page:Page,wristband:number)=>page.getByRole('button',{name:`${wristband}: Here`,exact:true});
 
 test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the other phone sees who is changing it, and New team joins this heat',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay edit ${project}`;
+  const code=await ownCode(),name=ownName('Relay edit');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',44);
-  const samName=`Sam Patel edit ${project}`,sam=await openPhone(samName),priya=await openPhone(`Priya Shah edit ${project}`);
+  const samName=ownName('Sam Patel edit'),sam=await openPhone(samName),priya=await openPhone(ownName('Priya Shah edit'));
   // Priya set Team 1, so on the teams sheet Sam would be asked first; at check-in he is not.
   await writeTeam(request,priya.token,code,[w(11),w(12),w(13),w(14)]);
   await writeTeam(request,priya.token,code,[w(21),w(22),w(23),w(24)]);
@@ -73,10 +73,10 @@ test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the o
 });
 
 test('a relay final: Edit on a seeded team swaps its children at check-in, Here marks following them',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay final edit ${project}`;
+  const code=await ownCode(),name=ownName('Relay final edit');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',24);
-  const lead=await openPhone(`Jo Evans final edit ${project}`,{lead:true}),sam=await openPhone(`Sam Patel final edit ${project}`);
+  const lead=await openPhone(ownName('Jo Evans final edit'),{lead:true}),sam=await openPhone(ownName('Sam Patel final edit'));
   for(const team of [1,2]) await writeTeam(request,sam.token,code,[w(team*10+1),w(team*10+2),w(team*10+3),w(team*10+4)]);
   await runHeat(request,sam.token,code,2);
   const final:RaceFlowRead=await flowPost(request,lead.token,'/api/races',{eventCode:code,kind:'final'});

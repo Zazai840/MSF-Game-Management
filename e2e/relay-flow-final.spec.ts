@@ -1,16 +1,16 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const markButton=(page:Page,team:number,mark:'Here'|'Absent')=>card(page,team).getByRole('button',{name:`Team ${team}: ${mark}`,exact:true});
 test('a lead makes a relay final and two phones run it: Here / Absent per seeded team, That\'s everyone asking about the unmarked one, and the final saving itself with no Times',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay final ${project}`;
+  const code=await ownCode(),name=ownName('Relay final');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',28);
-  const lead=await openPhone(`Jo Evans lead final ${project}`,{lead:true});
-  const sam=await openPhone(`Sam Patel final start ${project}`),finish=await openPhone(`Priya Shah final finish ${project}`,{job:'finish'});
+  const lead=await openPhone(ownName('Jo Evans lead final'),{lead:true});
+  const sam=await openPhone(ownName('Sam Patel final start')),finish=await openPhone(ownName('Priya Shah final finish'),{job:'finish'});
   for(let team=1;team<=7;team++) await writeTeam(request,sam.token,code,[w(team*10+1),w(team*10+2),w(team*10+3),w(team*10+4)]);
   await runHeat(request,sam.token,code,7);
   // Only a lead makes the final; it seeds the fastest 6 teams, Team 7 left out.

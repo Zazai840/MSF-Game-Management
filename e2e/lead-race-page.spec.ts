@@ -1,4 +1,4 @@
-import {ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -21,7 +21,7 @@ const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<stri
 
 test('the race page highlights a wrong time in amber with its reason, and the times editor retypes it on the phone number pad',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2101,2102,2103],[1200,1100,1250]);
-  await openRace(page,code,`Wrong time lead ${info.project.name}`,race.number);
+  await openRace(page,code,ownName('Wrong time lead'),race.number);
   const record=page.getByRole('list',{name:'Current record',exact:true});
   const second=record.getByRole('listitem').filter({hasText:'2102'});
   await expect(second).toContainText('Faster than 1st place');
@@ -55,7 +55,7 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
 
 test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[5141,3141,2141,3142],[1300,1310,1320,1330],[5141,3141,3142]);
-  const lead=`Warning lead ${info.project.name}`;
+  const lead=ownName('Warning lead');
   await openRace(page,code,lead,race.number);
   const record=page.getByRole('list',{name:'Current record',exact:true}),row=(number:number)=>record.getByRole('listitem').filter({hasText:String(number)});
   const warning=(number:number)=>row(number).locator('.record-warning');
@@ -84,7 +84,7 @@ test('a single child\'s warnings show beside their number on the Current record,
 
 test('a lead corrects a number on the phone number pad: digits only, Enter checks, a warning closes the keyboard and Fix clears it',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2111,2112],[1300,1400]);
-  await openRace(page,code,`Number lead ${info.project.name}`,race.number);
+  await openRace(page,code,ownName('Number lead'),race.number);
   await page.getByRole('button',{name:'Runner 2112',exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();
   const sheet=page.getByRole('dialog'),input=sheet.getByLabel('New wristband number',{exact:true});
@@ -105,14 +105,14 @@ test('a lead corrects a number on the phone number pad: digits only, Enter check
   // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
   await page.getByText('Saved versions (4)',{exact:true}).click();
   const versions=page.locator('.race-page details li');
-  await expect(versions.nth(3)).toContainText(`Number lead ${info.project.name} · Runners · `);
+  await expect(versions.nth(3)).toContainText(`${ownName('Number lead')} · Runners · `);
   expect(await versions.allTextContents()).toEqual(expect.arrayContaining([expect.stringMatching(/ · Finishing order · \d/),expect.stringMatching(/ · Times · \d/)]));
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('saved-versions.png'),fullPage:true});
 });
 
 test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2121,2122,2123,2124,2125,2126],[1300,1310,1320,1330,1340,1350]);
-  await openRace(page,code,`Runner list lead ${info.project.name}`,race.number);
+  await openRace(page,code,ownName('Runner list lead'),race.number);
   await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
   const sheet=page.getByRole('dialog');
   await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeInViewport();
@@ -144,7 +144,7 @@ test('a race not saved yet shows In progress on the lead race page, with the cor
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);
-  await openRace(page,code,`In progress lead ${info.project.name}`,race.number);
+  await openRace(page,code,ownName('In progress lead'),race.number);
   await expect(page.getByText('Heat 1 is in progress - finish its steps on Races',{exact:true})).toBeVisible();
   for(const tool of ['Correct times','Correct finishing order','Correct runner list','Re-run race']) await expect(page.getByRole('button',{name:tool,exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-in-progress.png'),fullPage:true});

@@ -1,4 +1,4 @@
-import {ownEvent,ownCode,deleteCurrentRace,openLeadMenu,openRace,becomeLead,expect,join,lookProblems,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,deleteCurrentRace,openLeadMenu,openRace,becomeLead,expect,join,lookProblems,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await join(page,name,{job:'Start line'});
 }
@@ -13,8 +13,8 @@ async function surplusRace(request:APIRequestContext,code:string,name:string,tim
 }
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
 test('a surplus time at a place with no wristband leaves the race waiting, done, for a lead, who sees why on its Times tab',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Review surplus ${project}`;
-  const {page,token}=await openPhone(`Surplus timer ${project}`,{job:'timer'});
+  const code=await ownCode(),name=ownName('Review surplus');
+  const {page,token}=await openPhone(ownName('Surplus timer'),{job:'timer'});
   await surplusRace(request,code,name,token);
   await openRace(page,name);
   // Six times for five finishers: the timer sees every place it timed.
@@ -26,7 +26,7 @@ test('a surplus time at a place with no wristband leaves the race waiting, done,
   await submitRace(request,token,code);
   const group=async()=>(await (await request.get('/api/races',{headers:{authorization:`Bearer ${token}`}})).json()).groups.find((item:{event:{code:string}})=>item.event.code===code);
   expect((await group()).races[0].state).toBe('in progress');
-  const lead=(await openPhone(`Surplus lead ${project}`,{lead:true})).page;
+  const lead=(await openPhone(ownName('Surplus lead'),{lead:true})).page;
   await expect(lead.getByRole('article',{name:`${name} · Girl Cubs`}).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs a lead');
   await openRace(lead,name);
   await lead.getByRole('tab',{name:/^Times/}).click();
@@ -42,7 +42,7 @@ test('after a lead takes a finisher off a saved race, the lead sees the surplus 
   // Finishers and times only disagree after a lead's correction: 2406 turns out not to have run.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;
   expect((await page.request.post(`/api/lead/races/${race.id}/finish-order`,{headers,data:{baseVersion:saved.parts.finish.version,runnersVersion:saved.parts.runners.version,order:runners.slice(0,5),didNotFinish:[],didNotRun:[2406]}})).ok()).toBe(true);
-  await signInAs(page,`Surplus correcting lead ${info.project.name}`);await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await expect(sheet.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
   const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.';
   await expect(sheet.getByText(leftover,{exact:true})).toBeVisible();await expect(sheet.getByRole('button',{name:'Save times',exact:true})).toBeDisabled();

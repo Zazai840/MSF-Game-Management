@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
@@ -11,10 +11,10 @@ async function openFinalResults(page:Page,code:string) {
 }
 
 test('a lead\'s call-up shows live on a relay final\'s start line, and once the final saves itself the Final leaderboard lists each medal team\'s four children',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Relay final ${project}`,code=await ownCode();
+  const name=ownName('Relay final'),code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
   const n=await ownWristbands('Girl Scouts',28),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg));
-  const sam=await openPhone(`Sam Patel final ${project}`),lead=await openPhone(`Jo Evans final ${project}`,{lead:true});
+  const sam=await openPhone(ownName('Sam Patel final')),lead=await openPhone(ownName('Jo Evans final'),{lead:true});
   for(let number=1;number<=7;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});
   // Teams 1 to 6 are the six fastest, Team 7 is 7th.
   await runHeat(request,sam.token,code,7);
@@ -46,10 +46,10 @@ test('a lead\'s call-up shows live on a relay final\'s start line, and once the 
 });
 
 test('a lead adds a team to a relay Final by picking it from the relay\'s teams, and it shows Added on the final\'s start line',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Relay final add ${project}`,code=await ownCode();
+  const name=ownName('Relay final add'),code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
   const n=await ownWristbands('Girl Scouts',12),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg));
-  const sam=await openPhone(`Sam Patel final add ${project}`),lead=await openPhone(`Jo Evans final add ${project}`,{lead:true});
+  const sam=await openPhone(ownName('Sam Patel final add')),lead=await openPhone(ownName('Jo Evans final add'),{lead:true});
   // Two teams run the heat, and Team 3 is typed after it: a lead adds it to the Final.
   for(let number=1;number<=2;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});
   await runHeat(request,sam.token,code,2);

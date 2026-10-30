@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import {ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,test,type Locator,type Page} from '../fixtures.js';
+import {ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,test,type Locator,type Page} from '../fixtures.js';
 
 // Runs only under playwright.test-build.config.ts, which starts the server as a test build of this commit.
 const commit=process.env.E2E_TEST_BUILD_COMMIT!;
@@ -31,12 +31,12 @@ async function expectReports(page:Page,screen:string,bar:Locator=page.locator('.
 }
 
 test('a test build shows its commit and a Report a bug link on Join, Races and a race',async({page,request},info)=>{
-  const code=await ownCode(),name=`Test build sprint ${info.project.name}`;
+  const code=await ownCode(),name=ownName('Test build sprint');
   await ownEvent(request,code,name);
   await request.post('/api/races',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{eventCode:code,kind:'heat',number:1}});
   await page.goto('/');
   await expectReports(page,'Join');
-  await join(page,`Tester Marker ${info.project.name} With A Long Full Name`,{job:'Start line'});
+  await join(page,`${ownName('Tester Marker')} With A Long Full Name`,{job:'Start line'});
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   await expectReports(page,'Races');
   await page.screenshot({path:info.outputPath('races.png')});
@@ -45,9 +45,9 @@ test('a test build shows its commit and a Report a bug link on Join, Races and a
   await page.screenshot({path:info.outputPath('race.png')});
 });
 
-test('inside the lead area the Report a bug link names the screen shown',async({page},info)=>{
+test('inside the lead area the Report a bug link names the screen shown',async({page})=>{
   await page.goto('/');
-  await join(page,`Tester Lead ${info.project.name}`,{job:'Start line'});
+  await join(page,ownName('Tester Lead'),{job:'Start line'});
   await becomeLead(page);
   await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();

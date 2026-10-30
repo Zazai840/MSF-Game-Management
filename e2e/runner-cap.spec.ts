@@ -1,4 +1,4 @@
-import {ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
+import {ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
@@ -10,9 +10,9 @@ async function openResults(page:Page,code:string,name:string) {
 
 test('a phone checks in 8 runners and carries them through each job in turn, the race saving itself, and Results',async({page,openPhone},info)=>{
   test.setTimeout(60000);
-  const code=await ownCode(),name=`Eight ${info.project.name}`,numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
+  const code=await ownCode(),name=ownName('Eight'),numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
   await ownEvent(page.request,code,name);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
-  const {page:phone}=await openPhone(`Eight phone ${info.project.name}`);
+  const {page:phone}=await openPhone(ownName('Eight phone'));
   await phone.getByRole('button',{name:'New race',exact:true}).click();
   const newRace=phone.getByRole('dialog',{name:'New race'});
   await newRace.getByRole('button',{name,exact:true}).click();await newRace.getByRole('button',{name:'Girl Cubs',exact:true}).click();
@@ -31,7 +31,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
   await openRace(phone,name);await switchJob(phone,'Timer');
   for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{level:2,name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
   await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
-  await openResults(page,code,`Eight lead ${info.project.name}`);
+  await openResults(page,code,ownName('Eight lead'));
   const board=page.getByRole('list',{name:'Provisional leaderboard'});
   await expect(board.locator('.leaderboard-row')).toHaveCount(8);await expect(board.locator('.leaderboard-row.highlighted')).toHaveCount(8);await expect(board.locator('.result-mark')).toHaveCount(6);
   await expect(board.getByRole('button',{name:'Runner 2808 · Heat 1',exact:true})).toContainText('13.05');
@@ -40,14 +40,14 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
 
 test('a lead adds a 7th runner to a saved final and the final is recorded end to end',async({page,openPhone},info)=>{
   test.setTimeout(60000);
-  const code=await ownCode(),name=`Seven ${info.project.name}`;
+  const code=await ownCode(),name=ownName('Seven');
   await ownEvent(page.request,code,name,'Boy Cubs','heats');await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }
   expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
   // The final of six runs in the race flow: everyone marked Here at the start line, then the finishing order, and it saves itself.
-  const {page:phone}=await openPhone(`Seven phone ${info.project.name}`);await openRace(phone,name,'Boy Cubs','Final');
+  const {page:phone}=await openPhone(ownName('Seven phone'));await openRace(phone,name,'Boy Cubs','Final');
   await expect(phone.locator('.rz-prompt__meta')).toHaveText('Final · 0 of 6 here · 6 not marked');
   for(const number of [1801,1802,1803,1804,1805,1807]) await phone.getByRole('button',{name:`${number}: Here`,exact:true}).click();
   await expect(phone.locator('.rz-prompt__meta')).toHaveText('Final · 6 of 6 here');
@@ -57,7 +57,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await phone.getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(phone.locator('.rz-toast')).toContainText('Finishing order saved · Boy Cubs Final');
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
-  await openResults(page,code,`Seven lead ${info.project.name}`);
+  await openResults(page,code,ownName('Seven lead'));
   await page.getByRole('button',{name:'Open final',exact:true}).click();await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:'Add runner',exact:true}).click();await sheet.getByLabel('Wristband for runner 7',{exact:true}).fill('1806');
   await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeEnabled();

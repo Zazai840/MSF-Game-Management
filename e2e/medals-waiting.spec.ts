@@ -1,4 +1,4 @@
-import {expect,flowRace,live,lookProblems,ownCode,ownEvent,ownWristbands,recordRace,submitRace,test,writeCheckIn,writeOrder,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,expect,flowRace,live,lookProblems,ownCode,ownEvent,ownWristbands,recordRace,submitRace,test,writeCheckIn,writeOrder,type APIRequestContext,type Page} from './fixtures.js';
 /**
  * Medals waiting on the lead: once an event's medals wait on the lead's Confirm in Results (Final complete, or Event
  * complete on a timed event), the lead's Races home lists it in Ready for you saying so, with Confirm the medals, which
@@ -33,12 +33,12 @@ async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
 }
 
 test('a saved 60m final waits in the lead\'s Ready for you; Confirm the medals opens Final complete, and the card moves to Done',async({openPhone,request},info)=>{
-  const name=`Medals final ${info.project.name}`,code=await ownCode(),w=await ownWristbands('Girl Cubs',2);
+  const name=ownName('Medals final'),code=await ownCode(),w=await ownWristbands('Girl Cubs',2);
   await ownEvent(request,code,name);
   await recordRace(request,owner(),code,[w(1),w(2)],[1100,1200]);
   await saveFinal(request,code,[w(2),w(1)]);
-  const volunteer=(await openPhone(`Medals final start ${info.project.name}`)).page;
-  const {page}=await openPhone(`Medals final lead ${info.project.name}`,{lead:true});
+  const volunteer=(await openPhone(ownName('Medals final start'))).page;
+  const {page}=await openPhone(ownName('Medals final lead'),{lead:true});
   await expect(section(page,'Ready for you').filter({hasText:name})).toHaveCount(1);
   await expect(status(page,name)).toHaveText('Final saved · confirm the medals');
   await expect(card(page,name).getByRole('button',{name:/^Final/})).toHaveAccessibleName('Final, saved');
@@ -58,10 +58,10 @@ test('a saved 60m final waits in the lead\'s Ready for you; Confirm the medals o
 });
 
 test('a timed event waits on Event complete only while every race so far is saved, and moves to Done once confirmed',async({openPhone,request},info)=>{
-  const name=`Medals timed ${info.project.name}`,code=await ownCode(),w=await ownWristbands('Girl Cubs',2);
+  const name=ownName('Medals timed'),code=await ownCode(),w=await ownWristbands('Girl Cubs',2);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await recordRace(request,owner(),code,[w(1)],[1200]);
-  const {page}=await openPhone(`Medals timed lead ${info.project.name}`,{lead:true});
+  const {page}=await openPhone(ownName('Medals timed lead'),{lead:true});
   await expect(section(page,'Ready for you').filter({hasText:name})).toHaveCount(1);
   await expect(status(page,name)).toHaveText('Every race saved · confirm the medals after the last race');
   expect(await lookProblems(page)).toEqual([]);

@@ -1,11 +1,11 @@
-import {ownCode,openLeadMenu,expect,join,test,back} from './fixtures.js';
+import {ownName,ownCode,openLeadMenu,expect,join,test,back} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 test('a lead edits and confirms the Day programme',async({page},info)=>{
   // Other specs pick R4 by its seeded name, so put it back whatever happens here.
   const original=(await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code==='R4').name as string;
   try {
     await page.goto('/');
-    await join(page,`Day ${info.project.name}`,{job:'Start line'});
+    await join(page,ownName('Day'),{job:'Start line'});
     // A wrong code is refused in the job sheet; the owner password makes the phone a lead.
     await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
     await page.getByRole('radio',{name:/^Zone lead/}).click();
@@ -21,9 +21,9 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Rename R4',exact:true}).click();
-    await page.getByLabel('New name for R4',{exact:true}).fill(`60m ${info.project.name}`);
+    await page.getByLabel('New name for R4',{exact:true}).fill(ownName('60m'));
     await page.getByRole('button',{name:'Save name for R4',exact:true}).click();
-    await expect(page.getByRole('article',{name:'R4 · Girl Cubs'})).toContainText(`60m ${info.project.name}`);
+    await expect(page.getByRole('article',{name:'R4 · Girl Cubs'})).toContainText(ownName('60m'));
     const code = await ownCode();
     await page.getByLabel('New event code',{exact:true}).fill(code);
     await page.getByLabel('New event name',{exact:true}).fill('Extra sprint');

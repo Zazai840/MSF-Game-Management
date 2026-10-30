@@ -72,7 +72,7 @@ export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;
   const finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
   const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places).map(time=>time.index));
   return <>
-    <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'positions and times joined up':step==='positions'?'the finishing order':`${relay?entryCount(runners.length,true):runners.length} checked in`}</p>
+    <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'places and times joined up':step==='positions'?'the finishing order':`${relay?entryCount(runners.length,true):runners.length} checked in`}</p>
     {step==='runners' && (runners.length?<ul className="rz-chips" aria-label="Checked in">{runners.map(runner=><li key={runner.id}><span className={['rz-chip',kept(runner) && 'rz-chip--warn',relay && 'rz-chip--team'].filter(Boolean).join(' ')}>{entryName(runner)}<TeamLegs entry={runner}/></span></li>)}</ul>
       :<p className="rz-empty">{relay?'No team is checked in yet.':'Nobody is checked in yet.'}</p>)}
     {step==='positions' && (finish?<ol className="rz-lead-rows" aria-label="Finishing order">

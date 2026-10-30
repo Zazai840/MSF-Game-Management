@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { isTeamEntry } from '../src/shared/races.js';
-import {expect,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam} from './fixtures.js';
+import {ownName,expect,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam} from './fixtures.js';
 /**
  * A zone lead on a relay race in the race flow: every step tab shows "Team 5" over its four children in leg order,
  * relay problems sit on the step they are about with It's right, and the race actions keep Correct teams, Re-run and Delete.
@@ -30,10 +30,10 @@ async function relayHeat(request:APIRequestContext,token:string,code:string,plac
 }
 
 test('a lead\'s step tabs on a relay name each team with its four children, settle a short team and a kept number with It\'s right, and keep Correct teams, Re-run and Delete',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay lead ${project}`;
+  const code=await ownCode(),name=ownName('Relay lead');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',7),cub=await ownWristbands('Boy Cubs',1);
-  const {page,token}=await openPhone(`Relay lead ${project}`,{lead:true});
+  const {page,token}=await openPhone(ownName('Relay lead'),{lead:true});
   // Team 1 opens with a Boy Cub (kept); Team 2 runs with only three children marked here.
   await writeTeam(request,token,code,[cub(1),w(12),w(13),w(14)],{keptWarnings:[cub(1)]});
   await writeTeam(request,token,code,[w(21),w(22),w(23),w(24)]);
@@ -80,10 +80,10 @@ test('a lead\'s step tabs on a relay name each team with its four children, sett
 });
 
 test('a tie between two relay heats shows on both heats\' Times tab with each team\'s four children, and Open in Results opens the tie',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay tie ${project}`;
+  const code=await ownCode(),name=ownName('Relay tie');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',8);
-  const {page,token}=await openPhone(`Relay tie ${project}`,{lead:true});
+  const {page,token}=await openPhone(ownName('Relay tie'),{lead:true});
   await writeTeam(request,token,code,[w(11),w(12),w(13),w(14)]);
   await writeTeam(request,token,code,[w(21),w(22),w(23),w(24)]);
   // One team in each heat, both timed 14.00.

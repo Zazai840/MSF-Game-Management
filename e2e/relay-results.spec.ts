@@ -1,13 +1,13 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
-  const project=info.project.name,cubs=await ownCode(),scouts=await ownCode();
-  const name=`Relay warnings ${project}`;
+  const cubs=await ownCode(),scouts=await ownCode();
+  const name=ownName('Relay warnings');
   await ownRelay(cubs,name,'Girl Cubs');await ownRelay(scouts,name,'Girl Scouts');
   // The test day is shared: each project's children use wristbands no other relay test types.
   const cub=await ownWristbands('Girl Cubs',16),scout=await ownWristbands('Girl Scouts',16),borrowed=(await ownWristbands('Boy Cubs',1))(1),shared=cub(7);
-  const token=await signInThroughApi(request,`To check relay volunteer ${project}`);
+  const token=await signInThroughApi(request,ownName('To check relay volunteer'));
   await writeTeam(request,token,cubs,[cub(1),borrowed,cub(2),cub(3)],{keptWarnings:[borrowed]});
   await writeTeam(request,token,cubs,[cub(4),cub(5),cub(6),shared]);
   await writeTeam(request,token,cubs,[cub(8),cub(9),cub(10),cub(11)]);
@@ -17,7 +17,7 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   for(const team of [1,2,3]) {await tickTeam(request,token,cubs,team);for(let leg=1;leg<=(team===3?3:4);leg++) await markHere(request,token,cubs,team,leg);}
   await writeTeamOrder(request,token,cubs,[1,2,3],{addedTeams:[4]});await writeTimes(request,token,cubs,[1400,1500,1600,1700]);await submitRace(request,token,cubs);
 
-  const {page}=await openPhone(`To check relay lead ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('To check relay lead'),{lead:true});
   // A relay's issues are on its results: each team's row names them, and its actions settle them.
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${cubs} · Girl Cubs`)}).click();
@@ -39,7 +39,7 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   await settle(3,'Mark checked');
   await settle(4,'Mark addition checked');
   // Each team's row keeps its warnings, now checked.
-  const checked=`Checked by To check relay lead ${project}: `;
+  const checked=`Checked by ${ownName('To check relay lead')}: `;
   await expect(board.locator('.checked-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`,`${checked}Added at the finish`]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-checked-rows.png'),fullPage:true});
@@ -53,12 +53,12 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
 });
 
 test('a lead sees a relay\'s two saved heats as team rows with four wristbands and the qualifying line, the race page lists teams, and Heats complete seeds the six fastest',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Relay results ${project}`,code=await ownCode();
+  const name=ownName('Relay results'),code=await ownCode();
   await ownRelay(code,name,'Girl Cubs');
   // The test day is shared: each project's teams use Girl Cubs wristbands no other relay test types, and Team 4 runs a
   // borrowed Boy Cub, kept.
   const n=await ownWristbands('Girl Cubs',30),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg)),borrowed=(await ownWristbands('Boy Cubs',1))(1);
-  const token=await signInThroughApi(request,`Relay results volunteer ${project}`);
+  const token=await signInThroughApi(request,ownName('Relay results volunteer'));
   for(let team=1;team<=7;team++) await writeTeam(request,token,code,team===4?[legs(4)[0],borrowed,legs(4)[2],legs(4)[3]]:legs(team),{keptWarnings:team===4?[borrowed]:[]});
   /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
   async function heat(placed:number[],times:number[]) {
@@ -67,7 +67,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   }
   await heat([2,1,3,4],[1400,1500,1700,1900]);
   await heat([5,6,7],[1450,1600,1800]);
-  const {page}=await openPhone(`Relay results lead ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Relay results lead'),{lead:true});
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // One row per team: Team N and its four children in leg order, then the time and where it ran.
@@ -124,10 +124,10 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
  * A Boy Scouts relay for this project with `count` teams typed by a volunteer, each child from this test's own block.
  */
 async function scoutsRelay(request:APIRequestContext,info:TestInfo,title:string,count:number) {
-  const project=info.project.name,code=await ownCode(),name=`${title} ${project}`;
+  const code=await ownCode(),name=ownName(`${title}`);
   await ownRelay(code,name,'Boy Scouts');
   const n=await ownWristbands('Boy Scouts',count*4),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
-  const token=await signInThroughApi(request,`${title} volunteer ${project}`);
+  const token=await signInThroughApi(request,ownName(`${title} volunteer`));
   for(let team=1;team<=count;team++) await writeTeam(request,token,code,legs(team));
   /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
   async function heat(placed:number[],times:number[]) {
@@ -140,7 +140,7 @@ async function scoutsRelay(request:APIRequestContext,info:TestInfo,title:string,
 test('a lead disqualifies a whole team for a handover outside the zone, and lifts it',async({openPhone,request},info)=>{
   const {code,legs,heat}=await scoutsRelay(request,info,'Relay disqualify',3);
   await heat([1,2,3],[1400,1500,1600]);
-  const {page}=await openPhone(`Relay disqualify lead ${info.project.name}`,{lead:true});
+  const {page}=await openPhone(ownName('Relay disqualify lead'),{lead:true});
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
@@ -173,7 +173,7 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
   const {code,legs,heat}=await scoutsRelay(request,info,'Relay tie',8);
   await heat([1,2,3,4],[1400,1500,1600,1700]);
   await heat([5,6,7,8],[1450,1550,1700,1800]);
-  const {page}=await openPhone(`Relay tie lead ${info.project.name}`,{lead:true});
+  const {page}=await openPhone(ownName('Relay tie lead'),{lead:true});
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   // Team 4 and Team 7 share 6th place at 17.00: one of them misses the final.
@@ -200,7 +200,7 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
 test('a lead corrects a relay heat\'s finishing order by dragging teams, and Didn\'t run makes a team still to run again',async({openPhone,request},info)=>{
   const {code,name,heat}=await scoutsRelay(request,info,'Relay order fix',3);
   await heat([1,2,3],[1400,1500,1600]);
-  const {page}=await openPhone(`Relay order fix lead ${info.project.name}`,{lead:true});
+  const {page}=await openPhone(ownName('Relay order fix lead'),{lead:true});
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();

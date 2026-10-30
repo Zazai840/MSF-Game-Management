@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 /** A team's card in this heat, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
@@ -8,10 +8,10 @@ const here=(page:Page,wristband:number)=>page.getByRole('button',{name:`${wristb
 const stillToRun=(page:Page)=>page.getByRole('list',{name:'Still to run'});
 
 test('two start-line phones check a relay heat in at once: Add, Take off and every Here tap land on both, and That\'s everyone marks Runners done',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay start ${project}`;
+  const code=await ownCode(),name=ownName('Relay start');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',11);
-  const sam=await openPhone(`Sam Patel start ${project}`),priya=await openPhone(`Priya Shah start ${project}`);
+  const sam=await openPhone(ownName('Sam Patel start')),priya=await openPhone(ownName('Priya Shah start'));
   await writeTeam(request,sam.token,code,[w(11),w(12),w(13),w(14)]);
   await writeTeam(request,sam.token,code,[w(21),w(22),null,w(24)]);
   await writeTeam(request,sam.token,code,[w(31),w(32),w(33),w(34)]);

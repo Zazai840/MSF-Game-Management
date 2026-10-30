@@ -1,10 +1,10 @@
-import {ownEvent,ownCode,deleteCurrentRace,recordRace,goHome,back,openLeadMenu,openRace,becomeLead,expect,join,dragTo,lookProblems,test} from './fixtures.js';
+import {ownName,ownEvent,ownCode,deleteCurrentRace,recordRace,goHome,back,openLeadMenu,openRace,becomeLead,expect,join,dragTo,lookProblems,test} from './fixtures.js';
 test('a lead repairs a race, keeps failed corrections, deletes and restores it, then calls a prefilled re-run',async({page},info)=>{
   // The test day is shared and projects run at once: each names its own event, so its race screen tile is its alone.
-  const code=await ownCode(),name=`Race corrections ${info.project.name}`,headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  const code=await ownCode(),name=ownName('Race corrections'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,name,'Girl Cubs','timed');await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
-  await page.goto('/');await join(page,`Race lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1400');
   let failed=true;await page.route('**/api/lead/races/*/times',async route=>{if(failed){failed=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Not saved - try again'})});}else await route.continue();});
@@ -21,11 +21,11 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await expect(page.getByRole('list',{name:'Wristbands entered'}).getByRole('button')).toHaveText(['2001','4045']);
   await deleteCurrentRace(page.request,code);
 });
-test('a lead can correct times again straight after saving, even when the race is slow to re-read',async({page},info)=>{
+test('a lead can correct times again straight after saving, even when the race is slow to re-read',async({page})=>{
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
-  await page.goto('/');await join(page,`Quick lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:/^2nd place · /}).click();await sheet.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen the sheet on the version just replaced.
@@ -40,7 +40,7 @@ test('a lead corrects a saved race\'s finishing order: drags a wristband, marks 
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,'Order corrections','Girl Cubs','timed');await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002,2003],[1200,1300,1400]);
-  await page.goto('/');await join(page,`Order lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,ownName('Order lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();
   const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveText(['1st12.002001No place','2nd13.002002No place','3rd14.002003No place']);

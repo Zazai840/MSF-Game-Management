@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {expect,flowPost,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,expect,flowPost,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
 /** A relay's card on the Relays tab, by its event name and section. */
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 /** The relay's Teams row, which opens its teams sheet. */
@@ -19,10 +19,10 @@ async function openTeamsSheet(page:Page,name:string) {
 }
 
 test('the Relays tab lists relays as race-flow cards with a Teams row: heats in progress, teams with no heats under Teams ready, no Beta tag, and + New relay makes the next heat',async({openPhone,request},info)=>{
-  const project=info.project.name,running=`Relay tab running ${project}`,ready=`Relay tab ready ${project}`,empty=`Relay tab empty ${project}`,w=await ownWristbands('Girl Cubs',12);
+  const running=ownName('Relay tab running'),ready=ownName('Relay tab ready'),empty=ownName('Relay tab empty'),w=await ownWristbands('Girl Cubs',12);
   const [runningCode,readyCode,emptyCode]=[await ownCode(),await ownCode(),await ownCode()];
   for(const [code,name] of [[runningCode,running],[readyCode,ready],[emptyCode,empty]]) await ownRelay(code,name);
-  const {page,token}=await openPhone(`Sam Patel relay tab ${project}`);
+  const {page,token}=await openPhone(ownName('Sam Patel relay tab'));
   for(const team of [1,2,3]) await writeTeam(request,token,runningCode,[w(team*2),w(team*2+1),null,null]);
   for(const team of [1,2]) await writeTeam(request,token,readyCode,[w(team*2+6),w(team*2+7),null,null]);
   const heat=await flowPost(request,token,'/api/races',{eventCode:runningCode,kind:'heat',number:1});
@@ -56,9 +56,9 @@ test('the Relays tab lists relays as race-flow cards with a Teams row: heats in 
 });
 
 test('two prep phones type different teams of one relay at once in the teams sheet, neither locked out; a team someone else set asks Change anyway, and a Save on an older version says who changed it',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Teams sheet two phones ${project}`,code=await ownCode(),w=await ownWristbands('Girl Cubs',12);
+  const name=ownName('Teams sheet two phones'),code=await ownCode(),w=await ownWristbands('Girl Cubs',12);
   await ownRelay(code,name);
-  const aisha=`Aisha Noor sheet ${project}`,a=await openPhone(aisha),b=await openPhone(`Sam Patel sheet ${project}`);
+  const aisha=ownName('Aisha Noor sheet'),a=await openPhone(aisha),b=await openPhone(ownName('Sam Patel sheet'));
   await writeTeam(request,a.token,code,[w(1),w(2),w(3),w(4)]);
   for(const {page} of [a,b]) await openTeamsSheet(page,name);
   await expect(sheet(a.page,`${name} · Girl Cubs`)).toContainText('1 team · 1 still to run. Tap a team still to run to change it.');
@@ -113,10 +113,10 @@ test('two prep phones type different teams of one relay at once in the teams she
 });
 
 test('New team from the foot of Relays: four leg boxes, a number already in the relay refused with Fix number only, a wrong-Section number warned with Fix number / Keep; Cancel leaves nothing, and Remove team takes a team never in a race off for good',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Teams sheet new ${project}`,other=`Teams sheet other ${project}`,w=await ownWristbands('Girl Cubs',8),boy=await ownWristbands('Boy Cubs',1);
+  const name=ownName('Teams sheet new'),other=ownName('Teams sheet other'),w=await ownWristbands('Girl Cubs',8),boy=await ownWristbands('Boy Cubs',1);
   const [code,otherCode]=[await ownCode(),await ownCode()];
   await ownRelay(code,name);await ownRelay(otherCode,other);
-  const {page,token}=await openPhone(`Priya Shah new team ${project}`);
+  const {page,token}=await openPhone(ownName('Priya Shah new team'));
   for(const team of [1,2]) await writeTeam(request,token,code,[w(team),null,null,null]);
   const heat=await flowPost(request,token,'/api/races',{eventCode:code,kind:'heat',number:1});
   await flowPost(request,token,`/api/races/${heat.race.id}/teams/${heat.teams![0].id}/tick`,{});
@@ -174,10 +174,10 @@ test('New team from the foot of Relays: four leg boxes, a number already in the 
   await expect(page.getByRole('button',{name:/^Remove team/})).toHaveCount(0);
 });
 
-test('once the heats are complete the teams sheet is read-only with the reason in place; + Final shows only in the Zone lead role, behind a confirm worded for teams',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Teams sheet final ${project}`,code=await ownCode(),w=await ownWristbands('Girl Cubs',8);
+test('once the heats are complete the teams sheet is read-only with the reason in place; + Final shows only in the Zone lead role, behind a confirm worded for teams',async({openPhone,request})=>{
+  const name=ownName('Teams sheet final'),code=await ownCode(),w=await ownWristbands('Girl Cubs',8);
   await ownRelay(code,name);
-  const sam=await openPhone(`Sam Patel final sheet ${project}`),lead=await openPhone(`Jo Evans final sheet ${project}`,{lead:true});
+  const sam=await openPhone(ownName('Sam Patel final sheet')),lead=await openPhone(ownName('Jo Evans final sheet'),{lead:true});
   for(const team of [1,2]) await writeTeam(request,sam.token,code,[w(team*4-3),w(team*4-2),w(team*4-1),w(team*4)]);
   await runHeat(request,sam.token,code,2);
   await openRelays(sam.page);

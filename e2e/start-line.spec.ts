@@ -1,5 +1,5 @@
 import { isRunner } from '../src/shared/races.js';
-import {ownCode,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 const chips=(page:Page)=>page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footerButton=(page:Page,name:string)=>page.locator('footer.rz-footer').getByRole('button',{name,exact:true});
@@ -9,9 +9,9 @@ async function remove(page:Page,number:string) {
   await footerButton(page,'Remove').click();
 }
 test('wristbands go in through the phone keyboard, each saved as it is typed, and the input keeps focus between runners',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Keyboard sprint ${project}`;
+  const code=await ownCode(),name=ownName('Keyboard sprint');
   await ownEvent(request,code,name);
-  const {page,context,token}=await openPhone(`Keyboard ${project}`);
+  const {page,context,token}=await openPhone(ownName('Keyboard'));
   await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
   await openRace(page,name);
   await expect(page.getByRole('heading',{level:2,name:'Runner 1: wristband number?'})).toBeVisible();
@@ -106,9 +106,9 @@ test('wristbands go in through the phone keyboard, each saved as it is typed, an
   await deleteCurrentRace(request,code);
 });
 test('tapping a typed wristband changes it in the big box, checked like a new number, and the half-typed next number comes back',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Change sprint ${project}`;
+  const code=await ownCode(),name=ownName('Change sprint');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Change ${project}`);
+  const {page,token}=await openPhone(ownName('Change'));
   await writeCheckIn(request,token,code,[2001,2015,2003]);
   await openRace(page,name);
   const input=page.getByLabel('Wristband number',{exact:true}),box=page.getByLabel('New number for 2015',{exact:true});
@@ -175,12 +175,12 @@ test('tapping a typed wristband changes it in the big box, checked like a new nu
   await deleteCurrentRace(request,code);
 });
 test('after That\'s everyone a change keeps Runners done and its place, and taking off a placed runner asks first',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Placed change sprint ${project}`;
+  const code=await ownCode(),name=ownName('Placed change sprint');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Placed change ${project}`);
+  const {page,token}=await openPhone(ownName('Placed change'));
   const {race}=await writeCheckIn(request,token,code,[2001,2002,2003]);
   expect((await request.post(`/api/races/${race.id}/steps/runners/done`,{headers:{authorization:`Bearer ${token}`},data:{}})).ok()).toBe(true);
-  await writeOrder(request,await signInThroughApi(request,`Placed finish ${project}`),code,[2002,2001,2003]);
+  await writeOrder(request,await signInThroughApi(request,ownName('Placed finish')),code,[2002,2001,2003]);
   await openRace(page,name);
   const progress=page.getByRole('tablist',{name:'Heat 1 progress'}),chip=(number:string)=>chips(page).filter({hasText:new RegExp(`^${number}`)});
   await expect(progress).toContainText('You · done');
@@ -211,12 +211,12 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   await deleteCurrentRace(request,code);
 });
 test('a volunteer fixes a number that is no wristband and keeps wrong-section and already-ran warnings, which reach the lead once the heat is saved',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Warning sprint ${project}`;
+  const code=await ownCode(),name=ownName('Warning sprint');
   await ownEvent(request,code,name);
   const token=process.env.E2E_OWNER_TOKEN!;
   // 2008 ran in Heat 1, which is saved.
   await recordRace(request,token,code,[2008],[1234]);
-  const {page}=await openPhone(`Warnings ${project}`);
+  const {page}=await openPhone(ownName('Warnings'));
   await page.getByRole('article',{name:`${name} · Girl Cubs`}).getByRole('button',{name:'Add heat 2',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'New race'})).toBeVisible();
   await page.getByRole('button',{name:'Create heat 2',exact:true}).click();
@@ -249,9 +249,9 @@ test('a volunteer fixes a number that is no wristband and keeps wrong-section an
   await deleteCurrentRace(request,code);
 });
 test('the 6th runner brings the usual heat size note once; That\'s everyone saves Runners, back on Races with Undo',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Usual size sprint ${project}`;
+  const code=await ownCode(),name=ownName('Usual size sprint');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Usual ${project}`);
+  const {page,token}=await openPhone(ownName('Usual'));
   await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
   await openRace(page,name);
   const input=page.getByLabel('Wristband number',{exact:true});

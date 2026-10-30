@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,startDrag,test,writeTeam,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,runHeat,startDrag,test,writeTeam,type APIRequestContext,type Page} from './fixtures.js';
 /** A team's card at check-in, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const sheet=(page:Page,title:string)=>page.getByRole('dialog',{name:title,exact:true});
@@ -19,10 +19,10 @@ async function gripsAreTargets(page:Page) {
 }
 
 test('two start-line phones: a grip drag on a heat team card reorders its legs on both, Here following the child, and the leg boxes reorder only the draft',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay reorder ${project}`;
+  const code=await ownCode(),name=ownName('Relay reorder');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',34);
-  const samName=`Sam Patel reorder ${project}`,sam=await openPhone(samName),priya=await openPhone(`Priya Shah reorder ${project}`);
+  const samName=ownName('Sam Patel reorder'),sam=await openPhone(samName),priya=await openPhone(ownName('Priya Shah reorder'));
   await writeTeam(request,sam.token,code,[w(11),w(12),w(13),null]);
   await writeTeam(request,sam.token,code,[w(21),w(22),w(23),w(24)]);
   let made=await flowPost(request,sam.token,'/api/races',{eventCode:code,kind:'heat',number:1});
@@ -103,10 +103,10 @@ test('two start-line phones: a grip drag on a heat team card reorders its legs o
 });
 
 test('a relay final: a grip drag on a finalist team reorders its legs on both phones, and the grips go once the final is saved',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay final reorder ${project}`;
+  const code=await ownCode(),name=ownName('Relay final reorder');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',24);
-  const lead=await openPhone(`Jo Evans final reorder ${project}`,{lead:true}),sam=await openPhone(`Sam Patel final reorder ${project}`);
+  const lead=await openPhone(ownName('Jo Evans final reorder'),{lead:true}),sam=await openPhone(ownName('Sam Patel final reorder'));
   for(const team of [1,2]) await writeTeam(request,sam.token,code,[w(team*10+1),w(team*10+2),w(team*10+3),w(team*10+4)]);
   await runHeat(request,sam.token,code,2);
   const final:RaceFlowRead=await flowPost(request,lead.token,'/api/races',{eventCode:code,kind:'final'});

@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {enterTime,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,enterTime,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const tiles=(page:Page)=>page.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
@@ -11,11 +11,11 @@ const footer=(page:Page)=>page.locator('footer.rz-footer');
 const lines=(element:Element)=>{const range=document.createRange();range.selectNodeContents(element);return new Set([...range.getClientRects()].map(rect=>Math.round(rect.top))).size;};
 
 test('four phones run a relay heat to saved: two start lines, the finish line placing team tiles, and the timer, with no Submit Race',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Relay finish ${project}`;
+  const code=await ownCode(),name=ownName('Relay finish');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',15);
-  const sam=await openPhone(`Sam Patel relay start ${project}`),priya=await openPhone(`Priya Shah relay start ${project}`);
-  const finish=await openPhone(`Finish relay ${project}`,{job:'finish'}),timer=await openPhone(`Timer relay ${project}`,{job:'timer'});
+  const sam=await openPhone(ownName('Sam Patel relay start')),priya=await openPhone(ownName('Priya Shah relay start'));
+  const finish=await openPhone(ownName('Finish relay'),{job:'finish'}),timer=await openPhone(ownName('Timer relay'),{job:'timer'});
   await writeTeam(request,sam.token,code,[w(11),w(12),w(13),w(14)]);
   await writeTeam(request,sam.token,code,[w(21),w(22),w(23),w(24)]);
   await writeTeam(request,sam.token,code,[w(31),w(32),w(33),null]);

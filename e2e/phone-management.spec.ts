@@ -1,6 +1,6 @@
-import {join,leadMenuButton,openLeadMenu,lookProblems,expect,test} from './fixtures.js';
+import {ownName,join,leadMenuButton,openLeadMenu,lookProblems,expect,test} from './fixtures.js';
 test('Signed in today: Make lead reaches the other phone, and Remove sends it back to Join with its profile kept',async({page,browser},info)=>{
-  const name=`Signed lead ${info.project.name}`;
+  const name=ownName('Signed lead');
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
   await other.goto('/');await join(other,name,{job:'Start line'});
   await expect(other.getByRole('navigation',{name:'Event type'})).toBeVisible();await expect(leadMenuButton(other)).toHaveCount(0);
