@@ -73,8 +73,12 @@ A lead bringing the next-ranked heat runner or relay team (7th, then 8th) into a
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
-Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay, anyone on the start line ticks the teams that run and marks each child here.
-_Avoid_: Registration, sign-in, line-up
+Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay heat, anyone on the start line adds the teams that run from those still to run and marks each child here.
+_Avoid_: Registration, sign-in, line-up, tick
+
+**Take off**:
+Taking a relay team back out of a heat at check-in, while none of its children is marked here. The team is still to run again.
+_Avoid_: Untick, remove, drop
 
 **Relay team**:
 Four children who run one relay together, known as Team 1, Team 2 and so on within their relay, with their wristband numbers in leg order. A team belongs to its relay's team list, not to a race; each race keeps the four children who actually ran in it.
@@ -219,7 +223,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race lists every event, grouped under Races and Hurdles whichever tab it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab.
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race lists the races and hurdles events, grouped under Races and Hurdles whichever of those tabs it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:

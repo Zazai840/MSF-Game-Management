@@ -21,7 +21,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   for(const phone of [sam,finish]) await phone.page.goto(`/races/${raceId}`);
   const [one,line]=[sam.page,finish.page];
   // As on a children's final, only teams marked Here run it: before the start line marks anyone, there is no team to place.
-  await expect(line.getByRole('heading',{level:2,name:'No team is in this race yet'})).toBeVisible();
+  await expect(line.getByRole('heading',{level:2,name:'No team is marked Here yet'})).toBeVisible();
   await expect(line.getByRole('list',{name:'Teams not yet placed'})).toHaveCount(0);
 
   // The start line: each seeded team's card, fastest first, its four children, Here / Absent with neither lit.

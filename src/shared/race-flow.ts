@@ -134,6 +134,8 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
   const rest=listed.filter(group=>!ready.includes(group));
   return {ready,inProgress:rest.filter(group=>!groupDone(group)).sort(newest),teamsReady:teamsReady(groups),done:rest.filter(groupDone).sort(newest)};
 }
+/** A race nobody is in yet, on its finish line and as That's everyone's refusal: on a final, nobody is marked Here yet. */
+export const emptyRaceLine=(race:{kind:RaceRead['kind'];event:{relay:boolean}})=>race.kind==='final'?(race.event.relay?'No team is marked Here yet':'Nobody is marked Here yet'):race.event.relay?'No team is in this heat yet':'Nobody is checked in yet';
 /**
  * Why a step cannot be marked done yet, or null: Runners needs someone checked in (on a final, someone Here),
  * Finishing order needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
@@ -141,7 +143,7 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
  */
 export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step):string|null {
   const runners:RaceEntry[]=race.parts.runners.value||[],finish=race.parts.finish.value,relay=race.event.relay;
-  if(!runners.length) return race.kind==='final'?(relay?'No team is marked Here yet':'Nobody is marked Here yet'):relay?'No team is in this heat yet':'Nobody is checked in yet';
+  if(!runners.length) return emptyRaceLine(race);
   if(step==='positions') {
     const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
     return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;

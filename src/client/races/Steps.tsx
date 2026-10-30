@@ -2,7 +2,7 @@ import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react'
 import { flushSync } from 'react-dom';
 import { seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
+import { andList,emptyRaceLine,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
@@ -284,7 +284,7 @@ export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
       })}</ol>
       <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact">
         <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${entryName(changing)}`:`${raceName(race)} · ${entryCount(runners.length,relay)} · ${unplaced.length} to place`}</p>
-        <h2 className="rz-prompt__q">{!runners.length?words.noneIn:!choices.length?words.allPlaced:<>{words.who} came <em>{ordinal(current+1)}?</em></>}</h2>
+        <h2 className="rz-prompt__q">{!runners.length?emptyRaceLine(race):!choices.length?words.allPlaced:<>{words.who} came <em>{ordinal(current+1)}?</em></>}</h2>
       </div>{changing && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setRedo(null)}>Keep {entryName(changing)}</button>}</div>
       {flow.error && <Callout message={flow.error}/>}
       {sizeNote}
