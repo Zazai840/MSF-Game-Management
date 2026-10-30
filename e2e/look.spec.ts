@@ -32,6 +32,15 @@ test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'
   await page.screenshot({path:info.outputPath('home.png'),fullPage:true});
 });
 
+test('the look check names text in a colour pair the design system has not approved, even one with enough contrast',async({page})=>{
+  await page.goto('/');
+  const heading=page.getByRole('heading',{level:1});
+  expect(await lookProblems(page)).toEqual([]);
+  // ink-muted on line reads at 6.2:1 but is not in accessibility.md's table.
+  await heading.evaluate(element=>Object.assign((element as HTMLElement).style,{color:'#3b4565',background:'#ddd1b7'}));
+  expect(await lookProblems(page)).toEqual([`text h1 "${(await heading.textContent())!.trim().slice(0,40)}" is an unapproved colour pair ink-muted on line`]);
+});
+
 test('volunteer and lead screens meet the touch, text size and contrast rules',async({page},info)=>{
   const code=await ownCode(),name=ownName('Look sprint');
   await ownEvent(page.request,code,name);

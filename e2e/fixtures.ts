@@ -1,6 +1,7 @@
 import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
 import { isRunner,isTeamEntry } from '../src/shared/races.js';
 import pg from 'pg';
+import { readFileSync } from 'node:fs';
 import type { RaceFlowRead,RacesRead,Role } from '../src/shared/race-flow.js';
 import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
@@ -432,14 +433,27 @@ export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   }
 }
 /**
+ * The Approved colour pairs table of docs/running-zone-design-system/accessibility.md as computed colours ("30,43,81 on
+ * 240,231,211"), with each colour's token name for the report. Token values come from tokens.json.
+ */
+const approvedColours=(()=>{
+  const docs=new URL('../docs/running-zone-design-system/',import.meta.url);
+  const tokens=new Map<string,string>(JSON.parse(readFileSync(new URL('tokens.json',docs),'utf8')).color.tokens.map(({name,value}:{name:string;value:string})=>[name,value]));
+  const colour=(name:string):string=>{const value=tokens.get(name);if(!value) throw new Error(`No colour token ${name}`);return value.startsWith('{')?colour(value.slice(1,-1)):[1,3,5].map(at=>parseInt(value.slice(at,at+2),16)).join(',');};
+  const doc=readFileSync(new URL('accessibility.md',docs),'utf8'),table=doc.slice(doc.indexOf('## Approved colour pairs'),doc.indexOf('## Pairs that fail'));
+  const pairs=[...table.matchAll(/^\| `([\w-]+)` \| `([\w-]+)` \|/gm)].map(([,text,ground])=>`${colour(text)} on ${colour(ground)}`);
+  if(pairs.length<40) throw new Error('Read the approved colour pairs from accessibility.md');
+  return {pairs,names:Object.fromEntries([...tokens.keys()].reverse().map(name=>[colour(name),name]))};
+})();
+/**
  * Every rule of the look that can be measured on the screen currently shown. The race flow's screens (inside
  * `.rz-screen`) follow the Running Zone design system (docs/running-zone-design-system/accessibility.md): 44px
- * targets and WCAG AA contrast, with display capitals from CSS. The older screens (Results, Day setup, a relay's race
+ * targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS. The older screens (Results, Day setup, a relay's race
  * screen) also keep the v2 house style: no outlines, sentence case, 15px text, 22-26px headings.
  */
 export async function lookProblems(page:Page) {
   await page.evaluate(()=>document.fonts.ready);
-  return page.evaluate(()=>{
+  return page.evaluate(approved=>{
     const problems:string[]=[];
     const visible=(element:Element)=>{const box=element.getBoundingClientRect();const style=getComputedStyle(element);return box.width>0&&box.height>0&&style.visibility!=='hidden'&&style.display!=='none';};
     const describe=(element:Element)=>`${element.tagName.toLowerCase()} "${(element.textContent||element.getAttribute('aria-label')||'').trim().slice(0,40)}"`;
@@ -534,9 +548,12 @@ export async function lookProblems(page:Page) {
       const [a,b]=[luminance(style.color),luminance(background(element))].sort((x,y)=>y-x);
       const ratio=(a+0.05)/(b+0.05),large=designSystem(element)&&(size>=24||size>=19&&Number(style.fontWeight)>=700);
       if(ratio<(large?3:4.5)) problems.push(`text ${describe(element)} contrast ${ratio.toFixed(2)}`);
+      // The design system's screens use only its approved colour pairs, whatever their contrast.
+      const pair=`${rgb(style.color).slice(0,3).join(',')} on ${rgb(background(element)).slice(0,3).join(',')}`;
+      if(designSystem(element)&&!approved.pairs.includes(pair)) problems.push(`text ${describe(element)} is an unapproved colour pair ${pair.replace(/[\d,]+/g,colour=>approved.names[colour]??`rgb(${colour})`)}`);
     }
     return problems;
-  });
+  },approvedColours);
 }
 export { expect };
 export type { APIRequestContext,Locator,Page };
