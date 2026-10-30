@@ -54,9 +54,9 @@ test('Add puts a team still to run into the heat, and Take off works only while 
   expect(teamsOf(ticked.race).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[1,[false,false,false,false]]]);
   expect(ticked.teams!.find(team=>team.number===1)!.races).toMatchObject([{id:heat.race.id}]);
   expect(ticked.race.parts.runners.version).toBeGreaterThan(heat.race.parts.runners.version);
-  // A team already in a heat is not still to run, so a second heat cannot take it.
+  // A team already in a heat is not still to run, so a second heat cannot take it: the refusal says where it is.
   const other=await newHeat(sam,2);
-  expect((await tap(sam,other,'tick',1)).json()).toMatchObject({message:'Team 1 has already run'});
+  expect((await tap(sam,other,'tick',1)).json()).toMatchObject({message:'Team 1 is already in Heat 1'});
   expect((await tap(sam,heat,'here',1,{leg:0,here:true})).statusCode).toBe(200);
   const refused=await tap(sam,heat,'take-off',1);
   expect(refused.statusCode).toBe(409);
@@ -105,12 +105,16 @@ test('a team tap on a race that is not a relay\'s is refused',async()=>{
   expect(refused.statusCode).toBe(409);
   expect(refused.json().message).toBe('Only a relay has teams');
 });
-test('a team someone is changing in the teams sheet can\'t be added until they save or cancel',async()=>{
+test('a team someone else is changing in the teams sheet can\'t be added until they save or cancel; this phone\'s own open team can',async()=>{
   const {sam,priya,relays}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
+  await relays.team(sam,'R22',[2201,2202,2203,2204]);
   const heat=await newHeat(priya,1),teams=`/api/relays/${heat.group.event.id}/teams/${teamId(heat,1)}`;
   await ok(sam,`${teams}/open`,{});
   expect((await tap(priya,heat,'tick',1)).json()).toEqual({message:'Sam Patel is changing Team 1'});
   await ok(sam,`${teams}/close`,{});
   expect((await tap(priya,heat,'tick',1)).statusCode).toBe(200);
+  // As its cards show it, a team this phone has open is not someone else changing it.
+  await ok(priya,`/api/relays/${heat.group.event.id}/teams/${teamId(heat,2)}/open`,{});
+  expect((await tap(priya,heat,'tick',2)).statusCode).toBe(200);
 });

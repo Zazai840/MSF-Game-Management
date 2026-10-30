@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -15,6 +15,7 @@ import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { jobRace,listRaces,raceChange,readRace,type Database,type StoredRace } from './records.js';
+import { markFinalistAbsent } from './final-field.js';
 import { publishPart } from './versions.js';
 /** Who last changed each part of each race of the day and who marked it done, by race id and part. */
 async function readStepMeta(db:Database,dayId:string) {
@@ -49,8 +50,9 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const counters=(await db.query("SELECT c.event_id,c.last_number FROM race_counters c JOIN events e ON e.id=c.event_id WHERE e.day_id=$1 AND c.kind<>'final'",[dayId])).rows;
   const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
-  const teamLists=await readTeamLists(db,dayId);
-  return Promise.all(events.map(async event=>{
+  const teamLists=await readTeamLists(db,dayId),groups:RaceGroup[]=[];
+  // One event at a time: a final's reason reads through the same client, which runs one query at a time.
+  for(const event of events) {
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
@@ -64,8 +66,9 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const stage=event.format==='timed'?'event' as const:own.some(race=>race.kind==='final')?'final' as const:null;
     const medalsWaiting=stage && own.length && !medalsDecided && own.every(race=>race.state==='saved')?{stage,since:own.map(race=>savedAt.get(race.id)??'').sort().at(-1)!}:null;
     const list=teamLists.get(event.id),teams=list?{teams:list.teams,nextTeam:list.nextTeam}:{};
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt,...teams};
-  }));
+    groups.push({event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt,...teams});
+  }
+  return groups;
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
   return {revision:await dayRevision(db,dayId),groups:await readGroups(db,dayId)};
@@ -97,7 +100,7 @@ async function requireCurrent(client:pg.PoolClient,phone:Phone,raceId:string,par
   const race=await requireOpen(client,phone,raceId);
   if(seen.version!==race.parts[part].version) {
     const by=(await client.query('SELECT s.id,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.saved_by WHERE p.race_id=$1 AND p.part=$2',[raceId,part])).rows[0];
-    throw new Refusal(409,by?.name && by.id!==phone.id?`${by.name} changed this a moment ago`:'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
+    throw new Refusal(409,by?.name && by.id!==phone.id?changedLine(by.name):'Not saved - check your entries and enter it again',{reason:'changed',by:by?.name??null});
   }
   return {event:race.event,race:jobRace(race)};
 }
@@ -201,7 +204,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/races/:raceId/teams/:teamId/tick','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
     if(entry) {unchanged();return;}
     if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
-    return [...entries,joiningTeam(team)];
+    return [...entries,joiningTeam(team,{me:phone.id})];
   }));
   // Take off: only while none of its children is marked here.
   action('POST','/api/races/:raceId/teams/:teamId/take-off','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
@@ -223,23 +226,35 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
     });
   });
-  // Here / Absent on a final's team, or neither: Here marks each of its children here, Absent takes the team out of
-  // the race (freeing its seed), and neither puts it back with its children as they were, none here.
+  // Here / Absent on a final's team, or neither, as on a children's final: Here puts the team in the race with each of
+  // its children here, Absent takes it out marked Absent (freeing its seed), and neither takes it out unmarked. Only
+  // teams marked Here run the final, so the finish line places nobody else.
   action('POST','/api/races/:raceId/teams/:teamId/absent','Volunteer',(request,_reply,phone)=>{
     const mark=((request.body||{}) as {mark?:unknown}).mark;
     if(mark!=='here' && mark!=='absent' && mark!==null) throw new Refusal(400,'Choose Here, Absent or neither');
-    return teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
-      if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
-      const final=race.final!,kept=entry??[...final.entries.map(item=>item.runner),...(final.additionalEntries||[]).map(item=>item.runner)]
-        .find((item):item is TeamEntry=>item!==undefined && isTeamEntry(item) && item.team.id===team.id);
-      if(!kept) throw new Refusal(409,`Team ${team.number} is not in the final`);
-      if(mark==='absent') {
-        if(!entry) {unchanged();return;}
-        return entries.filter(other=>other!==entry);
-      }
-      const marked={...kept,legs:kept.legs.map(leg=>({...leg,here:mark==='here' && leg.wristband!==null}))};
-      if(entry && JSON.stringify(marked)===JSON.stringify(entry)) {unchanged();return;}
-      return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
+    const {raceId:id,teamId}=request.params as {raceId:string;teamId:string};
+    return write(phone,id,async(client,unchanged)=>{
+      let finalist:{id:string;absent:boolean;runner?:RaceEntry}|undefined,moved=false;
+      await changeTeamEntry(client,phone,id,teamId,({race,team,entries,entry})=>{
+        if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
+        const final=race.final!;
+        finalist=[...final.entries.map(item=>({id:item.finalEntryId,absent:item.absent,runner:item.runner})),...(final.additionalEntries||[]).map(item=>({id:item.runner.id,absent:item.absent,runner:item.runner}))]
+          .find(item=>item.runner!==undefined && isTeamEntry(item.runner) && item.runner.team.id===team.id);
+        const kept=entry??finalist?.runner as TeamEntry|undefined;
+        if(!kept) throw new Refusal(409,`Team ${team.number} is not in the final`);
+        if(mark!=='here') {
+          if(!entry) return;
+          moved=true;
+          return entries.filter(other=>other!==entry);
+        }
+        const marked={...kept,legs:kept.legs.map(leg=>({...leg,here:leg.wristband!==null}))};
+        if(entry && JSON.stringify(marked)===JSON.stringify(entry)) return;
+        moved=true;
+        return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
+      });
+      // Set after the runner list, which marks a team leaving it Absent: neither leaves it unmarked.
+      if(finalist && (moved || finalist.absent!==(mark==='absent'))) await markFinalistAbsent(client,id,finalist.id,mark==='absent');
+      else if(!moved) unchanged();
     });
   });
   // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.

@@ -145,7 +145,7 @@ test('a race not saved yet shows In progress on the lead race page, with the cor
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);
   await openRace(page,code,`In progress lead ${info.project.name}`,race.number);
-  await expect(page.getByText('In progress - open the race screen',{exact:true})).toBeVisible();
+  await expect(page.getByText('Heat 1 is in progress - finish its steps on Races',{exact:true})).toBeVisible();
   for(const tool of ['Correct times','Correct finishing order','Correct runner list','Re-run race']) await expect(page.getByRole('button',{name:tool,exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-in-progress.png'),fullPage:true});
   await page.getByRole('button',{name:'Runner 2132',exact:true}).click();

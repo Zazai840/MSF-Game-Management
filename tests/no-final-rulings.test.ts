@@ -234,7 +234,9 @@ test('a relay final with a team added and no child marked here is discarded; onc
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   await call(lead,'/api/lead/events/R22/reopen-stage',{stage:'no-final',comment:'Final fits after all'});
   const rebuilt=await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'});
-  expect(rebuilt.json().results.finalResults.runners.map((entry:{team:{number:number}})=>entry.team.number)).toEqual([2,1,3]);
+  // Rebuilt from the heats alone: the added team is gone, and nobody runs it until marked Here.
+  expect(rebuilt.json().results.finalResults.entries.map((entry:{runner:{team:{number:number}}})=>entry.runner.team.number)).toEqual([2,1,3]);
+  expect(rebuilt.json().results.finalResults.additionalEntries).toEqual([]);
   const final=(await relays.race(volunteer,'R22'))!;
   await relays.post(volunteer,`/api/races/${final.race.id}/teams/${final.race.final!.entries.find(entry=>entry.team?.number===2)!.team!.id}/absent`,{mark:'here'});
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(409);

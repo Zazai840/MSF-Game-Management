@@ -7,10 +7,8 @@ const orderRows=(page:Page)=>page.getByRole('list',{name:'Finishing order',exact
 const notPlaced=(page:Page,team:number)=>page.getByRole('list',{name:'Not placed'}).getByRole('group',{name:`Team ${team}`,exact:true});
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 
-// shortcut: the spec's relay metas on the finish line and the Timer ("Heat 1 · 3 teams · 3 to place · tap the team whose
-// 4th leg crossed", "Heat 1 · one time per team, to the 4th leg crossing") wrap at 360px, which main's wrapped-prompt look
-// rule forbids; waiting on the owner to choose shorter words or a layout, then drop this filter.
-const finishLineLook=async(page:Page)=>(await lookProblems(page)).filter(problem=>!/^wrapped p "Heat 1 · (3 teams|one time per team)/.test(problem));
+/** How many lines an element's text takes. */
+const lines=(element:Element)=>{const range=document.createRange();range.selectNodeContents(element);return new Set([...range.getClientRects()].map(rect=>Math.round(rect.top))).size;};
 
 test('four phones run a relay heat to saved: two start lines, the finish line placing team tiles, and the timer, with no Submit Race',async({openPhone,request},info)=>{
   const project=info.project.name,code=await ownCode(),name=`Relay finish ${project}`;
@@ -43,7 +41,7 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
 
   // The finish line: team tiles two to a row, "Team 1" over its 4th leg's wristband, "–" with no 4th leg.
   await expect(tiles(line)).toHaveCount(3,live);
-  await expect(meta(line)).toHaveText('Heat 1 · 3 teams · 3 to place · tap the team whose 4th leg crossed');
+  await expect(meta(line)).toHaveText('Heat 1 · 3 teams · 3 to place');
   await expect(line.getByRole('heading',{level:2,name:'Which team came 1st?'})).toBeVisible();
   await expect(tiles(line)).toHaveText([`Team 1${w(14)}`,`Team 2${w(24)}`,'Team 3–']);
   await expect(line.getByRole('button',{name:`Team 1, 4th leg ${w(14)}, came 1st`,exact:true})).toBeVisible();
@@ -52,7 +50,7 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   expect(a!.y).toBe(b!.y);expect(c!.y).toBeGreaterThan(a!.y);expect(a!.width).toBeGreaterThan(140);
   const [name1,number1]=await tiles(line).first().locator('span').evaluateAll(spans=>spans.map(span=>getComputedStyle(span).fontSize));
   expect(name1).toBe(number1);
-  expect(await finishLineLook(line)).toEqual([]);
+  expect(await lookProblems(line)).toEqual([]);
   await line.screenshot({path:info.outputPath('relay-finish-line.png'),fullPage:true});
   await line.getByRole('button',{name:`Team 2, 4th leg ${w(24)}, came 1st`,exact:true}).click();
   // The places board names a placed team "T2"; a slip on it reads Changing, with Keep.
@@ -69,7 +67,7 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await expect(sheet.getByRole('textbox')).toHaveCount(0);
   await expect(sheet.getByRole('listitem')).toHaveCount(1);
   await expect(sheet.getByRole('listitem')).toContainText(`${w(41)} · ${w(42)} · ${w(43)} · ${w(44)}`);
-  expect(await finishLineLook(line)).toEqual([]);
+  expect(await lookProblems(line)).toEqual([]);
   await line.screenshot({path:info.outputPath('relay-team-not-on-the-list.png')});
   await sheet.getByRole('button',{name:'Add Team 4',exact:true}).click();
   await expect(sheet).toHaveCount(0);
@@ -88,15 +86,18 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await expect(line.getByRole('alert')).toContainText('Say what happened to 2 teams first.');
   await notPlaced(line,1).getByRole('button',{name:'Did not finish',exact:true}).click();
   await notPlaced(line,3).getByRole('button',{name:"Didn't run",exact:true}).click();
-  expect(await finishLineLook(line)).toEqual([]);
+  expect(await lookProblems(line)).toEqual([]);
+  // Each part of a Not placed row stays on one line, even on a 360px phone.
+  for(const team of [1,3]) for(const part of [notPlaced(line,team).locator('.rz-orderrow__num'),...['Did not finish',"Didn't run"].map(label=>notPlaced(line,team).getByRole('button',{name:label,exact:true}))])
+    expect(await part.evaluate(lines)).toBe(1);
   await line.screenshot({path:info.outputPath('relay-check-the-order.png'),fullPage:true});
   await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(line.locator('.rz-toast')).toContainText('Finishing order saved');
 
-  // The timer: one time per team, to the 4th leg crossing; the last time saves the heat itself.
-  await expect(meta(clock)).toHaveText('Heat 1 · one time per team, to the 4th leg crossing',live);
+  // The timer: one time per team, to its 4th leg crossing; the last time saves the heat itself.
+  await expect(meta(clock)).toHaveText("Heat 1 · time each team's 4th leg",live);
   await expect(clock.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(2);
-  expect(await finishLineLook(clock)).toEqual([]);
+  expect(await lookProblems(clock)).toEqual([]);
   await clock.screenshot({path:info.outputPath('relay-timer.png'),fullPage:true});
   await enterTime(clock,'1412');
   await enterTime(clock,'1530');

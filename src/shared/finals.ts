@@ -1,4 +1,5 @@
 import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
+import { ordinal } from './ordinal.js';
 import { raceCounts } from './race-counts.js';
 import { isTeamEntry,type FinishingOrder,type RaceEntry,type TeamEntry } from './races.js';
 import { resultHolder,type EventState,type LeaderboardRow,type ResultsRace } from './results-rules.js';
@@ -33,3 +34,5 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
     || race.runners.some(runner=>isTeamEntry(runner) && runner.legs.some(leg=>leg.here));
   return {...race.final,raceId:race.id,runners:race.runners,leaderboard:finalRows(state,race),nextCallUp,vacancy,started};
 }
+/** A finalist's place in the line-up at the final's check-in: "1st seed", "Called up" or "Added". */
+export const seedLabel=(entry:Pick<FinalPresence['entries'][number],'calledUp'|'seed'>)=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`;

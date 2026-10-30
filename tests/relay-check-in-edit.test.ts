@@ -37,7 +37,7 @@ test('Edit at check-in saves the team list and this race\'s entry together, each
   const saved=await ok(priya,url,{version:one.version,legs:[2102,2199,2101,2104],keptWarnings:[],raceId:ticked.race.id});
   expect(saved.race.id).toBe(ticked.race.id);
   expect(teamsOf(saved.race)[0].legs.map(leg=>[leg.wristband,leg.here])).toEqual([[2102,true],[2199,false],[2101,true],[2104,false]]);
-  expect(team(saved,1)).toMatchObject({version:one.version+1,changedBy:'Priya Noor',legs:[{wristband:2102},{wristband:2199},{wristband:2101},{wristband:2104}]});
+  expect(team(saved,1)).toMatchObject({version:one.version+1,changedBy:{name:'Priya Noor'},legs:[{wristband:2102},{wristband:2199},{wristband:2101},{wristband:2104}]});
   expect(saved.race.parts.runners.version).toBeGreaterThan(seen.race.parts.runners.version);
   // The Save is checked against the team's version, and the team must still be in this race.
   expect((await call(sam,url,{version:one.version,legs:[2101,null,null,null],keptWarnings:[],raceId:ticked.race.id})).json()).toMatchObject({reason:'changed',by:'Priya Noor'});
@@ -104,7 +104,13 @@ test('a final\'s team is changed at its check-in once the heats are complete, an
   await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:'here'});
   const saved=await ok(sam,url,{version:two.version,legs:[2122,2121,2199,2124],keptWarnings:[],raceId:final.race.id});
   const legsOf=(read:RaceFlowRead)=>teamsOf(read.race).find(entry=>entry.team.id===two.id)!.legs.map(leg=>[leg.wristband,leg.here]);
-  expect(legsOf(saved)).toEqual([[2122,true],[2121,true],[2199,false],[2124,true]]);
+  // A final has no per-child Here: a team marked Here is here whole, a child swapped in too.
+  expect(legsOf(saved)).toEqual([[2122,true],[2121,true],[2199,true],[2124,true]]);
   await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:'absent'});
-  expect(legsOf(await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:null}))).toEqual([[2122,false],[2121,false],[2199,false],[2124,false]]);
+  const unmarked=await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:null});
+  expect(unmarked.race.final!.entries.find(item=>item.team?.id===two.id)!.legs!.map(leg=>leg.wristband)).toEqual([2122,2121,2199,2124]);
+  // Changed while unmarked (out of the race), it keeps the new legs when marked Here.
+  const latest=team(unmarked,2);
+  await ok(sam,url,{version:latest.version,legs:[2121,2122,2199,2124],keptWarnings:[],raceId:final.race.id});
+  expect(legsOf(await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:'here'}))).toEqual([[2121,true],[2122,true],[2199,true],[2124,true]]);
 });

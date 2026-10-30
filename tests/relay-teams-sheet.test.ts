@@ -19,21 +19,21 @@ async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'teams-sheet-owner',resetTestDay:true});
   const people=await signInOwner(app,'teams-sheet-owner','Aisha');
   await call(people.owner.token,'/api/day/confirm-events',{});
-  const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token;
+  const samIn=await people.volunteer('Sam Patel'),priyaIn=await people.volunteer('Priya Shah'),sam=samIn.token,priya=priyaIn.token;
   const groups=(await ok(sam,'/api/races')).groups,id=(code:string)=>groups.find(group=>group.event.code===code)!.event.id;
-  return {owner:people.owner.token as string,sam,priya,id};
+  return {owner:people.owner.token as string,sam,priya,id,profiles:{sam:samIn.profile.id,priya:priyaIn.profile.id}};
 }
 const group=(read:RacesRead,code:string)=>read.groups.find(item=>item.event.code===code)!;
 const numbers=(read:RacesRead,code:string)=>group(read,code).teams!.map(team=>team.number);
 
 test('the races list carries each relay\'s teams; a new team takes the next number, and a removed team\'s number is never used again',async()=>{
-  const {sam,id}=await start();
+  const {sam,id,profiles}=await start();
   const empty=await ok(sam,'/api/races');
   expect(group(empty,'R22')).toMatchObject({teams:[],nextTeam:1});
   expect(group(empty,'R4').teams).toBeUndefined();
   const first=await ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[2101,2134,null,2150],keptWarnings:[]});
   expect(first.revision).toBeGreaterThan(empty.revision);
-  expect(group(first,'R22')).toMatchObject({nextTeam:2,teams:[{number:1,version:1,changedBy:'Sam Patel',changing:null,races:[],
+  expect(group(first,'R22')).toMatchObject({nextTeam:2,teams:[{number:1,version:1,changedBy:{id:profiles.sam,name:'Sam Patel'},changing:null,races:[],
     legs:[{wristband:2101,warnings:[]},{wristband:2134,warnings:[]},{wristband:null,warnings:[]},{wristband:2150,warnings:[]}]}]});
   await ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[2201,null,null,null],keptWarnings:[]});
   const three=await ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[2301,null,null,null],keptWarnings:[]});
@@ -71,7 +71,7 @@ test('a number already in the relay is refused; a wrong-Section, unknown or othe
   ]);
 });
 test('two phones save different teams of one relay at once, neither locked out; a Save on an older version is refused as changed',async()=>{
-  const {sam,priya,id}=await start();
+  const {sam,priya,id,profiles}=await start();
   const url=`/api/relays/${id('R22')}/teams`;
   await ok(sam,url,{legs:[2101,null,null,null],keptWarnings:[]});
   const both=await ok(priya,url,{legs:[2201,null,null,null],keptWarnings:[]});
@@ -80,7 +80,7 @@ test('two phones save different teams of one relay at once, neither locked out; 
   await Promise.all([ok(sam,`${url}/${team1.id}`,{version:1,legs:[2101,2102,null,null],keptWarnings:[]}),ok(priya,`${url}/${team2.id}`,{version:1,legs:[2201,2202,null,null],keptWarnings:[]})]);
   // Priya changes Team 1 (Change anyway is the phone's own confirm); Sam's Save on the version he saw is refused.
   const changed=await ok(priya,`${url}/${team1.id}`,{version:2,legs:[2101,2102,2103,null],keptWarnings:[]});
-  expect(group(changed,'R22').teams![0]).toMatchObject({version:3,changedBy:'Priya Shah'});
+  expect(group(changed,'R22').teams![0]).toMatchObject({version:3,changedBy:{id:profiles.priya,name:'Priya Shah'}});
   const late=await call(sam,`${url}/${team1.id}`,{version:2,legs:[2101,2109,null,null],keptWarnings:[]});
   expect(late.statusCode).toBe(409);
   expect(late.json()).toEqual({message:'Priya Shah changed this a moment ago',reason:'changed',by:'Priya Shah'});

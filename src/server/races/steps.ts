@@ -102,7 +102,7 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
   const teams=addedTeams.length?(await readTeamLists(client,phone.dayId)).get(target.event.id)!.teams:[];
-  const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId));
+  const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId,phone.id));
   // A team keeps the warnings its team list gave it. A final's runners all ran in its heats, so "already ran in this event" does not apply.
   const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
@@ -134,12 +134,12 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
 }
 /**
  * A team added at the finish ("Add team"): a copy of its four children and their kept warnings, those on
- * the list marked here since they crossed the line. Only a team still to run that nobody is changing can be added.
+ * the list marked here since they crossed the line. Only a team still to run that nobody else is changing can be added.
  */
-function addedAtFinish(teams:readonly RelayTeam[],teamId:string):TeamEntry {
+function addedAtFinish(teams:readonly RelayTeam[],teamId:string,me:string):TeamEntry {
   const team=teams.find(item=>item.id===teamId);
   if(!team) throw new Refusal(404,'Team not found');
-  return joiningTeam(team,{here:true,addedAtFinish:true});
+  return joiningTeam(team,{here:true,addedAtFinish:true,me});
 }
 /**
  * Saves a race whose steps are all done once nothing blocks it (finishers and times agree), with history naming who

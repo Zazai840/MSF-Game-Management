@@ -8,19 +8,16 @@ export type Offer=(next:RaceFlowRead)=>void;
 /** Someone else changed what this phone was writing, so the write was refused: their name, for the banner. */
 export interface Changed { by:string|null }
 /**
- * One race's writes in the race flow. Each answers with the race as it then stands. A write made on an older version
- * (someone changed the step meanwhile) is never stored: it comes back as `changed`, for "Tom Barker changed this a
+ * Writes whose answer is what the screen reads (a race, or the races list), handed to `offer`. A write made on an older
+ * version (someone changed it meanwhile) is never stored: it comes back as `changed`, for "Tom Barker changed this a
  * moment ago" with Show latest. Any other refusal shows as `error`.
  */
-export function useFlowWrite(raceId:string,offer:Offer) {
+export function useWrites<Answer>(offer:(next:Answer)=>void) {
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[changed,setChanged]=useState<Changed|null>(null);
-  /**
-   * Sends one write: the race once the server has it, 'refused' when the server said no, false when it could not be
-   * sent. `what` is under this race, or from "/" another route that answers with this race (a team's Save at check-in).
-   */
-  async function write(what:string,body:object):Promise<RaceFlowRead|false|'refused'> {
+  /** Sends one write to `path`: the answer once the server has it, 'refused' when the server said no, false when it could not be sent. */
+  async function send(path:string,body:object):Promise<Answer|false|'refused'> {
     setBusy(true);setError('');
-    try {const answer=await api<RaceFlowRead>(what.startsWith('/')?what.slice(1):`races/${raceId}/${what}`,body);offer(answer);setChanged(null);return answer;}
+    try {const answer=await api<Answer>(path,body);offer(answer);setChanged(null);return answer;}
     catch(failure) {
       const body=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
       if(body.reason==='changed') setChanged({by:body.by??null});
@@ -28,7 +25,17 @@ export function useFlowWrite(raceId:string,offer:Offer) {
       return failure instanceof ApiFailure?'refused':false;
     } finally {setBusy(false);}
   }
-  return {busy,error,setError,changed,clearChanged:()=>setChanged(null),write,offer};
+  return {busy,error,setError,changed,clearChanged:()=>setChanged(null),send,offer};
+}
+/**
+ * One race's writes in the race flow, each answering with the race as it then stands: `write` under this race, and
+ * `writeTeam` a relay team's Save at check-in (its legs, a drop on its grips), which answers with this race too.
+ */
+export function useFlowWrite(raceId:string,offer:Offer) {
+  const writes=useWrites<RaceFlowRead>(offer);
+  const write=(what:string,body:object)=>writes.send(`races/${raceId}/${what}`,body);
+  const writeTeam=(eventId:string,teamId:string,body:object)=>writes.send(`relays/${eventId}/teams/${teamId}`,body);
+  return {...writes,write,writeTeam};
 }
 /**
  * One step's writes, latest wins (latestWins): each change sends the whole step with the part version last answered.

@@ -109,7 +109,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons for every event, grouped under the tab names Races and Hurdles whichever tab it was opened from, so a volunteer on the wrong tab still finds theirs. Back from the new race, Races shows that event's tab.
+- **Event:** choice buttons for every races and hurdles event, grouped under the tab names Races and Hurdles whichever of those tabs it was opened from, so a volunteer on the wrong tab still finds theirs. It has no Relays group: on Relays, + New relay lists only the relays. Back from the new race, Races shows that event's tab.
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.
@@ -240,29 +240,31 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 - Dragging a grip moves the child to another leg. The drop is the team's edit with its legs in the new order: it saves the race and the team list together, and each Here mark follows its child. A short team's empty leg drags like a child, so the 4th leg can be a real child. Two drops at once: the second is refused as changed and the phone shows the latest.
 - Grips are hidden on a team another phone has open, and on every card while this phone has a team open in Edit. They stay until the race is saved; a drop after That's everyone keeps Runners done.
 - **Edit** opens the team's leg boxes in the teams sheet straight away, titled "Edit team 5", with no Change anyway; its Save also writes the team's entry in this race.
-- **Still to run** follows the cards: each team with its wristbands and **Add**, then **+ New team**, which opens "New team · joins this heat"; the saved team is ticked into the heat. With none left: "Every team on the list is in a heat."
+- **Still to run** follows the cards: each team with its four wristbands ("–" for an empty leg) and **Add**, then **+ New team**, which opens "New team · joins this heat"; the saved team joins the heat. A team another phone has open reads "Aisha Noor is changing this team" with no Add until they finish; one this phone has open shows no mark and keeps Add. With none left: "Every team on the list is in a heat."
+- Add on a team already in another heat not yet saved is refused with where it is: "Team 1 is already in Heat 2".
 - Every tap (Add, Take off, Here) counts from anyone at once, and the last tap wins. The docked footer holds **That's everyone**, which marks Runners done.
 
 **Start line on a final**
 - Prompt meta "Final · 5 of 6 teams here", question "Which teams are here?".
 - A card per seeded team (and any team a lead called up or added): "1st seed · Team 2" with **Edit** beside the name, then **Here** / **Absent** for the whole team, neither lit at first; tapping a lit mark again clears it. Its legs follow ("1st leg", wristband), with no per-child Here. An Absent card is dashed.
-- Once a team is Here, its legs have grips and Edit works, as on a heat.
+- Unless a team is Absent, its legs have grips and Edit works, as on a heat.
+- As on a children's final, only teams marked Here run it: the finish line shows no team until the start line marks one Here, and an unmarked or Absent team can't be placed.
 - That's everyone with a team unmarked asks first: "Team 4 is not marked. Record them absent?" with Record them absent / Go back.
 
 **Finish line**
 - Team tiles (RunnerButton, team tile), two to a row: "Team 5" over its 4th leg's wristband "2054" (or "–"), the same size. `aria-label="Team 5, 4th leg 2054, came 1st"`.
-- The PlacesBoard names a placed team "T5". Prompt meta "Heat 2 · 3 teams · 3 to place · tap the team whose 4th leg crossed", question "Which team came *1st?*".
+- The PlacesBoard names a placed team "T5". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
 - Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
 - **Check the order** rows read "Team 6 · 2064". A team left over has its name on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run. While a slot is being changed: "Changing 1st: Team 5" with **Keep Team 5**.
 
 **Timer**
-- As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · one time per team, to the 4th leg crossing" (no finished count). A final has no Times.
+- As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · time each team's 4th leg" (no finished count). A final has no Times.
 
 **Finals**
 - "+ Final" on a relay card is the lead's, behind the same confirm, worded for teams: "Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6 teams, and no more heats can be added." Volunteers see "A lead makes the final once every heat has run."
 
 **Zone lead**
-- Every step tab shows "Team 5" with its four children in leg order wherever a team appears (Runners chips, Finishing order rows, Times rows, To check callouts). Relay problems (a team that ran short, a child in two relays, a kept warning, a wrong time) sit on the step they are about, with It's right or the way to settle it. A team that ran short reads "A team ran short".
+- Every step tab shows "Team 5" with its four children in leg order wherever a team appears (Runners chips, Finishing order rows, Times rows, To check callouts; a tie lists each tied team). Relay problems (a team that ran short, a child in two relays, a kept warning, a wrong time) sit on the step they are about, with It's right or the way to settle it. A team that ran short reads "A team ran short".
 - "⋯" race actions are a race's, with Correct teams in place of Correct runner list.
 - Results, the race page, Correct teams and the final's line-up keep their older look.
 

@@ -1,9 +1,10 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
+import { seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
+import { andList,emptyRaceLine,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
-import { changingName,entryCount,filledLegs,stillToRun,teamCount,type TeamLeg } from '../../shared/teams.js';
+import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
@@ -12,8 +13,8 @@ import { digitsOnly } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useWristbandEntry } from './wristband-entry.js';
-import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
-import { CheckInTeamSheet } from './TeamSheet.js';
+import { Callout,DockedFooter,Icon } from './parts.js';
+import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
 
 /** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save the order, No more finishers), and `me`, this phone's sign-in. */
@@ -130,94 +131,6 @@ export function StartLine({read,flow,onDone,locked,me}:StepProps) {
     </div>}</DockedFooter>}
   </>;
 }
-/** A team short of four children runs short: it never blocks the race, and a lead checks it once saved. */
-const RunsShort=({legs}:{legs:TeamLeg[]})=>filledLegs({legs})<4?<span className="rz-teamcard__note">Runs short · {filledLegs({legs})} of 4</span>:null;
-/**
- * A relay heat's Start line: the teams in this heat as cards, each child in leg order with Here / Not yet and a grip,
- * and Take off while none of its children is here, then Still to run, each team with Add. Taps count from anyone as
- * the race stands (ADR 0002), so phones tapping at once all land and the last tap on a child wins. That's everyone
- * marks Runners done.
- */
-function TeamStartLine({read,flow,onDone,locked,me}:StepProps) {
-  const {race}=read,teams=read.teams||[],entries=(race.parts.runners.value||[]).filter(isTeamEntry),toRun=teams.filter(stillToRun);
-  const here=entries.reduce((sum,entry)=>sum+entry.legs.filter(leg=>leg.here).length,0);
-  const tap=(teamId:string,what:string,body:object={})=>void flow.write(`teams/${teamId}/${what}`,body);
-  /** The team open in the teams sheet: its id for Edit, null for New team. */
-  const [editing,setEditing]=useState<{teamId:string|null}|null>(null);
-  return <>
-    <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · {teamCount(entries.length)} · {here} {here===1?'child':'children'} here</p>
-        <h2 className="rz-prompt__q">Which teams are running?</h2></div>
-      {flow.error && <Callout message={flow.error}/>}
-      {entries.map(entry=><section key={entry.id} className="rz-teamcard" aria-label={`Team ${entry.team.number}`}>
-        <div className="rz-teamcard__head"><h3 className="rz-teamcard__name">Team {entry.team.number}</h3><TeamNote read={read} me={me} teamId={entry.team.id} legs={entry.legs}/>
-          {!locked && <span className="rz-teamcard__marks">
-            <EditTeam number={entry.team.number} onEdit={()=>setEditing({teamId:entry.team.id})}/>
-            {!entry.legs.some(leg=>leg.here) && <button type="button" className="rz-btn rz-btn--small" onClick={()=>tap(entry.team.id,'take-off')}>Take off</button>}
-          </span>}</div>
-        <TeamLegs read={read} flow={flow} team={entry.team} legs={entry.legs} grips={!locked && !editing && !changerOf(read,me,entry.team.id)}
-          list="rz-attendance rz-attendance--one" row={leg=>leg.here?'':'is-absent'} content={(leg,place)=><>
-            <span className="rz-attendance__who"><span className="rz-attendance__seed">{ordinal(place)} leg</span><span className="label">{leg.wristband??'–'}</span></span>
-            {leg.wristband!==null && <button type="button" className={leg.here?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked} aria-pressed={leg.here} aria-label={`${leg.wristband}: Here`}
-              onClick={()=>tap(entry.team.id,'here',{leg:entry.legs.indexOf(leg),here:!leg.here})}>{leg.here?'Here':'Not yet'}</button>}
-          </>}/>
-      </section>)}
-      {!locked && <>
-        <h3 className="rz-section">Still to run</h3>
-        {toRun.length?<ul className="rz-teamrows" aria-label="Still to run">{toRun.map(team=>{
-          const changer=changingName(team);
-          return <li key={team.id} className="rz-listrow"><span className="rz-listrow__main"><span className="rz-listrow__label">Team {team.number}</span>
-            <span className="rz-listrow__meta">{team.legs.flatMap(leg=>leg.wristband===null?[]:[leg.wristband]).join(' · ')}</span>
-            {changer?<span className="rz-teamcard__note">{changer} is changing this team</span>:<RunsShort legs={team.legs}/>}</span>
-            {!changer && <button type="button" className="rz-btn rz-btn--small rz-btn--primary" aria-label={`Add Team ${team.number}`} onClick={()=>tap(team.id,'tick')}><Icon name="plus"/>Add</button>}
-          </li>;
-        })}</ul>:<p className="rz-empty">{teams.length?'Every team on the list is in a heat.':'No teams on the list yet.'}</p>}
-        <button type="button" className="rz-btn rz-btn--block" onClick={()=>setEditing({teamId:null})}><Icon name="plus"/>New team</button>
-      </>}
-    </main>
-    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!entries.length || flow.busy} onClick={()=>onDone('runners')}>That's everyone</button></DockedFooter>}
-    {editing && <CheckInTeamSheet read={read} teamId={editing.teamId} offer={flow.offer} onClose={()=>setEditing(null)}/>}
-  </>;
-}
-/** Edit on a team card at check-in: the team's leg boxes open straight away, with no Change anyway. */
-const EditTeam=({number,onEdit}:{number:number;onEdit:()=>void})=>
-  <button type="button" className="rz-btn rz-btn--small" aria-label={`Edit Team ${number}`} onClick={onEdit}>Edit</button>;
-/** Who else has the team open in Edit, for "Aisha Noor is changing this team", or null. */
-function changerOf(read:RaceFlowRead,me:string,teamId:string) {
-  const changing=read.teams?.find(item=>item.id===teamId)?.changing;
-  return changing && changing.id!==me?changing.name:null;
-}
-/** Under a team card's name: who else has the team open ("Aisha Noor is changing this team"), else whether it runs short. */
-function TeamNote({read,me,teamId,legs}:{read:RaceFlowRead;me:string;teamId:string;legs:TeamLeg[]}) {
-  const changer=changerOf(read,me,teamId);
-  return changer?<span className="rz-teamcard__note">{changer} is changing this team</span>:<RunsShort legs={legs}/>;
-}
-/**
- * A start-line team card's legs in leg order, an empty leg as "–". With `grips` each leg has one to drag it to another
- * leg ("Move 2071", "Move empty 4th leg"; arrow keys too), the labels following live. A drop is the team's Edit at
- * check-in with the legs in their new order: it saves the race and the team list together, each Here mark following
- * its child, and a drop on a team changed meanwhile comes back as changed, the phone showing the latest.
- */
-function TeamLegs<Leg extends TeamLeg>({read,flow,team,legs,grips,list,row,content}:{read:RaceFlowRead;flow:StepProps['flow'];team:{id:string;number:number};legs:Leg[];grips:boolean;
-  list:string;row:(leg:Leg)=>string;content:(leg:Leg,place:number)=>ReactNode}) {
-  const [moved,setMoved]=useState<Leg[]|null>(null),shown=moved??legs;
-  // An empty leg is known by how many empty legs come before it, so a team's one empty leg keeps its row as it moves.
-  const rows=shown.map((leg,index)=>({leg,key:leg.wristband===null?`empty-${shown.slice(0,index).filter(other=>other.wristband===null).length}`:String(leg.wristband)}));
-  const name=(item:typeof rows[number])=>item.leg.wristband===null?`empty ${ordinal(rows.indexOf(item)+1)} leg`:String(item.leg.wristband);
-  async function drop(next:typeof rows) {
-    const version=read.teams?.find(item=>item.id===team.id)?.version,wristbands=next.map(item=>item.leg.wristband);
-    if(version===undefined) return;
-    setMoved(next.map(item=>item.leg));
-    // Every number is the one already set, so each warning it has stays kept.
-    await flow.write(`/relays/${read.group.event.id}/teams/${team.id}`,{version,legs:wristbands,keptWarnings:wristbands.filter(number=>number!==null),raceId:read.race.id});
-    setMoved(null);
-  }
-  if(!grips) return <ul className={list}>{rows.map((item,index)=><li key={item.key} className={row(item.leg)||undefined}>{content(item.leg,index+1)}</li>)}</ul>;
-  return <SortableList label={`Team ${team.number} legs`} items={rows} itemKey={item=>item.key} itemName={name} disabled={moved!==null}
-    look={{list:`${list} rz-teamgrips`,row:item=>row(item.leg),handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:what=>`Move ${what}`}}
-    onReorder={next=>void drop(next)} renderItem={(item,place)=>content(item.leg,place)}/>;
-}
-type Mark='here'|'absent'|null;
 /**
  * A final's start line: every finalist unmarked at first, each row with Here and Absent; tapping a lit mark again
  * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
@@ -242,7 +155,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">Who is here?</h2></div>
       {flow.error && <Callout message={flow.error}/>}
       <ul className="rz-attendance" aria-label="Who is here">{final.entries.map((entry,index)=><li key={entry.finalEntryId} className={marks[index]==='absent'?'is-absent':undefined}>
-        <span className="rz-attendance__who"><span className="rz-attendance__seed">{entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`}</span><span className="label">{entry.wristband}</span></span>
+        <span className="rz-attendance__who"><span className="rz-attendance__seed">{seedLabel(entry)}</span><span className="label">{entry.wristband}</span></span>
         {(['here','absent'] as const).map(mark=><button key={mark} type="button" className={marks[index]===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked || flow.busy}
           aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
@@ -250,53 +163,6 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button></>}/></div>}
     </main>
     {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button></DockedFooter>}
-  </>;
-}
-/** A finalist's place in the line-up: "1st seed", "Called up" or "Added". */
-const seedLabel=(entry:NonNullable<RaceFlowRead['race']['final']>['entries'][number])=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`;
-/**
- * A relay final's start line: a card per seeded team (and any team a lead called up or added), each with its children
- * in leg order, a grip on each while it is in the race, and Here / Absent for the whole team, neither lit at first; tapping a lit mark again unmarks it. Taps
- * count from anyone as the race stands (ADR 0002). That's everyone with a team unmarked asks before recording it Absent.
- */
-function TeamAttendance({read,flow,onDone,locked,me}:StepProps) {
-  const {race}=read,final=race.final!,inRace=(race.parts.runners.value||[]).filter(isTeamEntry);
-  const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
-  useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
-  // A team in the race is Here once every child is; one out of it was marked Absent.
-  const cards=final.entries.map(entry=>{
-    const current=inRace.find(other=>other.id===entry.finalEntryId);
-    const mark:Mark=current?current.legs.every(leg=>leg.here || leg.wristband===null)?'here':null:entry.absent?'absent':null;
-    return {entry,team:entry.team!,legs:current?.legs??entry.legs??[],mark,inRace:!!current};
-  });
-  const [editing,setEditing]=useState<string|null>(null);
-  const here=cards.filter(item=>item.mark==='here').length,unmarked=cards.filter(item=>item.mark===null);
-  const send=(teamId:string,mark:Mark)=>flow.write(`teams/${teamId}/absent`,{mark});
-  const tap=(item:typeof cards[number],mark:Mark)=>{setAsking(false);void send(item.team.id,item.mark===mark?null:mark);};
-  async function recordAbsent() {
-    setAsking(false);
-    for(const item of unmarked) if(typeof await send(item.team.id,'absent')!=='object') return;
-    onDone('runners');
-  }
-  return <>
-    <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {teamCount(cards.length)} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p>
-        <h2 className="rz-prompt__q">Which teams are here?</h2></div>
-      {flow.error && <Callout message={flow.error}/>}
-      {cards.map(item=><section key={item.entry.finalEntryId} className={item.mark==='absent'?'rz-teamcard rz-teamcard--final is-absent':'rz-teamcard rz-teamcard--final'} aria-label={`Team ${item.team.number}`}>
-        <div className="rz-teamcard__head"><h3 className="rz-teamcard__name"><span className="rz-teamcard__seed">{seedLabel(item.entry)} · </span>Team {item.team.number}</h3><TeamNote read={read} me={me} teamId={item.team.id} legs={item.legs}/>
-          {/* Edit sits by the name, apart from Here / Absent, so it never reads as a third mark. */}
-          {!locked && item.inRace && <EditTeam number={item.team.number} onEdit={()=>setEditing(item.team.id)}/>}
-          <span className="rz-teamcard__marks">{(['here','absent'] as const).map(mark=><button key={mark} type="button" className={item.mark===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'}
-            disabled={locked || flow.busy} aria-pressed={item.mark===mark} aria-label={`Team ${item.team.number}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(item,mark)}>{mark==='here'?'Here':'Absent'}</button>)}</span></div>
-        <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && item.inRace && !editing && !changerOf(read,me,item.team.id)} list="rz-teamlegs" row={()=>''}
-          content={(leg,place)=><><span className="rz-teamlegs__leg">{ordinal(place)} leg</span><span className="label">{leg.wristband??'–'}</span></>}/>
-      </section>)}
-      {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button></>}/></div>}
-    </main>
-    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button></DockedFooter>}
-    {editing && <CheckInTeamSheet read={read} teamId={editing} offer={flow.offer} onClose={()=>setEditing(null)}/>}
   </>;
 }
 
@@ -308,32 +174,13 @@ const nameOf=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?`${entryN
 /** An entry on the places board: a child's wristband, or "T3", so the board stays readable. */
 const boardName=(entry:RaceEntry)=>isTeamEntry(entry)?`T${entry.team.number}`:entryName(entry);
 /**
- * "+ Team not on the list" on a relay heat: the teams still to run, each with Add, never a typed wristband. A team
- * someone is changing can't be added until they finish.
- */
-function TeamPicker({read,onAdd,onClose}:{read:RaceFlowRead;onAdd:(teamId:string)=>void;onClose:()=>void}) {
-  const toRun=(read.teams||[]).filter(stillToRun);
-  return <Sheet title="Team not on the list" onClose={onClose}>
-    {toRun.length?<><p className="rz-sheet__text">Add the team whose 4th leg crossed the line. It takes the next place.</p>
-      <ul className="rz-teamrows" aria-label="Still to run">{toRun.map(team=>{
-        const changer=changingName(team);
-        return <li key={team.id} className="rz-listrow"><span className="rz-listrow__main"><span className="rz-listrow__label">Team {team.number}</span>
-          <span className="rz-listrow__meta">{team.legs.flatMap(leg=>leg.wristband===null?[]:[leg.wristband]).join(' · ')}</span>
-          {changer?<span className="rz-teamcard__note">{changer} is changing this team</span>:<RunsShort legs={team.legs}/>}</span>
-          {!changer && <button type="button" className="rz-btn rz-btn--small rz-btn--primary" aria-label={`Add Team ${team.number}`} onClick={()=>onAdd(team.id)}><Icon name="plus"/>Add</button>}
-        </li>;
-      })}</ul></>
-      :<p className="rz-sheet__text">Every team is in a heat already.</p>}
-  </Sheet>;
-}
-/**
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one places it and moves on; tapping a placed slot makes it the place to fill
  * again: it stays outlined with its runner, who is a button again, until another runner takes it or Keep puts it back. When the last runner is placed, or on "Nobody else crossed the line", Check the order: drag to move, arrow
  * keys too, and each runner left is Did not finish or Didn't run. Save the order marks Finishing order done.
  */
-export function FinishLine({read,flow,onDone,locked}:StepProps) {
-  const {race,group}=read,event=group.event,relay=event.relay;
+export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
+  const {race,group}=read,event=group.event,relay=event.relay,words=entryWords(relay);
   const writes=useStepWrites<{order:string[];didNotFinish:string[];didNotRun:string[];added:number[];keptWarnings:number[];addedTeams:string[]}>(flow.write,'order','finish',race.id,race.parts.finish.version);
   const runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
   const stored=race.parts.finish.value,shown=writes.pending||{order:stored?.order||[],didNotFinish:stored?.didNotFinish||[],didNotRun:[]};
@@ -351,9 +198,9 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[]},added:number[]=[],kept:number[]=[],addedTeams:string[]=[])=>
     writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept,addedTeams});
   // A relay final's teams are its seeds, call-ups and a lead's additions, so it has no "+ Team not on the list".
-  const canAdd=!relay || race.kind!=='final',addLabel=relay?'+ Team not on the list':'+ Runner not on the list';
+  const canAdd=!relay || race.kind!=='final';
   const openAdd=()=>{if(relay) {setRedo(null);setPicking(true);} else setMode('add');};
-  const picker=picking && <TeamPicker read={read} onClose={()=>setPicking(false)} onAdd={teamId=>{setPicking(false);void send({order},[],[],[teamId]);}}/>;
+  const picker=picking && <TeamPicker read={read} me={me} onClose={()=>setPicking(false)} onAdd={teamId=>{setPicking(false);void send({order},[],[],[teamId]);}}/>;
   // The last runner placed: on to Check the order at once (its save goes on behind), before the screen paints, so the
   // placing screen never asks for a place past the last runner.
   useLayoutEffect(()=>{if(mode==='place' && runners.length && !unplaced.length && order.length) setMode('check');},[unplaced.length,order.length]);
@@ -403,7 +250,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     return <>
       <main className="rz-main">
         {/* The line above spans the screen, so it stays on one line at 360px; Back sits beside the question. */}
-        <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a {relay?'team':'runner'}</p>
+        <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · drag a handle to move a {entryNoun(relay)}</p>
           <div className="rz-heading-row"><h2 className="rz-prompt__q">Check the order</h2>
             {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div></div>
         {flow.error && <Callout message={flow.error}/>}
@@ -412,12 +259,12 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
           look={{list:'rz-orderrows',row:'rz-orderrow',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:name=>`Move ${name}`}}
           onReorder={next=>void send({order:next})}
           renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{nameOf(byId.get(id))}</span></>}/>}
-        <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && canAdd && <button type="button" className="rz-btn rz-btn--small" onClick={openAdd}>{addLabel}</button>}</div>
-        {asked && unanswered.length>0 && <Callout message={`Say what happened to ${relay?entryCount(unanswered.length,true):runnersText(unanswered.length)} first.`}/>}
+        <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && canAdd && <button type="button" className="rz-btn rz-btn--small" onClick={openAdd}>{words.add}</button>}</div>
+        {asked && unanswered.length>0 && <Callout message={`Say what happened to ${entryCount(unanswered.length,relay)} first.`}/>}
         {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id} id={`left-${runner.id}`}>
           <div role="group" aria-label={entryName(runner)} className={relay?'rz-orderrow rz-orderrow--unplaced rz-orderrow--team':'rz-orderrow rz-orderrow--unplaced'}>
             <span className="rz-orderrow__num">{nameOf(runner)}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
-          </div></li>)}</ul>:<p className="rz-empty">{relay?'Every team has a place.':'Everyone has a place.'}</p>}
+          </div></li>)}</ul>:<p className="rz-empty">{words.hasPlace}</p>}
         {picker}
       </main>
       {!locked && <DockedFooter>
@@ -436,13 +283,12 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
         return <li key={index}><span className="rz-placeslot rz-placeslot--empty" aria-label={`${ordinal(index+1)} place: empty`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">–</span></span></li>;
       })}</ol>
       <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${entryName(changing)}`:relay?`${raceName(race)} · ${teamCount(runners.length)} · ${unplaced.length} to place · tap the team whose 4th leg crossed`
-          :`${raceName(race)} · ${runnersText(runners.length)} · ${unplaced.length} to place`}</p>
-        <h2 className="rz-prompt__q">{!runners.length?(relay?'No team is in this heat yet':'Nobody is checked in yet'):!choices.length?(relay?'Every team is placed':'Everyone is placed'):<>{relay?'Which team':'Who'} came <em>{ordinal(current+1)}?</em></>}</h2>
+        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${entryName(changing)}`:`${raceName(race)} · ${entryCount(runners.length,relay)} · ${unplaced.length} to place`}</p>
+        <h2 className="rz-prompt__q">{!runners.length?emptyRaceLine(race):!choices.length?words.allPlaced:<>{words.who} came <em>{ordinal(current+1)}?</em></>}</h2>
       </div>{changing && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setRedo(null)}>Keep {entryName(changing)}</button>}</div>
       {flow.error && <Callout message={flow.error}/>}
       {sizeNote}
-      {!runners.length && <p className="rz-empty">{relay?'Teams appear here as the start line adds them.':'Runners appear here as the start line checks them in. Add one who crossed the line but is not on the list.'}</p>}
+      {!runners.length && <p className="rz-empty">{words.appear}</p>}
       {/* A relay's team tiles, two to a row: "Team 5" over its 4th leg's wristband, the same size, so either can be matched. */}
       {!locked && choices.length>0 && relay && <ul className="rz-runners rz-runners--teams" aria-label="Teams not yet placed">{choices.map(runner=><li key={runner.id}>
         <button type="button" className="rz-runner rz-runner--team" aria-label={`${entryName(runner)}, ${fourthLeg(runner)==='–'?'no 4th leg':`4th leg ${fourthLeg(runner)}`}, came ${ordinal(current+1)}`} onClick={()=>place(runner)}>
@@ -455,8 +301,8 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
       {picker}
     </main>
     {!locked && <DockedFooter>
-      <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode('check')}>{relay?'No other team crossed the line':'Nobody else crossed the line'}</button>
-      {canAdd && <button type="button" className="rz-btn rz-btn--block" onClick={openAdd}>{addLabel}</button>}
+      <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setMode('check')}>{words.noneElse}</button>
+      {canAdd && <button type="button" className="rz-btn rz-btn--block" onClick={openAdd}>{words.add}</button>}
     </DockedFooter>}
   </>;
 }
@@ -468,7 +314,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
  * marks Times done. Times never wait for the finish line.
  */
 export function Timer({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,status=read.steps.times!,order=read.steps.positions!;
+  const {race}=read,status=read.steps.times!,order=read.steps.positions!,words=entryWords(read.group.event.relay);
   const writes=useStepWrites<{places:number[];keptWrong:number[]}>(flow.write,'times','times',race.id,race.parts.times.version);
   const [typed,setTyped]=useState(''),[retype,setRetype]=useState<number|null>(null);
   const stored=race.parts.times.value,places=writes.pending?.places||(stored?.places||[]).filter((time):time is number=>time!==null);
@@ -491,7 +337,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{raceName(race)} · {read.group.event.relay?'one time per team, to the 4th leg crossing':order.state==='done'?finishedWords(order):runnersText(race.parts.runners.value?.length||0)}</p>
+        <p className="rz-prompt__meta">{raceName(race)} · {words.timerMeta??(order.state==='done'?finishedWords(order):runnersText(race.parts.runners.value?.length||0))}</p>
         <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
       </div>
       {flow.error && <Callout message={flow.error}/>}
@@ -506,7 +352,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
           <span className="rz-slot__ord">{ordinal(index+1)}{isWrong && <Icon name="warning" className="rz-slot__flag"/>}</span><span className="rz-slot__time">{time===undefined?'–':formatTime(time)}</span>
           {isWrong && <span className="rz-slot__note">{keptWrong.includes(index)?'Kept':wrong.get(index)!.reason}</span>}
         </button></li>;
-      })}</ol>:<p className="rz-empty">Places appear here once {read.group.event.relay?'teams are in the heat':'runners are checked in'}.</p>}
+      })}</ol>:<p className="rz-empty">Places appear here once {words.placesWhen}.</p>}
       {held && <Callout message={`${wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button>
           <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}

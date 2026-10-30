@@ -24,7 +24,7 @@ test('two start-line phones check a relay heat in at once: Add, Take off and eve
   await expect(one.getByRole('heading',{level:2,name:'Which teams are running?'})).toBeVisible();
   await expect(stillToRun(one).getByRole('listitem')).toHaveCount(3);
   const short=stillToRun(one).getByRole('listitem').nth(1);
-  for(const text of ['Team 2',`${w(21)} · ${w(22)} · ${w(24)}`,'Runs short · 3 of 4']) await expect(short).toContainText(text);
+  for(const text of ['Team 2',`${w(21)} · ${w(22)} · – · ${w(24)}`,'Runs short · 3 of 4']) await expect(short).toContainText(text);
   // Each phone adds a team; the other sees it at once.
   await stillToRun(one).getByRole('button',{name:'Add Team 1',exact:true}).click();
   await stillToRun(two).getByRole('button',{name:'Add Team 2',exact:true}).click();

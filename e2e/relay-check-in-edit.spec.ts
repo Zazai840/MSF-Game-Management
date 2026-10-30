@@ -48,6 +48,15 @@ test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the o
   await expect(card(two,1)).toContainText('is changing this team',live);
   await sheet(one,'Edit team 1').getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(card(two,1)).not.toContainText('is changing this team',live);
+  // A team still to run that Sam has open elsewhere (the teams sheet in another tab): his rows don't name him and keep Add.
+  const toRun=(page:Page)=>page.getByRole('list',{name:'Still to run'}).getByRole('listitem').filter({hasText:'Team 2'});
+  const teams=`/api/relays/${made.group.event.id}/teams/${made.teams![1].id}`;
+  await flowPost(request,sam.token,`${teams}/open`,{});
+  await expect(toRun(two)).toContainText(`${samName} is changing this team`,live);
+  await expect(toRun(two).getByRole('button',{name:'Add Team 2',exact:true})).toHaveCount(0);
+  await expect(toRun(one)).not.toContainText('is changing this team');
+  await expect(toRun(one).getByRole('button',{name:'Add Team 2',exact:true})).toBeVisible();
+  await flowPost(request,sam.token,`${teams}/close`,{});
 
   // New team: the next number, joining this heat on both phones.
   await one.getByRole('button',{name:'New team',exact:true}).click();

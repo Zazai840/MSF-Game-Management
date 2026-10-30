@@ -4,9 +4,9 @@ import type { DayLeadItem } from '../../shared/lead-results.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { raceName,stepLabels,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
-import { entryCount } from '../../shared/teams.js';
+import { entryCount,legsText } from '../../shared/teams.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { toCheckWording } from '../../shared/to-check.js';
+import { itemTeams,toCheckWording } from '../../shared/to-check.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
 import { Callout,Icon } from './parts.js';
@@ -40,10 +40,8 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
     finally {setBusy('');}
   }
   const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='two-relays' || item.kind==='ran-short' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
-  // On a relay, the team an item is about, with its four children.
-  const teamOf=(item:DayLeadItem)=>{const entry=race.parts.runners.value?.find(entry=>entry.id===item.entryId);return entry && isTeamEntry(entry)?entry:null;};
-  const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item),team=teamOf(item);
-    return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{team && <span className="rz-callout__team">{entryName(team)} · {teamLegs(team)}</span>}</>}
+  const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);
+    return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
     actions={acceptable(item)?<><button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button>
       <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button></>
       :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;
@@ -60,10 +58,8 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
     <footer className="rz-footer"><p className="rz-refresh" aria-live="polite">Updated at {updated}</p></footer>
   </>;
 }
-/** A relay team's four children in leg order, "–" for an empty leg: "2101 · 2134 · 2187 · –". */
-const teamLegs=(team:{legs:ReadonlyArray<{wristband:number|null}>})=>team.legs.map(leg=>leg.wristband??'–').join(' · ');
 /** A relay team's four children on the line under its name, in a chip or across a row; nothing for a child. */
-const TeamLegs=({entry,className='rz-team-legs'}:{entry:RaceEntry|undefined;className?:string})=>entry && isTeamEntry(entry)?<span className={className}>{teamLegs(entry)}</span>:null;
+const TeamLegs=({entry,className='rz-team-legs'}:{entry:RaceEntry|undefined;className?:string})=>entry && isTeamEntry(entry)?<span className={className}>{legsText(entry.legs)}</span>:null;
 const nameOf=(entry:RaceEntry|undefined)=>entry?entryName(entry):'–';
 /** A kept warning on a child, or on any child of a relay team. */
 const kept=(entry:RaceEntry)=>isTeamEntry(entry)?entry.legs.some(leg=>leg.warnings.length):!!entry.warnings?.length;
@@ -87,7 +83,7 @@ export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;
       const runner=byId.get(finish?.order[index]||''),time=places[index],warn=wrong.has(index);
       const content=<><span className="rz-lead-row__place">{ordinal(index+1)}</span><span className="rz-lead-row__num">{nameOf(runner)}</span>
         <span className="rz-lead-row__end">{time==null?'No time':formatTime(time)}{onEdit && <> <Icon name="pencil" className="rz-icon--sm"/></>}</span><TeamLegs entry={runner} className="rz-team-legs rz-lead-row__legs"/></>;
-      const label=`${ordinal(index+1)}, ${runner?(isTeamEntry(runner)?`${entryName(runner)} · ${teamLegs(runner)}`:entryName(runner)):relay?'no team':'no wristband'}, ${time==null?'no time yet':formatTime(time)}`;
+      const label=`${ordinal(index+1)}, ${runner?(isTeamEntry(runner)?`${entryName(runner)} · ${legsText(runner.legs)}`:entryName(runner)):relay?'no team':'no wristband'}, ${time==null?'no time yet':formatTime(time)}`;
       return <li key={index}>{onEdit?<button type="button" className={warn?'rz-lead-row rz-lead-row--warn':'rz-lead-row'} style={{width:'100%'}} onClick={onEdit} aria-label={`${label}. Edit`}>{content}</button>
         :<div className={warn?'rz-lead-row rz-lead-row--warn':'rz-lead-row'} aria-label={label}>{content}</div>}</li>;
     })}</ol>:<p className="rz-empty">No times yet.</p>)}

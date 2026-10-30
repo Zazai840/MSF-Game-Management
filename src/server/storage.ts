@@ -160,6 +160,10 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_since timestamptz;
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by text;
+    -- Whose profile last changed a team, so Change anyway asks only when it was someone else; the name stays for display.
+    -- Older rows take the profile of that name (profile names are unique and never change).
+    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by_profile uuid REFERENCES profiles(id);
+    UPDATE relay_teams t SET changed_by_profile=p.id FROM profiles p WHERE t.changed_by_profile IS NULL AND t.changed_by IS NOT NULL AND lower(p.name)=lower(t.changed_by);
     -- No phone has a team's leg boxes open across a restart, so nobody is still changing a team.
     UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE changing_by IS NOT NULL OR changing_since IS NOT NULL;
     CREATE TABLE IF NOT EXISTS tie_settlements (
