@@ -47,7 +47,6 @@ export const phoneStorage = {
   },
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
   forgetProfile,
-  /** A That's me request waiting for a lead, kept until it is approved, declined or cancelled. */
   /** The Home tab this phone used last: Races on a phone that never switched, or when storage fails. */
   homeTab:():HomeTab=>{try {const tab=localStorage.getItem(homeTabKey) as HomeTab;return homeTabs.includes(tab)?tab:'races';} catch {return 'races';}},
   rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},
@@ -79,7 +78,7 @@ export const phoneStorage = {
     if(reason==='moved' && profile) forgetProfile(profile);
     epoch++;
   },
-  /** Sign out: the pass and session go, the profiles stay, and every tab goes to the password screen. */
+  /** Log out: the pass, session and drafts go, the listed names stay, and every tab goes to Join. */
   signOut:()=>{erase(keptAfter['signed-out']);changed(false);}
 };
 // Tabs share this app's storage. A changed session marker also invalidates

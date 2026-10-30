@@ -5,6 +5,7 @@ The nine screens of the race-first flow in [../race-flow.md](../race-flow.md), a
 - **`<name>.png`:** a picture of the screen at 2× (780 × 1688). Use it to see the layout.
   - These were rendered with stand-in fonts (a condensed grotesque for Saira, Liberation Sans for Nunito), because the renderer couldn't reach Google Fonts.
   - Layout, colours and copy are exact. Letter shapes and widths differ slightly.
+  - N5 to N8 were rendered again in Chromium with the real fonts, when Positions became Finishing order.
 - **`html/<name>.html`:** the screen's exact markup, using `../../tokens.css`, `../../components/bundle.css` and the real fonts from Google Fonts. Open it in a browser to see the true type.
   - When a PNG and the HTML disagree, the HTML is right.
   - Links between screens work.

@@ -17,17 +17,17 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
   await recordRace(request,owner(),calmCode,[2011],[1400]);
   const {page}=await openPhone(`Lead issues ${project}`,{lead:true});
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
-  await expect(status(page,name)).toHaveText('Heat 1: A time looks wrong');
+  await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
   await expect(readyForYou(page).filter({hasText:name})).toHaveCount(1);
-  await expect(readyForYou(page).filter({hasText:calm})).toHaveCount(0);
-  await page.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
-  await expect(status(page,calm)).toHaveText('Every race saved');
+  // A calm event, every race saved, is not ready for the lead: it waits under In progress (after Ready for you) for its medals.
+  await expect(page.locator('h2:text-is("In progress") ~ article').filter({hasText:calm})).toHaveCount(1);
+  await expect(status(page,calm)).toHaveText('Heat 1 saved');
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
-  // The avatar's menu: Results, Day setup and your details.
+  // The avatar's menu: Results, Day setup and Log out.
   await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Your details']);
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
   await page.screenshot({path:info.outputPath('lead-menu.png')});
   await page.getByRole('menuitem',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
@@ -51,7 +51,9 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await expect(status(page,name)).toContainText('Heat 1: ');
   await openRace(page,name);
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
-  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check$/,/^Positions.*1 to check$/,/^Times.*1 to check$/]);
+  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check$/,/^Finishing order.*1 to check$/,/^Times.*1 to check$/]);
+  // The warning icon on a tab not open is navy on paper, an approved colour pair (accessibility.md).
+  expect(await tabs.getByRole('tab',{name:/^Times/}).locator('.rz-step__status .rz-icon').evaluate(icon=>getComputedStyle(icon).color)).toBe('rgb(30, 43, 81)');
   // Runners: the kept number, with Fix and It's right.
   const runners=page.getByRole('alert').filter({hasText:'3045'});
   await expect(runners).toContainText('A wristband number needs checking. 3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.');
@@ -60,9 +62,9 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await runners.getByRole('button',{name:"It's right",exact:true}).click();
   await expect(page.getByRole('alert').filter({hasText:'3045'})).toHaveCount(0);
   await expect(tabs.getByRole('tab',{name:/^Runners/})).not.toContainText('to check');
-  // Positions: the runner added at the finish.
-  await tabs.getByRole('tab',{name:/^Positions/}).click();
-  await expect(tabs.getByRole('tab',{name:/^Positions/})).toHaveAttribute('aria-selected','true');
+  // Finishing order: the runner added at the finish.
+  await tabs.getByRole('tab',{name:/^Finishing order/}).click();
+  await expect(tabs.getByRole('tab',{name:/^Finishing order/})).toHaveAttribute('aria-selected','true');
   const added=page.getByRole('alert').filter({hasText:'2002'});
   await expect(added).toBeVisible();
   await added.getByRole('button',{name:"It's right",exact:true}).click();
@@ -78,10 +80,31 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await expect(tabs.getByRole('tab')).not.toContainText(['to check']);
   // Nothing left to check: the card says so on Races, and the accepted issues name who accepted them.
   await backToRaces(page);
-  await page.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
-  await expect(status(page,name)).toHaveText('Every race saved');
+  await expect(status(page,name)).toHaveText('Heat 1 saved');
   const notes=(await (await request.get(`/api/lead/events/${code}/results`,{headers:{authorization:`Bearer ${owner()}`}})).json()).auditNotes.map((note:{action:string})=>note.action);
   expect(notes).toEqual(expect.arrayContaining(['mark-warning-checked','mark-added-checked']));
+});
+
+test('a lead\'s card counts issues by race and kind, the Times tab marks only the wrong time amber, and Race actions lists runners by place',async({openPhone,request},info)=>{
+  const project=info.project.name,name=`Lead counts ${project}`,code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  // Two kept wrong-section numbers, a runner who did not finish checked in first, and a kept wrong time in 3rd place.
+  await writeCheckIn(request,owner(),code,[2003,3045,4046,2001,2002],[3045,4046]);
+  await writeOrder(request,owner(),code,[2002,3045,2001,4046],{didNotFinish:[2003]});
+  await writeTimes(request,owner(),code,[1300,1400,1350,1500],[2]);
+  await submitRace(request,owner(),code);
+  const {page}=await openPhone(`Lead counts ${project}`,{lead:true});
+  // Groups come newest first; both of these date from the same saved race, so either may lead.
+  await expect(status(page,name)).toHaveText(/^(Heat 1: 2 wristbands to check · Heat 1: 1 time to check|Heat 1: 1 time to check · Heat 1: 2 wristbands to check)$/);
+  await openRace(page,name);
+  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
+  const rows=page.getByRole('list',{name:'Times'}).locator('.rz-lead-row');
+  await expect(rows).toHaveCount(4);
+  await expect(page.getByRole('list',{name:'Times'}).locator('.rz-lead-row--warn')).toHaveText([/^3rd\s*2001\s*13\.50/]);
+  await page.screenshot({path:info.outputPath('lead-times-one-amber.png'),fullPage:true});
+  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
+  const record=page.getByRole('dialog',{name:'Race actions'}).getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
+  await expect(record).toHaveText([/^1st\s*2002/,/^2nd\s*3045/,/^3rd\s*2001/,/^4th\s*4046/,/^No place\s*2003/]);
 });
 
 test('an issue settled elsewhere opens in Results, and the race actions open over the race',async({openPhone,request},info)=>{

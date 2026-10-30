@@ -23,8 +23,9 @@
 :where(.rz-screen) footer button { text-decoration: none; }
 :where(.rz-screen) h1, :where(.rz-screen) h2, :where(.rz-screen) h3, :where(.rz-screen) p { margin: 0; color: inherit; }
 :where(.rz-screen) main { max-width: none; margin: 0; padding: 0; }
-:where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; font-size: inherit; color: inherit; }
+:where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; align-items: normal; font-size: inherit; color: inherit; }
 :where(.rz-screen) label { display: block; }
+:where(.rz-screen) legend { padding: 0; }
 :where(.rz-screen) form { display: flex; flex-direction: column; gap: var(--space-8); }
 :where(.rz-screen) input { min-height: 0; }
 
@@ -42,12 +43,18 @@
 /* Over today's relay list, which keeps the older look below it. */
 .rz-app--top { min-height: 0; padding-bottom: var(--space-12); }
 .rz-main { flex: 1; display: flex; flex-direction: column; gap: var(--space-12); padding-top: var(--space-6); padding-bottom: var(--space-16); }
+/* The docked footer has left the page's flow: the page keeps room for it, so the last row never hides behind it. */
+html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var(--rz-footer-height, 0px)); }
 .rz-main > * { margin: 0; }
+/* A section heading sits nearer the cards it heads than what is above it. */
+.rz-main > .rz-section { margin-top: var(--space-6); }
+.rz-main > .rz-section:first-child { margin-top: var(--space-10); }
 .rz-main--form { padding-top: var(--space-16); }
+/* The Updated-at line sits centred in its footer, as it did when the older look's footer centred it. */
+.rz-footer .rz-refresh { justify-content: center; }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
 .rz-note { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); font-size: 14px; line-height: 1.4; font-weight: 700; }
 .rz-empty { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
-.rz-error { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 700; color: var(--red-ink); }
 .rz-appbar__brand { display: flex; flex-direction: column; gap: var(--space-4); }
 .rz-appbar__name { white-space: nowrap; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: clamp(22px, 7vw, 28px); line-height: 1; text-transform: uppercase; }
 .rz-appbar__name span { color: var(--zone); }
@@ -93,15 +100,18 @@
 .rz-heat--pending::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 1.5px var(--navy); }
 .rz-heat--add { min-width: var(--size-touch); width: var(--size-touch); padding: 0; background: none; box-shadow: none; border: 2px dashed var(--line-strong); }
 .rz-heat--final { padding: 0 var(--space-12); background: none; box-shadow: none; border: 2px dashed var(--navy); }
+.rz-heat--final[aria-disabled="true"] { border: 0; background: var(--disabled-fill); color: var(--disabled-ink); cursor: not-allowed; }
+.rz-heat-reason { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-4); padding: 0; border: 0; background: none; color: var(--navy); font-size: 14px; font-weight: 700; text-align: left; text-decoration: underline; }
+.rz-heat-reason .rz-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.6; color: var(--navy); }
 
 /* ---------- StepStrip ---------- */
-.rz-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
+.rz-steps { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-6); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
 .rz-steps--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.rz-step { min-height: 48px; padding: var(--space-6) var(--space-10); display: flex; flex-direction: column; justify-content: center; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
+.rz-step { min-height: 48px; padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
 .rz-step__label { display: flex; align-items: center; gap: var(--space-4); font-size: 13px; line-height: 1.2; font-weight: 800; }
 .rz-step__label .rz-icon { width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink); }
 .rz-step__status { display: flex; align-items: center; gap: var(--space-4); font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
-.rz-step__status .rz-icon { width: 13px; height: 13px; stroke-width: 2.6; color: var(--warn-ink); }
+.rz-step__status .rz-icon { width: 13px; height: 13px; stroke-width: 2.6; color: var(--navy); }
 .rz-step--mine { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-step--mine .rz-step__status { color: var(--navy); font-weight: 700; }
 .rz-step[aria-selected="true"] { background: var(--navy); box-shadow: none; color: var(--on-navy); }
@@ -110,7 +120,7 @@
 .rz-step--mine[aria-selected="true"] { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); color: var(--navy); }
 .rz-step--mine[aria-selected="true"] .rz-step__status { color: var(--navy); }
 .rz-step--mine[aria-selected="true"] .rz-step__label .rz-icon { color: var(--throwing-ink); }
-.rz-step--mine[aria-selected="true"] .rz-step__status .rz-icon { color: var(--warn-ink); }
+.rz-step--mine[aria-selected="true"] .rz-step__status .rz-icon { color: var(--navy); }
 /* Looking at another role's step: what it is and that it is read-only. */
 .rz-readonly { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); border: 2px dashed var(--navy); background: var(--card); }
 .rz-readonly__text { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.35; font-weight: 700; }
@@ -125,6 +135,7 @@
 .rz-placeslot--placed { background: var(--navy); color: var(--on-navy); }
 .rz-placeslot--placed .rz-placeslot__ord { color: var(--gold); }
 .rz-placeslot--current { background: var(--gold); box-shadow: inset 0 0 0 2px var(--navy); }
+.rz-placeslot--changing { box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-placeslot--empty { border: 1.5px dashed var(--line-strong); color: var(--ink-muted); }
 
 /* ---------- RunnerButton ---------- */
@@ -141,7 +152,8 @@
 .rz-orderrow__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; line-height: 1; text-transform: uppercase; }
 .rz-orderrow__num { font-size: 18px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-orderrow__handle { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--navy); touch-action: none; }
-.rz-orderrow--unplaced { width: 100%; grid-template-columns: 44px 1fr auto; padding-right: var(--space-10); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); text-align: left; font: inherit; }
+.rz-orderrow--unplaced { grid-template-columns: 1fr auto auto; gap: var(--space-6); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); }
+.rz-orderrow--unplaced .rz-btn--pill { padding: 0 var(--space-12); }
 
 /* ---------- Toast ---------- */
 .rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
@@ -159,7 +171,7 @@
   .rz-sheet__grip { display: none; }
 }
 .rz-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
-.rz-sheet__close { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); }
+.rz-sheet__close { flex: none; width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); }
 .rz-sheet fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
 .rz-choices { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .rz-choices--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -181,13 +193,13 @@
 .rz-jobcard--finish { --c: var(--challenge); }
 .rz-jobcard--timer { --c: var(--gold); }
 .rz-jobcard--lead { --c: var(--jumping); }
-/* Fixed over the screen: the app bar clips what overflows it (its pattern and stripes), which hid the menu. */
-.rz-menu { position: fixed; right: max(var(--space-8), calc((100% - var(--content)) / 2)); top: calc(env(safe-area-inset-top, 0px) + 62px); z-index: 30; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
+/* Fixed over the screen (the app bar clips what overflows it, its pattern and stripes), placed under its avatar from script. */
+.rz-menu { position: fixed; z-index: 30; min-width: 200px; display: flex; flex-direction: column; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-raised); }
 .rz-menu button { min-height: var(--size-touch); padding: 0 var(--space-12); border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); text-align: left; font-family: var(--font-body); font-size: 15px; font-weight: 800; }
 
 /* ---------- Race body bits ---------- */
 .rz-attendance { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
-.rz-attendance li { min-height: var(--size-touch); display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-attendance li { min-height: var(--size-touch); display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: var(--space-8); padding: var(--space-6) var(--space-10) var(--space-6) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-attendance li.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
 .rz-attendance__who { display: flex; flex-direction: column; }
 .rz-attendance__seed { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
@@ -197,7 +209,6 @@
 .rz-lead-row__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; text-transform: uppercase; }
 .rz-lead-row__num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-lead-row__end { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
-.rz-lead-row__note { grid-column: 2 / -1; font-size: 13px; font-weight: 700; color: var(--warn-ink); }
 .rz-callout--status { border-color: var(--navy); background: var(--card); }
 .rz-old { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .rz-runner:active { transform: none; } }

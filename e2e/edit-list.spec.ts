@@ -34,7 +34,8 @@ test('Edit list forgets a name on this phone only, and names do not sign in whil
   await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('edit-list-empty.png')});
-  // The profile is still on the server, so its name is taken: this phone joins numbered.
+  // The profile is still on the server, so its name is taken: That's me brings it back to this phone.
   await join(page,sam,{job:'Start line'});
-  await expect(page.getByRole('status')).toHaveText(`${sam} is already taken, so you're signed in as ${sam} 2`);
+  await page.locator('.rz-callout',{hasText:'Is this you on a new phone?'}).getByRole('button',{name:"That's me",exact:true}).click();
+  await expect(page.getByRole('button',{name:`${sam}: Log out`,exact:true})).toBeVisible();
 });

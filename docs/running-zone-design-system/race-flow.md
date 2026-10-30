@@ -32,15 +32,15 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 | Section | Boy Beavers … Girl Scouts, with a code per event (R1–R6 for 60m; other events have their own codes, such as R16) | Use the existing code data. |
 | Event group | One event × one section ("60m · Girl Cubs · R4") | One card on Home. Holds its races. |
 | Race | One run of an event group: Heat *n* or the Final | Heat numbers count up per event group. Every event type uses "Heat": 200m and 400m runs that today's app calls "Race 1" become "Heat 1". Chips read "H1", "H2"; everywhere else write "Heat 1". |
-| Step | Runners, Positions or Times, per race | Status is derived; see below. |
+| Step | Runners, Finishing order or Times, per race | Status is derived; see below. |
 | Role | Start line, Finish line, Timer, or Zone lead | Belongs to the person, not the race. |
 
 **Steps and status (per race)**
 - **Runners:** wristbands checked in. Done when the start line taps "That's everyone".
-- **Positions:** wristband → place. Done when the finish line taps "Save positions".
+- **Finishing order:** wristband → place. Done when the finish line taps "Save the order".
 - **Times:** place → time. Done when the timer finishes the last place or taps "No more finishers".
-- **Positions and Times are independent.** Times are keyed by place, positions by wristband, and the two are joined by place for results and the lead view. Both can be worked on at the same time by different people. Neither waits for the other.
-- **Runners is not a hard prerequisite either.** The finish line can add a runner who wasn't checked in ("+ Runner not on the list"). Positions just has no tiles to show until at least one runner exists.
+- **Finishing order and Times are independent.** Times are keyed by place, the finishing order by wristband, and the two are joined by place for results and the lead view. Both can be worked on at the same time by different people. Neither waits for the other.
+- **Runners is not a hard prerequisite either.** The finish line can add a runner who wasn't checked in ("+ Runner not on the list"). Finishing order just has no tiles to show until at least one runner exists.
 - **Per race, per step, keep:** status (not started / in progress / done), count done, count expected, last editor, last updated time.
 
 **Finals**
@@ -57,9 +57,11 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ## Screens
 
 ### 1. Join (artboard `N1-Join`)
-- Fields: Olympics password, Full name, "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
-- Copy under the cards: "You can switch job on any race. Zone lead? Type the lead code instead of the Olympics password."
-- Typing the lead code into the code field signs in as Zone lead and skips the job choice.
+- Fields: Full name, Password (the Olympics password, shown as typed), "What's your job today?" as three radio cards (Start line / Finish line / Timer), each with its job star and one-line description.
+- Copy under the cards: "You can switch job on any race. Zone lead? Type your lead code as the password."
+- Typing the lead code as the password signs in as Zone lead and skips the job choice.
+- A wrong password shows "That password isn't right. Check it with a lead and try again." in the amber warning callout under the Password box. Join with no job stays on the form with "Choose your job" in amber under the cards. The keyboard's Go key joins.
+- A signed-in phone with no job yet (a name tapped under Welcome back, or a lead's access ended) shows only the job cards: one tap opens Races; Zone lead asks for the lead code first.
 - Display-primary "Join" goes to Races.
 
 ### 2. Races: Home (artboard `N2-Races`)
@@ -73,23 +75,23 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 **List**, grouped into sections. Hide a section that is empty.
 1. **Ready for you:** event groups with at least one race whose step for *my role* can be worked on now and isn't done. For a zone lead: groups with an open issue (see "Zone lead").
 2. **In progress:** every other group with a race that isn't fully done, or a final ready to create.
-3. **Done:** collapsed Disclosure, "Done (4)", listing groups where every race is fully done.
+3. **Done:** collapsed Disclosure, "Done (4)", listing groups whose medals are decided (Event complete, Final complete or Results without a final); until then a group stays in progress, even with every race saved.
 
 **Ordering**
 - Within Ready for you: the group whose oldest waiting race was created first comes first.
 - Elsewhere: most recently updated first.
 
 **RaceCard**, one per event group:
-- Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · 1 and 2 done").
+- Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · Heats 1 and 2 done", "Heat 1 checked in", "Heats 1 and 2 and the final done").
 - Then the **HeatChips** row: one chip per race in order, then "+" (add the next heat).
-- When it applies, a "+ Final" chip appears; tapping it creates the final. A locked final isn't shown on the card.
+- When it applies, a lead (Zone lead role) gets a "+ Final" chip; tapping it opens a confirm sheet ("Have all Girl Cubs heats run? 3 heats saved. The final takes the fastest 6, and no more heats can be added." with Make the final and Not yet). A volunteer sees "A lead makes the final once every heat has run." under the chips instead. A locked final isn't shown on the card.
 - Tapping a chip opens that race.
 
 **Footer**: Updated-at line with Refresh, and the display-primary "+ New race".
 
 **After saving any step**, return here and show the **Toast**: "Times saved · Girl Cubs Heat 2" with **Undo**.
 - The toast lasts 6 seconds.
-- **Undo reverses only this person's own save**, the local change they just made. It restores the step to exactly how it was before that save and reopens the race at that step. It never touches other steps or other people's edits. Other steps don't depend on it: times are keyed by place and positions by wristband.
+- **Undo reverses only this person's own save**, the local change they just made. It restores the step to exactly how it was before that save and reopens the race at that step. It never touches other steps or other people's edits. Other steps don't depend on it: times are keyed by place and the finishing order by wristband.
 - **If someone else has changed the same step since the save**, Undo would wipe out their work. So the toast shows "Tom Barker changed this since. Open the race to edit it." with an "Open race" button instead of Undo.
 
 **Empty state** (no races in the tab): "No races yet. Tap New race when a race lines up."
@@ -97,7 +99,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons, for this tab's events only.
+- **Event:** choice buttons for every event, grouped under the tab names Races and Hurdles whichever tab it was opened from, so a volunteer on the wrong tab still finds theirs. Back from the new race, Races shows that event's tab.
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.
@@ -121,7 +123,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 **Shell, top to bottom**
 1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag; the RoleChip. Zone leads also get a "⋯" button for race actions.
 2. **HeatChips** for this event group. The current race is the gold chip (`aria-current="page"`); the others link to their race in the same role. "+" adds the next heat. Swiping left or right on the body also moves between heats.
-3. **StepStrip:** three read-only cells (Runners · Positions · Times). Each shows its status in words ("5 checked in", "2 of 8", "Not started"). My step is outlined in navy and starts with "You ·". For zone leads the strip becomes tabs (see 8).
+3. **StepStrip:** three read-only cells (Runners · Finishing order · Times). Each shows its status in words ("5 checked in", "2 of 8", "Not started"). My step is outlined in navy and starts with "You ·", kept short ("You · not yet", "You · 2 of 8", "You · done"). Each label and status stays on one line, labels top-aligned, at 360px and 390px. For zone leads the strip becomes tabs (see 8).
 4. **The body for my role.** Only my step's controls render; nothing from other steps.
 5. **ActionFooter** for my step.
 
@@ -141,11 +143,12 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Keep the existing warnings** (wrong section, unknown, already raced) as the WarningCallout with Fix number / Keep.
 - **Soft capacity warning at 6 runners.** Specified in "Soft warning: usual heat size" below.
 
-#### 6. Finish line: record positions (artboard `N6-FinishLine`)
+#### 6. Finish line: record the finishing order (artboard `N6-FinishLine`)
 
 **PlacesBoard**
 - A 4-column grid with **one slot for every runner in the race** (1st … *n*th).
 - Placed slots are navy: gold ordinal plus wristband. Tap one to change it.
+- A slot being changed is outlined with its runner still in it; the meta reads "Changing 1st: 2014", 2014 is among the runner buttons again, and "Keep 2014" puts it back.
 - The current place is gold: "3RD ?", `aria-current="step"`.
 - Empty slots are dashed: "4TH –".
 - The grid grows with the runner count; 9–12 runners make 3 rows.
@@ -166,8 +169,8 @@ One route per race (`/races/:raceId`), the same shell for every role.
 #### 6b. Finish line: check the order (artboard `N6b-CheckOrder`)
 - **Prompt:** meta "Heat 4 · drag a handle to move a runner", question "Check the order".
 - **OrderRows** (44px): place, wristband, drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop.
-- **"Not placed"** heading with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with a DNF tag ("Did not finish" by default). Tapping the row toggles Did not finish / Didn't run.
-- **Footer:** display-primary "Save positions". It marks Positions done, returns to Races and shows the toast.
+- **"2 not placed"** heading, below the order and just above the footer, with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with two pill buttons, Did not finish and Didn't run (`aria-pressed`), neither chosen at the start.
+- **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast. While any unplaced runner is unanswered it saves nothing, shows the amber callout "Say what happened to 2 runners first." above the rows, and scrolls to the first unanswered row.
 - **Back** returns to 6 without losing anything.
 
 #### 7. Timer: enter times (artboard `N7-Timer`)
@@ -175,10 +178,11 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Prompt (compact):** meta "Heat 3 · 5 runners", question "3rd place time?".
 - **PlaceTimeGrid**, one slot per place.
   - The number of places is the larger of the runner count and the number of places recorded so far.
-  - The current slot is gold; tap any slot to retype it.
+  - The current slot is gold with a navy ring; tap any slot to retype it.
+  - Over 9 places the grid is compact: 4 across, 44px tall.
 - **Numeric TextField** with the hint "Shows as **13.05**. Type digits only."
-- **Footer trio:** Back / No more finishers / Next.
-- **Keep the "faster than the place before" warning** (Fix time / Keep).
+- **Footer trio:** Back / No more finishers / Next, each on one line.
+- **Keep the "faster than the place before" warning** (Fix time / Keep), directly above the TextField. While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 
 #### 8. Zone lead (artboard `N8-Lead`)
@@ -186,10 +190,10 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - The RoleChip reads "Lead" on a `jumping` fill.
   - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list, Disqualify runner.
   - These are today's lead actions from screens 24, 27 and 28, moved here.
-- **StepStrip becomes tabs:** Runners ✓ / Positions ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
+- **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
 - **Each tab shows that step's data, editable:**
   - Runners: the chip list.
-  - Positions: OrderRows.
+  - Finishing order: OrderRows.
   - Times: rows joining place, wristband and time, each with a pencil button.
 - **Problems sit on the row they're about.** A kept warning or a count mismatch shows as an inline WarningCallout with actions: "Fix time" and "It's right". "It's right" clears the issue and records who accepted it.
 - **No To-check screen.** Issues live on races. On Home, a lead's "Ready for you" section is the groups with open issues, and each card's status line names them ("Heat 3: a time looks wrong").

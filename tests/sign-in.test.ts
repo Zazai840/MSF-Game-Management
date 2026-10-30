@@ -76,7 +76,7 @@ test('Create profile tidies the name, refuses empty, long and taken names, and s
   }
   const taken = await post('/api/profiles', {pass, name:'SAM  patel'});
   expect(taken.statusCode).toBe(409);
-  expect(taken.json()).toEqual({taken:true, message:"Sam Patel already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial."});
+  expect(taken.json()).toEqual({taken:true, message:"Sam Patel already has a profile. If that's you, tap That's me. If not, add your middle name or initial."});
   expect((await post('/api/profiles', {pass, name:'Aisha Khan'})).json().taken).toBe(true);
   const noPass = await post('/api/profiles', {pass:'made-up', name:'Yusuf Ali'});
   expect(noPass.statusCode).toBe(401);
@@ -132,7 +132,7 @@ test('the history of a saved race names who held each job, and tapping the name 
   expect((await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json().phone.id).toBe(phone.id);
 });
 
-test('Sign out ends the session, resets today\'s role to Volunteer and leaves Signed in today, with no audit note', async () => {
+test('Log out ends the session, resets today\'s role to Volunteer and leaves Signed in today, with no audit note', async () => {
   await start();
   const ownerLead = await owner();
   const pass = await olympicsPass(ownerLead.token);

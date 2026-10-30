@@ -2,13 +2,14 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { doneBlocker,raceName,stepParts,stepStatus,steps,stepsOf,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { submitBlocker,type Job } from '../../shared/race-screen.js';
 import type { RacePartName } from '../../shared/races.js';
+import { resultName } from '../../shared/results-rules.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
-import { resultsSnapshot } from '../results/read.js';
+import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { createRace } from './create.js';
 import { absentInput,checkIn,checkInInput,markAbsent,orderInput,saveRace,timesInput,writeOrder,writeTimes,type WriteTarget } from './race-screen.js';
@@ -24,28 +25,41 @@ async function readStepMeta(db:Database,dayId:string) {
   for(const row of rows) meta.set(row.race_id,{...meta.get(row.race_id),[row.part]:{version:row.version,by:row.saved_name??null,at:row.saved_at?.toISOString()??null,doneBy:row.done_name??null,doneAt:row.done_at?.toISOString()??null}});
   return meta;
 }
-const noMeta:StepMeta={version:0,by:null,at:null,doneBy:null,doneAt:null};
 function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
-  const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta[stepParts[step]]??noMeta)]));
+  const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
   const changes=[race.checkedInAt,...Object.values(meta).flatMap(item=>[item.at,item.doneAt])].filter((at):at is string=>!!at).sort();
   return {id:race.id,kind:race.kind,number:race.number,state:race.state,createdAt:race.checkedInAt,updatedAt:changes.at(-1)!,steps:statuses};
+}
+/**
+ * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
+ * it: "Heat 1 has a time to check first". Which result counts for a child who ran twice is chosen in Results: no step.
+ */
+async function finalReason(db:Database,dayId:string,code:string,own:readonly StoredRace[]):Promise<FinalReason|null> {
+  const {results}=await readEventResults(db,dayId,code),item=results.heatsCheckSheet?.mustSettleFirst[0];
+  if(!item) return null;
+  const raceId=item.raceId??results.ties.find(tie=>tie.id===item.tieId)!.entries[0]!.raceId;
+  const race=own.find(race=>race.id===raceId),name=race?raceName(race):'A heat';
+  if(item.kind==='ran-twice') return {raceId,...finalHold('ran-twice',resultName(results.leaderboard.find(row=>row.raceId===raceId && row.entryId===item.entryId)!))};
+  if(item.kind==='tie') return {raceId,...finalHold('tie',name)};
+  return {raceId,...finalHold(results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0],name)};
 }
 /** Each switched-on event that is not a relay as an event group, its races in order (heats, then the final). */
 async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGroup[]> {
   const events=(await readEvents(db,true,dayId)).filter(event=>!event.relay && (!only || event.id===only));
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const counters=(await db.query("SELECT c.event_id,c.last_number FROM race_counters c JOIN events e ON e.id=c.event_id WHERE e.day_id=$1 AND c.kind<>'final'",[dayId])).rows;
-  return events.map(event=>{
+  return Promise.all(events.map(async event=>{
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
     const summaries=own.map(race=>summary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
-    const finalAvailable=event.format==='heats' && !own.some(race=>race.kind==='final') && heats.length>0 && heats.every(race=>race.state==='saved')
+    const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
       && !stageDone(event.id,'heats',stages);
     const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
-    return {event,races:summaries,nextHeat:last+1,finalAvailable,heatsOpen,updatedAt};
-  });
+    const medalsDecided=stages.some(item=>item.eventId===event.id && ['event','final','no-final'].includes(item.stage));
+    return {event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,updatedAt};
+  }));
 }
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
   return {revision:await dayRevision(db,dayId),groups:await readGroups(db,dayId)};
@@ -80,7 +94,7 @@ async function requireOpen(client:pg.PoolClient,phone:Phone,raceId:string) {
   const race=await readRace(client,phone.dayId,raceId);
   if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
   if(race.event.relay) throw new Refusal(409,'Relays use the relay race screen');
-  if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+  if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
   if(race.state==='saved') throw new Refusal(409,`${raceName(race)} is saved - ask a lead to change it`);
   if(race.state==='submitted') throw new Refusal(409,`${raceName(race)} is submitted - ask a lead to save it`);
   return race;
@@ -97,13 +111,13 @@ async function requireCurrent(client:pg.PoolClient,phone:Phone,raceId:string,par
 }
 function requestedStep(request:FastifyRequest,race:Pick<StoredRace,'kind'>):Step {
   const step=(request.params as {step:string}).step as Step;
-  if(!steps.includes(step)) throw new Refusal(404,'Choose Runners, Positions or Times');
+  if(!steps.includes(step)) throw new Refusal(404,'Choose Runners, Finishing order or Times');
   if(!stepsOf(race).includes(step)) throw new Refusal(409,'A final has no times');
   return step;
 }
 /**
- * The race flow's routes, all Volunteer. Each write runs under the day lock, raises the day revision when it changes
- * anything (which wakes every open stream), and answers with the race as it then stands.
+ * The race flow's routes, all Volunteer (making a final needs a lead). Each write runs under the day lock, raises the
+ * day revision when it changes anything (which wakes every open stream), and answers with the race as it then stands.
  */
 export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool),raceId=(request:FastifyRequest)=>(request.params as {raceId:string}).raceId;
@@ -115,12 +129,14 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('GET','/api/races','Volunteer',(_request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>racesRead(db,phone.dayId)));
   action('GET','/api/races/:raceId','Volunteer',(request,_reply,phone)=>read(phone,raceId(request)));
   // New race: the next heat of an event group, or its final. Two phones making the same next heat get one race: the
-  // second is answered with the race the first made. A final runs today's Heats complete checks and seeds the fastest 6.
+  // second is answered with the race the first made. Only a lead makes the final: it runs today's Heats complete checks
+  // and seeds the fastest 6.
   action('POST','/api/races','Volunteer',(request,_reply,phone)=>{
     const body=(request.body||{}) as {eventCode?:unknown;kind?:unknown;number?:unknown};
     if(typeof body.eventCode!=='string') throw new Refusal(400,'Choose an event and section');
     if(body.kind!=='heat' && body.kind!=='final') throw new Refusal(400,'Choose a heat or the final');
     if(body.kind==='heat' && !Number.isSafeInteger(body.number)) throw new Refusal(400,'Choose the heat number');
+    if(body.kind==='final' && phone.level!=='Lead') throw new Refusal(403,'Ask a lead to make the final');
     const {eventCode,kind}=body,number=Number(body.number);
     return write(phone,'',async(client,unchanged)=>{
       const event:DayEvent|undefined=(await readEvents(client,false,phone.dayId)).find(event=>event.code===eventCode);
@@ -134,11 +150,13 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
         if(final) {unchanged();return final.id;}
         const heats=own.filter(race=>race.parts.runners.value?.length);
         if(!heats.length || heats.some(race=>race.state!=='saved')) throw new Refusal(409,'The final opens when every heat has times');
+        const reason=await finalReason(client,phone.dayId,event.code,own);
+        if(reason) throw new Refusal(409,reason.line,{raceId:reason.raceId,step:reason.step});
         await changeStage(client,phone,event.code,'heats',false,null);
         return (await listRaces(client,phone.dayId)).find(race=>race.event.id===event.id && race.kind==='final')!.id;
       }
       const heatKind=event.format==='timed'?'race':'heat';
-      if(stageDone(event.id,stageForRace({kind:heatKind,event}),stages)) throw new Refusal(409,'Stage complete - ask a lead');
+      if(stageDone(event.id,stageForRace({kind:heatKind,event}),stages)) throw new Refusal(409,heatsFinishedLine({event}));
       const existing=own.find(race=>race.kind===heatKind && race.number===number);
       if(existing) {unchanged();return existing.id;}
       const last=(await client.query('SELECT last_number FROM race_counters WHERE event_id=$1 AND kind=$2',[event.id,heatKind])).rows[0]?.last_number??0;
@@ -163,7 +181,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     const input=timesInput(request.body),id=raceId(request);
     return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input,true);await saveIfDone(client,phone,id);});
   });
-  // Done: That's everyone, Save positions, No more finishers. Once every step is done and nothing blocks it, the race is saved.
+  // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.
   action('POST','/api/races/:raceId/steps/:step/done','Volunteer',(request,_reply,phone)=>{
     const id=raceId(request);
     return write(phone,id,async(client,unchanged)=>{
@@ -182,7 +200,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     return write(phone,id,async client=>{
       const race=await readRace(client,phone.dayId,id),step=requestedStep(request,race),part=stepParts[step];
       if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
-      if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+      if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
       const row=(await client.query('SELECT p.version,p.done_by,p.saved_by,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.saved_by WHERE p.race_id=$1 AND p.part=$2',[id,part])).rows[0];
       const corrected=race.state==='saved' && (await client.query('SELECT 1 FROM race_part_history h JOIN races r ON r.id=h.race_id WHERE h.race_id=$1 AND h.corrected_by IS NOT NULL AND h.saved_at>=r.saved_at',[id])).rowCount;
       if(row.done_by!==phone.id || row.version!==version || corrected) {

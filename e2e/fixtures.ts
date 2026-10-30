@@ -51,12 +51,12 @@ export async function signOwnerBackIn(request:APIRequestContext) {
 /** A volunteer's job on the Join form and in the job sheet, as the radio cards name it. */
 export type JobName='Start line'|'Finish line'|'Timer';
 /**
- * Joins as a person would on the Join form: the Olympics password (the lead code instead joins as Zone lead,
- * and the owner password as the owner), the full name and, for a volunteer, today's job. Then taps Join.
+ * Joins as a person would on the Join form: the full name, the Password (the Olympics password; the lead code instead
+ * joins as Zone lead, and the owner password as the owner) and, for a volunteer, today's job. Then taps Join.
  */
 export async function join(page:Page,name:string,{code=process.env.E2E_OLYMPICS_PASSWORD!,job}:{code?:string;job?:JobName}={}) {
-  await page.getByLabel('Olympics password',{exact:true}).fill(code);
   await page.getByLabel('Full name',{exact:true}).fill(name);
+  await page.getByLabel('Password',{exact:true}).fill(code);
   if(job) await page.getByRole('radiogroup',{name:"What's your job today?"}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
   await page.getByRole('button',{name:'Join',exact:true}).click();
 }
@@ -148,7 +148,7 @@ export async function writeTimes(request:APIRequestContext,token:string,eventCod
 }
 /**
  * Saves the event's race as that phone: on an individual event, marks every step not yet done done (That's everyone,
- * Save positions, No more finishers), which saves it once nothing blocks it; on a relay, presses Submit Race, which
+ * Save the order, No more finishers), which saves it once nothing blocks it; on a relay, presses Submit Race, which
  * saves it once everyone asked has pressed.
  */
 export async function submitRace(request:APIRequestContext,token:string,eventCode:string) {
@@ -184,6 +184,8 @@ async function claim(counter:string,size:number,start:number) {
 }
 /** An event code no other test in this run uses (E1, E2 and so on): every event a spec makes takes one. */
 export const ownCode=async()=>`E${await claim('code',1,1)}`;
+/** A phone or event name no other test in this run uses: the words, this project's name and, under --repeat-each, which repeat it is. */
+export const ownName=(words:string)=>{const {project,repeatEachIndex}=test.info();return `${words} ${project.name}${repeatEachIndex?` ${repeatEachIndex}`:''}`;};
 const claimed=(code:string)=>expect(code,'Claim the event code with ownCode()').toMatch(/^E\d+$/);
 const sectionStart={'Boy Beavers':1,'Girl Beavers':1,'Boy Cubs':1000,'Girl Cubs':2000,'Boy Scouts':3000,'Girl Scouts':4000} as const;
 /**
@@ -320,6 +322,10 @@ export function nextBeside(page:Page,label:string) {
   return page.locator('.number-entry-row',{has:page.getByLabel(label,{exact:true})}).getByRole('button',{name:'Next',exact:true})
     .or(page.locator('.rz-footer').getByRole('button',{name:'Next',exact:true}));
 }
+/** The text selected in a number box, found by its label: what the next digit typed replaces. */
+export function selected(page:Page,label:string) {
+  return page.getByLabel(label,{exact:true}).evaluate((input:HTMLInputElement)=>document.activeElement===input?input.value.slice(input.selectionStart!,input.selectionEnd!):'');
+}
 /** Types one wristband into the phone number input and taps the Next beside it, as a volunteer would. */
 export async function enterWristband(page:Page,number:number|string,label='Wristband number') {
   await page.getByLabel(label,{exact:true}).fill(String(number));
@@ -345,11 +351,11 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job'})).toBeVisible();
 }
-/** A lead's avatar, which opens the lead menu (Results, Day setup, Your details). */
+/** A lead's avatar, which opens the avatar menu (Results, Day setup, Log out). */
 export function leadMenuButton(page:Page) {
-  return page.getByRole('button',{name:/: Results, Day setup and your details$/});
+  return page.getByRole('button',{name:/: Results, Day setup and Log out$/});
 }
-/** From Races or a race as a lead: the lead menu, then Results or Day setup. */
+/** From Races or a race as a lead: the avatar menu, then Results or Day setup. */
 export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
   await leadMenuButton(page).click();
   await page.getByRole('menu').getByRole('menuitem',{name:section,exact:true}).click();
@@ -395,6 +401,17 @@ export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
   await nextBeside(page,'Place time').click();
 }
+/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer (or the keyboard). */
+export async function inViewAboveFooter(page:Page,targets:Locator[]) {
+  const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
+    footer:document.querySelector('footer.rz-footer')?.getBoundingClientRect().top??Infinity}));
+  expect(scrolled).toBe(0);
+  for(const target of targets) {
+    const box=(await target.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y+box.height,`${await target.textContent()} above the footer`).toBeLessThanOrEqual(Math.min(visible,footer)+0.5);
+  }
+}
 /**
  * Every rule of the look that can be measured on the screen currently shown. The race flow's screens (inside
  * `.rz-screen`) follow the Running Zone design system (docs/running-zone-design-system/accessibility.md): 44px
@@ -430,6 +447,59 @@ export async function lookProblems(page:Page) {
     }
     if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
     for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
+    // The step strip: each cell's label and status on one line, and the labels in line across the strip.
+    for(const strip of document.querySelectorAll('.rz-steps')) {
+      if(!visible(strip)) continue;
+      for(const line of strip.querySelectorAll('.rz-step__label,.rz-step__status')) if(line.getBoundingClientRect().height>parseFloat(getComputedStyle(line).lineHeight)*1.5) problems.push(`wrapped ${describe(line)}`);
+      const tops=[...strip.querySelectorAll('.rz-step__label')].map(label=>Math.round(label.getBoundingClientRect().top));
+      if(new Set(tops).size>1) problems.push(`step labels out of line ${describe(strip)}`);
+    }
+    // A prompt's line above its question ("Heat 1 · drag a handle to move a runner") on one line, never a word left on a second.
+    for(const meta of document.querySelectorAll('.rz-prompt__meta')) if(visible(meta)&&meta.getBoundingClientRect().height>parseFloat(getComputedStyle(meta).lineHeight)*1.5) problems.push(`wrapped ${describe(meta)}`);
+    // A button's label on one line: every line box of its text starts at the same height.
+    for(const button of document.querySelectorAll('.rz-btn')) {
+      if(!visible(button)) continue;
+      const lines=[...button.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).flatMap(node=>{const range=document.createRange();range.selectNodeContents(node);return [...range.getClientRects()];});
+      if(lines.length && Math.max(...lines.map(line=>line.top))-Math.min(...lines.map(line=>line.top))>Math.min(...lines.map(line=>line.height))/2) problems.push(`wrapped ${describe(button)}`);
+    }
+    // A phone's footer spans the screen with its content on the 20px gutter, and the Updated-at line is centred in it.
+    for(const footer of document.querySelectorAll('.rz-footer')) {
+      if(!visible(footer) || innerWidth>=600) continue;
+      const box=footer.getBoundingClientRect(),style=getComputedStyle(footer);
+      if(Math.abs(box.left)>0.5||Math.abs(box.right-document.documentElement.clientWidth)>0.5||parseFloat(style.paddingLeft)!==20||parseFloat(style.paddingRight)!==20) problems.push(`footer off the gutter ${describe(footer)}`);
+      for(const child of footer.children) {
+        const edge=child.getBoundingClientRect();
+        if(visible(child)&&(edge.left<box.left+19.5||edge.right>box.right-19.5)) problems.push(`footer content off the gutter ${describe(child)}`);
+      }
+      for(const line of footer.querySelectorAll('.rz-refresh')) {
+        const range=document.createRange();range.selectNodeContents(line);const text=range.getBoundingClientRect();
+        if(Math.abs((text.left-box.left)-(box.right-text.right))>1) problems.push(`not centred ${describe(line)}`);
+      }
+    }
+    // A choice group's label starts in line with its buttons.
+    for(const group of document.querySelectorAll('.rz-screen fieldset')) {
+      const legend=group.querySelector(':scope > legend'),first=group.querySelector('.rz-choices > *');
+      if(!legend||!first||!visible(legend)||!visible(first)) continue;
+      const range=document.createRange();range.selectNodeContents(legend);
+      if(Math.abs(range.getBoundingClientRect().left-first.getBoundingClientRect().left)>0.5) problems.push(`label out of line ${describe(legend)}`);
+    }
+    // A section heading sits nearer the cards it heads than what is above it.
+    for(const heading of document.querySelectorAll('.rz-main > .rz-section')) {
+      const above=heading.previousElementSibling??heading.parentElement!.previousElementSibling,below=heading.nextElementSibling;
+      if(!visible(heading)||!above||!below) continue;
+      const box=heading.getBoundingClientRect();
+      if(box.top-above.getBoundingClientRect().bottom<=below.getBoundingClientRect().top-box.bottom) problems.push(`heading closer to what is above ${describe(heading)}`);
+    }
+    // No empty tag (an event code still on its way), and an open menu never covers the avatar that opened it.
+    for(const tag of document.querySelectorAll('.rz-code-tag')) if(visible(tag)&&!tag.textContent!.trim()) problems.push('empty code tag');
+    for(const menu of document.querySelectorAll('[role=menu]')) {
+      if(!visible(menu)) continue;
+      const area=menu.getBoundingClientRect();
+      for(const avatar of document.querySelectorAll('.rz-avatar,.app-header-person')) {
+        const box=avatar.getBoundingClientRect();
+        if(visible(avatar)&&area.left<box.right&&area.right>box.left&&area.top<box.bottom&&area.bottom>box.top) problems.push(`menu covers ${describe(avatar)}`);
+      }
+    }
     for(const heading of document.querySelectorAll('h1,h2')) {
       const size=parseFloat(getComputedStyle(heading).fontSize);
       if(visible(heading)&&!designSystem(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);
@@ -437,7 +507,8 @@ export async function lookProblems(page:Page) {
     const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     for(let node=walker.nextNode();node;node=walker.nextNode()) {
       const element=node.parentElement!;
-      if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled,script,style')) continue;
+      // A greyed-out button's label is exempt, but not a Timer slot's: slots held while a warning waits must still read.
+      if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled:not(.rz-slot),script,style')) continue;
       const style=getComputedStyle(element);
       const size=parseFloat(style.fontSize);
       if(!designSystem(element)&&element.closest('p,li,label,dd,dt,td,th,button,output,a')&&!element.closest('small,.badge,h1,h2,h3')&&size<15) problems.push(`text ${describe(element)} is ${style.fontSize}`);

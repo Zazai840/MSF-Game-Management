@@ -22,7 +22,7 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     await other.goto('/');await join(other,`Reset helper ${info.project.name}`,{job:'Start line'});await races(other);
     // The helper starts Heat 1 of 60m Boy Beavers.
     await other.getByRole('button',{name:'New race',exact:true}).click();const sheet=other.getByRole('dialog',{name:'New race'});
-    await sheet.getByRole('button',{name:'60m',exact:true}).click();await sheet.getByRole('button',{name:/^Boy Beavers /}).click();await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+    await sheet.getByRole('button',{name:'60m',exact:true}).click();await sheet.getByRole('button',{name:'Boy Beavers',exact:true}).click();await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
     await expect(other.getByRole('heading',{level:1,name:'60m · Boy Beavers'})).toBeVisible();
     await asOwner(page);await exportDay(page);
     await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
@@ -39,7 +39,7 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     // Tapping the name signs in; the job is chosen afresh for the new day, and the old day's race is gone.
     await other.getByRole('button',{name:new RegExp(`^Reset helper ${info.project.name}`)}).click();
     await expect(other.getByRole('heading',{level:1,name:"What's your job today?"})).toBeVisible();
-    await other.getByRole('radio',{name:/^Start line/}).click();await other.getByRole('button',{name:'Join',exact:true}).click();
+    await other.getByRole('radio',{name:/^Start line/}).click();
     await races(other);await expect(other.getByText('No races yet. Tap New race when a race lines up.',{exact:true})).toBeVisible();
     await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await welcomeBack(other);await expect(newDayLine).toHaveCount(0);
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
@@ -107,7 +107,7 @@ test('a stale successful Join cannot replace a newer signed-in phone in shared b
   const newer=await context.newPage();await newer.goto('/');await join(newer,`New sign-in ${info.project.name}`,{job:'Start line'});await races(newer);
   const freshToken=await newer.evaluate(()=>localStorage.getItem('msf:token'));await races(page);
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByRole('button',{name:`New sign-in ${info.project.name}, your details`,exact:true})).toBeVisible();await newer.close();
+  expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(freshToken);await expect(page.getByRole('button',{name:`New sign-in ${info.project.name}: Log out`,exact:true})).toBeVisible();await newer.close();
 });
 test('a lost reply from Start new day keeps the retained phone safe from a previously pending 401 until Home recovers',async({page})=>{
   await asOwner(page);await exportDay(page);

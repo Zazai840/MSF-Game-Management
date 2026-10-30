@@ -1,11 +1,12 @@
 # PlaceTimeGrid
 
-A three-column grid of place slots on time entry (screens 17–18): which place you are typing, what is done, and what looks wrong.
+A three-column grid of place slots on time entry (screens 17–18): which place you are typing, what is done, and what looks wrong. Over 9 places it is **compact** (`rz-slots--compact`): 4 across and 44px tall, as the PlacesBoard, with no slot note (the warn look and the WarningCallout say why), so the callout and the time box stay above the footer.
 
 **Slot states**
 - **Default:** `card`, ordinal (`display-tag`-sized Saira) and time (`label`).
-- **Current** (`--current`, `aria-current="step"`): a `gold` fill. Exactly one at a time.
-- **Warning** (`--warn`): `warn-soft` with a 2px `warn-line` ring, plus `rz-slot__note` saying why ("Faster than 1st place").
+- **Current** (`--current`, `aria-current="step"`): a `gold` fill with a 2px `navy` ring. Exactly one at a time.
+- **Warning** (`--warn`): `warn-soft` with a 2px `warn-line` ring, plus `rz-slot__note` saying why ("Faster than 1st place"). A wrong slot keeps this look when it is current.
+- **Held** (disabled while a warning waits for Fix time or Keep): looks as before, never faded.
 - **Empty** (`--empty`): "–" in `ink-muted`.
 - **No finisher** (`--none`): the words "No finisher" in `ink-muted`.
 
@@ -16,7 +17,7 @@ Every slot is a `<button>`; tapping one makes it current so its time can be rety
 **Don't**
 - Show more than one current slot.
 - Show times without their place.
-- Hide the warning note when the slot is current.
+- Hide the warning note when the slot is current (the compact grid has no notes at all).
 
 **Markup**
 

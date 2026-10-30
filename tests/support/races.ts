@@ -44,6 +44,13 @@ export function raceSetup(app:FastifyInstance) {
     const read=await worked(token,code),raceId=read.race.id;
     return (await post<RaceFlowRead>(token,`/api/races/${raceId}/check-in`,{raceId,version:read.race.parts.runners.version,runners:runners.map(wristband=>({wristband})),keptWarnings})).race;
   }
+  /** A final's check-in by wristband: those marked Here (by default the whole line-up) and those marked Absent. */
+  async function attend(token:string,code:string,here?:number[],absent:number[]=[]) {
+    const read=await worked(token,code),raceId=read.race.id,entries=read.race.final!.entries;
+    const ids=(marked:number[])=>entries.filter(entry=>marked.includes(entry.wristband!)).map(entry=>entry.finalEntryId);
+    const present=here?ids(here):entries.filter(entry=>!absent.includes(entry.wristband!)).map(entry=>entry.finalEntryId);
+    return (await post<RaceFlowRead>(token,`/api/races/${raceId}/absent`,{raceId,version:read.race.parts.runners.version,here:present,absent:ids(absent)})).race;
+  }
   /** Writes the finishing order: every runner in `order`, `didNotFinish` or `didNotRun`; `added` are runners not on the list. */
   async function order(token:string,code:string,placed:number[],{didNotFinish=[],didNotRun=[],added=[],keptWarnings=[]}:{didNotFinish?:number[];didNotRun?:number[];added?:number[];keptWarnings?:number[]}={}) {
     const read=await worked(token,code),raceId=read.race.id,url=`/api/races/${raceId}/order`;
@@ -81,5 +88,5 @@ export function raceSetup(app:FastifyInstance) {
     await submit(token,code);
     return race;
   }
-  return {screen,checkIn,order,times,submit,record,write};
+  return {screen,checkIn,attend,order,times,submit,record,write};
 }

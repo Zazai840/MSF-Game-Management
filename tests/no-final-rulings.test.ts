@@ -27,7 +27,8 @@ const group=async(token:string)=>((await call(token,'/api/races')).json().groups
 /** A Here / Absent list on the final, at the version the phone sees now: these final entries Absent, everyone else Here. */
 async function absent(token:string,id:string,which:(entries:NonNullable<RaceFlowRead['race']['final']>['entries'])=>string[]=()=>[]) {
   const {race}=(await call(token,`/api/races/${id}`)).json() as RaceFlowRead;
-  const response=await call(token,`/api/races/${id}/absent`,{raceId:id,version:race.parts.runners.version,absent:which(race.final!.entries)});
+  const marked=which(race.final!.entries),here=race.final!.entries.map(entry=>entry.finalEntryId).filter(entry=>!marked.includes(entry));
+  const response=await call(token,`/api/races/${id}/absent`,{raceId:id,version:race.parts.runners.version,here,absent:marked});
   expect(response.statusCode,response.body).toBe(200);
   return response.json() as RaceFlowRead;
 }
@@ -81,9 +82,9 @@ test('once decided without a final the event is done for volunteers: Home shows 
   expect(home.events.find(event=>event.code==='R4')).toMatchObject({done:true});
   const races=await group(volunteer);
   expect(groupDone(races)).toBe(true);
-  expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'heat',number:races.nextHeat})).json()).toEqual({message:'Stage complete - ask a lead'});
-  expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'final'})).statusCode).toBe(409);
-  expect((await call(volunteer,`/api/races/${heat}/times`,{raceId:heat,version:1,places:[900,980,1040],keptWrong:[]})).json()).toEqual({message:'Stage complete - ask a lead'});
+  expect((await call(volunteer,'/api/races',{eventCode:'R4',kind:'heat',number:races.nextHeat})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to add another heat.'});
+  expect((await call(lead,'/api/races',{eventCode:'R4',kind:'final'})).statusCode).toBe(409);
+  expect((await call(volunteer,`/api/races/${heat}/times`,{raceId:heat,version:1,places:[900,980,1040],keptWrong:[]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change this race.'});
   expect((await call(lead,`/api/lead/races/${heat}/times`,{baseVersion:1,places:[920,980,1041]})).statusCode).toBe(200);
 });
 test('the day export has the podium from heat times and no Finals rows for an event decided without a final',async()=>{
@@ -101,8 +102,8 @@ test('a relay decided without a final locks its team list and refuses call-ups a
   for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
   await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
-  expect((await call(volunteer,'/api/teams/R22/done',{legs:[2401,null,null,null]})).json()).toEqual({message:'Stage complete - ask a lead'});
-  expect((await call(volunteer,'/api/teams/R22/hold',{})).json()).toEqual({message:'Stage complete - ask a lead'});
+  expect((await call(volunteer,'/api/teams/R22/done',{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
+  expect((await call(volunteer,'/api/teams/R22/hold',{})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
   const team=(await call(lead,'/api/lead/events/R22/results')).json().teams[0];
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team.id})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:'any'})).statusCode).toBe(409);
@@ -200,7 +201,7 @@ test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, 
     await absent(volunteer,final,entries=>kind==='Absent'?entries.map(entry=>entry.finalEntryId):[]);
   } else {
     const runners=[2001,2011,2002,2012,2003,2013];
-    await setup.order(volunteer,'R4',kind==='order'?runners:[],{didNotFinish:kind==='DNF'?runners:[]});
+    await setup.attend(volunteer,'R4');await setup.order(volunteer,'R4',kind==='order'?runners:[],{didNotFinish:kind==='DNF'?runners:[]});
   }
   const before=await results(),screen=await setup.screen(volunteer,'R4'),revision=(await call(owner,'/api/day')).json().revision;
   expect(before.results.finalResults).toMatchObject({started:true,hasRun:false});
@@ -213,7 +214,7 @@ test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, 
 });
 test('deleting a started final offers it again; the deleted final stays restorable once the results are reopened, and the next final is Final 2',async()=>{
   const {lead,volunteer,setup,results,final}=await finalBuilt();
-  await setup.order(volunteer,'R4',[2001,2011,2002,2012,2003,2013]);
+  await setup.attend(volunteer,'R4');await setup.order(volunteer,'R4',[2001,2011,2002,2012,2003,2013]);
   expect((await results()).results.noFinalCheckSheet).toBeNull();
   expect((await call(lead,`/api/lead/races/${final}/delete`,{permanent:false})).statusCode).toBe(200);
   expect((await results()).results.noFinalCheckSheet).toMatchObject({stage:'no-final'});

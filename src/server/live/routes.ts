@@ -20,6 +20,7 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
   app.addHook('preClose',async()=>{for(const end of open) end();});
   async function stream<T extends {revision:number}>(reply:FastifyReply,dayId:string,read:()=>Promise<T>) {
     // A refusal on the first read (a new day, an unknown event) answers as an ordinary error, before the stream starts.
+    const before=changesSoFar();
     let sent=await read();
     reply.hijack();
     const raw=reply.raw,ended=()=>raw.writableEnded || raw.destroyed;
@@ -46,6 +47,8 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     const stop=onDayChange(dayId,()=>void changed());
     open.add(end);
     raw.on('close',()=>{clearInterval(heartbeat);clearTimeout(limit);stop();open.delete(end);});
+    // A change told while the first read ran found no listener yet: read again so it is not lost.
+    if(changesSoFar()!==before) void changed();
   }
   action('GET','/api/live/race-screen/:code','Volunteer',(request,reply,phone)=>{
     const code=(request.params as {code:string}).code;

@@ -1,5 +1,6 @@
-import { useEffect,useId,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,roleLabels,roleSteps,stepLabels,stepsOf,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 
 /** The design system's line icons (components/Icon/README.md). */
@@ -48,9 +49,9 @@ export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
     <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
-/** The avatar: your initials. For a lead it opens the menu with Results and Day setup. */
-export function Avatar({name,onOpen,label}:{name:string;onOpen:()=>void;label?:string}) {
-  return <button type="button" className="rz-avatar" aria-label={label||`${name}, your details`} onClick={onOpen}>{initials(name)}</button>;
+/** The avatar: your initials. It opens the avatar menu, which its label names. */
+export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
+  return <button type="button" className="rz-avatar" aria-label={label} onClick={event=>onOpen(event.currentTarget)}>{initials(name)}</button>;
 }
 /** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
 export function HomeBar({children}:{children:ReactNode}) {
@@ -59,21 +60,24 @@ export function HomeBar({children}:{children:ReactNode}) {
     <div className="rz-appbar__end">{children}</div>
   </header>;
 }
-/** A race's app bar: back to Races, the event group with its code, then the role chip (and for a lead, race actions). */
-export function RaceBar({title,code,onBack,children}:{title:string;code:string;onBack:()=>void;children:ReactNode}) {
+/** An event's code, shown only in the Zone lead role (volunteers find their race by name), and never while it is on its way. */
+export const CodeTag=({code,role}:{code:string;role:Role})=>role==='lead' && code?<span className="rz-code-tag">{code}</span>:null;
+/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then the role chip (and for a lead, race actions). */
+export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1><span className="rz-code-tag">{code}</span></div>
+      <h1>{title}</h1><CodeTag code={code} role={role}/></div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }
 /**
- * One chip per race of an event group, then "+" for the next heat and, when it applies, "+ Final". States follow the
+ * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
  * viewer's step, and every chip says its state in words. `current` is the race open now (gold with a ring); on a race
- * screen a race ready for you that is not open gets a ring and a gold dot.
+ * screen a race ready for you that is not open gets a ring and a gold dot. A final that would be refused greys "+ Final"
+ * with the reason beside it, which opens what it is about.
  */
-export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
-  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void}) {
+export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
+  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:ReactNode}) {
   return <ol className="rz-heats" aria-label="Heats">
     {races.map(race=>{
       const state=chipState(race,role),here=race.id===current;
@@ -84,18 +88,31 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,nextHeat}:{ra
       </button></li>;
     })}
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
-    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" onClick={onFinal}>+ Final</button></li>}
+    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
+      onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
+    {onFinal && finalReason && <li>{finalReason}</li>}
   </ol>;
 }
-/** A step's status in words: "5 checked in", "2 of 8", "Not started". */
+/**
+ * Why a lead's final would be refused, beside "+ Final" and under New race's greyed Final. Tapping it opens what it is
+ * about: that race on its step, or Results on the event when no step fixes it (a runner who ran twice).
+ */
+export function FinalReasonButton({group,onRace,onResults}:{group:Pick<RaceGroup,'event'|'finalReason'>;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
+  const reason=group.finalReason!;
+  return <button type="button" className="rz-heat-reason" onClick={()=>reason.step===null?onResults({event:group.event}):onRace(reason.raceId,reason.step)}><Icon name="warning"/>{reason.line}</button>;
+}
+/** A step's status in words: "5 checked in", "2 of 8", "10 finished", "Not started". */
 export function stepWords(step:Step,status:StepStatus) {
   if(status.state==='not started') return 'Not started';
   if(step==='runners') return `${status.count} ${status.state==='done'?'checked in':'so far'}`;
+  // The Did not finish count goes on the step's own meta line: beside two other steps it would not fit on one line at 360px.
+  if(step==='positions' && status.state==='done') return finishedCount(status);
   return `${status.count} of ${status.expected}`;
 }
 /**
  * The race's three steps, as tabs when `onSelect` is given. A volunteer's own step is outlined and starts "You ·"; any
- * other step opens read-only. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
+ * other step opens read-only. The own status is short ("You · not yet", "You · 2 of 8", "You · done") so each cell
+ * stays on one line at 360px. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
  */
 export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
   notes?:Partial<Record<Step,string>>;label:string}) {
@@ -104,7 +121,7 @@ export function StepStrip({race,role,selected,onSelect,notes={},label}:{race:Pic
     const status=race.steps[step]!,done=status.state==='done',note=notes[step];
     return <>
       <span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
-      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:`${step===own?'You · ':''}${stepWords(step,status)}`}</span>
+      <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status)}`:stepWords(step,status)}</span>
     </>;
   };
   if(onSelect) return <div className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} role="tablist" aria-label={label}>
@@ -131,10 +148,36 @@ export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;ch
     </div>
   </div>;
 }
+/** What a lead's "+ Final" opens: the heat count to check against what they saw, before the final ends the heats. `failure` is why making it was refused. */
+export function FinalSheet({group,failure,onMake,onClose}:{group:RaceGroup;failure?:string;onMake:()=>void;onClose:()=>void}) {
+  const {title,text}=finalConfirm(group);
+  return <Sheet title={title} onClose={onClose}>
+    <p className="rz-sheet__text">{text}</p>
+    {failure && <Callout message={failure}/>}
+    <div className="rz-sheet__actions">
+      <button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={onMake}>Make the final</button>
+      <button type="button" className="rz-btn rz-btn--small rz-btn--block" onClick={onClose}>Not yet</button>
+    </div>
+  </Sheet>;
+}
 /** The amber warning with its two actions (Fix / Keep); `status` makes it a calm note rather than an alert. */
 export function Callout({message,status=false,actions}:{message:ReactNode;status?:boolean;actions?:ReactNode}) {
   return <div className={status?'rz-callout rz-callout--status':'rz-callout'} role={status?'status':'alert'}>
     <p className="rz-callout__msg"><Icon name="warning"/><span>{message}</span></p>
     {actions && <div className="rz-callout__actions">{actions}</div>}
   </div>;
+}
+/**
+ * A race step's footer: sticky at the foot of the screen and, while the phone is typing, just above the keyboard
+ * (flow/keyboard.ts). Docked it leaves the page's flow, so the page keeps room at its end for it (--rz-footer-height).
+ */
+export function DockedFooter({children}:{children:ReactNode}) {
+  const footer=useRef<HTMLElement>(null);
+  useLayoutEffect(()=>{
+    const element=footer.current!,root=document.documentElement;
+    const observer=new ResizeObserver(()=>root.style.setProperty('--rz-footer-height',`${element.offsetHeight}px`));
+    observer.observe(element);
+    return ()=>{observer.disconnect();root.style.removeProperty('--rz-footer-height');};
+  },[]);
+  return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
 }

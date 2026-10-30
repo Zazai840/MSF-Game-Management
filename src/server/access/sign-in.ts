@@ -9,7 +9,7 @@ import { WrongAccessCode, type failureBackoff } from './failures.js';
 export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 const wrongPassword = 'That is not the Olympics password. Check with a lead and try again.';
 const wrongLeadCode = "That is not today's lead code. Ask a lead for it.";
-const wrongJoinCode = "That is not the Olympics password or today's lead code. Check with a lead and try again.";
+const wrongJoinCode = "That password isn't right. Check it with a lead and try again.";
 /** Full names are stored tidied (trimmed, inner spaces collapsed), so lower(name) is the form compared for uniqueness. */
 export function fullName(value: unknown) {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -78,6 +78,26 @@ async function profileByName(client: pg.PoolClient, name: string, phoneProfiles:
     if (number === 1) base = found.name;
   }
 }
+/**
+ * Join's profile for a name (ADR 0006): this phone's own, else a new one. A name held on another phone is refused as taken,
+ * unless the phone said That's me: then the profile moves here at once, with a new secret, and the other phone's
+ * session ends as moved. Its row today starts again as a volunteer, so only the code just typed sets the role.
+ */
+async function joinProfile(client: pg.PoolClient, dayId: string, name: string, phoneProfiles: unknown, thatsMe: unknown) {
+  const held = await heldProfiles(client, phoneProfiles);
+  const found = (await client.query('SELECT id,name FROM profiles WHERE lower(name)=lower($1) FOR UPDATE', [name])).rows[0] as {id: string; name: string} | undefined;
+  if (!found) return createProfile(client, name);
+  if (held.has(found.id)) return found;
+  if (thatsMe !== true) throw new Refusal(409, 'Is this you on a new phone?', {taken:true});
+  const secret = randomBytes(32).toString('base64url');
+  const old = (await client.query(`UPDATE sign_ins s SET level='Volunteer', token_hash=$3 FROM (SELECT id,token_hash FROM sign_ins WHERE day_id=$1 AND profile_id=$2 FOR UPDATE) o
+    WHERE s.id=o.id RETURNING o.token_hash`, [dayId, found.id, tokenHash(randomBytes(32).toString('base64url'))])).rows[0];
+  await client.query('UPDATE profiles SET secret_hash=$1 WHERE id=$2', [tokenHash(secret), found.id]);
+  // The old session's token is kept as moved, so that phone's next request forgets the name.
+  if (old) await client.query("INSERT INTO profile_requests(id,day_id,profile_id,secret_hash,status,delivered,moved_token_hash) VALUES($1,$2,$3,$4,'approved',true,$5)",
+    [randomUUID(), dayId, found.id, tokenHash(secret), old.token_hash]);
+  return {...found, secret};
+}
 /** Signs a profile in to the day. Today's row keeps its role (so roles survive a password change) unless `level` raises it. */
 export async function signIn(client: pg.PoolClient, dayId: string, profile: {id: string; name: string}, level: Level = 'Volunteer', owner = false) {
   // The token names its day, so after Start new day deletes the row the phone can still be told new-day.
@@ -129,7 +149,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       await requirePass(client, body?.pass);
       const day = await runningDay(client);
       const taken = (await client.query('SELECT name FROM profiles WHERE lower(name)=lower($1)', [name])).rows[0];
-      if (taken) throw new Refusal(409, `${taken.name} already has a profile. If that's you, tap That's me and show a lead. If not, add your middle name or initial.`, {taken:true});
+      if (taken) throw new Refusal(409, `${taken.name} already has a profile. If that's you, tap That's me. If not, add your middle name or initial.`, {taken:true});
       const profile = await createProfile(client, name);
       return {profile, ...await signIn(client, day.id, profile)};
     });
@@ -161,15 +181,15 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
     }));
   });
   /**
-   * Join, the race flow's one form: a code, a full name and the phone's profiles. The code is the owner password (sign
-   * in as the owner, starting the first day if none is running), the Olympics password (a name this phone holds signs
-   * in; a new name makes a profile; a name held on another phone joins as the next free number, ADR 0005), or
-   * today's lead code on its own (sign in as Lead, never refusing a name: ADR 0004). Wrong codes share the password
-   * backoff per IP. Each answers `kind` with the sign-in and the pass, so the phone can tap its name next time.
+   * Join, the race flow's one form: a code, a full name, the job and the phone's profiles. The code is the owner password (sign
+   * in as the owner, starting the first day if none is running), the Olympics password (needs a job; a name this phone holds signs
+   * in; a new name makes a profile), or today's lead code on its own (sign in as Lead: ADR 0004). With either, a name held
+   * on another phone is refused as taken until the phone says That's me, which moves it here (ADR 0006). Wrong codes share
+   * the password backoff per IP. Each answers `kind` with the sign-in and the pass, so the phone can tap its name next time.
    */
   app.post('/api/join', async (request, reply) => {
-    const body = request.body as {code?: unknown; name?: unknown; profiles?: unknown} | null;
-    if (typeof body?.code !== 'string' || !body.code.trim()) throw new Refusal(400, 'Type the Olympics password');
+    const body = request.body as {code?: unknown; name?: unknown; job?: unknown; profiles?: unknown; thatsMe?: unknown} | null;
+    if (typeof body?.code !== 'string' || !body.code.trim()) throw new Refusal(400, 'Type the password');
     const code = body.code.trim(), name = fullName(body.name);
     return passwordFailures([request.ip], reply, () => signInTransaction(pool, async client => {
       if (matches(code, ownerPassword)) {
@@ -181,11 +201,13 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       if (!day || !settings) throw new WrongAccessCode(wrongJoinCode);
       const pass = passFor(settings);
       if (matches(code, settings.password)) {
-        const profile = await profileByName(client, name, body.profiles);
+        // The job stays on the phone; a volunteer without one is kept on Join before anything is made.
+        if (!body.job) throw new Refusal(400, 'Choose your job', {reason:'choose-job'});
+        const profile = await joinProfile(client, day.id, name, body.profiles, body.thatsMe);
         return {kind:'volunteer', pass, profile, ...await signIn(client, day.id, profile)};
       }
       if (matches(code.toUpperCase(), day.lead_code)) {
-        const profile = await profileByName(client, name, body.profiles);
+        const profile = await joinProfile(client, day.id, name, body.profiles, body.thatsMe);
         return {kind:'lead', pass, profile, ...await signIn(client, day.id, profile, 'Lead')};
       }
       throw new WrongAccessCode(wrongJoinCode);

@@ -1,4 +1,4 @@
-import {ownWristbands,ownCode,lookProblems,back,backToRaces,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page} from './fixtures.js';
+import {ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page} from './fixtures.js';
 
 // The design system's navy and paper.
 const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
@@ -14,7 +14,7 @@ test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'
   const header=page.getByRole('banner');
   await expect(header).toContainText('MSF Olympics');await expect(header).toContainText('Running Zone');
   expect(await header.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(navy);
-  const avatar=header.getByRole('button',{name:`Abdulaziz ${info.project.name} Zazai, your details`,exact:true});
+  const avatar=header.getByRole('button',{name:`Abdulaziz ${info.project.name} Zazai: Log out`,exact:true});
   await expect(avatar).toHaveText('AZ');
   expect(await avatar.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(paper);
   expect(await page.locator('.rz-screen').evaluate(element=>getComputedStyle(element).fontFamily)).toMatch(/^Nunito, /);
@@ -135,5 +135,83 @@ test('the Teams screen and a relay race screen meet the touch, text size and con
   await page.screenshot({path:info.outputPath('relay-did-not-finish.png'),fullPage:true});
   // Each part of the row stays on one line, even on a 360px phone.
   for(const part of [noPlace.locator('strong'),noPlace.locator('span'),noPlace.getByRole('button')]) expect(await part.evaluate(element=>{const range=document.createRange();range.selectNodeContents(element);return new Set([...range.getClientRects()].map(rect=>Math.round(rect.top))).size;})).toBe(1);
+  await deleteCurrentRace(request,code);
+});
+
+test('each race-flow screen on a test build, from Races to every job\'s race and a lead\'s, meets the look rules',async({openPhone,request},info)=>{
+  const project=info.project.name,code=await ownCode(),hurdles=await ownCode(),name=`Look walk ${project}`,n=await ownWristbands('Girl Cubs',6);
+  await ownEvent(request,code,name);await ownEvent(request,hurdles,`Look hurdles ${project}`,'Girl Cubs','heats','hurdles');
+  const {page,token}=await openPhone(name);
+  const look=async(screen:string)=>{await page.screenshot({path:info.outputPath(`${screen}.png`)});expect.soft(await lookProblems(page),screen).toEqual([]);};
+  const chips=page.getByRole('list',{name:'Wristbands entered'}).getByRole('button'),card=page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
+  // A test build: its bar sits over every screen, pushing the app bar down.
+  await page.route('**/api/health',route=>route.fulfill({json:{ok:true,testBuild:{commit:'abc1234def',reportUrl:'https://example.com/report'}}}));
+  expect((await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}})).ok()).toBe(true);
+  await page.reload();
+  await expect(page.getByText('Test build · abc1234',{exact:true})).toBeVisible();
+  await expect(card).toBeVisible();await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
+  await look('races-home');
+  const avatar=page.getByRole('button',{name:`${name}: Log out`,exact:true});
+  await avatar.click();await expect(page.getByRole('menuitem',{name:'Log out',exact:true})).toBeVisible();
+  await look('avatar-menu');
+  await avatar.click();
+  // New race: Races and Hurdles, a section and its next heat chosen.
+  await page.getByRole('button',{name:'New race',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'New race'});
+  await sheet.getByRole('button',{name,exact:true}).click();
+  await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
+  await expect(sheet.getByRole('button',{name:'Heat 2',exact:true})).toBeVisible();
+  await look('new-race');
+  await sheet.getByRole('button',{name:'Close',exact:true}).click();
+  // The start line: one wristband, the 6-runner note, then changing one.
+  await openRace(page,name);
+  const input=page.getByLabel('Wristband number',{exact:true});
+  for(const key of [1,2,3,4,5,6]) {
+    await expect(input).toBeEditable();await input.fill(String(n(key)));await input.press('Enter');await expect(chips).toHaveCount(key);
+    if(key===1) await look('start-line');
+  }
+  await expect(page.getByRole('button',{name:'Add another runner',exact:true})).toBeVisible();
+  await look('start-line-six');
+  await chips.first().click();
+  await expect(page.getByRole('button',{name:'Remove',exact:true})).toBeVisible();
+  await look('start-line-change');
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('contentinfo').getByRole('button',{name:"That's everyone",exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
+  await look('races-home-saved');
+  // The finish line: placing, then checking the order with runners nobody placed.
+  await switchJob(page,'Finish line');await openRace(page,name);
+  await page.getByRole('button',{name:`${n(1)} came 1st`,exact:true}).click();
+  await page.getByRole('button',{name:`${n(2)} came 2nd`,exact:true}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Who came 3rd?'})).toBeVisible();
+  await look('finish-line');
+  await page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
+  await look('check-order');
+  await backToRaces(page);
+  // The Timer.
+  await switchJob(page,'Timer');await openRace(page,name);
+  await expect(page.getByRole('heading',{level:2,name:'1st place time?'})).toBeVisible();
+  await look('timer');
+  await backToRaces(page);
+  // A lead: the race bar while the race opens, then the race's tabs.
+  await becomeLead(page);
+  await page.route('**/api/live/races/**',()=>{});
+  await card.getByRole('button',{name:/^Heat 1[, ]/}).click();
+  await expect(page.getByText('Opening…',{exact:true})).toBeVisible();
+  await look('lead-race-opening');
+  await page.unroute('**/api/live/races/**');
+  await backToRaces(page);
+  await openRace(page,name);
+  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
+  await look('lead-race');
+  await backToRaces(page);
+  await leadMenuButton(page).click();await expect(page.getByRole('menuitem',{name:'Results',exact:true})).toBeVisible();
+  await look('lead-avatar-menu');
+  await page.getByRole('menuitem',{name:'Results',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+  // The older look's header, with the same menu.
+  await leadMenuButton(page).click();await expect(page.getByRole('menuitem',{name:'Day setup',exact:true})).toBeVisible();
+  await look('results-avatar-menu');
   await deleteCurrentRace(request,code);
 });

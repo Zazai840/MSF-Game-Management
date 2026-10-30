@@ -96,6 +96,7 @@ test('a final accepts a 7th runner added by a lead through finishing order, resu
   const {owner,volunteer,lead,results,setup}=await finalWithHeats();const id=results.finalResults.raceId;
   let race:any=(await setup.screen(volunteer,'R3')).race;expect(race.id).toBe(id);
   // Lead corrections wait until the final is saved: the 7th runner is added then, with the finishing order.
+  await setup.attend(volunteer,'R3');
   await setup.order(volunteer,'R3',[1023,1066,1088,1005,1012,1110]);race=(await setup.submit(volunteer,'R3')).race;
   const order=[1135,1023,1066,1088,1005,1012,1110];
   const added=await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband})),{wristband:1135}],finish:{order,didNotFinish:[]},comment:'Tie for 6th'});
