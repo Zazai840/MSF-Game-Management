@@ -1,0 +1,63 @@
+<!-- @dsCard group="Entry" height=1560 subtitle="A relay's teams, a team's leg boxes, and Change anyway" -->
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>TeamSheet - preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@1,62.5..100,600..900&amp;family=Nunito:wght@600;700;800&amp;display=swap">
+</head>
+<body class="rz-preview">
+<div class="rz-stage" style="gap:24px">
+<div class="rz-phone" style="position:relative;height:600px;background:var(--paper)"><div class="rz-scrim rz-scrim--contained">
+  <div class="rz-sheet" style="max-height:100%" role="dialog" aria-modal="true" aria-labelledby="teams-title">
+    <div class="rz-sheet__grip" aria-hidden="true"></div>
+    <div class="rz-sheet__head"><h2 class="rz-sheet__title" id="teams-title">4x50m Relay · Girl Cubs</h2><button type="button" class="rz-sheet__close" aria-label="Close"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
+    <p class="rz-sheet__text">3 teams · 2 still to run. Tap a team still to run to change it.</p>
+    <ul class="rz-teamsheet" aria-label="Teams">
+      <li><div class="rz-teamsheet__team">
+        <span class="rz-teamsheet__head"><span class="rz-teamsheet__name">Team 1</span><span class="rz-teamsheet__state">Heat 1 · ran</span></span>
+        <span class="rz-teamsheet__legs"><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">1st</span>2011</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">2nd</span>2012</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">3rd</span>2013</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">4th</span>2014</span></span>
+      </div></li>
+      <li><button type="button" class="rz-teamsheet__team rz-teamsheet__team--tap" aria-label="Change Team 2: 2021 · 2022 · 2023 · 2024">
+        <span class="rz-teamsheet__head"><span class="rz-teamsheet__name">Team 2</span><span class="rz-teamsheet__state">Still to run</span><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"/><path d="M14 7l3 3"/></svg></span>
+        <span class="rz-teamsheet__legs"><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">1st</span>2021</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">2nd</span>2022</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">3rd</span>2023</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">4th</span>2024</span></span>
+      </button></li>
+      <li><button type="button" class="rz-teamsheet__team rz-teamsheet__team--tap" aria-label="Change Team 3: 2031 · 2032 · 2033 · –">
+        <span class="rz-teamsheet__head"><span class="rz-teamsheet__name">Team 3</span><span class="rz-teamsheet__state">Still to run · 3 of 4</span><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"/><path d="M14 7l3 3"/></svg></span>
+        <span class="rz-teamsheet__legs"><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">1st</span>2031</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">2nd</span>2032</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">3rd</span>2033</span><span class="rz-teamsheet__leg"><span class="rz-teamsheet__ord">4th</span>–</span></span>
+      </button></li>
+    </ul>
+    <div class="rz-sheet__foot"><button type="button" class="rz-btn rz-btn--display rz-btn--block"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New team</button></div>
+  </div>
+</div></div>
+<div class="rz-phone" style="position:relative;height:640px;background:var(--paper)"><div class="rz-scrim rz-scrim--contained">
+  <div class="rz-sheet" style="max-height:100%" role="dialog" aria-modal="true" aria-labelledby="new-title">
+    <div class="rz-sheet__grip" aria-hidden="true"></div>
+    <div class="rz-sheet__head"><h2 class="rz-sheet__title" id="new-title">New team 4</h2><button type="button" class="rz-sheet__close" aria-label="Close"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
+    <p class="rz-sheet__text">4x50m Relay · Girl Cubs<br>Type each child's wristband in running order, 1st leg first.</p>
+    <ol class="rz-legboxes" aria-label="Legs">
+      <li class="rz-legbox"><label class="rz-field"><span class="rz-field__label">1st leg</span><input class="rz-field__input" type="text" inputmode="numeric" placeholder="Wristband" value="2041"></label>
+        <button type="button" class="rz-orderrow__handle" aria-label="Move 2041" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
+      <li class="rz-legbox"><label class="rz-field rz-field--warn"><span class="rz-field__label">2nd leg</span><input class="rz-field__input" type="text" inputmode="numeric" placeholder="Wristband" value="2021"></label>
+        <button type="button" class="rz-orderrow__handle" aria-label="Move 2021" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
+      <li class="rz-legbox" data-dragging="true"><label class="rz-field"><span class="rz-field__label">3rd leg</span><input class="rz-field__input" type="text" inputmode="numeric" placeholder="Wristband" value="2043"></label>
+        <button type="button" class="rz-orderrow__handle" aria-label="Move 2043" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
+      <li class="rz-legbox"><label class="rz-field"><span class="rz-field__label">4th leg</span><input class="rz-field__input" type="text" inputmode="numeric" placeholder="Wristband" value=""></label>
+        <button type="button" class="rz-orderrow__handle" aria-label="Move empty 4th leg" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
+    </ol>
+    <div class="rz-callout" role="alert"><p class="rz-callout__msg"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5L2.5 20h19L12 3.5z"/><path d="M12 10v4.5"/><path d="M12 17.5v.01"/></svg><span>2021 is already in Team 2. Check the wristband.</span></p><div class="rz-callout__actions"><button type="button" class="rz-btn rz-btn--primary">Fix number</button></div></div>
+    <div class="rz-sheet__foot"><div class="rz-footer__pair"><button type="button" class="rz-btn">Cancel</button><button type="button" class="rz-btn rz-btn--primary" disabled>Save team 4</button></div></div>
+  </div>
+</div></div>
+<div class="rz-phone" style="position:relative;height:240px;background:var(--paper)">
+  <div class="rz-confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask" style="position:absolute">
+    <div class="rz-confirm__box">
+      <p class="rz-confirm__title" id="ask"><strong>Aisha Noor</strong> has already set this team.</p>
+      <p class="rz-confirm__text">Team 2 · 2021 · 2022 · 2023 · 2024</p>
+      <div class="rz-sheet__actions"><button type="button" class="rz-btn rz-btn--primary rz-btn--block">Change anyway</button><button type="button" class="rz-btn rz-btn--block">Cancel</button></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
