@@ -26,6 +26,10 @@
 .record-warning {padding:4px 8px; border-radius:var(--radius-small); background:var(--amber-fill); color:var(--amber-text); overflow-wrap:anywhere;}
 .record-warning.checked-warning {background:var(--idle-fill); color:var(--muted);}
 .record-time {flex:none; font-size:20px; font-weight:800; color:var(--text);}
+/* A relay team's row: its place and time on one line, the team's button under them, so its four children fit on one line at 360. */
+.record-row--team {flex-wrap:wrap; row-gap:4px; padding-top:10px; padding-bottom:10px;}
+.record-row--team .record-place {flex:1;}
+.record-row--team .record-text {order:1; flex-basis:100%;}
 .record-runner {min-height:var(--tap); min-width:var(--tap); padding:0 12px; font-size:var(--text-body); background:var(--surface); color:var(--navy); border-color:var(--navy); border-radius:var(--radius-small); font-variant-numeric:tabular-nums;}
 
 /* Correction sheets */

@@ -49,7 +49,7 @@ function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:
     <ol className="record-rows" aria-label="Current record">{[...race.recording.results].sort((a,b)=>(a.place??Infinity)-(b.place??Infinity) || 0).map(row=>{
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
       const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,result=rowFor(row.entryId);
-      return <li key={row.entryId} className={wrongTime?'record-row time-wrong':'record-row'}>
+      return <li key={row.entryId} className={`record-row${team?' record-row--team':''}${wrongTime?' time-wrong':''}`}>
         <span className="record-place">{row.place===null?'No place':ordinal(row.place)}</span>
         <span className="record-text">{result?<button className={team?'record-runner record-team':'record-runner'} aria-label={resultLabel(who)} onClick={()=>onRunner(row.entryId)}>{team?<ResultName entry={who} className=""/>:row.wristband}</button>:<ResultName entry={who} className=""/>}
           {team?.addedAtFinish && <small className="record-note">At finish</small>}
