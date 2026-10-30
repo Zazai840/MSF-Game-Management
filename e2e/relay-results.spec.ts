@@ -90,6 +90,12 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   const kept=record.nth(3).locator('.record-warning').filter({hasText:String(borrowed)});
   await expect(kept).toHaveText(`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`);
   expect(await kept.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe('rgb(255, 244, 220)');
+  // Each team's button keeps its four children on one line, at 360 as at 390.
+  const lines=await page.locator('.record-team .result-legs').evaluateAll(all=>all.map(legs=>{
+    const range=document.createRange();range.selectNodeContents(legs);
+    return new Set([...range.getClientRects()].map(line=>Math.round(line.top))).size;
+  }));
+  expect(lines).toEqual([1,1,1,1]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page.png'),fullPage:true});
   await page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button').click();
