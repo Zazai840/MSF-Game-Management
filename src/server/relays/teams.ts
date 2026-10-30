@@ -69,6 +69,9 @@ export async function clearTeamMarks(client:pg.PoolClient,signInId:string) {
  * children and their kept warnings, each child on the list marked here when `here` (they crossed the line).
  */
 export function joiningTeam(team:RelayTeam,{here=false,addedAtFinish=false,evenIfChanging=false}={}):TeamEntry {
+  // A team in a race not saved yet hasn't run: say which race holds it.
+  const holding=unsavedRace(team);
+  if(holding) throw new Refusal(409,`Team ${team.number} is already in ${raceName(holding)}`);
   if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
   const changer=evenIfChanging?null:changingName(team);
   if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);

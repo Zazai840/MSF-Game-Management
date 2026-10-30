@@ -138,10 +138,10 @@ test('Correct teams on a saved heat takes a team off (still to run again), adds 
     {number:1,wristbands:legs(1),heats:[1]},{number:2,wristbands:[2201,2202,2299,2204],heats:[1]},{number:3,wristbands:legs(3),heats:[]},{number:4,wristbands:legs(4),heats:[1]}
   ]);
   expect((response.json() as EventResultsRead).auditNotes[0].message).toBe('Jo Evans corrected the teams for Heat 1: Team 1, Team 2, Team 4 - Team 3 never ran');
-  // The race has changed since it was opened, and a team that has run since can't be added.
+  // The race has changed since it was opened, and a team in another heat since can't be added: the refusal says which.
   expect(await refused({teams:[kept]})).toEqual([409,'This race has changed - open it again']);
   await relays.tick(sam,'R22',3);
-  expect((await call(lead,`/api/lead/races/${first}/teams`,{baseVersion:now.parts.runners.version,finishVersion:now.parts.finish.version,teams:[...after.map(entry=>({entryId:entry.id})),{teamId:await teamId(3)}]})).json().message).toBe('Team 3 has already run');
+  expect((await call(lead,`/api/lead/races/${first}/teams`,{baseVersion:now.parts.runners.version,finishVersion:now.parts.finish.version,teams:[...after.map(entry=>({entryId:entry.id})),{teamId:await teamId(3)}]})).json().message).toBe('Team 3 is already in Heat 2');
 });
 
 test('Re-run and Restore on a relay never wait on another heat in progress: the relay\'s heats run side by side',async()=>{

@@ -35,10 +35,10 @@ async function heat(ticked:number,listed:number) {
   return {sam,id,teamId,read};
 }
 
-test('"+ Team not on the list" is refused for a team that has already run or that someone is changing, and a wristband typed at the finish is refused',async()=>{
+test('"+ Team not on the list" is refused for a team already in a heat or that someone is changing, and a wristband typed at the finish is refused',async()=>{
   const {sam,id,teamId,read}=await heat(2,3);
   const order=(body:object)=>call(sam,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added:[],...body}).then(response=>response.json());
-  expect(await order({addedTeams:[teamId(2)]})).toEqual({message:'Team 2 has already run'});
+  expect(await order({addedTeams:[teamId(2)]})).toEqual({message:'Team 2 is already in Heat 1'});
   await ok(sam,`/api/relays/${read.group.event.id}/teams/${teamId(3)}/open`,{});
   expect(await order({addedTeams:[teamId(3)]})).toEqual({message:'Sam Patel is changing Team 3'});
   expect(await order({added:[2301],keptWarnings:[]})).toEqual({message:'Choose the team from the list'});

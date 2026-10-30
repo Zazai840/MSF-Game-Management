@@ -54,9 +54,9 @@ test('Add puts a team still to run into the heat, and Take off works only while 
   expect(teamsOf(ticked.race).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[1,[false,false,false,false]]]);
   expect(ticked.teams!.find(team=>team.number===1)!.races).toMatchObject([{id:heat.race.id}]);
   expect(ticked.race.parts.runners.version).toBeGreaterThan(heat.race.parts.runners.version);
-  // A team already in a heat is not still to run, so a second heat cannot take it.
+  // A team already in a heat is not still to run, so a second heat cannot take it: the refusal says where it is.
   const other=await newHeat(sam,2);
-  expect((await tap(sam,other,'tick',1)).json()).toMatchObject({message:'Team 1 has already run'});
+  expect((await tap(sam,other,'tick',1)).json()).toMatchObject({message:'Team 1 is already in Heat 1'});
   expect((await tap(sam,heat,'here',1,{leg:0,here:true})).statusCode).toBe(200);
   const refused=await tap(sam,heat,'take-off',1);
   expect(refused.statusCode).toBe(409);
