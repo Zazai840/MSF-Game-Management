@@ -105,13 +105,15 @@ export async function apiResponse(path:string,body?:unknown,signal?:AbortSignal)
   current(captured);
   onThisBuild(response.headers.get('x-build-id'));
   if (!response.ok) {
-    const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
+    const result:{message?:string;reason?:string;taken?:boolean}|null = await response.json().catch(()=>null);
     current(captured);
-    if (response.status === 401) {
+    // A 401 whose reason was never read (the screen let go of the request, or the link dropped) clears nothing:
+    // erasing as if no reason were given would drop the listed names. The phone's next request is told again.
+    if (response.status === 401 && result) {
       phoneStorage.clear(result.reason);
       window.dispatchEvent(new Event('msf:removed'));
     }
-    throw new ApiFailure(response.status, result.message || 'Could not connect - please try again', result);
+    throw new ApiFailure(response.status, result?.message || 'Could not connect - please try again', result ?? {});
   }
   sessions.set(response,captured);
   return response;
