@@ -216,6 +216,8 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 /* A relay heat's Start line: a card per team in the heat, then the teams still to run. */
 .rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
+/* The name with its note under it, so a note never pushes Edit and Take off onto a line of their own. */
+.rz-teamcard__title { display: flex; flex-direction: column; min-width: 0; }
 .rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
 .rz-teamcard__head .rz-btn { margin-left: auto; }
 .rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--navy); }

@@ -52,7 +52,7 @@ export function TeamStartLine({read,flow,onDone,locked,me}:StepProps) {
       {entries.map(entry=>{
         const changer=changerIn(read,me,entry.team.id);
         return <section key={entry.id} className="rz-teamcard" aria-label={`Team ${entry.team.number}`}>
-          <div className="rz-teamcard__head"><h3 className="rz-teamcard__name">Team {entry.team.number}</h3><TeamNote changer={changer} legs={entry.legs}/>
+          <div className="rz-teamcard__head"><div className="rz-teamcard__title"><h3 className="rz-teamcard__name">Team {entry.team.number}</h3><TeamNote changer={changer} legs={entry.legs}/></div>
             {!locked && <span className="rz-teamcard__marks">
               <EditTeam number={entry.team.number} onEdit={()=>setEditing({teamId:entry.team.id})}/>
               {!entry.legs.some(leg=>leg.here) && <button type="button" className="rz-btn rz-btn--small" onClick={()=>tap(entry.team.id,'take-off')}>Take off</button>}
@@ -134,7 +134,7 @@ export function TeamAttendance({read,flow,onDone,locked,me}:StepProps) {
       {cards.map(item=>{
         const changer=changerIn(read,me,item.team.id);
         return <section key={item.entry.finalEntryId} className={item.mark==='absent'?'rz-teamcard rz-teamcard--final is-absent':'rz-teamcard rz-teamcard--final'} aria-label={`Team ${item.team.number}`}>
-          <div className="rz-teamcard__head"><h3 className="rz-teamcard__name"><span className="rz-teamcard__seed">{seedLabel(item.entry)} · </span>Team {item.team.number}</h3><TeamNote changer={changer} legs={item.legs}/>
+          <div className="rz-teamcard__head"><div className="rz-teamcard__title"><h3 className="rz-teamcard__name"><span className="rz-teamcard__seed">{seedLabel(item.entry)} · </span>Team {item.team.number}</h3><TeamNote changer={changer} legs={item.legs}/></div>
             {/* Edit sits by the name, apart from Here / Absent, so it never reads as a third mark. */}
             {!locked && item.mark!=='absent' && <EditTeam number={item.team.number} onEdit={()=>setEditing(item.team.id)}/>}
             <span className="rz-teamcard__marks">{(['here','absent'] as const).map(mark=><button key={mark} type="button" className={item.mark===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'}

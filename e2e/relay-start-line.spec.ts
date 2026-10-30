@@ -60,6 +60,13 @@ test('two start-line phones check a relay heat in at once: Add, Take off and eve
   await expect(here(one,w(11))).toHaveText('Not yet');
   await here(one,w(11)).click();
   await expect(meta(two)).toHaveText('Heat 1 · 2 teams · 2 children here',live);
+  // A short team's Edit and Take off sit where a full team's Edit does, beside the name, its note under the name.
+  const top=async(team:number,button:string)=>(await card(one,team).getByRole('button',{name:button,exact:true}).boundingBox())!.y-(await card(one,team).boundingBox())!.y;
+  const edit=await top(1,'Edit Team 1');
+  expect(await top(2,'Edit Team 2')).toBeCloseTo(edit,0);
+  expect(await top(2,'Take off')).toBeCloseTo(edit,0);
+  const title=(await card(one,2).getByRole('heading',{name:'Team 2'}).boundingBox())!,note=(await card(one,2).getByText('Runs short · 3 of 4').boundingBox())!;
+  expect(note.y).toBeGreaterThanOrEqual(title.y+title.height-1);
   expect(await lookProblems(one)).toEqual([]);
   await one.screenshot({path:info.outputPath('relay-start-line.png'),fullPage:true});
   await one.screenshot({path:info.outputPath('relay-start-line-viewport.png')});
