@@ -29,7 +29,7 @@ test('a new phone joins with its name, the password and its job, stays signed in
   // A real wrong code would count against the shared test IP's backoff, so the refusal is replayed here; the API test covers it.
   const wrong="That password isn't right. Check it with a lead and try again.";
   await page.route('**/api/join',route=>route.fulfill({status:403,json:{message:wrong}}),{times:1});
-  await join(page,'Nobody',{code:'wrong-fixture'});
+  await join(page,ownName('Nobody'),{code:'wrong-fixture'});
   await expect(page.getByRole('alert')).toHaveText(wrong);
   // The refusal is the amber callout under the Password box, above the job cards.
   const callout=(await page.locator('.rz-callout',{hasText:wrong}).boundingBox())!,password=(await page.getByLabel('Password',{exact:true}).boundingBox())!;

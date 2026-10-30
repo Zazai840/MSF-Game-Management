@@ -68,6 +68,8 @@ export async function join(page:Page,name:string,{code=process.env.E2E_OLYMPICS_
  * Names are kept in the run's test database, as claims are, since each --repeat-each pass runs in a worker of its own.
  */
 async function nameIsThisTests(name:string) {
+  // The remote smoke check has no run database; its names carry its own run id.
+  if(!process.env.E2E_TEST_DATABASE_URL) return;
   const key=name.trim().replace(/\s+/g,' '),{testId,titlePath,repeatEachIndex}=test.info(),title=`${titlePath.join(' › ')}${repeatEachIndex?` (repeat ${repeatEachIndex})`:''}`;
   const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
   try {
