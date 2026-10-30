@@ -1,10 +1,10 @@
-import {recordRace,openLeadMenu,becomeLead,expect,join,lookProblems,test} from './fixtures.js';
+import {ownName,recordRace,openLeadMenu,becomeLead,expect,join,lookProblems,test} from './fixtures.js';
 test('lead checks an eligibility warning, corrects a number with Fix or Keep and chooses the counted repeated result',async({page},info)=>{
   const number=2601+['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const race=(numbers:number[],places:number[])=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,'R10',numbers,places,numbers);
   const first=await race([number,3045],[1100,1200]),second=await race([number],[1300]);
-  await page.goto('/');await join(page,`Runner lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:/^R10 · Girl Cubs/}).click();
+  await page.goto('/');await join(page,ownName('Runner lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:/^R10 · Girl Cubs/}).click();
   // Mark checked opens a step naming the warning; Cancel leaves it open and sends nothing.
   let checks=0;page.on('request',request=>{if(request.url().includes('/mark-warning-checked')) checks++;});
   const warning=page.getByRole('button',{name:`Runner 3045 · Heat ${first.number}`,exact:true}),sheet=page.getByRole('dialog',{name:'Actions for 3045',exact:true});
@@ -14,7 +14,7 @@ test('lead checks an eligibility warning, corrects a number with Fix or Keep and
   await sheet.getByRole('button',{name:'Cancel',exact:true}).click();await expect(sheet).toHaveCount(0);expect(checks).toBe(0);
   await expect(warning.locator('.result-flags > span')).toHaveText('3045 belongs to Boy Scouts - this race is Girl Cubs');await expect(warning.locator('.checked-warning')).toHaveCount(0);
   await warning.click();await sheet.getByRole('button',{name:'Mark checked',exact:true}).click();await sheet.getByLabel('Note (optional)',{exact:true}).fill('Saw the wristband, wrong band issued');await sheet.getByRole('button',{name:'Save check',exact:true}).click();
-  await expect(warning.locator('.checked-warning')).toHaveText(`Checked by Runner lead ${info.project.name}: 3045 belongs to Boy Scouts - this race is Girl Cubs`);expect(checks).toBe(1);
+  await expect(warning.locator('.checked-warning')).toHaveText(`Checked by ${ownName('Runner lead')}: 3045 belongs to Boy Scouts - this race is Girl Cubs`);expect(checks).toBe(1);
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('Saw the wristband, wrong band issued');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('checked-warning.png'),fullPage:true});
   await warning.click();await expect(page.getByRole('button',{name:'Mark checked',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Correct number',exact:true}).click();await page.getByLabel('New wristband number',{exact:true}).fill('4045');await page.getByRole('button',{name:'Check number',exact:true}).click();await expect(page.getByRole('dialog').getByText('4045 belongs to Girl Scouts - this race is Girl Cubs',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Fix number',exact:true}).click();await page.getByLabel('New wristband number',{exact:true}).fill('4045');await page.getByRole('button',{name:'Check number',exact:true}).click();await page.getByRole('button',{name:'Keep',exact:true}).click();let failed=true;await page.route('**/api/lead/races/*/runners/*/correct-number',async route=>{if(failed){failed=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Not saved - try again'})});}else await route.continue();});await page.getByRole('button',{name:'Save correction',exact:true}).click();await expect(page.getByRole('alert')).toHaveText('Not saved - try again');await expect(page.getByText('Change 3045 to',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Save correction',exact:true}).click();

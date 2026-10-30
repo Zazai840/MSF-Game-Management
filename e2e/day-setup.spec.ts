@@ -1,4 +1,4 @@
-import {ownEvent,ownCode,lookProblems,back,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,back,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
@@ -96,8 +96,8 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
   await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
 });
 
-test('a lead who signed in with the lead code opens Day setup and makes a new lead code',async({page},info)=>{
-  const name=`Day setup lead ${info.project.name}`;
+test('a lead who signed in with the lead code opens Day setup and makes a new lead code',async({page})=>{
+  const name=ownName('Day setup lead');
   await page.goto('/');await join(page,name,{code:process.env.E2E_LEAD_CODE});
   await expect(leadMenuButton(page)).toBeVisible();
   await openLeadMenu(page,'Day setup');

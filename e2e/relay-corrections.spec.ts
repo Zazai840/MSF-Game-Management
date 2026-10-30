@@ -1,4 +1,4 @@
-import {ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openTeams,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openTeams,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
 
 /** A lead's Results for the relay, then its event page. */
@@ -14,14 +14,14 @@ async function runHeat(request:APIRequestContext,token:string,code:string,placed
 
 test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, takes a team off and adds one, and the Teams screen shows the fix',async({openPhone,request},info)=>{
   test.setTimeout(60000);
-  const project=info.project.name,name=`Correct teams ${project}`,code=await ownCode();
+  const name=ownName('Correct teams'),code=await ownCode();
   await ownRelay(code,name,'Boy Scouts');
   // The test day is shared: each project's Boy Scouts wristbands are its own, and no other test types them.
   const n=await ownWristbands('Boy Scouts',16),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
-  const volunteer=await openPhone(`Correct teams volunteer ${project}`);
+  const volunteer=await openPhone(ownName('Correct teams volunteer'));
   for(let team=1;team<=3;team++) await writeTeam(request,volunteer.token,code,legs(team),{keptWarnings:legs(team)});
   await runHeat(request,volunteer.token,code,[2,1],[1500,1600]);
-  const {page}=await openPhone(`Correct teams lead ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Correct teams lead'),{lead:true});
   await openRelayResults(page,code);
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await page.getByRole('button',{name:'Correct teams',exact:true}).click();
@@ -71,13 +71,13 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
 });
 
 test('Delete then Restore on a relay heat: its teams are still to run, then a team in two heats ran twice until the lead chooses which result counts',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Relay ran twice ${project}`,code=await ownCode();
+  const name=ownName('Relay ran twice'),code=await ownCode();
   await ownRelay(code,name,'Boy Scouts');
   const n=await ownWristbands('Boy Scouts',12),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
-  const token=await signInThroughApi(request,`Relay ran twice volunteer ${project}`);
+  const token=await signInThroughApi(request,ownName('Relay ran twice volunteer'));
   for(let team=1;team<=2;team++) await writeTeam(request,token,code,legs(team),{keptWarnings:legs(team)});
   await runHeat(request,token,code,[1,2],[1500,1600]);
-  const {page}=await openPhone(`Relay ran twice lead ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Relay ran twice lead'),{lead:true});
   await openRelayResults(page,code);
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await page.getByRole('button',{name:'Delete race',exact:true}).click();

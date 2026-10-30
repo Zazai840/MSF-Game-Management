@@ -1,4 +1,4 @@
-import {expect,join,lookProblems,openLeadMenu,test,type Locator,type Page} from './fixtures.js';
+import {ownName,expect,join,lookProblems,openLeadMenu,test,type Locator,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the race screens. */
 async function expectDocked(page:Page,button:Locator) {
@@ -37,8 +37,8 @@ test('a new phone joins with its name, the password and its job, stays signed in
   expect(callout.y+callout.height).toBeLessThanOrEqual((await cards.boundingBox())!.y);
   await page.screenshot({path:info.outputPath('join-wrong-password.png')});
   // Join with no job keeps the form, with "Choose your job" in amber under the cards.
-  const name=`Ahmed Sign ${info.project.name}`;
-  await join(page,`  Ahmed   Sign ${info.project.name} `);
+  const name=ownName('Ahmed Sign');
+  await join(page,`  Ahmed   ${ownName('Sign')} `);
   await expect(page.getByRole('alert')).toHaveText('Choose your job');
   await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
   const choose=(await page.locator('.rz-callout',{hasText:'Choose your job'}).boundingBox())!,cardsBox=(await cards.boundingBox())!;
@@ -90,7 +90,7 @@ async function forgotten(page:Page,name:string) {
 }
 const question=(page:Page)=>page.locator('.rz-callout',{hasText:'Is this you on a new phone?'});
 test('a name held on another phone asks "Is this you on a new phone?": That\'s me signs the second phone in as that name and the first phone forgets it',async({page,browser},info)=>{
-  const name=`Amina Taken ${info.project.name}`;
+  const name=ownName('Amina Taken');
   await page.goto('/');await join(page,name,{job:'Finish line'});await races(page);
   const second=await browser.newContext({...info.project.use});
   try {
@@ -119,7 +119,7 @@ test('a name held on another phone asks "Is this you on a new phone?": That\'s m
   await forgotten(page,name);
 });
 test('the lead code joins as Zone lead on its own, and a name held on another phone gets the same That\'s me',async({page,browser},info)=>{
-  const name=`Sara Taken Lead ${info.project.name}`;
+  const name=ownName('Sara Taken Lead');
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);
   const second=await browser.newContext({...info.project.use});
   try {
@@ -134,9 +134,9 @@ test('the lead code joins as Zone lead on its own, and a name held on another ph
   } finally {await second.close();}
   await forgotten(page,name);
 });
-test('the owner password joins as the owner lead on the running day without touching it',async({page},info)=>{
+test('the owner password joins as the owner lead on the running day without touching it',async({page})=>{
   const before=await (await page.request.get('/api/day',{headers:headers()})).json();
-  await page.goto('/');await join(page,`Owner Sign ${info.project.name}`,{code:'e2e-owner-fixture'});
+  await page.goto('/');await join(page,ownName('Owner Sign'),{code:'e2e-owner-fixture'});
   await races(page);await expect(jobChip(page,'Zone lead')).toBeVisible();
   await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();

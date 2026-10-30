@@ -1,4 +1,4 @@
-import {ownCode,backToRaces,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,backToRaces,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Ready for you is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
@@ -10,12 +10,12 @@ const readyForYou=(page:Page)=>page.locator('h2:text-is("Ready for you") ~ artic
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
 
 test('a lead\'s Ready for you is the groups with open issues, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead issues ${project}`,calm=`Lead calm ${project}`,code=await ownCode(),calmCode=await ownCode();
+  const name=ownName('Lead issues'),calm=ownName('Lead calm'),code=await ownCode(),calmCode=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');await ownEvent(request,calmCode,calm,'Girl Cubs','timed');
   // A kept time faster than the place before, and a calm race.
   await recordRace(request,owner(),code,[2001,2002],[1600,1305]);
   await recordRace(request,owner(),calmCode,[2011],[1400]);
-  const {page}=await openPhone(`Lead issues ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Lead issues'),{lead:true});
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
   await expect(readyForYou(page).filter({hasText:name})).toHaveCount(1);
@@ -40,14 +40,14 @@ test('a lead\'s Ready for you is the groups with open issues, each card naming t
 });
 
 test('inside a race each issue sits on its step\'s tab; It\'s right clears it and records who accepted it',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead tabs ${project}`,code=await ownCode();
+  const name=ownName('Lead tabs'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // A kept wrong-section number, a runner added at the finish, and a kept wrong time.
   await writeCheckIn(request,owner(),code,[3045,2001],[3045]);
   await writeOrder(request,owner(),code,[3045,2001,2002],{added:[2002]});
   await writeTimes(request,owner(),code,[1500,1300,1600],[1]);
   await submitRace(request,owner(),code);
-  const {page}=await openPhone(`Lead tabs ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Lead tabs'),{lead:true});
   await expect(status(page,name)).toContainText('Heat 1: ');
   await openRace(page,name);
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
@@ -86,14 +86,14 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
 });
 
 test('a lead\'s card counts issues by race and kind, the Times tab marks only the wrong time amber, and Race actions lists runners by place',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead counts ${project}`,code=await ownCode();
+  const name=ownName('Lead counts'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // Two kept wrong-section numbers, a runner who did not finish checked in first, and a kept wrong time in 3rd place.
   await writeCheckIn(request,owner(),code,[2003,3045,4046,2001,2002],[3045,4046]);
   await writeOrder(request,owner(),code,[2002,3045,2001,4046],{didNotFinish:[2003]});
   await writeTimes(request,owner(),code,[1300,1400,1350,1500],[2]);
   await submitRace(request,owner(),code);
-  const {page}=await openPhone(`Lead counts ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Lead counts'),{lead:true});
   // Groups come newest first; both of these date from the same saved race, so either may lead.
   await expect(status(page,name)).toHaveText(/^(Heat 1: 2 wristbands to check · Heat 1: 1 time to check|Heat 1: 1 time to check · Heat 1: 2 wristbands to check)$/);
   await openRace(page,name);
@@ -108,12 +108,12 @@ test('a lead\'s card counts issues by race and kind, the Times tab marks only th
 });
 
 test('an issue settled elsewhere opens in Results, and the race actions open over the race',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Lead results ${project}`,code=await ownCode();
+  const name=ownName('Lead results'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // 2001 has a result in two races: the lead chooses which counts, in Results.
   await recordRace(request,owner(),code,[2001,2002],[1200,1300]);
   await recordRace(request,owner(),code,[2001],[1250],[2001]);
-  const {page}=await openPhone(`Lead results ${project}`,{lead:true});
+  const {page}=await openPhone(ownName('Lead results'),{lead:true});
   await openRace(page,name,'Girl Cubs','H2');
   const ranTwice=page.getByRole('alert').filter({hasText:'2001'});
   await expect(ranTwice).toBeVisible();

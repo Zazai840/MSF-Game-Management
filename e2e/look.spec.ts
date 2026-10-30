@@ -1,4 +1,4 @@
-import {ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,markHere,openLeadMenu,openRace,openRaceScreen,openRelays,openTeams,ownEvent,ownRelay,expect,switchJob,test,tickTeam,writeCheckIn,writeTeam,type Page} from './fixtures.js';
 
 // The design system's navy and paper.
 const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
@@ -10,11 +10,11 @@ test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'
   page.on('request',request=>{if(!request.url().startsWith(info.project.use.baseURL||'http://127.0.0.1')) outside.push(request.url());});
   const fonts:string[]=[];
   page.on('response',response=>{if(response.url().endsWith('.woff2')) fonts.push(response.url());});
-  await joinAs(page,`Abdulaziz ${info.project.name} Zazai`);
+  await joinAs(page,`${ownName('Abdulaziz')} Zazai`);
   const header=page.getByRole('banner');
   await expect(header).toContainText('MSF Olympics');await expect(header).toContainText('Running Zone');
   expect(await header.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(navy);
-  const avatar=header.getByRole('button',{name:`Abdulaziz ${info.project.name} Zazai: Log out`,exact:true});
+  const avatar=header.getByRole('button',{name:`${ownName('Abdulaziz')} Zazai: Log out`,exact:true});
   await expect(avatar).toHaveText('AZ');
   expect(await avatar.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(paper);
   expect(await page.locator('.rz-screen').evaluate(element=>getComputedStyle(element).fontFamily)).toMatch(/^Nunito, /);
@@ -33,12 +33,12 @@ test('a navy app bar shows MSF Olympics, Running Zone and the signed-in person\'
 });
 
 test('volunteer and lead screens meet the touch, text size and contrast rules',async({page},info)=>{
-  const code=await ownCode(),name=`Look sprint ${info.project.name}`;
+  const code=await ownCode(),name=ownName('Look sprint');
   await ownEvent(page.request,code,name);
   await writeCheckIn(page.request,process.env.E2E_OWNER_TOKEN!,code,[2091,2092]);
   await page.goto('/');
   expect(await lookProblems(page)).toEqual([]);
-  await join(page,`Look lead ${info.project.name}`,{job:'Start line'});
+  await join(page,ownName('Look lead'),{job:'Start line'});
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   // Each job's race screen.
@@ -93,10 +93,10 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
 });
 
 test('the Teams screen and a relay race screen meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Look relay ${project}`;
+  const code=await ownCode(),name=ownName('Look relay');
   const n=await ownWristbands('Boy Scouts',10);
   await ownRelay(code,name,'Boy Scouts');
-  const {page,token}=await openPhone(`Look relay ${project}`);
+  const {page,token}=await openPhone(ownName('Look relay'));
   await writeTeam(request,token,code,[n(1),n(2),n(3),n(4)]);
   await writeTeam(request,token,code,[n(5),n(6),null,null]);
   // The Teams screen: this phone holds the relay, one team open for changing.
@@ -139,8 +139,8 @@ test('the Teams screen and a relay race screen meet the touch, text size and con
 });
 
 test('each race-flow screen on a test build, from Races to every job\'s race and a lead\'s, meets the look rules',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),hurdles=await ownCode(),name=`Look walk ${project}`,n=await ownWristbands('Girl Cubs',6);
-  await ownEvent(request,code,name);await ownEvent(request,hurdles,`Look hurdles ${project}`,'Girl Cubs','heats','hurdles');
+  const code=await ownCode(),hurdles=await ownCode(),name=ownName('Look walk'),n=await ownWristbands('Girl Cubs',6);
+  await ownEvent(request,code,name);await ownEvent(request,hurdles,ownName('Look hurdles'),'Girl Cubs','heats','hurdles');
   const {page,token}=await openPhone(name);
   const look=async(screen:string)=>{await page.screenshot({path:info.outputPath(`${screen}.png`)});expect.soft(await lookProblems(page),screen).toEqual([]);};
   const chips=page.getByRole('list',{name:'Wristbands entered'}).getByRole('button'),card=page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});

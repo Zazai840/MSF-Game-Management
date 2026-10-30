@@ -1,4 +1,4 @@
-import {becomeLead,expect,join,leadMenuButton,lookProblems,openTeams,test,type Page} from './fixtures.js';
+import {ownName,becomeLead,expect,join,leadMenuButton,lookProblems,openTeams,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:/Join( the Running Zone)?$/})).toBeVisible();
 const menuItems=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
@@ -6,7 +6,7 @@ const pick=(page:Page,item:string)=>menuItems(page).getByText(item,{exact:true})
 // The pass, session, job and drafts go; only the names listed on the phone stay.
 const onlyNamesKept=async(page:Page)=>expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual(['msf:profiles']);
 test('a volunteer\'s avatar menu has only Log out, which goes straight to Join keeping the listed names',async({page},info)=>{
-  const name=`Vol Out ${info.project.name}`;
+  const name=ownName('Vol Out');
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);
   await page.getByRole('button',{name:`${name}: Log out`,exact:true}).click();
   await expect(menuItems(page)).toHaveText(['Log out']);
@@ -17,7 +17,7 @@ test('a volunteer\'s avatar menu has only Log out, which goes straight to Join k
   await expect(page.getByRole('heading',{name:'Your profile'})).toHaveCount(0);
 });
 test('a lead\'s avatar menu reads Results, Day setup, Log out, and the older-look header name opens it',async({page},info)=>{
-  const name=`Sami Out ${info.project.name}`;
+  const name=ownName('Sami Out');
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);await becomeLead(page);
   await leadMenuButton(page).click();
   await expect(menuItems(page)).toHaveText(['Results','Day setup','Log out']);
@@ -33,8 +33,8 @@ test('a lead\'s avatar menu reads Results, Day setup, Log out, and the older-loo
   await header.click();await pick(page,'Log out');
   await joinScreen(page);await onlyNamesKept(page);
 });
-test('a second tab on the same phone follows a log out from the Teams screen',async({page,context},info)=>{
-  const name=`Tabs Out ${info.project.name}`;
+test('a second tab on the same phone follows a log out from the Teams screen',async({page,context})=>{
+  const name=ownName('Tabs Out');
   await page.goto('/');await join(page,name,{job:'Finish line'});await races(page);
   const other=await context.newPage();await other.goto('/');await races(other);
   await openTeams(page);

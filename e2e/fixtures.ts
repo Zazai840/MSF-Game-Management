@@ -14,7 +14,7 @@ export const test=base.extend<{freshCodes:void;openPhone:(name:string,options?:{
   /**
    * Opens a phone as its own browser context with this project's device settings, signed in through the API
    * as a new volunteer (or a lead) with today's job chosen (Start line unless named; a lead is Zone lead), on Races.
-   * Names must be unique across the run (add the project name). Every phone opened is closed when the test ends.
+   * Build names with ownName(), so each is this test's alone. Every phone opened is closed when the test ends.
    */
   openPhone:async({browser},use)=>{
     const contexts:BrowserContext[]=[];
@@ -55,13 +55,29 @@ export type JobName='Start line'|'Finish line'|'Timer';
  * joins as Zone lead, and the owner password as the owner) and, for a volunteer, today's job. Then taps Join.
  */
 export async function join(page:Page,name:string,{code=process.env.E2E_OLYMPICS_PASSWORD!,job}:{code?:string;job?:JobName}={}) {
+  await nameIsThisTests(name);
   await page.getByLabel('Full name',{exact:true}).fill(name);
   await page.getByLabel('Password',{exact:true}).fill(code);
   if(job) await page.getByRole('radiogroup',{name:"What's your job today?"}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
   await page.getByRole('button',{name:'Join',exact:true}).click();
 }
+/**
+ * A test may join or sign in with its own name again (logging back in, a second phone), but a name another test
+ * already used is a clash: it fails here, by name, rather than as a timeout on a screen that asked for a middle name.
+ * Names are kept in the run's test database, as claims are, since each --repeat-each pass runs in a worker of its own.
+ */
+async function nameIsThisTests(name:string) {
+  const key=name.trim().replace(/\s+/g,' '),{testId,titlePath,repeatEachIndex}=test.info(),title=`${titlePath.join(' › ')}${repeatEachIndex?` (repeat ${repeatEachIndex})`:''}`;
+  const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+  try {
+    await db.query('CREATE TABLE IF NOT EXISTS e2e_names(name text PRIMARY KEY,test text NOT NULL,title text NOT NULL)');
+    const first=(await db.query('INSERT INTO e2e_names(name,test,title) VALUES($1,$2,$3) ON CONFLICT(name) DO UPDATE SET name=excluded.name RETURNING test,title',[key,testId,title])).rows[0];
+    if(first.test!==testId) throw new Error(`"${key}" already joined in "${first.title}", so "${title}" clashes with it: build names with ownName() so each test's are its own`);
+  } finally {await db.end();}
+}
 /** Signs a new profile in as a volunteer through the API (Olympics password, then Create profile) and returns its session token. */
 export async function signInThroughApi(request:APIRequestContext,name:string) {
+  await nameIsThisTests(name);
   const {pass}=await (await request.post('/api/password',{data:{password:process.env.E2E_OLYMPICS_PASSWORD}})).json();
   const created=await request.post('/api/profiles',{data:{pass,name}});
   expect(created.ok()).toBe(true);

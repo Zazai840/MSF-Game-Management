@@ -1,14 +1,14 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,join,test} from './fixtures.js';
+import {ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,join,test} from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=await ownCode();
-  await ownEvent(page.request,code,`Tie event ${info.project.name}`,'Girl Cubs','timed');
+  await ownEvent(page.request,code,ownName('Tie event'),'Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const createRace=(number:number,time:number)=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[number],[time]);
   await createRace(2701,1000);await createRace(2702,1000);
-  await page.goto('/');await join(page,`Tie lead ${info.project.name}`,{job:'Start line'});
+  await page.goto('/');await join(page,ownName('Tie lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
@@ -48,14 +48,14 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
   test.setTimeout(60000);
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=await ownCode();
-  await ownEvent(page.request,code,`Tie heats ${info.project.name}`,'Girl Cubs','heats');
+  await ownEvent(page.request,code,ownName('Tie heats'),'Girl Cubs','heats');
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:string[]=[];
   const heat=async(runners:number[],places:number[])=>{races.push((await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places)).id);};
   // 2731 and 2735 share a time in Heat 1; 2733 has the same time in Heat 2.
   await heat([2731,2735,2736],[1000,1000,1200]);await heat([2733,2734],[1000,1100]);
   try {
-    await page.goto('/');await join(page,`Tie heats lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);
+    await page.goto('/');await join(page,ownName('Tie heats lead'),{job:'Start line'});await becomeLead(page);
     await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {

@@ -1,4 +1,4 @@
-import {ownCode,backToRaces,deleteCurrentRace,expect,live,lookProblems,openRace,ownEvent,setHidden,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,ownCode,backToRaces,deleteCurrentRace,expect,live,lookProblems,openRace,ownEvent,setHidden,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
 /** The finish line's runner buttons: the runners checked in, live from the start line. */
 const runners=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
 /** On a slow network every "the other phone sees it" check waits this long. */
@@ -14,9 +14,9 @@ async function newHeat(request:APIRequestContext,token:string,code:string) {
 }
 
 test('signal drop: once back online, phone B shows what phone A checked in while B had no signal',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Signal drop ${project}`;
+  const code=await ownCode(),name=ownName('Signal drop');
   await ownEvent(request,code,name);
-  const a=await openPhone(`Ann drop ${project}`),b=await openPhone(`Ben drop ${project}`,{job:'finish'});
+  const a=await openPhone(ownName('Ann drop')),b=await openPhone(ownName('Ben drop'),{job:'finish'});
   await writeCheckIn(request,a.token,code,[2101]);
   await openRace(b.page,name);
   await expect(runners(b.page)).toHaveText(['2101']);
@@ -46,10 +46,10 @@ test('signal drop: once back online, phone B shows what phone A checked in while
   await deleteCurrentRace(request,code);
 });
 
-test('app switch: once the app is back in front, phone B shows what phone A checked in while it was in the background',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`App switch ${project}`;
+test('app switch: once the app is back in front, phone B shows what phone A checked in while it was in the background',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('App switch');
   await ownEvent(request,code,name);
-  const a=await openPhone(`Ann switch ${project}`),b=await openPhone(`Ben switch ${project}`,{job:'finish'});
+  const a=await openPhone(ownName('Ann switch')),b=await openPhone(ownName('Ben switch'),{job:'finish'});
   await writeCheckIn(request,a.token,code,[2201]);
   await openRace(b.page,name);
   await expect(runners(b.page)).toHaveText(['2201']);
@@ -63,10 +63,10 @@ test('app switch: once the app is back in front, phone B shows what phone A chec
   await deleteCurrentRace(request,code);
 });
 
-test('silent link: once the watchdog gives up on a stream that went quiet, phone B shows what phone A checked in meanwhile',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Silent link ${project}`;
+test('silent link: once the watchdog gives up on a stream that went quiet, phone B shows what phone A checked in meanwhile',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Silent link');
   await ownEvent(request,code,name);
-  const a=await openPhone(`Ann silent ${project}`),b=await openPhone(`Ben silent ${project}`,{job:'finish'});
+  const a=await openPhone(ownName('Ann silent')),b=await openPhone(ownName('Ben silent'),{job:'finish'});
   await newHeat(request,a.token,code);
   await b.page.clock.install();
   // B's first race stream request is never answered, as on a link that died without telling the phone.
@@ -81,10 +81,10 @@ test('silent link: once the watchdog gives up on a stream that went quiet, phone
   await deleteCurrentRace(request,code);
 });
 
-test('planned end: phone B reconnects at once after the stream ends, and shows what phone A checked in since',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Planned end ${project}`;
+test('planned end: phone B reconnects at once after the stream ends, and shows what phone A checked in since',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Planned end');
   await ownEvent(request,code,name);
-  const a=await openPhone(`Ann end ${project}`),b=await openPhone(`Ben end ${project}`,{job:'finish'});
+  const a=await openPhone(ownName('Ann end')),b=await openPhone(ownName('Ben end'),{job:'finish'});
   await writeCheckIn(request,a.token,code,[2401]);
   // B's first stream sends the race as it was, then ends cleanly as the server does after about 10 minutes; A checks in another runner in between.
   await b.page.route(raceStream,async route=>{
@@ -98,10 +98,10 @@ test('planned end: phone B reconnects at once after the stream ends, and shows w
   await deleteCurrentRace(request,code);
 });
 
-test('slow network: on a 3G-like link each phone sees the other\'s step within 3 s',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Slow network ${project}`;
+test('slow network: on a 3G-like link each phone sees the other\'s step within 3 s',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Slow network');
   await ownEvent(request,code,name);
-  const a=await openPhone(`Ann slow ${project}`),b=await openPhone(`Ben slow ${project}`,{job:'finish'});
+  const a=await openPhone(ownName('Ann slow')),b=await openPhone(ownName('Ben slow'),{job:'finish'});
   await newHeat(request,a.token,code);
   for(const {page} of [a,b]) {
     const network=await page.context().newCDPSession(page);
