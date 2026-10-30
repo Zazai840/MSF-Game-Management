@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { readResults,resultsSnapshot } from '../results/read.js';
 import { actions } from '../access/permissions.js';
-/** Home's poll: who the phone is and, for a lead, the To check count. The events come live from `/api/live/home`. */
+/** Home's poll: who the phone is and, for a lead, the To check count. The races come live from `/api/live/races`. */
 export function homeRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app, pool);
   // `waiting: {}` is for the switch-over release only: an older build still open reads `waiting[job]` and goes white

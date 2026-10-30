@@ -32,8 +32,8 @@ export const raceParts=['runners','finish','times'] as const;
 export type RacePartName=typeof raceParts[number];
 export type PartValue=RaceEntry[]|FinishingOrder|RaceTimes|null;
 export const partLabel=(part:RacePartName)=>part==='runners'?'Runners':part==='finish'?'Finishing order':'Times';
-/** A race moves in progress -> submitted (the first Submit press) -> saved (the last required press). Only saved races count. */
-export type RaceState='in progress'|'submitted'|'saved';
+/** A race is in progress until it saves itself, once every step is done. Only saved races count. */
+export type RaceState='in progress'|'saved';
 export interface RaceRead {
   id:string; event:DayEvent; kind:'heat'|'final'|'race'; number:number; checkedInAt:string; deleted:boolean; state:RaceState; stageComplete?:boolean; final?:FinalPresence; deleteReason?:string|null;
   /** Lead reads only: the race that replaced this one in a re-run, or null when it can no longer be found. */

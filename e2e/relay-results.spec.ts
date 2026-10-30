@@ -60,7 +60,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   const n=await ownWristbands('Girl Cubs',30),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg)),borrowed=(await ownWristbands('Boy Cubs',1))(1);
   const token=await signInThroughApi(request,`Relay results volunteer ${project}`);
   for(let team=1;team<=7;team++) await writeTeam(request,token,code,team===4?[legs(4)[0],borrowed,legs(4)[2],legs(4)[3]]:legs(team),{keptWarnings:team===4?[borrowed]:[]});
-  /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+  /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
   async function heat(placed:number[],times:number[]) {
     for(const team of placed) await tickTeam(request,token,code,team);
     await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);
@@ -123,7 +123,7 @@ async function scoutsRelay(request:APIRequestContext,info:TestInfo,title:string,
   const n=await ownWristbands('Boy Scouts',count*4),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
   const token=await signInThroughApi(request,`${title} volunteer ${project}`);
   for(let team=1;team<=count;team++) await writeTeam(request,token,code,legs(team));
-  /** One phone ticks the teams in, places them in this order with these times, and presses Submit Race. */
+  /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
   async function heat(placed:number[],times:number[]) {
     for(const team of placed) await tickTeam(request,token,code,team);
     await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);

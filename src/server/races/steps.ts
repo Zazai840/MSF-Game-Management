@@ -2,22 +2,20 @@ import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { onlyRunners,submitBlocker,type CurrentRace } from '../../shared/race-screen.js';
-import { entryName,runnersOf,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
-import { entryWord,type RelayTeam } from '../../shared/teams.js';
+import { entryName,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
+import type { RelayTeam } from '../../shared/teams.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
-import { stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
+import { onlyRunners,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
 import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
-import { createRace } from './create.js';
 import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { markFinalAbsent } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
-/** What a step write acts on: the event and the race as it stands (null id for the empty next race). */
-export interface WriteTarget { event:DayEvent; race:CurrentRace }
+/** What a step write acts on: the event and the race as it stands. */
+export interface WriteTarget { event:DayEvent; race:RaceRead }
 export type CheckInInput=ReturnType<typeof checkInInput>;
 /** A check-in body: the race and runners version the phone saw, and its whole list of wristbands, a fixed number sent with its entry. */
 export function checkInInput(body:unknown) {
@@ -33,12 +31,12 @@ export function checkInInput(body:unknown) {
   if(new Set(ids).size!==ids.length) throw new Refusal(400,'Choose each runner only once');
   return {raceId,version,entries,ids,kept:keptWarningNumbers(input,numbers)};
 }
-/** The Runners step's write: the runner list as sent. The first write on the empty next race creates it. */
+/** The Runners step's write: the runner list as sent. */
 export async function checkIn(client:pg.PoolClient,phone:Phone,target:WriteTarget,{entries,ids,kept}:CheckInInput) {
   if(target.race.kind==='final') throw new Refusal(409,"Mark the final's runners Here or Absent");
   // A relay's entries are teams, added and marked here one tap at a time: a list of wristbands would replace them.
   if(target.event.relay) throw new Refusal(409,'Add the teams that are running');
-  const previous=runnersOf(target.race.parts.runners.value),id=target.race.id||randomUUID();
+  const previous=runnersOf(target.race.parts.runners.value),id=target.race.id;
   // A fixed number keeps its entry, so its place follows it. A number sent without its entry keeps the entry
   // already holding that number. Unchanged numbers keep their warnings; a new or fixed one gets the server's.
   const input=entries.map(({id:entryId,wristband})=>{
@@ -48,11 +46,6 @@ export async function checkIn(client:pg.PoolClient,phone:Phone,target:WriteTarge
     return {...old,wristband:wristband as number};
   });
   const runners=await annotateRunners(client,phone.dayId,target.event,input,kept,id,previous);
-  if(!target.race.id) {
-    if(!target.event.enabled) throw new Refusal(409,'This event is switched off');
-    await createRace(client,runners,{id,dayId:phone.dayId,eventId:target.event.id,kind:target.race.kind,savedBy:phone.id});
-    return;
-  }
   await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners);
   await dropFromOrder(client,target.race,runners);
 }
@@ -100,7 +93,7 @@ export function orderInput(body:unknown) {
 /** The Finishing order step's write. Runners the Runners step has since taken off are dropped, later places moving up. */
 export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,order,didNotFinish,didNotRun,added,kept,addedTeams}:OrderInput) {
   if(raceId===null) throw new Refusal(409,'Check runners in before the order');
-  // Teams are never made at the finish: a team not on any list is added on the Teams screen first.
+  // Teams are never made at the finish: a team not on any list is added in the teams sheet first.
   if(target.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
   if(!target.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
   // A relay Final's teams are its seeds, call-ups and a lead's additions.
@@ -127,16 +120,15 @@ export function timesInput(body:unknown) {
   return {raceId,version,places:input.places as number[],keptWrong:input.keptWrong as number[]};
 }
 /**
- * The Times step's write. On the race screen only a place with a wristband takes a time (a time left at a place that has
- * since lost its wristband stays as it is). In the race flow Times never waits for Finishing order (`anyPlace`): a time can
- * go in before its place has a runner, up to the race's runner count, and the race saves only once they agree.
+ * The Times step's write. Times never waits for Finishing order: a time can go in before its place has a runner, up to
+ * the race's runner count, and the race saves only once they agree.
  */
-export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,places,keptWrong}:TimesInput,anyPlace=false) {
+export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,places,keptWrong}:TimesInput) {
   if(raceId===null) throw new Refusal(409,'Check runners in before the times');
   const placed=target.race.parts.finish.value?.order.length||0,stored=target.race.parts.times.value;
-  const limit=anyPlace?Math.max(placed,target.race.parts.runners.value?.length||0):placed;
+  const limit=Math.max(placed,target.race.parts.runners.value?.length||0);
   const unplaced=places.findIndex((time,index)=>index>=limit && time!==stored?.places[index]);
-  if(unplaced>=0) throw new Refusal(409,anyPlace?`This race has ${limit} ${limit===1?'runner':'runners'} - add the runner at the finish first`:`Place ${unplaced+1} has no ${entryWord(target.event.relay)} yet`);
+  if(unplaced>=0) throw new Refusal(409,`This race has ${limit} ${limit===1?'runner':'runners'} - add the runner at the finish first`);
   const wrong=wrongTimes(places).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
   await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
 }
@@ -158,15 +150,12 @@ export async function saveIfDone(client:pg.PoolClient,phone:Phone,raceId:string)
   const race=await readRace(client,phone.dayId,raceId);
   if(race.state!=='in progress' || race.deleted) return;
   const done=(await client.query('SELECT p.part,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.done_by WHERE p.race_id=$1 AND p.done_at IS NOT NULL',[raceId])).rows as Array<{part:RacePartName;name:string|null}>;
-  if(stepsOf(race).every(step=>done.some(row=>row.part===stepParts[step])) && !submitBlocker(race,race.event.relay)) {
+  if(stepsOf(race).every(step=>done.some(row=>row.part===stepParts[step])) && !stepBlocker(race,race.event.relay)) {
     await saveRace(client,phone,race,step=>done.find(row=>row.part===stepParts[step])?.name??null);
   }
 }
-/**
- * Saves a race: its saved mark (who saved it, and when), and a history row per part recording who did each step then:
- * in the race flow whoever marked the step done, on the old race screen its job's holder.
- */
-export async function saveRace(client:pg.PoolClient,phone:Phone,race:Pick<CurrentRace,'id'|'parts'>,doneBy:(step:Step)=>string|null) {
+/** Saves a race: its saved mark (who saved it, and when), and a history row per part naming who marked its step done. */
+async function saveRace(client:pg.PoolClient,phone:Phone,race:Pick<RaceRead,'id'|'parts'>,doneBy:(step:Step)=>string|null) {
   const runners=JSON.stringify(race.parts.runners.value||[]);
   await client.query("UPDATE races SET state='saved',saved_at=clock_timestamp(),saved_by=$2 WHERE id=$1",[race.id,phone.name]);
   for(const step of steps) {
@@ -184,7 +173,7 @@ function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {
  * A runner taken off (or marked Absent) drops out of the order, later places moving up. The order's version stays as
  * it is: it counts the order holder's own changes, so an order they send before seeing this is still saved.
  */
-export async function dropFromOrder(client:pg.PoolClient,race:Pick<CurrentRace,'id'|'parts'>,runners:readonly RaceEntry[]) {
+export async function dropFromOrder(client:pg.PoolClient,race:Pick<RaceRead,'id'|'parts'>,runners:readonly RaceEntry[]) {
   const finish=race.parts.finish.value,left=finish && onlyRunners(finish,runners);
   if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),race.id]);
 }

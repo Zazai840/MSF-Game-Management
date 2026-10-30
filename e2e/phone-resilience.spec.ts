@@ -89,7 +89,7 @@ test('a phone meeting the old and the new server in turn mid-deploy reloads once
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(name);
   await newHeat(request,token,code);
-  const read=(await flowRace(request,token,code))!;
+  const read=(await flowRace(request,token,code));
   let loads=0;page.on('load',()=>loads++);
   // A deploy overlap: after reloading onto the new build, the phone's stream reaches the old server again.
   let served=0;
