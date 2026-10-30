@@ -7,6 +7,7 @@ import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { raceName,type RaceFlowRead,type RacesRead } from '../../shared/race-flow.js';
 import { changeTeamEntry,raceFlowRead,racesRead } from '../races/race-flow.js';
+import { keepFinalistLegs } from '../races/final-field.js';
 import { raceChange } from '../races/records.js';
 import { checkedLegs,joiningTeam,requestedDone,requestedTeam,requireNotInRace,requireOpen,teamsWriteRead,type TeamsWriteRead } from './teams.js';
 /**
@@ -65,11 +66,17 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
       requireVersion(team,phone,done.version!);
       const legs=checkedLegs(relay,team.id,done.wristbands,done.kept);
       await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name]);
-      // A final's kept copy of the team (for Absent and back) follows its runner list, so it takes the new legs too.
-      if(raceId!==undefined) await changeTeamEntry(client,phone,raceId,team.id,({race,entries,entry})=>{
+      if(raceId===undefined) return;
+      // A final's kept copy of the team (for Here / Absent) takes the new legs too: through its runner list while the
+      // team is Here, else straight away. A final has no per-child Here: a team Here is here whole.
+      let outOfRace=false;
+      await changeTeamEntry(client,phone,raceId,team.id,({race,entries,entry})=>{
+        if(!entry && race.kind==='final') {outOfRace=true;return;}
         if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${raceName(race)}`);
-        return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:leg.wristband!==null && entry.legs.some(was=>was.here && was.wristband===leg.wristband)}))}:other);
+        const here=(wristband:number|null)=>wristband!==null && (race.kind==='final' || entry.legs.some(was=>was.here && was.wristband===wristband));
+        return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:here(leg.wristband)}))}:other);
       });
+      if(outOfRace && !await keepFinalistLegs(client,raceId,team.id,legs)) throw new Refusal(409,`Team ${team.number} is not in the final`);
     });
   });
   // Open / close: who has the team's leg boxes open, for "Aisha Noor is changing this team" on other phones. Nothing

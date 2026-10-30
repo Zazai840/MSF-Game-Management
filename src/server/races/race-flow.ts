@@ -15,6 +15,7 @@ import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { jobRace,listRaces,raceChange,readRace,type Database,type StoredRace } from './records.js';
+import { markFinalistAbsent } from './final-field.js';
 import { publishPart } from './versions.js';
 /** Who last changed each part of each race of the day and who marked it done, by race id and part. */
 async function readStepMeta(db:Database,dayId:string) {
@@ -223,23 +224,35 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
     });
   });
-  // Here / Absent on a final's team, or neither: Here marks each of its children here, Absent takes the team out of
-  // the race (freeing its seed), and neither puts it back with its children as they were, none here.
+  // Here / Absent on a final's team, or neither, as on a children's final: Here puts the team in the race with each of
+  // its children here, Absent takes it out marked Absent (freeing its seed), and neither takes it out unmarked. Only
+  // teams marked Here run the final, so the finish line places nobody else.
   action('POST','/api/races/:raceId/teams/:teamId/absent','Volunteer',(request,_reply,phone)=>{
     const mark=((request.body||{}) as {mark?:unknown}).mark;
     if(mark!=='here' && mark!=='absent' && mark!==null) throw new Refusal(400,'Choose Here, Absent or neither');
-    return teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
-      if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
-      const final=race.final!,kept=entry??[...final.entries.map(item=>item.runner),...(final.additionalEntries||[]).map(item=>item.runner)]
-        .find((item):item is TeamEntry=>item!==undefined && isTeamEntry(item) && item.team.id===team.id);
-      if(!kept) throw new Refusal(409,`Team ${team.number} is not in the final`);
-      if(mark==='absent') {
-        if(!entry) {unchanged();return;}
-        return entries.filter(other=>other!==entry);
-      }
-      const marked={...kept,legs:kept.legs.map(leg=>({...leg,here:mark==='here' && leg.wristband!==null}))};
-      if(entry && JSON.stringify(marked)===JSON.stringify(entry)) {unchanged();return;}
-      return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
+    const {raceId:id,teamId}=request.params as {raceId:string;teamId:string};
+    return write(phone,id,async(client,unchanged)=>{
+      let finalist:{id:string;absent:boolean;runner?:RaceEntry}|undefined,moved=false;
+      await changeTeamEntry(client,phone,id,teamId,({race,team,entries,entry})=>{
+        if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
+        const final=race.final!;
+        finalist=[...final.entries.map(item=>({id:item.finalEntryId,absent:item.absent,runner:item.runner})),...(final.additionalEntries||[]).map(item=>({id:item.runner.id,absent:item.absent,runner:item.runner}))]
+          .find(item=>item.runner!==undefined && isTeamEntry(item.runner) && item.runner.team.id===team.id);
+        const kept=entry??finalist?.runner as TeamEntry|undefined;
+        if(!kept) throw new Refusal(409,`Team ${team.number} is not in the final`);
+        if(mark!=='here') {
+          if(!entry) return;
+          moved=true;
+          return entries.filter(other=>other!==entry);
+        }
+        const marked={...kept,legs:kept.legs.map(leg=>({...leg,here:leg.wristband!==null}))};
+        if(entry && JSON.stringify(marked)===JSON.stringify(entry)) return;
+        moved=true;
+        return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
+      });
+      // Set after the runner list, which marks a team leaving it Absent: neither leaves it unmarked.
+      if(finalist && (moved || finalist.absent!==(mark==='absent'))) await markFinalistAbsent(client,id,finalist.id,mark==='absent');
+      else if(!moved) unchanged();
     });
   });
   // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.

@@ -56,7 +56,7 @@ function marks(read:RaceFlowRead) {
   const entries=teamsOf(read.race);
   return read.race.final!.entries.map(item=>{
     const entry=entries.find(other=>other.id===item.finalEntryId);
-    return [item.team!.number,entry?entry.legs.every(leg=>leg.here)?'here':entry.legs.some(leg=>leg.here)?'some':'unmarked':item.absent?'absent':'gone'];
+    return [item.team!.number,entry?entry.legs.every(leg=>leg.here || leg.wristband===null)?'here':'some':item.absent?'absent':'unmarked'];
   });
 }
 const mark=(token:string,read:RaceFlowRead,number:number,value:'here'|'absent'|null)=>
@@ -73,6 +73,8 @@ test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest fir
   expect(final.race.kind).toBe('final');
   expect(final.race.final!.entries.map(item=>[item.seed,item.team!.number])).toEqual([[1,2],[2,5],[3,1],[4,6],[5,3],[6,7]]);
   expect(marks(final).map(([,state])=>state)).toEqual(Array(6).fill('unmarked'));
+  // As on a children's final, nobody runs it until marked Here: the finish line has no team to place yet.
+  expect(teamsOf(final.race)).toEqual([]);
   // Each seeded team's card shows its four children, even once Absent takes it out of the race.
   expect(final.race.final!.entries[0].legs!.map(leg=>leg.wristband)).toEqual(legs(2));
   expect(final.steps.times).toBeUndefined();
@@ -91,7 +93,7 @@ test('Here / Absent per seeded team lands from two phones at once with no versio
   expect((await mark(sam,read,2,null)).statusCode).toBe(200);
   read=await ok(sam,`/api/races/${final.race.id}`);
   expect(marks(read).slice(0,2)).toEqual([[2,'unmarked'],[5,'unmarked']]);
-  expect(teamsOf(read.race).find(entry=>entry.team.number===5)!.legs.map(leg=>leg.wristband)).toEqual(legs(5));
+  expect(read.race.final!.entries.find(item=>item.team?.number===5)!.legs!.map(leg=>leg.wristband)).toEqual(legs(5));
   // Absent straight from Here.
   await mark(sam,read,1,'absent');
   expect(marks(await ok(sam,`/api/races/${final.race.id}`))[2]).toEqual([1,'absent']);
@@ -132,6 +134,18 @@ test('a lead\'s call-up for an absent team and a lead\'s added team join the fin
   expect(marks(read).at(-1)).toEqual([8,'unmarked']);
   await mark(sam,read,8,'absent');
   expect(marks(await ok(sam,`/api/races/${read.race.id}`)).at(-1)).toEqual([8,'absent']);
+});
+
+test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{
+  const {sam,priya,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  await mark(sam,read,2,'here');await mark(sam,read,5,'absent');
+  read=await ok(priya,`/api/races/${read.race.id}`);
+  expect(teamsOf(read.race).map(entry=>entry.team.number)).toEqual([2]);
+  const id=read.race.id,unmarked=read.race.final!.entries.find(item=>item.team?.number===1)!.finalEntryId,absent=read.race.final!.entries.find(item=>item.team?.number===5)!.finalEntryId;
+  // As on a children's final, an order naming a team not Here keeps only those in the race.
+  const placed=await ok(priya,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:[teamsOf(read.race)[0].id,unmarked,absent],didNotFinish:[],didNotRun:[],added:[]});
+  expect(placed.race.parts.finish.value!.order).toEqual([teamsOf(read.race)[0].id]);
 });
 
 test('the final saves itself once Runners and Finishing order are done, with no Times, and a lead\'s card reads Final saved · confirm the medals',async()=>{

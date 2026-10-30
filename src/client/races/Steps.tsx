@@ -256,18 +256,19 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
 const seedLabel=(entry:NonNullable<RaceFlowRead['race']['final']>['entries'][number])=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`;
 /**
  * A relay final's start line: a card per seeded team (and any team a lead called up or added), each with its children
- * in leg order, a grip on each while it is in the race, and Here / Absent for the whole team, neither lit at first; tapping a lit mark again unmarks it. Taps
+ * in leg order, a grip on each and Edit unless it is Absent, and Here / Absent for the whole team, neither lit at first;
+ * tapping a lit mark again unmarks it. Only teams Here run it, as on a children's final. Taps
  * count from anyone as the race stands (ADR 0002). That's everyone with a team unmarked asks before recording it Absent.
  */
 function TeamAttendance({read,flow,onDone,locked,me}:StepProps) {
   const {race}=read,final=race.final!,inRace=(race.parts.runners.value||[]).filter(isTeamEntry);
   const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
-  // A team in the race is Here once every child is; one out of it was marked Absent.
+  // As on a children's final, a team in the race is Here; one out of it is Absent or not marked yet.
   const cards=final.entries.map(entry=>{
     const current=inRace.find(other=>other.id===entry.finalEntryId);
-    const mark:Mark=current?current.legs.every(leg=>leg.here || leg.wristband===null)?'here':null:entry.absent?'absent':null;
-    return {entry,team:entry.team!,legs:current?.legs??entry.legs??[],mark,inRace:!!current};
+    const mark:Mark=current?'here':entry.absent?'absent':null;
+    return {entry,team:entry.team!,legs:current?.legs??entry.legs??[],mark};
   });
   const [editing,setEditing]=useState<string|null>(null);
   const here=cards.filter(item=>item.mark==='here').length,unmarked=cards.filter(item=>item.mark===null);
@@ -286,10 +287,10 @@ function TeamAttendance({read,flow,onDone,locked,me}:StepProps) {
       {cards.map(item=><section key={item.entry.finalEntryId} className={item.mark==='absent'?'rz-teamcard rz-teamcard--final is-absent':'rz-teamcard rz-teamcard--final'} aria-label={`Team ${item.team.number}`}>
         <div className="rz-teamcard__head"><h3 className="rz-teamcard__name"><span className="rz-teamcard__seed">{seedLabel(item.entry)} · </span>Team {item.team.number}</h3><TeamNote read={read} me={me} teamId={item.team.id} legs={item.legs}/>
           {/* Edit sits by the name, apart from Here / Absent, so it never reads as a third mark. */}
-          {!locked && item.inRace && <EditTeam number={item.team.number} onEdit={()=>setEditing(item.team.id)}/>}
+          {!locked && item.mark!=='absent' && <EditTeam number={item.team.number} onEdit={()=>setEditing(item.team.id)}/>}
           <span className="rz-teamcard__marks">{(['here','absent'] as const).map(mark=><button key={mark} type="button" className={item.mark===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'}
             disabled={locked || flow.busy} aria-pressed={item.mark===mark} aria-label={`Team ${item.team.number}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(item,mark)}>{mark==='here'?'Here':'Absent'}</button>)}</span></div>
-        <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && item.inRace && !editing && !changerOf(read,me,item.team.id)} list="rz-teamlegs" row={()=>''}
+        <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && item.mark!=='absent' && !editing && !changerOf(read,me,item.team.id)} list="rz-teamlegs" row={()=>''}
           content={(leg,place)=><><span className="rz-teamlegs__leg">{ordinal(place)} leg</span><span className="label">{leg.wristband??'–'}</span></>}/>
       </section>)}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
