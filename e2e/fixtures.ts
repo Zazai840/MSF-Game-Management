@@ -1,6 +1,7 @@
 import { test as base,expect,request,type APIRequestContext,type BrowserContext,type Locator,type Page } from '@playwright/test';
 import { isRunner,isTeamEntry } from '../src/shared/races.js';
 import pg from 'pg';
+import { readFileSync } from 'node:fs';
 import type { RaceFlowRead,RacesRead,Role } from '../src/shared/race-flow.js';
 import type { HomeSnapshot,Job,RaceScreenRead } from '../src/shared/race-screen.js';
 import { wrongTimes } from '../src/shared/wrong-times.js';
@@ -14,7 +15,7 @@ export const test=base.extend<{freshCodes:void;openPhone:(name:string,options?:{
   /**
    * Opens a phone as its own browser context with this project's device settings, signed in through the API
    * as a new volunteer (or a lead) with today's job chosen (Start line unless named; a lead is Zone lead), on Races.
-   * Names must be unique across the run (add the project name). Every phone opened is closed when the test ends.
+   * Build names with ownName(), so each is this test's alone. Every phone opened is closed when the test ends.
    */
   openPhone:async({browser},use)=>{
     const contexts:BrowserContext[]=[];
@@ -55,13 +56,31 @@ export type JobName='Start line'|'Finish line'|'Timer';
  * joins as Zone lead, and the owner password as the owner) and, for a volunteer, today's job. Then taps Join.
  */
 export async function join(page:Page,name:string,{code=process.env.E2E_OLYMPICS_PASSWORD!,job}:{code?:string;job?:JobName}={}) {
+  await nameIsThisTests(name);
   await page.getByLabel('Full name',{exact:true}).fill(name);
   await page.getByLabel('Password',{exact:true}).fill(code);
   if(job) await page.getByRole('radiogroup',{name:"What's your job today?"}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
   await page.getByRole('button',{name:'Join',exact:true}).click();
 }
+/**
+ * A test may join or sign in with its own name again (logging back in, a second phone), but a name another test
+ * already used is a clash: it fails here, by name, rather than as a timeout on a screen that asked for a middle name.
+ * Names are kept in the run's test database, as claims are, since each --repeat-each pass runs in a worker of its own.
+ */
+async function nameIsThisTests(name:string) {
+  // The remote smoke check has no run database; its names carry its own run id.
+  if(!process.env.E2E_TEST_DATABASE_URL) return;
+  const key=name.trim().replace(/\s+/g,' '),{testId,titlePath,repeatEachIndex}=test.info(),title=`${titlePath.join(' › ')}${repeatEachIndex?` (repeat ${repeatEachIndex})`:''}`;
+  const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+  try {
+    await db.query('CREATE TABLE IF NOT EXISTS e2e_names(name text PRIMARY KEY,test text NOT NULL,title text NOT NULL)');
+    const first=(await db.query('INSERT INTO e2e_names(name,test,title) VALUES($1,$2,$3) ON CONFLICT(name) DO UPDATE SET name=excluded.name RETURNING test,title',[key,testId,title])).rows[0];
+    if(first.test!==testId) throw new Error(`"${key}" already joined in "${first.title}", so "${title}" clashes with it: build names with ownName() so each test's are its own`);
+  } finally {await db.end();}
+}
 /** Signs a new profile in as a volunteer through the API (Olympics password, then Create profile) and returns its session token. */
 export async function signInThroughApi(request:APIRequestContext,name:string) {
+  await nameIsThisTests(name);
   const {pass}=await (await request.post('/api/password',{data:{password:process.env.E2E_OLYMPICS_PASSWORD}})).json();
   const created=await request.post('/api/profiles',{data:{pass,name}});
   expect(created.ok()).toBe(true);
@@ -401,6 +420,9 @@ export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
   await nextBeside(page,'Place time').click();
 }
+/** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
+// eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
+export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
 /** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer (or the keyboard). */
 export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
@@ -413,14 +435,27 @@ export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   }
 }
 /**
+ * The Approved colour pairs table of docs/running-zone-design-system/accessibility.md as computed colours ("30,43,81 on
+ * 240,231,211"), with each colour's token name for the report. Token values come from tokens.json.
+ */
+const approvedColours=(()=>{
+  const docs=new URL('../docs/running-zone-design-system/',import.meta.url);
+  const tokens=new Map<string,string>(JSON.parse(readFileSync(new URL('tokens.json',docs),'utf8')).color.tokens.map(({name,value}:{name:string;value:string})=>[name,value]));
+  const colour=(name:string):string=>{const value=tokens.get(name);if(!value) throw new Error(`No colour token ${name}`);return value.startsWith('{')?colour(value.slice(1,-1)):[1,3,5].map(at=>parseInt(value.slice(at,at+2),16)).join(',');};
+  const doc=readFileSync(new URL('accessibility.md',docs),'utf8'),table=doc.slice(doc.indexOf('## Approved colour pairs'),doc.indexOf('## Pairs that fail'));
+  const pairs=[...table.matchAll(/^\| `([\w-]+)` \| `([\w-]+)` \|/gm)].map(([,text,ground])=>`${colour(text)} on ${colour(ground)}`);
+  if(pairs.length<40) throw new Error('Read the approved colour pairs from accessibility.md');
+  return {pairs,names:Object.fromEntries([...tokens.keys()].reverse().map(name=>[colour(name),name]))};
+})();
+/**
  * Every rule of the look that can be measured on the screen currently shown. The race flow's screens (inside
  * `.rz-screen`) follow the Running Zone design system (docs/running-zone-design-system/accessibility.md): 44px
- * targets and WCAG AA contrast, with display capitals from CSS. The older screens (Results, Day setup, a relay's race
+ * targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS. The older screens (Results, Day setup, a relay's race
  * screen) also keep the v2 house style: no outlines, sentence case, 15px text, 22-26px headings.
  */
 export async function lookProblems(page:Page) {
   await page.evaluate(()=>document.fonts.ready);
-  return page.evaluate(()=>{
+  return page.evaluate(approved=>{
     const problems:string[]=[];
     const visible=(element:Element)=>{const box=element.getBoundingClientRect();const style=getComputedStyle(element);return box.width>0&&box.height>0&&style.visibility!=='hidden'&&style.display!=='none';};
     const describe=(element:Element)=>`${element.tagName.toLowerCase()} "${(element.textContent||element.getAttribute('aria-label')||'').trim().slice(0,40)}"`;
@@ -515,9 +550,12 @@ export async function lookProblems(page:Page) {
       const [a,b]=[luminance(style.color),luminance(background(element))].sort((x,y)=>y-x);
       const ratio=(a+0.05)/(b+0.05),large=designSystem(element)&&(size>=24||size>=19&&Number(style.fontWeight)>=700);
       if(ratio<(large?3:4.5)) problems.push(`text ${describe(element)} contrast ${ratio.toFixed(2)}`);
+      // The design system's screens use only its approved colour pairs, whatever their contrast.
+      const pair=`${rgb(style.color).slice(0,3).join(',')} on ${rgb(background(element)).slice(0,3).join(',')}`;
+      if(designSystem(element)&&!approved.pairs.includes(pair)) problems.push(`text ${describe(element)} is an unapproved colour pair ${pair.replace(/[\d,]+/g,colour=>approved.names[colour]??`rgb(${colour})`)}`);
     }
     return problems;
-  });
+  },approvedColours);
 }
 export { expect };
 export type { APIRequestContext,Locator,Page };

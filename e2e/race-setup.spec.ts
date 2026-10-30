@@ -1,4 +1,4 @@
-import {ownEvent,ownCode,recordRace,signInThroughApi,submitRace,writeCheckIn,writeOrder,writeTimes,expect,test,type APIRequestContext} from './fixtures.js';
+import {ownName,ownEvent,ownCode,recordRace,signInThroughApi,submitRace,writeCheckIn,writeOrder,writeTimes,expect,test,type APIRequestContext} from './fixtures.js';
 const owner=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** A race as a lead reads it: each child's place and time in check-in order, and who saved each part. */
 async function leadRead(request:APIRequestContext,id:string) {
@@ -9,8 +9,8 @@ async function leadRead(request:APIRequestContext,id:string) {
     authors:[...new Set(history.filter(({author}:{author:string|null})=>author).map(({part,author}:{part:string;author:string})=>`${part} by ${author}`))].sort()
   };
 }
-test('the race setup helpers check in, write the finishing order and times, submit, and record a whole race, each as the phone they are given',async({request},info)=>{
-  const code=await ownCode(),name=`Race setup ${info.project.name}`;
+test('the race setup helpers check in, write the finishing order and times, submit, and record a whole race, each as the phone they are given',async({request})=>{
+  const code=await ownCode(),name=ownName('Race setup');
   await ownEvent(request,code,'Setup sprint','Girl Cubs','timed');await request.post('/api/day/confirm-events',{headers:owner(),data:{}});
   const token=await signInThroughApi(request,name);
   await writeCheckIn(request,token,code,[2001,2002,2003]);

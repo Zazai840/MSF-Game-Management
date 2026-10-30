@@ -1,4 +1,4 @@
-import {backToRaces,becomeLead,deleteCurrentRace,expect,flowRace,openRace,ownCode,ownEvent,switchJob,test,type Page} from './fixtures.js';
+import {ownName,backToRaces,becomeLead,deleteCurrentRace,expect,flowRace,openRace,ownCode,ownEvent,switchJob,test,type Page} from './fixtures.js';
 
 /** Whether the event code shows on New race's section button, the event's card and the race bar, as this phone's job sees them. */
 async function expectCode(page:Page,name:string,code:string,shown:boolean) {
@@ -17,9 +17,9 @@ async function expectCode(page:Page,name:string,code:string,shown:boolean) {
 }
 
 test('event codes show only in the Zone lead role: not for a volunteer\'s job, and not for a lead working as Timer',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Codes sprint ${project}`,code=await ownCode();
+  const name=ownName('Codes sprint'),code=await ownCode();
   await ownEvent(request,code,name);await flowRace(request,process.env.E2E_OWNER_TOKEN!,code);
-  const {page}=await openPhone(`Codes ${project}`);
+  const {page}=await openPhone(ownName('Codes'));
   for(const job of ['Start line','Finish line','Timer'] as const) {
     await switchJob(page,job);await expectCode(page,name,code,false);
   }

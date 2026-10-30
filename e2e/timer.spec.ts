@@ -1,4 +1,4 @@
-import {ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)',gold='rgb(255, 184, 0)',navy='rgb(30, 43, 81)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -10,9 +10,9 @@ async function raceWaitingForTimes(request:APIRequestContext,code:string,name:st
 const savedTimes=async(request:APIRequestContext,code:string)=>(await flowRace(request,process.env.E2E_OWNER_TOKEN!,code))!.race.parts.times.value;
 
 test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one stays marked, and a retyped place clears it',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Times wrong ${project}`;
+  const code=await ownCode(),name=ownName('Times wrong');
   await raceWaitingForTimes(request,code,name);
-  const {page}=await openPhone(`Wrong times ${project}`,{job:'timer'});
+  const {page}=await openPhone(ownName('Wrong times'),{job:'timer'});
   await openRace(page,name);
   // Times never wait for the finish line: one slot per runner checked in.
   await expect(page.locator('.rz-prompt__meta')).toHaveText('Heat 1 · 5 runners');
@@ -84,10 +84,10 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
 });
 
 test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, Fix time and Keep sit just above the number box, in view, with the footer saying why it waits',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Times big ${project}`,n=await ownWristbands('Girl Cubs',12);
+  const code=await ownCode(),name=ownName('Times big'),n=await ownWristbands('Girl Cubs',12);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await writeCheckIn(request,await signInThroughApi(request,`Start ${name}`),code,Array.from({length:12},(_,index)=>n(index)));
-  const {page}=await openPhone(`Big heat ${project}`,{job:'timer'});
+  const {page}=await openPhone(ownName('Big heat'),{job:'timer'});
   await openRace(page,name);
   const slots=page.getByRole('list',{name:'Place times'}).getByRole('listitem');
   await expect(slots).toHaveCount(12);
@@ -121,10 +121,10 @@ test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, F
   await deleteCurrentRace(request,code);
 });
 
-test('tapping a time while typing retypes that place, then the next place is up again; Back steps to the last time; No more finishers marks Times done',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Times chip ${project}`;
+test('tapping a time while typing retypes that place, then the next place is up again; Back steps to the last time; No more finishers marks Times done',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Times chip');
   await raceWaitingForTimes(request,code,name);
-  const {page}=await openPhone(`Chip retype ${project}`,{job:'timer'});
+  const {page}=await openPhone(ownName('Chip retype'),{job:'timer'});
   await openRace(page,name);
   await enterTime(page,'1100');await enterTime(page,'1200');
   const input=page.getByLabel('Place time',{exact:true});
@@ -148,11 +148,11 @@ test('tapping a time while typing retypes that place, then the next place is up 
 });
 
 test('once the finishing order is saved, the Timer has one slot per finisher and the last finisher\'s time marks Times done',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Times finishers ${project}`,n=await ownWristbands('Girl Cubs',11);
+  const code=await ownCode(),name=ownName('Times finishers'),n=await ownWristbands('Girl Cubs',11);
   const runners=Array.from({length:11},(_,index)=>n(index));
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await writeCheckIn(request,await signInThroughApi(request,`Start ${name}`),code,runners);
-  const {page}=await openPhone(`Finishers ${project}`,{job:'timer'});
+  const {page}=await openPhone(ownName('Finishers'),{job:'timer'});
   await openRace(page,name);
   const slots=page.getByRole('list',{name:'Place times'}).getByRole('listitem');
   // Before the order is saved: one slot per runner.
@@ -178,9 +178,9 @@ test('once the finishing order is saved, the Timer has one slot per finisher and
 });
 
 test('three phones work one heat at once: each sees the others\' steps live, the race saves itself once every step is done and they agree, and a lead sees times joined to wristbands',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Times sprint ${project}`;
+  const code=await ownCode(),name=ownName('Times sprint');
   await ownEvent(request,code,name);
-  const start=await openPhone(`Sam times ${project}`),finish=await openPhone(`Priya times ${project}`,{job:'finish'}),timer=await openPhone(`Jo times ${project}`,{job:'timer'});
+  const start=await openPhone(ownName('Sam times')),finish=await openPhone(ownName('Priya times'),{job:'finish'}),timer=await openPhone(ownName('Jo times'),{job:'timer'});
   await request.post('/api/races',{headers:{authorization:`Bearer ${start.token}`},data:{eventCode:code,kind:'heat',number:1}});
   for(const phone of [start,finish,timer]) await openRace(phone.page,name);
   await expect(timer.page.getByText('Places appear here once runners are checked in.',{exact:true})).toBeVisible();
@@ -208,7 +208,7 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await expect.poll(heat1).toBe('saved');
   await expect(timer.page.getByRole('article',{name:`${name} · Girl Cubs`})).toBeVisible();
   // A lead's Times tab joins place, wristband and time.
-  const lead=await openPhone(`Lead times ${project}`,{lead:true});
+  const lead=await openPhone(ownName('Lead times'),{lead:true});
   await openRace(lead.page,name);
   await lead.page.getByRole('tab',{name:/^Times/}).click();
   await expect(lead.page.getByRole('list',{name:'Times'}).getByRole('listitem')).toHaveText([/^1st\s*2202\s*12\.34/,/^2nd\s*2201\s*13\.01/,/^3rd\s*2203\s*13\.50/]);

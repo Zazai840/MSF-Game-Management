@@ -1,4 +1,4 @@
-import {ownCode,back,becomeLead,expect,join,openLeadMenu,openRace,openTeams,ownEvent,recordRace,test,type Page} from './fixtures.js';
+import {ownName,ownCode,back,becomeLead,expect,join,openLeadMenu,openRace,openTeams,ownEvent,recordRace,test,type Page} from './fixtures.js';
 
 const row=(page:Page)=>page.getByRole('navigation',{name:'Back',exact:true});
 /** The back arrow shows bare at the left of the row under the header, names where it goes and is at least 44px to tap. */
@@ -17,9 +17,9 @@ async function onRaces(page:Page) {
 }
 
 test('Races has no back arrow; a race and the Teams screen each go back to Races',async({page,request},info)=>{
-  const project=info.project.name,name=`Back arrow heat ${project}`,code=await ownCode();
+  const name=ownName('Back arrow heat'),code=await ownCode();
   await ownEvent(request,code,name);
-  await page.goto('/');await join(page,`Back arrow volunteer ${project}`,{job:'Start line'});
+  await page.goto('/');await join(page,ownName('Back arrow volunteer'),{job:'Start line'});
   await onRaces(page);
   await request.post('/api/races',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{eventCode:code,kind:'heat',number:1}});
   // A race's back link sits at the left of its app bar, 44px to tap.
@@ -35,10 +35,10 @@ test('Races has no back arrow; a race and the Teams screen each go back to Races
 });
 
 test('on lead screens the back arrow goes up one level: a race to its event, event results to Results, Results and Day setup to Races',async({page,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Back arrow sprint ${project}`,event=`${name} Girl Cubs`;
+  const code=await ownCode(),name=ownName('Back arrow sprint'),event=`${name} Girl Cubs`;
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2021,2022],[1600,1305]);
-  await page.goto('/');await join(page,`Back arrow lead ${project}`,{job:'Start line'});await becomeLead(page,'e2e-owner-fixture');
+  await page.goto('/');await join(page,ownName('Back arrow lead'),{job:'Start line'});await becomeLead(page,'e2e-owner-fixture');
   await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   await arrowGoesBackTo(page,'Races');

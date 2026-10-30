@@ -1,4 +1,4 @@
-import {expect,join,lookProblems,test,type Page} from './fixtures.js';
+import {ownName,expect,join,lookProblems,test,type Page} from './fixtures.js';
 const welcome=(page:Page)=>page.getByRole('region',{name:'Joined on this phone before'});
 /** Ends the session as a new day would, so Join lists the names this phone has joined with. */
 async function backToJoin(page:Page) {
@@ -7,7 +7,7 @@ async function backToJoin(page:Page) {
   await expect(page.getByRole('heading',{level:1,name:'Someone else? Join'})).toBeVisible();
 }
 test('Edit list forgets a name on this phone only, and names do not sign in while editing',async({page},info)=>{
-  const sam=`Sam Edit ${info.project.name}`,ola=`Ola Edit ${info.project.name}`;
+  const sam=ownName('Sam Edit'),ola=ownName('Ola Edit');
   await page.goto('/');
   await join(page,sam,{job:'Start line'});await backToJoin(page);
   await join(page,ola,{job:'Start line'});await backToJoin(page);

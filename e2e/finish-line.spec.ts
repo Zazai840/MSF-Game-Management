@@ -1,4 +1,4 @@
-import {ownCode,ownWristbands,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
 import { isRunner } from '../src/shared/races.js';
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
@@ -10,9 +10,9 @@ const handle=(page:Page,number:number)=>page.getByRole('button',{name:`Move ${nu
 const newHeat=(page:Page,token:string,code:string)=>page.request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
 
 test('two phones: the start line checks in, the finish line places them live, with a runner not on the list, nonfinishers and a drag',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Finish sprint ${project}`;
+  const code=await ownCode(),name=ownName('Finish sprint');
   await ownEvent(request,code,name);
-  const start=await openPhone(`Start finish ${project}`),finish=await openPhone(`Finish ${project}`,{job:'finish'});
+  const start=await openPhone(ownName('Start finish')),finish=await openPhone(ownName('Finish'),{job:'finish'});
   await newHeat(start.page,start.token,code);
   await openRace(start.page,name);await openRace(finish.page,name);
   await expect(finish.page.getByRole('heading',{level:2,name:'Nobody is checked in yet'})).toBeVisible();
@@ -83,11 +83,11 @@ test('two phones: the start line checks in, the finish line places them live, wi
 });
 
 test('a slip on a placed slot never loses its runner: it reads Changing, the runner is back among the buttons, and Keep puts it back',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Slip sprint ${project}`;
+  const code=await ownCode(),name=ownName('Slip sprint');
   const wristband=await ownWristbands('Girl Cubs',3),[first,second,third]=[wristband(0),wristband(1),wristband(2)];
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Slip finish ${project}`,{job:'finish'});
-  await writeCheckIn(request,await signInThroughApi(request,`Slip start ${project}`),code,[first,second,third]);
+  const {page,token}=await openPhone(ownName('Slip finish'),{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Slip start')),code,[first,second,third]);
   await openRace(page,name);
   await page.getByRole('button',{name:`${first} came 1st`,exact:true}).click();
   await expect.poll(async()=>(await flowRace(request,token,code))!.race.parts.finish.value?.order.length).toBe(1);
@@ -118,11 +118,11 @@ test('a slip on a placed slot never loses its runner: it reads Changing, the run
 });
 
 test('the last runner placed goes straight to Check the order, where the handle and the arrow keys move rows and the order sent is exactly that',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Drag sprint ${project}`;
+  const code=await ownCode(),name=ownName('Drag sprint');
   const [a,b,c,d]=[2301,2302,2303,2304];
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Drag finish ${project}`,{job:'finish'});
-  await writeCheckIn(request,await signInThroughApi(request,`Drag start ${project}`),code,[a,b,c,d]);
+  const {page,token}=await openPhone(ownName('Drag finish'),{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Drag start')),code,[a,b,c,d]);
   const {race}=(await flowRace(request,token,code))!;
   await openRace(page,name);
   for(const [number,place] of [[a,'1st'],[b,'2nd'],[c,'3rd'],[d,'4th']] as const) await page.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
@@ -158,11 +158,11 @@ test('the last runner placed goes straight to Check the order, where the handle 
 });
 
 test('a 12-runner heat is fully placed on one phone screen with no sideways scroll, and dragging near the edge scrolls the order',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Scroll sprint ${project}`;
+  const code=await ownCode(),name=ownName('Scroll sprint');
   const runners=Array.from({length:12},(_,index)=>2401+index);
   await ownEvent(request,code,name);
-  const {page}=await openPhone(`Scroll finish ${project}`,{job:'finish'});
-  await writeCheckIn(request,await signInThroughApi(request,`Scroll start ${project}`),code,runners);
+  const {page}=await openPhone(ownName('Scroll finish'),{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Scroll start')),code,runners);
   await openRace(page,name);
   const noSideways=()=>page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth);
   await expect(runnerButtons(page)).toHaveCount(12);
@@ -189,12 +189,12 @@ test('a 12-runner heat is fully placed on one phone screen with no sideways scro
 });
 
 test('Check the order asks about every runner nobody placed, above Save the order with neither choice lit, and saves nothing until each is answered',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Leftover sprint ${project}`;
+  const code=await ownCode(),name=ownName('Leftover sprint');
   const wristband=await ownWristbands('Girl Cubs',12),runners=Array.from({length:12},(_,index)=>wristband(index));
   const [dnf,dnr]=runners.slice(10);
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Leftover finish ${project}`,{job:'finish'});
-  await writeCheckIn(request,await signInThroughApi(request,`Leftover start ${project}`),code,runners);
+  const {page,token}=await openPhone(ownName('Leftover finish'),{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Leftover start')),code,runners);
   await openRace(page,name);
   for(const [index,number] of runners.slice(0,10).entries()) await page.getByRole('button',{name:new RegExp(`^${number} came ${index+1}(st|nd|rd|th)$`)}).click();
   await page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
@@ -237,10 +237,10 @@ test('Check the order asks about every runner nobody placed, above Save the orde
   await deleteCurrentRace(request,code);
 });
 
-test('quick taps on a slow link: taps made while a write is on its way show at once and go in one next write, the latest winning',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Finish queue ${project}`;
+test('quick taps on a slow link: taps made while a write is on its way show at once and go in one next write, the latest winning',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Finish queue');
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(`Finish queue ${project}`,{job:'finish'});
+  const {page,token}=await openPhone(ownName('Finish queue'),{job:'finish'});
   await writeCheckIn(request,token,code,[2031,2032,2033,2034]);
   await openRace(page,name);
   // The first write is held on its way until the other two taps are made.

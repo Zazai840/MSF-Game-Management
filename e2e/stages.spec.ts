@@ -1,14 +1,14 @@
-import {ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,join,test,type Locator} from './fixtures.js';
+import {ownName,ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,join,test,type Locator} from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
 test('timed Event complete checks blockers, locks the event\'s races live, and reopens with a retained comment',async({page,openPhone},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=await ownCode(),name=`Stage event ${info.project.name}`;
+  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=await ownCode(),name=ownName('Stage event');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2601,2602],[1000,1100]);
   // A volunteer starts Heat 2 from the card and checks a runner in.
-  const job=(await openPhone(`Stage starter ${info.project.name}`)).page;
+  const job=(await openPhone(ownName('Stage starter'))).page;
   const card=job.getByRole('article',{name:`${name} · Girl Cubs`});
   // Every heat saved, the event sits under Done.
   await job.locator('details',{hasText:/^Done \(\d+\)/}).locator('summary').click();
@@ -16,7 +16,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await job.getByRole('dialog',{name:'New race'}).getByRole('button',{name:'Create heat 2',exact:true}).click();
   const input=job.getByLabel('Wristband number',{exact:true});await input.fill('2603');await input.press('Enter');
   await expect(job.locator('.rz-prompt__meta')).toHaveText('Heat 2 · 1 runner so far');
-  await page.goto('/');await join(page,`Stage lead ${info.project.name}`,{job:'Start line'});
+  await page.goto('/');await join(page,ownName('Stage lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const blocked=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(blocked.getByRole('button',{name:'Confirm',exact:true})).toBeDisabled();

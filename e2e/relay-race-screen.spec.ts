@@ -1,4 +1,4 @@
-import {ownWristbands,ownCode,deleteCurrentRace,expect,live,lookProblems,openRaceScreen,openRelays,ownRelay,readRaceScreen,signInThroughApi,submitRace,takeJob,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,deleteCurrentRace,expect,live,lookProblems,openRaceScreen,openRelays,ownRelay,readRaceScreen,signInThroughApi,submitRace,takeJob,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
 /**
  * A relay's race screen keeps its jobs held one phone at a time, with Take over, and a heat saves on Submit Race from
  * every holder (ADR 0003). These were the race screen's tests on individual events, which now work in the race flow.
@@ -17,7 +17,7 @@ async function twoTeams(request:APIRequestContext,token:string,code:string) {
 async function openRelay(page:Page,name:string) {await openRelays(page);await openRaceScreen(page,name,'Boy Cubs');}
 
 test('Take over on a relay confirms in the card, carries on from what was entered, and the old holder\'s next write is refused',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Take over relay ${project}`,jo=`Jo relay takeover ${project}`,ali=`Ali relay takeover ${project}`;
+  const code=await ownCode(),name=ownName('Take over relay'),jo=ownName('Jo relay takeover'),ali=ownName('Ali relay takeover');
   await ownRelay(code,name,'Boy Cubs');
   const old=await openPhone(jo),taker=await openPhone(ali);
   await twoTeams(request,old.token,code);
@@ -41,9 +41,9 @@ test('Take over on a relay confirms in the card, carries on from what was entere
 });
 
 test('Submit Race on a relay waits for every holder: every phone shows who it waits on, Not yet clears the presses, and the last press saves the heat',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Submit relay ${project}`,jo=`Jo relay submit ${project}`;
+  const code=await ownCode(),name=ownName('Submit relay'),jo=ownName('Jo relay submit');
   await ownRelay(code,name,'Boy Cubs');
-  const priya=await openPhone(`Priya relay submit ${project}`),timer=await openPhone(jo),ali=await openPhone(`Ali relay submit ${project}`);
+  const priya=await openPhone(ownName('Priya relay submit')),timer=await openPhone(jo),ali=await openPhone(ownName('Ali relay submit'));
   await twoTeams(request,priya.token,code);
   await writeTeamOrder(request,priya.token,code,[2,1]);
   for(const phone of [priya,timer,ali]) await openRelay(phone.page,name);
@@ -71,13 +71,13 @@ test('Submit Race on a relay waits for every holder: every phone shows who it wa
 });
 
 test('a lead\'s Save as lead saves a relay heat stuck waiting on another phone, after a confirm',async({openPhone,request},info)=>{
-  const project=info.project.name,code=await ownCode(),name=`Save as lead relay ${project}`,jo=`Jo relay stuck ${project}`;
+  const code=await ownCode(),name=ownName('Save as lead relay'),jo=ownName('Jo relay stuck');
   await ownRelay(code,name,'Boy Cubs');
-  const timer=await signInThroughApi(request,jo),priya=await openPhone(`Priya relay stuck ${project}`);
+  const timer=await signInThroughApi(request,jo),priya=await openPhone(ownName('Priya relay stuck'));
   await twoTeams(request,priya.token,code);
   await writeTeamOrder(request,priya.token,code,[1,2]);await writeTimes(request,timer,code,[1500,1600]);
   await submitRace(request,priya.token,code);
-  const alex=await openPhone(`Alex relay lead ${project}`,{lead:true});
+  const alex=await openPhone(ownName('Alex relay lead'),{lead:true});
   await openRelay(alex.page,name);await openRelay(priya.page,name);
   await dockSays(alex.page,`Waiting on ${jo}`);
   await expect(priya.page.getByRole('button',{name:'Save as lead',exact:true})).toHaveCount(0);

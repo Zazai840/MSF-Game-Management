@@ -1,4 +1,4 @@
-import {ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRaceScreen,openRelays,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownName,ownCode,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRaceScreen,openRelays,press,signInThroughApi,takeJob,test,tickTeam,writeCheckIn,writeTeam,writeTeamOrder,type Locator,type Page,type PhoneSession} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -18,8 +18,6 @@ async function withKeyboard(session:PhoneSession) {
   return session;
 }
 const keyboard=(page:Page,height:number|null)=>page.evaluate(height=>(window as unknown as {keyboard:(height:number|null)=>void}).keyboard(height),height);
-/** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
-const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
 const footerBottom=async(footer:Locator)=>{const box=(await footer.boundingBox())!;return box.y+box.height;};
 /** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen. */
 async function docksAboveKeyboard(page:Page,box:Locator,footer=page.locator('footer.rz-footer')) {
@@ -39,10 +37,10 @@ test('the viewport lets Android shrink the page for the keyboard',async({page})=
   await page.goto('/');
   await expect(page.locator('meta[name=viewport]')).toHaveAttribute('content',/(^|[ ,])interactive-widget=resizes-content($|,)/);
 });
-test('the start line\'s That\'s everyone and Next ride on the keyboard, and a tap on a greyed-out Next keeps the keyboard up',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=`Docked start ${info.project.name}`;
+test('the start line\'s That\'s everyone and Next ride on the keyboard, and a tap on a greyed-out Next keeps the keyboard up',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Docked start');
   await ownEvent(request,code,name);
-  const {page,token}=await withKeyboard(await openPhone(`Docked start ${info.project.name}`));
+  const {page,token}=await withKeyboard(await openPhone(ownName('Docked start')));
   await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
   await openRace(page,name);
   const box=page.getByLabel('Wristband number',{exact:true});
@@ -53,10 +51,10 @@ test('the start line\'s That\'s everyone and Next ride on the keyboard, and a ta
   await expect(box).toBeFocused();
   await expect(page.getByRole('list',{name:'Wristbands entered'})).toHaveCount(0);
 });
-test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard, and Cancel or Remove lets it close',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=`Docked change ${info.project.name}`;
+test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard, and Cancel or Remove lets it close',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Docked change');
   await ownEvent(request,code,name);
-  const {page,token}=await withKeyboard(await openPhone(`Docked change ${info.project.name}`));
+  const {page,token}=await withKeyboard(await openPhone(ownName('Docked change')));
   await writeCheckIn(request,token,code,[2015]);
   await openRace(page,name);
   await page.getByRole('button',{name:'2015, Change',exact:true}).click();
@@ -73,30 +71,30 @@ test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard, 
   await expect(page.getByRole('button',{name:'2015, Change',exact:true})).toHaveCount(0);
   expect(await typing()).toBe(false);
 });
-test('the finish line\'s Back and Add runner ride on the keyboard',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=`Docked finish ${info.project.name}`;
+test('the finish line\'s Back and Add runner ride on the keyboard',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Docked finish');
   await ownEvent(request,code,name);
-  await writeCheckIn(request,await signInThroughApi(request,`Docked start line ${info.project.name}`),code,[2011]);
-  const {page}=await withKeyboard(await openPhone(`Docked finish ${info.project.name}`,{job:'finish'}));
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Docked start line')),code,[2011]);
+  const {page}=await withKeyboard(await openPhone(ownName('Docked finish'),{job:'finish'}));
   await openRace(page,name);
   await page.getByRole('button',{name:'+ Runner not on the list',exact:true}).click();
   await docksAboveKeyboard(page,page.getByLabel('Wristband number',{exact:true}));
 });
-test('the Timer\'s Back, No more finishers and Next ride on the keyboard',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=`Docked times ${info.project.name}`;
+test('the Timer\'s Back, No more finishers and Next ride on the keyboard',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Docked times');
   await ownEvent(request,code,name,'Girl Cubs','timed');
-  await writeCheckIn(request,await signInThroughApi(request,`Docked timer start ${info.project.name}`),code,[2601,2602]);
-  const {page}=await withKeyboard(await openPhone(`Docked timer ${info.project.name}`,{job:'timer'}));
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Docked timer start')),code,[2601,2602]);
+  const {page}=await withKeyboard(await openPhone(ownName('Docked timer'),{job:'timer'}));
   await openRace(page,name);
   const box=page.getByLabel('Place time',{exact:true});
   await box.focus();
   await docksAboveKeyboard(page,box);
 });
 test('on a 12-runner heat, a wrong time typed with the keyboard up shows its warning, Fix time and Keep in view as the keyboard goes',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=`Docked big timer ${info.project.name}`,n=await ownWristbands('Girl Cubs',12);
+  const code=await ownCode(),name=ownName('Docked big timer'),n=await ownWristbands('Girl Cubs',12);
   await ownEvent(request,code,name,'Girl Cubs','timed');
-  await writeCheckIn(request,await signInThroughApi(request,`Docked big start ${info.project.name}`),code,Array.from({length:12},(_,index)=>n(index)));
-  const {page}=await withKeyboard(await openPhone(`Docked big timer ${info.project.name}`,{job:'timer'}));
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Docked big start')),code,Array.from({length:12},(_,index)=>n(index)));
+  const {page}=await withKeyboard(await openPhone(ownName('Docked big timer'),{job:'timer'}));
   await openRace(page,name);
   const box=page.getByLabel('Place time',{exact:true}),footer=page.locator('footer.rz-footer');
   await box.focus();await keyboard(page,Math.round(page.viewportSize()!.height*0.55));
@@ -123,10 +121,10 @@ test('Join\'s button stays at the foot of the screen while typing',async({page})
   await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
   expect(Math.abs(await footerBottom(footer)-foot)).toBeLessThanOrEqual(1);
 });
-test('the older screens\' button bar rides on the keyboard too',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=`Docked relay ${info.project.name}`;
+test('the older screens\' button bar rides on the keyboard too',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Docked relay');
   await ownRelay(code,name,'Boy Cubs');
-  const {page,token}=await withKeyboard(await openPhone(`Docked relay ${info.project.name}`));
+  const {page,token}=await withKeyboard(await openPhone(ownName('Docked relay')));
   const n=await ownWristbands('Boy Cubs',8);
   for(const legs of [[0,1,2,3],[4,5,6,7]].map(team=>team.map(n))) await writeTeam(request,token,code,legs,{keptWarnings:legs});
   await tickTeam(request,token,code,1);await tickTeam(request,token,code,2);

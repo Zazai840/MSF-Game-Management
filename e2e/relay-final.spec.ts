@@ -1,14 +1,14 @@
-import {ownWristbands,ownCode,openRelays,expect,live,lookProblems,openLeadMenu,openRaceScreen,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,openRelays,expect,live,lookProblems,openLeadMenu,openRaceScreen,ownRelay,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,type Page} from './fixtures.js';
 
 /** A team's block in Check-in Teams, ticked or Absent. */
 const team=(page:Page,number:number)=>page.locator('.ci-list > div').filter({has:page.getByText(`Team ${number}`,{exact:true})});
 
 test('a relay Final on two phones and a lead: six seeded teams ticked, one Absent, the call-up live, a child swapped with Edit, the order only, then the medal teams with four wristbands each',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Relay final ${project}`,code=await ownCode();
+  const name=ownName('Relay final'),code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
   const n=await ownWristbands('Girl Scouts',40),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg)),swapped=n(36);
-  const sam=await openPhone(`Sam Patel final ${project}`),priyaName=`Priya Shah final ${project}`,priya=await openPhone(priyaName);
-  const lead=await openPhone(`Jo Evans final ${project}`,{lead:true});
+  const sam=await openPhone(ownName('Sam Patel final')),priyaName=ownName('Priya Shah final'),priya=await openPhone(priyaName);
+  const lead=await openPhone(ownName('Jo Evans final'),{lead:true});
   for(let number=1;number<=7;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});
   // Two heats: Teams 2, 5, 1, 6, 3 and 7 are the six fastest, Team 4 is 7th.
   for(const [placed,times] of [[[2,1,3,4],[1400,1500,1700,1900]],[[5,6,7],[1450,1600,1800]]]) {
@@ -76,10 +76,10 @@ test('a relay Final on two phones and a lead: six seeded teams ticked, one Absen
 });
 
 test('a lead adds a team to a relay Final by picking it from the relay\'s teams, and it shows Added at check-in',async({openPhone,request},info)=>{
-  const project=info.project.name,name=`Relay final add ${project}`,code=await ownCode();
+  const name=ownName('Relay final add'),code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
   const n=await ownWristbands('Girl Scouts',20),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg));
-  const sam=await openPhone(`Sam Patel final add ${project}`),lead=await openPhone(`Jo Evans final add ${project}`,{lead:true});
+  const sam=await openPhone(ownName('Sam Patel final add')),lead=await openPhone(ownName('Jo Evans final add'),{lead:true});
   // Two teams run the heat, and Team 3 is typed after it: a lead adds it to the Final.
   for(let number=1;number<=2;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});
   for(const number of [1,2]) await tickTeam(request,sam.token,code,number);

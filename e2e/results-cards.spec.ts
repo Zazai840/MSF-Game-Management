@@ -1,4 +1,4 @@
-import {ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,test,type Page} from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const colours={
@@ -24,9 +24,9 @@ async function events(page:Page,name:string,codes:Record<"D"|"R"|"H"|"N",string>
 const cleanUp=async(page:Page,races:{id:string}[])=>{for(const race of races) await page.request.post(`/api/lead/races/${race.id}/delete`,{headers:headers(),data:{permanent:true}});};
 
 test('Results shows each event as a card coloured by its state, with a legend and no to-check counts',async({page},info)=>{
-  const name=`Cards ${info.project.name}`,codes={D:await ownCode(),R:await ownCode(),H:await ownCode(),N:await ownCode()},races=await events(page,name,codes);
+  const name=ownName('Cards'),codes={D:await ownCode(),R:await ownCode(),H:await ownCode(),N:await ownCode()},races=await events(page,name,codes);
   try {
-    await page.goto('/');await join(page,`Cards lead ${info.project.name}`,{job:'Start line'});await becomeLead(page);
+    await page.goto('/');await join(page,ownName('Cards lead'),{job:'Start line'});await becomeLead(page);
     expect((await(await page.request.get('/api/lead',{headers:headers()})).json()).needsYou.some((item:any)=>item.event.code===`${codes.R}`)).toBe(true);
     await openLeadMenu(page,'Results');
     const legend=page.getByRole('list',{name:'Card colours'});
