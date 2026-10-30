@@ -15,7 +15,7 @@ test('Remove signs a profile out for today as a volunteer, with reason signed-ou
   await call(lead.token,'/api/become-lead',{code:day.leadCode});
   const before=(await call(owner.token,'/api/day')).json().revision;
   const self=await call(owner.token,`/api/day/phones/${owner.phone.id}/remove`,{});
-  expect(self.statusCode).toBe(409);expect(self.json().message).toBe("Use Sign out to remove yourself");
+  expect(self.statusCode).toBe(409);expect(self.json().message).toBe("Use Log out to remove yourself");
   expect((await call(owner.token,`/api/day/phones/${lead.phone.id}/remove`,{})).statusCode).toBe(200);
   const next=await call(lead.token,'/api/home');
   expect(next.statusCode).toBe(401);expect(next.json().reason).toBe('signed-out');

@@ -172,6 +172,16 @@ test('a final\'s order can start once someone is Here, and a runner marked Absen
   expect((await call(sam,`/api/races/${back.race.id}/absent`,{raceId:back.race.id,version:back.race.parts.runners.version,here:[],absent:['not-in-this-final']})).statusCode).toBe(400);
   expect((await call(sam,`/api/races/${back.race.id}/steps/times/done`,{})).json().message).toBe('A final has no times');
 });
+test('two finalists Here on one wristband number are refused in words a volunteer reads, with no "settle"',async()=>{
+  const {sam,read}=await final(),seeded=await read();
+  // No screen makes two finalists share a number today; the check-in still refuses it if one ever does.
+  const pool=await openDatabase(process.env.TEST_DATABASE_URL!);
+  try {await pool.query("UPDATE race_finals SET entries=jsonb_set(entries,'{1,runner,wristband}','2001') WHERE race_id=$1",[seeded.race.id]);}
+  finally {await pool.end();}
+  const refused=await attend(sam,seeded,[2001,2002]);
+  expect(refused.statusCode).toBe(409);
+  expect(refused.json().message).toBe('Two runners marked Here have the same wristband number. Ask a lead to check the final.');
+});
 test('a lead\'s call-up for an absent runner shows on the final, unmarked like every finalist',async()=>{
   const {people,sam,read}=await final();
   const away=await ok(await attend(sam,await read(),[2001,2003,2004,2005,2006],[2002]));

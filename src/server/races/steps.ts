@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { entryName,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
+import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
@@ -66,7 +66,7 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   const lineup:RaceEntry[]=[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
   if([...here,...absent].some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
-  if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,'Ask a lead to settle the final line-up');
+  if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,`Two ${runners.some(isTeamEntry)?'teams marked Here have the same team number':'runners marked Here have the same wristband number'}. Ask a lead to check the final.`);
   await publishPart(client,phone,race,'runners',runners);
   await markFinalAbsent(client,race.id,absent);
   await dropFromOrder(client,target.race,runners);

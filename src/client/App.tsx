@@ -128,7 +128,7 @@ function JoinJob({avatar,onChoose,onLead}:{avatar:ReactNode;onChoose:(role:Role)
     <main className="rz-main rz-main--form">
       <h1 className="rz-screen-title">What's your job today?</h1>
       <JobChoice role={null} label="What's your job today?" onChoose={onChoose}/>
-      <p className="rz-empty">You can switch job on any race. Zone lead? Tap Zone lead and type the lead code.</p>
+      <p className="rz-empty">You can switch job on any race.</p>
       <JobCard role="lead" checked={asking} onChoose={()=>setAsking(true)}/>
       {asking && <LeadCode onLead={async()=>{await onLead();onChoose('lead');}}/>}
     </main>

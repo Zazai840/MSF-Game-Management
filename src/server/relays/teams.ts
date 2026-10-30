@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { raceName } from '../../shared/race-flow.js';
+import { raceName,teamsFinishedLine } from '../../shared/race-flow.js';
 import { changingName,legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
 import { Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
@@ -47,7 +47,7 @@ export async function teamsWriteRead(db:Database,dayId:string,relay:{code:string
 export type TeamsWriteRead=Awaited<ReturnType<typeof teamsWriteRead>>;
 /** The list is frozen once the relay's heats are complete. */
 export function requireOpen(relay:TeamsWriteRead) {
-  if(relay.heatsComplete) throw new Refusal(409,`${relay.section} heats are finished. Ask a lead to change the teams.`);
+  if(relay.heatsComplete) throw new Refusal(409,teamsFinishedLine(relay));
 }
 export function requestedTeam(relay:TeamsWriteRead,teamId:string) {
   const team=relay.teams.find(item=>item.id===teamId);

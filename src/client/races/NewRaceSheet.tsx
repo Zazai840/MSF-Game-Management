@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { heatsFinishedLine,volunteerFinalLine,type RaceGroup } from '../../shared/race-flow.js';
-import { Callout,Sheet } from './parts.js';
-/** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
+import { finalMade,heatsFinishedLine,volunteerFinalLine,type RaceGroup,type Role,type Step } from '../../shared/race-flow.js';
+import type { ResultsTarget } from '../../shared/lead-results.js';
+import { Callout,CodeTag,FinalReasonButton,Sheet } from './parts.js';
+/** New race's event lists, by event type, so a volunteer on the wrong tab still finds theirs; New relay lists the relays. */
 const tabs=[['races','Races'],['hurdles','Hurdles']] as const,relayTab=[['relays','Relays']] as const;
+/** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
 export interface NewRaceChoice { eventCode?:string; kind?:'heat'|'final'; number?:number; direct?:boolean }
 /** "Girl Cubs already has heats 1 to 4." */
 function already(group:RaceGroup) {
@@ -16,9 +18,9 @@ function already(group:RaceGroup) {
  * theirs. Once a section's heats are complete it offers no heat, and says so. On Relays it is New relay, listing the
  * relays; with `onTeam` it only asks which relay a New team is for.
  */
-export function NewRaceSheet({groups,relays=false,lead,choice,failure,onClose,onCreate,onTeam}:{groups:readonly RaceGroup[];relays?:boolean;lead:boolean;choice:NewRaceChoice;failure:string;onClose:()=>void;
-  onCreate:(choice:Required<NewRaceChoice>)=>void;onTeam?:(eventCode:string)=>void}) {
-  const chosen=groups.find(group=>group.event.code===choice.eventCode);
+export function NewRaceSheet({groups,relays=false,role,choice,failure,onClose,onCreate,onRace,onResults,onTeam}:{groups:readonly RaceGroup[];relays?:boolean;role:Role;choice:NewRaceChoice;failure:string;onClose:()=>void;
+  onCreate:(choice:Required<NewRaceChoice>)=>void;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void;onTeam?:(eventCode:string)=>void}) {
+  const lead=role==='lead',chosen=groups.find(group=>group.event.code===choice.eventCode);
   const names=[...new Set(groups.map(group=>group.event.name))];
   const [name,setName]=useState(chosen?.event.name??(names.length===1?names[0]:''));
   const [code,setCode]=useState(chosen?.event.code??'');
@@ -28,9 +30,9 @@ export function NewRaceSheet({groups,relays=false,lead,choice,failure,onClose,on
   const [heat,setHeat]=useState<number|null>(chosen?choice.number??chosen.nextHeat:null);
   const sections=groups.filter(group=>group.event.name===name);
   const group=sections.find(item=>item.event.code===code);
-  const hasFinal=lead && group?.event.format==='heats',finalMade=group?.races.some(race=>race.kind==='final');
+  const hasFinal=lead && group?.event.format==='heats',made=group && finalMade(group);
   // A final the server would refuse is greyed, with why in the hint.
-  const blocked=!finalMade && (!group?.finalAvailable || !!group.finalReason);
+  const blocked=!made && (!group?.finalAvailable || !!group.finalReason);
   const race=group && (kind==='final' && hasFinal?'final':'heat'),number=heat??group?.nextHeat;
   return <Sheet title={onTeam?'New team':relays?'New relay':'New race'} onClose={onClose}>
     {(relays?relayTab:tabs).map(([type,label])=>{
@@ -40,21 +42,22 @@ export function NewRaceSheet({groups,relays=false,lead,choice,failure,onClose,on
       </div></fieldset>;
     })}
     {name && <fieldset><legend className="rz-field__label">Section</legend><div className="rz-choices rz-choices--grid">
-      {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}{lead && <span className="rz-code-tag">{item.event.code}</span>}</button>)}
+      {sections.map(item=><button key={item.event.code} type="button" className="rz-choice" aria-pressed={item.event.code===code} onClick={()=>{setCode(item.event.code);setKind('heat');setHeat(item.nextHeat);}}>{item.event.section}<CodeTag code={item.event.code} role={role}/></button>)}
     </div></fieldset>}
     {onTeam?<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!group} onClick={()=>group && onTeam(group.event.code)}>{group?'Type a new team':'Choose the event and section'}</button>:<>
     {group && <fieldset><legend className="rz-field__label">Race</legend>{(group.heatsOpen || hasFinal) && <div className="rz-choices">
       {group.heatsOpen && <button type="button" className="rz-choice" aria-pressed={race==='heat'} onClick={()=>setKind('heat')}>Heat {number}</button>}
       {hasFinal && <button type="button" className="rz-choice" aria-pressed={race==='final'} disabled={blocked} onClick={()=>setKind('final')}>Final</button>}
     </div>}
-      <p className="rz-field__hint">{already(group)}{hasFinal?finalMade?' The final is made: open it from the card.':group.finalReason?` ${group.finalReason.line}.`:' The final opens when every heat has times, with the fastest 6 filled in.'
+      <p className="rz-field__hint">{already(group)}{hasFinal?made?' The final is made: open it from the card.':group.finalReason?'':' The final opens when every heat has times, with the fastest 6 filled in.'
         :volunteerFinalLine(group)?` ${volunteerFinalLine(group)}`:''}</p>
+      {hasFinal && !made && group.finalReason && <FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>}
     </fieldset>}
     {failure && <Callout message={failure}/>}
     {group && race==='heat' && !group.heatsOpen?<Callout status message={heatsFinishedLine(group)}/>
       :<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!group}
         onClick={()=>group && onCreate({eventCode:group.event.code,kind:race!,number:race==='final'?0:number!,direct:!!choice.direct})}>
-        {!group?'Choose the event and section':race==='final'?finalMade?'Open the final':'Create the final':`Create heat ${number}`}</button>}
+        {!group?'Choose the event and section':race==='final'?made?'Open the final':'Create the final':`Create heat ${number}`}</button>}
     </>}
   </Sheet>;
 }

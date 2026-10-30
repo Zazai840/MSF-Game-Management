@@ -230,7 +230,7 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 /* The middle button takes the room the short end ones leave, so "No more finishers" stays on one line at 360px. */
 .rz-footer__trio { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-8); }
 .rz-footer__trio .rz-btn { padding: 0 var(--space-12); white-space: nowrap; }
-.rz-footer__reason { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--warn-ink); }
+.rz-footer__reason { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--navy); }
 
 /* ---------- JobCard ---------- */
 .rz-jobs { display: flex; flex-direction: column; gap: var(--space-12); margin: 0; padding: 0; list-style: none; }
@@ -301,10 +301,13 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-slot--empty .rz-slot__time, .rz-slot--none .rz-slot__time { color: var(--ink-muted); font-weight: 700; font-size: 14px; }
 /* Over 9 places: 4 across and 44px tall, as the PlacesBoard; the warn look and the callout say why a time is wrong. */
 .rz-slots--compact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); }
-.rz-slots--compact .rz-slot { min-height: var(--size-touch); gap: 0; padding: 2px var(--space-8); border-radius: var(--radius-sm); }
+.rz-slots--compact .rz-slot { min-height: var(--size-touch); gap: 0; padding: var(--space-4) var(--space-8); border-radius: var(--radius-sm); }
 .rz-slots--compact .rz-slot__ord { font-size: 13px; line-height: 1; }
 .rz-slots--compact .rz-slot__time { font-size: 16px; line-height: 1.15; }
 .rz-slots--compact .rz-slot__note { display: none; }
+/* With the note hidden, the warning icon marks a wrong or kept time, so it never rests on colour alone. */
+.rz-slot__flag { display: none; }
+.rz-slots--compact .rz-slot__flag { display: inline-block; width: 13px; height: 13px; margin-left: var(--space-4); vertical-align: -2px; stroke-width: 2.6; color: var(--warn-ink); }
 
 /* ---------- ReorderList ---------- */
 .rz-order { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }

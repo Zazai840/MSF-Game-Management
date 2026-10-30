@@ -199,9 +199,15 @@ test('each card says each race\'s state in my job\'s step, sorted into Ready for
   // Another phone saves Ready's finishing order: the card says so, live.
   await writeOrder(request,sam,readyCode,[2003,2004]);
   await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs the finishing order');
-  await request.post(`/api/races/${(await (await request.get('/api/races',{headers:{authorization:`Bearer ${sam}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===readyCode).races[0].id}/steps/positions/done`,{headers:{authorization:`Bearer ${sam}`},data:{}});
+  const readyId=(await (await request.get('/api/races',{headers:{authorization:`Bearer ${sam}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===readyCode).races[0].id;
+  const markDone=(step:string)=>request.post(`/api/races/${readyId}/steps/${step}/done`,{headers:{authorization:`Bearer ${sam}`},data:{}});
+  await markDone('positions');
   await expect(card(page,ready).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, order saved',live);
   await expect(status(page,ready)).toHaveText('Heat 1 order saved');
+  // The start line's own word once its check-in is done: checked in, not done, while the race still waits for times.
+  await markDone('runners');
+  await switchJob(page,'Start line');
+  await expect(status(page,ready)).toHaveText('Heat 1 checked in');
   for(const code of [readyCode,busyCode,doneCode]) await deleteCurrentRace(request,code);
 });
 test('a Hurdles event stays under In progress after its heats are saved, and moves to Done once a lead marks it Event complete',async({openPhone,request},info)=>{

@@ -1,5 +1,6 @@
 import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,finalConfirm,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 import { entryCount } from '../../shared/teams.js';
 /** The design system's line icons (components/Icon/README.md). */
@@ -59,11 +60,13 @@ export function HomeBar({children}:{children:ReactNode}) {
     <div className="rz-appbar__end">{children}</div>
   </header>;
 }
+/** An event's code, shown only in the Zone lead role (volunteers find their race by name), and never while it is on its way. */
+export const CodeTag=({code,role}:{code:string;role:Role})=>role==='lead' && code?<span className="rz-code-tag">{code}</span>:null;
 /** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then the role chip (and for a lead, race actions). */
 export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1>{role==='lead' && code && <span className="rz-code-tag">{code}</span>}</div>
+      <h1>{title}</h1><CodeTag code={code} role={role}/></div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }
@@ -74,7 +77,7 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
  * with the reason beside it, which opens what it is about.
  */
 export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
-  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:{line:string;onOpen:()=>void}}) {
+  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:ReactNode}) {
   return <ol className="rz-heats" aria-label="Heats">
     {races.map(race=>{
       const state=chipState(race,role),here=race.id===current;
@@ -87,15 +90,23 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,n
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
     {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
       onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
-    {onFinal && finalReason && <li><button type="button" className="rz-heat-reason" onClick={finalReason.onOpen}><Icon name="warning"/>{finalReason.line}</button></li>}
+    {onFinal && finalReason && <li>{finalReason}</li>}
   </ol>;
+}
+/**
+ * Why a lead's final would be refused, beside "+ Final" and under New race's greyed Final. Tapping it opens what it is
+ * about: that race on its step, or Results on the event when no step fixes it (a runner who ran twice).
+ */
+export function FinalReasonButton({group,onRace,onResults}:{group:Pick<RaceGroup,'event'|'finalReason'>;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
+  const reason=group.finalReason!;
+  return <button type="button" className="rz-heat-reason" onClick={()=>reason.step===null?onResults({event:group.event}):onRace(reason.raceId,reason.step)}><Icon name="warning"/>{reason.line}</button>;
 }
 /** A step's status in words: "5 checked in" (on a relay "5 teams"), "2 of 8", "10 finished", "Not started". */
 export function stepWords(step:Step,status:StepStatus,relay=false) {
   if(status.state==='not started') return 'Not started';
   if(step==='runners') return status.state==='done'?(relay?entryCount(status.count,true):`${status.count} checked in`):`${status.count} so far`;
   // The Did not finish count goes on the step's own meta line: beside two other steps it would not fit on one line at 360px.
-  if(step==='positions' && status.state==='done') return `${status.count-(status.didNotFinish||0)} finished`;
+  if(step==='positions' && status.state==='done') return finishedCount(status);
   return `${status.count} of ${status.expected}`;
 }
 /**

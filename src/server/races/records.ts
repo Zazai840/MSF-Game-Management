@@ -1,4 +1,5 @@
 import type { FinalField } from '../../shared/finals.js';
+import { raceFinishedLine } from '../../shared/race-flow.js';
 import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
@@ -34,8 +35,8 @@ export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> 
   const finals=new Map(finalRows.map(row=>[row.race_id,row]));
   return rows.map(row=>storedRace(row,parts.get(row.id)||[],finals.get(row.id)));
 }
-export function requireStageOpen(race:Pick<RaceRead,'stageComplete'>) {
-  if(race.stageComplete) throw new Refusal(409,'Stage complete - ask a lead');
+export function requireStageOpen(race:Pick<RaceRead,'stageComplete'|'kind'> & {event:Pick<RaceRead['event'],'section'>}) {
+  if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
 }
 export async function readRace(db:Database,dayId:string,id:string):Promise<StoredRace> {
   if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) throw new Refusal(404,'Race not found');

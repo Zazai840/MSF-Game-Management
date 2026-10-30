@@ -102,7 +102,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-heat--final { padding: 0 var(--space-12); background: none; box-shadow: none; border: 2px dashed var(--navy); }
 .rz-heat--final[aria-disabled="true"] { border: 0; background: var(--disabled-fill); color: var(--disabled-ink); cursor: not-allowed; }
 .rz-heat-reason { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-4); padding: 0; border: 0; background: none; color: var(--navy); font-size: 14px; font-weight: 700; text-align: left; text-decoration: underline; }
-.rz-heat-reason .rz-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.6; color: var(--warn-ink); }
+.rz-heat-reason .rz-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.6; color: var(--navy); }
 
 /* ---------- StepStrip ---------- */
 .rz-steps { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-6); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
@@ -111,7 +111,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-step__label { display: flex; align-items: center; gap: var(--space-4); font-size: 13px; line-height: 1.2; font-weight: 800; }
 .rz-step__label .rz-icon { width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink); }
 .rz-step__status { display: flex; align-items: center; gap: var(--space-4); font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
-.rz-step__status .rz-icon { width: 13px; height: 13px; stroke-width: 2.6; color: var(--warn-ink); }
+.rz-step__status .rz-icon { width: 13px; height: 13px; stroke-width: 2.6; color: var(--navy); }
 .rz-step--mine { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-step--mine .rz-step__status { color: var(--navy); font-weight: 700; }
 .rz-step[aria-selected="true"] { background: var(--navy); box-shadow: none; color: var(--on-navy); }
@@ -120,7 +120,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-step--mine[aria-selected="true"] { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); color: var(--navy); }
 .rz-step--mine[aria-selected="true"] .rz-step__status { color: var(--navy); }
 .rz-step--mine[aria-selected="true"] .rz-step__label .rz-icon { color: var(--throwing-ink); }
-.rz-step--mine[aria-selected="true"] .rz-step__status .rz-icon { color: var(--warn-ink); }
+.rz-step--mine[aria-selected="true"] .rz-step__status .rz-icon { color: var(--navy); }
 /* Looking at another role's step: what it is and that it is read-only. */
 .rz-readonly { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); border: 2px dashed var(--navy); background: var(--card); }
 .rz-readonly__text { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.35; font-weight: 700; }
@@ -218,7 +218,7 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
 .rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
 .rz-teamcard__head .rz-btn { margin-left: auto; }
-.rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
+.rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--navy); }
 .rz-teamcard__seed { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
 .rz-teamcard__marks { display: flex; gap: var(--space-6); margin-left: auto; }
 .rz-teamcard__marks .rz-btn { margin-left: 0; }
@@ -240,7 +240,6 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-lead-row__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; text-transform: uppercase; }
 .rz-lead-row__num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-lead-row__end { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
-.rz-lead-row__note { grid-column: 2 / -1; font-size: 13px; font-weight: 700; color: var(--warn-ink); }
 /* A relay team as a lead reads it: "Team 5" over its four children in leg order. */
 .rz-team-legs { display: block; font-size: 14px; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .rz-lead-row__legs { grid-column: 2 / -1; margin-top: calc(-1 * var(--space-8)); }
