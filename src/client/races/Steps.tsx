@@ -25,7 +25,7 @@ export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWr
  * what is in the box selected, so typing replaces it. Tapping the box while a warning waits calls `onRelease` (as Fix
  * does), keeping the typed digits to edit. Enter calls `onEnter`, as the footer's Next does.
  */
-function DigitsField({id,label,value,onChange,onEnter,onRelease,held=false,busy=false,warn=false,hint,selectKey,time=false}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
+export function DigitsField({id,label,value,onChange,onEnter,onRelease,held=false,busy=false,warn=false,hint,selectKey,time=false}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
   onRelease:()=>void;held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string;time?:boolean}) {
   const input=useRef<HTMLInputElement>(null),wasHeld=useRef(held);
   useLayoutEffect(()=>{if(held) input.current?.blur();else if(wasHeld.current) {input.current?.focus();input.current?.select();}wasHeld.current=held;},[held]);
@@ -46,7 +46,7 @@ function DigitsField({id,label,value,onChange,onEnter,onRelease,held=false,busy=
  * A footer button that keeps the number pad open (the tap does not take focus from the input). Greyed out it is
  * aria-disabled, not disabled: a disabled button gets no mousedown to cancel, so a tap on it would close the keyboard.
  */
-const KeepFocus=({className,disabled=false,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
+export const KeepFocus=({className,disabled=false,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
   <button type="button" className={className} aria-disabled={disabled || undefined} onMouseDown={event=>event.preventDefault()} onClick={()=>{if(!disabled) onClick();}}>{children}</button>;
 /** The usual-heat-size warning shows once per race per person: has this phone shown it for this race? */
 function useSizeWarning(raceId:string) {
