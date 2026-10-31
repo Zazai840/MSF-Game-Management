@@ -27,7 +27,9 @@ async function start() {
 }
 const legs=(number:number)=>[1,2,3,4].map(leg=>2000+number*100+leg);
 
-test('a relay\'s leaderboard has one row per team with its four children in leg order, ranked by time, six qualifying',async()=>{
+/** A relay day of 7-8 teams over two heats, built through the API (about 70 requests): well under a second alone, longer on a busy machine. */
+const relayDay={timeout:20_000};
+test('a relay\'s leaderboard has one row per team with its four children in leg order, ranked by time, six qualifying',relayDay,async()=>{
   const {teams,heat,results}=await start();
   await teams(7);
   await heat([2,1,3,4],[3400,3500,3700,3900]);
@@ -43,7 +45,7 @@ test('a relay\'s leaderboard has one row per team with its four children in leg 
   expect(ranked.band).toEqual({highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'});
 });
 
-test('Heats complete on a relay seeds the six fastest teams into the final, each with its four children',async()=>{
+test('+ Final on a relay seeds the six fastest teams into the final, each with its four children',relayDay,async()=>{
   const {lead,teams,heat,results}=await start();
   await teams(7);
   await heat([2,1,3,4],[3400,3500,3700,3900]);
@@ -59,7 +61,7 @@ test('Heats complete on a relay seeds the six fastest teams into the final, each
   expect(final.runners).toEqual([]);
 });
 
-test('Reopen heats on a relay removes its unrun final with the line-up and opens the heats for changes; + Final makes "Final" again',async()=>{
+test('Reopen heats on a relay removes its unrun final with the line-up and opens the heats for changes; + Final makes "Final" again',relayDay,async()=>{
   const {lead,teams,heat,results}=await start();
   await teams(7);
   await heat([2,1,3,4],[3400,3500,3700,3900]);
@@ -80,7 +82,7 @@ test('Reopen heats on a relay removes its unrun final with the line-up and opens
   expect((await results()).finalResults!.entries).toHaveLength(6);
 });
 
-test('equal team times in different heats are a tie that must be settled before Heats complete',async()=>{
+test('equal team times in different heats are a tie that must be settled before + Final',relayDay,async()=>{
   const {teams,heat,results}=await start();
   await teams(8);
   await heat([1,2,3,4],[3400,3500,3600,3700]);
@@ -92,7 +94,7 @@ test('equal team times in different heats are a tie that must be settled before 
   expect(ranked.heatsCheckSheet!.mustSettleFirst.map(item=>item.message)).toEqual(['Tie: Team 4, Team 7']);
 });
 
-test('Heats complete ignores a relay\'s empty current heat and waits on one with teams ticked',async()=>{
+test('+ Final ignores a relay\'s empty current heat and waits on one with teams ticked',async()=>{
   const {sam,relays,teams,heat,results}=await start();
   await teams(3);
   await heat([1,2],[3400,3500]);

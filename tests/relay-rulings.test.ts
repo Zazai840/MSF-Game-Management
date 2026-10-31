@@ -26,6 +26,8 @@ async function start() {
   const leadRace=async(id:string)=>(await call(lead,`/api/lead/races/${id}`)).json().race;
   return {sam,lead,relays,teams,heat,read,row,leadRace};
 }
+/** A relay day of 7-8 teams over two heats, built through the API (about 70 requests): well under a second alone, longer on a busy machine. */
+const relayDay={timeout:20_000};
 const ranking=(results:EventResultsRead['results'])=>results.leaderboard.map(row=>[row.team?.number,row.position,row.status]);
 
 test('a lead disqualifies a whole team and lifts it: the team leaves the ranking and comes back',async()=>{
@@ -58,7 +60,7 @@ async function tiedAtSixth() {
 }
 const settle=(lead:string,body:object)=>call(lead,'/api/lead/events/R22/settle-tie',body);
 
-test('an open tie between teams blocks + Final until the lead settles it: No run-off needed',async()=>{
+test('an open tie between teams blocks + Final until the lead settles it: No run-off needed',relayDay,async()=>{
   const {lead,tie,row}=await tiedAtSixth();
   const blocked=await call(lead,'/api/races',{eventCode:'R22',kind:'final'});
   expect(blocked.statusCode).toBe(409);
@@ -71,7 +73,7 @@ test('an open tie between teams blocks + Final until the lead settles it: No run
   expect((await call(lead,'/api/races',{eventCode:'R22',kind:'final'})).statusCode).toBe(200);
 });
 
-test('a run-off or a decision puts the tied teams in the order the lead gives, and the first takes the last final place',async()=>{
+test('a run-off or a decision puts the tied teams in the order the lead gives, and the first takes the last final place',relayDay,async()=>{
   for(const [outcome,comment,message] of [['run-off','','Jo Evans recorded a run-off at 37.00: Team 7 then Team 4'],['decided','Judges agreed','Jo Evans decided the tie at 37.00 without a run-off: Team 7 then Team 4 - Judges agreed']]) {
     const {lead,tie,row}=await tiedAtSixth();
     const team4=await row(4),team7=await row(7);
