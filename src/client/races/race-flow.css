@@ -275,9 +275,6 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
   /* Races' footer: the Updated-at line, then New race at its own width. */
   .rz-footer--home { flex-direction: row; align-items: center; justify-content: space-between; }
   .rz-footer--home > .rz-btn--display { width: auto; min-width: 320px; padding: 0 var(--space-32); }
-  /* A race: the footer's actions keep a phone's reach, at the column's right. */
-  .rz-footer:not(.rz-footer--home) > * { width: 100%; max-width: 520px; margin-left: auto; }
-  .rz-footer:not(.rz-footer--home) { align-items: flex-end; }
   /* Grids add columns rather than stretching tiles. */
   .rz-runners { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .rz-runners--teams { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }

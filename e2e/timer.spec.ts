@@ -99,6 +99,9 @@ test('the time box shows the time itself, filling from the right as digits are t
   await expect(page.getByText(/Shows as/)).toHaveCount(0);
   await expect(input).toMatchAriaSnapshot('- textbox "Place time": "12.34"');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('time-box-typing.png'),fullPage:true});
+  // The footer's buttons span the column, as the place slots do, on a laptop too.
+  const column=(await page.getByRole('list',{name:'Place times'}).boundingBox())!,footer=(await page.locator('.rz-footer__trio').boundingBox())!;
+  expect([footer.x,footer.x+footer.width].map(Math.round)).toEqual([column.x,column.x+column.width].map(Math.round));
   for(const key of ['.',',','a','-']) {await input.press(key);await expect(input).toHaveValue('12.34');}
   await input.press('5');await input.press('6');await expect(input).toHaveValue('12:34.56');
   await input.press('7');await expect(input).toHaveValue('12:34.56');
