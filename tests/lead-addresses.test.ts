@@ -15,7 +15,8 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races/r-1',{kind:'race-page',code:'R4',raceId:'r-1'}],
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
-    ['/day/events',{kind:'events'}]
+    ['/day/events',{kind:'events'}],
+    ['/day/olympics-password',{kind:'olympics-password'}]
   ];
   for(const [address,view] of screens) {
     expect(viewAt(address)).toEqual(view);
@@ -41,6 +42,7 @@ test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'day'})).toEqual({kind:'races'});
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});
   expect(parentOf({kind:'events'})).toEqual({kind:'day'});
+  expect(parentOf({kind:'olympics-password'})).toEqual({kind:'day'});
 });
 
 test('a failed request says Could not connect, a refused save says Not saved, each with the server\'s reason when it gives one',()=>{
