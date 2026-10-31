@@ -81,19 +81,15 @@ Taking a relay team back out of a heat at check-in. The team is still to run aga
 _Avoid_: Untick, remove, drop
 
 **Relay team**:
-Four children who run one relay together, known as Team 1, Team 2 and so on within their relay, with their wristband numbers in leg order. A team belongs to its relay's team list, not to a race; each race keeps the four children who actually ran in it.
+Four children who run one relay together, known as Team 1, Team 2 and so on within their relay, with their wristband numbers in leg order. A team is made only by typing it into a heat at its start line, leg by leg. Teams are numbered within the relay in the order they are saved, across heats, and never renumbered. A team belongs to its relay, not to a race; each race keeps the four children who actually ran in it.
 _Avoid_: Squad, relay entry, team registration
 
 **Leg**:
 One child's part of a relay race. A team's wristband numbers are in leg order: the first runs the 1st leg, and the fourth crosses the finish line.
 _Avoid_: Runner 1-4, lap, stage
 
-**Team list**:
-A relay's teams, typed at the prep area in the relay's teams sheet before the relays start, or by New team at check-in. It has no hold: each team is saved on its own. Teams are numbered in the order they are added and never renumbered; a team that has never been in a race can be removed, and its number is not used again.
-_Avoid_: Start list, entries, registration
-
 **Still to run**:
-A relay team that no race of its relay holds, apart from deleted races. Only teams still to run are offered at a heat's check-in, and a team that didn't run goes back to them.
+A relay team that no race of its relay holds, apart from deleted races: a team taken off a heat, or one that did not run. They are listed under the number box at a heat's check-in, each with its number and Add, which puts the team in the heat with every child checked in. Teams typed ahead on a day saved before teams were made in the heat are still to run too.
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
@@ -227,7 +223,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
+Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: a relay is listed once it has a heat, and its teams are typed into its heats. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:
@@ -245,14 +241,6 @@ _Avoid_: station, position
 **Undo**:
 The toast's way to reverse your own save of a step, only while nobody else has changed that step since. It reopens the race at that step, and un-saves a race the save had saved.
 _Avoid_: Revert, roll back
-
-**Teams sheet**:
-The bottom sheet a relay card's Teams row opens, listing every team with its four members in leg order, where teams are made up and changed.
-_Avoid_: Teams screen, team page
-
-**Change anyway**:
-What a volunteer taps to edit a team someone else set, after "Aisha Noor has already set this team."
-_Avoid_: Take over, unlock, override
 
 **Confirm the medals**:
 A lead's Final complete or Event complete in Results, which decides an event's medals. Until then the event waits in the lead's Action required.

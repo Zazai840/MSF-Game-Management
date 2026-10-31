@@ -34,11 +34,11 @@ async function tap(token:string,read:RaceFlowRead,what:'tick'|'take-off'|'here',
 }
 const teamsOf=(race:Pick<RaceRead,'parts'>)=>(race.parts.runners.value||[]).filter(isTeamEntry);
 
-test('the race flow lists relays and makes the next heat, several heats open at once, each read carrying the team list',async()=>{
+test('the race flow lists relays and makes the next heat, several heats open at once, each read carrying the relay\'s teams',async()=>{
   const {sam,relays}=await start();
-  await relays.team(sam,'R22',[2101,2102,2103,2104]);
   const list=await ok<RacesRead>(sam,'/api/races');
   expect(list.groups.find(group=>group.event.code==='R22')).toMatchObject({event:{relay:true,type:'relays'},races:[],nextHeat:1});
+  await relays.team(sam,'R22',[2101,2102,2103,2104]);
   const one=await newHeat(sam,1),two=await newHeat(sam,2);
   expect([one.race,two.race]).toMatchObject([{kind:'heat',number:1,state:'in progress'},{kind:'heat',number:2,state:'in progress'}]);
   expect(two.teams!.map(team=>team.number)).toEqual([1]);
@@ -94,17 +94,4 @@ test('a team tap on a race that is not a relay\'s is refused',async()=>{
   const refused=await call(sam,`/api/races/${race.race.id}/teams/00000000-0000-0000-0000-000000000000/tick`,{});
   expect(refused.statusCode).toBe(409);
   expect(refused.json().message).toBe('Only a relay has teams');
-});
-test('a team someone else is changing in the teams sheet can\'t be added until they save or cancel; this phone\'s own open team can',async()=>{
-  const {sam,priya,relays}=await start();
-  await relays.team(sam,'R22',[2101,2102,2103,2104]);
-  await relays.team(sam,'R22',[2201,2202,2203,2204]);
-  const heat=await newHeat(priya,1),teams=`/api/relays/${heat.group.event.id}/teams/${teamId(heat,1)}`;
-  await ok(sam,`${teams}/open`,{});
-  expect((await tap(priya,heat,'tick',1)).json()).toEqual({message:'Sam Patel is changing Team 1'});
-  await ok(sam,`${teams}/close`,{});
-  expect((await tap(priya,heat,'tick',1)).statusCode).toBe(200);
-  // As its cards show it, a team this phone has open is not someone else changing it.
-  await ok(priya,`/api/relays/${heat.group.event.id}/teams/${teamId(heat,2)}/open`,{});
-  expect((await tap(priya,heat,'tick',2)).statusCode).toBe(200);
 });

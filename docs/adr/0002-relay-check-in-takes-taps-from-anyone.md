@@ -10,4 +10,4 @@ The trade-off that is left: two volunteers taking the same team off and adding i
 
 - The finishing order and the times on a relay race follow ADR 0003, as on any race, not ADR 0001.
 - Each tap still moves the Runners step's version on, so a version-checked write elsewhere sees the change.
-- A change to a child's number is not a tap: it is written whole against the team's version, whether from the teams sheet, from Edit on a start-line team card, or by a grip drag that puts its legs in a new order. A Save or drop on an older version is refused ("Aisha Noor changed this a moment ago", with Show latest) rather than applied.
+- A change to a child's number is not a tap: it is written whole against the team's version, whether from a team's leg chip at the start line or by a grip drag that puts its legs in a new order. A Save or drop on an older version is refused ("Aisha Noor changed this a moment ago", with Show latest) rather than applied.

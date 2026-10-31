@@ -1,13 +1,13 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
-import type { RaceFlowRead,RacesRead } from '../src/shared/race-flow.js';
+import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { isTeamEntry,type RaceRead } from '../src/shared/races.js';
 import { signInOwner } from './support/sign-in.js';
 import { relayFlowSetup } from './support/relays.js';
 /**
- * A team changed at check-in: Edit saves the team list and the race's entry together (`raceId`), New team joins the
- * heat (`joinRaceId`), and while a phone has a team open (`/open`, `/close`) the others see who.
+ * A team changed at check-in: a Save writes the team and the race's entry together (`raceId`), and a team typed in
+ * joins the heat (`joinRaceId`).
  */
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
@@ -27,7 +27,7 @@ async function start() {
 const teamsOf=(race:Pick<RaceRead,'parts'>)=>(race.parts.runners.value||[]).filter(isTeamEntry);
 const team=(read:{teams?:RaceFlowRead['teams']},number:number)=>read.teams!.find(item=>item.number===number)!;
 
-test('Edit at check-in saves the team list and this race\'s entry together, every child in it checked in, a child swapped in too',async()=>{
+test('a leg change at check-in saves the team and this race\'s entry together, every child in it checked in, a child swapped in too',async()=>{
   const {sam,priya,relays}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
   const seen=await relays.tick(sam,'R22',1),ticked=seen,one=team(seen,1),url=`/api/relays/${seen.group.event.id}/teams/${one.id}`;
@@ -44,7 +44,7 @@ test('Edit at check-in saves the team list and this race\'s entry together, ever
   expect((await call(sam,url,{version:one.version+1,legs:[2101,null,null,null],keptWarnings:[],raceId:other.race.id})).json()).toEqual({message:'Team 1 is no longer in Heat 2'});
 });
 
-test('New team at check-in takes the next number and the same checks, and joins this heat in the same write',async()=>{
+test('a team typed in at check-in takes the next number and the same checks, and joins this heat in the same write',async()=>{
   const {sam,relays}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
   await relays.team(sam,'R28',[4001,null,null,null]);
@@ -57,36 +57,10 @@ test('New team at check-in takes the next number and the same checks, and joins 
   expect(joined.race.id).toBe(heat.race.id);
   expect(teamsOf(joined.race).map(entry=>[entry.team.number,entry.legs.map(leg=>[leg.wristband,leg.here])])).toEqual([[1,[[2101,true],[2102,true],[2103,true],[2104,true]]],[2,[[2201,true],[2202,true],[6100,true],[null,false]]]]);
   expect(team(joined,2).races).toMatchObject([{id:heat.race.id}]);
-  // A refused join writes nothing: the team list is as it was.
+  // A refused join writes nothing: the teams are as they were.
   await relays.save(sam,'R22',[1,2],[3400,3500]);
   expect((await call(sam,url,{legs:[2301,null,null,null],keptWarnings:[],joinRaceId:heat.race.id})).json()).toEqual({message:'Heat 1 is saved - ask a lead to change it'});
   expect((await relays.teams(sam,'R22')).map(item=>item.number)).toEqual([1,2]);
-});
-
-test('other phones see who has a team open, cleared on Save, Cancel or sign-out; opening never locks anyone out',async()=>{
-  const {sam,priya,relays}=await start();
-  await relays.team(sam,'R22',[2101,2102,2103,2104]);
-  const heat=await relays.tick(sam,'R22',1),one=team(heat,1),url=`/api/relays/${heat.group.event.id}/teams/${one.id}`;
-  const changing=async()=>team(await ok(sam,`/api/races/${heat.race.id}`),1).changing?.name??null;
-  const opened=await ok<RacesRead>(priya,`${url}/open`,{});
-  expect(opened.revision).toBeGreaterThan(heat.revision);
-  expect(await changing()).toBe('Priya Noor');
-  // Sam's close leaves Priya's mark alone; Sam opening moves it to him (nothing locks), and his Cancel clears it.
-  await ok<RacesRead>(sam,`${url}/close`,{});
-  expect(await changing()).toBe('Priya Noor');
-  await ok<RacesRead>(sam,`${url}/open`,{});
-  expect(await changing()).toBe('Sam Patel');
-  await ok<RacesRead>(sam,`${url}/close`,{});
-  expect(await changing()).toBeNull();
-  // Save clears it.
-  await ok<RacesRead>(priya,`${url}/open`,{});
-  await ok(priya,url,{version:one.version,legs:[2101,2102,2103,2109],keptWarnings:[],raceId:heat.race.id});
-  expect(await changing()).toBeNull();
-  // Signing out clears it.
-  await ok<RacesRead>(priya,`${url}/open`,{});
-  expect((await call(priya,'/api/sign-out',{})).statusCode).toBe(200);
-  expect(await changing()).toBeNull();
-  expect((await call(sam,`/api/relays/${heat.group.event.id}/teams/nope/open`,{})).json()).toEqual({message:'Team not found'});
 });
 
 test('a final\'s team is changed at its check-in once the heats are complete, and keeps its new legs through Absent and back',async()=>{
@@ -96,8 +70,6 @@ test('a final\'s team is changed at its check-in once the heats are complete, an
   await relays.save(sam,'R22',[1,2],[3400,3500]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'}),two=team(final,2),url=`/api/relays/${final.group.event.id}/teams/${two.id}`;
-  // From the teams sheet the list is frozen; from the final's check-in it is not.
-  expect((await call(sam,url,{version:two.version,legs:[2121,2122,2199,2124],keptWarnings:[]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
   await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:'here'});
   const saved=await ok(sam,url,{version:two.version,legs:[2122,2121,2199,2124],keptWarnings:[],raceId:final.race.id});
   const legsOf=(read:RaceFlowRead)=>teamsOf(read.race).find(entry=>entry.team.id===two.id)!.legs.map(leg=>[leg.wristband,leg.here]);

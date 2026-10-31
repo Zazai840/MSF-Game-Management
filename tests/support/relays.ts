@@ -3,7 +3,8 @@ import type { RaceFlowRead,RacesRead } from '../../src/shared/race-flow.js';
 /**
  * The one way server tests set relays up, as the phone whose token is given: the Start line taps, step writes and done marks a
  * volunteer's taps make, on the race the relay is at (its final once it has one, else its latest race not saved, else
- * a new next heat). Teams are typed on the team list with `team`, as the teams sheet's Save does, and named by their number.
+ * a new next heat). `team` makes a team still to run, as a start line that types it into the heat and takes it off again
+ * does, and teams are named by their number.
  * Each helper fails the test unless the server accepts the write.
  */
 export function relayFlowSetup(app:FastifyInstance) {
@@ -27,11 +28,18 @@ export function relayFlowSetup(app:FastifyInstance) {
   async function worked(token:string,code:string) {
     return await race(token,code) ?? post<RaceFlowRead>(token,'/api/races',{eventCode:code,kind:'heat',number:(await group(token,code)).nextHeat});
   }
-  /** Adds a team to the relay's team list, as the teams sheet's New team does, keeping every warning. */
-  const team=async(token:string,code:string,legs:Array<number|null>)=>
-    post<RacesRead>(token,`/api/relays/${(await group(token,code)).event.id}/teams`,{legs,keptWarnings:legs.filter(leg=>leg!==null)});
-  /** The relay's team list, as the races list carries it. */
-  const teams=async(token:string,code:string)=>(await group(token,code)).teams!;
+  /**
+   * Makes a team still to run, keeping every warning: typed into the race the relay is at, as the start line's last
+   * Next does, then taken off. Answers the race as it then stands.
+   */
+  async function team(token:string,code:string,legs:Array<number|null>) {
+    const at=await worked(token,code);
+    const typed=await post<RaceFlowRead>(token,`/api/relays/${at.group.event.id}/teams`,{legs,keptWarnings:legs.filter(leg=>leg!==null),joinRaceId:at.race.id});
+    const made=typed.race.parts.runners.value!.filter(entry=>'team' in entry).at(-1) as {team:{id:string}};
+    return post<RaceFlowRead>(token,`/api/races/${at.race.id}/teams/${made.team.id}/take-off`,{});
+  }
+  /** The relay's teams, as the race it is at carries them. */
+  const teams=async(token:string,code:string)=>(await worked(token,code)).teams!;
   /** A Start line tap on Team `number`: tick or take-off. */
   async function tap(token:string,code:string,what:'tick'|'take-off',number:number,body:object={}) {
     const read=await worked(token,code),teamId=read.teams!.find(item=>item.number===number)!.id;

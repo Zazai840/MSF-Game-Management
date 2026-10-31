@@ -1,8 +1,9 @@
 import { afterEach,expect,test } from 'vitest';
+import pg from 'pg';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
 import type { ResultsRead } from '../src/shared/lead-results.js';
-import type { RaceFlowRead } from '../src/shared/race-flow.js';
+import type { RaceFlowRead,RacesRead } from '../src/shared/race-flow.js';
 import { isTeamEntry,type RaceRead } from '../src/shared/races.js';
 import { toCheckWording } from '../src/shared/to-check.js';
 import { signInOwner } from './support/sign-in.js';
@@ -34,11 +35,11 @@ const typed=(token:string,heat:RaceFlowRead,legs:Array<number|null>,keptWarnings
 test('a typed team joins the heat in one write, every typed child checked in, numbered within the relay in the order saved, across heats',async()=>{
   const {sam,relays}=await start();
   const one=await relays.worked(sam,'R22');
-  expect(one.group.nextTeam).toBe(1);
+  expect(one.nextTeam).toBe(1);
   let read=(await typed(sam,one,[2101,2102,2103,2104])).json() as RaceFlowRead;
   read=(await typed(sam,one,[2111,2112,2113,null])).json() as RaceFlowRead;
   expect(teamsIn(read.race)).toEqual([[1,[[2101,true],[2102,true],[2103,true],[2104,true]]],[2,[[2111,true],[2112,true],[2113,true],[null,false]]]]);
-  expect(read.group.nextTeam).toBe(3);
+  expect(read.nextTeam).toBe(3);
   await relays.save(sam,'R22',[1,2],[3400,3500]);
   // Heat 2's first typed team takes the relay's next number.
   const two=await relays.worked(sam,'R22');
@@ -114,4 +115,51 @@ test('a typed leg that is unknown, another Section\'s, ran in another heat of th
   const results=(await app.inject({url:'/api/lead/results',headers:{authorization:`Bearer ${lead}`}})).json() as ResultsRead;
   expect(results.needsYou.filter(item=>item.event.code==='R22').map(item=>toCheckWording(item).explanation)).toContain(
     'In Team 2: 6100 is not a wristband number. Wristbands are 1 to 4999. 1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. 2101 already ran in Heat 1, in Team 1. 2102 already ran in Heat 1, in Team 1. Correct it or mark it checked.');
+});
+
+test('the races read carries no relay team list, and the writes for a team without a race, the open / close marks and Remove are gone',async()=>{
+  const {sam,relays}=await start();
+  const home=(await app.inject({url:'/api/races',headers:{authorization:`Bearer ${sam}`}})).json() as RacesRead,relay=home.groups.find(group=>group.event.code==='R22')!;
+  expect(relay).not.toHaveProperty('teams');
+  expect(relay).not.toHaveProperty('nextTeam');
+  const heat=await relays.worked(sam,'R22');
+  const read=await ok(sam,`/api/relays/${heat.group.event.id}/teams`,{legs:[2101,2102,2103,2104],keptWarnings:[],joinRaceId:heat.race.id});
+  const team=read.teams![0],url=`/api/relays/${heat.group.event.id}/teams`;
+  expect((await call(sam,url,{legs:[2111,null,null,null],keptWarnings:[]})).json()).toEqual({message:'Choose this race'});
+  expect((await call(sam,`${url}/${team.id}`,{version:team.version,legs:[2101,2102,2103,2105],keptWarnings:[]})).json()).toEqual({message:'Choose this race'});
+  for(const gone of ['open','close','remove']) expect((await call(sam,`${url}/${team.id}/${gone}`,{version:team.version})).statusCode).toBe(404);
+  const races=(await app.inject({url:'/api/races',headers:{authorization:`Bearer ${sam}`}})).json() as RacesRead,id=(code:string)=>races.groups.find(group=>group.event.code===code)!.event.id;
+  for(const [path,body,message] of [
+    [url,{legs:[null,null,null,null],joinRaceId:heat.race.id},'Enter at least one wristband number'],
+    [url,{legs:[2111,2112],joinRaceId:heat.race.id},'Enter the four wristband boxes'],
+    [`/api/relays/${id('R4')}/teams`,{legs:[1101,null,null,null],joinRaceId:heat.race.id},'Only a relay has teams'],
+    ['/api/relays/nope/teams',{legs:[1101,null,null,null],joinRaceId:heat.race.id},'Event not found'],
+    [`${url}/nope`,{version:1,legs:[2111,null,null,null],raceId:heat.race.id},'Team not found'],
+    [`${url}/${team.id}`,{legs:[2111,null,null,null],raceId:heat.race.id},'Open the team again']
+  ] as const) expect((await call(sam,path,body)).json(),path).toEqual({message});
+  expect((await relays.teams(sam,'R22')).map(item=>[item.number,item.legs.map(leg=>leg.wristband)])).toEqual([[1,[2101,2102,2103,2104]]]);
+});
+
+test('teams typed ahead on a day saved before the build are Still to run at every heat of their relay, with their numbers, and Add checks each in',async()=>{
+  const {sam,relays}=await start();
+  // The old build's New team: rows of the relay in no race, numbered in the order saved; Team 2 has three children.
+  const db=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});await db.connect();
+  try {
+    await db.query(`INSERT INTO relay_teams(id,event_id,number,legs,changed_by) SELECT gen_random_uuid(),e.id,t.n,t.legs::jsonb,'Sam Patel'
+      FROM events e JOIN olympics_days d ON d.id=e.day_id AND d.active,
+      (VALUES (1,'[{"wristband":2101,"warnings":[]},{"wristband":2102,"warnings":[]},{"wristband":2103,"warnings":[]},{"wristband":2104,"warnings":[]}]'),
+        (2,'[{"wristband":2201,"warnings":[]},{"wristband":2202,"warnings":[]},{"wristband":null,"warnings":[]},{"wristband":2204,"warnings":[]}]')) AS t(n,legs)
+      WHERE e.code='R22'`);
+  } finally {await db.end();}
+  const stillToRun=(read:RaceFlowRead)=>read.teams!.filter(team=>!team.races.length).map(team=>[team.number,team.legs.map(leg=>leg.wristband)]);
+  const one=await relays.worked(sam,'R22');
+  expect(stillToRun(one)).toEqual([[1,[2101,2102,2103,2104]],[2,[2201,2202,null,2204]]]);
+  // A team typed into the heat takes the next number.
+  expect(one.nextTeam).toBe(3);
+  const added=await relays.tick(sam,'R22',2);
+  expect(teamsIn(added.race)).toEqual([[2,[[2201,true],[2202,true],[null,false],[2204,true]]]]);
+  await relays.save(sam,'R22',[2],[3400]);
+  const two=await relays.worked(sam,'R22');
+  expect(two.race.number).toBe(2);
+  expect(stillToRun(two)).toEqual([[1,[2101,2102,2103,2104]]]);
 });

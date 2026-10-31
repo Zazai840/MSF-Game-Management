@@ -5,16 +5,15 @@ A relay team at the start line: the team in this heat (or a seeded team in the f
 **Use**
 - **Heat.** A team under "In this heat": the head row holds "Team 5", a note under it, then a small **Take off**. Every child of a team in the heat is checked in, with no Here per child. Its four legs are leg chips side by side (`rz-legchips`): "1st" over the wristband, a 44px grip under each. Tapping a chip opens the start line's box on that leg ("Change Team 5's 2nd leg"). An empty leg reads "–". The team being typed above the box uses the same chips in a raised card (`rz-legrow--typing`): the leg being typed in `gold`, legs still to come dashed.
 - **Final.** The whole team is one card. The head reads "1st fastest · Team 2" ("Called up", "Added"), with **Here** / **Absent** pills for the whole team, neither lit at first; tapping a lit one again clears it. Its four legs are the same leg chips as a heat's, with no per-child Here: tapping one opens the start line's box on that leg ("Change Team 2's 1st leg"), Here or not marked. An Absent card is dashed, its chips not tappable and without grips. Only teams Here run the final.
-- **Note** beside the name, in `warn-ink`: "Runs short · 3 of 4" for a team short of four (it never blocks the race), or "Aisha Noor is changing this team" while another phone has it open in Edit.
-- **Grips** come from the race flow's SortableList: drag only from the grip, the labels follow live, arrow keys move the focused grip (left and right on a heat's chips). The grip reads "Move 2071", or "Move empty 4th leg". A drop saves the race and the team list together, every child still checked in. The dragged row lifts with `shadow-raised`.
-- Grips are hidden on a team another phone is changing, and on every card while this phone has a leg chip open.
+- **Note** beside the name, in `warn-ink`: "Runs short · 3 of 4" for a team short of four (it never blocks the race).
+- **Grips** come from the race flow's SortableList: drag only from the grip, the labels follow live, arrow keys move the focused grip (left and right on a heat's chips). The grip reads "Move 2071", or "Move empty 4th leg". A drop saves the race and the team together, every child still checked in. The dragged row lifts with `shadow-raised`.
+- Grips are hidden on every card while this phone has a leg chip open.
 
 **Tokens:** `card`, `shadow-card`, `shadow-raised`, `line`, `line-strong`, `warn-ink`, `ink-muted`, `radius-md`, `size-touch`.
 
 **Don't**
 - Light Here or Absent for anyone at the start of a final: the volunteer marks each team.
 - Put a Here / Not yet on a child of a team in a heat: the team is checked in whole.
-- Put grips on a team another phone is changing.
 
 **Markup** (icon paths from [Icon](../Icon/README.md))
 

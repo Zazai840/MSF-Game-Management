@@ -220,15 +220,27 @@ export async function ownRelay(code:string,name:string,section='Girl Cubs') {
   finally {await api.dispose();}
 }
 /**
- * Writes a team as that phone, as Save in its teams sheet does: the four boxes (null for an empty box) and the
- * wristbands whose warnings it kept, a new team with no `teamId`, else against the version it sees. Returns the races list.
+ * Makes a team Still to run as that phone: typed into the heat the relay is at (its next heat when none is open), as the
+ * start line's last Next does, with the four boxes (null for an empty box) and the wristbands whose warnings it kept,
+ * then taken off again. Returns the race as it then stands.
  */
-export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{teamId,keptWarnings=[]}:{teamId?:string;keptWarnings?:number[]}={}) {
-  const group=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups.find(item=>item.event.code===relayCode)!;
-  const version=teamId?group.teams!.find(team=>team.id===teamId)!.version:undefined;
-  const response=await request.post(`/api/relays/${group.event.id}/teams${teamId?`/${teamId}`:''}`,{headers:bearer(token),data:{version,legs,keptWarnings}});
-  expect(response.ok(),await response.text()).toBe(true);
-  return await response.json() as RacesRead;
+export async function writeTeam(request:APIRequestContext,token:string,relayCode:string,legs:Array<number|null>,{keptWarnings=[]}:{keptWarnings?:number[]}={}) {
+  const heat=await flowRace(request,token,relayCode);
+  const read=await flowPost(request,token,`/api/relays/${heat.group.event.id}/teams`,{legs,keptWarnings,joinRaceId:heat.race.id});
+  const typed=read.race.parts.runners.value!.filter(isTeamEntry).at(-1)!;
+  return flowPost(request,token,`/api/races/${heat.race.id}/teams/${typed.team.id}/take-off`,{});
+}
+/**
+ * Teams typed ahead on the build before teams were made only in a heat, by its teams sheet: rows of the relay in no race,
+ * numbered in the order given. They go straight into the e2e test database, as that build left them.
+ */
+export async function typedAhead(relayCode:string,teams:Array<Array<number|null>>) {
+  const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+  try {
+    for(const [index,legs] of teams.entries()) await db.query(`INSERT INTO relay_teams(id,event_id,number,legs,changed_by)
+      SELECT gen_random_uuid(),e.id,$2,$3,'Typed ahead' FROM events e JOIN olympics_days d ON d.id=e.day_id AND d.active WHERE e.code=$1`,
+      [relayCode,index+1,JSON.stringify(legs.map(wristband=>({wristband,warnings:[]})))]);
+  } finally {await db.end();}
 }
 /** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
 export const flowPost=(request:APIRequestContext,token:string,url:string,data:object)=>postOk<RaceFlowRead>(request,token,url,data);
@@ -254,11 +266,10 @@ export async function writeTeamOrder(request:APIRequestContext,token:string,rela
   const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
   return flowPost(request,token,`/api/races/${race.id}/order`,{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>teams!.find(team=>team.number===number)!.id)});
 }
-/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, every child checked in, placed in list order and timed. */
+/** Runs the heat the relay is at (its next heat when none is open) to saved through the race flow: its first `teams` teams still to run added, every child checked in, placed by number and timed. */
 export async function runHeat(request:APIRequestContext,token:string,code:string,teams:number) {
   const post=(url:string,data:object)=>flowPost(request,token,url,data);
-  const groups=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups;
-  let read=await post('/api/races',{eventCode:code,kind:'heat',number:groups.find(group=>group.event.code===code)!.nextHeat});
+  let read=await flowRace(request,token,code);
   const id=read.race.id;
   for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
   read=await post(`/api/races/${id}/steps/runners/done`,{});

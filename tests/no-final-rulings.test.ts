@@ -91,15 +91,14 @@ test('the day export has the podium from heat times and no Finals rows for an ev
   expect(sheets[0].data.slice(1)).toEqual([['R4',null,null,null,null,null,null,null,null,2001,null,null,2011,null,null,2002]]);
   expect(sheets[1].data.filter(row=>row[0]==='R4')).toEqual([]);
 });
-test('a relay decided without a final locks its team list and refuses call-ups and added teams',async()=>{
+test('a relay decided without a final takes no new heat and refuses call-ups and added teams',async()=>{
   const {lead,volunteer}=await start();
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
   for(const number of [1,2,3]) await relays.tick(volunteer,'R22',number);
   await relays.save(volunteer,'R22',[2,1,3],[3400,3500,3700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
-  const relay=(await call(volunteer,'/api/races')).json().groups.find((group:{event:{code:string}})=>group.event.code==='R22').event.id;
-  expect((await call(volunteer,`/api/relays/${relay}/teams`,{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
+  expect((await call(volunteer,'/api/races',{eventCode:'R22',kind:'heat',number:2})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to add another heat.'});
   const team=(await call(lead,'/api/lead/events/R22/results')).json().teams[0];
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team.id})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:'any'})).statusCode).toBe(409);

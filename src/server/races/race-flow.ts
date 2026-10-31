@@ -49,7 +49,7 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
   const events=(await readEvents(db,true,dayId)).filter(event=>!only || event.id===only);
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
-  const teamLists=await readTeamLists(db,dayId),groups:RaceGroup[]=[];
+  const groups:RaceGroup[]=[];
   // One event at a time: a final's reason reads through the same client, which runs one query at a time.
   for(const event of events) {
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
@@ -65,8 +65,7 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     // Results without a final never waits: the lead's call decides the medals at once.
     const stage=event.format==='timed'?'event' as const:own.some(race=>race.kind==='final')?'final' as const:null;
     const medalsWaiting=stage && own.length && !medalsDecided && own.every(race=>race.state==='saved')?{stage,since:own.map(race=>savedAt.get(race.id)??'').sort().at(-1)!}:null;
-    const list=teamLists.get(event.id),teams=list?{teams:list.teams,nextTeam:list.nextTeam}:{};
-    groups.push({event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt,...teams});
+    groups.push({event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt});
   }
   return groups;
 }
@@ -78,7 +77,7 @@ export async function raceFlowRead(db:Database,dayId:string,raceId:string):Promi
   if(race.deleted) throw new Refusal(404,`A lead deleted ${raceName(race)}`);
   const group=(await readGroups(db,dayId,race.event.id))[0];
   if(!group) throw new Refusal(409,'This event is switched off');
-  // A relay's Start line ticks teams in from its team list; its leg boxes' warnings look through every switched-on relay's.
+  // A relay's start line shows its teams still to run and checks each typed leg against every switched-on relay's teams.
   const teams=race.event.relay?await relayLists(db,dayId,race.event.id):{};
   return {revision:await dayRevision(db,dayId),group,race:jobRace(race),steps:group.races.find(item=>item.id===race.id)!.steps,...teams};
 }
@@ -205,7 +204,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/races/:raceId/teams/:teamId/tick','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
     if(entry) {unchanged();return;}
     if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
-    return [...entries,joiningTeam(team,{me:phone.id})];
+    return [...entries,joiningTeam(team)];
   }));
   // Take off: the team goes back to Still to run.
   action('POST','/api/races/:raceId/teams/:teamId/take-off','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,entries,entry},unchanged)=>{

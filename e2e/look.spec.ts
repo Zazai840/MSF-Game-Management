@@ -1,4 +1,4 @@
-import {ownName,ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,openLeadMenu,openRace,openRelays,ownEvent,ownRelay,expect,switchJob,test,writeCheckIn,writeTeam,type Page} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,openLeadMenu,openRace,openRelays,ownEvent,press,ownRelay,expect,switchJob,test,writeCheckIn,writeTeam,type Page} from './fixtures.js';
 
 // The design system's navy and paper.
 const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
@@ -101,7 +101,7 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   expect(await lookProblems(page)).toEqual([]);
 });
 
-test('the Relays tab and a relay\'s teams sheet meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
+test('the Relays tab and a relay heat\'s Still to run meet the touch, text size and contrast rules',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Look relay');
   const n=await ownWristbands('Boy Scouts',10);
   await ownRelay(code,name,'Boy Scouts');
@@ -110,16 +110,12 @@ test('the Relays tab and a relay\'s teams sheet meet the touch, text size and co
   await writeTeam(request,token,code,[n(5),n(6),null,null]);
   await openRelays(page);
   const card=page.getByRole('article',{name:`${name} · Boy Scouts`,exact:true});
-  await expect(card).toContainText('2 teams ready · no heats yet');
+  await expect(card.getByRole('button',{name:/^Heat 1, /})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await card.getByRole('button',{name:/^Teams 2/}).click();
-  await expect(page.getByText('2 teams · 2 still to run. Tap a team still to run to change it.',{exact:true})).toBeVisible();
+  await press(card.getByRole('button',{name:/^Heat 1, /}));
+  await expect(page.getByRole('list',{name:'Still to run',exact:true}).getByRole('listitem')).toHaveCount(2);
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('teams-sheet.png')});
-  await page.getByRole('button',{name:/^Change Team 2:/}).click();
-  await expect(page.getByLabel('1st leg',{exact:true})).toHaveValue(String(n(5)));
-  expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('teams-sheet-edit.png')});
+  await page.screenshot({path:info.outputPath('still-to-run.png')});
 });
 test('each race-flow screen on a test build, from Races to every job\'s race and a lead\'s, meets the look rules',async({openPhone,request},info)=>{
   const code=await ownCode(),hurdles=await ownCode(),name=ownName('Look walk'),n=await ownWristbands('Girl Cubs',6);

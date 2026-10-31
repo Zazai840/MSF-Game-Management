@@ -7,28 +7,19 @@ export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
 /** A race holding a relay team: one of its relay's races that is not deleted. */
 export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number; state:'in progress'|'saved' }
 /**
- * A relay team on its relay's team list: Team 1, Team 2, ... with its four legs in leg order, whose profile last set it
- * ("Aisha Noor has already set this team.", asked only of another profile), who has it open to change ("Priya Shah is changing this team") since
- * when, or null, and the races holding it (worked out from the races, never stored), oldest first. A team any race
- * holds can't be removed.
+ * A relay team, made by typing it into a heat: Team 1, Team 2, ... numbered within its relay, with its four legs in leg
+ * order, its version and whose profile last set it (a late Save names them), and the races holding it (worked out from
+ * the races, never stored), oldest first.
  */
-export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changedBy:{id:string|null;name:string}|null; changing:{id:string;name:string;since:string}|null; races:TeamRace[] }
+export interface RelayTeam { id:string; number:number; legs:TeamLeg[]; version:number; changedBy:{id:string|null;name:string}|null; races:TeamRace[] }
 /** A relay as its team checks see it: the relay a team is in, or another of the day's relays. */
 export interface TeamList { code:string; name:string; section:Section; teams:readonly RelayTeam[] }
 /** How many of a team's four boxes hold a wristband: a team with fewer is not complete ("3 of 4"). */
 export const filledLegs=(team:{legs:ReadonlyArray<{wristband:number|null}>})=>team.legs.filter(leg=>leg.wristband!==null).length;
-/** Still to run: no race of its relay holds the team, apart from deleted races. Removed teams are not on the list at all. */
+/** Still to run: no race of its relay holds the team, apart from deleted races: taken off a heat, did not run, or typed ahead on an older build. */
 export const stillToRun=(team:Pick<RelayTeam,'races'>)=>!team.races.length;
 /** The unsaved race holding the team, if any: the team is changed only at that race's check-in, and a lead's Correct teams reads "In heat 2". */
 export const unsavedRace=(team:Pick<RelayTeam,'races'>)=>team.races.find(race=>race.state!=='saved')??null;
-/**
- * Who else is changing the team now, or null: the name on its "being changed by" marker, unless it is this phone's own
- * (`me`, its sign-in id). A team someone else is changing can't be added to a race, and shows "Priya Shah is changing
- * this team" under it.
- */
-export const changerOf=(team:Pick<RelayTeam,'changing'>,me:string|null=null)=>team.changing && team.changing.id!==me?team.changing.name:null;
-/** Under a team someone else has open: "Priya Shah is changing this team". */
-export const changingLine=(name:string)=>`${name} is changing this team`;
 /** How full a team short of four children is, "3 of 4", or null for a full team. */
 const shortBy=(team:{legs:ReadonlyArray<{wristband:number|null}>})=>filledLegs(team)<4?`${filledLegs(team)} of 4`:null;
 /** A team short of four children runs short: "Runs short · 3 of 4", or null. It never blocks a race, and a lead checks it once saved. */
@@ -40,27 +31,6 @@ export const childCount=(count:number)=>`${count} ${count===1?'child':'children'
 /** A relay group as its team checks see it: the relay and its teams. */
 export const teamListOf=(group:{event:Pick<TeamList,'code'|'name'|'section'>;teams?:readonly RelayTeam[]}):TeamList=>
   ({code:group.event.code,name:group.event.name,section:group.event.section,teams:group.teams||[]});
-/**
- * What a team is doing, in the teams sheet: "Heat 1 · ran", "Heat 2 · change it at check-in" (its latest race), or
- * "Still to run", with "· 3 of 4" while it is short.
- */
-export function teamState(team:Pick<RelayTeam,'races'|'legs'>) {
-  const race=team.races.at(-1),name=race?.kind==='final'?'Final':`Heat ${race?.number}`,short=shortBy(team);
-  return race?`${name} · ${race.state==='saved'?'ran':'change it at check-in'}`:`Still to run${short?` · ${short}`:''}`;
-}
-/** A relay card's Teams row: "Teams 8 · 2 still to run", or "Teams 6" once none is left to run. */
-export function teamsRow(teams:readonly Pick<RelayTeam,'races'>[]) {
-  const left=teams.filter(stillToRun).length;
-  return `Teams ${teams.length}${left?` · ${left} still to run`:''}`;
-}
-/** The teams sheet's line under its title: how many teams and how many to run, or why the list is read-only. */
-export function teamsSheetLine(teams:readonly Pick<RelayTeam,'races'>[],open:boolean) {
-  if(!open) return "The final has been made, so the teams can't change. A lead can correct a team in Results.";
-  if(!teams.length) return 'No teams yet. Tap New team to type the first.';
-  return `${teamCount(teams.length)} · ${teams.filter(stillToRun).length} still to run. Tap a team still to run to change it.`;
-}
-/** A relay card with teams and no heats yet: "3 teams ready · no heats yet". */
-export const teamsReadyLine=(teams:readonly unknown[])=>`${teamCount(teams.length)} ready · no heats yet`;
 /** What a race entry is: a runner, or on a relay a team ("This team is already disqualified"). */
 export const entryNoun=(relay:boolean)=>relay?'team':'runner';
 /** What fills a place in the order: a wristband, or on a relay a team. */

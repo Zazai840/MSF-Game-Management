@@ -17,8 +17,8 @@ import { Callout,DockedFooter,Icon } from './parts.js';
 import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
 
-/** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save the order, No more finishers), and `me`, this phone's sign-in. */
-export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWrite>; onDone:(step:Step)=>void; locked:boolean; me:string }
+/** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save the order, No more finishers). */
+export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWrite>; onDone:(step:Step)=>void; locked:boolean }
 /**
  * One number typed on the phone's own number pad (wristbands, times). The input stays mounted and focused between
  * entries so the keyboard never closes; it closes while a warning waits for Fix or Keep, and opens again after with
@@ -62,7 +62,7 @@ type Entry={id?:string;wristband:number};
  * placed them). A half-typed next number waits meanwhile. "That's everyone" marks Runners done. On a Races-tab event
  * the 6th runner brings the usual-heat-size note, once. On a final it is the Here / Absent list of the seeded runners.
  */
-export function StartLine({read,flow,onDone,locked,me}:StepProps) {
+export function StartLine({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,event=group.event,runners=runnersOf(race.parts.runners.value);
   const writes=useStepWrites<{runners:Entry[];keptWarnings:number[]}>(flow.write,'check-in','runners',race.id,race.parts.runners.version);
   const size=useSizeWarning(race.id),applies=usualSizeApplies(event) && race.kind!=='final';
@@ -80,8 +80,8 @@ export function StartLine({read,flow,onDone,locked,me}:StepProps) {
     if(typeof sent==='object') {setSaid(`${target!.wristband} changed to ${wristband}`);setChanging(null);}
     return sent;
   });
-  if(race.kind==='final') return event.relay?<TeamAttendance {...{read,flow,onDone,locked,me}}/>:<Attendance {...{read,flow,onDone,locked,me}}/>;
-  if(event.relay) return <TeamStartLine {...{read,flow,onDone,locked,me}}/>;
+  if(race.kind==='final') return event.relay?<TeamAttendance {...{read,flow,onDone,locked}}/>:<Attendance {...{read,flow,onDone,locked}}/>;
+  if(event.relay) return <TeamStartLine {...{read,flow,onDone,locked}}/>;
   const count=entries.length,more=applies && count>usualRunnersPerRace,on=target?change:entry;
   const cancel=()=>{change.fix();setAsking(false);setChanging(null);};
   const start=(item:Entry)=>{change.fix();change.type(String(item.wristband));setAsking(false);setSaid('');setChanging(item);};
@@ -179,7 +179,7 @@ const boardName=(entry:RaceEntry)=>isTeamEntry(entry)?`T${entry.team.number}`:en
  * again: it stays outlined with its runner, who is a button again, until another runner takes it or Keep puts it back. When the last runner is placed, or on "Nobody else crossed the line", Check the order: drag to move, arrow
  * keys too, and each runner left is Did not finish or Didn't run. Save the order marks Finishing order done.
  */
-export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
+export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,event=group.event,relay=event.relay,words=entryWords(relay);
   const writes=useStepWrites<{order:string[];didNotFinish:string[];didNotRun:string[];added:number[];keptWarnings:number[];addedTeams:string[]}>(flow.write,'order','finish',race.id,race.parts.finish.version);
   const runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
@@ -200,7 +200,7 @@ export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
   // A relay final's teams are its seeds, call-ups and a lead's additions, so it has no "+ Team not on the list".
   const canAdd=!relay || race.kind!=='final';
   const openAdd=()=>{if(relay) {setRedo(null);setPicking(true);} else setMode('add');};
-  const picker=picking && <TeamPicker read={read} me={me} onClose={()=>setPicking(false)} onAdd={teamId=>{setPicking(false);void send({order},[],[],[teamId]);}}/>;
+  const picker=picking && <TeamPicker read={read} onClose={()=>setPicking(false)} onAdd={teamId=>{setPicking(false);void send({order},[],[],[teamId]);}}/>;
   // The last runner placed: on to Check the order at once (its save goes on behind), before the screen paints, so the
   // placing screen never asks for a place past the last runner.
   useLayoutEffect(()=>{if(mode==='place' && runners.length && !unplaced.length && order.length) setMode('check');},[unplaced.length,order.length]);
