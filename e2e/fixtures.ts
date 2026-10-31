@@ -299,8 +299,11 @@ export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H
   // Once the races have come in, a group that is done waits under the closed Done disclosure.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   const done=page.locator('details:not([open])',{has:page.locator('summary',{hasText:/^Done \(/})});
-  if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
-  await card.getByRole('button',{name:label}).click();
+  // A live update can move the card under the closed Done between the look and the tap: look again until the tap lands.
+  await expect(async()=>{
+    if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
+    await card.getByRole('button',{name:label}).click({timeout:2000});
+  }).toPass();
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
 }
 /** On Races: the Relays tab. */

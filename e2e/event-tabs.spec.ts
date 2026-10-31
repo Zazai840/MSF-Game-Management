@@ -1,4 +1,4 @@
-import {becomeLead,eventTab,expect,join,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,deleteCurrentRace,eventTab,expect,join,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Page} from './fixtures.js';
 const owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
 /** As a new lead: Results, then the event's card. */
 async function openEvent(page:Page,code:string,lead:string,section='Girl Cubs') {
@@ -86,4 +86,6 @@ test('the Races tab lists each live race with why it does not count yet, then De
   await expect(page.getByRole('button',{name:'Back to Results',exact:true})).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/results$/);
+  // The race not saved yet would sit on every phone's Races: it goes.
+  await deleteCurrentRace(page.request,code);
 });
