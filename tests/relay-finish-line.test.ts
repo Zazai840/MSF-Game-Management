@@ -28,10 +28,7 @@ async function heat(ticked:number,listed:number) {
   for(let number=1;number<=listed;number++) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   let read=await ok(sam,'/api/races',{eventCode:'R22',kind:'heat',number:1});
   const id=read.race.id,teamId=(number:number)=>read.teams!.find(team=>team.number===number)!.id;
-  for(let number=1;number<=ticked;number++) {
-    read=await ok(sam,`/api/races/${id}/teams/${teamId(number)}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await ok(sam,`/api/races/${id}/teams/${teamId(number)}/here`,{leg,here:true});
-  }
+  for(let number=1;number<=ticked;number++) read=await ok(sam,`/api/races/${id}/teams/${teamId(number)}/tick`,{});
   return {sam,priya,id,teamId,read};
 }
 

@@ -194,38 +194,25 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input);await saveIfDone(client,phone,id);});
   });
   // A relay's Start line taps (ADR 0002): anyone, with no version check, each applied to the race as it stands under
-  // the day lock, so taps from several phones at once all land and the last tap on a child wins. Each raises the
-  // Runners version, so a version-checked write elsewhere still sees the change.
+  // the day lock, so taps from several phones at once all land. Each raises the Runners version, so a version-checked
+  // write elsewhere still sees the change.
   function teamTap(request:FastifyRequest,phone:Phone,change:TeamChange) {
     const {raceId:id,teamId}=request.params as {raceId:string;teamId:string};
     return write(phone,id,(client,unchanged)=>changeTeamEntry(client,phone,id,teamId,change,unchanged));
   }
-  // Add: a team still to run goes into the heat with a copy of its four children and their kept warnings.
+  // Add: a team still to run goes into the heat with a copy of its four children and their kept warnings, every child
+  // checked in: a relay heat has no per-child Here.
   action('POST','/api/races/:raceId/teams/:teamId/tick','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
     if(entry) {unchanged();return;}
     if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
     return [...entries,joiningTeam(team,{me:phone.id})];
   }));
-  // Take off: only while none of its children is marked here.
-  action('POST','/api/races/:raceId/teams/:teamId/take-off','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
+  // Take off: the team goes back to Still to run.
+  action('POST','/api/races/:raceId/teams/:teamId/take-off','Volunteer',(request,_reply,phone)=>teamTap(request,phone,({race,entries,entry},unchanged)=>{
     if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
     if(!entry) {unchanged();return;}
-    if(entry.legs.some(leg=>leg.here)) throw new Refusal(409,`Team ${team.number} has children marked here - unmark them first`);
     return entries.filter(other=>other!==entry);
   }));
-  // Here / Not yet: one child of a team in the heat.
-  action('POST','/api/races/:raceId/teams/:teamId/here','Volunteer',(request,_reply,phone)=>{
-    const body=(request.body||{}) as {leg?:unknown;here?:unknown};
-    if(!Number.isInteger(body.leg) || Number(body.leg)<0 || Number(body.leg)>3 || typeof body.here!=='boolean') throw new Refusal(400,'Choose a child and whether they are here');
-    const index=Number(body.leg),here=body.here;
-    return teamTap(request,phone,({race,team,entries,entry},unchanged)=>{
-      if(race.kind==='final') throw new Refusal(409,"Mark the final's teams Here or Absent");
-      if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${raceName(race)}`);
-      if(entry.legs[index].wristband===null) throw new Refusal(400,'Choose a child in this team');
-      if(entry.legs[index].here===here) {unchanged();return;}
-      return entries.map(other=>other===entry?{...entry,legs:entry.legs.map((leg,at)=>at===index?{...leg,here}:leg)}:other);
-    });
-  });
   // Here / Absent on a final's team, or neither, as on a children's final: Here puts the team in the race with each of
   // its children here, Absent takes it out marked Absent (freeing its seed), and neither takes it out unmarked. Only
   // teams marked Here run the final, so the finish line places nobody else.

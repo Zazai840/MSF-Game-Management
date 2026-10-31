@@ -95,7 +95,7 @@ test('a relay decided without a final locks its team list and refuses call-ups a
   const {lead,volunteer}=await start();
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
-  for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
+  for(const number of [1,2,3]) await relays.tick(volunteer,'R22',number);
   await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   const relay=(await call(volunteer,'/api/races')).json().groups.find((group:{event:{code:string}})=>group.event.code==='R22').event.id;
@@ -226,7 +226,7 @@ test('a relay final with a team added and no child marked here is discarded; onc
   const {lead,volunteer}=await start();
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3,4]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
-  for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
+  for(const number of [1,2,3]) await relays.tick(volunteer,'R22',number);
   await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const team4=(await call(lead,'/api/lead/events/R22/results')).json().teams.find((team:{number:number})=>team.number===4).id;

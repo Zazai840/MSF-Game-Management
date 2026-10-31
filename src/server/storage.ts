@@ -166,6 +166,15 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     UPDATE relay_teams t SET changed_by_profile=p.id FROM profiles p WHERE t.changed_by_profile IS NULL AND t.changed_by IS NOT NULL AND lower(p.name)=lower(t.changed_by);
     -- No phone has a team's leg boxes open across a restart, so nobody is still changing a team.
     UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE changing_by IS NOT NULL OR changing_since IS NOT NULL;
+    -- A relay heat has no per-child Here: every child of a team in it is here. Older builds marked each child by a tap,
+    -- so a heat not saved yet has every filled leg marked here. Saved races keep their marks (a team that ran short
+    -- stays in To check), and a final's team is here whole already. Changes nothing once done.
+    UPDATE race_parts p SET value=(SELECT jsonb_agg(CASE WHEN jsonb_typeof(entry->'legs')='array' THEN jsonb_set(entry,'{legs}',
+        (SELECT jsonb_agg(leg || jsonb_build_object('here',jsonb_typeof(leg->'wristband')='number') ORDER BY i) FROM jsonb_array_elements(entry->'legs') WITH ORDINALITY AS l(leg,i)))
+      ELSE entry END ORDER BY n) FROM jsonb_array_elements(p.value) WITH ORDINALITY AS e(entry,n))
+    FROM races r WHERE r.id=p.race_id AND p.part='runners' AND r.kind<>'final' AND r.state<>'saved' AND jsonb_typeof(p.value)='array'
+      AND EXISTS (SELECT 1 FROM jsonb_array_elements(p.value) entry, jsonb_array_elements(CASE WHEN jsonb_typeof(entry->'legs')='array' THEN entry->'legs' ELSE '[]' END) leg
+        WHERE jsonb_typeof(leg->'wristband')='number' AND leg->'here'<>'true'::jsonb);
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       tie_id text NOT NULL, settlement jsonb NOT NULL,

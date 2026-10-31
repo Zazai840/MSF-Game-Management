@@ -5,6 +5,8 @@ import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import { raceSetup } from './support/races.js';
 import { relayFlowSetup } from './support/relays.js';
+import type { ResultsRead } from '../src/shared/lead-results.js';
+import { toCheckWording } from '../src/shared/to-check.js';
 import { signInOwner } from './support/sign-in.js';
 const adminUrl=process.env.PG_ADMIN_URL || `postgresql://${process.env.USER}@localhost:5432/postgres`;
 const name=`msf_spec22_${Date.now()}_test`;
@@ -121,11 +123,10 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
   await app.inject({method:'POST',url:'/api/day/confirm-events',headers:{authorization:`Bearer ${owner.token}`}});
   const relays=relayFlowSetup(app);
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,2302,2303,2304]]) await relays.team(sam.token,'R22',legs);
-  // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams ticked and one child here.
+  // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams added.
   await relays.tick(sam.token,'R22',1);
-  for(const leg of [0,1,2,3]) await relays.here(sam.token,'R22',1,leg);
   const saved=(await relays.save(sam.token,'R22',[1],[1500])).race;
-  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);await relays.here(sam.token,'R22',2,0);
+  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);
   const waiting=(await relays.worked(sam.token,'R22')).race;
   await app.close();
   const untouched=async(db:pg.Client)=>({
@@ -159,7 +160,7 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
   try {
     const read=(await app.inject({url:`/api/races/${waiting.id}`,headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead;
     expect(read.race).toMatchObject({id:waiting.id,state:'in progress'});
-    expect(read.race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[2,[true,false,false,false]],[3,[false,false,false,false]]]);
+    expect(read.race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[2,[true,true,true,true]],[3,[true,true,true,true]]]);
     expect(Object.values(read.steps).map(step=>step!.state)).not.toContain('done');
     expect(read.teams!.map(team=>team.changing)).toEqual([null,null,null]);
     // Who last set each team is known by profile, so Change anyway asks only another profile.
@@ -174,4 +175,39 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
     // The people on it carry on in the race flow, and it saves itself.
     expect((await relayFlowSetup(app).save(sam.token,'R22',[2,3],[1500,1600])).race).toMatchObject({id:waiting.id,state:'saved'});
   } finally {await app.close();}
+});
+test('a relay heat under way on the old build has every filled leg of its teams marked here; a saved heat keeps its marks and its To check',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const people=await signInOwner(app,'upgrade-owner','Aisha'),owner=people.owner,sam=await people.volunteer('Sam Patel');
+  await app.inject({method:'POST',url:'/api/day/confirm-events',headers:{authorization:`Bearer ${owner.token}`}});
+  const relays=relayFlowSetup(app);
+  for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,null,2303,2304]]) await relays.team(sam.token,'R22',legs);
+  await relays.tick(sam.token,'R22',1);
+  const saved=(await relays.save(sam.token,'R22',[1],[1500])).race;
+  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);
+  const underWay=(await relays.worked(sam.token,'R22')).race;
+  await app.close();
+  // The old build marked each child here by a tap: Heat 1 saved with Team 1's 2nd child not marked (it ran short);
+  // Heat 2 under way with one child of Team 2 marked and none of Team 3.
+  const marks=(db:pg.Client,raceId:string,here:boolean[][])=>db.query(`UPDATE race_parts SET value=(SELECT jsonb_agg(jsonb_set(entry,'{legs}',
+      (SELECT jsonb_agg(jsonb_set(leg,'{here}',to_jsonb(($2::jsonb->(n::int-1)->(i::int-1))::boolean)) ORDER BY i) FROM jsonb_array_elements(entry->'legs') WITH ORDINALITY AS l(leg,i))) ORDER BY n)
+    FROM jsonb_array_elements(value) WITH ORDINALITY AS e(entry,n)) WHERE race_id=$1 AND part='runners'`,[raceId,JSON.stringify(here)]);
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  try {
+    await marks(old,saved.id,[[true,false,true,true]]);
+    await marks(old,underWay.id,[[true,false,false,false],[false,false,false,false]]);
+  } finally {await old.end();}
+  for(let start=0;start<2;start++) {
+    app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+    try {
+      const legs=async(raceId:string)=>((await app.inject({url:`/api/races/${raceId}`,headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead)
+        .race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)]);
+      // An empty leg has no child to be here.
+      expect(await legs(underWay.id)).toEqual([[2,[true,true,true,true]],[3,[true,false,true,true]]]);
+      expect(await legs(saved.id)).toEqual([[1,[true,false,true,true]]]);
+      const items=((await app.inject({url:'/api/lead/results',headers:{authorization:`Bearer ${owner.token}`}})).json() as ResultsRead).needsYou.filter(item=>item.event.code==='R22');
+      expect(items.map(item=>toCheckWording(item))).toMatchObject([{title:'A team ran short',explanation:'Team 1 ran with 3 of 4 children marked here.'}]);
+    } finally {await app.close();}
+  }
 });

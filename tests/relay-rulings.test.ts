@@ -15,9 +15,9 @@ async function start() {
   const relays=relayFlowSetup(app);
   /** Types one Girl Cubs team per entry of `teams` on R22's team list: Team 1 is 2101-2104, Team 2 is 2201-2204, ... */
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));}
-  /** Ticks the teams in with all four children marked here, then saves the heat with them placed in the order given and timed by place. */
+  /** Adds the teams in, every child checked in, then saves the heat with them placed in the order given and timed by place. */
   async function heat(placed:number[],times:number[]) {
-    for(const number of placed) {await relays.tick(sam,'R22',number);for(const leg of [0,1,2,3]) await relays.here(sam,'R22',number,leg);}
+    for(const number of placed) await relays.tick(sam,'R22',number);
     await relays.save(sam,'R22',placed,times);
   }
   const read=async()=>(await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead;
@@ -120,9 +120,9 @@ test('Correct finishing order on a relay heat moves teams by number while times 
 
 test('a team\'s notes carry its children\'s warnings, a child also in another relay\'s team and running short, each checked by the lead with the note',async()=>{
   const {sam,lead,relays,row}=await start();
-  await relays.team(sam,'R22',[1045,2102,2103,2134]);
+  await relays.team(sam,'R22',[1045,2102,null,2134]);
   await relays.team(sam,'R28',[4101,2134,4103,4104]);
-  await relays.tick(sam,'R22',1);for(const leg of [0,1,2]) await relays.here(sam,'R22',1,leg);
+  await relays.tick(sam,'R22',1);
   await relays.save(sam,'R22',[1],[1400]);
   const team=await row(1);
   expect(team.flags.map(flag=>[flag.warningKind,flag.message,flag.checked])).toEqual([
