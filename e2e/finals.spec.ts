@@ -180,7 +180,7 @@ test('a final\'s check-in starts with nobody marked; That\'s everyone asks befor
  // That's everyone with anyone unmarked asks first; Go back changes nothing.
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  const ask=sam.getByRole('alert').filter({hasText:'not marked'});
- await expect(ask).toHaveText(`${n(53)} and ${n(54)} are not marked. Record them absent?Record them absentGo back`);
+ await expect(ask).toHaveText(`${n(53)} and ${n(54)} are not marked. Record them absent?Go backRecord them absent`);
  // The question is in view above the footer, each button label on one line.
  const footerTop=(await sam.locator('.rz-footer').boundingBox())!.y;
  for(const name of ['Record them absent','Go back']) {

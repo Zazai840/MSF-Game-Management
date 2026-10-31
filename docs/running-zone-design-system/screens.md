@@ -75,7 +75,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 
 **12 Finishing order: part way through.** As 11, with the PlaceTrail above the prompt: navy tags "1ST 2033", "2ND 2031" and the gold current tag "3RD ?". Tapping a placed tag goes back to that place.
 
-**13 Finishing order: runner not on the list.** As 5: prompt "Runner not on the list: wristband number?" and a numeric field with the same warnings. Footer pair: secondary "Back to order", primary "Next".
+**13 Finishing order: runner not on the list.** As 5: prompt "Runner not on the list: wristband number?" and a numeric field with the same warnings. Footer pair: secondary "Cancel" (it leaves without adding anyone), primary "Add runner".
 
 **14 Finishing order: remaining runners**
 - PlaceTrail of everyone placed.

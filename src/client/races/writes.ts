@@ -1,8 +1,18 @@
 import { useRef,useState } from 'react';
-import { ApiFailure,api } from '../api.js';
+import { ApiFailure,StaleRequest,api } from '../api.js';
 import type { RaceFlowRead } from '../../shared/race-flow.js';
 import type { RacePartName } from '../../shared/races.js';
 import { latestWins } from './latest-wins.js';
+/**
+ * A failed race-flow request in the race flow's words: the app's own reason when it refused (a number already in the race),
+ * "Not saved" when it failed without one (500), and "Could not connect" when the phone never reached it (no network,
+ * or the host's 502-504 while the app is down).
+ */
+export function failureLine(failure:unknown) {
+  if(failure instanceof StaleRequest) return failure.message;
+  if(!(failure instanceof ApiFailure) || failure.status>500) return 'Could not connect - try again';
+  return failure.status===500?'Not saved - try again':failure.message;
+}
 /** Hands a write's answer (the race as it then stands) to the screen, which keeps the newest. */
 export type Offer=(next:RaceFlowRead)=>void;
 /** Someone else changed what this phone was writing, so the write was refused: their name, for the banner. */
@@ -21,7 +31,7 @@ export function useWrites<Answer>(offer:(next:Answer)=>void) {
     catch(failure) {
       const body=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
       if(body.reason==='changed') setChanged({by:body.by??null});
-      else setError(failure instanceof Error?failure.message:'Could not connect - please try again');
+      else setError(failureLine(failure));
       return failure instanceof ApiFailure?'refused':false;
     } finally {setBusy(false);}
   }

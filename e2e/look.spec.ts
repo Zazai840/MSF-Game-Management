@@ -69,7 +69,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   await page.route('**/api/become-lead',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Wrong lead code - ask a zone lead'})}),{times:1});
   await page.getByLabel('Lead code',{exact:true}).fill('wrong-fixture');
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
-  await expect(page.getByRole('dialog',{name:'Your job'}).getByRole('alert')).toHaveText('Wrong lead code - ask a zone lead');
+  await expect(page.getByRole('dialog',{name:'What\'s your job today?'}).getByRole('alert')).toHaveText('Wrong lead code - ask a zone lead');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-code-error.png'),fullPage:true});
   await page.getByLabel('Lead code',{exact:true}).fill(process.env.E2E_LEAD_CODE!);
