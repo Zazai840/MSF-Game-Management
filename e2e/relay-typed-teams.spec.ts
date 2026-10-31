@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,enterTime,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,test,type Page} from './fixtures.js';
+import {ownName,enterTime,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,press,test,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const prompt=(page:Page)=>page.getByRole('heading',{level:2});
 const box=(page:Page)=>page.locator('main .rz-field__input');
@@ -14,7 +14,7 @@ const stillToRun=(page:Page)=>page.getByRole('list',{name:'Still to run'});
 /** Types one leg into the start line's box and taps the footer's button (Next, or Save Team N on the 4th leg). */
 async function leg(page:Page,wristband:number,button='Next') {
   await box(page).fill(String(wristband));
-  await footer(page).getByRole('button',{name:button,exact:true}).click();
+  await press(footer(page).getByRole('button',{name:button,exact:true}));
 }
 
 test('four phones run a relay heat whose teams are typed in leg by leg: two start lines typing at once, a leg chip change, Take off and Add back, the finish line and the timer',async({openPhone,request},info)=>{
@@ -57,7 +57,7 @@ test('four phones run a relay heat whose teams are typed in leg by leg: two star
   // A short team: "Save Team 3 with 2".
   await leg(two,w(31));
   await leg(two,w(32));
-  await two.getByRole('button',{name:'Save Team 3 with 2',exact:true}).click();
+  await press(two.getByRole('button',{name:'Save Team 3 with 2',exact:true}));
   await expect(chips(one,3)).toHaveText([`1st${w(31)}`,`2nd${w(32)}`,'3rd–','4th–'],live);
   await expect(card(one,3)).toContainText('Runs short · 2 of 4');
   for(const page of [one,two]) await expect(meta(page)).toHaveText('Heat 1 · 3 teams · 10 children here',live);
@@ -69,41 +69,41 @@ test('four phones run a relay heat whose teams are typed in leg by leg: two star
   await one.screenshot({path:info.outputPath('in-this-heat.png'),fullPage:true});
 
   // A leg chip opens the box on that leg; Save changes it on both phones.
-  await chip(one,2,'2nd').click();
+  await press(chip(one,2,'2nd'));
   await expect(prompt(one)).toHaveText("Change Team 2's 2nd leg");
   await expect(box(one)).toHaveValue(String(w(12)));
   await box(one).fill(String(w(15)));
-  await footer(one).getByRole('button',{name:'Save',exact:true}).click();
+  await press(footer(one).getByRole('button',{name:'Save',exact:true}));
   await expect(one.locator('p.rz-note[role=status]')).toHaveText(`Team 2: 2nd leg changed to ${w(15)}`);
   await expect(chips(two,2)).toHaveText([`1st${w(11)}`,`2nd${w(15)}`,`3rd${w(13)}`,`4th${w(14)}`],live);
   // A change on an old version is refused as changed, with Show latest.
-  await chip(one,2,'4th').click();
+  await press(chip(one,2,'4th'));
   const read:RaceFlowRead=await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${priya.token}`}})).json();
   const team2=read.teams!.find(team=>team.number===2)!;
   await flowPost(request,priya.token,`/api/relays/${read.group.event.id}/teams/${team2.id}`,{version:team2.version,legs:[w(11),w(15),w(13),w(16)],keptWarnings:[],raceId});
   await box(one).fill(String(w(17)));
-  await footer(one).getByRole('button',{name:'Save',exact:true}).click();
+  await press(footer(one).getByRole('button',{name:'Save',exact:true}));
   await expect(one.getByText(`${priyaName} changed this a moment ago.`)).toBeVisible();
-  await one.getByRole('button',{name:'Show latest',exact:true}).click();
+  await press(one.getByRole('button',{name:'Show latest',exact:true}));
   await expect(box(one)).toHaveValue(String(w(16)));
-  await footer(one).getByRole('button',{name:'Cancel',exact:true}).click();
+  await press(footer(one).getByRole('button',{name:'Cancel',exact:true}));
   await expect(prompt(one)).toHaveText('Team 4 · 1st leg: wristband number?');
 
   // Take off returns a team to Still to run under the box; Add puts it back with every child checked in.
-  await card(two,3).getByRole('button',{name:'Take off',exact:true}).click();
+  await press(card(two,3).getByRole('button',{name:'Take off',exact:true}));
   await expect(card(one,3)).toHaveCount(0,live);
   await expect(stillToRun(one).getByRole('listitem')).toHaveCount(1,live);
-  await stillToRun(one).getByRole('button',{name:'Add Team 3',exact:true}).click();
+  await press(stillToRun(one).getByRole('button',{name:'Add Team 3',exact:true}));
   await expect(card(two,3)).toBeVisible(live);
   await expect(stillToRun(two)).toHaveCount(0,live);
-  await footer(one).getByRole('button',{name:"That's everyone",exact:true}).click();
+  await press(footer(one).getByRole('button',{name:"That's everyone",exact:true}));
   await expect(one.locator('.rz-toast')).toContainText('Runners saved · Girl Cubs Heat 1');
 
   // The finish line places team tiles, "Team 2" over its 4th leg; the timer times each team; the race saves itself.
   await expect(line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button')).toHaveText([`Team 1${w(24)}`,`Team 2${w(16)}`,'Team 3–'],live);
   for(const [team,wristband] of [[2,`4th leg ${w(16)}`],[1,`4th leg ${w(24)}`],[3,'no 4th leg']] as const)
-    await line.getByRole('button',{name:new RegExp(`^Team ${team}, ${wristband}, came `)}).click();
-  await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();
+    await press(line.getByRole('button',{name:new RegExp(`^Team ${team}, ${wristband}, came `)}));
+  await press(footer(line).getByRole('button',{name:'Save the order',exact:true}));
   await expect(line.locator('.rz-toast')).toContainText('Finishing order saved');
   for(const digits of ['1412','1530','1611']) await enterTime(clock,digits);
   await expect(clock.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
@@ -136,7 +136,7 @@ test('a typed leg is checked as at individual check-in: a child in another team 
   const callout=page.locator('main .rz-callout');
   await expect(callout).toContainText(`${w(6)} is already in Team 2 in this heat. Each child runs for one team.`);
   await expect(callout.getByRole('button',{name:'Keep'})).toHaveCount(0);
-  await callout.getByRole('button',{name:'Fix number',exact:true}).click();
+  await press(callout.getByRole('button',{name:'Fix number',exact:true}));
   await expect(callout).toHaveCount(0);
   await expect(prompt(page)).toHaveText('Team 3 · 1st leg: wristband number?');
 
@@ -146,10 +146,10 @@ test('a typed leg is checked as at individual check-in: a child in another team 
   await expect(callout.getByRole('button',{name:'Fix number',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('leg-warning.png'),fullPage:true});
-  await callout.getByRole('button',{name:'Keep',exact:true}).click();
+  await press(callout.getByRole('button',{name:'Keep',exact:true}));
   await expect(prompt(page)).toHaveText('Team 3 · 2nd leg: wristband number?');
   await expect(typing(page,3).locator('.rz-legchip')).toHaveText([`1st${w(1)}`,'2nd?','3rd–','4th–']);
-  await page.getByRole('button',{name:'Save Team 3 with 1',exact:true}).click();
+  await press(page.getByRole('button',{name:'Save Team 3 with 1',exact:true}));
   await expect(chips(page,3)).toHaveText([`1st${w(1)}`,'2nd–','3rd–','4th–']);
   const saved:RaceFlowRead=await (await request.get(`/api/races/${two.race.id}`,{headers:{authorization:`Bearer ${sam.token}`}})).json();
   expect(saved.teams!.find(team=>team.number===3)!.legs[0].warnings).toEqual([{kind:'other-heat',message:`${w(1)} already ran in Heat 1, in Team 1.`,kept:true}]);

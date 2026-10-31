@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,ownCode,ownEvent,ownRelay,ownWristbands,deleteCurrentRace,enterTime,expect,flowPost,lookProblems,recordRace,test,tickTeam,writeCheckIn,writeTeam,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,ownRelay,ownWristbands,deleteCurrentRace,enterTime,expect,flowPost,lookProblems,recordRace,press,test,tickTeam,writeCheckIn,writeTeam,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
 /**
  * A Zone lead marking a step done goes back to Races, as a volunteer does, with the same one-line toast and Undo, on
  * the tab that holds the race's event whatever tab the phone remembered. A lead changing a step already done stays.
@@ -28,7 +28,7 @@ test('a lead marking That\'s everyone and the last place\'s time on a heat lands
   // The phone remembered Relays; a heat's event is on Races.
   await openAt(page,race.id,'relays');
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
+  await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   await onTab(page,'Races');
   await savedToast(page,'Runners saved · Girl Cubs Heat 2');
   expect(await lookProblems(page)).toEqual([]);
@@ -37,12 +37,12 @@ test('a lead marking That\'s everyone and the last place\'s time on a heat lands
   await writeTimes(request,owner(),code,[1250]);
   await openAt(page,race.id,'relays');
   const tabs=page.getByRole('tablist',{name:'Heat 2 steps'});
-  await tabs.getByRole('tab',{name:/^Times/}).click();
+  await press(tabs.getByRole('tab',{name:/^Times/}));
   await enterTime(page,'1400');
   await onTab(page,'Races');
   await savedToast(page,'Times saved · Girl Cubs Heat 2');
   // Undo reverses only this save and reopens the race at Times.
-  await toast(page).getByRole('button',{name:'Undo',exact:true}).click();
+  await press(toast(page).getByRole('button',{name:'Undo',exact:true}));
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(tabs.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
   // The times stay; only the done mark went.
@@ -58,16 +58,16 @@ test('a lead saving a final\'s finishing order lands on Races with "Finishing or
   const final=await flowPost(request,owner(),'/api/races',{eventCode:code,kind:'final',number:0,direct:true});
   const {page}=await openPhone(ownName('Lead toast final'),{lead:true});
   await openAt(page,final.race.id,'relays');
-  for(const number of [2011,2012]) await page.getByRole('button',{name:`${number}: Here`,exact:true}).click();
+  for(const number of [2011,2012]) await press(page.getByRole('button',{name:`${number}: Here`,exact:true}));
   await expect(page.getByRole('button',{name:'2012: Here',exact:true})).toHaveAttribute('aria-pressed','true');
-  await page.getByRole('button',{name:"That's everyone",exact:true}).click();
+  await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   await onTab(page,'Races');
   await savedToast(page,'Runners saved · Girl Cubs Final');
   await openAt(page,final.race.id,'relays');
-  await page.getByRole('tablist',{name:'Final steps'}).getByRole('tab',{name:/^Finishing order/}).click();
-  await page.getByRole('button',{name:'2012 came 1st',exact:true}).click();
-  await page.getByRole('button',{name:'2011 came 2nd',exact:true}).click();
-  await page.getByRole('button',{name:'Save the order',exact:true}).click();
+  await press(page.getByRole('tablist',{name:'Final steps'}).getByRole('tab',{name:/^Finishing order/}));
+  await press(page.getByRole('button',{name:'2012 came 1st',exact:true}));
+  await press(page.getByRole('button',{name:'2011 came 2nd',exact:true}));
+  await press(page.getByRole('button',{name:'Save the order',exact:true}));
   await onTab(page,'Races');
   await savedToast(page,'Finishing order saved · Girl Cubs Final');
 });
@@ -80,7 +80,7 @@ test('a lead marking That\'s everyone on a relay heat lands on Relays with the t
   await tickTeam(request,owner(),code,1);
   const {page}=await openPhone(ownName('Lead toast relay'),{lead:true});
   await openAt(page,made.race.id,'races');
-  await page.locator('footer.rz-footer').getByRole('button',{name:"That's everyone",exact:true}).click();
+  await press(page.locator('footer.rz-footer').getByRole('button',{name:"That's everyone",exact:true}));
   await onTab(page,'Relays');
   await savedToast(page,'Runners saved · Girl Cubs Heat 1');
   expect(await lookProblems(page)).toEqual([]);
@@ -98,7 +98,7 @@ test('a lead correcting Times after the Timer marked it done stays on the race w
   const {page}=await openPhone(ownName('Lead toast correct'),{lead:true});
   await openAt(page,race.id,'races');
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
-  await tabs.getByRole('tab',{name:/^Times/}).click();
+  await press(tabs.getByRole('tab',{name:/^Times/}));
   // The 2nd place's time is the last place's: it marks Times done again, which changes nothing.
   await enterTime(page,'1400');
   await expect.poll(async()=>(await read(request,race.id)).race.parts.times.value?.places).toEqual([1300,1400]);

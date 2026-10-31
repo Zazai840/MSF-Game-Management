@@ -13,7 +13,7 @@ test('"+" on a race screen opens the same Create heat sheet as the Races card, a
   const {page,token}=await openPhone(ownName('Plus asks start'));
   await flowRace(request,token,code);
   await openRace(page,name);
-  await page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:'Add heat 2',exact:true}).click();
+  await press(page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:'Add heat 2',exact:true}));
   const sheet=page.getByRole('dialog',{name:'New race'});
   await expect(sheet.getByRole('button',{name:'Heat 2',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(sheet.getByRole('button',{name:'Create heat 2',exact:true})).toBeVisible();
@@ -21,8 +21,8 @@ test('"+" on a race screen opens the same Create heat sheet as the Races card, a
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:/^Heat 2,/})).toHaveCount(0);
-  await page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:'Add heat 2',exact:true}).click();
-  await sheet.getByRole('button',{name:'Create heat 2',exact:true}).click();
+  await press(page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:'Add heat 2',exact:true}));
+  await press(sheet.getByRole('button',{name:'Create heat 2',exact:true}));
   await expect(page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:/^Heat 2,/})).toBeVisible();
   await expect(page.getByRole('navigation',{name:'Heats'}).getByRole('button',{name:/^Heat 2,/})).toHaveAttribute('aria-current','page');
 });
@@ -33,13 +33,13 @@ test('Runner not on the list leaves with Cancel; Check the order keeps Back',asy
   const {page}=await openPhone(ownName('Cancel finish'),{job:'finish'});
   await writeCheckIn(request,await signInThroughApi(request,ownName('Cancel start')),code,[n(1),n(2)]);
   await openRace(page,name);
-  await page.getByRole('button',{name:'+ Runner not on the list',exact:true}).click();
+  await press(page.getByRole('button',{name:'+ Runner not on the list',exact:true}));
   const footer=page.locator('.rz-footer');
   await expect(footer.getByRole('button')).toHaveText(['Cancel','Add runner']);
-  await footer.getByRole('button',{name:'Cancel',exact:true}).click();
+  await press(footer.getByRole('button',{name:'Cancel',exact:true}));
   await expect(heading(page,'Who came 1st?')).toBeVisible();
-  await page.getByRole('button',{name:`${n(1)} came 1st`,exact:true}).click();
-  await page.getByRole('button',{name:`${n(2)} came 2nd`,exact:true}).click();
+  await press(page.getByRole('button',{name:`${n(1)} came 1st`,exact:true}));
+  await press(page.getByRole('button',{name:`${n(2)} came 2nd`,exact:true}));
   await expect(heading(page,'Check the order')).toBeVisible();
   await expect(page.getByRole('button',{name:'Back',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Cancel',exact:true})).toHaveCount(0);
@@ -72,7 +72,7 @@ test('the job sheet asks "What\'s your job today?", and a lead\'s chip says Zone
   const {page}=await openPhone(ownName('Job sheet lead'),{lead:true});
   const chip=page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true});
   await expect(chip).toHaveText('Zone lead');
-  await chip.click();
+  await press(chip);
   const sheet=page.getByRole('dialog',{name:'What\'s your job today?',exact:true});
   await expect(sheet.getByRole('radiogroup',{name:'What\'s your job today?',exact:true})).toBeVisible();
 });
