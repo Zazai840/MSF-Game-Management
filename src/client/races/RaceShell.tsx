@@ -1,3 +1,4 @@
+import { eventTitle } from '../../shared/day.js';
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
@@ -80,7 +81,7 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
   }
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked,me};
   return <>
-    <RaceBar title={`${event.name} · ${event.section}`} code={event.code} role={role} onBack={onBack}>
+    <RaceBar title={eventTitle(event)} code={event.code} role={role} onBack={onBack}>
       <RoleChip role={role} onOpen={onRole}/>
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>

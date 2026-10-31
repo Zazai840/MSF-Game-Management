@@ -10,3 +10,5 @@ export const eventTypeNames: Record<EventType,string> = {races:'Races',hurdles:'
  */
 export interface DayEvent extends Event { id: string; enabled: boolean; type: EventType; relay: boolean }
 export interface DayRead { olympicsPassword: string; leadCode: string; revision: number; exportedAt:string|null; exportedRevision:number|null; events: DayEvent[] }
+/** An event's name on every screen, "200m · Boy Cubs"; its code goes in a tag beside it. */
+export const eventTitle=(event:Pick<Event,'name'|'section'>)=>`${event.name} · ${event.section}`;

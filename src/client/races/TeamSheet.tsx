@@ -1,3 +1,4 @@
+import { eventTitle } from '../../shared/day.js';
 import { useEffect,useId,useState,type ReactNode } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
 import { changedLine,type RaceFlowRead,type RaceGroup,type RacesRead } from '../../shared/race-flow.js';
@@ -29,7 +30,7 @@ export function TeamSheet({group,relays,me,start,onClose,offer}:{group:RaceGroup
   function choose(team:RelayTeam) {
     setMode(team.changedBy && team.changedBy.id!==me?{kind:'asking',teamId:team.id}:{kind:'edit',teamId:team.id});
   }
-  return <Sheet title={`${group.event.name} · ${group.event.section}`} onClose={onClose}>
+  return <Sheet title={eventTitle(group.event)} onClose={onClose}>
     <p className="rz-sheet__text">{teamsSheetLine(teams,open)}</p>
     {teams.length>0 && <ul className="rz-teamsheet" aria-label="Teams">{teams.map(team=>{
       const tappable=open && stillToRun(team),body=<>
