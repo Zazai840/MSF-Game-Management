@@ -71,7 +71,7 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
     else if(item.entryId && detail?.results.actionableRunners.some(row=>row.raceId===item.raceId && row.entryId===item.entryId)) setSelected({raceId:item.raceId!,entryId:item.entryId});
     else if(item.raceId) openRace(item.raceId);
   }
-  if(!code) return <LeadBar title="Results" up="Races" body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
+  if(!code) return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
   if(raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack}/>;
   const state=detail?eventState({status:detail.results.status,raceCount:detail.results.raceCount,format:detail.event.format,decidedWithoutFinal:detail.results.decidedWithoutFinal}):null;
   return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results"/>
