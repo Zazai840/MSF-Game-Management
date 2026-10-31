@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time entry variants</title>
+<!-- Throwaway test page for docs/research/time-entry.md (issue #234). Open it on a phone to see each keypad. Not part of the app. -->
+<style>
+  body{font:16px/1.4 system-ui,sans-serif;margin:0;padding:16px;max-width:520px;background:#fff;color:#111}
+  section{border:1px solid #ccc;border-radius:8px;padding:12px;margin:0 0 16px}
+  h2{font-size:1rem;margin:0 0 4px}
+  p{margin:4px 0;font-size:.9rem;color:#444}
+  input{font:600 28px/1.2 ui-monospace,monospace;width:100%;box-sizing:border-box;padding:8px;border:2px solid #555;border-radius:6px}
+  output{display:block;margin-top:6px;font-weight:600}
+  .bad{color:#b00}
+  pre{font-size:11px;background:#f4f4f4;max-height:7em;overflow:auto;margin:6px 0 0;padding:4px}
+</style>
+</head>
+<body>
+<h1 style="font-size:1.2rem">Race time entry: five variants</h1>
+<p>Type 12.34 s and 1:32.40 in each. Then try: backspace over a separator, tap into the middle and change a digit, paste "1:32.40". The log shows what the browser sent.</p>
+
+<section>
+  <h2>A. Today: digits only, number pad, readout below</h2>
+  <p>inputmode="numeric" pattern="[0-9]*". Last two digits are hundredths. The box shows exactly what was typed.</p>
+  <input id="a" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false">
+  <output id="a-out"></output><pre id="a-log"></pre>
+</section>
+
+<section>
+  <h2>B. Left-to-right mask __:__.__ on the number pad</h2>
+  <p>inputmode="numeric". Separators are inserted as you type, filling from the left (a typical input-mask library).</p>
+  <input id="b" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="__:__.__">
+  <output id="b-out"></output><pre id="b-log"></pre>
+</section>
+
+<section>
+  <h2>C. Decimal keypad, free text, strict check</h2>
+  <p>inputmode="decimal". Accepts 12.34 or 1:32.40 (or 1.32.40 where no colon key exists); anything else is refused on Next.</p>
+  <input id="c" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false">
+  <output id="c-out"></output><pre id="c-log"></pre>
+</section>
+
+<section>
+  <h2>D. Full keyboard, strict check</h2>
+  <p>No inputmode. Accepts 12.34 or 1:32.40 only.</p>
+  <input id="d" type="text" autocomplete="off" autocorrect="off" spellcheck="false">
+  <output id="d-out"></output><pre id="d-log"></pre>
+</section>
+
+<section>
+  <h2>E. Right-to-left (calculator) fill on the number pad</h2>
+  <p>inputmode="numeric". Digits shift in from the right; the box itself shows 0.01, 0.12, 1.23, 12.34. Backspace always removes the last digit.</p>
+  <input id="e" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="0.00">
+  <output id="e-out"></output><pre id="e-log"></pre>
+</section>
+
+<script>
+// Same rules as src/shared/time-entry.ts: last two digits hundredths, next two seconds, then minutes.
+const digitsOnly = v => v.replace(/\D/g, '');
+function fromDigits(d) {
+  if (!/^\d+$/.test(d)) return null;
+  const p = d.padStart(4, '0');
+  return Number(p.slice(-2)) + Number(p.slice(-4, -2)) * 100 + Number(p.slice(0, -4)) * 6000;
+}
+function show(h) {
+  if (h === null) return 'not a time';
+  const m = Math.floor(h / 6000), s = Math.floor(h % 6000 / 100), f = String(h % 100).padStart(2, '0');
+  return (m ? m + ':' + String(s).padStart(2, '0') : s) + '.' + f;
+}
+// Strict free-text format: ss.hh or m:ss.hh (C also takes m.ss.hh for keypads without a colon).
+function strict(v, allowDotForColon) {
+  const re = allowDotForColon ? /^(?:(\d{1,2})[:.])?(\d{1,2})\.(\d{2})$/ : /^(?:(\d{1,2}):)?(\d{1,2})\.(\d{2})$/;
+  const m = v.trim().match(re);
+  if (!m || Number(m[2]) > 59 && m[1]) return null;
+  return Number(m[1] || 0) * 6000 + Number(m[2]) * 100 + Number(m[3]);
+}
+// B: fill __:__.__ from the left, inserting separators once the next digit arrives.
+function maskLtr(d) {
+  d = d.slice(0, 6);
+  let out = '';
+  for (let i = 0; i < d.length; i++) { if (i === 2) out += ':'; if (i === 4) out += '.'; out += d[i]; }
+  return out;
+}
+const fromMaskLtr = v => { const d = digitsOnly(v); return d.length === 6 ? fromDigits(d) : null; };
+// E: right-to-left fill, shown in the box itself.
+const maskRtl = d => { d = d.replace(/^0+/, '').slice(0, 6); return d ? show(fromDigits(d)) : ''; };
+
+function wire(id, { format, parse }) {
+  const el = document.getElementById(id), out = document.getElementById(id + '-out'), log = document.getElementById(id + '-log');
+  const note = s => { log.textContent = s + '\n' + log.textContent.slice(0, 2000); };
+  el.addEventListener('beforeinput', e => note(`beforeinput ${e.inputType} data=${JSON.stringify(e.data)} composing=${e.isComposing} cancelable=${e.cancelable}`));
+  el.addEventListener('keydown', e => note(`keydown key=${JSON.stringify(e.key)} keyCode=${e.keyCode}`));
+  el.addEventListener('input', () => {
+    if (format) {
+      const before = el.value, caret = el.selectionStart;
+      el.value = format(digitsOnly(el.value));
+      note(`input "${before}" caret ${caret} -> "${el.value}" caret ${el.selectionStart}`);
+    } else note(`input "${el.value}" caret ${el.selectionStart}`);
+    const h = parse(el.value);
+    out.textContent = el.value ? (h === null ? 'Not a time yet' : 'Saves as ' + show(h)) : '';
+    out.className = el.value && h === null ? 'bad' : '';
+  });
+}
+wire('a', { format: d => d, parse: v => fromDigits(v) });
+wire('b', { format: maskLtr, parse: fromMaskLtr });
+wire('c', { parse: v => strict(v, true) });
+wire('d', { parse: v => strict(v, false) });
+wire('e', { format: maskRtl, parse: v => fromDigits(digitsOnly(v)) });
+// E: backspace anywhere removes the last digit, so a separator can never trap the caret.
+document.getElementById('e').addEventListener('beforeinput', e => {
+  if (e.inputType !== 'deleteContentBackward' || !e.cancelable) return;
+  e.preventDefault();
+  const el = e.target;
+  el.value = maskRtl(digitsOnly(el.value).slice(0, -1));
+  el.dispatchEvent(new Event('input'));
+});
+</script>
+</body>
+</html>
