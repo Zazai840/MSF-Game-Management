@@ -1,7 +1,0 @@
-.tie-outcomes {display:grid;gap:.6rem;margin:1rem 0;}
-.tie-outcomes button {background:var(--surface);color:var(--navy);}
-.tie-outcomes [aria-pressed=true] {background:var(--navy);color:#fff;}
-.runner-actions .tie-form {gap:.75rem;}
-.tie-form p,.tie-form .sortable-list {margin:0;}
-.tie-open {background:var(--amber-fill);color:var(--amber-text);border-color:var(--amber-line);margin:0 0 .8rem;}
-.runner-actions form {margin:1rem 0;}

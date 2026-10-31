@@ -9,11 +9,15 @@ export type EventTab=typeof eventTabs[number];
  * parentOf, then render it in App with a LeadBar naming it.
  */
 export type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'results'}|{kind:'event';code:string;tab:EventTab}
-  |{kind:'race-page';code:string;raceId:string}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
+  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
   |{kind:'rename-event';code:string}|{kind:'new-event'};
 const part=encodeURIComponent;
-/** The screen an address opens; an address the app does not know opens Races. */
-export function viewAt(path:string):View {
+/**
+ * The screen an address (path and query) opens; an address the app does not know opens Races. A tie opened from
+ * Results without a final carries `?stage=no-final`: it is judged against medal places there.
+ */
+export function viewAt(address:string):View {
+  const [path='',query='']=address.split('?');
   const [first,...rest]=path.split('/').filter(Boolean).map(decodeURIComponent);
   const [a,b,c]=rest;
   if(first==='races' && rest.length===1) return {kind:'race',id:a!};
@@ -22,6 +26,7 @@ export function viewAt(path:string):View {
     if(rest.length===1) return {kind:'event',code:a!,tab:'heats'};
     if(rest.length===2 && eventTabs.includes(b as EventTab)) return {kind:'event',code:a!,tab:b as EventTab};
     if(rest.length===3 && b==='races') return {kind:'race-page',code:a!,raceId:c!};
+    if(rest.length===3 && b==='ties') return {kind:'tie',code:a!,tieId:c!,...(new URLSearchParams(query).get('stage')==='no-final'?{stage:'no-final'} as const:{})};
   }
   if(first==='day') {
     if(!rest.length) return {kind:'day'};
@@ -40,6 +45,7 @@ export function addressOf(view:View):string {
     case 'results': return '/results';
     case 'event': return `/results/${part(view.code)}/${view.tab}`;
     case 'race-page': return `/results/${part(view.code)}/races/${part(view.raceId)}`;
+    case 'tie': return `/results/${part(view.code)}/ties/${part(view.tieId)}${view.stage?`?stage=${view.stage}`:''}`;
     case 'day': return '/day';
     case 'signed-in-today': return '/day/signed-in-today';
     case 'events': return '/day/events';
@@ -53,6 +59,7 @@ export function parentOf(view:View):View {
   switch(view.kind) {
     case 'race-page': return {kind:'event',code:view.code,tab:'races'};
     case 'event': return {kind:'results'};
+    case 'tie': return {kind:'event',code:view.code,tab:'heats'};
     case 'signed-in-today': case 'events': case 'olympics-password': return {kind:'day'};
     case 'rename-event': case 'new-event': return {kind:'events'};
     default: return {kind:'races'};

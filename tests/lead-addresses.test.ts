@@ -13,6 +13,8 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races',{kind:'event',code:'R4',tab:'races'}],
     ['/results/R4/notes',{kind:'event',code:'R4',tab:'notes'}],
     ['/results/R4/races/r-1',{kind:'race-page',code:'R4',raceId:'r-1'}],
+    ['/results/R4/ties/t-1',{kind:'tie',code:'R4',tieId:'t-1'}],
+    ['/results/R4/ties/t-1?stage=no-final',{kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'}],
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
@@ -36,11 +38,15 @@ test('codes and race ids with spaces or slashes survive the address',()=>{
   const view={kind:'race-page',code:'R 4/b',raceId:'a/b c'} as const;
   expect(viewAt(addressOf(view))).toEqual(view);
   expect(viewAt(addressOf({kind:'rename-event',code:'R 4/b'}))).toEqual({kind:'rename-event',code:'R 4/b'});
+  // A tie's id joins its time and its runners' race and entry ids: "1000|r-1:e-1|r-2:e-2".
+  const tie={kind:'tie',code:'R4',tieId:'1000|r 1:e/1|r-2:e-2'} as const;
+  expect(viewAt(addressOf(tie))).toEqual(tie);
 });
 
 test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'race-page',code:'R4',raceId:'r-1'})).toEqual({kind:'event',code:'R4',tab:'races'});
   expect(parentOf({kind:'event',code:'R4',tab:'final'})).toEqual({kind:'results'});
+  expect(parentOf({kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'})).toEqual({kind:'event',code:'R4',tab:'heats'});
   expect(parentOf({kind:'results'})).toEqual({kind:'races'});
   expect(parentOf({kind:'day'})).toEqual({kind:'races'});
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});

@@ -79,7 +79,7 @@ test('a lead\'s step tabs on a relay name each team with its four children, sett
   await page.screenshot({path:info.outputPath('relay-lead-rerun.png'),fullPage:true});
 });
 
-test('a tie between two relay heats shows on both heats\' Times tab with each team\'s four children, and Open in Results opens the tie',async({openPhone,request},info)=>{
+test('a tie between two relay heats shows on both heats\' Times tab with each team\'s four children, and Open in Results opens the tie screen, with Back to the race',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Relay tie');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',8);
@@ -100,6 +100,9 @@ test('a tie between two relay heats shows on both heats\' Times tab with each te
     await page.screenshot({path:info.outputPath(`relay-lead-tie-heat-${index+1}.png`),fullPage:true});
   }
   await page.getByRole('alert').filter({hasText:'Teams tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  await expect(page.getByRole('dialog',{name:'Tie at 14.00',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'Tie at 14.00',exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__help')).toHaveText('Team 1 (Heat 1) and Team 2 (Heat 2) both ran 14.00.');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.goBack();
+  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
 });

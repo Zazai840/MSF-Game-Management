@@ -1,4 +1,4 @@
-import {ownName,ownCode,backToRaces,expect,expectToast,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,back,backToRaces,expect,expectToast,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Ready for you is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
@@ -139,7 +139,7 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   await expect(actions).toHaveCount(0);
 });
 
-test('a tie between two heats shows on both heats\' Times tab, and Open in Results opens the tie',async({openPhone,request},info)=>{
+test('a tie between two heats shows on both heats\' Times tab, and Open in Results opens the tie screen, with Back to the race',async({openPhone,request},info)=>{
   const name=ownName('Lead tie'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','heats');
   // 2041 in Heat 1 and 2043 in Heat 2 share a time.
@@ -159,8 +159,11 @@ test('a tie between two heats shows on both heats\' Times tab, and Open in Resul
     await page.screenshot({path:info.outputPath(`lead-tie-${chip}.png`),fullPage:true});
   }
   await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__help')).toHaveText('2041 (Heat 1) and 2043 (Heat 2) both ran 10.00.');
+  expect(await lookProblems(page)).toEqual([]);
+  await back(page,'Heat 2');
+  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
 });
 
 test('a correction from Race actions on the race screen shows its toast, with no Undo',async({openPhone,request},info)=>{
