@@ -91,7 +91,8 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await expect(page.getByRole('button',{name:'Re-run race',exact:true})).toBeVisible();
   await back(page,`${name} · Boy Scouts`);await eventTab(page,'Heats');
   const row=(heat:number)=>page.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat ${heat}`,exact:true});
-  await expect(row(1)).toContainText('Check');await expect(row(2)).toContainText('Check');
+  // Both rows rank; Team 1's sheet offers the choice because it ran twice.
+  await expect(row(1)).toContainText('Heat 1');
   await row(2).click();
   await page.getByRole('button',{name:'Choose which result counts',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('Choose the result that counts for Team 1.');
@@ -99,7 +100,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-choose-result.png'),fullPage:true});
   await page.getByRole('button',{name:'Save counted result',exact:true}).click();
-  await expect(row(1)).toContainText('Not counted');await expect(row(2)).not.toContainText('Check');
+  await expect(row(1)).toContainText('Not counted');await expect(row(2)).not.toContainText('Not counted');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('counted Team 1 from Heat 2; Heat 1 not counted');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-ran-twice-settled.png'),fullPage:true});

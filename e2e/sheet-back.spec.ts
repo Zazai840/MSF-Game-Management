@@ -1,4 +1,4 @@
-import {ownName,ownCode,expect,lookProblems,openLeadMenu,openRace,ownEvent,press,recordRace,test,type Locator,type Page} from './fixtures.js';
+import {eventTab,ownName,ownCode,expect,lookProblems,openLeadMenu,openRace,ownEvent,press,recordRace,test,type Locator,type Page} from './fixtures.js';
 
 const owner=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function onRaces(page:Page) {
@@ -71,14 +71,14 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   // The runner sheet on an event: Back closes it and the event stays; the next Back goes to Results.
   await openLeadMenu(page,'Results');
   await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
-  const eventPage=async()=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:event,exact:true})).toBeVisible();};
+  const eventPage=async(tab='heats')=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/${tab}$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:event,exact:true})).toBeVisible();};
   await eventPage();
   const runner=page.getByRole('dialog',{name:/^Actions for /}),row=page.getByRole('button',{name:/2042.* · Heat 1$/});
   await opensAndCloses(page,()=>press(row),runner,'back',eventPage);
   await opensAndCloses(page,()=>press(row),runner,'escape',eventPage);
   await press(row);await press(runner.getByRole('button',{name:'Close actions',exact:true}));await expect(runner).toHaveCount(0);await eventPage();
   // A race deleted from its sheet goes back to the event, past the sheet; the next Back goes to Results.
-  await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await eventTab(page,'Races');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));
   await press(page.getByRole('button',{name:'Delete race',exact:true}));
   const remove=page.getByRole('dialog',{name:/^Delete race/});
@@ -87,6 +87,6 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await page.goBack();await expect(remove).toHaveCount(0);await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));
   await press(page.getByRole('button',{name:'Delete race',exact:true}));
   await press(remove.getByRole('button',{name:'Confirm permanent deletion',exact:true}));
-  await eventPage();
+  await eventPage('races');
   await page.goBack();await expect(page).toHaveURL(/\/results$/);
 });
