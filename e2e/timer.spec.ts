@@ -153,6 +153,41 @@ test('a time no one can run is refused in the amber callout under the time box, 
   await deleteCurrentRace(request,code);
 });
 
+test('a time slower than 1.5 m/s for the race is saved but held, "Slow for 200m", for Fix time or Keep; a retyped time is no longer kept',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('200m slow');
+  await raceWaitingForTimes(request,code,name);
+  const {page}=await openPhone(ownName('Slow times'),{job:'timer'});
+  await openRace(page,name);
+  const input=page.getByLabel('Place time',{exact:true});
+  await enterTime(page,'2400');await enterTime(page,'2500');
+  // A doubled digit: 3:10.22 for 31.02. 200m is slow above 2:13.33.
+  await input.fill('31022');await input.press('Enter');
+  const warning=page.getByRole('alert').filter({hasText:`The 3rd place time, 3:10.22, looks slow for ${name}. Fix it, or keep it if the timer really shows that.`});
+  await expect(warning).toBeVisible();
+  const third=slot(page,`3rd place: 3:10.22, Slow for ${name}`);
+  await expect(third).toContainText(`Slow for ${name}`);
+  await expect(page.locator('footer.rz-footer')).toContainText('Fix or keep the 3rd place time first');
+  await expect.poll(()=>savedTimes(request,code)).toEqual({places:[2400,2500,19022],outOfOrder:false,keptWrong:[]});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer-slow.png'),fullPage:true});
+  // Fix time: the time stays, selected, so typing replaces it.
+  await warning.getByRole('button',{name:'Fix time',exact:true}).click();
+  await expect(input).toBeFocused();await expect.poll(()=>selected(page,'Place time')).toBe('3:10.22');
+  await input.pressSequentially('3102');await input.press('Enter');
+  await expect(warning).toHaveCount(0);
+  await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
+  // A really slow child: Keep marks it Kept, and the next place is up.
+  await slot(page,'3rd place: 31.02').click();await input.fill('31022');await input.press('Enter');
+  await warning.getByRole('button',{name:'Keep',exact:true}).click();
+  await expect(warning).toHaveCount(0);await expect(third).toContainText('Kept');
+  await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
+  await expect.poll(()=>savedTimes(request,code)).toEqual({places:[2400,2500,19022],outOfOrder:false,keptWrong:[2]});
+  // Retyped, it is a new time: held again.
+  await third.click();await input.fill('31023');await input.press('Enter');
+  await expect(page.getByRole('alert').filter({hasText:`The 3rd place time, 3:10.23, looks slow for ${name}.`})).toBeVisible();
+  await expect.poll(()=>savedTimes(request,code)).toEqual({places:[2400,2500,19023],outOfOrder:false,keptWrong:[]});
+  await deleteCurrentRace(request,code);
+});
+
 test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, Fix time and Keep sit just above the number box, in view, with the footer saying why it waits',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Times big'),n=await ownWristbands('Girl Cubs',12);
   await ownEvent(request,code,name,'Girl Cubs','timed');

@@ -140,6 +140,28 @@ test('times refuses a time no one can run, with the phone\'s words, but never ch
   await call(owner,'/api/day/events/R4/rename',{name:'60m'});
   expect((await ok(await times(jo,quick,{places:[21,1300]}))).race.parts.times.value!.places).toEqual([21,1300]);
 });
+test('a time slower than 1.5 m/s saves held for Fix time or Keep, and Keep clears the hold; "faster than an earlier place" holds as before',async()=>{
+  const {sam,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
+  const done=(read:RaceFlowRead)=>call(jo,`/api/races/${read.race.id}/steps/times/done`,{});
+  // R4 is 60m: 40.00 is fine, 40.01 is held.
+  const slow=await ok(await times(jo,checked,{places:[4000,4001]}));
+  expect(slow.race.parts.times.value).toEqual({places:[4000,4001],outOfOrder:false,keptWrong:[]});
+  expect((await done(slow)).json().message).toBe('2nd place\'s time needs Fix time or Keep');
+  const kept=await ok(await times(jo,slow,{places:[4000,4001],keptWrong:[1]}));
+  expect(kept.race.parts.times.value).toEqual({places:[4000,4001],outOfOrder:false,keptWrong:[1]});
+  const faster=await ok(await times(jo,kept,{places:[4000,4001,3900],keptWrong:[1]}));
+  expect((await done(faster)).json().message).toBe('3rd place\'s time needs Fix time or Keep');
+  expect((await done(await ok(await times(jo,faster,{places:[4000,4001],keptWrong:[1]})))).statusCode).toBe(200);
+});
+test('an event with no known distance holds no slow time, and a race saved then stays saved when its name gains a distance',async()=>{
+  const {owner}=await start();
+  await call(owner,'/api/day/events/R4/rename',{name:'Sack race'});
+  const race=await raceSetup(app).record(owner,'R4',[2001],[9000]);
+  await call(owner,'/api/day/events/R4/rename',{name:'60m'});
+  const saved=(await call(owner,`/api/lead/races/${race.id}`)).json().race;
+  expect([saved.state,saved.parts.times.value]).toEqual(['saved',{places:[9000],outOfOrder:false,keptWrong:[]}]);
+});
 /** Two heats of R4 (eight runners, 2001 fastest), then heats complete: the final seeds the six fastest. */
 async function final() {
   const people=await start(),setup=raceSetup(app);

@@ -140,7 +140,7 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
   const unplaced=places.findIndex((time,index)=>index>=limit && time!==stored?.places[index]);
   if(unplaced>=0) throw new Refusal(409,`This race has ${limit} ${limit===1?'runner':'runners'} - add the runner at the finish first`);
   refuseImpossibleTimes(places,stored?.places,target.event.name);
-  const wrong=wrongTimes(places).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
+  const wrong=wrongTimes(places,target.event.name).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
   await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
 }
 /**

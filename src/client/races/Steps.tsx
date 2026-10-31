@@ -309,7 +309,7 @@ export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
 
 /**
  * Timer: one slot per place (each finisher once the order is saved, before that each runner), the current one gold; tap any
- * to retype it. The time box fills from the right as the timer's digits are typed. A time faster than an earlier place waits for Fix time or
+ * to retype it. The time box fills from the right as the timer's digits are typed. A time faster than an earlier place, or slow for the race, waits for Fix time or
  * Keep, its warning just above the time box and its reason in the footer. A time no one can run is refused in the amber
  * callout under the box, its digits selected so the next digit replaces them. The last place's time, or No more
  * finishers, marks Times done. Times never wait for the finish line.
@@ -322,7 +322,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   const [refusal,setRefusal]=useState<string|null>(null),[refusals,setRefusals]=useState(0);
   const setTyped=(digits:string)=>{setTypedDigits(digits);setRefusal(null);};
   const stored=race.parts.times.value,places=writes.pending?.places||(stored?.places||[]).filter((time):time is number=>time!==null);
-  const keptWrong=writes.pending?.keptWrong||stored?.keptWrong||[],wrong=wrongTimesByPlace(places);
+  const keptWrong=writes.pending?.keptWrong||stored?.keptWrong||[],wrong=wrongTimesByPlace(places,read.group.event.name);
   const unkept=[...wrong.values()].find(item=>!keptWrong.includes(item.index));
   const slots=Math.max(status.expected||0,places.length);
   const held=retype===null && !!unkept,target=held?unkept!.index:retype??places.length,full=target>=slots;
@@ -334,7 +334,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
     const refused=timeRefusal(typed,read.group.event.name);
     if(refused) {setRefusal(refused);setRefusals(count=>count+1);return;}
     const updated=[...places];updated[target]=time;
-    const stillWrong=wrongTimesByPlace(updated);
+    const stillWrong=wrongTimesByPlace(updated,read.group.event.name);
     setTyped('');setRetype(null);
     const sent=await writes.send({places:updated,keptWrong:keptWrong.filter(index=>index!==target && stillWrong.has(index))});
     // The last place's time marks Times done, unless it is one the timer must look at again.
