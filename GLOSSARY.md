@@ -35,7 +35,7 @@ How an event decides its medals: either heats then a final (60m and relays), unl
 _Avoid_: Race type
 
 **Event type**:
-What kind of event it is: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events. Home's tab follows from it: races and hurdles events are on the Races tab, relays on Relays. Hurdles skip the usual heat size note.
+What kind of event it is: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events. (An event's distance, for a time's limits, is the one thing read from its name: "60m Hurdles" is 60 m, "4x100m Relay" 400 m.) Home's tab follows from it: races and hurdles events are on the Races tab, relays on Relays. Hurdles skip the usual heat size note.
 _Avoid_: Category, kind
 
 **Relay**:
@@ -137,8 +137,12 @@ A place at the bottom of a saved race's times that no child holds, marked by a l
 _Avoid_: Blank time, empty place, DNF time
 
 **Wrong time**:
-A time that looks wrong for its race: a later place faster than an earlier one. It is shown in amber wherever times appear; the timer can retype a place or keep its time as typed, and a kept wrong time goes to To check for a lead.
+A time that looks wrong for its race: a later place faster than an earlier one, or slower than 1.5 m/s for the event's distance (over 40.00 for 60m), as a doubled digit makes it. It is saved, shown in amber wherever times appear, and held: the Timer moves on only once it is retyped (Fix time) or kept as typed (Keep). A kept faster time goes to To check for a lead; a kept slow time does not.
 _Avoid_: Error, invalid time, bad time
+
+**Refused time**:
+A time the time box does not take, because it cannot be a time for the race: seconds over 59 ("1:92.34"), 0.00, or faster than 10 m/s for the event's distance (under 6.00 for 60m). The refusal shows in the amber callout under the box, with the digits selected so the next digit replaces them, and nothing is saved. The server refuses a too-fast time too.
+_Avoid_: Rejected time, impossible time
 
 **Audit note**:
 A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and any comment.

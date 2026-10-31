@@ -96,10 +96,10 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 **17 Times: type a place time**
 - Prompt: meta "60m · Girl Cubs · Heat 3 · 5 runners · checked in 11:41 AM", question "1st place time?" (compact).
 - PlaceTimeGrid: the current slot gold; filled slots show their time; "No finisher" in muted.
-- Numeric TextField "Place time", hint "Shows as <strong>12.34</strong>" and "Type digits only: 1234 shows as 12.34, 13240 as 1:32.40. Tap a place to retype it."
-- Footer trio: secondary "Back", secondary "No more finishers", primary "Next".
+- Time box "Place time": the time itself, filling from the right as digits are typed (1234 shows 12.34, 13240 shows 1:32.40), hint "Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34." Tap a place to retype it.
+- Footer trio: secondary "Previous place", secondary "No more finishers", primary "Next".
 
-**18 Times: time faster than the place before.** The current slot and the field take the warn state; the slot note reads "Faster than 1st place". A WarningCallout sits directly above the field: "The 2nd place time is faster than 1st. Fix it, or keep it if the timer really shows that." with "Fix time" and "Keep".
+**18 Times: a wrong time.** The current slot and the field take the warn state; the slot note reads "Faster than 1st place", or "Slow for 200m" for a time slower than 1.5 m/s for the race. A WarningCallout sits directly above the field: "The 2nd place time is faster than 1st. Fix it, or keep it if the timer really shows that." (or "The 3rd place time, 3:10.22, looks slow for 200m. ...") with "Fix time" and "Keep". A time that cannot be one (seconds over 59, 0.00, faster than 10 m/s) is refused instead, in the amber callout under the field, its digits selected.
 
 **19 Times: check the times**
 - `display-screen` "Check the times" with an ok StatusTag "4 times · 4 finishers".
@@ -145,11 +145,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - ListRows "2001 · Place 2 · 10.45".
 - A Disclosure "Saved versions (5)".
 
-**29 Heats complete check.** A Sheet titled "Heats complete":
-- `rz-section` "Must settle first": IssueCard-style rows, "Tie: 2006, 2012", "Heat 3: times out of order", "Heat 4: awaiting times", "Heat 5: checked in".
-- `rz-section` "Worth a look": `body` "These warnings do not block completion." then the warnings.
-- `rz-section` "What this creates": "Finals line-up".
-- The final action stays disabled while anything under "Must settle first" remains.
+**29 Heats complete check.** Removed. A lead makes the final with "+ Final" on the event's card, after a confirm ("Have all Girl Cubs heats run?"). "+ Final" is greyed, with the reason, while a heat is not saved or has something to settle first (a tie at 6th, a time to check).
 
 ## Day setup
 

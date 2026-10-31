@@ -188,9 +188,10 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - The number of places is the larger of the runner count and the number of places recorded so far.
   - The current slot is gold with a navy ring; tap any slot to retype it.
   - Over 9 places the grid is compact: 4 across, 44px tall.
-- **Numeric TextField** with the hint "Shows as **13.05**. Type digits only."
-- **Footer trio:** Back / No more finishers / Next, each on one line.
-- **Keep the "faster than the place before" warning** (Fix time / Keep), directly above the TextField. While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
+- **Time box** (numeric TextField): it shows the time itself, filling from the right as the timer's digits are typed ("13.05"), with the hint "Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34." under it.
+- **Footer trio:** Previous place / No more finishers / Next, each on one line.
+- **A wrong time is held** (Fix time / Keep), its WarningCallout directly above the time box, for a time faster than the place before ("Faster than 2nd place") or slower than 1.5 m/s for the race ("Slow for 200m": "The 3rd place time, 3:10.22, looks slow for 200m."). While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
+- **A refused time** (seconds over 59, 0.00, faster than 10 m/s for the race) shows in the amber callout under the box, the digits selected so the next digit replaces them; nothing is saved.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 
 #### 8. Zone lead (artboard `N8-Lead`)
@@ -289,7 +290,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | **RunnerButton** | Compact runner tile: 3-column grid, 72px tall, radius 36/36/12/12 (a shallow arch), `card`, `shadow-tile`, Saira 900 34px tabular. On press, move down 4px and drop to `shadow-card`. `aria-label="2032 came 3rd"`. This **replaces** the 150px RunnerTile on the finish line. |
 | **OrderRow** | 44px row, grid `44px 1fr 44px`: Saira ordinal, wristband 18px/800, a drag handle button. `card` + `shadow-card`; while dragging, `shadow-raised`. An unplaced row is dashed `line-strong`, with a DNF StatusTag. |
 | **Toast** | Fixed above the footer, `navy`, `radius-lg`-ish (14px), `shadow-raised`. Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 6 seconds, paused while focused. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this since. Open the race to edit it." |
-| **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4"), then a small Button Take off at the end. On a heat its legs are attendance rows (`card`, `shadow-card`, `radius-md`): "1st leg" 12px/700 `ink-muted` over the wristband, and a 44px grip. On a final the whole card is one `card` with "1st fastest · " before the name, Here / Absent pills in the head, and each leg a 44px row under a 1px `line` rule; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
+| **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4"), then a small Button Take off at the end. On a heat and on a final its legs are four leg chips side by side (variant A): each 44px tall, `card` with a 2px `line` border and `radius-md`, "1st" 12px/700 `ink-muted` over the wristband ("–" dashed for an empty leg), with a grip under it. On a final the whole card is one `card` with "1st fastest · " before the name and Here / Absent pills in the head; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
 | **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, two lines of equal size (32px), "Team 5" over its 4th leg's wristband "2054". `aria-label="Team 5, 4th leg 2054, came 1st"`. |
 
 Update existing READMEs where the new flow changes them:
@@ -314,7 +315,8 @@ Update existing READMEs where the new flow changes them:
 | 20–21 Become a zone lead / lead home | The Zone lead row in the role sheet; Races as lead |
 | 22–23 Dashboard / To check | Removed: issues show on race cards and in the lead's race tabs |
 | 24, 27, 28 Settle tie, runner actions, race detail | The "⋯" race actions sheet and the lead tabs |
-| 25–26, 29 Results, leaderboard, heats complete | Unchanged; reached from the avatar menu. The final now comes from "+ Final" on the card. |
+| 25–26 Results, leaderboard | Unchanged; reached from the avatar menu |
+| 29 Heats complete | Removed: a lead makes the final with "+ Final" on the card, after a confirm |
 | 30–32 Day setup | Unchanged; reached from the avatar menu |
 | Relay race screen (holds, Take over, Submit Race), the Teams screen and the teams sheet | Relays tab in the race flow, with each team typed into its heat (see "9. Relays") |
 

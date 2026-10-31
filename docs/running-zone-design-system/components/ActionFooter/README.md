@@ -11,7 +11,7 @@ The bottom of every screen: when the data last arrived, a Refresh button, and th
 - Then the actions, in one of three layouts:
   - **Task:** one display-primary button (`rz-btn--display rz-btn--block`), then at most one secondary block button.
   - **Pair** (`rz-footer__pair`): secondary on the left, primary on the right ("That's everyone" / "Next").
-  - **Trio** (`rz-footer__trio`): Back / an escape hatch / Next. Only on time entry.
+  - **Trio** (`rz-footer__trio`): Previous place / an escape hatch / Next. Only on time entry.
 - Home and list screens have the Updated-at line only.
 
 **The consumer provides:** the time, the refresh handler and the action buttons.
@@ -42,7 +42,7 @@ The bottom of every screen: when the data last arrived, a Refresh button, and th
 
 <footer class="rz-footer">
   <div class="rz-footer__trio">
-    <button class="rz-btn" type="button">Back</button>
+    <button class="rz-btn" type="button">Previous place</button>
     <button class="rz-btn" type="button">No more finishers</button>
     <button class="rz-btn rz-btn--primary" type="button">Next</button>
   </div>

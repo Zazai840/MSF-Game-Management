@@ -1,6 +1,6 @@
 # Sheet
 
-A modal panel that slides up from the bottom for a decision about one thing: a tie (24), a runner's actions (27), heats complete (29).
+A modal panel that slides up from the bottom for a decision about one thing: a tie (24), a runner's actions (27), making the final ("Have all Girl Cubs heats run?").
 
 **Use**
 - `role="dialog" aria-modal="true"`, labelled by its title. Focus goes to the first action, is trapped inside, and returns to the opener on close. Escape closes it.
