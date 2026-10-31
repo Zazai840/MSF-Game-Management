@@ -11,7 +11,11 @@ const root = document.getElementById('root')!;
 if (root.dataset.unsupported !== 'true') {
   // Ask the browser to keep the pass and profiles even when the phone is short of space; carry on if it says no.
   void navigator.storage?.persist?.().catch(()=>false);
-  startUpdates();
   followKeyboard();
-  createRoot(root).render(<App />);
+  // PROTOTYPE (map #231, ticket #243): tie sheet and Confirm the medals in the new look, client only, never merged.
+  if(location.pathname.startsWith('/prototype/lead-sheets')) void import('./lead/LeadSheets.prototype.js').then(({LeadSheetsPrototype})=>createRoot(root).render(<LeadSheetsPrototype/>));
+  else {
+    startUpdates();
+    createRoot(root).render(<App />);
+  }
 }

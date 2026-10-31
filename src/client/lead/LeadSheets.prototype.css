@@ -1,0 +1,40 @@
+/* PROTOTYPE - throwaway styles for LeadSheets.prototype.tsx (map #231, ticket #243). */
+.proto-switcher { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; background: #fce4ec; }
+.proto-switcher__pill { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 999px; background: #c2185b; color: #fff; font: 700 13px/1 system-ui, sans-serif; white-space: nowrap; }
+.proto-switcher button { width: 30px; height: 30px; border: 0; border-radius: 999px; background: rgba(255,255,255,.2); color: #fff; font: 700 20px/1 system-ui, sans-serif; }
+.proto-switcher span { padding: 0 4px; }
+.proto-switcher .proto-switcher__reset { font-size: 16px; }
+.proto-state { margin: 0; color: #880e4f; font: 600 11px/1.3 system-ui, sans-serif; }
+.proto-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); margin: var(--space-12) 0 0; color: var(--ink-muted); font-size: 14px; }
+
+.proto-help { margin: 0; color: var(--ink-muted); font-size: 14px; font-weight: 600; }
+.proto-choices { display: flex; flex-direction: column; gap: var(--space-8); }
+.proto-choices .rz-choice { min-height: var(--size-action); }
+.proto-comment textarea.rz-field__input { height: auto; min-height: 88px; padding-top: var(--space-10); resize: vertical; font-size: 16px; }
+
+/* Medal places: a gold star with the place number, the wristband, then its heat and time. */
+.proto-medals { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.proto-medal { width: 100%; min-height: var(--size-action); display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: var(--space-10); padding: var(--space-6) var(--space-12) var(--space-6) var(--space-8); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font: inherit; text-align: left; }
+.proto-medal__star { position: relative; width: 36px; height: 36px; display: grid; place-items: center; }
+.proto-medal__star .rz-star { position: absolute; inset: 0; width: 100%; height: 100%; fill: var(--gold); }
+.proto-medal__star b { position: relative; font-family: var(--font-display); font-style: italic; font-weight: 900; font-size: 17px; color: var(--navy); }
+.proto-medal__who { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-10); min-width: 0; }
+.proto-medal__num { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.proto-medal__meta { display: flex; align-items: center; gap: var(--space-6); color: var(--ink-muted); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.proto-medal .rz-btn--small { min-height: 36px; padding: 0 var(--space-10); }
+.proto-fixline { display: flex; gap: var(--space-8); margin: 0; color: var(--ink-muted); font-size: 14px; font-weight: 700; }
+.proto-fixline .rz-icon { flex: none; width: 18px; height: 18px; }
+
+/* C: numbered steps, ticked when done. */
+.proto-steps { display: flex; flex-direction: column; gap: var(--space-14); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.proto-step { display: grid; grid-template-columns: 32px 1fr; gap: var(--space-10); counter-increment: step; }
+.proto-step__mark { width: 30px; height: 30px; display: grid; place-items: center; border: 2px solid var(--navy); border-radius: 999px; color: var(--navy); font-weight: 800; }
+.proto-step__mark:empty::before { content: counter(step); }
+.proto-step--done .proto-step__mark { border-color: var(--navy); background: var(--navy); color: var(--gold); }
+.proto-step--done .proto-step__mark .rz-icon { width: 18px; height: 18px; }
+.proto-step__body { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-8); min-width: 0; }
+.proto-step__body > .rz-btn--small { align-self: flex-start; }
+.proto-step__title { margin: 4px 0 0; color: var(--navy); font-size: 18px; font-weight: 800; }
+.proto-step--done .proto-step__title { color: var(--ink-muted); }
+.rz-screen .rz-toast { z-index: 30; }
+.proto-heat { margin-left: var(--space-6); color: var(--ink-muted); font-size: 14px; font-weight: 700; }
