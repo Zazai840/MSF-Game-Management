@@ -41,7 +41,7 @@ export function onlyRunners(finish:FinishingOrder,runners:readonly RaceEntry[]):
  * time at a place with no runner (left when a runner came off the order), or a wrong time neither kept nor retyped.
  * Kept wristband warnings, and relay teams short of four here, never block it.
  */
-export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'>,relay=false):string|null {
+export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=false):string|null {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
   if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
@@ -53,7 +53,7 @@ export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'>,relay=false):stri
   // Finishers and times disagree only after a lead's correction, never on a saved race.
   const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
   if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
-  const wrong=wrongTimes(places).find(item=>!times!.keptWrong?.includes(item.index));
+  const wrong=wrongTimes(places,race.event.name).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }
 /** Who last changed a step and when, and who marked it done and when. */
@@ -147,7 +147,7 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
   }
   if(step==='times') {
     const times=race.parts.times.value;
-    const wrong=wrongTimes(times?.places||[]).find(item=>!times!.keptWrong?.includes(item.index));
+    const wrong=wrongTimes(times?.places||[],race.event.name).find(item=>!times!.keptWrong?.includes(item.index));
     if(wrong) return `${ordinal(wrong.index+1)} place's time needs Fix time or Keep`;
   }
   return null;

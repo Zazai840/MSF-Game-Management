@@ -3,7 +3,6 @@ import { isRunner,isTeamEntry } from '../src/shared/races.js';
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import type { RaceFlowRead,RacesRead,Role } from '../src/shared/race-flow.js';
-import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
 /** Every "the other phone sees it" check waits this long, so a fall back to 5 s polling fails. Everything else keeps the 5 s default. */
@@ -162,7 +161,8 @@ export async function submitRace(request:APIRequestContext,token:string,eventCod
 export async function recordRace(request:APIRequestContext,token:string,eventCode:string,runners:number[],places:number[],keptWarnings?:number[]) {
   await writeCheckIn(request,token,eventCode,runners,keptWarnings);
   await writeOrder(request,token,eventCode,runners.slice(0,places.length),{didNotFinish:runners.slice(places.length)});
-  await writeTimes(request,token,eventCode,places,wrongTimes(places).map(wrong=>wrong.index));
+  // The server keeps only the places that are wrong, so keeping every place keeps any wrong one.
+  await writeTimes(request,token,eventCode,places,places.map((_,index)=>index));
   const {race}=await submitRace(request,token,eventCode);
   expect(race.state,'the race is saved').toBe('saved');
   return race;
