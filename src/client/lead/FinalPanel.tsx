@@ -9,10 +9,14 @@ import { flagText } from '../../shared/runner-rulings.js';
 import { isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import { entryNoun,type RelayTeam } from '../../shared/teams.js';
 import { ResultName,TeamLegs,resultLabel } from './ResultName.js';
+import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
+import { useToast } from '../races/Toast.js';
+import type { DayEvent } from '../../shared/day.js';
 /** The Final panel. On a relay, `teams` is its team list, which a lead picks a team to add to the final from. */
-export function FinalPanel({code,relay,teams=[],final,onSaved,onSelect,onRace}:{code:string;relay:boolean;teams?:readonly RelayTeam[];final:FinalResults;onSaved:(next:EventResultsRead)=>void;onSelect:(row:LeaderboardRow)=>void;onRace:()=>void}) {
+export function FinalPanel({event,relay,teams=[],final,onSaved,onSelect,onRace}:{event:DayEvent;relay:boolean;teams?:readonly RelayTeam[];final:FinalResults;onSaved:(next:EventResultsRead)=>void;onSelect:(row:LeaderboardRow)=>void;onRace:()=>void}) {
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[adding,setAdding]=useState(false);
- async function send(what:'call-up'|'add-team',body:object) {setBusy(true);setError('');try {onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/${what}`,body));setAdding(false);}catch(error){setError(error instanceof Error?error.message:'Could not save - try again');}finally{setBusy(false);}}
+ const toast=useToast(),race={section:event.section,kind:'final',number:0} as const;
+ async function send(what:'call-up'|'add-team',body:object,saved:ToastSave) {setBusy(true);setError('');try {onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(event.code)}/${what}`,body));toast({message:toastLine(saved)});setAdding(false);}catch(error){setError(error instanceof Error?error.message:'Could not save - try again');}finally{setBusy(false);}}
  // Teams in the final's line-up, Absent ones included, are not added again.
  const lineup=[...final.runners,...final.entries.flatMap(entry=>entry.runner?[entry.runner]:[]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
  const addable=teams.filter(team=>!lineup.some(entry=>isTeamEntry(entry) && entry.team.id===team.id)),open=final.heatsComplete && !final.hasRun;
@@ -21,9 +25,9 @@ export function FinalPanel({code,relay,teams=[],final,onSaved,onSelect,onRace}:{
  const finalist=(id:string,copy?:RaceEntry)=>{const runner=final.runners.find(runner=>runner.id===id)??copy;return runner && resultEntry({id:final.raceId},runner);};
  return <section className="final-panel"><h3>Final</h3>{error&&<p role="alert">{error}</p>}
  <h4>Seeded line-up</h4><ul className="final-lineup">{final.entries.map(entry=>{const current=finalist(entry.finalEntryId,entry.runner);return <li key={entry.finalEntryId}>{entry.seed}: <ResultName entry={current??{wristband:entry.heatWristband}} className="" legs="inline"/>{current && !current.team && current.wristband!==entry.heatWristband?` · seeded as ${entry.heatWristband}`:''}{entry.absent?' · Absent · no final place':''}{entry.kind==='call-up'?` · Called up from heat rank ${entry.heatRank}`:''}</li>;})}{final.additionalEntries?.map(entry=>{const current=finalist(entry.runner.id,entry.runner)!;return <li key={entry.runner.id}><ResultName entry={current} className="" legs="inline"/> · Added {entryNoun(!!current.team)}{entry.absent?' · Absent · no final place':''}</li>;})}</ul>
- {final.heatsComplete&&!final.hasRun&&final.vacancy&&<>{final.nextCallUp?<button disabled={busy} onClick={()=>void send('call-up',{expectedHeatEntryId:final.nextCallUp!.entryId})}>{busy?'Saving…':`Call up next-ranked ${entryNoun(relay)}: ${resultName(final.nextCallUp)} (${ordinal(final.nextCallUp.position!)})`}</button>:<p>No further ranked heat {entryNoun(relay)} to call up.</p>}<p>The final can run short.</p></>}
+ {final.heatsComplete&&!final.hasRun&&final.vacancy&&<>{final.nextCallUp?<button disabled={busy} onClick={()=>void send('call-up',{expectedHeatEntryId:final.nextCallUp!.entryId},{kind:'called-up',who:resultName(final.nextCallUp!),race})}>{busy?'Saving…':`Call up next-ranked ${entryNoun(relay)}: ${resultName(final.nextCallUp)} (${ordinal(final.nextCallUp.position!)})`}</button>:<p>No further ranked heat {entryNoun(relay)} to call up.</p>}<p>The final can run short.</p></>}
  {relay && open && (adding?<div className="final-add"><h4>Which team joins the final?</h4>
-  {addable.length?<div className="pick-list">{addable.map(team=><button key={team.id} disabled={busy} onClick={()=>void send('add-team',{teamId:team.id})}>Team {team.number}<small>{team.legs.map(leg=>leg.wristband??'-').join(' · ')}</small></button>)}</div>
+  {addable.length?<div className="pick-list">{addable.map(team=><button key={team.id} disabled={busy} onClick={()=>void send('add-team',{teamId:team.id},{kind:'team-added',team:team.number,race})}>Team {team.number}<small>{team.legs.map(leg=>leg.wristband??'-').join(' · ')}</small></button>)}</div>
   :<p>Every team is in the final.</p>}
   <button className="button-quiet" onClick={()=>setAdding(false)}>Cancel</button></div>
  :<button className="button-secondary" onClick={()=>setAdding(true)}>Add a team to the final</button>)}

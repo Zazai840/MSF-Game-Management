@@ -74,8 +74,11 @@ test('a new lead code refuses old lead upgrades, keeps signed-in race screens, a
   const {owner,day,signInAs}=await start();const lead=await signInAs('Maryam');const volunteer=await signInAs('Ahmed');
   await call(lead.token,'/api/become-lead',{code:day.leadCode});
   const before=(await call(owner.token,'/api/day')).json().revision;
-  expect((await call(owner.token,'/api/day/lead-code',{})).statusCode).toBe(200);
+  const made=await call(owner.token,'/api/day/lead-code',{});
+  expect(made.statusCode).toBe(200);
   const rotated=(await call(owner.token,'/api/day')).json();
+  // The answer names the new code, for the toast.
+  expect(made.json().leadCode).toBe(rotated.leadCode);
   expect(rotated.leadCode).toMatch(/^[A-Z2-9]{6}$/);expect(rotated.leadCode).not.toBe(day.leadCode);
   expect(rotated.revision).toBeGreaterThan(before);
   expect((await call(lead.token,'/api/me')).json().level).toBe('Volunteer');

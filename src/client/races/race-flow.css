@@ -162,8 +162,11 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
 
 /* ---------- Toast ---------- */
-.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
+/* Above the lead's Race actions over the race (z-index 20), so a correction there shows its toast. */
+.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 21; display: flex; min-height: var(--size-touch); align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
 .rz-toast__msg { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.3; font-weight: 700; }
+/* A lead save's toast has no button: its line keeps the same space on the right as on the left. */
+.rz-toast__msg:only-child { padding-right: var(--space-8); }
 .rz-toast__msg .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); }
 .rz-toast button { min-height: var(--size-touch); padding: 0 var(--space-10); border: 0; background: none; color: var(--gold); font-size: 15px; font-weight: 800; white-space: nowrap; }
 

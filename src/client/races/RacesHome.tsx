@@ -7,9 +7,7 @@ import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
-import type { SavedStep } from './RaceShell.js';
 import { TeamSheet } from './TeamSheet.js';
-import { Toast } from './Toast.js';
 
 const tabs:Array<[HomeTab,string]>=[['races','Races'],['hurdles','Hurdles'],['relays','Relays']];
 /** Races · Hurdles · Relays, remembered per phone. */
@@ -37,9 +35,8 @@ function useLeadItems(on:boolean) {
  * card also has its Teams row, which opens its teams sheet, and Relays lists a relay with teams but no heats under Teams
  * ready, no heats yet. `me` is this person's profile id: a team another profile set asks before it is changed.
  */
-export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown}:{tab:HomeTab;me:string;onTab:(tab:HomeTab)=>void;role:Role;
-  onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void;
-  saved:SavedStep|null;onSavedShown:()=>void}) {
+export function RacesHome({tab,me,onTab,role,onRace,onResults}:{tab:HomeTab;me:string;onTab:(tab:HomeTab)=>void;role:Role;
+  onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
   const {snapshot,error,offer}=useLive<RacesRead>('live/races');
   const [arrived,setArrived]=useState('');
   useEffect(()=>{if(snapshot) setArrived(clockWithSeconds(new Date()));},[snapshot]);
@@ -99,7 +96,6 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
         <button type="button" className="rz-btn rz-btn--display" onClick={()=>setCreating({})}><Icon name="plus"/>New relay</button>
       </div>:<button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>New race</button>}
     </footer>
-    {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
     {creating && snapshot && <NewRaceSheet groups={all} relays={tab==='relays'} role={role} choice={creating} onRace={onRace} onResults={onResults} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
       const group=all.find(item=>item.event.code===choice.eventCode),made=group && finalMade(group);
       if(choice.kind==='final' && !made) {setCreating(null);setConfirming(choice.eventCode);} else void make(choice);

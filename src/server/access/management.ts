@@ -15,11 +15,12 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   }));
   action('POST','/api/day/lead-code','Lead',async(_request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{
     const day=(await client.query('SELECT lead_code FROM olympics_days WHERE id=$1',[current.dayId])).rows[0];
-    await client.query('UPDATE olympics_days SET lead_code=$1 WHERE id=$2',[newLeadCode(day.lead_code),current.dayId]);
+    const leadCode=newLeadCode(day.lead_code);
+    await client.query('UPDATE olympics_days SET lead_code=$1 WHERE id=$2',[leadCode,current.dayId]);
     const demoted=(await client.query("UPDATE sign_ins SET level='Volunteer' WHERE day_id=$1 AND id<>$2 AND level<>'Volunteer' AND NOT owner AND NOT signed_out RETURNING name",[current.dayId,current.id])).rows;
     for(const target of demoted) await writeAuditNote(client,current,null,{action:'Removed lead access',message:`Made ${target.name} a volunteer when the lead code changed`,comment:null,touches:[]});
     await writeAuditNote(client,current,null,{action:'Made new lead code',message:'Changed the lead code; other leads are volunteers again',comment:null,touches:[]});
-    return {status:'saved'};
+    return {status:'saved',leadCode};
   }));
   // Bumping the version ends every session, the caller's too, with password-changed; roles stay on today's rows.
   action('POST','/api/day/olympics-password','Lead',async(request,_reply,phone)=>{

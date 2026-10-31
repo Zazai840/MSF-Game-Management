@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,lookProblems,back,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,back,expectToast,join,leadMenuButton,openLeadMenu,expect,test,type Page} from './fixtures.js';
 
 const red='rgb(172, 48, 54)',white='rgb(255, 255, 255)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
@@ -8,8 +8,6 @@ async function asOwner(page:Page) {
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
 }
 const section=(page:Page,name:string)=>page.getByRole('region',{name,exact:true});
-/** The short "Saved" note a lead action leaves on the screen it returns to. */
-const savedNote=(page:Page)=>page.locator('.dashboard-saved');
 
 test('Day setup explains each code, row, the day export and Start a new day in plain English',async({page},info)=>{
   const phones=(await(await page.request.get('/api/day/phones',{headers:headers()})).json()).phones.length as number;
@@ -51,7 +49,8 @@ test('Day setup explains each code, row, the day export and Start a new day in p
 test('the day export says when it was last downloaded and whether changes came after',async({page},info)=>{
   await asOwner(page);
   const dayExport=section(page,'Day export');
-  const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
+  const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();
+  await expectToast(page,`Downloaded · ${(await downloaded).suggestedFilename()}`);
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
   const code=await ownCode();
   await ownEvent(page.request,code,'Day setup sprint','Girl Cubs','timed');
@@ -60,7 +59,7 @@ test('the day export says when it was last downloaded and whether changes came a
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-export.png'),fullPage:true});
 });
 
-test('Phones and Events open their screens with a back arrow to Day setup, and lead actions there say Saved',async({page},info)=>{
+test('Phones and Events open their screens with a back arrow to Day setup, and lead actions there show the toast',async({page},info)=>{
   await asOwner(page);
   await page.getByRole('button',{name:/^Phones /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
@@ -81,7 +80,7 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
   await page.getByLabel('New event format',{exact:true}).selectOption('timed');
   await page.getByLabel('New event type',{exact:true}).selectOption('races');
   await page.getByRole('button',{name:'Add event',exact:true}).click();
-  await expect(savedNote(page)).toHaveText('Saved');
+  await expectToast(page,`Event added · ${code}`);
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   await expect(page.getByRole('article',{name:`${code} · Girl Cubs`})).toContainText('Saved sprint');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('events.png'),fullPage:true});
@@ -89,10 +88,11 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
 
   const before=process.env.E2E_LEAD_CODE!;
   await section(page,'Lead code').getByRole('button',{name:'Make a new lead code',exact:true}).click();
-  await expect(savedNote(page)).toHaveText('Saved');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
   const fresh=await(await page.request.get('/api/day',{headers:headers()})).json();
+  await expectToast(page,`New lead code · ${fresh.leadCode}`);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-setup-toast.png')});
   await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
 });
 
@@ -112,9 +112,9 @@ test('a lead who signed in with the lead code opens Day setup and makes a new le
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   await back(page,'Day setup');
   await section(page,'Lead code').getByRole('button',{name:'Make a new lead code',exact:true}).click();
-  await expect(savedNote(page)).toHaveText('Saved');
   await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
   const fresh=await(await page.request.get('/api/day',{headers:headers()})).json();
+  await expectToast(page,`New lead code · ${fresh.leadCode}`);
   await expect(section(page,'Lead code').getByText(fresh.leadCode,{exact:true})).toBeVisible();
   // The lead who made it stays a lead.
   await back(page,'Races');await expect(leadMenuButton(page)).toBeVisible();

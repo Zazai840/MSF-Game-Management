@@ -22,6 +22,8 @@ test('a re-run becomes the current race with its check-in pre-filled and Order a
   const rerun=await call(lead,`/api/lead/races/${heat1.id}/re-run`,{comment:'False start'});expect(rerun.statusCode,rerun.body).toBe(200);
   const current=(await screen()).race;
   expect(current).toMatchObject({id:rerun.json().newRaceId,number:2,state:'in progress',parts:{finish:{value:null},times:{value:null}}});
+  // The answer names the new race's number, for the toast.
+  expect(rerun.json().newRaceNumber).toBe(2);
   expect(current.parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([1001,1002,1003]);
   // The check-in holder can change the pre-filled list.
   expect((await setup.checkIn(jo,'R1',[1001,1002])).parts.runners.value!.filter(isRunner).map(runner=>runner.wristband)).toEqual([1001,1002]);

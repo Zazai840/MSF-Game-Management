@@ -1,4 +1,4 @@
-import {ownName,ownCode,backToRaces,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,backToRaces,expect,expectToast,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Ready for you is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
@@ -160,4 +160,20 @@ test('a tie between two heats shows on both heats\' Times tab, and Open in Resul
   await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
   await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();
+});
+
+test('a correction from Race actions on the race screen shows its toast, with no Undo',async({openPhone,request},info)=>{
+  const name=ownName('Lead toast'),code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,owner(),code,[2011,2012],[1200,1300]);
+  const {page}=await openPhone(ownName('Lead toast'),{lead:true});
+  await openRace(page,name);
+  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
+  await page.getByRole('dialog',{name:'Race actions'}).getByRole('button',{name:'Correct times',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'Correct times'});
+  await sheet.getByRole('button',{name:'2nd place · 13.00',exact:true}).click();
+  const input=sheet.getByLabel('2nd place time',{exact:true});await input.fill('1350');await input.press('Enter');
+  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await expectToast(page,'Times saved · Girl Cubs Heat 1');
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions-toast.png')});
 });
