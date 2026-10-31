@@ -4,7 +4,7 @@ A relay team at the start line: the team in this heat (or a seeded team in the f
 
 **Use**
 - **Heat.** The head row holds "Team 5", a note, then small Buttons **Edit** and **Take off**. Every child of a team in the heat is checked in, with no Here per child. Each leg is an attendance row: "1st leg" over the wristband, and a 44px grip. An empty leg reads "–" on a dashed row (`is-absent`).
-- **Final.** The whole team is one card. The head reads "1st seed · Team 2" ("Called up", "Added"), with **Edit** beside the name and **Here** / **Absent** pills for the whole team, neither lit at first; tapping a lit one again clears it. Each leg is a 44px row under a `line` rule, with no per-child Here. An Absent card is dashed. Every card but an Absent one has Edit and the grips. Only teams Here run the final.
+- **Final.** The whole team is one card. The head reads "1st fastest · Team 2" ("Called up", "Added"), with **Edit** beside the name and **Here** / **Absent** pills for the whole team, neither lit at first; tapping a lit one again clears it. Each leg is a 44px row under a `line` rule, with no per-child Here. An Absent card is dashed. Every card but an Absent one has Edit and the grips. Only teams Here run the final.
 - **Note** beside the name, in `warn-ink`: "Runs short · 3 of 4" for a team short of four (it never blocks the race), or "Aisha Noor is changing this team" while another phone has it open in Edit.
 - **Grips** come from the race flow's SortableList: drag only from the grip, the labels follow live, arrow keys move the focused grip. The grip reads "Move 2071", or "Move empty 4th leg". A drop saves the race and the team list together, every child still checked in. The dragged row lifts with `shadow-raised`.
 - Grips are hidden on a team another phone is changing, and on every card while this phone has a team open in Edit.
@@ -31,7 +31,7 @@ A relay team at the start line: the team in this heat (or a seeded team in the f
 </section>
 
 <section class="rz-teamcard rz-teamcard--final" aria-label="Team 2">
-  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name"><span class="rz-teamcard__seed">1st seed · </span>Team 2</h3>
+  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name"><span class="rz-teamcard__seed">1st fastest · </span>Team 2</h3>
     <button type="button" class="rz-btn rz-btn--small" aria-label="Edit Team 2">Edit</button>
     <span class="rz-teamcard__marks"><button type="button" class="rz-btn rz-btn--pill rz-btn--primary" aria-pressed="true" aria-label="Team 2: Here">Here</button><button type="button" class="rz-btn rz-btn--pill" aria-pressed="false" aria-label="Team 2: Absent">Absent</button></span></div>
   <ol class="rz-teamlegs rz-teamgrips" aria-label="Team 2 legs">
