@@ -52,3 +52,18 @@ test('a deleted middle heat leaves its gap: with Heats 1-3 and Heat 2 deleted, t
   expect((await group()).nextHeat).toBe(4);
   expect((await setup.checkIn(jo,'R1',[1004])).number).toBe(4);
 });
+test('a race stores when it was deleted, by a lead or by a re-run; Deleted races show it, and a restore clears it',async()=>{
+  const {jo,lead,setup,remove}=await start();
+  const deleted=async()=>(await call(lead,'/api/lead/events/R1/deleted-races')).json<{id:string;deletedAt:string|null}[]>().map(race=>[race.id,race.deletedAt]);
+  const mistake=await setup.checkIn(jo,'R1',[1001]),before=Date.now();
+  await remove(mistake.id);
+  const [[,at]]=await deleted() as [[string,string]];
+  expect(Date.parse(at)).toBeGreaterThanOrEqual(before-1000);expect(Date.parse(at)).toBeLessThanOrEqual(Date.now()+1000);
+  const heat=await setup.record(jo,'R1',[1002],[1200]);
+  expect((await call(lead,`/api/lead/races/${heat.id}/re-run`,{})).statusCode).toBe(200);
+  const rows=await deleted();
+  expect(rows.map(([id])=>id).sort()).toEqual([mistake.id,heat.id].sort());
+  expect(rows.every(([,at])=>typeof at==='string')).toBe(true);
+  await call(lead,`/api/lead/races/${mistake.id}/restore`,{});
+  expect((await call(lead,`/api/lead/races/${mistake.id}`)).json().race.deletedAt).toBeNull();
+});

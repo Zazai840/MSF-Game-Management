@@ -71,7 +71,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted && !value.permanent) throw new Refusal(409,'This race is already in Deleted races');
       if(value.permanent) await client.query('DELETE FROM races WHERE id=$1',[race.id]);
-      else await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['lead-delete',race.id]);
+      else await client.query('UPDATE races SET deleted=true,delete_reason=$1,deleted_at=now() WHERE id=$2',['lead-delete',race.id]);
       await writeAuditNote(client,current,race.event.id,{action:value.permanent?'delete-race-permanently':'delete-race',comment,message:`${current.name} ${value.permanent?'permanently deleted':'moved to Deleted races'} ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
@@ -86,7 +86,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       // A live race has its number now: it comes back with the next one, never touching the live race.
       const taken=(await client.query('SELECT 1 FROM races WHERE event_id=$1 AND kind=$2 AND number=$3 AND NOT deleted',[race.event.id,race.kind,race.number])).rowCount;
       const number=taken?await nextNumber(client,race.event.id,race.kind):race.number;
-      await client.query('UPDATE races SET deleted=false,delete_reason=null,number=$2 WHERE id=$1',[race.id,number]);
+      await client.query('UPDATE races SET deleted=false,delete_reason=null,deleted_at=null,number=$2 WHERE id=$1',[race.id,number]);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${taken?` as ${raceLabel({...race,number})}`:''}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
@@ -101,7 +101,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       requireSaved(race);
       // The same children in new entries: a team keeps its four children as they ran, a child their warnings.
       const runners:RaceEntry[]=race.parts.runners.value!.map(entry=>isTeamEntry(entry)?{id:randomUUID(),team:entry.team,legs:entry.legs}:{id:randomUUID(),wristband:entry.wristband,warnings:(entry.warnings||[]).filter(warning=>warning.kind!=='already-ran')});
-      await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
+      await client.query('UPDATE races SET deleted=true,delete_reason=$1,deleted_at=now() WHERE id=$2',['re-run',race.id]);
       // Made after the replaced race is deleted, so it can keep that race's number.
       const {id}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id,number:race.number});
       if(race.final) {

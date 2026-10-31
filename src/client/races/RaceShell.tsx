@@ -2,7 +2,7 @@ import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
-import { api,StaleRequest } from '../api.js';
+import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
 import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
@@ -11,8 +11,8 @@ import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import { failureLine,useFlowWrite } from './writes.js';
 
-/** What a done mark hands back for the toast on Races: the step, the part version it was marked at, and its words. */
-export interface SavedStep { raceId:string; step:Step; version:number; message:string }
+/** What a done mark hands back for the toast on Races: the step, the part version it was marked at, its words, and the Races-home tab holding its event. */
+export interface SavedStep { raceId:string; step:Step; version:number; message:string; tab:HomeTab }
 /** This race's open lead items (To check), read while a lead has it open. */
 function useRaceIssues(raceId:string,on:boolean) {
   const [items,setItems]=useState<DayLeadItem[]>([]);
@@ -54,11 +54,11 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
   const summary=group.races.find(item=>item.id===race.id)!,index=group.races.indexOf(summary);
   const locked=race.state==='saved' || race.stageComplete===true;
   async function markDone(done:Step) {
+    // Read before the write: a lead correcting a step already done stays on the race.
+    const already=snapshot!.steps[done]?.state==='done';
     const answer=await flow.write(`steps/${done}/done`,{});
-    if(typeof answer!=='object') return;
-    // A lead marking a step done stays on the race; everyone else goes back to Races with the toast.
-    if(lead) return;
-    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`});
+    if(typeof answer!=='object' || (lead && already)) return;
+    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:event.relay?'relays':'races'});
   }
   async function create(kind:'heat'|'final',number=group.nextHeat) {
     setFailure('');
