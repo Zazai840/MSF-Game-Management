@@ -16,6 +16,6 @@ export const dayNumbers = [1,2,3,4,5] as const;
 /** The years This day offers: 2026 to the year after `now`'s. */
 export const thisDayYears=(now:Date)=>Array.from({length:now.getUTCFullYear()-2024},(_,index)=>2026+index);
 export interface ThisDay { year: number; region: Region|null; dayNumber: number|null }
-export interface DayRead extends ThisDay { olympicsPassword: string; leadCode: string; eventsConfirmed: boolean; revision: number; exportedAt:string|null; exportedRevision:number|null; events: DayEvent[] }
+export interface DayRead extends ThisDay { olympicsPassword: string; leadCode: string; revision: number; exportedAt:string|null; exportedRevision:number|null; events: DayEvent[] }
 /** An event's name on every screen, "200m · Boy Cubs"; its code goes in a tag beside it. */
 export const eventTitle=(event:Pick<Event,'name'|'section'>)=>`${event.name} · ${event.section}`;

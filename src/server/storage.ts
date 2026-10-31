@@ -49,7 +49,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     );
     -- Set when the waiting phone has read its approved answer, which is handed out once.
     ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS delivered boolean NOT NULL DEFAULT false;
-    ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS events_confirmed boolean NOT NULL DEFAULT false;
+    -- Older builds stored a confirmed event list; the step gated nothing and is gone (spec #250).
+    ALTER TABLE olympics_days DROP COLUMN IF EXISTS events_confirmed;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_at timestamptz;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_revision bigint;

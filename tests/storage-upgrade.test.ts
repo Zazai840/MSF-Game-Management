@@ -23,6 +23,9 @@ test('the boot script starts on a database an older build left, competing saves 
   await old.query('DROP TABLE IF EXISTS submit_presses');
   await old.query('DROP TABLE IF EXISTS job_holds');
   await old.query('ALTER TABLE race_finals ADD COLUMN presence_confirmed boolean NOT NULL DEFAULT false');
+  // Its day had a confirmed event list (spec #250 drops the step).
+  await old.query('ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS events_confirmed boolean NOT NULL DEFAULT false');
+  await old.query('UPDATE olympics_days SET events_confirmed=true');
   await old.query('ALTER TABLE races DROP COLUMN state, DROP COLUMN saved_at, DROP COLUMN saved_by');
   await old.query('ALTER TABLE race_part_history DROP COLUMN held_by, DROP COLUMN IF EXISTS saved_at, DROP COLUMN IF EXISTS corrected_by');
   await old.query(`CREATE TABLE IF NOT EXISTS race_part_saves (
@@ -47,6 +50,8 @@ test('the boot script starts on a database an older build left, competing saves 
     try {
       expect((await db.query("SELECT to_regclass('race_part_saves') AS saves")).rows).toEqual([{saves:null}]);
       expect((await db.query("SELECT column_name FROM information_schema.columns WHERE table_name='race_finals' AND column_name='presence_confirmed'")).rows).toEqual([]);
+      // The confirmed event list goes with its step.
+      expect((await db.query("SELECT column_name FROM information_schema.columns WHERE table_name='olympics_days' AND column_name='events_confirmed'")).rows).toEqual([]);
       // Each event gets its type once, from the relay mark or a Hurdles name.
       const types=Object.fromEntries((await db.query("SELECT code,type FROM events WHERE code IN ('R4','R7','R8','R19')")).rows.map(row=>[row.code,row.type]));
       expect(types).toEqual({R4:'races',R7:'hurdles',R8:'hurdles',R19:'relays'});
@@ -118,7 +123,6 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
   await admin(`CREATE DATABASE "${name}"`);
   let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
   const people=await signInOwner(app,'upgrade-owner','Aisha'),owner=people.owner,sam=await people.volunteer('Sam Patel');
-  await app.inject({method:'POST',url:'/api/day/confirm-events',headers:{authorization:`Bearer ${owner.token}`}});
   const relays=relayFlowSetup(app);
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,2302,2303,2304]]) await relays.team(sam.token,'R22',legs);
   // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams ticked and one child here.

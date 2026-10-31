@@ -17,7 +17,6 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
   // Safari15.0–15.3 supports the app, but has no crypto.randomUUID.
   const olderCrypto=()=>Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined,configurable:true});
   await context.addInitScript(olderCrypto);
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const oldHome=await (await page.request.get('/api/home',{headers:headers()})).json();
   const otherContext=await browser.newContext({baseURL});await otherContext.addInitScript(olderCrypto);const other=await otherContext.newPage();
   try {

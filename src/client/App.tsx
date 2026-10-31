@@ -4,7 +4,7 @@ import type { ResultsTarget } from '../shared/lead-results.js';
 import type { Role } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { addressOf,entryBack,parentOf,shownName,viewAt,type View } from './shell/addresses.js';
+import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,Callout,failureLine,HomeBar,LeadBar,LeadFrame,RoleChip,Screen } from './races/parts.js';
@@ -54,11 +54,12 @@ export function App() {
     setMenu(null);setView(next);setTarget(opening);
     const path=addressOf(next);
     if(replace) history.replaceState(null,'',path);
-    else if(location.pathname!==path) history.pushState({back:shownName()},'',path);
+    // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
+    else if(location.pathname!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
     window.scrollTo(0,0);
   }
   useEffect(()=>{
-    const back=()=>{setMenu(null);setTarget(undefined);setView(viewAt(location.pathname));};
+    const back=()=>{if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname));};
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{
@@ -119,7 +120,7 @@ export function App() {
         onResults={toResults}/>{sheet}</Screen>;
     }
     // Back goes where the lead came from; with no history, up a level. A non-lead goes back to Races.
-    const back=()=>{if(entryBack()) history.back();else go(isLead?parentOf(view):{kind:'races'},{replace:true});};
+    const back=()=>{if(entryBack()) history.go(onSheetEntry()?-2:-1);else go(isLead?parentOf(view):{kind:'races'},{replace:true});};
     // A lead screen's body keeps the older look, which has no race-flow tokens, so the job sheet brings its own .rz-screen.
     return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:back}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={next=>go(next)} onBack={back} onChanged={()=>void refresh()}/></Suspense>

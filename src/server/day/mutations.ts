@@ -4,10 +4,9 @@ import { rulingChange } from '../rulings/records.js';
 import { Refusal } from '../access/permissions.js';
 import { dayNumbers,regions,sections,thisDayYears } from '../../shared/day.js';
 /** Keep each setup change and its export revision in the same transaction. */
-export async function changeDay(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,dayId:string)=>Promise<unknown>,confirmed=false) {
+export async function changeDay(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,dayId:string)=>Promise<unknown>) {
   return rulingChange(pool,phone,async(client,current)=>{
     await change(client,current.dayId);
-    await client.query('UPDATE olympics_days SET events_confirmed=$1 WHERE id=$2',[confirmed,current.dayId]);
     return {saved:true};
   });
 }

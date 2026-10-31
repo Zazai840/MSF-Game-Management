@@ -54,6 +54,5 @@ test('Day setup saves name what changed',()=>{
   expect(toastLine({kind:'downloaded',file:'msf-running-south-day-1-2026-11-07.xlsx'})).toBe('Downloaded · msf-running-south-day-1-2026-11-07.xlsx');
 });
 test('saves today\'s screens have that the spec list leaves out',()=>{
-  expect(toastLine({kind:'event-list-confirmed'})).toBe('Event list confirmed');
   expect(toastLine({kind:'stage-complete',stage:'heats',event})).toBe('Heats complete · 200m Boy Cubs');
 });

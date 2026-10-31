@@ -18,7 +18,6 @@ async function ok<T=RacesRead>(token:string,url:string,body?:unknown) {
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'teams-sheet-owner',resetTestDay:true});
   const people=await signInOwner(app,'teams-sheet-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const samIn=await people.volunteer('Sam Patel'),priyaIn=await people.volunteer('Priya Shah'),sam=samIn.token,priya=priyaIn.token;
   const groups=(await ok(sam,'/api/races')).groups,id=(code:string)=>groups.find(group=>group.event.code===code)!.event.id;
   return {owner:people.owner.token as string,sam,priya,id,profiles:{sam:samIn.profile.id,priya:priyaIn.profile.id}};

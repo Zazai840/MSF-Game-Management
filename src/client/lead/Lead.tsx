@@ -5,16 +5,16 @@ import type { ResultsTarget } from '../../shared/lead-results.js';
 import { ErrorCallout,LeadBar,UpdatedAt } from '../races/parts.js';
 import { addressOf,type View } from '../shell/addresses.js';
 import { Results } from './Results.js';
-import { ChangePassword,Day,Events } from './Day.js';
+import { ChangePassword,Day } from './Day.js';
+import { Events } from './Events.js';
 import { SignedInToday } from './SignedInToday.js';
 import type { PhonesRead } from '../../shared/phones.js';
 import { clockWithSeconds } from '../../shared/clock.js';
-import './dashboard.css';
 /** A lead screen: every screen but Races and the race screen. */
 export type LeadView=Exclude<View,{kind:'races'|'race'}>;
-type DayView=Extract<LeadView,{kind:'day'|'events'}>;
-/** Day setup and Events, by name: the screens this reads the day for. Signed in today reads its own list. */
-const daySetup:Record<DayView['kind'],string>={day:'Day setup',events:'Events'};
+type DayView=Extract<LeadView,{kind:'day'|'events'|'rename-event'|'new-event'}>;
+/** Day setup and the Events screens, by name. Signed in today is its own screen. */
+const daySetup:Record<DayView['kind'],string>={day:'Day setup',events:'Events','rename-event':'Rename','new-event':'Add an event'};
 /**
  * The lead's screens, from the avatar menu on Races: Results (an event, a race page) and Day setup (Signed in today,
  * Events, Change Olympics password). Each is its own address (`view`); `onOpen` moves to another and `onBack` goes back. The race flow put a
@@ -42,9 +42,6 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
     <main className="rz-main">{error!==null && <ErrorCallout error={error} action="read"/>}
       {day && <Day day={day} phones={phones} onOpen={onOpen} onChanged={refresh} onSaved={onChanged}/>}</main>
     <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>}/>;
-  return <>{!section?<Results key={`${addressOf(view)}:${target?.id??''}`} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>
-    :<><LeadBar title={section} up="Day setup"/><main><section className="dashboard">{error!==null && <p role="alert">{error instanceof Error ? error.message : 'Could not connect'}</p>}
-      {kind==='events' && day && <Events day={day} onChanged={refresh} onSaved={onChanged}/>}
-      <footer><span>Updated at {updated || '…'}</span><button onClick={()=>void refresh()}>Refresh</button></footer></section></main></>}
-  </>;
+  if(kind==='events' || kind==='rename-event' || kind==='new-event') return <Events view={view} day={day} updated={updated} error={error} onRefresh={refresh} onOpen={onOpen} onBack={onBack} onSaved={async()=>{onChanged();await refresh();}}/>;
+  return <Results key={`${addressOf(view)}:${target?.id??''}`} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
 }

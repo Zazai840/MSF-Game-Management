@@ -27,7 +27,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 | Concept | Meaning | Notes |
 |---|---|---|
 | Event type | Races, Hurdles, Relays | The three tabs on Home. |
-| Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's event list; New race only offers confirmed, switched-on events. |
+| Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's Events; New race only offers switched-on events. |
 | Section | Boy Beavers … Girl Scouts, with a code per event (R1–R6 for 60m; other events have their own codes, such as R16) | Use the existing code data. |
 | Event group | One event × one section ("60m · Girl Cubs · R4") | One card on Home. Holds its races. |
 | Race | One run of an event group: Heat *n* or the Final | Heat numbers count up per event group. Every event type uses "Heat": 200m and 400m runs that today's app calls "Race 1" become "Heat 1". Chips read "H1", "H2"; everywhere else write "Heat 1". |

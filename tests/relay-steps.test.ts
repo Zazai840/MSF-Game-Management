@@ -19,7 +19,6 @@ afterEach(async()=>{await app?.close();await pool?.end();pool=undefined;});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-steps-owner',resetTestDay:true});
   const people=await signInOwner(app,'relay-steps-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=await people.volunteer('Sam Patel'),lead=(await people.lead('Jo Evans')).token;
   pool=await openDatabase(process.env.TEST_DATABASE_URL!);
   return {sam:sam.token,phone:sam.phone,lead,relays:relayFlowSetup(app)};

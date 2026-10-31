@@ -8,7 +8,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'rulings-owner',resetTestDay:true});
-  const people=await signInOwner(app,'rulings-owner','Owner'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'rulings-owner','Owner'),owner=people.owner,day=people.day;
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
   const setup=raceSetup(app),race=await setup.record(volunteer,'R4',[2001,2002],[1234,1334]);
