@@ -2,13 +2,13 @@ import { wrongTimes,type WrongTime } from '../../shared/wrong-times.js';
 import './flow.css';
 /**
  * Wrong-time highlighting, shared by the volunteer Times screens and the lead's race page.
- * Rules come from `src/shared/wrong-times.ts` (v1's checks only); these pieces only show them.
+ * Rules come from `src/shared/wrong-times.ts`; these pieces only show them. With the event name, slow times count too.
  *
  * Usage: `const wrong=wrongTimesByPlace(places)`; give each place's element
  * `className={wrong.get(index)?'time-wrong':''}` and render `<WrongTimeReason wrong={wrong.get(index)}/>` inside it.
  */
-export function wrongTimesByPlace(places:readonly(number|null)[]):Map<number,WrongTime> {
-  return new Map(wrongTimes(places).map(wrong=>[wrong.index,wrong]));
+export function wrongTimesByPlace(places:readonly(number|null)[],eventName?:string):Map<number,WrongTime> {
+  return new Map(wrongTimes(places,eventName).map(wrong=>[wrong.index,wrong]));
 }
 /** The amber reason under a wrong time, for example "Faster than 3rd place". Nothing when the time is fine. */
 export function WrongTimeReason({wrong}:{wrong:WrongTime|undefined}) {
