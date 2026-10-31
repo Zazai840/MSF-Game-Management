@@ -54,9 +54,9 @@ export function SignedInToday({onSaved}:{onSaved:()=>void}) {
     </main>
     {removing && <Sheet title={`Remove ${removing.name}?`} onClose={()=>setRemoving(null)}>
       <p className="rz-sheet__text">Their phone goes back to Join and drops anything it has not saved. They can join again with the Olympics password.</p>
-      <div className="rz-sheet__actions">
-        <button type="button" className="rz-btn rz-btn--danger rz-btn--block" onClick={()=>remove(removing)}>Remove {removing.name}</button>
-        <button type="button" className="rz-btn rz-btn--block" onClick={()=>setRemoving(null)}>Keep {removing.name}</button>
+      <div className="rz-sheet__pair">
+        <button type="button" className="rz-btn" onClick={()=>setRemoving(null)}>Keep {removing.name}</button>
+        <button type="button" className="rz-btn rz-btn--danger" onClick={()=>remove(removing)}>Remove {removing.name}</button>
       </div>
     </Sheet>}
   </>}/>;

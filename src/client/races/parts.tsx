@@ -92,7 +92,7 @@ export function LeadBar({title,code,up,children,body}:{title:string;code?:string
     </div>
     <div className="rz-appbar__end" style={{gap:2}}><RoleChip role={frame.role} onOpen={frame.onRole}/>{children}</div>
   </header>;
-  return body===undefined?<Screen screen={title} bar>{header}</Screen>:<Screen screen={title} wide>{header}{body}</Screen>;
+  return body===undefined?<Screen screen={title} bar>{header}</Screen>:<Screen screen={title}>{header}{body}</Screen>;
 }
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the

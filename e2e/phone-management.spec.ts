@@ -40,7 +40,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   await press(row.getByRole('button',{name:'Remove',exact:true}));
   const ask=page.getByRole('dialog',{name:`Remove ${name}?`,exact:true});
   await expect(ask).toContainText('Their phone goes back to Join and drops anything it has not saved. They can join again with the Olympics password.');
-  await expect(ask.getByRole('button',{name:/^(Remove|Keep) /})).toHaveText([`Remove ${name}`,`Keep ${name}`]);
+  await expect(ask.getByRole('button',{name:/^(Remove|Keep) /})).toHaveText([`Keep ${name}`,`Remove ${name}`]);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('remove-asks-first.png')});
   await press(ask.getByRole('button',{name:`Keep ${name}`,exact:true}));
   await expect(ask).toHaveCount(0);await expect(row).toBeVisible();

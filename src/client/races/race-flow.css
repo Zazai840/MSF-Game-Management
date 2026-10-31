@@ -302,6 +302,9 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-confirm__title { margin: 0; font-size: 20px; line-height: 1.3; font-weight: 700; }
 .rz-confirm__text { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink-muted); }
 .rz-footer__pair--home .rz-btn { width: 100%; }
+/* An "are you sure?" sheet: the plain no names what stays, the red yes is on its right, and above it when the two do not fit side by side. */
+.rz-sheet__pair { display: flex; flex-wrap: wrap-reverse; gap: var(--space-10); }
+.rz-sheet__pair .rz-btn { flex: 1 1 auto; padding: 0 var(--space-16); }
 .rz-old { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .rz-runner:active { transform: none; } }
 
