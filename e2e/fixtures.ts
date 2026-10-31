@@ -100,6 +100,11 @@ export async function back(page:Page,to:string) {
   }
   throw new Error(`No way back to ${to}`);
 }
+/** On an event in Results: taps one of its tabs and waits for it to show. */
+export async function eventTab(page:Page,name:'Heats'|'Final'|'Races'|'Notes') {
+  const tab=page.getByRole('navigation',{name:'Event'}).getByRole('button',{name,exact:true});
+  await press(tab);await expect(tab).toHaveAttribute('aria-current','page');
+}
 // Race setup: every spec that needs a race entered or saved before it starts goes through these, so they are the one
 // place that knows how a race is entered and saved. Each acts as the phone whose token it is given, in the race flow
 // (ADR 0003), on the race the event is at: its final once it has one, else its latest race not saved, else a new next heat.

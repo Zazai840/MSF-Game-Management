@@ -311,6 +311,11 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-board__row { display: flex; align-items: center; gap: var(--space-6); }
 .rz-board__row > .rz-lb { flex: 1; min-width: 0; }
 .rz-lb__tie { flex: none; min-width: var(--size-touch); min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; }
+/* shortcut: the Final tab keeps today's older-look final panel and Input - Running table, its old surfaces and text
+   mapped onto the design system's approved pairs; drop when #277 builds the Final tab. */
+.rz-final-today { display: flex; flex-direction: column; gap: var(--space-12); --surface: var(--card); --tint: var(--paper); --text: var(--navy); --muted: var(--ink-muted); }
+.rz-final-today .result-mark, .rz-final-today .badge { color: var(--on-navy); }
+.rz-final-today .note-tag { color: var(--navy); }
 .rz-notes { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-notes li { display: flex; gap: var(--space-10); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; line-height: 1.4; font-weight: 600; }
 .rz-notes time { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; }

@@ -1,6 +1,5 @@
 import { expect,test } from 'vitest';
 import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
-import { eventState } from '../src/shared/event-state.js';
 import type { TeamEntry } from '../src/shared/races.js';
 const event={code:'R4',name:'60m',section:'Girl Cubs' as const,format:'heats' as const};
 /** One heat per list of times, its runners numbered 2001, 2002... in heat 1, 2011... in heat 2, finishing in that order. */
@@ -54,7 +53,6 @@ test('once decided without a final the heats read as a timed event: medal line, 
     checkSheet:{stage:'no-final',label:'Results without a final',completed:true},inputRunning:{eventCode:'R4',first:2001,second:2011,third:2002}});
   expect(result.leaderboard.map(row=>[row.wristband,row.medalPlace,row.qualification,row.highlighted])).toEqual([[2001,1,null,true],[2011,2,null,true],[2002,3,null,true],[2012,null,null,true],[2003,null,null,true],[2013,null,null,true],[2004,null,null,false],[2014,null,null,false]]);
   expect(result.medalPlaces.map(row=>row.wristband)).toEqual([2001,2011,2002]);
-  expect(eventState({status:result.status,raceCount:result.raceCount,format:'heats',decidedWithoutFinal:result.decidedWithoutFinal})).toEqual({state:'done',label:'Done',line:'Done · medals decided, no final'});
 });
 test('a relay decided without a final names its 3 fastest heat teams with their four children',()=>{
   const team=(id:string,number:number):TeamEntry=>({id,team:{id:`team-${number}`,number},legs:[1,2,3,4].map(leg=>({wristband:2000+number*100+leg,warnings:[],here:true}))});

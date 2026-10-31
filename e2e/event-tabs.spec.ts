@@ -1,4 +1,4 @@
-import {becomeLead,expect,join,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,eventTab,expect,join,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Page} from './fixtures.js';
 const owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
 /** As a new lead: Results, then the event's card. */
 async function openEvent(page:Page,code:string,lead:string,section='Girl Cubs') {
@@ -26,7 +26,7 @@ test('an event opens on Heats: the scoreboard states only the rule, stars and Qs
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('heats-tab.png'),fullPage:true});
   // No final yet: the Final tab says what will appear there.
-  await press(tab(page,'Final'));
+  await eventTab(page,'Final');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/final$`));
   await expect(page.getByText("The final's order appears here once its finishing order is saved.",{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
@@ -39,15 +39,15 @@ test('a timed event has tabs Heats, Races and Notes, states the medal places, an
   await expect(tabs(page)).toHaveText(['Heats','Races','Notes']);
   await expect(page.getByText('Runners appear here once a heat is saved.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await press(tab(page,'Races'));
+  await eventTab(page,'Races');
   await expect(page.getByText('Races appear here once one is checked in.',{exact:true})).toBeVisible();
   await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await press(tab(page,'Notes'));
+  await eventTab(page,'Notes');
   await expect(page.getByText("Notes appear here when a lead changes this event's results.",{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await recordRace(page.request,await signInThroughApi(page.request,ownName('Timed tabs timer')),code,[girls(1),girls(2)],[1200,1300]);
-  await press(tab(page,'Heats'));
+  await eventTab(page,'Heats');
   await expect(page.getByText('Medal places: 1st, 2nd, 3rd',{exact:true})).toBeVisible({timeout:6500});
   await expect(board(page)).toHaveCount(2);
   await expect(board(page).first()).toContainText(`${girls(1)}1st`);
@@ -65,7 +65,7 @@ test('the Races tab lists each live race with why it does not count yet, then De
   await writeCheckIn(page.request,timer,code,[girls(4)]);
   await openEvent(page,code,'Races tab lead');
   await expect(page.getByText('Not ranked yet')).toHaveCount(0);
-  await press(tab(page,'Races'));
+  await eventTab(page,'Races');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races$`));
   const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true});
   await expect(heat1).toHaveAccessibleDescription(/^2 runners · saved · checked in \d\d:\d\d$/);
@@ -73,11 +73,11 @@ test('the Races tab lists each live race with why it does not count yet, then De
   await expect(page.getByRole('button',{name:'Open deleted Heat 2',exact:true})).toHaveAccessibleDescription('1 runner');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('races-tab.png'),fullPage:true});
-  await press(tab(page,'Notes'));
+  await eventTab(page,'Notes');
   await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(/^\d\d:\d\d.*moved to Deleted races Heat 2$/);
   expect(await lookProblems(page)).toEqual([]);
   // Switching tabs replaced the address in place; a race opened from Races comes back to Races.
-  await press(tab(page,'Races'));
+  await eventTab(page,'Races');
   await press(heat1);
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/`));
   await page.goBack();

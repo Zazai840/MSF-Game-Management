@@ -1,4 +1,4 @@
-import {ownName,ownCode,becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,recordRace,test} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,recordRace,test} from './fixtures.js';
 const amber='rgb(255, 244, 220)';
 test('a lead reads a kept wristband warning in the child\'s Notes, checks it with a note, and sees who checked it',async({page},info)=>{
   const code=await ownCode(),lead=ownName('Notes lead');
@@ -8,7 +8,7 @@ test('a lead reads a kept wristband warning in the child\'s Notes, checks it wit
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2301,6000],[1100,1200],[6000]);
   await page.goto('/');await join(page,lead,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();
   // The warning shows in amber beside the child's number on the race page's Current record.
   const child=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'6000'});
   const warning=child.getByText('6000 is not a known wristband number',{exact:true});
@@ -25,19 +25,18 @@ test('a lead reads a kept wristband warning in the child\'s Notes, checks it wit
   await expect(notes.getByRole('listitem')).toHaveText([new RegExp(`^6000 is not a known wristband numberChecked by ${lead} · \\d{2}:\\d{2} - Saw the wristband, wrong band issued$`)]);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('notes-checked.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Close actions',exact:true}).click();
-  // Back up one level, to the event's Results.
-  await page.getByRole('banner').getByRole('button',{name:/^Back to /}).click();
+  // Back up one level, to the event's Races tab; on Heats the checked warning no longer says Check.
+  await page.getByRole('banner').getByRole('button',{name:/^Back to /}).click();await eventTab(page,'Heats');
   const row=page.getByRole('button',{name:`Runner 6000 · Heat ${race.number}`,exact:true});
-  await expect(row.locator('.checked-warning')).toHaveText(`Checked by ${lead}: 6000 is not a known wristband number`);
-  await expect(row.locator('.note-tag')).toHaveText('note');
-  const other=page.getByRole('button',{name:`Runner 2301 · Heat ${race.number}`,exact:true});await expect(other.locator('.note-tag')).toHaveCount(0);
+  await expect(row).toContainText('6000');await expect(row).not.toContainText('Check');
+  const other=page.getByRole('button',{name:`Runner 2301 · Heat ${race.number}`,exact:true});
   await page.screenshot({path:info.outputPath('results-checked.png'),fullPage:true});
   // A sheet with nothing to say has no Notes; a disqualification shows in Notes straight away, with its time and comment.
   const otherSheet=page.getByRole('dialog',{name:'Actions for 2301',exact:true});
   await other.click();await expect(otherSheet.getByRole('list',{name:'Notes'})).toHaveCount(0);
   await otherSheet.getByRole('button',{name:'Disqualify',exact:true}).click();await otherSheet.getByLabel('Reason',{exact:true}).selectOption('Obstruction');
   await otherSheet.getByLabel('Comment (optional)',{exact:true}).fill('Blocked the inside lane');await otherSheet.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(otherSheet).toHaveCount(0);
-  await expect(other.locator('.note-tag')).toHaveText('note');await other.click();
+  await other.click();
   await expect(otherSheet.getByRole('list',{name:'Notes',exact:true}).getByRole('listitem')).toHaveText([new RegExp(`^${lead} disqualified 2301 \\(Heat ${race.number}\\): Obstruction - Blocked the inside lane\\d{2}:\\d{2}$`)]);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('notes-disqualified.png'),fullPage:true});
 });

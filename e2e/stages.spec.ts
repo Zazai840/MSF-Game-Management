@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,expectToast,join,test,type Locator} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,expectToast,join,test,type Locator} from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
@@ -44,6 +44,6 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   // Reopened, the race is saved again rather than locked, and the event offers its next heat.
   await expect(job.getByRole('status').filter({hasText:'Girl Cubs heats are finished. Ask a lead to change this race.'})).toHaveCount(0,live);
   await expect(job.getByRole('button',{name:'Add heat 3',exact:true})).toBeVisible();
-  await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('Late time correction');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('Late time correction');
   await deleteCurrentRace(page.request,code);
 });

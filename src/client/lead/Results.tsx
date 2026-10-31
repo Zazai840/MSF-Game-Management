@@ -119,7 +119,7 @@ function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolea
         return <Fragment key={`${row.raceId}:${row.entryId}`}><li className="rz-board__row">
           <button type="button" className={`rz-lb${star?' rz-lb--q':row.highlighted?'':' rz-lb--outside'}`} aria-label={`${resultLabel(row)} · ${raceLabel(row.race)}`} onClick={()=>onRunner(row)}>
             <span className={star?'rz-lb__rank':'rz-lb__rank rz-lb__rank--plain'}>{star && <Star/>}<span>{row.position??'-'}</span></span>
-            <span className="rz-lb__who"><span className="rz-lb__band">{resultName(row)}{row.qualification && <span className="rz-tag rz-tag--q">Q</span>}{row.medalPlace && <span className="rz-tag rz-tag--q">{ordinal(row.medalPlace)}</span>}{check && <span className="rz-tag rz-tag--warn">Check</span>}</span>
+            <span className="rz-lb__who"><span className="rz-lb__band"><span>{resultName(row)}</span>{row.qualification && <span className="rz-tag rz-tag--q">Q</span>}{row.medalPlace && <span className="rz-tag rz-tag--q">{ordinal(row.medalPlace)}</span>}{check && <span className="rz-tag rz-tag--warn">Check</span>}</span>
               {row.team && <span className="rz-lb__detail">{teamWristbands(row.team)}</span>}
               <span className="rz-lb__detail">{rowDetail(row)}</span></span>
             <span className="rz-lb__end"><span className="rz-lb__time">{row.time===null?'-':formatTime(row.time)}</span></span>
@@ -145,11 +145,11 @@ function rowDetail(row:LeaderboardRow) {
 function FinalTab({detail,onRunner,onStage,onRace,saved}:TabProps) {
   const results=detail.results,sheet=results.checkSheet?.stage==='final'?results.checkSheet:null;
   if(!results.finalResults) return <p className="rz-empty">The final's order appears here once its finishing order is saved.</p>;
-  return <>
+  return <div className="rz-final-today">
     <FinalPanel event={detail.event} relay={detail.event.relay} teams={detail.teams} final={results.finalResults} onSaved={saved} onSelect={onRunner} onRace={()=>onRace(results.finalResults!.raceId)}/>
     {sheet && <StageButton sheet={sheet} onStage={onStage}/>}
     <InputRunning detail={detail}/>
-  </>;
+  </div>;
 }
 function InputRunning({detail}:{detail:EventResultsRead}) {
   const input=detail.results.inputRunning;

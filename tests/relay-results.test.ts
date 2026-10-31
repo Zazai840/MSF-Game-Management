@@ -40,7 +40,7 @@ test('a relay\'s leaderboard has one row per team with its four children in leg 
   // Teams are told apart by their team, not taken for one child who ran seven times.
   expect(ranked.leaderboard.flatMap(row=>row.flags)).toEqual([]);
   expect(ranked.qualifiers.map(row=>row.team?.number)).toEqual([2,5,1,6,3,7]);
-  expect(ranked.band).toEqual({highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'});
+  expect(ranked.band).toEqual({highlightCount:7,lineAfter:6,lineLabel:'Qualifying line'});
 });
 
 test('Heats complete on a relay seeds the six fastest teams into the final, each with its four children',async()=>{

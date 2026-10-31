@@ -1,4 +1,4 @@
-import {ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,press,recordRace,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,press,recordRace,test,type Page} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -49,7 +49,7 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2021,2022],[1600,1305]);
   await page.goto('/');await join(page,ownName('Back walk lead'),{job:'Start line'});await becomeLead(page,'e2e-owner-fixture');
   const results=()=>onScreen(page,'/results','Results','Races');
-  const eventPage=()=>onScreen(page,`/results/${code}/heats`,event,'Results');
+  const eventPage=(tab='heats')=>onScreen(page,`/results/${code}/${tab}`,event,'Results');
   await openLeadMenu(page,'Results');await results();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
@@ -57,6 +57,9 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   await expect(page.getByRole('banner').getByText(code,{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('event.png')});
+  // Each tab has its own address, and its back arrow still goes to Results.
+  await eventTab(page,'Notes');await eventPage('notes');
+  await eventTab(page,'Races');await eventPage('races');
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   const racePage=()=>onScreen(page,new RegExp(`/results/${code}/races/[^/]+$`),'Heat 1',event);
   await racePage();
@@ -64,7 +67,7 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   await page.screenshot({path:info.outputPath('race-page.png')});
   // A reload stays on the race page, and Back still goes where it went before.
   await page.reload();await racePage();
-  await bothGoBack(page,eventPage);
+  await bothGoBack(page,()=>eventPage('races'));
   await bothGoBack(page,results);
   await bothGoBack(page,()=>onRaces(page));
   // The avatar menu keeps Results, Day setup and Log out.

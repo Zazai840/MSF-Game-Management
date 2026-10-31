@@ -1,17 +1,6 @@
-/* One event in Results: its leaderboard, rulings and audit notes. Tokens from theme.css. */
+/* An event's older-look parts until their screens move: the final panel, the race page and the runner sheet. Tokens from theme.css. */
 .results-view {flex:1; display:flex; flex-direction:column;}
 .results-view > h1 {margin-bottom:10px;}
-.results-opening,.results-empty {color:var(--muted); font-weight:600;}
-/* State colours of an event's status pill (green Done, navy-bordered Running, grey Not started). */
-.event-status-done {--state-fill:var(--green-fill); --state-line:var(--green-line); --state-text:var(--green-text);}
-.event-status-running {--state-fill:var(--surface); --state-line:var(--navy); --state-text:var(--navy);}
-.event-status-not-started {--state-fill:var(--idle-fill); --state-line:var(--idle-line); --state-text:var(--idle-text);}
-/* One event */
-.results-event-head h1 {margin:0 0 8px;}
-.results-event-meta {display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:0 0 14px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
-.event-status {display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:4px 12px; border-radius:999px; background:var(--state-fill); font-weight:800; color:var(--state-text);}
-.results-event-code {font-variant-numeric:tabular-nums;}
-.results-band {margin:0 0 4px; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 /* Leaderboard */
 .leaderboard {padding:0; margin:0; list-style:none;}
 .leaderboard > li {margin:8px 0;}
@@ -19,7 +8,6 @@
   display:grid; grid-template-columns:4rem minmax(0,1fr) auto; gap:4px 10px; align-items:baseline; width:100%; min-height:0; padding:12px 14px;
   text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface); border-radius:var(--radius); font-weight:600; cursor:pointer;
 }
-.leaderboard .tie-open {min-height:var(--tap); margin:6px 0 0; padding:0 14px; border-radius:var(--radius-small); font-size:15px;}
 .leaderboard-row.highlighted {background:var(--tint); border-color:var(--navy);}
 .result-position {display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; color:var(--navy);}
 .result-position strong {font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;}
@@ -35,22 +23,12 @@
 .result-line {display:flex; align-items:center; gap:10px; margin:10px 0; color:var(--navy); font-size:var(--text-small); font-weight:800;}
 .result-line::before,.result-line::after {content:""; flex:1; border-top:2px solid var(--navy);}
 .result-line::before {flex:0 0 12px;}
-.not-ranked {background:var(--idle-fill); border-radius:var(--radius-box); padding:14px; margin-top:18px;}
-.not-ranked h3 {margin:0 0 10px;}
-.not-ranked ul {list-style:none; padding:0; margin:0; display:grid; gap:10px;}
-.not-ranked li {font-size:var(--text-small); font-weight:600; color:var(--muted);}
-.not-ranked li button {margin-right:4px;}
-.results-races {margin-top:18px;}
-.results-races h3 {margin:0 0 10px;}
-.results-race-buttons {display:flex; flex-wrap:wrap; gap:8px;}
-.stage-actions {display:grid; gap:10px;}
 .input-running-section {margin-top:18px;}
 @media(min-width:700px) {.leaderboard-row {grid-template-columns:4rem minmax(0,1fr) 6rem;}.result-number,.result-time {font-size:22px;}}
 /* A row tapped on a touch screen keeps no dark outline; keyboard focus still shows the focus ring from theme.css. */
 @media(hover:hover) {.result-open:hover {border-color:var(--navy);}}
 .result-flags > span {display:block; background:var(--amber-fill); color:var(--amber-text); padding:8px 10px; border-radius:var(--radius-small); margin-top:6px; font-weight:700; overflow-wrap:anywhere;}
 .disqualified .result-number,.disqualified .result-time {text-decoration:line-through;}
-.disqualification-reason {display:block; margin-top:4px; font-weight:800; color:var(--text);}
 .badge.note-tag {display:inline-block; vertical-align:1px; line-height:inherit; margin-left:8px; padding:1px 8px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-badge); font-weight:800;}
 .runner-actions {border-radius:var(--radius-card);box-shadow:0 18px 48px rgba(24,33,59,.35);background:var(--surface);color:inherit;padding:1rem;width:100%;max-width:34rem;max-height:min(85vh,100%);overflow:auto;margin:auto;}
 /* While a phone number entry is open in a sheet, the sheet sits above its bar and, while typing, in what shows above the keyboard. */
@@ -59,16 +37,8 @@ html[data-keyboard="open"] .action-sheet-overlay {top:var(--vv-top);bottom:auto;
 .runner-actions h3 {margin-top:0;}
 .runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
-/* Audit notes */
-.audit-notes {margin-top:18px;}
-.audit-notes h3 {margin:0 0 10px;}
-.audit-notes ol {list-style:none; padding:4px 16px; margin:0; background:var(--surface); border-radius:var(--radius-box);}
-.audit-notes li {display:flex; gap:12px; padding:10px 0; font-size:var(--text-small); font-weight:600; overflow-wrap:anywhere;}
-.audit-notes time {flex:none; font-weight:800; color:var(--navy); font-variant-numeric:tabular-nums;}
-.audit-notes li > span {min-width:0;}
 .result-flags .checked-warning {background:var(--idle-fill);color:var(--muted);}
 .not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
-.not-counted-reason {display:block;font-weight:800;margin-top:4px;color:var(--text);}
 .runner-action-choices {display:grid;gap:.6rem;}
 /* The actions sheet's Notes: an open warning in amber, everything settled or recorded in grey. */
 .runner-notes {margin:0 0 16px;}

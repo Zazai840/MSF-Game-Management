@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -22,12 +22,14 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${cubs} · Girl Cubs`)}).click();
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
-  for(const warning of [`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,'Team 3 ran with 3 of 4 children marked here.']) await expect(board).toContainText(warning);
+  const teamRow=(team:number)=>board.getByRole('button',{name:new RegExp(`^Team ${team} · .* · Heat 1$`)});
+  // Each team with an open issue says Check on its row; the sheet and the race page name it.
+  for(const team of [1,2,3,4]) await expect(teamRow(team)).toContainText('Check');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-warnings.png'),fullPage:true});
   /** Opens the team's actions sheet from its row and presses the button. */
   async function settle(team:number,button:string) {
-    await board.getByRole('button',{name:new RegExp(`^Team ${team} · .* · Heat 1$`)}).click();
+    await teamRow(team).click();
     const sheet=page.getByRole('dialog',{name:`Actions for Team ${team}`,exact:true});
     // Disqualifying for wrong section or age is a reason under the one Disqualify button, not a button of its own.
     await expect(sheet).toBeVisible();await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
@@ -38,13 +40,13 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   await settle(2,'Mark checked');
   await settle(3,'Mark checked');
   await settle(4,'Mark addition checked');
-  // Each team's row keeps its warnings, now checked.
+  // Checked, no row says Check any more.
   const checked=`Checked by ${ownName('To check relay lead')}: `;
-  await expect(board.locator('.checked-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`,`${checked}Added at the finish`]);
+  await expect(board.getByText('Check',{exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-checked-rows.png'),fullPage:true});
   // The race page's Current record shows the same checked warnings beside each team, grey and worded as on the leaderboard.
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   const record=page.getByRole('list',{name:'Current record',exact:true});
   await expect(record.locator('.record-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]);
   for(const warning of await record.locator('.record-warning').all()) expect(await warning.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toBe('rgb(255, 244, 220)');
@@ -78,11 +80,11 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await expect(board.getByRole('button',{name:`Team 4 · ${legs(4)[0]} · ${borrowed} · ${legs(4)[2]} · ${legs(4)[3]} · Heat 1`,exact:true})).not.toContainText('Q');
   // The qualifying line falls after the sixth team, Team 7.
   await expect(rows.nth(5)).toContainText('Team 7');await expect(rows.nth(6)).toHaveText('Qualifying line');
-  await expect(page.getByText('Top 8 highlighted · Q: fastest 6',{exact:true})).toBeVisible();
+  await expect(page.getByText('Fastest 6 go to the final',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-leaderboard.png'),fullPage:true});
   // The race page lists Heat 1's teams in place of runners, Team 4 with its kept warning.
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await expect(page.getByText('Teams: Team 2 · Team 1 · Team 3 · Team 4',{exact:true})).toBeVisible();
   const record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   await expect(record.nth(0)).toContainText(`Team 2${legs(2).join(' · ')}`);await expect(record.nth(0)).toContainText('14.00');
@@ -98,7 +100,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   expect(lines).toEqual([1,1,1,1]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page.png'),fullPage:true});
-  await page.getByRole('banner').getByRole('button',{name:/^Back to /}).click();
+  await page.getByRole('banner').getByRole('button',{name:/^Back to /}).click();await eventTab(page,'Heats');
   // Heats complete: the line-up is the six fastest teams across the heats.
   await page.getByRole('button',{name:'Heats complete',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'Heats complete',exact:true});
@@ -106,7 +108,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await expect(sheet.locator('.stage-creates li')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${['1st','2nd','3rd','4th','5th','6th'][index]}: Team ${number} · ${legs(number).join(' · ')}`));
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-heats-complete.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await eventTab(page,'Final');
   await expect(page.locator('.final-lineup li')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${index+1}: Team ${number} · ${legs(number).join(' · ')}`));
   // The final runs (its race screen is another slice's), then the Final leaderboard and Input - Running name each
   // medal team's four children.
@@ -156,17 +158,17 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
   await sheet.getByRole('button',{name:'Save disqualification',exact:true}).click();
   await expect(team1).toContainText('Disqualified: Other - Handover outside the zone');
   await expect(board.locator(':scope > li').first()).toContainText('Team 2');
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('disqualified Team 1 (Heat 1): Other - Handover outside the zone');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('disqualified Team 1 (Heat 1): Other - Handover outside the zone');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-disqualified.png'),fullPage:true});
-  await team1.click();
+  await eventTab(page,'Heats');await team1.click();
   await expect(sheet.getByRole('button',{name:'Disqualify Team 1',exact:true})).toHaveCount(0);
   await sheet.getByRole('button',{name:'Lift disqualification',exact:true}).click();
   await sheet.getByLabel('Comment',{exact:true}).fill('Judge saw the baton inside the zone');
   await sheet.getByRole('button',{name:'Save lift',exact:true}).click();
   await expect(team1).not.toContainText('Disqualified');
   await expect(board.locator(':scope > li').first()).toContainText('Team 1');
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('lifted the disqualification of Team 1 (Heat 1)');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('lifted the disqualification of Team 1 (Heat 1)');
 });
 
 test('a lead settles a tie between two teams on the tie sheet: a run-off puts Team 7 through',async({openPhone,request},info)=>{
@@ -191,9 +193,9 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
   await expect(sheet).toHaveCount(0);
   const rows=page.getByRole('list',{name:'Provisional leaderboard',exact:true}).locator(':scope > li');
   await expect(rows.nth(5)).toContainText('Team 7');await expect(rows.nth(6)).toHaveText('Qualifying line');
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('recorded a run-off at 17.00: Team 7 then Team 4');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('recorded a run-off at 17.00: Team 7 then Team 4');
   // Settled, the tie no longer holds Heats complete back.
-  await page.getByRole('button',{name:'Heats complete',exact:true}).click();
+  await eventTab(page,'Heats');await page.getByRole('button',{name:'Heats complete',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Heats complete',exact:true})).toContainText('Nothing to settle');
 });
 
@@ -203,7 +205,7 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   const {page}=await openPhone(ownName('Relay order fix lead'),{lead:true});
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();
   const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveText(['1st14.00Team 1No place','2nd15.00Team 2No place','3rd16.00Team 3No place']);
@@ -223,5 +225,5 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   await page.screenshot({path:info.outputPath('relay-order-corrected.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
   await back(page,`${name} · Boy Scouts`);
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('corrected the finishing order for Heat 1: Team 2, Team 1; Didn\'t run Team 3');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('corrected the finishing order for Heat 1: Team 2, Team 1; Didn\'t run Team 3');
 });
