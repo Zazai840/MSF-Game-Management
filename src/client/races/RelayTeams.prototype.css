@@ -1,0 +1,39 @@
+/* PROTOTYPE - throwaway styles for RelayTeams.prototype.tsx (map #231, ticket #237). */
+.proto-switcher { display: flex; justify-content: center; padding: 4px 0; background: #fce4ec; }
+.proto-switcher__pill { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 999px; background: #c2185b; color: #fff; font: 700 13px/1 system-ui, sans-serif; white-space: nowrap; }
+.proto-switcher button { width: 30px; height: 30px; border: 0; border-radius: 999px; background: rgba(255,255,255,.2); color: #fff; font: 700 20px/1 system-ui, sans-serif; }
+.proto-switcher span { padding: 0 4px; }
+.proto-switcher .proto-switcher__reset { font-size: 16px; }
+.proto-nocodes .rz-code-tag { display: none; }
+
+.proto-teamlist { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+/* A: a team as a row of four chips, leg order left to right. */
+.proto-arow { display: flex; flex-direction: column; gap: var(--space-6); }
+.proto-arow__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); }
+.proto-arow__state { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
+.proto-arow .rz-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); }
+.proto-arow .rz-chip { width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: var(--space-4) 0; border-radius: var(--radius-md); font-size: 20px; }
+.proto-arow .rz-chip .rz-icon { display: none; }
+.proto-chip__ord { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.proto-chip--next { border-color: var(--navy); background: var(--gold); }
+.proto-chip--empty { border-style: dashed; background: none; color: var(--ink-muted); }
+.proto-arow--typing { padding: var(--space-8) var(--space-10); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); }
+.proto-short { align-self: flex-start; }
+
+/* B and C: four leg boxes, without today's grips. */
+.proto-four { display: flex; flex-direction: column; gap: var(--space-8); }
+.proto-four .rz-legboxes .rz-field { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: var(--space-8); }
+.proto-editing { padding: var(--space-10) var(--space-12); border-radius: var(--radius-lg); background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); }
+.proto-remove { margin-top: var(--space-4); }
+.rz-attendance--one li:has(.proto-grip) { grid-template-columns: 1fr auto var(--size-touch); padding-right: var(--space-4); }
+.proto-grip { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; color: var(--navy); }
+
+/* C: team tiles, two to a row. */
+.proto-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.proto-tile { width: 100%; height: 100%; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-10) var(--space-12); border: 0; border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font: inherit; text-align: left; }
+.proto-tile__name { display: flex; align-items: center; justify-content: space-between; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 24px; text-transform: uppercase; }
+.proto-tile__name .rz-icon { width: 18px; height: 18px; }
+.proto-tile__legs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--space-8); margin: 0; padding: 0; list-style: none; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.proto-tile__legs span { display: block; font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.proto-tile--add { min-height: 132px; align-items: center; justify-content: center; flex-direction: row; gap: var(--space-6); border: 2px dashed var(--line-strong); background: none; box-shadow: none; font-size: 18px; font-weight: 800; }

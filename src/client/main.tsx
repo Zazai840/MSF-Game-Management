@@ -11,7 +11,11 @@ const root = document.getElementById('root')!;
 if (root.dataset.unsupported !== 'true') {
   // Ask the browser to keep the pass and profiles even when the phone is short of space; carry on if it says no.
   void navigator.storage?.persist?.().catch(()=>false);
-  startUpdates();
   followKeyboard();
-  createRoot(root).render(<App />);
+  // PROTOTYPE (map #231, ticket #237): relay teams made in the heat, client only, never merged.
+  if(location.pathname.startsWith('/prototype/relay-teams')) void import('./races/RelayTeams.prototype.js').then(({RelayTeamsPrototype})=>createRoot(root).render(<RelayTeamsPrototype/>));
+  else {
+    startUpdates();
+    createRoot(root).render(<App />);
+  }
 }
