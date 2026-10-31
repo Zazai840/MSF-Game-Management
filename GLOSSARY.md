@@ -57,7 +57,7 @@ The single deciding race of an event that has heats, unless a zone lead calls re
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
-The 6 qualifiers for a final in seed order, fastest heat time first, produced when a lead marks an event's heats complete. Runners a lead adds to the final afterwards are not part of the line-up.
+The 6 qualifiers for a final, fastest heat time first, produced when a lead marks an event's heats complete. Runners a lead adds to the final afterwards are not part of the line-up.
 _Avoid_: Finalists list, running heats sheet, start list
 
 **Results without a final**:
@@ -183,12 +183,16 @@ Ending the session on this phone, at once with no confirmation. The phone keeps 
 _Avoid_: Sign out
 
 **To check**:
-The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Ready for you lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
+**Action required**:
+A lead's first section of Races: the events with something To check or whose medals wait on their Confirm the medals. The cards are the same as anywhere else on Races.
+_Avoid_: Ready for you (a volunteer's first section), Action needed
+
 **Ready for you**:
-The first section of Races: the events with a race whose step for your role can be worked on now. A lead's lists the events with something To check or whose medals wait on their Confirm the medals.
-_Avoid_: My races, to do, inbox
+A volunteer's first section of Races: the events with a race whose step for your role can be worked on now.
+_Avoid_: Action required (a lead's first section), my races, to do, inbox
 
 **Scoring team**:
 The people outside the Running Zone who keep the Olympics scoring workbook and check eligibility. It is not a role: they sign in as leads, like the zone leads.
@@ -223,7 +227,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race lists the races and hurdles events, grouped under Races and Hurdles whichever of those tabs it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab. On Relays, New relay lists only the relays.
+Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you (a lead's Action required), In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race lists the races and hurdles events, grouped under Races and Hurdles whichever of those tabs it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:
@@ -251,7 +255,7 @@ What a volunteer taps to edit a team someone else set, after "Aisha Noor has alr
 _Avoid_: Take over, unlock, override
 
 **Confirm the medals**:
-A lead's Final complete or Event complete in Results, which decides an event's medals. Until then the event waits in the lead's Ready for you.
+A lead's Final complete or Event complete in Results, which decides an event's medals. Until then the event waits in the lead's Action required.
 _Avoid_: Sign off, approve, publish
 
 ### Testing

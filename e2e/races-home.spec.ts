@@ -207,6 +207,8 @@ test('each card says each race\'s state in my job\'s step, sorted into Ready for
   await expect(status(page,busy)).toHaveText('Heat 1 needs times');
   await expect(page.getByRole('heading',{level:2,name:'Ready for you'})).toBeVisible();
   await expect(section('Ready for you').filter({hasText:ready})).toHaveCount(1);
+  // Action required is a lead's first section, never a volunteer's.
+  await expect(page.getByRole('heading',{level:2,name:'Action required'})).toHaveCount(0);
   // A saved heat is done, but its event stays in progress until a lead decides the medals.
   await expect(section('In progress').filter({hasText:done})).toHaveCount(1);
   await expect(status(page,done)).toHaveText('Heat 1 done');
