@@ -9,6 +9,7 @@ import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,St
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { useFlowWrite } from './writes.js';
+import { useScreenName } from '../shell/addresses.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, and its words. */
 export interface SavedStep { raceId:string; step:Step; version:number; message:string }
@@ -42,6 +43,8 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
   // "Show latest" starts the step's body afresh from what the server has.
   const [fresh,setFresh]=useState(0);
   const swipe=useRef<{x:number;y:number}|null>(null);
+  // "Back to Heat 2" on a lead screen opened from here (Open in Results).
+  useScreenName(snapshot?raceName(snapshot.race):'Race');
   if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/></RaceBar>
     <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];

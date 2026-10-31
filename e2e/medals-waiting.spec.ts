@@ -49,7 +49,7 @@ test('a saved 60m final waits in the lead\'s Ready for you; Confirm the medals o
   await expect(status(volunteer,name)).toHaveText('Heat 1 and the final done');
   await expect(card(volunteer,name).getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
   await card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(page.getByRole('dialog',{name:'Final complete',exact:true})).toContainText(`1st: ${w(2)}`);
   await page.screenshot({path:info.outputPath('final-complete-sheet.png'),fullPage:true});
   await confirmAndFindDone(page,name,'Final complete');

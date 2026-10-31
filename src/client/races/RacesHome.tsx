@@ -5,7 +5,8 @@ import { finalMade,groupStatus,leadLine,leadSections,medalsToConfirm,raceSection
 import { teamListOf,teamsReadyLine,teamsRow } from '../../shared/teams.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
-import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
+import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon,UpdatedAt } from './parts.js';
+import { useScreenName } from '../shell/addresses.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import type { SavedStep } from './RaceShell.js';
 import { TeamSheet } from './TeamSheet.js';
@@ -50,6 +51,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
   // The relay (event code) whose teams sheet is open, and whether it opened on New team; null code: which relay New team is for.
   const [teamsOf,setTeamsOf]=useState<{code:string|null;start:'list'|'new'}|null>(null);
   const issues=useLeadItems(role==='lead');
+  useScreenName('Races');
   const all=snapshot?.groups||[],groups=all.filter(group=>group.event.type===tab);
   const finalFor=all.find(group=>group.event.code===confirming);
   const relayGroups=all.filter(group=>group.teams),teamsFor=relayGroups.find(group=>group.event.code===teamsOf?.code);
@@ -93,7 +95,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
       {sections.done.length>0 && <details className="rz-disclosure"><summary>Done ({sections.done.length})</summary><div className="rz-disclosure__cards">{sections.done.map(card)}</div></details>}
     </main>
     <footer className="rz-footer rz-footer--sticky rz-footer--home">
-      <p className="rz-refresh" aria-live="polite">Updated at {arrived||'…'} <button className="rz-btn rz-btn--small" type="button" onClick={()=>void api<RacesRead>('races').then(offer).catch(()=>{})}>Refresh</button></p>
+      <UpdatedAt time={arrived} onRefresh={()=>void api<RacesRead>('races').then(offer).catch(()=>{})}/>
       {tab==='relays'?<div className="rz-footer__pair rz-footer__pair--home">
         <button type="button" className="rz-btn" disabled={!relayGroups.length} onClick={newTeam}><Icon name="plus"/>New team</button>
         <button type="button" className="rz-btn rz-btn--display" onClick={()=>setCreating({})}><Icon name="plus"/>New relay</button>

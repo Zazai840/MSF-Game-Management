@@ -40,8 +40,8 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await page.screenshot({path:info.outputPath('day-programme.png'),fullPage:true});
     await back(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
+    // A reload stays on Day setup.
     await page.reload();
-    await openLeadMenu(page,'Day setup');
     await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();

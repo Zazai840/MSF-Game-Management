@@ -120,14 +120,15 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   await expect(ranTwice.getByRole('button',{name:"It's right",exact:true})).toHaveCount(0);
   await ranTwice.getByRole('button',{name:'Open in Results',exact:true}).click();
   // The event's results, with the runner's actions open.
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   const sheet=page.getByRole('dialog',{name:'Actions for 2001'});
   await expect(sheet.getByRole('heading',{name:'Runner 2001',exact:true})).toBeVisible();
   await sheet.getByRole('button',{name:'Choose which result counts',exact:true}).click();
   await sheet.getByLabel('Count Heat 2',{exact:true}).check();
   await sheet.getByRole('button',{name:'Save counted result',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
-  await openRace(page,name,'Girl Cubs','H2');
+  // Back returns to the race Results was opened from.
+  await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
+  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
   await expect(page.getByRole('alert').filter({hasText:'2001'})).toHaveCount(0);
   // "⋯" opens the race actions over the race.
   await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
@@ -158,6 +159,6 @@ test('a tie between two heats shows on both heats\' Times tab, and Open in Resul
     await page.screenshot({path:info.outputPath(`lead-tie-${chip}.png`),fullPage:true});
   }
   await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(page.getByRole('dialog',{name:'Tie at 10.00',exact:true})).toBeVisible();
 });

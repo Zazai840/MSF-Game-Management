@@ -100,6 +100,6 @@ test('a tie between two relay heats shows on both heats\' Times tab with each te
     await page.screenshot({path:info.outputPath(`relay-lead-tie-heat-${index+1}.png`),fullPage:true});
   }
   await page.getByRole('alert').filter({hasText:'Teams tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(page.getByRole('dialog',{name:'Tie at 14.00',exact:true})).toBeVisible();
 });

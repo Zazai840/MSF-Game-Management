@@ -57,7 +57,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   expect(await lookProblems(volunteer.page)).toEqual([]);
   await volunteer.page.screenshot({path:info.outputPath('correct-teams-teams-sheet.png')});
   // Correct number on one child of Team 2, from its leaderboard row: the teams sheet changes live.
-  await back(page,`${name} Boy Scouts`);
+  await back(page,`${name} · Boy Scouts`);
   await page.getByRole('button',{name:`Team 2 · ${fixed.join(' · ')} · Heat 1`,exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();
   await page.getByRole('button',{name:`2nd leg · ${legs(2)[1]}`,exact:true}).click();
@@ -89,7 +89,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await page.getByRole('button',{name:'Restore race',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'Confirm restore',exact:true}).click();
   await expect(page.getByRole('button',{name:'Re-run race',exact:true})).toBeVisible();
-  await back(page,`${name} Boy Scouts`);
+  await back(page,`${name} · Boy Scouts`);
   const row=(heat:number)=>page.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat ${heat}`,exact:true});
   await expect(row(1)).toContainText('Ran twice in this event');await expect(row(2)).toContainText('Ran twice in this event');
   await row(2).click();

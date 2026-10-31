@@ -1,4 +1,4 @@
-import {ownCode,ownName,deleteCurrentRace,expect,flowRace,join,leadMenuButton,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext} from './fixtures.js';
+import {ownCode,ownName,deleteCurrentRace,expect,flowRace,join,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext} from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const joinHeading='Join the Running Zone';
@@ -106,15 +106,16 @@ test('a phone meeting the old and the new server in turn mid-deploy reloads once
 
 test('a failed load of the Lead area reloads the app instead of leaving a blank screen',async({openPhone})=>{
   const {page}=await openPhone(ownName('Lead load'),{lead:true});
-  let loads=0;page.on('load',()=>loads++);
-  // An old page after a deploy: its Lead files are gone from the server. The service worker passes these requests on, so only the context sees them.
-  const leadFiles=/\/assets\/Lead-[^/]+\.(js|css)$/;
-  await page.context().route(leadFiles,route=>route.abort());
+  let loads=0,reloaded=false;page.on('load',()=>loads++);
+  // A new document, not an address change inside the app: Lead is asked for only after the page has loaded.
+  page.on('domcontentloaded',()=>{reloaded=true;});
+  // An old page after a deploy: its Lead files are gone from the server until the app reloads onto the new build. The
+  // service worker passes these requests on, so only the context sees them.
+  await page.context().route(/\/assets\/Lead-[^/]+\.(js|css)$/,route=>reloaded?route.continue():route.abort());
   await openLeadMenu(page,'Results');
   await expect.poll(()=>loads,{timeout:10000}).toBe(1);
-  await page.context().unroute(leadFiles);
-  await expect(leadMenuButton(page)).toBeVisible();
-  await openLeadMenu(page,'Results');
+  // The reload stays on Results, which now opens.
+  await expect(page).toHaveURL(/\/results$/);
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   expect(loads).toBe(1);
 });
