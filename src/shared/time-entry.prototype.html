@@ -251,7 +251,7 @@ const TimeEntry = (() => {
 const $ = id => document.getElementById(id);
 const EVENTS = ['60m', '60m Hurdles', '200m', '400m', '4x50m Relay', '4x100m Relay'];
 const TRIAL = [2784, 2810, 2947, 3102, 3365, 3520, 3891, 4107, 5988, 6430];
-const S = {event: '60m', box: 'line', short: 'hundredths', dot: 'point', places: [], kept: new Set(), retype: null, slots: 6, refusal: null, last: null, trial: null, runs: []};
+const S = {event: '60m', box: 'calc', short: 'hundredths', dot: 'point', places: [], kept: new Set(), retype: null, slots: 6, refusal: null, last: null, trial: null, runs: []};
 const input = $('time');
 
 function opts() { return S.box === 'calc' ? {short: 'hundredths', dot: 'strip'} : {short: S.short, dot: S.dot}; }
