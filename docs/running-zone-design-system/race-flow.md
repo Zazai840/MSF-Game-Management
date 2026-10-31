@@ -30,7 +30,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 | Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's event list; New race only offers confirmed, switched-on events. |
 | Section | Boy Beavers … Girl Scouts, with a code per event (R1–R6 for 60m; other events have their own codes, such as R16) | Use the existing code data. |
 | Event group | One event × one section ("60m · Girl Cubs · R4") | One card on Home. Holds its races. |
-| Race | One run of an event group: Heat *n* or the Final | Heat numbers count up per event group. Every event type uses "Heat": 200m and 400m runs that today's app calls "Race 1" become "Heat 1". Chips read "H1", "H2"; everywhere else write "Heat 1". |
+| Race | One run of an event group: Heat *n* or the Final | The next heat is the highest live heat + 1 (decision 4). Every event type uses "Heat": 200m and 400m runs that today's app calls "Race 1" become "Heat 1". Chips read "H1", "H2"; everywhere else write "Heat 1". |
 | Step | Runners, Finishing order or Times, per race | Status is derived; see below. |
 | Role | Start line, Finish line, Timer, or Zone lead | Belongs to the person, not the race. |
 
@@ -117,7 +117,7 @@ A Sheet over Races:
 - **Button:** display-primary "Create heat 5", wording following the choice.
 - **Opening it from a card's "+" chip** pre-selects that event and section and goes straight to the race on create. Opening it from "+ New race" pre-selects nothing.
 - **On create**, open the new race in my role's view.
-- **Anyone can create.** If someone else created the same next heat number a moment ago, open theirs rather than making a duplicate. Heat numbers must be unique per event group server-side.
+- **Anyone can create.** If someone else created the same next heat number a moment ago, open theirs rather than making a duplicate. Heat numbers must be unique among the event group's live races server-side (decision 4).
 
 ### 4. Switch job (artboard `N4-Role`)
 
@@ -370,3 +370,4 @@ Ship each milestone behind the existing app; each one is usable on its own.
 1. **Heat naming is the same for every event type.** All runs are "Heat *n*" (chips "H1"), including 200m and 400m.
 2. **The 6-runner soft warning applies to the Races tab only** (60m, 200m, 400m), with 6 as the default for all of them.
 3. **Undo reverses only the person's own, local save**, and steps aside if someone else has changed the same step since.
+4. **Heat numbers follow the live heats** (#239). The next heat, and the "Heat N is next" check behind "+", is the highest heat number not in Deleted races + 1, or 1, so deleting the newest heat frees its number; a deleted middle heat leaves its gap. Finals follow the same rule, so a final made after a deleted final is "Final". A re-run keeps the number of the race it replaces. A restored race whose number a live race now has comes back with the next number, and Notes say so ("Asem restored Heat 1 as Heat 2"). A number is unique among an event group's live races only.

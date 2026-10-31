@@ -97,7 +97,7 @@ A relay team that no race of its relay holds, apart from deleted races. Only tea
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
-A race removed from an event's results but kept so it can be restored, for example one created by mistake.
+A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number.
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
@@ -121,7 +121,7 @@ A short extra run between tied children, held at the zone lead's call, whose ord
 _Avoid_: Tie-break race, decider
 
 **Re-run**:
-Running a whole race again with the same children because its record can't be trusted or recovered, called by the zone lead as a last resort. The first race becomes a deleted race and the re-run is a new race of the same event. It is not a run-off.
+Running a whole race again with the same children because its record can't be trusted or recovered, called by the zone lead as a last resort. The first race becomes a deleted race that cannot be restored, and the re-run is a new race of the same event with the first race's number (the re-run of Heat 2 is Heat 2). It is not a run-off.
 _Avoid_: Rerace, restart, repeat race
 
 **Disqualification**:
