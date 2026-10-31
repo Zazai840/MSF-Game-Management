@@ -17,7 +17,7 @@ const allowed:Array<{word:string;in?:string;reason:string}>=[
   {word:'Job',reason:"the everyday word for a role on Join and the role chip (What's your job today?, Switch job); the relay race screen's jobs are gone"},
   {word:'remove',reason:'deleting a runner, a phone or a team from its list; Take off is only a team taken out of a heat at check-in'},
   // Spec #194 left Results, Day setup and the relay screens as they were: their words change with their own spec.
-  {word:'line-up',in:lead,reason:"a final's seeded line-up, the glossary's Finals line-up"},
+  {word:'line-up',in:lead,reason:"a final's line-up, fastest first, the glossary's Finals line-up"},
   {word:'comment',in:lead,reason:"lead-only rulings keep their Comment box (an audit note's comment)"},
   {word:'Official',in:lead,reason:"lead-only Results keeps its Official leaderboard"},
   {word:'Positions',in:lead,reason:"lead-only Results keeps a final's Final positions"},
