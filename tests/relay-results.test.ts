@@ -63,8 +63,8 @@ test('Heats complete on a relay seeds the six fastest teams into the final, each
 test('Reopen heats on a relay removes its unrun final with the line-up and opens the heats for changes; + Final makes "Final" again',async()=>{
   const {lead,teams,heat,results}=await start();
   await teams(7);
-  await heat([2,1,3,4],[1400,1500,1700,1900]);
-  await heat([5,6,7],[1450,1600,1800]);
+  await heat([2,1,3,4],[3400,3500,3700,3900]);
+  await heat([5,6,7],[3450,3600,3800]);
   expect((await call(lead,'/api/races',{eventCode:'R22',kind:'final'})).statusCode).toBe(200);
   const reopened=await call(lead,'/api/lead/events/R22/reopen-stage',{stage:'heats',comment:'Team 4 was timed wrong'});
   expect(reopened.statusCode).toBe(200);
