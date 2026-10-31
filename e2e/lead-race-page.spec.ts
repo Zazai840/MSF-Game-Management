@@ -71,6 +71,9 @@ test('Correct times refuses a time no one can run in the amber callout under the
   await expect(refusal).toBeVisible();
   await expect(input).toBeFocused();await expect(input).toHaveValue('0.21');await expect.poll(()=>selected(page,'2nd place time')).toBe('0.21');
   expect((await refusal.boundingBox())!.y).toBeGreaterThan((await input.boundingBox())!.y);
+  // The race flow's amber callout, and only the refusal: 0.21 would be out of order too, but it is no time at all.
+  expect(await background(refusal)).toBe('rgb(255, 241, 199)');
+  await expect(sheet.getByText(/Times are out of order/)).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('times-editor-refused.png'),fullPage:true});
   // The next digit replaces the refused digits, and the refusal goes.
   await input.pressSequentially('1');await expect(input).toHaveValue('0.01');await expect(refusal).toHaveCount(0);

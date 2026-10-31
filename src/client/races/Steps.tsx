@@ -5,12 +5,13 @@ import { ordinal } from '../../shared/ordinal.js';
 import { andList,emptyRaceLine,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
-import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint,timeRefusal } from '../../shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { phoneStorage } from '../api.js';
 import { NumberBox } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
+import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 import { useWristbandEntry } from './wristband-entry.js';
 import { Callout,DockedFooter,Icon } from './parts.js';
 import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
@@ -317,9 +318,8 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   const {race}=read,status=read.steps.times!,order=read.steps.positions!,words=entryWords(read.group.event.relay);
   const writes=useStepWrites<{places:number[];keptWrong:number[]}>(flow.write,'times','times',race.id,race.parts.times.version);
   const [typed,setTypedDigits]=useState(''),[retype,setRetype]=useState<number|null>(null);
-  // A refusal of the typed digits, and how many there have been: each one selects the digits again.
-  const [refusal,setRefusal]=useState<string|null>(null),[refusals,setRefusals]=useState(0);
-  const setTyped=(digits:string)=>{setTypedDigits(digits);setRefusal(null);};
+  const refusal=useTimeRefusal();
+  const setTyped=(digits:string)=>{setTypedDigits(digits);refusal.clear();};
   const stored=race.parts.times.value,places=writes.pending?.places||(stored?.places||[]).filter((time):time is number=>time!==null);
   const keptWrong=writes.pending?.keptWrong||stored?.keptWrong||[],wrong=wrongTimesByPlace(places,read.group.event.name);
   const unkept=[...wrong.values()].find(item=>!keptWrong.includes(item.index));
@@ -330,8 +330,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   async function next() {
     const time=parseTimeDigits(typed);
     if(time===null || full) return;
-    const refused=timeRefusal(typed,read.group.event.name);
-    if(refused) {setRefusal(refused);setRefusals(count=>count+1);return;}
+    if(refusal.check(typed,read.group.event.name)) return;
     const updated=[...places];updated[target]=time;
     const stillWrong=wrongTimesByPlace(updated,read.group.event.name);
     setTyped('');setRetype(null);
@@ -361,9 +360,9 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
       {held && <Callout message={`${unkept!.banner} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button>
           <button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button></>}/>}
-      {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held || !!refusal} onChange={setTyped} onEnter={()=>void next()}
-        selectKey={`${target}:${retype===null?'next':'retype'}:${refusals}`} hint={held || refusal?undefined:timeBoxHint} time/>}
-      {refusal && <Callout message={refusal}/>}
+      {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held || !!refusal.message} onChange={setTyped} onEnter={()=>void next()}
+        selectKey={`${target}:${retype===null?'next':'retype'}:${refusal.count}`} hint={held || refusal.message?undefined:timeBoxHint} time/>}
+      {refusal.message && <Callout message={refusal.message}/>}
     </main>
     {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
       <KeepFocus className="rz-btn" disabled={target===0} onClick={()=>{const back=target-1;if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Previous place</KeepFocus>

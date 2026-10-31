@@ -9,6 +9,8 @@
 .time-edit {flex:none; color:var(--faint);}
 .time-row-none {background:var(--tint); border-color:var(--tint); color:var(--muted);}
 .time-row-none .time-value {font-size:var(--text-small); font-weight:700; color:var(--muted);}
+/* A refused time's race-flow callout brings its own .rz-screen for the tokens, but not that screen's paper. */
+.rz-screen.time-refusal {background:none;}
 
 /* Current record: one row per runner, a wrong time in amber with its reason. */
 .race-page .time-count {margin:0 0 8px;}
