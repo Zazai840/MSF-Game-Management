@@ -26,7 +26,7 @@ export function RaceTeamsEditor({race,teams,relays,busy,onSave,onClose}:{race:Le
     <p className="sheet-hint">Tap a team to correct its children: the team keeps its place and time. On the team's latest race, the teams sheet changes too.</p>
     <ol className="lead-team-rows" aria-label="Teams">{entries.map(entry=>{
       const name=`Team ${entry.team.number}`;
-      return <li key={entry.id}>{editing===entry.id?<TeamEdit team={asTeam(entry)} relay={relay} relays={relays} busy={busy} onCancel={()=>setEditing(null)}
+      return <li key={entry.id}>{editing===entry.id?<TeamEdit team={asTeam(entry)} raceId={race.id} relay={relay} relays={relays} busy={busy} onCancel={()=>setEditing(null)}
         onDone={done=>void save(entries.map(other=>other===entry?{entryId:other.id,legs:done.legs}:{entryId:other.id}),done.keptWarnings)}/>
       :removing===entry.id?<div className="warning-box"><p>Take {name} off {label}? It is still to run again.</p>
         <div className="warning-actions"><button disabled={busy} onClick={()=>void save(kept.filter(item=>'entryId' in item && item.entryId!==entry.id))}>Take off</button><button className="button-secondary" onClick={()=>setRemoving(null)}>Keep {name}</button></div></div>

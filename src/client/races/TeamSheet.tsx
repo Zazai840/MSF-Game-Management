@@ -96,15 +96,15 @@ function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}
     <p className="rz-sheet__text">{relay.name} · {relay.section}<br/>Type each child's wristband in running order, 1st leg first.</p>
     {changed && <Callout status message={`${changedLine(changed.by)}.`}
       actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>{clearChanged();setVersion(team?.version);setFresh(fresh+1);}}>Show latest</button>}/>}
-    <LegBoxes key={fresh} team={team} number={number} relay={relay} relays={relays} busy={busy} error={error} removing={removing}
+    <LegBoxes key={fresh} team={team} raceId={raceId??null} number={number} relay={relay} relays={relays} busy={busy} error={error} removing={removing}
       onSave={save} onCancel={onDone} onRemove={team && stillToRun(team)?()=>setRemoving(true):undefined}
       removeActions={team && <><button type="button" className="rz-btn" onClick={()=>setRemoving(false)}>Keep it</button>
         <button type="button" className="rz-btn rz-btn--danger" disabled={busy} onClick={()=>void send(`/${team.id}/remove`,{version})}>Remove</button></>}/>
   </>;
 }
-function LegBoxes({team,number,relay,relays,busy,error,removing,onSave,onCancel,onRemove,removeActions}:{team:RelayTeam|null;number:number;relay:TeamList;relays:readonly TeamList[];busy:boolean;error:string;
+function LegBoxes({team,raceId,number,relay,relays,busy,error,removing,onSave,onCancel,onRemove,removeActions}:{team:RelayTeam|null;raceId:string|null;number:number;relay:TeamList;relays:readonly TeamList[];busy:boolean;error:string;
   removing:boolean;onSave:(draft:TeamDraft)=>void;onCancel:()=>void;onRemove?:()=>void;removeActions:ReactNode}) {
-  const entry=useTeamDraft(team,relay,relays),{boxes,refusals,warnings,amber,inputs}=entry;
+  const entry=useTeamDraft(team,relay,relays,raceId),{boxes,refusals,warnings,amber,inputs}=entry;
   return <>
     {/* A grip drag reorders the draft only: Save sends it, Cancel drops it. */}
     <SortableList label="Legs" items={entry.keys} itemKey={key=>key} onReorder={entry.move}

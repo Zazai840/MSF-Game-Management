@@ -1,7 +1,7 @@
 import type { Section } from './results-rules.js';
 import { plainWristbandWarning,wristbandWarnings } from './wristband-checks.js';
 /** A warning on one leg of a relay team, in the volunteer's words. Done stores it only once kept. */
-export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-relay'; message:string; kept:boolean }
+export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-heat'|'other-relay'; message:string; kept:boolean }
 /** One leg of a relay team: its child's wristband (null while the box is empty) and that child's kept warnings. */
 export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
 /** A race holding a relay team: one of its relay's races that is not deleted. */
@@ -79,20 +79,37 @@ export const entryWords=(relay:boolean)=>relay?{
 };
 /** A word as it starts a sentence or a column: "Team", "Runners". */
 export const capitalised=(word:string)=>word[0].toUpperCase()+word.slice(1);
-/** Why the number in box `index` can't go in: it is already in another box of this team, or in another team of the relay. */
-export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:readonly (number|null)[],index:number):string|null {
+/** The teams of the relay that race `raceId` holds, apart from team `teamId`: no race, no team. */
+const teamsInRace=(teams:readonly RelayTeam[],teamId:string|null,raceId:string|null)=>teams.filter(team=>team.id!==teamId && team.races.some(race=>race.id===raceId));
+/**
+ * Why the number in box `index` can't go in (Fix number only): it is already in another box of this team, or in
+ * another team of this race (`raceId`, the heat or final being checked in or corrected). Each child runs for one team.
+ */
+export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:readonly (number|null)[],index:number,raceId:string|null):string|null {
   const number=legs[index];
   if(number===null) return null;
-  if(legs.some((other,at)=>at!==index && other===number)) return `${number} is already in this team. Check the wristband.`;
-  const other=teams.find(team=>team.id!==teamId && team.legs.some(leg=>leg.wristband===number));
-  return other?`${number} is already in Team ${other.number}. Check the wristband.`:null;
+  if(legs.some((other,at)=>at!==index && other===number)) return `${number} is already in this team.`;
+  const other=teamsInRace(teams,teamId,raceId).find(team=>team.legs.some(leg=>leg.wristband===number));
+  if(!other) return null;
+  const race=other.races.find(item=>item.id===raceId)!;
+  return `${number} is already in Team ${other.number} in this ${race.kind==='final'?'final':'heat'}. Each child runs for one team.`;
 }
 /**
  * What looks wrong about a leg's number, for Fix number or Keep: no Section uses it, it is another Section's (any
- * Beaver number is in range for both Beaver relays), or the child is already in a team of another relay.
+ * Beaver number is in range for both Beaver relays), the child is in another team of this relay that race `raceId`
+ * doesn't hold ("2022 already ran in Heat 1, in Team 2."), or in a team of another relay.
  */
-export function legWarnings(number:number,relay:Pick<TeamList,'code'|'section'>,relays:readonly TeamList[]):Array<Omit<TeamWarning,'kept'>> {
+export function legWarnings(number:number,relay:TeamList,relays:readonly TeamList[],teamId:string|null,raceId:string|null):Array<Omit<TeamWarning,'kept'>> {
   const warnings=wristbandWarnings(number,relay.section,[],{skipAlreadyRan:true}).map(warning=>({kind:warning.kind as TeamWarning['kind'],message:plainWristbandWarning(warning,number,relay.section)}));
+  const inRace=teamsInRace(relay.teams,teamId,raceId);
+  for(const team of relay.teams) if(team.id!==teamId && !inRace.includes(team) && team.legs.some(leg=>leg.wristband===number)) warnings.push({kind:'other-heat',message:otherHeatLine(number,team)});
   for(const other of relays) if(other.code!==relay.code) for(const team of other.teams) if(team.legs.some(leg=>leg.wristband===number)) warnings.push({kind:'other-relay',message:`${number} is also in Team ${team.number} of ${other.name} ${other.section}.`});
   return warnings;
+}
+/** A child in another team of this relay, by that team's latest race: "2022 already ran in Heat 1, in Team 2.", "... is already in Heat 2, ...", or still to run. */
+function otherHeatLine(number:number,team:Pick<RelayTeam,'number'|'races'>) {
+  const race=team.races.at(-1);
+  if(!race) return `${number} is already in Team ${team.number}, still to run.`;
+  const name=race.kind==='final'?'the Final':`Heat ${race.number}`;
+  return race.state==='saved'?`${number} already ran in ${name}, in Team ${team.number}.`:`${number} is already in ${name}, in Team ${team.number}.`;
 }

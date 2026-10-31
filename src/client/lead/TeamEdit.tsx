@@ -18,11 +18,11 @@ export function TeamCells({team}:{team:RelayTeam}) {
 
 /**
  * A lead's Correct teams, one team open: its four boxes on the number keyboard, the first box the 1st leg, then Cancel
- * and Done. A number already in this team or another team of the relay is refused as it is typed (Fix number only); one
+ * and Done. A number already in this team or another team of this race is refused as it is typed (Fix number only); one
  * that looks wrong shows amber once its box is left, with Fix number or Keep. Done needs each fixed or kept.
  */
-export function TeamEdit({team,relay,relays,busy,onCancel,onDone}:{team:RelayTeam;relay:TeamList;relays:readonly TeamList[];busy:boolean;onCancel:()=>void;onDone:(done:Done)=>void}) {
-  const entry=useTeamDraft(team,relay,relays),{boxes,refusals,warnings,amber,fix,inputs}=entry;
+export function TeamEdit({team,raceId,relay,relays,busy,onCancel,onDone}:{team:RelayTeam;raceId:string;relay:TeamList;relays:readonly TeamList[];busy:boolean;onCancel:()=>void;onDone:(done:Done)=>void}) {
+  const entry=useTeamDraft(team,relay,relays,raceId),{boxes,refusals,warnings,amber,fix,inputs}=entry;
   const name=`Team ${team.number}`,ready=!busy && entry.ready;
   return <div className="team-edit">
     <div className="team-row"><span className="team-name"><span>{name}</span></span>

@@ -47,7 +47,7 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/relays/:eventId/teams','Volunteer',(request,_reply,phone)=>{
     const {wristbands,kept}=requestedDone({...(request.body as object),teamId:undefined}),joinRaceId=requestedRace((request.body as {joinRaceId?:unknown}).joinRaceId);
     return write(phone,params(request).eventId,joinRaceId,async(client,relay)=>{
-      const legs=checkedLegs(relay,null,wristbands,kept),id=randomUUID();
+      const legs=checkedLegs(relay,null,wristbands,kept,joinRaceId??null),id=randomUUID();
       await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by,changed_by_profile) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4,$5 FROM relay_teams WHERE event_id=$2',[id,relay.id,JSON.stringify(legs),phone.name,phone.profileId]);
       if(joinRaceId!==undefined) await changeTeamEntry(client,phone,joinRaceId,id,({race,team,entries})=>{
         if(race.kind==='final') throw new Refusal(409,'A new team can\'t join the final');
@@ -63,7 +63,7 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
       const team=requestedTeam(relay,teamId);
       if(raceId===undefined) requireNotInRace(team);
       requireVersion(team,phone,done.version!);
-      const legs=checkedLegs(relay,team.id,done.wristbands,done.kept);
+      const legs=checkedLegs(relay,team.id,done.wristbands,done.kept,raceId??null);
       await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name,phone.profileId]);
       if(raceId===undefined) return;
       // A final's kept copy of the team (for Here / Absent) takes the new legs too: through its runner list while the

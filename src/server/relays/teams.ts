@@ -95,12 +95,15 @@ export function requestedDone(body:unknown):TeamDone {
   if(!Array.isArray(kept) || kept.some(number=>number===null || !wristbands.includes(number))) throw new Refusal(400,'Choose Keep for a wristband number in this team');
   return {teamId,version:version as number|undefined,wristbands,kept};
 }
-/** A team's four boxes as every team write checks them: no wristband twice in the relay, and each warning kept. Answers the legs to store. */
-export function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId:string|null,wristbands:Array<number|null>,kept:unknown[]):TeamLeg[] {
-  const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,teamId,wristbands,index)).find(Boolean);
+/**
+ * A team's four boxes as every team write checks them, in race `raceId` (none from the teams sheet): no wristband twice
+ * in the team or in another team of that race, and each warning kept. Answers the legs to store.
+ */
+export function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId:string|null,wristbands:Array<number|null>,kept:unknown[],raceId:string|null):TeamLeg[] {
+  const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,teamId,wristbands,index,raceId)).find(Boolean);
   if(refusal) throw new Refusal(409,refusal);
   // A warning is stored only once kept: each one needs Fix number or Keep.
-  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays).map(warning=>({...warning,kept:true}))}));
+  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays,teamId,raceId).map(warning=>({...warning,kept:true}))}));
   const unkept=legs.find(leg=>leg.warnings.length && !kept.includes(leg.wristband));
   if(unkept) throw new Refusal(409,`${unkept.wristband} needs Fix number or Keep`);
   return legs;
@@ -114,7 +117,7 @@ export function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId
  */
 export async function correctTeam(client:pg.PoolClient,lead:Phone,race:{id:string;event:{id:string}},entry:TeamEntry,wristbands:Array<number|null>,kept:unknown[]):Promise<TeamEntry> {
   const lists=await readTeamLists(client,lead.dayId),relay={...lists.get(race.event.id)!,relays:switchedOn(lists)};
-  const legs=checkedLegs(relay,entry.team.id,wristbands,kept),team=relay.teams.find(item=>item.id===entry.team.id);
+  const legs=checkedLegs(relay,entry.team.id,wristbands,kept,race.id),team=relay.teams.find(item=>item.id===entry.team.id);
   if(team?.races.at(-1)?.id===race.id) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4 WHERE id=$1',[team.id,JSON.stringify(legs),lead.name,lead.profileId]);
   const stays=(wristband:number|null)=>legs.some(leg=>leg.wristband===wristband);
   return {...entry,legs:legs.map((leg,index)=>{

@@ -55,9 +55,9 @@ export function TeamStartLine({read,flow,onDone,locked,me}:StepProps) {
   const [changing,setChanging]=useState<{teamId:string;leg:number;version:number}|null>(null);
   const entry=changing && entries.find(item=>item.team.id===changing.teamId),change=changing && entry?{...changing,entry}:null;
   function problem(teamId:string|null,wristbands:Array<number|null>,index:number):Held|null {
-    const refused=legRefusal(relay.teams,teamId,wristbands,index);
+    const refused=legRefusal(relay.teams,teamId,wristbands,index,race.id);
     if(refused) return {refused};
-    const warnings=legWarnings(wristbands[index]!,relay,relays);
+    const warnings=legWarnings(wristbands[index]!,relay,relays,teamId,race.id);
     return warnings.length?{warning:warnings.map(warning=>warning.message).join(' ')}:null;
   }
   const fix=()=>setHeld(null);

@@ -225,8 +225,8 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 - **+ New team** is docked at the foot of the sheet.
 - **Change anyway.** Tapping a team someone else set first asks, over the sheet: "**Aisha Noor** has already set this team." with "Team 7 · 2071 · 2072 · 2073 · 2074", then **Change anyway** and **Cancel**, stacked. Change anyway opens the leg boxes; the Save is still checked against the team's version.
 - **Edit team 7 / New team 9.** The same sheet swaps to the relay's name and "Type each child's wristband in running order, 1st leg first.", then the four **leg boxes**, one per row: the label ("1st leg"), the big number box, and a grip.
-  - A number already in this team or another team of the relay is refused as it is typed ("2071 is already in Team 3. Check the wristband.") with **Fix number** only.
-  - An unknown number, another section's, or a child already in another relay's team is warned once its box is left, with **Fix number** / **Keep**.
+  - A number already in this team is refused as it is typed ("2071 is already in this team.") with **Fix number** only.
+  - An unknown number, another section's, a child already in another team of the relay, or a child already in another relay's team is warned once its box is left, with **Fix number** / **Keep**.
   - Dragging a grip moves that number to another leg, in the draft only: Save sends it, Cancel drops it. The grip reads "Move 2071", or "Move empty 4th leg".
   - The docked footer pairs **Cancel** and **Save team 9**. Edit on a team still to run also has a quiet **Remove team 7** under them, which asks "Remove Team 7? Its number won't be used again." with Remove / Keep it.
   - A Save on a team someone changed meanwhile is refused: "Aisha Noor changed this a moment ago." with **Show latest**, which starts the boxes again from theirs.
@@ -236,6 +236,9 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 **Start line on a heat** (TeamCard)
 - Like individual check-in: prompt meta "Heat 2 · 2 teams · 7 children here", question "Team 5 · 2nd leg: wristband number?", one number box. Typing a child checks them in: there is no Here per child.
 - Above the box, the team being typed as four leg chips in a raised card ("Team 5", "1 of 4"): the leg being typed in `gold`, a typed leg with its wristband, a leg still to come dashed with "–".
+- Each leg is checked as at individual check-in, on Next and again on the server at save, in the amber callout under the box:
+  - Refused, with **Fix number** only: a child already in this team ("2041 is already in this team.") or in another team of this heat ("2041 is already in Team 3 in this heat. Each child runs for one team.").
+  - Warned, with **Fix number** / **Keep**: an unknown number, another section's, a child who ran in another heat of this relay ("2022 already ran in Heat 1, in Team 2."), or a child in a team of another relay. A kept warning is saved with the leg and shows in To check for a lead.
 - The footer pairs **That's everyone** and **Next**. Next moves to the next leg; on the 4th leg it reads **Save Team 5** and saves the team, then asks for the next team's 1st leg. With 1-3 legs typed and the box empty, a small **Save Team 5 with 3** under the box saves a short team.
 - A part-typed team lives only on its phone: other phones do not see it, a reload loses it, and That's everyone is greyed while one is open.
 - The team number is set at save: the prompt's "Team 5" comes from the live read, and if another phone saved Team 5 first this team saves as Team 6, with no refusal. The status line names the number it got: "Team 6 checked in: 2041, 2042, 2043, 2044".
