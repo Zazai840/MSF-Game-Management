@@ -1,7 +1,8 @@
+import { eventTitle } from '../../shared/day.js';
 import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { finalMade,groupStatus,leadLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
+import { finalMade,groupStatus,leadCardLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { teamListOf,teamsReadyLine,teamsRow } from '../../shared/teams.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
@@ -68,9 +69,9 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults}:{tab:HomeTab;me:s
   }
   const card=(group:RaceGroup)=>{
     const confirm=role==='lead'?medalsToConfirm(group,issues):null;
-    return <article key={group.event.id} className="rz-racecard" aria-label={`${group.event.name} · ${group.event.section}`}>
-      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{group.event.name} · {group.event.section}</h3><CodeTag code={group.event.code} role={role}/></div>
-      <p className="rz-racecard__status">{!group.races.length?teamsReadyLine(group.teams||[]):role!=='lead'?groupStatus(group,role):leadLine(group,issues)}</p>
+    return <article key={group.event.id} className="rz-racecard" aria-label={eventTitle(group.event)}>
+      <div className="rz-racecard__head"><h3 className="rz-racecard__title">{eventTitle(group.event)}</h3><CodeTag code={group.event.code} role={role}/></div>
+      <p className="rz-racecard__status">{role==='lead'?leadCardLine(group,issues):!group.races.length?teamsReadyLine(group.teams||[]):groupStatus(group,role)}</p>
       {confirm && <button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onResults({event:group.event,stage:confirm})}>Confirm the medals</button>}
       {group.races.length>0 && <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}

@@ -45,7 +45,7 @@
   /* Amber: every warning and wrong time */
   --amber-fill:#fff4dc; --amber-line:#b7791f; --amber-text:#6b4200;
   /* Green: completed events only */
-  --green-fill:#e3f1e8; --green-line:#2f6b47; --green-text:#2f6b47; --green-title:#1f4d33;
+  --green-fill:#e3f1e8; --green-line:#2f6b47; --green-text:#2f6b47;
   /* Not started */
   --idle-fill:#e9ecf2; --idle-line:#c3cad9; --idle-text:#3a4360;
   --focus:#d78800;

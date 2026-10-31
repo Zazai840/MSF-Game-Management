@@ -1,3 +1,4 @@
+import { eventTitle } from '../../shared/day.js';
 import { RunnerActions } from './RunnerActions.js';
 import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions } from './RaceActions.js';
@@ -43,7 +44,7 @@ export function RacePage({raceId,screen,onSaved,onClose,actionableRunners=[]}:{r
   </>}<footer>Updated at {updated||'…'} <button onClick={()=>void refresh()}>Refresh</button></footer></section>;
   if(!screen) return body;
   const event=read?.race.event;
-  return <><LeadBar title={read?raceLabel(read.race):'Race'} code={event?.code??screen.code} up={event?`${event.name} · ${event.section}`:screen.code}/>
+  return <><LeadBar title={read?raceLabel(read.race):'Race'} code={event?.code??screen.code} up={event?eventTitle(event):screen.code}/>
     <main><div className="results-view">{body}</div></main></>;
 }
 /** The race's places and times in place order (no place last), a wrong time in amber with its reason as on the Times screens, each child's or relay team's warnings beside them (grey once settled), and v1's count check. */

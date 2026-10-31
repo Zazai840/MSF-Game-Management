@@ -4,7 +4,7 @@ import type { Stage,StageCheckSheet,StageItem } from '../../shared/stages.js';
 import { DeletedRaces } from './DeletedRaces.js';
 import { Fragment,useEffect,useState,useRef } from 'react';
 import { api } from '../api.js';
-import type { ResultsRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import type { ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { RacePage } from './RacePage.js';
 import { RunnerActions } from './RunnerActions.js';
 import { flagText } from '../../shared/runner-rulings.js';
@@ -13,15 +13,16 @@ import { resultName } from '../../shared/results-rules.js';
 import { TieSheet } from './TieSheet.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { eventState } from '../../shared/event-state.js';
-import { LeadBar } from '../races/parts.js';
+import { Callout,Icon,LeadBar,UpdatedAt } from '../races/parts.js';
 import type { View } from '../shell/addresses.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { raceLabel } from '../../shared/races.js';
-import { clock } from '../../shared/clock.js';
+import { clock,clockWithSeconds } from '../../shared/clock.js';
+import { eventTitle } from '../../shared/day.js';
 import './results.css';
 const tick=<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
 /**
- * Results (no `code`): the event cards (coloured Done / Running / Not started); an event (`code`): its leaderboard,
+ * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
  * lead header; `onOpen` moves to another screen and `onBack` goes back. `target` is what Open in Results asked to open
  * on the event: a runner's actions, a tie or a check sheet.
@@ -33,7 +34,7 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
   const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
   // The check sheet a tie was opened from: from Results without a final it is settled against medal places.
   const [tieStage,setTieStage]=useState<Stage>();
-  const [list,setList]=useState<ResultsRead|null>(null);
+  const [list,setList]=useState<ResultsGridRead|null>(null);
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
   const [updated,setUpdated]=useState('');
@@ -43,8 +44,8 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
     const generation=++request.current;
     try {
       if(code) {const next=await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`);if(generation!==request.current) return;setDetail(next);}
-      else {const next=await api<ResultsRead>('lead/results');if(generation!==request.current) return;setList(next);}
-      setUpdated(clock());setError('');
+      else {const next=await api<ResultsGridRead>('lead/results');if(generation!==request.current) return;setList(next);}
+      setUpdated(clockWithSeconds(new Date()));setError('');
     } catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
   useEffect(()=>{
@@ -62,7 +63,7 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
   const tieOn=(stage:Stage|undefined,id:string|null|undefined)=>(stage==='no-final'?detail?.results.noFinalTies:detail?.results.ties)?.find(tie=>tie.id===id);
   const selectedTie=tieOn(tieStage,selectedTieId);
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
-  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(clock());onChanged?.();}
+  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
   function openStageItem(item:StageItem) {
     setSelectedStage(null);
     const tie=tieOn(selectedStage?.stage,item.tieId);
@@ -70,11 +71,12 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
     else if(item.entryId && detail?.results.actionableRunners.some(row=>row.raceId===item.raceId && row.entryId===item.entryId)) setSelected({raceId:item.raceId!,entryId:item.entryId});
     else if(item.raceId) openRace(item.raceId);
   }
-  if(code && raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack}/>;
+  if(!code) return <LeadBar title="Results" up="Races" body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
+  if(raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack}/>;
   const state=detail?eventState({status:detail.results.status,raceCount:detail.results.raceCount,format:detail.event.format,decidedWithoutFinal:detail.results.decidedWithoutFinal}):null;
-  return <>{code?<LeadBar title={detail?`${detail.event.name} · ${detail.event.section}`:code} code={detail?.event.code} up="Results"/>:<LeadBar title="Results" up="Races"/>}
+  return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results"/>
   <main><div className="results-view">{error && <p role="alert">{error}</p>}
-    {code ? <>{!detail?<p className="results-opening">Opening results…</p>:<>
+    {!detail?<p className="results-opening">Opening results…</p>:<>
       <header className="results-event-head">
         <p className="results-event-meta"><span className={`event-status event-status-${state!.state}`}>{state!.state==='done' && tick}{state!.line}</span><span className="results-event-code">{detail.event.code}{!detail.event.enabled?' · Switched off':''}</span></p></header>
       {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.actionableRunners} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}
@@ -100,16 +102,24 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
       {detail.results.inputRunning && <section className="input-running-section"><h3>Input - Running</h3><table className="input-running" aria-label="Input - Running"><thead><tr><th>Event code</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody><tr><td>{detail.results.inputRunning.eventCode}</td>{detail.results.inputRunning.teams?detail.results.inputRunning.teams.map((team,index)=><td key={index}>{team?<><strong>Team {team.number}</strong>{team.wristbands.map((wristband,leg)=><span key={leg} className="input-running-leg">{wristband??'-'}</span>)}</>:'-'}</td>):<><td>{detail.results.inputRunning.first??'-'}</td><td>{detail.results.inputRunning.second??'-'}</td><td>{detail.results.inputRunning.third??'-'}</td></>}</tr></tbody></table></section>}
       <DeletedRaces eventCode={detail.event.code} onOpen={openRace}/>
       {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol></section>}
-    </>}</> : !list?<p className="results-opening">Opening events…</p>:<>
-      <ul className="results-legend" aria-label="Card colours">{(['done','running','not-started'] as const).map(state=><li key={state}><span className={`results-swatch event-card-${state}`} aria-hidden="true"/>{state==='done'?'Done':state==='running'?'Running':'Not started'}</li>)}</ul>
-      {!list.eventsConfirmed && <p className="calm-note">Event list awaiting confirmation by a lead</p>}
-      {list.groups.map((group,index)=><section key={group.name} className="results-group" aria-labelledby={`results-group-${index}`}><h2 id={`results-group-${index}`}>{group.name}</h2><div className="results-events">{group.events.map(item=>{
-        const card=eventState({status:item.status,raceCount:item.raceCount,format:item.event.format,decidedWithoutFinal:item.decidedWithoutFinal});
-        return <button key={item.event.id} className={`event-card event-card-${card.state}`} onClick={()=>onOpen({kind:'event',code:item.event.code,tab:'heats'})}>
-          <span className="event-card-title"><span>{item.event.code} · {item.event.section}</span>{card.state==='done' && tick}</span>
-          <span className="event-card-status">{card.line}{!item.event.enabled?' · Switched off':''}</span>
-          {item.latestNoteAt && <span className="event-card-note">Latest note {clock(item.latestNoteAt)}</span>}
-        </button>;})}</div></section>)}</>}
+    </>}
     <footer>Updated at {updated || '…'} <button onClick={()=>void refresh()}>Refresh</button></footer>
   </div></main></>;
+}
+const keyStates=[['done','Done'],['running','Running'],['idle','Not started']] as const;
+/** Results: the key, then each distance's events as a grid of cards worded and coloured as their Races cards. */
+function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|null;error:string;updated:string;onRefresh:()=>void;onOpen:(view:View)=>void}) {
+  return <><main className="rz-main">
+    {error && <Callout message={error}/>}
+    <ul className="rz-legend" aria-label="Key">{keyStates.map(([state,label])=><li key={state}><span className={`rz-legend__swatch rz-legend__swatch--${state}`} aria-hidden="true"/>{label}</li>)}</ul>
+    {!list?!error && <p className="rz-empty">Opening…</p>:<>
+      {!list.eventsConfirmed && <p className="rz-note">Event list awaiting confirmation by a lead</p>}
+      {list.groups.map((group,index)=><section key={group.name} aria-labelledby={`results-group-${index}`}><h2 className="rz-section" id={`results-group-${index}`}>{group.name}</h2><ul className="rz-events">{group.events.map(({event,card,latestNoteAt})=><li key={event.id}>
+        <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code,tab:'heats'})}>
+          <span className="rz-event__name">{event.code} · {event.section}</span>
+          <span className="rz-event__status">{card.state==='done' && <Icon name="check"/>}{card.line}{!event.enabled?' · Switched off':''}</span>
+          {latestNoteAt && <span className="rz-event__status">Latest note {clock(latestNoteAt)}</span>}
+        </button></li>)}</ul></section>)}</>}
+  </main>
+  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer></>;
 }

@@ -1,4 +1,5 @@
 import type { DayEvent } from './day.js';
+import type { EventState } from './event-state.js';
 import type { RelayTeam,TeamList } from './teams.js';
 import type { FinalField } from './finals.js';
 import type { RaceRead,RacePartName } from './races.js';
@@ -10,6 +11,8 @@ export interface DayLeadItem extends LeadItem { race?:RaceReference; event:DayEv
 export type ResultsTarget=Pick<DayLeadItem,'event'> & Partial<DayLeadItem> & {stage?:Stage};
 export interface EventSummary { needsYou:number; event:DayEvent; status:EventResults['status']; decidedWithoutFinal:boolean; raceCount:number; provisional:boolean; latestNoteAt:string|null }
 export interface ResultsRead { needsYou:DayLeadItem[]; eventsConfirmed:boolean; groups:Array<{name:string;events:EventSummary[]}> }
+/** Results' event grid: each event with its card, coloured and worded as its Races card (`cardState`, `leadCardLine`). */
+export interface ResultsGridRead extends ResultsRead { groups:Array<{name:string;events:Array<EventSummary & {card:{state:EventState;line:string}}>}> }
 /** A relay's also carries its team list, which a lead picks a team to add to its Final from. */
 export interface EventResultsRead { event:DayEvent; results:EventResults; auditNotes:AuditNote[]; teams?:RelayTeam[] }
 /**

@@ -51,7 +51,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await expect(lead.getByRole('button',{name:'Results without a final',exact:true})).toHaveCount(0);
   await lead.screenshot({path:info.outputPath('a4-done.png'),fullPage:true});
   await back(lead,'Results');
-  await expect(lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('Done · medals decided, no final');
+  await expect(lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)})).toContainText('Medals decided');
 });
 test('once a lead decides without a final, a volunteer\'s Races shows the event done and its races offer no heat to work',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('No final done');
