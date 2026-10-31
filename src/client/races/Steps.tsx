@@ -5,7 +5,7 @@ import { ordinal } from '../../shared/ordinal.js';
 import { andList,emptyRaceLine,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
-import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint,timeRefusal } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { phoneStorage } from '../api.js';
@@ -310,13 +310,17 @@ export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
 /**
  * Timer: one slot per place (each finisher once the order is saved, before that each runner), the current one gold; tap any
  * to retype it. The time box fills from the right as the timer's digits are typed. A time faster than an earlier place waits for Fix time or
- * Keep, its warning just above the time box and its reason in the footer. The last place's time, or No more finishers,
- * marks Times done. Times never wait for the finish line.
+ * Keep, its warning just above the time box and its reason in the footer. A time no one can run is refused in the amber
+ * callout under the box, its digits selected so the next digit replaces them. The last place's time, or No more
+ * finishers, marks Times done. Times never wait for the finish line.
  */
 export function Timer({read,flow,onDone,locked}:StepProps) {
   const {race}=read,status=read.steps.times!,order=read.steps.positions!,words=entryWords(read.group.event.relay);
   const writes=useStepWrites<{places:number[];keptWrong:number[]}>(flow.write,'times','times',race.id,race.parts.times.version);
-  const [typed,setTyped]=useState(''),[retype,setRetype]=useState<number|null>(null);
+  const [typed,setTypedDigits]=useState(''),[retype,setRetype]=useState<number|null>(null);
+  // A refusal of the typed digits, and how many there have been: each one selects the digits again.
+  const [refusal,setRefusal]=useState<string|null>(null),[refusals,setRefusals]=useState(0);
+  const setTyped=(digits:string)=>{setTypedDigits(digits);setRefusal(null);};
   const stored=race.parts.times.value,places=writes.pending?.places||(stored?.places||[]).filter((time):time is number=>time!==null);
   const keptWrong=writes.pending?.keptWrong||stored?.keptWrong||[],wrong=wrongTimesByPlace(places);
   const unkept=[...wrong.values()].find(item=>!keptWrong.includes(item.index));
@@ -327,6 +331,8 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   async function next() {
     const time=parseTimeDigits(typed);
     if(time===null || full) return;
+    const refused=timeRefusal(typed,read.group.event.name);
+    if(refused) {setRefusal(refused);setRefusals(count=>count+1);return;}
     const updated=[...places];updated[target]=time;
     const stillWrong=wrongTimesByPlace(updated);
     setTyped('');setRetype(null);
@@ -356,8 +362,9 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
       {held && <Callout message={`${wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button>
           <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}
-      {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held} onChange={setTyped} onEnter={()=>void next()}
-        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={held?undefined:timeBoxHint} time/>}
+      {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held || !!refusal} onChange={setTyped} onEnter={()=>void next()}
+        selectKey={`${target}:${retype===null?'next':'retype'}:${refusals}`} hint={held || refusal?undefined:timeBoxHint} time/>}
+      {refusal && <Callout message={refusal}/>}
     </main>
     {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
       <KeepFocus className="rz-btn" disabled={target===0} onClick={()=>{const back=target-1;if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Previous place</KeepFocus>

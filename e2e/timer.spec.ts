@@ -115,6 +115,44 @@ test('the time box shows the time itself, filling from the right as digits are t
   await deleteCurrentRace(request,code);
 });
 
+test('a time no one can run is refused in the amber callout under the time box, the digits selected so the next digit replaces them, and nothing is saved',async({openPhone,request},info)=>{
+  // The race's distance comes from its event name.
+  const code=await ownCode(),name=ownName('60m refused');
+  await raceWaitingForTimes(request,code,name);
+  const {page}=await openPhone(ownName('Refused times'),{job:'timer'});
+  await openRace(page,name);
+  const input=page.getByLabel('Place time',{exact:true}),next=page.locator('.rz-footer').getByRole('button',{name:'Next',exact:true});
+  const refusal=(message:string)=>page.getByRole('alert').filter({hasText:message});
+  await input.click();await input.pressSequentially('21');await input.press('Enter');
+  const tooFast=refusal(`0.21 is too fast for ${name}. No one runs 60m in under 6.00. For 21 seconds, type 2100.`);
+  await expect(tooFast).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'1st place time?'})).toBeVisible();
+  await expect(input).toBeFocused();await expect(input).toHaveValue('0.21');await expect.poll(()=>selected(page,'Place time')).toBe('0.21');
+  // Under the box, in view above the footer, in place of the hint.
+  expect((await tooFast.boundingBox())!.y).toBeGreaterThan((await input.boundingBox())!.y);
+  await inViewAboveFooter(page,[input,tooFast]);await expect(page.locator('.rz-field__hint')).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('time-refused.png'),fullPage:true});
+  // The next digit replaces the refused digits, and the refusal goes.
+  await input.pressSequentially('2');await expect(input).toHaveValue('0.02');await expect(tooFast).toHaveCount(0);
+  await expect(page.locator('.rz-field__hint')).toHaveText(hint);
+  await input.pressSequentially('4');await next.click();
+  await expect(refusal(`0.24 is too fast for ${name}. No one runs 60m in under 6.00. For 24 seconds, type 2400.`)).toBeVisible();
+  await input.pressSequentially('124');await input.press('Enter');
+  await expect(refusal(`1.24 is too fast for ${name}. No one runs 60m in under 6.00. Check the timer and type it again.`)).toBeVisible();
+  await input.pressSequentially('19234');await input.press('Enter');
+  await expect(refusal('Seconds go up to 59, so 1:92.34 is not a time. Check the timer and type it again.')).toBeVisible();
+  await expect.poll(()=>selected(page,'Place time')).toBe('1:92.34');
+  expect(await savedTimes(request,code)).toBeNull();
+  await input.pressSequentially('1244');await input.press('Enter');
+  await expect(page.getByRole('heading',{level:2,name:'2nd place time?'})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect.poll(async()=>(await savedTimes(request,code))?.places).toEqual([1244]);
+  // Retyping a saved place is checked the same way.
+  await slot(page,'1st place: 12.44').click();await input.pressSequentially('500');await input.press('Enter');
+  await expect(refusal(`5.00 is too fast for ${name}. No one runs 60m in under 6.00. Check the timer and type it again.`)).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'1st place time?'})).toBeVisible();
+  await deleteCurrentRace(request,code);
+});
+
 test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, Fix time and Keep sit just above the number box, in view, with the footer saying why it waits',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Times big'),n=await ownWristbands('Girl Cubs',12);
   await ownEvent(request,code,name,'Girl Cubs','timed');

@@ -8,7 +8,7 @@ import { RaceTeamsEditor } from './RaceTeams.js';
 import { api } from '../api.js';
 import { entryName,entryNumber,inProgressLine,raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
-import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timeBoxHint,timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timeBoxHint,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { entryCount,entryWord } from '../../shared/teams.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
@@ -59,13 +59,17 @@ function useInSight(editing:number|null) {
 const pencil=<svg className="time-edit" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>;
 /**
  * The lead's times correction: each place is a row (a wrong time in amber with its reason, as on the
- * Times screens); tapping one retypes it on the phone's own number pad. No finisher and the explicit
+ * Times screens); tapping one retypes it on the phone's own number pad, and Done refuses a time no one can run under the
+ * box, its digits selected so the next digit replaces them, as the Timer does. No finisher and the explicit
  * acceptance of out-of-order times are v1's.
  */
 function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown)=>void;onClose:()=>void}) {
   const [baseVersion]=useState(race.parts.times.version);
   const [digits,setDigits]=useState<Array<string|null>>(()=>Array.from({length:Math.max(race.parts.runners.value?.length||0,race.parts.times.value?.places.length||0)},(_,index)=>{const time=race.parts.times.value?.places[index];return time===null?null:time===undefined?'':digitsForTime(time);}));
-  const [editing,setEditing]=useState<number|null>(null);
+  const [editing,setEditingPlace]=useState<number|null>(null);
+  // A refusal of the place being typed, and how many there have been: each one selects the digits again.
+  const [refusal,setRefusal]=useState<string|null>(null),[refusals,setRefusals]=useState(0);
+  const setEditing=(index:number|null)=>{setEditingPlace(index);setRefusal(null);};
   const rows=useInSight(editing);
   const [accepted,setAccepted]=useState(false),[comment,setComment]=useState('');
   const places=digits.map(value=>value===null?null:parseTimeDigits(value)),outOfOrder=timesOutOfOrder(places),invalid=digits.some(value=>value!==null && parseTimeDigits(value)===null);
@@ -73,9 +77,12 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const wrong=wrongTimesByPlace(places);
   /** Times left beyond the runners (say, after a runner was removed) must be cleared with No finisher; only the runners' places are saved. */
   const runnerCount=race.parts.runners.value?.length||0,leftover=places.slice(runnerCount).some(time=>time!==null);
-  function change(index:number,value:string|null) {setAccepted(false);setDigits(previous=>previous.map((old,at)=>at===index?value:old));}
+  function change(index:number,value:string|null) {setAccepted(false);setRefusal(null);setDigits(previous=>previous.map((old,at)=>at===index?value:old));}
   /** Done on one place moves on to the next place still needing a time, as typing times in order would. */
-  function done(index:number) {const next=digits.findIndex((value,at)=>at>index && value==='');setEditing(next>=0?next:null);}
+  function done(index:number) {
+    const refused=timeRefusal(digits[index]!,race.event.name);
+    if(refused) {setRefusal(refused);setRefusals(count=>count+1);return;}
+    const next=digits.findIndex((value,at)=>at>index && value==='');setEditing(next>=0?next:null);}
   function noFinisher(index:number,checked:boolean) {
     setAccepted(false);setDigits(previous=>previous.map((old,at)=>checked && at>=index?null:at===index?'':old));
     if(checked && editing!==null && editing>=index) setEditing(null);
@@ -88,8 +95,8 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
     <p className="sheet-hint">Read times in place order from the SprintTimer recording. Tap a place to retype its time.</p>
     <ol ref={rows} className="time-rows" aria-label="Times">{digits.map((value,index)=><li key={index} className="lead-time-place">
       {value!==null && editing===index?<div className="lead-editing">
-        <NumberEntry label={`${ordinal(index+1)} place time`} value={value} busy={busy} nextLabel="Done" selectKey={index} time
-          onChange={digits=>change(index,digits)} onNext={()=>done(index)} display={<p className="time-hint">{timeBoxHint}</p>}/>
+        <NumberEntry label={`${ordinal(index+1)} place time`} value={value} busy={busy} nextLabel="Done" selectKey={`${index}:${refusals}`} time
+          onChange={digits=>change(index,digits)} onNext={()=>done(index)} display={refusal?<p role="alert">{refusal}</p>:<p className="time-hint">{timeBoxHint}</p>}/>
       </div>:value===null?<div className="time-row time-row-none"><span className="time-place">{ordinal(index+1)}</span><span className="time-value">No finisher</span></div>
       :<button type="button" disabled={busy} className={wrong.get(index)?'time-row time-wrong':'time-row'} aria-label={rowLabel(index,value)} onClick={()=>setEditing(index)}>
         <span className="time-place">{ordinal(index+1)}</span><span className="time-value"><strong>{value?formatTimeDigits(value):'Time needed'}</strong><WrongTimeReason wrong={wrong.get(index)}/></span>

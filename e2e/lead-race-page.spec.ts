@@ -4,8 +4,8 @@ const amber='rgb(255, 244, 220)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
-async function recordedRace(page:Page,code:string,runners:number[],places:number[],keptWarnings?:number[]) {
-  await ownEvent(page.request,code,'Race page','Girl Cubs','timed');
+async function recordedRace(page:Page,code:string,runners:number[],places:number[],keptWarnings?:number[],name='Race page') {
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places,keptWarnings);
   created.push(race.id);
@@ -56,6 +56,30 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
   await expect(saved(page)).toBeVisible();
   await expect(second).toContainText('12.20');await expect(second).not.toContainText('Faster');
   expect(await background(second)).not.toBe(amber);
+});
+
+test('Correct times refuses a time no one can run in the amber callout under the time box, the digits selected, as the Timer does',async({page},info)=>{
+  // The race's distance comes from its event name.
+  const code=await ownCode(),race=await recordedRace(page,code,[2111,2112],[1200,1300],undefined,'60m race page');
+  await openRace(page,code,ownName('Refusing lead'),race.number);
+  await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  const sheet=page.getByRole('dialog');
+  await sheet.getByRole('button',{name:'2nd place · 13.00',exact:true}).click();
+  const input=sheet.getByLabel('2nd place time',{exact:true});
+  await input.pressSequentially('21');await input.press('Enter');
+  const refusal=sheet.getByRole('alert').filter({hasText:'0.21 is too fast for 60m race page. No one runs 60m in under 6.00. For 21 seconds, type 2100.'});
+  await expect(refusal).toBeVisible();
+  await expect(input).toBeFocused();await expect(input).toHaveValue('0.21');await expect.poll(()=>selected(page,'2nd place time')).toBe('0.21');
+  expect((await refusal.boundingBox())!.y).toBeGreaterThan((await input.boundingBox())!.y);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('times-editor-refused.png'),fullPage:true});
+  // The next digit replaces the refused digits, and the refusal goes.
+  await input.pressSequentially('1');await expect(input).toHaveValue('0.01');await expect(refusal).toHaveCount(0);
+  await input.pressSequentially('9234');await input.press('Enter');
+  await expect(sheet.getByRole('alert').filter({hasText:'Seconds go up to 59, so 1:92.34 is not a time. Check the timer and type it again.'})).toBeVisible();
+  await input.pressSequentially('1350');await input.press('Enter');
+  await expect(sheet.getByRole('button',{name:'2nd place · 13.50',exact:true})).toBeVisible();await expect(sheet.getByRole('alert')).toHaveCount(0);
+  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await expect(saved(page)).toBeVisible();
 });
 
 test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{
