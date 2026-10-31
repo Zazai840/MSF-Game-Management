@@ -17,17 +17,17 @@ import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 /**
  * A qualifier's or call-up's entry in the final: a child by wristband, or a relay team with its four children as its
- * team list has them now (a child swapped since its heat runs the final), none marked here yet.
+ * team has them now (a child swapped since its heat runs the final), none marked here yet.
  */
 function finalist(teams:readonly RelayTeam[],row:LeaderboardRow,id:string):RaceEntry {
   if(!row.team) return {id,wristband:row.wristband!};
   const team=teams.find(team=>team.id===row.team!.id);
-  if(!team) throw new Refusal(409,`Team ${row.team.number} is missing from the team list - ask a lead to check it`);
+  if(!team) throw new Refusal(409,`Team ${row.team.number} is missing - ask a lead to check it`);
   return teamEntry(team,id);
 }
-/** A relay team joining the final with its four children as its team list has them now, none here yet. */
+/** A relay team joining the final with its four children as the team has them now, none here yet. */
 const teamEntry=(team:RelayTeam,id:string):RaceEntry=>({id,team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:false}))});
-/** The relay's team list, or none for an event that is not a relay. */
+/** The relay's teams, or none for an event that is not a relay. */
 const relayTeams=async(client:pg.PoolClient,dayId:string,eventId:string)=>(await readTeamLists(client,dayId)).get(eventId)?.teams??[];
 /** Reuses the sole active unrun final; fresh entry IDs invalidate obsolete Here / Absent and Finish writes. */
 export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,qualifiers:readonly LeaderboardRow[]) {

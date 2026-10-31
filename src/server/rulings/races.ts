@@ -190,7 +190,6 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         if(!old && !team) throw new Refusal(404,'Team not found');
         const teamId=old?.team.id??team!.id;
         if(runners.some(entry=>entry.team.id===teamId)) throw new Refusal(400,'Choose each team once');
-        // A lead's correction is not held back by a volunteer's open change.
         if(team) runners.push(joiningTeam(team));
         else if(item.legs && item.legs.some((wristband,index)=>wristband!==old!.legs[index].wristband)) {
           runners.push(await correctTeam(client,current,race,old!,item.legs,kept));changed.push(old!.id);

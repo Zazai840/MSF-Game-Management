@@ -6,7 +6,7 @@ import { isTeamEntry,type RaceRead } from '../src/shared/races.js';
 import { signInOwner } from './support/sign-in.js';
 import { relayFlowSetup } from './support/relays.js';
 /**
- * A grip drop on a start-line team card: the teams sheet's Edit with `raceId`, the legs in their new order. It saves
+ * A grip drop on a start-line team card: a team write with `raceId`, the legs in their new order. It saves
  * the race and the team list together, each Here mark following its child, version-checked like any team Save.
  */
 let app:FastifyInstance;

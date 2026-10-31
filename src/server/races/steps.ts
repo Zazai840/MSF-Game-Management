@@ -93,7 +93,7 @@ export function orderInput(body:unknown) {
 /** The Finishing order step's write. Runners the Runners step has since taken off are dropped, later places moving up. */
 export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,order,didNotFinish,didNotRun,added,kept,addedTeams}:OrderInput) {
   if(raceId===null) throw new Refusal(409,'Check runners in before the order');
-  // Teams are never made at the finish: a team not on any list is added in the teams sheet first.
+  // Teams are never made at the finish: a new team is typed into the heat at the start line first.
   if(target.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
   if(!target.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
   // A relay Final's teams are its seeds, call-ups and a lead's additions.
@@ -103,7 +103,7 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
   const teams=addedTeams.length?(await readTeamLists(client,phone.dayId)).get(target.event.id)!.teams:[];
   const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId));
-  // A team keeps the warnings its team list gave it. A final's runners all ran in its heats, so "already ran in this event" does not apply.
+  // A team keeps the warnings kept on it when it was typed in. A final's runners all ran in its heats, so "already ran in this event" does not apply.
   const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
   const finish=onlyRunners({order:[...order,...atFinish.map(entry=>entry.id)],didNotFinish},runners);
@@ -144,8 +144,8 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
   await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
 }
 /**
- * A team added at the finish ("Add team"): a copy of its four children and their kept warnings, those on
- * the list marked here since they crossed the line. Only a team still to run can be added.
+ * A team added at the finish ("+ Team not on the list"): a copy of its four children and their kept warnings, each
+ * child with a wristband marked here since they crossed the line. Only a team still to run can be added.
  */
 function addedAtFinish(teams:readonly RelayTeam[],teamId:string):TeamEntry {
   const team=teams.find(item=>item.id===teamId);

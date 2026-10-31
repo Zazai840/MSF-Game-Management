@@ -9,7 +9,7 @@ import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
  * person does the one step their role names on a race. A step is one of the race's parts: Runners (check-in), Finishing order
- * and Times. Relays run in it too, a relay's teams typed in its teams sheet.
+ * and Times. Relays run in it too, a relay's teams typed into its heats at the start line.
  */
 export const steps=['runners','positions','times'] as const;
 export type Step=typeof steps[number];

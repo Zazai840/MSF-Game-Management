@@ -72,7 +72,7 @@ test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest fir
   expect(marks(final).map(([,state])=>state)).toEqual(Array(6).fill('unmarked'));
   // As on a children's final, nobody runs it until marked Here: the finish line has no team to place yet.
   expect(teamsOf(final.race)).toEqual([]);
-  // Each seeded team is in the final all the same (its teams sheet reads "Final · change it at check-in"); Team 4 is not.
+  // Each seeded team is in the final all the same; Team 4 is not.
   const inFinal=(read:RaceFlowRead)=>read.teams!.filter(team=>team.races.some(race=>race.kind==='final')).map(team=>team.number).sort();
   expect(inFinal(final)).toEqual([1,2,3,5,6,7]);
   expect(final.teams!.find(team=>team.number===2)!.races.map(race=>race.kind)).toEqual(['heat','final']);
