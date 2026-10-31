@@ -1,7 +1,7 @@
-import { useState,type FormEvent } from 'react';
+import { useId,useState,type FormEvent,type ReactNode } from 'react';
 import { roleLabels,type Role } from '../../shared/race-flow.js';
 import { api } from '../api.js';
-import { Callout,Icon,Sheet,Star,roleDescriptions,roleIcons } from './parts.js';
+import { Callout,DockedFooter,Icon,Sheet,Star,roleDescriptions,roleIcons } from './parts.js';
 const jobs=['start','finish','timer'] as const;
 /** A job as a radio card: its job star, name and one line. */
 export function JobCard({role,checked,onChoose}:{role:Role;checked:boolean;onChoose:()=>void}) {
@@ -33,19 +33,28 @@ export function RoleSheet({role,lead,onChoose,onLead,onClose}:{role:Role;lead:bo
     <button type="button" className="rz-btn rz-btn--small rz-btn--block" onClick={onClose}>Close</button>
   </Sheet>;
 }
-/** The lead code, asked once per day before a volunteer can switch to Zone lead. */
-export function LeadCode({onLead}:{onLead:()=>Promise<void>}) {
-  const [code,setCode]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+/**
+ * The lead code, asked once per day before a volunteer can switch to Zone lead. With a `prompt` it is a screen's body
+ * (Lead access needed): the prompt and field, and "Become lead" in the docked footer, greyed with its reason until a
+ * code is typed.
+ */
+export function LeadCode({onLead,prompt}:{onLead:()=>Promise<void>;prompt?:ReactNode}) {
+  const docked=prompt!==undefined;
+  const [code,setCode]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),id=useId();
   async function become(event:FormEvent) {
-    event.preventDefault();setBusy(true);setError('');
+    event.preventDefault();if(!code) return;
+    setBusy(true);setError('');
     try {await api('become-lead',{code});await onLead();}
     catch(failure) {setError(failure instanceof Error?failure.message:'Could not connect - please try again');}
     finally {setBusy(false);}
   }
-  return <form className="rz-field" onSubmit={become}>
-    <label className="rz-field__label" htmlFor="lead-code">Lead code</label>
-    <input className="rz-field__input" id="lead-code" type="password" autoComplete="off" value={code} onChange={event=>setCode(event.target.value)} required/>
+  const button=<button className="rz-btn rz-btn--primary rz-btn--block" form={`${id}-form`} disabled={busy} aria-disabled={docked && !code || undefined}>{busy?'Checking…':docked?'Become lead':'Switch to Zone lead'}</button>;
+  const form=<form id={`${id}-form`} className="rz-field" onSubmit={become}>
+    <label className="rz-field__label" htmlFor={id}>Lead code</label>
+    <input className="rz-field__input" id={id} type="password" autoComplete="off" value={code} onChange={event=>setCode(event.target.value)} required={!docked}/>
     {error && <Callout message={error}/>}
-    <button className="rz-btn rz-btn--primary rz-btn--block" disabled={busy}>{busy?'Checking…':'Switch to Zone lead'}</button>
+    {!docked && button}
   </form>;
+  return docked?<><main className="rz-main rz-main--form">{prompt}{form}</main>
+    <DockedFooter>{!code && <p className="rz-footer__reason">Type the code first.</p>}{button}</DockedFooter></>:form;
 }
