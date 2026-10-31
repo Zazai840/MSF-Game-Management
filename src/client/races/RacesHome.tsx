@@ -31,8 +31,8 @@ function useLeadItems(on:boolean) {
 }
 /**
  * Races, the new Home: the event groups of this tab behind Races · Hurdles · Relays, live from the races stream, in
- * Ready for you (a race my step can be worked on now; for a lead, a group with open issues or medals waiting on their
- * Confirm), In progress and Done.
+ * Ready for you (a race my step can be worked on now; for a lead it is Action required: a group with open issues or
+ * medals waiting on their Confirm), In progress and Done.
  * Each card's chips open a race; "+" makes the next heat and a lead's "+ Final", after a confirm, the final. A relay's
  * card also has its Teams row, which opens its teams sheet, and Relays lists a relay with teams but no heats under Teams
  * ready, no heats yet. `me` is this person's profile id: a team another profile set asks before it is changed.
@@ -87,7 +87,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
     <main className="rz-main rz-main--cards">
       {!snapshot?error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>:error && <p className="rz-note" role="status">{error}</p>}
       {snapshot && !groups.some(group=>group.races.length || group.teams?.length) && <p className="rz-empty">{tab==='relays'?'No relay teams yet. Tap New team to type the first.':'No races yet. Tap New race when a race lines up.'}</p>}
-      {sections.ready.length>0 && <><h2 className="rz-section">Ready for you</h2>{sections.ready.map(card)}</>}
+      {sections.ready.length>0 && <><h2 className="rz-section">{role==='lead'?'Action required':'Ready for you'}</h2>{sections.ready.map(card)}</>}
       {sections.inProgress.length>0 && <><h2 className="rz-section">In progress</h2>{sections.inProgress.map(card)}</>}
       {sections.teamsReady.length>0 && <><h2 className="rz-section">Teams ready, no heats yet</h2>{sections.teamsReady.map(card)}</>}
       {sections.done.length>0 && <details className="rz-disclosure"><summary>Done ({sections.done.length})</summary><div className="rz-disclosure__cards">{sections.done.map(card)}</div></details>}

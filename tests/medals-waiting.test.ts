@@ -7,7 +7,7 @@ import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
 /**
  * The lead's Races home once an event's medals wait on the lead's Confirm in Results (Final complete, or Event complete
- * on a timed event): the event sits in Ready for you saying so, until the Confirm moves it to Done as "Medals decided".
+ * on a timed event): the event sits in the lead's Action required saying so, until the Confirm moves it to Done as "Medals decided".
  */
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
@@ -33,7 +33,7 @@ async function start() {
   }
   return {volunteer,lead,setup,complete,home,savedFinal};
 }
-test('a saved final sits in the lead\'s Ready for you to confirm the medals, and Final complete moves it to Done as Medals decided',async()=>{
+test('a saved final sits in the lead\'s Action required to confirm the medals, and Final complete moves it to Done as Medals decided',async()=>{
   const {complete,home,savedFinal}=await start();
   await savedFinal();
   let now=await home();
