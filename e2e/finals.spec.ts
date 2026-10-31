@@ -1,4 +1,4 @@
-import {ownCode,ownName,ownWristbands,flowRace,backToRaces,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
+import {ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -13,18 +13,21 @@ async function marks(page:Page) {
  return attendance(page).evaluateAll(rows=>rows.map(row=>row.querySelector('button[aria-pressed="true"]')?.textContent??'none'));
 }
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
-/** Heats recorded through the API (the race flow's heats have their own tests), then the lead opens the event's results. */
-async function heatsToFinal(page:Page,code:string,name:string,heats:Array<[number[],number[]]>,lead:string) {
+/**
+ * Heats recorded through the API (the race flow's heats have their own tests), the final made with "+ Final" on Races
+ * when asked, then the lead opens the event's results.
+ */
+async function heatsToFinal(page:Page,code:string,name:string,heats:Array<[number[],number[]]>,lead:string,final=false) {
  await ownEvent(page.request,code,name,'Boy Cubs');
  const races=[];for(const [runners,times] of heats) races.push(await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times));
- await signInAs(page,lead,true);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Boy Cubs`)}).click();
+ await signInAs(page,lead,true);if(final) await makeFinal(page,name,'Boy Cubs');await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Boy Cubs`)}).click();
  return races;
 }
 test('a final in the race flow: Absent takes a runner off the finish line live, a lead\'s call-up appears live, and the final has no times',async({page,openPhone},info)=>{
  test.setTimeout(60000);
  const code=await ownCode(),name=ownName('Final here'),n=await ownWristbands('Boy Cubs',8);
- await heatsToFinal(page,code,name,[[[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]],[[n(17),n(18)],[1150,1250]]],ownName('Final lead'));
- await page.getByRole('button',{name:'Heats complete',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Heats complete',exact:true});await expect(sheet).toContainText('Finals line-up');expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('heats-complete.png'),fullPage:true});await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByText('Heats done · final to run',{exact:true})).toBeVisible();
+ await heatsToFinal(page,code,name,[[[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]],[[n(17),n(18)],[1150,1250]]],ownName('Final lead'),true);
+ await expect(page.getByText('Heats done · final to run',{exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{level:4,name:'Line-up, fastest first',exact:true})).toBeVisible();
  const sam=(await openPhone(ownName('Sam final'))).page,priya=(await openPhone(ownName('Priya final'),{job:'finish'})).page;
  await openRace(sam,name,'Boy Cubs','Final');await openRace(priya,name,'Boy Cubs','Final');
@@ -65,15 +68,19 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
  await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
- await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText(String(n(15)));await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText(`1st: ${n(15)}`);await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(String(n(15)));await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText(String(n(15)));await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText(`1st: ${n(15)}`);await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(String(n(15)));await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
  await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await expect(final).toContainText(String(n(15)));
 });
-test('only a lead\'s + Final makes the final from the fastest, after a confirm, and an unstarted final rebuilt after a heat correction shows its new line-up live',async({page,openPhone},info)=>{
+test('only a lead\'s + Final makes the final from the fastest, after a confirm; Reopen heats removes the unrun final and + Final makes it again from the corrected heats',async({page,openPhone},info)=>{
  const code=await ownCode(),name=ownName('Short sprint'),n=await ownWristbands('Boy Cubs',3);
  const [heat]=await heatsToFinal(page,code,name,[[[n(41),n(42)],[900,1000]]],ownName('Short final lead'));
  await expect(page.getByRole('list',{name:'Provisional leaderboard'}).getByText('Qualifying line',{exact:true})).toBeVisible();
+ // Results offers no Heats complete: "+ Final" on Races is the one way to make the final.
+ await expect(page.locator('.stage-actions').getByRole('button')).toHaveText(['Results without a final']);
+ await expect(page.getByRole('button',{name:'Heats complete',exact:true})).toHaveCount(0);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('results-no-heats-complete.png'),fullPage:true});
  // A volunteer is not offered the final: the card says who makes it.
  const sam=await openPhone(ownName('Short final phone'));
  const card=sam.page.getByRole('article',{name:`${name} · Boy Cubs`});
@@ -104,8 +111,27 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm, 
  await expect(attendance(sam.page)).toHaveText([seed('1st',n(41)),seed('2nd',n(42))]);
  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
- await page.getByRole('button',{name:'Reopen heats',exact:true}).click();await page.getByRole('dialog').getByLabel('Comment',{exact:true}).fill('Corrected heat timer');await page.getByRole('dialog').getByRole('button',{name:'Reopen',exact:true}).click();await page.request.post(`/api/lead/races/${heat.id}/times`,{headers,data:{baseVersion:1,places:[1000,900],acceptOutOfOrder:true}});await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:'Heats complete',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Confirm',exact:true}).click();
- // The rebuilt final is a new line-up: the old 2nd fastest is now 1st fastest, and nobody is marked yet.
+ await page.getByRole('button',{name:'Reopen heats',exact:true}).click();
+ const reopen=page.getByRole('dialog',{name:'Reopen heats',exact:true});
+ await expect(reopen.getByRole('status')).toHaveText('The final has not run. It is removed. Make it again with + Final on Races after every heat has run.');
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('reopen-heats.png')});
+ await reopen.getByLabel('Comment',{exact:true}).fill('Corrected heat timer');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
+ await expect(reopen).toHaveCount(0);
+ // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
+ await expect(page.locator('.final-panel')).toHaveCount(0);
+ await expect(page.getByText('No deleted races',{exact:true})).toBeVisible();
+ await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('reopened Heats complete - Corrected heat timer');
+ await expect(page.locator('.stage-actions').getByRole('button')).toHaveText(['Results without a final']);
+ // The card is as for an event with no final: no F chip, "+" right after the last heat, and "+ Final" back as every heat is saved.
+ await backToRaces(lena);
+ await expect.poll(()=>chipTexts(leadCard),live).toEqual(['H1','Add heat 2','+ Final']);
+ await backToRaces(sam.page);
+ await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toBeVisible(live);
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('card-after-reopen.png'),fullPage:true});
+ await page.request.post(`/api/lead/races/${heat.id}/times`,{headers,data:{baseVersion:1,places:[1000,900],acceptOutOfOrder:true}});
+ await makeFinal(lena,name,'Boy Cubs');
+ // The new final is "Final", from the corrected heat: the old 2nd fastest is now 1st fastest, and nobody is marked yet.
+ await openRace(sam.page,name,'Boy Cubs','Final');
  await expect(attendance(sam.page)).toHaveText([seed('1st',n(42)),seed('2nd',n(41))],live);
  expect(await marks(sam.page)).toEqual(['none','none']);
  expect(await lookProblems(sam.page)).toEqual([]);await sam.page.screenshot({path:info.outputPath('final-rebuilt.png'),fullPage:true});
@@ -116,6 +142,23 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm, 
  expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true}})).ok()).toBe(true);
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
  await expect(page.locator('.final-lineup li').filter({hasText:String(n(43))})).toContainText(`ran the heats as ${n(41)}`);
+});
+test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{
+ const code=await ownCode(),name=ownName('Plus before final'),n=await ownWristbands('Boy Cubs',2);
+ await ownEvent(request,code,name,'Boy Cubs');
+ await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[900,1000]);
+ const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+ const made=await request.post('/api/races',{headers,data:{eventCode:code,kind:'final'}});expect(made.ok()).toBe(true);
+ const final=(await made.json()).race.id as string;
+ // The final goes to Deleted races, the heats are reopened, and the final is restored: a final while heats are open.
+ expect((await request.post(`/api/lead/races/${final}/delete`,{headers,data:{permanent:false}})).ok()).toBe(true);
+ expect((await request.post(`/api/lead/events/${code}/reopen-stage`,{headers,data:{stage:'heats',comment:'One more heat'}})).ok()).toBe(true);
+ expect((await request.post(`/api/lead/races/${final}/restore`,{headers,data:{}})).ok()).toBe(true);
+ const lena=(await openPhone(ownName('Plus before final lead'),{lead:true})).page;
+ const card=lena.getByRole('article',{name:`${name} · Boy Cubs`});
+ await expect.poll(()=>chipTexts(card),live).toEqual(['H1','Add heat 2','F']);
+ expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('plus-before-final.png'),fullPage:true});
+ await deleteCurrentRace(request,code);
 });
 test('a lead\'s + Final is greyed with why the final cannot be made yet, the reason opens that heat\'s Times tab, and accepting the time frees it',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Final reason'),n=await ownWristbands('Boy Cubs',2);
