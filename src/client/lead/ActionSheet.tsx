@@ -1,8 +1,10 @@
 import { useEffect,useRef,type KeyboardEvent,type ReactNode } from 'react';
+import { useSheetEntry } from '../shell/addresses.js';
 const focusable='button:not(:disabled),select:not(:disabled),textarea:not(:disabled),input:not(:disabled),a[href]';
-/** A modal sheet also works on supported iOS 15 browsers without native dialog. */
+/** A modal sheet, closed by Escape or the phone's Back; it also works on supported iOS 15 browsers without native dialog. */
 export function ActionSheet({title,busy=false,focusKey,children,onClose}:{title:string;busy?:boolean;focusKey?:string;children:ReactNode;onClose:()=>void}) {
   const sheet=useRef<HTMLElement>(null);
+  useSheetEntry(onClose);
   useEffect(()=>{
     const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
     const overflow=document.body.style.overflow;document.body.style.overflow='hidden';

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect,useRef } from 'react';
 import type { Step } from '../../shared/race-flow.js';
 /** An event's tabs, part of its address so Back from a race page returns to the tab it was opened from. */
 export const eventTabs=['heats','final','races','notes'] as const;
@@ -63,3 +63,45 @@ export function useScreenName(name:string) {
 }
 /** The back arrow's label carried by this history entry, or null when the screen was reached with no history. */
 export const entryBack=()=>(history.state as Entry|null)?.back??null;
+/**
+ * An open sheet's history entry (spec #250 "Bottom sheets"): opening a sheet pushes one at the same address, so the
+ * phone's Back closes the sheet and leaves the screen behind it. A sheet closed any other way takes its entry back off.
+ */
+interface OpenSheet { id:string; path:string; close:()=>void }
+const sheets:OpenSheet[]=[];
+// `leaving`: a closed sheet's entry, to come off once this commit is done unless a sheet opened in its place takes it.
+// `taken`: a sheet entry a screen move took over, which its sheet leaves alone. `ignore`: Backs the app made itself.
+let leaving:string|null=null,taken:string|null=null,ignore=0,opened=0;
+const entryOfSheet=()=>(history.state as {sheet?:string}|null)?.sheet;
+export function useSheetEntry(onClose:()=>void) {
+  const close=useRef(onClose);close.current=onClose;
+  useEffect(()=>{
+    // A count, not crypto.randomUUID: Safari 15.0-15.3 has none. Unique enough across reloads with the time in it.
+    const sheet={id:`${Date.now()}-${++opened}`,path:location.pathname,close:()=>close.current()};
+    if(leaving && entryOfSheet()===leaving) {leaving=null;history.replaceState({...history.state,sheet:sheet.id},'');}
+    else history.pushState({...history.state,sheet:sheet.id},'');
+    sheets.push(sheet);
+    return ()=>{
+      const at=sheets.indexOf(sheet);if(at>=0) sheets.splice(at,1);
+      if(entryOfSheet()!==sheet.id || taken===sheet.id) return;
+      leaving=sheet.id;
+      queueMicrotask(()=>{if(leaving!==sheet.id) return;leaving=null;ignore++;history.back();});
+    };
+  },[]);
+}
+/**
+ * For the app's history listener: true when this Back was a sheet's, so the screen stays. The phone's Back closes the
+ * top sheet; a sheet closed another way ignores the Back that took its entry off.
+ */
+export function sheetBack():boolean {
+  if(ignore) {ignore--;return true;}
+  const top=sheets.pop();
+  top?.close();
+  return top?.path===location.pathname;
+}
+/** A screen move with a sheet's entry showing: true, and the move takes that entry's place or goes back past it. */
+export function onSheetEntry() {
+  const id=entryOfSheet();
+  if(id) taken=id;
+  return !!id;
+}
