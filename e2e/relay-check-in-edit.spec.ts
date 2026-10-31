@@ -3,7 +3,6 @@ import {ownName,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands
 /** A team's card at check-in, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const sheet=(page:Page,title:string)=>page.getByRole('dialog',{name:title,exact:true});
-const here=(page:Page,wristband:number)=>page.getByRole('button',{name:`${wristband}: Here`,exact:true});
 
 test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the other phone sees who is changing it, and New team joins this heat',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Relay edit');
@@ -17,8 +16,6 @@ test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the o
   await flowPost(request,sam.token,`/api/races/${raceId}/teams/${made.teams![0].id}/tick`,{});
   for(const phone of [sam,priya]) await phone.page.goto(`/races/${raceId}`);
   const [one,two]=[sam.page,priya.page];
-  await here(one,w(11)).click();
-  await expect(here(two,w(11))).toHaveAttribute('aria-pressed','true',live);
 
   // Edit: Team 1's four leg boxes straight away, filled in leg order.
   await card(one,1).getByRole('button',{name:'Edit Team 1',exact:true}).click();
@@ -31,7 +28,7 @@ test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the o
   await expect(card(one,1)).not.toContainText('is changing this team');
   expect(await lookProblems(one)).toEqual([]);
   await one.screenshot({path:info.outputPath('check-in-edit.png')});
-  // 1st and 2nd swap, and the 3rd leg is a new child: Here follows the child, and both phones see the new legs.
+  // 1st and 2nd swap, and the 3rd leg is a new child, checked in like the rest: both phones see the new legs.
   await edit.getByLabel('1st leg',{exact:true}).fill(String(w(12)));
   await edit.getByLabel('2nd leg',{exact:true}).fill(String(w(11)));
   await edit.getByLabel('3rd leg',{exact:true}).fill(String(w(33)));
@@ -39,8 +36,6 @@ test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the o
   await expect(edit).toHaveCount(0);
   for(const page of [one,two]) {
     await expect(card(page,1).locator('.rz-attendance__who')).toHaveText([`1st leg${w(12)}`,`2nd leg${w(11)}`,`3rd leg${w(33)}`,`4th leg${w(14)}`],live);
-    await expect(here(page,w(11))).toHaveAttribute('aria-pressed','true');
-    await expect(here(page,w(12))).toHaveAttribute('aria-pressed','false');
   }
   await expect(card(two,1)).not.toContainText('is changing this team');
   // Cancel clears the mark too.
@@ -69,7 +64,7 @@ test('two start-line phones: Edit opens a team\'s leg boxes with no popup, the o
   await added.getByRole('button',{name:'Save team 3',exact:true}).click();
   await expect(added).toHaveCount(0);
   for(const page of [one,two]) await expect(card(page,3)).toContainText(String(w(44)),live);
-  await expect(one.locator('.rz-prompt__meta')).toHaveText('Heat 1 · 2 teams · 1 child here');
+  await expect(one.locator('.rz-prompt__meta')).toHaveText('Heat 1 · 2 teams · 8 children here');
 });
 
 test('a relay final: Edit on a seeded team swaps its children at check-in, Here marks following them',async({openPhone,request},info)=>{

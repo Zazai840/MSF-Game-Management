@@ -5,6 +5,8 @@ import pg from 'pg';
 import { createApp } from '../src/server/app.js';
 import { raceSetup } from './support/races.js';
 import { relayFlowSetup } from './support/relays.js';
+import type { ResultsRead } from '../src/shared/lead-results.js';
+import { toCheckWording } from '../src/shared/to-check.js';
 import { signInOwner } from './support/sign-in.js';
 const adminUrl=process.env.PG_ADMIN_URL || `postgresql://${process.env.USER}@localhost:5432/postgres`;
 const name=`msf_spec22_${Date.now()}_test`;
@@ -121,18 +123,16 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
   await app.inject({method:'POST',url:'/api/day/confirm-events',headers:{authorization:`Bearer ${owner.token}`}});
   const relays=relayFlowSetup(app);
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,2302,2303,2304]]) await relays.team(sam.token,'R22',legs);
-  // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams ticked and one child here.
+  // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams added.
   await relays.tick(sam.token,'R22',1);
-  for(const leg of [0,1,2,3]) await relays.here(sam.token,'R22',1,leg);
   const saved=(await relays.save(sam.token,'R22',[1],[3500])).race;
-  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);await relays.here(sam.token,'R22',2,0);
+  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);
   const waiting=(await relays.worked(sam.token,'R22')).race;
   await app.close();
   const untouched=async(db:pg.Client)=>({
     teams:(await db.query('SELECT id,number,legs,removed,version,changed_by FROM relay_teams ORDER BY event_id,number')).rows,
     saved:(await db.query('SELECT r.state,r.saved_at,r.saved_by,p.part,p.version,p.value,p.done_at FROM races r JOIN race_parts p ON p.race_id=r.id WHERE r.id=$1 ORDER BY p.part',[saved.id])).rows,
     history:(await db.query('SELECT part,version,value,held_by,saved_at FROM race_part_history WHERE race_id=$1 ORDER BY part,version',[saved.id])).rows,
-    counters:(await db.query('SELECT * FROM race_counters ORDER BY event_id,kind')).rows,
     notes:(await db.query('SELECT id,message FROM audit_notes ORDER BY sequence_number')).rows,
   });
   // The old build: Heat 2 waiting on Submit presses (Sam has pressed), job holds on the relay including its teams
@@ -159,7 +159,7 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
   try {
     const read=(await app.inject({url:`/api/races/${waiting.id}`,headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead;
     expect(read.race).toMatchObject({id:waiting.id,state:'in progress'});
-    expect(read.race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[2,[true,false,false,false]],[3,[false,false,false,false]]]);
+    expect(read.race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)])).toEqual([[2,[true,true,true,true]],[3,[true,true,true,true]]]);
     expect(Object.values(read.steps).map(step=>step!.state)).not.toContain('done');
     expect(read.teams!.map(team=>team.changing)).toEqual([null,null,null]);
     // Who last set each team is known by profile, so Change anyway asks only another profile.
@@ -173,5 +173,78 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
     } finally {await db.end();}
     // The people on it carry on in the race flow, and it saves itself.
     expect((await relayFlowSetup(app).save(sam.token,'R22',[2,3],[3500,3600])).race).toMatchObject({id:waiting.id,state:'saved'});
+  } finally {await app.close();}
+});
+test('a relay heat under way on the old build has every filled leg of its teams marked here; a saved heat keeps its marks and its To check',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const people=await signInOwner(app,'upgrade-owner','Aisha'),owner=people.owner,sam=await people.volunteer('Sam Patel');
+  await app.inject({method:'POST',url:'/api/day/confirm-events',headers:{authorization:`Bearer ${owner.token}`}});
+  const relays=relayFlowSetup(app);
+  for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,null,2303,2304]]) await relays.team(sam.token,'R22',legs);
+  await relays.tick(sam.token,'R22',1);
+  const saved=(await relays.save(sam.token,'R22',[1],[3500])).race;
+  await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);
+  const underWay=(await relays.worked(sam.token,'R22')).race;
+  await app.close();
+  // The old build marked each child here by a tap: Heat 1 saved with Team 1's 2nd child not marked (it ran short);
+  // Heat 2 under way with one child of Team 2 marked and none of Team 3.
+  const marks=(db:pg.Client,raceId:string,here:boolean[][])=>db.query(`UPDATE race_parts SET value=(SELECT jsonb_agg(jsonb_set(entry,'{legs}',
+      (SELECT jsonb_agg(jsonb_set(leg,'{here}',to_jsonb(($2::jsonb->(n::int-1)->(i::int-1))::boolean)) ORDER BY i) FROM jsonb_array_elements(entry->'legs') WITH ORDINALITY AS l(leg,i))) ORDER BY n)
+    FROM jsonb_array_elements(value) WITH ORDINALITY AS e(entry,n)) WHERE race_id=$1 AND part='runners'`,[raceId,JSON.stringify(here)]);
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  try {
+    await marks(old,saved.id,[[true,false,true,true]]);
+    await marks(old,underWay.id,[[true,false,false,false],[false,false,false,false]]);
+  } finally {await old.end();}
+  for(let start=0;start<2;start++) {
+    app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+    try {
+      const legs=async(raceId:string)=>((await app.inject({url:`/api/races/${raceId}`,headers:{authorization:`Bearer ${sam.token}`}})).json() as RaceFlowRead)
+        .race.parts.runners.value!.filter(isTeamEntry).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.here)]);
+      // An empty leg has no child to be here.
+      expect(await legs(underWay.id)).toEqual([[2,[true,true,true,true]],[3,[true,false,true,true]]]);
+      expect(await legs(saved.id)).toEqual([[1,[true,false,true,true]]]);
+      const items=((await app.inject({url:'/api/lead/results',headers:{authorization:`Bearer ${owner.token}`}})).json() as ResultsRead).needsYou.filter(item=>item.event.code==='R22');
+      expect(items.map(item=>toCheckWording(item))).toMatchObject([{title:'A team ran short',explanation:'Team 1 ran with 3 of 4 children marked here.'}]);
+    } finally {await app.close();}
+  }
+});
+test('a day an older build numbered from its counter keeps every race; numbers are unique among live races only, and the next heat follows the live heats',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const owner=(await app.inject({method:'POST',url:'/api/owner-sign-in',payload:{password:'upgrade-owner',name:'Aisha',profiles:[]}})).json().token as string;
+  const heat1=await raceSetup(app).record(owner,'R4',[2001],[1200]),heat2=await raceSetup(app).checkIn(owner,'R4',[2002]);
+  expect((await app.inject({method:'POST',url:`/api/lead/races/${heat2.id}/delete`,headers:{authorization:`Bearer ${owner}`},payload:{permanent:false}})).statusCode).toBe(200);
+  await app.close();
+  // The older build: every row's number unique, taken from a per-event counter that only went up (here at Heat 2).
+  const races=async(db:pg.Client)=>(await db.query('SELECT id,kind,number,deleted FROM races ORDER BY number')).rows;
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  try {
+    await old.query('DROP INDEX live_race_number');
+    await old.query('ALTER TABLE races DROP COLUMN deleted_at');
+    await old.query('ALTER TABLE races ADD CONSTRAINT races_event_id_kind_number_key UNIQUE(event_id,kind,number)');
+    await old.query('CREATE TABLE race_counters (event_id uuid NOT NULL REFERENCES events(id), kind text NOT NULL, last_number integer NOT NULL, PRIMARY KEY(event_id,kind))');
+    await old.query("INSERT INTO race_counters(event_id,kind,last_number) SELECT id,'heat',2 FROM events WHERE code='R4'");
+    expect(await races(old)).toEqual([{id:heat1.id,kind:'heat',number:1,deleted:false},{id:heat2.id,kind:'heat',number:2,deleted:true}]);
+  } finally {await old.end();}
+  // Started twice: the upgrade runs on every start.
+  await (await createApp({databaseUrl,ownerPassword:'upgrade-owner'})).close();
+  app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+  try {
+    expect((await raceSetup(app).screen(owner,'R4')).race).toMatchObject({id:null,number:2});
+    // A race deleted before deletion times were stored has none.
+    const deleted=await app.inject({method:'GET',url:'/api/lead/events/R4/deleted-races',headers:{authorization:`Bearer ${owner}`}});
+    expect(deleted.json().map((race:{id:string;deletedAt:string|null})=>[race.id,race.deletedAt]),deleted.body).toEqual([[heat2.id,null]]);
+    const db=new pg.Client({connectionString:databaseUrl});await db.connect();
+    try {
+      expect(await races(db)).toEqual([{id:heat1.id,kind:'heat',number:1,deleted:false},{id:heat2.id,kind:'heat',number:2,deleted:true}]);
+      expect((await db.query("SELECT to_regclass('race_counters') AS counters")).rows).toEqual([{counters:null}]);
+      expect((await db.query('SELECT id,deleted_at FROM races WHERE deleted')).rows).toEqual([{id:heat2.id,deleted_at:null}]);
+      // A deleted race may share its number with a live race or another deleted race; two live races never do.
+      const copy=(number:number,deleted:boolean)=>db.query('INSERT INTO races(id,day_id,event_id,kind,number,deleted) SELECT gen_random_uuid(),day_id,event_id,kind,$2,$3 FROM races WHERE id=$1',[heat1.id,number,deleted]);
+      await copy(1,true);await copy(2,true);
+      await expect(copy(1,false)).rejects.toThrow(/live_race_number/);
+    } finally {await db.end();}
   } finally {await app.close();}
 });

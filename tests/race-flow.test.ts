@@ -34,6 +34,15 @@ async function heat(token:string,eventCode:string,number:number,runners:number[]
   return read;
 }
 const steps:Step[]=['runners','positions','times'];
+test('the races read lists the Races tab\'s events, races and hurdles, in the day\'s programme, each keeping its stored type',async()=>{
+  const {ahmed}=await start();
+  const {groups}=await ok<RacesRead>(ahmed,'/api/races');
+  const racesTab=groups.filter(group=>group.event.type!=='relays').map(group=>`${group.event.name}:${group.event.type}`);
+  expect([...new Set(racesTab)]).toEqual(['60m:races','60m Hurdles:hurdles','200m:races','400m:races']);
+  expect(groups.filter(group=>group.event.type==='relays').map(group=>group.event.name)).toEqual(['4x50m Relay','4x50m Relay','4x50m Relay','4x50m Relay','4x100m Relay','4x100m Relay']);
+  // Programme order, not code order: the relays (R19 to R22) come after the 400m (R23, R24).
+  expect(groups.map(group=>group.event.code).slice(-8)).toEqual(['R23','R24','R19','R20','R21','R22','R27','R28']);
+});
 test('the races list has every switched-on event, relays too, each with its races and their steps',async()=>{
   const {ahmed}=await start();
   const empty=await ok<RacesRead>(ahmed,'/api/races');

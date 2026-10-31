@@ -22,14 +22,11 @@ async function ok<T=RaceFlowRead>(token:string,url:string,body?:unknown) {
 const teamsOf=(race:Pick<RaceRead,'parts'>)=>(race.parts.runners.value||[]).filter(isTeamEntry);
 /** Team N of R22 (Girl Cubs) is 2N01-2N04. */
 const legs=(number:number)=>[1,2,3,4].map(leg=>2000+number*100+leg);
-/** Runs a relay heat to saved in the race flow: the teams ticked in, every child here, placed in the order given and timed. */
+/** Runs a relay heat to saved in the race flow: the teams added in, every child checked in, placed in the order given and timed. */
 async function runHeat(token:string,number:number,placed:number[],times:number[]) {
   let read=await ok(token,'/api/races',{eventCode:'R22',kind:'heat',number});
   const id=read.race.id,teamId=(team:number)=>read.teams!.find(item=>item.number===team)!.id;
-  for(const team of placed) {
-    read=await ok(token,`/api/races/${id}/teams/${teamId(team)}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await ok(token,`/api/races/${id}/teams/${teamId(team)}/here`,{leg,here:true});
-  }
+  for(const team of placed) read=await ok(token,`/api/races/${id}/teams/${teamId(team)}/tick`,{});
   read=await ok(token,`/api/races/${id}/steps/runners/done`,{});
   const entryOf=(team:number)=>teamsOf(read.race).find(entry=>entry.team.number===team)!.id;
   read=await ok(token,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:placed.map(entryOf),didNotFinish:[],didNotRun:[],added:[]});
@@ -107,8 +104,8 @@ test('Here / Absent per seeded team lands from two phones at once with no versio
   await mark(sam,read,1,'absent');
   expect(marks(await ok(sam,`/api/races/${final.race.id}`))[2]).toEqual([1,'absent']);
   const child=await call(sam,`/api/races/${final.race.id}/teams/${read.race.final!.entries[0].team!.id}/here`,{leg:0,here:true});
-  expect(child.statusCode).toBe(409);
-  expect(child.json().message).toBe("Mark the final's teams Here or Absent");
+  // There is no per-child Here, at a final or a heat.
+  expect(child.statusCode).toBe(404);
   const bad=await call(sam,`/api/races/${final.race.id}/teams/${read.race.final!.entries[0].team!.id}/absent`,{mark:'maybe'});
   expect(bad.statusCode).toBe(400);
 });

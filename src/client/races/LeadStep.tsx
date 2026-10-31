@@ -9,6 +9,7 @@ import { formatTime } from '../../shared/time-entry.js';
 import { itemTeams,toCheckWording } from '../../shared/to-check.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
+import { failureLine } from './writes.js';
 import { Callout,Icon } from './parts.js';
 import { FinishLine,StartLine,Timer,type StepProps } from './Steps.js';
 /** Which step a lead item is about: a runner's warning to Runners, an addition at the finish to Finishing order, times and ties to Times. */
@@ -36,14 +37,14 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
         await api(`lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places,acceptOutOfOrder:true});
       } else await api(`lead/races/${item.raceId}/runners/${item.entryId}/${item.kind==='added-at-finish'?'mark-added-checked':'mark-warning-checked'}`,{});
       onIssue();
-    } catch(failure) {setError(failure instanceof Error?failure.message:'Not saved - try again');}
+    } catch(failure) {setError(failureLine(failure));}
     finally {setBusy('');}
   }
   const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='two-relays' || item.kind==='ran-short' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
   const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);
     return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
-    actions={acceptable(item)?<><button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button>
-      <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button></>
+    actions={acceptable(item)?<><button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>
+      <button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button></>
       :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;
   const mismatch=step!=='runners' && race.recording.countMismatch;
   if(race.state!=='saved') return <>

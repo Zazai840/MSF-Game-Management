@@ -157,12 +157,9 @@ test('five phones share the test build: three work one race live until it saves 
   const relayRace=(await relayGroup(starter))!.races.find(race=>race.kind==='heat' && race.number===relayHeatNumber)!.id;
   try {
     for(const page of [mistyped,finisher,timer]) await openRace(page,relayName,relaySection,`H${relayHeatNumber}`);
-    // Two start-line phones add a team each and tap each child here; both see all eight children here.
+    // Two start-line phones add a team each, every child checked in; both see all eight children here.
     const meta=(page:Page)=>page.locator('.rz-prompt__meta');
-    for(const [page,number,team] of [[starter,teamA,legsA],[mistyped,teamB,legsB]] as const) {
-      await page.getByRole('list',{name:'Still to run'}).getByRole('button',{name:`Add Team ${number}`,exact:true}).click();
-      for(const wristband of team) await page.getByRole('button',{name:`${wristband}: Here`,exact:true}).click();
-    }
+    for(const [page,number] of [[starter,teamA],[mistyped,teamB]] as const) await page.getByRole('list',{name:'Still to run'}).getByRole('button',{name:`Add Team ${number}`,exact:true}).click();
     for(const page of [starter,mistyped]) await expect(meta(page)).toHaveText(`${relayHeat} · 2 teams · 8 children here`,crossPhone);
     await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
     await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · ${relaySection} ${relayHeat}`);

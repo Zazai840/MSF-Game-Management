@@ -56,8 +56,7 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
     });
   });
   // Save: a team still to run, its four boxes against the version the phone saw. From check-in (`raceId`) it also
-  // writes the team's entry in that race: a child still in the team keeps their Here mark, whichever leg they moved to,
-  // and a child swapped in starts not here.
+  // writes the team's entry in that race, every child in it checked in: a team in a race is here whole.
   action('POST','/api/relays/:eventId/teams/:teamId','Volunteer',(request,_reply,phone)=>{
     const {eventId,teamId}=params(request),done=requestedDone({...(request.body as object),teamId}),raceId=requestedRace((request.body as {raceId?:unknown}).raceId);
     return write(phone,eventId,raceId,async(client,relay)=>{
@@ -68,13 +67,12 @@ export function teamSheetRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4,changing_by=NULL,changing_since=NULL WHERE id=$1',[team.id,JSON.stringify(legs),phone.name,phone.profileId]);
       if(raceId===undefined) return;
       // A final's kept copy of the team (for Here / Absent) takes the new legs too: through its runner list while the
-      // team is Here, else straight away. A final has no per-child Here: a team Here is here whole.
+      // team is Here, else straight away.
       let outOfRace=false;
       await changeTeamEntry(client,phone,raceId,team.id,({race,entries,entry})=>{
         if(!entry && race.kind==='final') {outOfRace=true;return;}
         if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${raceName(race)}`);
-        const here=(wristband:number|null)=>wristband!==null && (race.kind==='final' || entry.legs.some(was=>was.here && was.wristband===wristband));
-        return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:here(leg.wristband)}))}:other);
+        return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:leg.wristband!==null}))}:other);
       });
       if(outOfRace && !await keepFinalistLegs(client,raceId,team.id,legs)) throw new Refusal(409,`Team ${team.number} is not in the final`);
     });

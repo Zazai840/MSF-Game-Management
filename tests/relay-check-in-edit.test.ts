@@ -27,21 +27,18 @@ async function start() {
 const teamsOf=(race:Pick<RaceRead,'parts'>)=>(race.parts.runners.value||[]).filter(isTeamEntry);
 const team=(read:{teams?:RaceFlowRead['teams']},number:number)=>read.teams!.find(item=>item.number===number)!;
 
-test('Edit at check-in saves the team list and this race\'s entry together, each child\'s Here mark following them',async()=>{
+test('Edit at check-in saves the team list and this race\'s entry together, every child in it checked in, a child swapped in too',async()=>{
   const {sam,priya,relays}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
-  const ticked=await relays.tick(sam,'R22',1);
-  await relays.here(sam,'R22',1,0);
-  const seen=await relays.here(sam,'R22',1,1),one=team(seen,1),url=`/api/relays/${seen.group.event.id}/teams/${one.id}`;
+  const seen=await relays.tick(sam,'R22',1),ticked=seen,one=team(seen,1),url=`/api/relays/${seen.group.event.id}/teams/${one.id}`;
   // 2102 moves to the 1st leg and 2101 to the 3rd; 2199 takes 2103's place.
   const saved=await ok(priya,url,{version:one.version,legs:[2102,2199,2101,2104],keptWarnings:[],raceId:ticked.race.id});
   expect(saved.race.id).toBe(ticked.race.id);
-  expect(teamsOf(saved.race)[0].legs.map(leg=>[leg.wristband,leg.here])).toEqual([[2102,true],[2199,false],[2101,true],[2104,false]]);
+  expect(teamsOf(saved.race)[0].legs.map(leg=>[leg.wristband,leg.here])).toEqual([[2102,true],[2199,true],[2101,true],[2104,true]]);
   expect(team(saved,1)).toMatchObject({version:one.version+1,changedBy:{name:'Priya Noor'},legs:[{wristband:2102},{wristband:2199},{wristband:2101},{wristband:2104}]});
   expect(saved.race.parts.runners.version).toBeGreaterThan(seen.race.parts.runners.version);
   // The Save is checked against the team's version, and the team must still be in this race.
   expect((await call(sam,url,{version:one.version,legs:[2101,null,null,null],keptWarnings:[],raceId:ticked.race.id})).json()).toMatchObject({reason:'changed',by:'Priya Noor'});
-  for(let leg=0;leg<4;leg++) await relays.here(sam,'R22',1,leg,false);
   await relays.takeOff(sam,'R22',1);
   const other=await ok(sam,'/api/races',{eventCode:'R22',kind:'heat',number:2});
   expect((await call(sam,url,{version:one.version+1,legs:[2101,null,null,null],keptWarnings:[],raceId:other.race.id})).json()).toEqual({message:'Team 1 is no longer in Heat 2'});
@@ -58,7 +55,7 @@ test('New team at check-in takes the next number and the same checks, and joins 
   expect((await call(sam,url,{legs:[6100,null,null,null],keptWarnings:[],joinRaceId:heat.race.id})).json()).toEqual({message:'6100 needs Fix number or Keep'});
   const joined=await ok(sam,url,{legs:[2201,2202,6100,null],keptWarnings:[6100],joinRaceId:heat.race.id});
   expect(joined.race.id).toBe(heat.race.id);
-  expect(teamsOf(joined.race).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.wristband)])).toEqual([[1,[2101,2102,2103,2104]],[2,[2201,2202,6100,null]]]);
+  expect(teamsOf(joined.race).map(entry=>[entry.team.number,entry.legs.map(leg=>[leg.wristband,leg.here])])).toEqual([[1,[[2101,true],[2102,true],[2103,true],[2104,true]]],[2,[[2201,true],[2202,true],[6100,true],[null,false]]]]);
   expect(team(joined,2).races).toMatchObject([{id:heat.race.id}]);
   // A refused join writes nothing: the team list is as it was.
   await relays.save(sam,'R22',[1,2],[3400,3500]);

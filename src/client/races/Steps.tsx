@@ -111,15 +111,15 @@ export function StartLine({read,flow,onDone,locked,me}:StepProps) {
           onMouseDown={event=>event.preventDefault()} onClick={()=>item===target?cancel():start(item)}>{item.wristband} <Icon name="pencil"/></button></li>;
       })}</ul>}
       {size.showing && !target && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>That's everyone</button><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button></>}/>}
+        actions={<><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>That's everyone</button></>}/>}
       {!locked && <DigitsField id="wristband" label={target?`New number for ${target.wristband}`:'Wristband number'} value={on.current} held={on.held} onRelease={on.fix} busy={on.checking || writes.sending} warn={on.held}
         onChange={digits=>{if(target) change.type(digits);else {entry.type(digits);size.dismiss();setSaid('');}}} onEnter={target?save:()=>void entry.next()} selectKey={target?String(target.id??target.wristband):undefined}
         hint={target?'Type the right number and tap Save, or Remove to take this runner off.':count>0?'Tap a number above to change it.':undefined}/>}
       {on.error && <Callout message={on.error}/>}
       {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}</>}/>}
+        actions={<>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button></>}/>}
       {target && asking && <Callout message={`${target.wristband} is already placed ${ordinal(place+1)} at the finish. Take them off anyway?`}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button></>}/>}
+        actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button></>}/>}
     </main>
     {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
       <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
@@ -160,7 +160,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
           aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button></>}/></div>}
+        actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>
     {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button></DockedFooter>}
   </>;
@@ -224,10 +224,10 @@ export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
       {entry.error && <Callout message={entry.error}/>}
       <DigitsField id="added" label="Wristband number" value={entry.current} held={entry.held} onRelease={entry.fix} busy={entry.checking || writes.sending} warn={entry.held} onChange={entry.type} onEnter={()=>void entry.next()}/>
       {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}</>}/>}
+        actions={<>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button></>}/>}
     </main>
     <DockedFooter><div className="rz-footer__pair">
-      <button type="button" className="rz-btn" onClick={()=>{entry.fix();entry.type('');setMode('place');}}>Back</button>
+      <button type="button" className="rz-btn" onClick={()=>{entry.fix();entry.type('');setMode('place');}}>Cancel</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>Add runner</KeepFocus>
     </div></DockedFooter>
   </>;
@@ -360,8 +360,8 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         </button></li>;
       })}</ol>:<p className="rz-empty">Places appear here once {words.placesWhen}.</p>}
       {held && <Callout message={`${wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.`}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button>
-          <button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button></>}/>}
+        actions={<><button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button>
+          <button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button></>}/>}
       {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held || !!refusal} onChange={setTyped} onEnter={()=>void next()}
         selectKey={`${target}:${retype===null?'next':'retype'}:${refusals}`} hint={held || refusal?undefined:timeBoxHint} time/>}
       {refusal && <Callout message={refusal}/>}

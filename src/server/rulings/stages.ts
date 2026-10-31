@@ -46,8 +46,6 @@ export async function changeStage(client:pg.PoolClient,current:Phone,code:string
   // with its line-up, call-ups and added runners, and the heats are no longer complete: Reopen results opens them.
   if(!reopening && sheet.stage==='no-final') {
     if(detail.results.finalResults) await client.query('DELETE FROM races WHERE id=$1',[detail.results.finalResults.raceId]);
-    // The next final is Final 1 again, unless a deleted final keeps its number.
-    await client.query("DELETE FROM race_counters WHERE event_id=$1 AND kind='final' AND NOT EXISTS(SELECT 1 FROM races WHERE event_id=$1 AND kind='final')",[detail.event.id]);
     await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage IN ('heats','final')",[detail.event.id]);
   }
   const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);

@@ -45,7 +45,7 @@ export function Screen({screen,fill=true,wide=false,children}:{screen:string;fil
 }
 /** The pill on the app bar naming your job; it opens Switch job. */
 export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
-  return <button type="button" className={role==='lead'?'rz-rolechip rz-rolechip--lead':'rz-rolechip'} aria-label={`Your job: ${role==='lead'?'Zone lead':roleLabels[role]}. Change job`} onClick={onOpen}>
+  return <button type="button" className={role==='lead'?'rz-rolechip rz-rolechip--lead':'rz-rolechip'} aria-label={`Your job: ${roleLabels[role]}. Change job`} onClick={onOpen}>
     <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
@@ -66,7 +66,8 @@ export const CodeTag=({code,role}:{code:string;role:Role})=>role==='lead' && cod
 export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1><CodeTag code={code} role={role}/></div>
+      {/* Up to two lines, the code tag flowing after the last word, so a long event name still shows its section. */}
+      <div className="rz-appbar__heading"><h1>{title}</h1> <CodeTag code={code} role={role}/></div></div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }

@@ -24,11 +24,10 @@ export function resetRoutes(app:FastifyInstance,pool:pg.Pool) {
       await client.query('INSERT INTO olympics_days(id,lead_code,revision) VALUES($1,$2,1)',[nextDay,newLeadCode(day.lead_code)]);
       await seedEvents(client,nextDay);
       await client.query('UPDATE sign_ins SET day_id=$1 WHERE id=$2',[nextDay,current.id]);
-      // Parts reference their authors; counters and audit notes reference events.
+      // Parts reference their authors; audit notes reference events.
       // Delete these in dependency order, scoped exclusively to the old day.
       await client.query('DELETE FROM races WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM audit_notes WHERE day_id=$1',[phone.dayId]);
-      await client.query('DELETE FROM race_counters WHERE event_id IN (SELECT id FROM events WHERE day_id=$1)',[phone.dayId]);
       await client.query('DELETE FROM events WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM profile_requests WHERE day_id=$1',[phone.dayId]);
       await client.query('DELETE FROM sign_ins WHERE day_id=$1',[phone.dayId]);

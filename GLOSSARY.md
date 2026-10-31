@@ -35,7 +35,7 @@ How an event decides its medals: either heats then a final (60m and relays), unl
 _Avoid_: Race type
 
 **Event type**:
-Which tab of Races an event is on: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events.
+What kind of event it is: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events. Home's tab follows from it: races and hurdles events are on the Races tab, relays on Relays. Hurdles skip the usual heat size note.
 _Avoid_: Category, kind
 
 **Relay**:
@@ -73,11 +73,11 @@ A lead bringing the next-ranked heat runner or relay team (7th, then 8th) into a
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
-Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay heat, anyone on the start line adds the teams that run from those still to run and marks each child here.
+Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay heat, anyone on the start line puts in the teams that run; every child of a team in the heat is checked in, with no Here per child.
 _Avoid_: Registration, sign-in, line-up, tick
 
 **Take off**:
-Taking a relay team back out of a heat at check-in, while none of its children is marked here. The team is still to run again.
+Taking a relay team back out of a heat at check-in. The team is still to run again.
 _Avoid_: Untick, remove, drop
 
 **Relay team**:
@@ -97,7 +97,7 @@ A relay team that no race of its relay holds, apart from deleted races. Only tea
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
-A race removed from an event's results but kept so it can be restored, for example one created by mistake.
+A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number.
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
@@ -121,7 +121,7 @@ A short extra run between tied children, held at the zone lead's call, whose ord
 _Avoid_: Tie-break race, decider
 
 **Re-run**:
-Running a whole race again with the same children because its record can't be trusted or recovered, called by the zone lead as a last resort. The first race becomes a deleted race and the re-run is a new race of the same event. It is not a run-off.
+Running a whole race again with the same children because its record can't be trusted or recovered, called by the zone lead as a last resort. The first race becomes a deleted race that cannot be restored, and the re-run is a new race of the same event with the first race's number (the re-run of Heat 2 is Heat 2). It is not a run-off.
 _Avoid_: Rerace, restart, repeat race
 
 **Disqualification**:
@@ -227,7 +227,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you (a lead's Action required), In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race lists the races and hurdles events, grouped under Races and Hurdles whichever of those tabs it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab. On Relays, New relay lists only the relays.
+Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:
@@ -239,8 +239,8 @@ One part of a race as the race flow works it: Runners (check-in), Finishing orde
 _Avoid_: Job, stage (an event's), Positions
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day.
-_Avoid_: Job, station, position
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job).
+_Avoid_: station, position
 
 **Undo**:
 The toast's way to reverse your own save of a step, only while nobody else has changed that step since. It reopens the race at that step, and un-saves a race the save had saved.
