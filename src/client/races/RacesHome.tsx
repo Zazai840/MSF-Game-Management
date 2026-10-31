@@ -35,7 +35,7 @@ function useLeadItems(on:boolean) {
  * Each card's chips open a race; "+" makes the next heat and a lead's "+ Final", after a confirm, the final. A relay's
  * teams are typed into its heats, so a relay is listed once it has a heat, as any event is.
  */
-export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{tab:HomeTab;onTab:(tab:HomeTab)=>void;role:Role;
+export function RacesHome({tab,onTab,role,gone,onRace,onResults,saved,onSavedShown}:{tab:HomeTab;onTab:(tab:HomeTab)=>void;role:Role;gone:string;
   onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void;
   saved:SavedStep|null;onSavedShown:()=>void}) {
   const {snapshot,error,offer}=useLive<RacesRead>('live/races');
@@ -73,6 +73,7 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
   return <>
     <EventTabs tab={tab} onTab={onTab}/>
     <main className="rz-main rz-main--cards">
+      {gone && <Callout status message={gone}/>}
       {!snapshot?error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>:error && <p className="rz-note" role="status">{error}</p>}
       {snapshot && !groups.some(group=>group.races.length) && <p className="rz-empty">{tab==='relays'?'No relays yet. Tap New relay when a relay lines up.':'No races yet. Tap New race when a race lines up.'}</p>}
       {sections.ready.length>0 && <><h2 className="rz-section">{role==='lead'?'Action required':'Ready for you'}</h2>{sections.ready.map(card)}</>}

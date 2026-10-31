@@ -122,10 +122,10 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await expect(page.getByText('No deleted races',{exact:true})).toBeVisible();
  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('reopened Heats complete - Corrected heat timer');
  await expect(page.locator('.stage-actions').getByRole('button')).toHaveText(['Results without a final']);
- // The card is as for an event with no final: no F chip, "+" right after the last heat, and "+ Final" back as every heat is saved.
- await backToRaces(lena);
+ // Both phones open on the removed final go back to Races, saying so. The card is as for an event with no final: no F
+ // chip, "+" right after the last heat, and "+ Final" back as every heat is saved.
+ for(const phone of [lena,sam.page]) await expect(phone.getByRole('status').filter({hasText:'A lead removed Boy Cubs Final'})).toBeVisible(live);
  await expect.poll(()=>chipTexts(leadCard),live).toEqual(['H1','Add heat 2','+ Final']);
- await backToRaces(sam.page);
  await expect(card.getByText('A lead makes the final once every heat has run.',{exact:true})).toBeVisible(live);
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('card-after-reopen.png'),fullPage:true});
  await page.request.post(`/api/lead/races/${heat.id}/times`,{headers,data:{baseVersion:1,places:[1000,900],acceptOutOfOrder:true}});
@@ -250,4 +250,20 @@ test('a final\'s check-in starts with nobody marked; That\'s everyone asks befor
  await expect(runnerButtons(priya)).toHaveText([new RegExp(String(n(51))),new RegExp(String(n(52)))],live);
  expect(await lookProblems(jo)).toEqual([]);await jo.screenshot({path:info.outputPath('final-attendance.png'),fullPage:true});
  await deleteCurrentRace(request,code);
+});
+test('a phone open on a race a lead removes goes back to Races with a short line: a final removed by Reopen heats, a heat deleted permanently',async({openPhone,request},info)=>{
+ const code=await ownCode(),name=ownName('Gone race'),n=await ownWristbands('Boy Cubs',2),lead={headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`}};
+ await ownEvent(request,code,name,'Boy Cubs');
+ const heat=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[900,1000]);
+ await flowPost(request,process.env.E2E_OWNER_TOKEN!,'/api/races',{eventCode:code,kind:'final'});
+ const {page}=await openPhone(ownName('Gone phone'));
+ await openRace(page,name,'Boy Cubs','Final');
+ expect((await request.post(`/api/lead/events/${code}/reopen-stage`,{...lead,data:{stage:'heats',comment:'Late timer correction'}})).ok()).toBe(true);
+ await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible(live);
+ await expect(page.getByRole('status').filter({hasText:'A lead removed Boy Cubs Final'})).toBeVisible();
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-gone.png'),fullPage:true});
+ await openRace(page,name,'Boy Cubs','H1');
+ expect((await request.post(`/api/lead/races/${heat.id}/delete`,{...lead,data:{permanent:true}})).ok()).toBe(true);
+ await expect(page.getByRole('status').filter({hasText:'A lead removed Boy Cubs Heat 1'})).toBeVisible(live);
+ await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 });

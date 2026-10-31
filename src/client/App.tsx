@@ -33,6 +33,8 @@ export function App() {
   const [menu,setMenu]=useState<{top:number;right:number}|null>(null);
   const logOut=useSubmit();
   const [saved,setSaved]=useState<SavedStep|null>(null);
+  // Why the race this phone had open went back to Races (a lead removed it), until another race is opened.
+  const [gone,setGone]=useState('');
   const [openDay,setOpenDay]=useState(false);
   const [leadSection,setLeadSection]=useState('Results');
   const [error,setError] = useState('');
@@ -104,9 +106,9 @@ export function App() {
   const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
   if(view.kind==='races' || view.kind==='race') {
     const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
-      onRace={(id,step)=>go({kind:'race',id,step})} onSaved={next=>{setSaved(next);pickTab(next.tab);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
-    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
+      onRace={(id,step)=>{setGone('');go({kind:'race',id,step});}} onSaved={next=>{setSaved(next);pickTab(next.tab);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
+    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={(id,step)=>{setGone('');go({kind:'race',id,step});}}
       onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
   }
   // The older look has no race-flow tokens, so the menu brings its own .rz-screen.

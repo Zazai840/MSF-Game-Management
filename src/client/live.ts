@@ -17,7 +17,7 @@ const backoff=(failures:number)=>Math.min(30_000,1000*2**(failures-1));
  */
 export function useLive<T extends {revision:number}>(path:string) {
   const [snapshot,setSnapshot]=useState<T|null>(null);
-  const [error,setError]=useState('');
+  const [error,setError]=useState(''),[gone,setGone]=useState(false);
   const held=useRef<T|null>(null);
   useEffect(()=>{
     held.current=null;
@@ -50,7 +50,7 @@ export function useLive<T extends {revision:number}>(path:string) {
       } catch(failure) {
         // A 401 has already sent the phone to sign in, and a changed session ends this screen; other refusals say why and stop.
         if(failure instanceof StaleRequest) return;
-        if(failure instanceof ApiFailure && failure.status<500) {if(failure.status!==401) setError(failureLine(failure));return;}
+        if(failure instanceof ApiFailure && failure.status<500) {if(failure.status!==401) setError(failureLine(failure));setGone(!!failure.body.gone);return;}
         // A phone holding a snapshot keeps showing it, with a calm note that it is reconnecting.
         if(!mine.signal.aborted) setError(held.current?'Connection lost - trying again':'Could not connect - trying again');
       } finally {
@@ -74,5 +74,5 @@ export function useLive<T extends {revision:number}>(path:string) {
     };
   },[path]);
   const offer=(next:T)=>{if(newerSnapshot(held.current,next)) {held.current=next;setSnapshot(next);}};
-  return {snapshot,error,offer};
+  return {snapshot,error,gone,offer};
 }

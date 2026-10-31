@@ -29,9 +29,11 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
-  onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
-  const {snapshot,error,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
+export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,onSaved,onResults}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+  onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
+  const {snapshot,error,gone,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
+  // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
+  useEffect(()=>{if(gone) onGone(snapshot?`A lead removed ${snapshot.group.event.section} ${raceName(snapshot.race)}`:'That race is gone');},[gone]);
   const flow=useFlowWrite(raceId,offer);
   const lead=role==='lead',issues=useRaceIssues(raceId,lead);
   const [tab,setTab]=useState<Step>(opened??'runners');
