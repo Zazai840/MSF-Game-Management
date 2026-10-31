@@ -75,6 +75,9 @@ export function Results({target,onDashboard,onChanged,backTo}:{target?:ResultsTa
     else if(item.entryId && detail?.results.actionableRunners.some(row=>row.raceId===item.raceId && row.entryId===item.entryId)) setSelected({raceId:item.raceId!,entryId:item.entryId});
     else if(item.raceId) openRace(item.raceId);
   }
+  // A lead makes the final with "+ Final" on Races, so open heats offer no stage here: only Reopen heats once complete.
+  const stageSheet=detail?.results.checkSheet?.stage==='heats'?null:detail?.results.checkSheet;
+  const reopenHeats=detail?.results.heatsCheckSheet?.completed?detail.results.heatsCheckSheet:null;
   const state=detail?eventState({status:detail.results.status,raceCount:detail.results.raceCount,format:detail.event.format,decidedWithoutFinal:detail.results.decidedWithoutFinal}):null;
   return <div className="results-view">{back}{error && <p role="alert">{error}</p>}
     {code ? <>{!detail?<p className="results-opening">Opening results…</p>:<>
@@ -96,9 +99,9 @@ export function Results({target,onDashboard,onChanged,backTo}:{target?:ResultsTa
       {detail.results.finalResults && <FinalPanel code={detail.event.code} relay={detail.event.relay} teams={detail.teams} final={detail.results.finalResults} onSaved={saved} onSelect={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onRace={()=>openRace(detail.results.finalResults!.raceId)}/>}
       {detail.results.notRankedYet.length>0 && <aside className="not-ranked"><h3>Not ranked yet</h3><ul>{detail.results.notRankedYet.map(item=><li key={item.race.id}><button className="button-small button-secondary" onClick={()=>openRace(item.race.id)} aria-label={`Open ${raceLabel(item.race)}`}>{raceLabel(item.race)}</button> · {item.reasons.join(' · ')}</li>)}</ul></aside>}
       {detail.results.leaderboard.length>0 && <section className="results-races"><h3>Races</h3><div className="results-race-buttons">{[...new Map(detail.results.leaderboard.map(row=>[row.raceId,row.race])).values()].map(race=><button key={race.id} className="button-small button-secondary" onClick={()=>openRace(race.id)}>Open {raceLabel(race)}</button>)}</div></section>}
-      {(detail.results.checkSheet || detail.results.heatsCheckSheet) && <section className="stage-actions">
-        {detail.results.checkSheet && <button onClick={()=>setSelectedStage(detail.results.checkSheet)}>{detail.results.checkSheet.completed?reopenLabel(detail.results.checkSheet.stage):detail.results.checkSheet.label}</button>}
-        {detail.results.heatsCheckSheet && detail.results.checkSheet?.stage!=='heats' && <button className="button-secondary" onClick={()=>setSelectedStage(detail.results.heatsCheckSheet)}>{detail.results.heatsCheckSheet.completed?reopenLabel('heats'):'Heats complete'}</button>}
+      {(stageSheet || reopenHeats || detail.results.noFinalCheckSheet) && <section className="stage-actions">
+        {stageSheet && <button onClick={()=>setSelectedStage(stageSheet)}>{stageSheet.completed?reopenLabel(stageSheet.stage):stageSheet.label}</button>}
+        {reopenHeats && <button className="button-secondary" onClick={()=>setSelectedStage(reopenHeats)}>{reopenLabel('heats')}</button>}
         {detail.results.noFinalCheckSheet && <button className="button-secondary" onClick={()=>setSelectedStage(detail.results.noFinalCheckSheet)}>{detail.results.noFinalCheckSheet.label}</button>}
       </section>}
       {detail.results.inputRunning && <section className="input-running-section"><h3>Input - Running</h3><table className="input-running" aria-label="Input - Running"><thead><tr><th>Event code</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody><tr><td>{detail.results.inputRunning.eventCode}</td>{detail.results.inputRunning.teams?detail.results.inputRunning.teams.map((team,index)=><td key={index}>{team?<><strong>Team {team.number}</strong>{team.wristbands.map((wristband,leg)=><span key={leg} className="input-running-leg">{wristband??'-'}</span>)}</>:'-'}</td>):<><td>{detail.results.inputRunning.first??'-'}</td><td>{detail.results.inputRunning.second??'-'}</td><td>{detail.results.inputRunning.third??'-'}</td></>}</tr></tbody></table></section>}

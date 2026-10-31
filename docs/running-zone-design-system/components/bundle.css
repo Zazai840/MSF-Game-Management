@@ -435,6 +435,20 @@
 .rz-teamcard__marks .rz-btn { margin-left: 0; }
 .rz-teamcard--final { gap: 0; padding: var(--space-4) var(--space-10) var(--space-4) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-teamcard--final.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
+/* A relay heat's start line: a team as a row of four leg chips, leg order left to right, each with its grip under it. */
+.rz-legrow { display: flex; flex-direction: column; gap: var(--space-6); }
+.rz-legrow--typing { padding: var(--space-8) var(--space-10); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-legrow__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-height: var(--size-touch); }
+.rz-legrow__count { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
+.rz-legrow__short { align-self: flex-start; }
+.rz-legchips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.rz-legchips li { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.rz-legchip { width: 100%; min-height: var(--size-touch); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-4) 0; border: 2px solid var(--line); border-radius: var(--radius-md); background: var(--card); color: var(--navy); font-family: var(--font-body); font-size: 20px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rz-legchip__ord { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.rz-legchip--next { border-color: var(--navy); background: var(--gold); }
+.rz-legchip--next .rz-legchip__ord { color: var(--navy); }
+.rz-legchip--empty { border-style: dashed; background: none; color: var(--ink-muted); }
+.rz-legchip--changing { border-color: var(--navy); box-shadow: 0 0 0 3px var(--navy); }
 .rz-teamlegs { margin: 0; padding: 0; list-style: none; }
 .rz-teamlegs li { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); border-top: 1px solid var(--line); }
 .rz-teamlegs__leg { min-width: 56px; font-size: 13px; font-weight: 700; color: var(--ink-muted); }

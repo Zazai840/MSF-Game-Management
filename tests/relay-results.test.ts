@@ -60,6 +60,27 @@ test('Heats complete on a relay seeds the six fastest teams into the final, each
   expect(final.runners).toEqual([]);
 });
 
+test('Reopen heats on a relay removes its unrun final with the line-up and opens the heats for changes; + Final makes "Final" again',async()=>{
+  const {lead,teams,heat,results}=await start();
+  await teams(7);
+  await heat([2,1,3,4],[3400,3500,3700,3900]);
+  await heat([5,6,7],[3450,3600,3800]);
+  expect((await call(lead,'/api/races',{eventCode:'R22',kind:'final'})).statusCode).toBe(200);
+  const reopened=await call(lead,'/api/lead/events/R22/reopen-stage',{stage:'heats',comment:'Team 4 was timed wrong'});
+  expect(reopened.statusCode).toBe(200);
+  expect((reopened.json() as EventResultsRead).results.finalResults).toBeNull();
+  expect((await call(lead,'/api/lead/events/R22/deleted-races')).json()).toEqual([]);
+  const group=(await call(lead,'/api/races')).json().groups.find((group:{event:{code:string}})=>group.event.code==='R22');
+  expect(group).toMatchObject({heatsOpen:true,finalAvailable:true,nextHeat:3});
+  expect(group.races.map((race:{kind:string})=>race.kind)).toEqual(['heat','heat']);
+  // The heats take changes again: a third heat can be made.
+  expect((await call(lead,'/api/races',{eventCode:'R22',kind:'heat',number:3})).statusCode).toBe(200);
+  const remade=await call(lead,'/api/races',{eventCode:'R22',kind:'final'});
+  expect(remade.statusCode).toBe(200);
+  expect(remade.json().race).toMatchObject({kind:'final',number:1});
+  expect((await results()).finalResults!.entries).toHaveLength(6);
+});
+
 test('equal team times in different heats are a tie that must be settled before Heats complete',async()=>{
   const {teams,heat,results}=await start();
   await teams(8);

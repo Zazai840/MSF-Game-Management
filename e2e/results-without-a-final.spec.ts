@@ -1,4 +1,4 @@
-import {ownName,ownCode,back,expect,live,openLeadMenu,openRace,ownEvent,recordRace,test} from './fixtures.js';
+import {ownName,ownCode,back,expect,live,makeFinal,openLeadMenu,openRace,ownEvent,recordRace,test} from './fixtures.js';
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('No final sprint');
   await ownEvent(page.request,code,name);
@@ -15,7 +15,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await lead.getByRole('button',{name:'No run-off needed',exact:true}).click();await lead.getByRole('button',{name:'Save tie',exact:true}).click();
   await expect(lead.getByRole('dialog')).toHaveCount(0);
   const stages=lead.locator('.stage-actions').getByRole('button');
-  await expect(stages).toHaveText(['Heats complete','Results without a final']);
+  await expect(stages).toHaveText(['Results without a final']);
   await lead.screenshot({path:info.outputPath('a1-heats-run.png'),fullPage:true});
   // Without a final it decides the bronze, so it comes back.
   await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
@@ -79,7 +79,7 @@ test('once a lead decides without a final, a volunteer\'s Races shows the event 
   await expect(volunteer.getByRole('button',{name:/^Add heat|^Create the final/})).toHaveCount(0);
   await volunteer.screenshot({path:info.outputPath('a6-race-done.png'),fullPage:true});
 });
-test('a lead reopens results with a comment: the medals clear, the heats open again and Heats complete builds a final',async({page,openPhone},info)=>{
+test('a lead reopens results with a comment: the medals clear, the heats open again and + Final builds a final',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('Reopened sprint');
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
@@ -115,14 +115,14 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await expect(board.locator('.result-line')).toHaveText('Qualifying line');
   await expect(lead.getByRole('table',{name:'Input - Running'})).toHaveCount(0);
   await expect(lead.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText(`${ownName('Reopen lead')} reopened Results without a final - The final fits after all`);
-  await expect(stages).toHaveText(['Heats complete','Results without a final']);
+  await expect(stages).toHaveText(['Results without a final']);
   await lead.screenshot({path:info.outputPath('a5-heats-open.png'),fullPage:true});
-  await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
-  await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+  await back(lead,'Races');await makeFinal(lead,name,'Girl Cubs');
+  await openLeadMenu(lead,'Results');await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
   await expect(lead.locator('.final-panel')).toBeVisible();
 });
-test('after Heats complete, a lead chooses Results without a final before the final starts: its line-up is discarded, and Reopen results then Heats complete builds a fresh final',async({page,openPhone},info)=>{
+test('after + Final, a lead chooses Results without a final before the final starts: its line-up is discarded, and Reopen results then + Final builds a fresh final',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('Late no final');
   await ownEvent(page.request,code,name);
   await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
@@ -131,10 +131,9 @@ test('after Heats complete, a lead chooses Results without a final before the fi
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(11),w(12),w(13)],[935,990,1060]);
   const lead=(await openPhone(ownName('Late no final lead'),{lead:true})).page;
+  await makeFinal(lead,name,'Girl Cubs');
   await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
-  await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
   await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
   // The final is built and nobody has touched it: the option sits under Final complete and Reopen heats.
   const stages=lead.locator('.stage-actions').getByRole('button');
@@ -158,11 +157,11 @@ test('after Heats complete, a lead chooses Results without a final before the fi
   await stages.click();
   const reopen=lead.getByRole('dialog',{name:'Reopen results',exact:true});
   await reopen.getByLabel('Comment',{exact:true}).fill('The final fits after all');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
-  // Heats open again, not complete: Heats complete builds a fresh final.
+  // Heats open again, not complete: + Final on Races builds a fresh final.
   await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats running · 2 races');
-  await expect(stages).toHaveText(['Heats complete','Results without a final']);
-  await lead.getByRole('button',{name:'Heats complete',exact:true}).click();
-  await lead.getByRole('dialog',{name:'Heats complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(stages).toHaveText(['Results without a final']);
+  await back(lead,'Races');await makeFinal(lead,name,'Girl Cubs');
+  await openLeadMenu(lead,'Results');await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await expect(lead.locator('.results-event-head .event-status')).toHaveText('Heats done · final to run');
   await expect(lead.locator('.final-panel')).toBeVisible();
 });

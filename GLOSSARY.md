@@ -57,7 +57,7 @@ The single deciding race of an event that has heats, unless a zone lead calls re
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
-The 6 qualifiers for a final, fastest heat time first, produced when a lead marks an event's heats complete. Runners a lead adds to the final afterwards are not part of the line-up.
+The 6 qualifiers for a final, fastest heat time first, produced when a lead makes the final with + Final. Runners a lead adds to the final afterwards are not part of the line-up.
 _Avoid_: Finalists list, running heats sheet, start list
 
 **Results without a final**:

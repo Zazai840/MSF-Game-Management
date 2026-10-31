@@ -320,6 +320,15 @@ export async function backToRaces(page:Page) {
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 }
+/** A lead makes an event's final the one way there is: "+ Final" on its Races card, then Make the final, and back to Races. */
+export async function makeFinal(page:Page,name:string,section:string) {
+  await page.getByRole('article',{name:`${name} · ${section}`}).getByRole('button',{name:'Create the final from the fastest 6',exact:true}).click();
+  await page.getByRole('dialog',{name:`Have all ${section} heats run?`,exact:true}).getByRole('button',{name:'Make the final',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
+  await backToRaces(page);
+}
+/** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
+export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
 /** Switches today's job from the job chip on Races or a race, as a volunteer does. */
 export async function switchJob(page:Page,job:JobName) {
   await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
