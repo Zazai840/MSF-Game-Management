@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,openLeadMenu,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,openLeadMenu,becomeLead,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const card=(page:Page,code:string,section='Girl Cubs')=>page.getByRole('article',{name:`${code} · ${section}`,exact:true});
 const heading=(page:Page,name:string)=>page.getByRole('banner').getByRole('heading',{level:1,name,exact:true});
@@ -9,15 +9,9 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await ownEvent(page.request,code,name,'Girl Cubs','timed','hurdles');
   await page.goto('/');
   await join(page,ownName('Events lead'),{job:'Start line'});
-  // A wrong code is refused in the job sheet; the owner password makes the phone a lead.
-  await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
-  await page.getByRole('radio',{name:/^Zone lead/}).click();
-  await page.getByLabel('Lead code',{exact:true}).fill('wrong-lead-fixture');
-  await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
-  await expect(page.getByRole('dialog',{name:'Your job'}).getByRole('alert')).toHaveText('Wrong lead code');
-  await page.getByLabel('Lead code',{exact:true}).fill('e2e-owner-fixture');
-  await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
+  // The owner password in the job sheet makes the phone a lead. A wrong code's refusal is shown in look.spec and proved in
+  // the API tests: the server slows wrong codes from one address, which every e2e phone shares.
+  await becomeLead(page,'e2e-owner-fixture');
   await openLeadMenu(page,'Day setup');
   // The Events row names only how many events there are: there is no list to confirm.
   await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
