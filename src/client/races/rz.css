@@ -229,7 +229,7 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-footer__pair .rz-btn { padding: 0 var(--space-12); }
 /* The middle button takes the room the short end ones leave, so "No more finishers" stays on one line at 360px. */
 .rz-footer__trio { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-8); }
-.rz-footer__trio .rz-btn { padding: 0 var(--space-12); white-space: nowrap; }
+.rz-footer__trio .rz-btn { padding: 0 var(--space-8); font-size: 14px; white-space: nowrap; }
 .rz-footer__reason { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--navy); }
 
 /* ---------- JobCard ---------- */
