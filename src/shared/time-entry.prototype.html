@@ -1,0 +1,419 @@
+<title>Race Time Entry Trial</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- PROTOTYPE, throwaway. Wayfinder ticket #235 (map #231). Not part of the app: the pure module in the first <script> is the part worth keeping. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=Saira:ital,wght@1,700;1,800;1,900&display=swap">
+<style>
+/* Layout: one phone-width column like the app itself. A Timer-step look-alike is the centrepiece; the switches sit above it, scenarios and the trial below. Single committed look: the app's own field palette. */
+:root{
+  --paper:#f0e7d3; --card:#fbf7ee; --line:#ddd1b7; --line-strong:#b9ac90;
+  --navy:#1e2b51; --muted:#3b4565; --on-navy:#f0e7d3; --gold:#ffb800;
+  --warn-soft:#fff1c7; --warn-line:#9a6b00; --warn-ink:#6b4a00; --red-ink:#c41e3a; --ok-ink:#2f6b0a;
+  --disabled:#ddd1b7; --disabled-ink:#5c5547;
+  --font-display:Saira,"Arial Narrow",sans-serif;
+  --font-body:Nunito,ui-rounded,"Segoe UI",system-ui,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--navy);font:16px/1.45 var(--font-body)}
+.wrap{max-width:560px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+h1,h2,h3{font-family:var(--font-display);font-style:italic;text-wrap:balance;margin:0}
+h1{font-size:34px;line-height:.95;font-weight:900}
+h2{font-size:22px;line-height:1;font-weight:800}
+p{margin:0}
+.lede{display:grid;gap:8px}
+.tag{justify-self:start;display:inline-block;background:var(--navy);color:var(--on-navy);font:800 12px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;transform:skewX(-12deg)}
+.tag span{display:inline-block;transform:skewX(12deg)}
+.small{font-size:14px;color:var(--muted)}
+.card{background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1.5px var(--line);padding:16px;display:grid;gap:14px}
+/* Switches */
+.row{display:grid;gap:6px}
+.row__label{font-weight:800;font-size:14px;letter-spacing:.02em}
+.row__note{font-size:13px;color:var(--warn-ink)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{min-height:40px;display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line-strong);background:var(--card);font-weight:700;font-size:14px;cursor:pointer}
+.seg input:checked+label{background:var(--navy);color:var(--on-navy);box-shadow:none}
+.seg input:focus-visible+label{outline:3px solid var(--navy);outline-offset:2px}
+.seg input:disabled+label{opacity:.45;cursor:not-allowed}
+/* Timer step look-alike */
+.phone{background:var(--paper);border-radius:28px;box-shadow:inset 0 0 0 2px var(--navy);padding:16px;display:grid;gap:12px}
+.phone__meta{font-weight:700;font-size:14px;color:var(--muted)}
+.phone__q{font-size:40px;line-height:.95;font-weight:900}
+.target{background:var(--navy);color:var(--on-navy);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.target strong{font:900 italic 34px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.slots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.slots--compact{grid-template-columns:repeat(4,minmax(0,1fr))}
+.slot{width:100%;min-height:58px;border:0;border-radius:10px;background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line);color:var(--navy);display:grid;align-content:center;justify-items:start;gap:2px;padding:6px 8px;font:inherit;text-align:left;cursor:pointer}
+.slot:disabled{cursor:default}
+.slot__ord{font-weight:800;font-size:12px}
+.slot__time{font:800 italic 20px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.slot__note{font-size:11px;font-weight:700;line-height:1.2}
+.slot--current{background:var(--gold);box-shadow:none}
+.slot--empty .slot__time{color:var(--line-strong)}
+.slot--warn{background:var(--warn-soft);box-shadow:inset 0 0 0 1.5px var(--warn-line);color:var(--warn-ink)}
+.field{display:grid;gap:6px}
+.field label{font-weight:800;font-size:14px}
+.field input{width:100%;height:64px;border-radius:12px;border:0;box-shadow:inset 0 0 0 2px var(--navy);background:var(--card);color:var(--navy);padding:0 16px;font:900 italic 36px/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.field input:focus{outline:3px solid var(--navy);outline-offset:2px}
+.field--warn input{box-shadow:inset 0 0 0 2px var(--warn-line);background:var(--warn-soft)}
+.field input::placeholder{color:var(--line-strong)}
+.readout{display:flex;align-items:baseline;gap:10px;min-height:44px}
+.readout__label{font-size:14px;font-weight:700;color:var(--muted)}
+.readout__time{font:900 italic 38px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.hint{font-size:14px;color:var(--muted)}
+.refusal{display:flex;gap:8px;align-items:flex-start;background:var(--warn-soft);color:var(--warn-ink);box-shadow:inset 0 0 0 1.5px var(--warn-line);border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px}
+.refusal::before{content:"!";flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--warn-line);color:var(--card);font-weight:900;font-size:14px}
+.callout{background:var(--warn-soft);box-shadow:inset 0 0 0 1.5px var(--warn-line);color:var(--warn-ink);border-radius:12px;padding:12px;display:grid;gap:10px;font-weight:700}
+.callout__actions{display:flex;gap:8px;flex-wrap:wrap}
+.footer{display:grid;grid-template-columns:1fr 1.6fr;gap:8px}
+.btn{min-height:52px;border:0;border-radius:12px;background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line-strong);color:var(--navy);font:800 italic 18px/1 var(--font-display);letter-spacing:.03em;padding:0 16px;cursor:pointer}
+.btn--primary{background:var(--navy);color:var(--on-navy);box-shadow:0 4px 0 #0e1530}
+.btn--small{min-height:44px;font-size:16px}
+.btn[aria-disabled="true"]{background:var(--disabled);color:var(--disabled-ink);box-shadow:none;cursor:not-allowed}
+.btn:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+.done{font-weight:800;color:var(--ok-ink)}
+/* Saved state */
+.state{display:grid;gap:4px;font-size:14px}
+.state dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:0}
+.state dt{font-weight:800}
+.state dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.changed{background:var(--gold);padding:0 4px;border-radius:4px}
+/* Scenarios */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.tabs button{flex:none;min-height:40px;border:0;border-radius:999px;padding:6px 12px;background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line-strong);color:var(--navy);font:700 14px/1 var(--font-body);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--navy);color:var(--on-navy);box-shadow:none}
+.steps{margin:0;padding-left:22px;display:grid;gap:4px}
+.watch{background:var(--paper);border-radius:10px;padding:10px 12px;font-size:15px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.scroll{overflow-x:auto}
+details summary{cursor:pointer;font-weight:800}
+pre{font:12px/1.4 var(--font-mono);background:var(--paper);border-radius:8px;padding:8px;max-height:14em;overflow:auto;white-space:pre-wrap;margin:8px 0 0}
+@media (prefers-reduced-motion:no-preference){.slot,.btn,.seg label{transition:background-color .12s}}
+</style>
+
+<div class="wrap">
+  <header class="lede">
+    <span class="tag"><span>Prototype · try it on a phone</span></span>
+    <h1>How does a volunteer type a race time?</h1>
+    <p>This page copies the Timer step. Type times on your phone's own number pad and see what the app would save, what it refuses and what it asks you to check. Use the switches to try each open choice. Nothing is saved anywhere.</p>
+  </header>
+
+  <section class="card" aria-labelledby="choices-h">
+    <h2 id="choices-h">Open choices</h2>
+    <div class="row"><span class="row__label" id="ev-l">Race</span><div class="seg" role="radiogroup" aria-labelledby="ev-l" id="ev"></div></div>
+    <div class="row"><span class="row__label" id="box-l">What the box shows while you type</span><div class="seg" role="radiogroup" aria-labelledby="box-l" id="box"></div></div>
+    <div class="row"><span class="row__label" id="short-l">A short entry, such as 21</span><div class="seg" role="radiogroup" aria-labelledby="short-l" id="short"></div><p class="row__note" id="short-note" hidden></p></div>
+    <div class="row"><span class="row__label" id="dot-l">The point key (Android only; the iPhone pad has none)</span><div class="seg" role="radiogroup" aria-labelledby="dot-l" id="dot"></div><p class="row__note" id="dot-note" hidden></p></div>
+  </section>
+
+  <section class="phone" aria-label="Timer step">
+    <p class="phone__meta" id="meta"></p>
+    <h2 class="phone__q" id="q"></h2>
+    <div class="target" id="target" hidden><span>Photo finish shows</span><strong id="target-time"></strong></div>
+    <ol class="slots" id="slots" aria-label="Place times"></ol>
+    <div class="callout" id="callout" hidden><p id="callout-text"></p><div class="callout__actions">
+      <button type="button" class="btn btn--small btn--primary" id="fix">Fix time</button>
+      <button type="button" class="btn btn--small" id="keep">Keep</button></div></div>
+    <div class="field" id="field">
+      <label for="time">Place time</label>
+      <input id="time" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next" maxlength="10" aria-describedby="hint readout refusal">
+      <div class="readout" id="readout" aria-live="polite"></div>
+      <p class="hint" id="hint"></p>
+      <p class="refusal" id="refusal" role="alert" hidden></p>
+    </div>
+    <p class="done" id="done" hidden>Every place has a time.</p>
+    <div class="footer">
+      <button type="button" class="btn" id="back">Back</button>
+      <button type="button" class="btn btn--primary" id="next">Next</button>
+    </div>
+  </section>
+
+  <section class="card state" aria-labelledby="state-h">
+    <h2 id="state-h">What the app did</h2>
+    <dl id="state"></dl>
+    <div class="actions"><button type="button" class="btn btn--small" id="reset">Clear the heat</button></div>
+  </section>
+
+  <section class="card" aria-labelledby="sc-h">
+    <h2 id="sc-h">Cases to try</h2>
+    <p class="small">Each case sets up a heat. Type the entry yourself on the number pad, then tap Next. On an iPhone, use "Type it for me" for the point-key case.</p>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="scenario" role="tabpanel" class="state"></div>
+  </section>
+
+  <section class="card" aria-labelledby="tr-h">
+    <h2 id="tr-h">Ten-times trial</h2>
+    <p class="small">Ask a volunteer to type ten photo-finish times from a 200m race, once with each box setting. The trial counts wrong times that got saved, times the app refused, backspaces and the seconds taken. Read the table back to Claude.</p>
+    <div class="actions"><button type="button" class="btn btn--primary btn--small" id="trial">Start a trial</button></div>
+    <div class="scroll"><table id="results" hidden><thead><tr><th>Run</th><th>Box</th><th>Short entry</th><th>Wrong saved</th><th>Refused</th><th>Backspaces</th><th>Seconds</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <details class="card">
+    <summary>Keystroke log (for the real-phone checks)</summary>
+    <p class="small">Shows what the keyboard sent. Check: does backspace arrive as "deleteContentBackward" with cancelable=true, and which extra keys does the pad have?</p>
+    <pre id="log"></pre>
+  </details>
+</div>
+
+<script>
+/* ---------- Pure module: the part to lift into src/shared/time-entry.ts. No DOM. ---------- */
+const TimeEntry = (() => {
+  /** Race length in metres from the event name: "60m Hurdles" is 60, "4x100m Relay" is 400. */
+  const metres = name => { const m = /^(?:(\d+)x)?(\d+)m/.exec(name); return m ? Number(m[1] || 1) * Number(m[2]) : null; };
+  const formatTime = h => { const m = Math.floor(h / 6000), s = Math.floor(h % 6000 / 100), f = String(h % 100).padStart(2, '0'); return `${m ? `${m}:${String(s).padStart(2, '0')}` : s}.${f}`; };
+  /** Digits as typed, right to left, without any check: "19234" shows as 1:92.34, so the volunteer sees what is wrong. */
+  const formatDigits = d => { const p = d.padStart(3, '0'), whole = p.slice(0, -2), sec = whole.slice(-2), min = whole.slice(0, -2).replace(/^0+/, ''); return `${min ? `${min}:${sec.padStart(2, '0')}` : String(Number(sec))}.${p.slice(-2)}`; };
+  const digitsForTime = h => formatTime(h).replace(/[:.]/g, '');
+  const FASTEST = 10, SLOWEST = 1.5; // metres per second: no one is faster (world record pace is under 10.5 m/s); slower is unusual, not impossible
+
+  /**
+   * What the box holds, read as a time. opts.short: 'hundredths' (21 is 0.21) or 'seconds' (one or two digits are whole seconds).
+   * opts.dot: 'point' (the last point marks hundredths: 12.3 is 12.30) or 'strip' (points dropped, but one digit after a point is refused).
+   * Returns {time, shown} or {refused}. Empty returns {}.
+   */
+  function read(text, opts) {
+    const t = text.replace(/,/g, '.').replace(/[^\d.]/g, '');
+    if (!/\d/.test(t)) return {};
+    let whole, frac;
+    const last = t.lastIndexOf('.');
+    if (last >= 0 && opts.dot === 'point') {
+      whole = t.slice(0, last).replace(/\./g, ''); frac = t.slice(last + 1);
+      if (frac.length > 2) return {refused: 'Only two digits go after the point, for example 12.34.'};
+      frac = frac.padEnd(2, '0');
+    } else if (last >= 0 && opts.dot === 'strip' && t.length - last - 1 < 2) {
+      return {refused: 'Type two digits after the point, for example 12.30.'};
+    } else {
+      const d = t.replace(/\./g, '');
+      if (opts.short === 'seconds' && d.length <= 2) { whole = d; frac = '00'; }
+      else { const p = d.padStart(3, '0'); whole = p.slice(0, -2); frac = p.slice(-2); }
+    }
+    whole = whole.replace(/^0+/, '');
+    if (whole.length > 4) return {refused: 'That is too many digits for a race time.'};
+    const sec = Number(whole.slice(-2) || 0), min = Number(whole.slice(0, -2) || 0);
+    if (sec > 59) return {refused: `Seconds go up to 59, so ${formatDigits(whole + frac)} is not a time. Check the timer and type it again.`};
+    const time = min * 6000 + sec * 100 + Number(frac);
+    if (!time) return {refused: '0.00 is not a time.'};
+    return {time, shown: formatTime(time)};
+  }
+
+  /** Read, then refuse a time no one can run for this race. A short entry gets a hint for whole seconds. */
+  function accept(text, eventName, opts) {
+    const r = read(text, opts);
+    if (r.refused || r.time === undefined) return r;
+    const m = metres(eventName), fastest = m * 100 / FASTEST;
+    if (m && r.time < fastest) {
+      const d = text.replace(/\D/g, '');
+      const tip = d.length <= 2 && !text.includes('.') && opts.short === 'hundredths' ? ` For ${d} seconds, type ${d}00.` : ' Check the timer and type it again.';
+      return {refused: `${r.shown} is too fast for ${eventName}. No one runs ${m}m in under ${formatTime(fastest)}.${tip}`};
+    }
+    return r;
+  }
+
+  /** Places to check, by index: faster than an earlier place (today's rule, unchanged), or slower than anyone walks the race. */
+  function problems(places, eventName) {
+    const out = new Map(), m = metres(eventName), slowest = m ? m * 100 / SLOWEST : Infinity;
+    let previous = -1;
+    places.forEach((time, index) => {
+      if (time == null) return;
+      if (previous >= 0 && time < places[previous]) out.set(index, `Faster than ${ordinal(previous + 1)} place`);
+      else if (time > slowest) out.set(index, `Slow for ${m}m`);
+      previous = index;
+    });
+    return out;
+  }
+  /** The race's limits in hundredths: faster than `fastest` is refused, slower than `slowest` is asked about. */
+  const limits = eventName => { const m = metres(eventName); return m ? {fastest: m * 100 / FASTEST, slowest: Math.round(m * 100 / SLOWEST)} : null; };
+  const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  return {read, accept, problems, limits, formatTime, formatDigits, digitsForTime, ordinal};
+})();
+
+/* Self-check of the module (shows in the console only if a case breaks). */
+(() => {
+  const H = {short: 'hundredths', dot: 'point'}, S = {short: 'seconds', dot: 'strip'};
+  const cases = [
+    [TimeEntry.read('1234', H).time, 1234], [TimeEntry.read('21', H).time, 21], [TimeEntry.read('21', S).time, 2100],
+    [TimeEntry.read('13240', H).time, 9240], [!!TimeEntry.read('19234', H).refused, true], [!!TimeEntry.read('7500', H).refused, true],
+    [TimeEntry.read('12.3', H).time, 1230], [!!TimeEntry.read('12.3', S).refused, true], [TimeEntry.read('12.34', S).time, 1234],
+    [TimeEntry.read('1.32.4', H).time, 9240], [!!TimeEntry.accept('21', '60m', H).refused, true], [!!TimeEntry.accept('124', '60m', H).refused, true],
+    [TimeEntry.accept('945', '60m', H).time, 945], [TimeEntry.problems([1000, 990], '60m').has(1), true], [TimeEntry.problems([1000, 4100], '60m').has(1), true],
+    [TimeEntry.formatDigits('19234'), '1:92.34'], [TimeEntry.formatDigits('5'), '0.05'], [TimeEntry.read('3:05', H).time, 305]
+  ];
+  cases.forEach(([got, want], i) => { if (got !== want) console.error(`time-entry self-check ${i} failed: got ${got}, want ${want}`); });
+})();
+
+/* ---------- Page shell: throwaway. ---------- */
+const $ = id => document.getElementById(id);
+const EVENTS = ['60m', '60m Hurdles', '200m', '400m', '4x50m Relay', '4x100m Relay'];
+const TRIAL = [2784, 2810, 2947, 3102, 3365, 3520, 3891, 4107, 5988, 6430];
+const S = {event: '60m', box: 'line', short: 'hundredths', dot: 'point', places: [], kept: new Set(), retype: null, slots: 6, refusal: null, last: null, trial: null, runs: []};
+const input = $('time');
+
+function opts() { return S.box === 'calc' ? {short: 'hundredths', dot: 'strip'} : {short: S.short, dot: S.dot}; }
+const boxText = () => S.box === 'calc' ? input.value.replace(/\D/g, '') : input.value;
+const log = line => { $('log').textContent = `${new Date().toLocaleTimeString()}  ${line}\n` + $('log').textContent.slice(0, 4000); };
+
+function seg(id, name, choices, value, onPick) {
+  $(id).innerHTML = choices.map(([v, label], i) => `<input type="radio" name="${name}" id="${name}-${i}" value="${v}"${v === value ? ' checked' : ''}><label for="${name}-${i}">${label}</label>`).join('');
+  $(id).onchange = e => { onPick(e.target.value); S.trial = null; setBox(''); S.refusal = null; render(); };
+}
+function drawSwitches() {
+  seg('ev', 'ev', EVENTS.map(e => [e, e]), S.event, v => { S.event = v; });
+  seg('box', 'box', [['line', 'Digits, with the time shown large below'], ['calc', 'The time itself, filling from the right']], S.box, v => { S.box = v; drawSwitches(); });
+  seg('short', 'short', [['hundredths', '21 is 0.21 (as today)'], ['seconds', '21 is 21.00 seconds']], S.short, v => { S.short = v; });
+  seg('dot', 'dot', [['point', 'Point marks hundredths: 12.3 is 12.30'], ['strip', 'Refuse one digit after a point']], S.dot, v => { S.dot = v; });
+  const calc = S.box === 'calc';
+  document.querySelectorAll('#short input, #dot input').forEach(el => { el.disabled = calc; });
+  $('short-note').hidden = $('dot-note').hidden = !calc;
+  $('short-note').textContent = 'Not with the filling box: typing 2 then 1 shows 0.21, so 21 can only mean 0.21.';
+  $('dot-note').textContent = 'Not with the filling box: the point key does nothing.';
+}
+
+function setBox(digitsOrText) {
+  if (S.box === 'calc') { const d = digitsOrText.replace(/\D/g, '').replace(/^0+/, '').slice(0, 6); input.value = d ? TimeEntry.formatDigits(d) : ''; }
+  else input.value = digitsOrText.replace(/[^\d.,]/g, '');
+}
+input.addEventListener('beforeinput', e => {
+  log(`beforeinput ${e.inputType} data=${JSON.stringify(e.data)} cancelable=${e.cancelable}`);
+  if (e.inputType === 'deleteContentBackward' && S.trial) S.trial.backspaces++;
+  if (S.box === 'calc' && e.inputType === 'deleteContentBackward' && e.cancelable && input.selectionStart === input.selectionEnd) {
+    e.preventDefault(); setBox(boxText().slice(0, -1)); afterTyping();
+  }
+});
+input.addEventListener('input', () => { setBox(S.box === 'calc' ? boxText() : input.value); afterTyping(); });
+input.addEventListener('keydown', e => { log(`keydown key=${JSON.stringify(e.key)}`); if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); next(); } });
+function afterTyping() { if (S.trial && !S.trial.started) S.trial.started = performance.now(); S.refusal = null; renderField(); }
+
+function held() {
+  const p = TimeEntry.problems(S.places, S.event);
+  const first = [...p.keys()].find(i => !S.kept.has(i));
+  return S.retype === null && first !== undefined ? {index: first, reason: p.get(first)} : null;
+}
+const target = () => { const h = held(); return h ? h.index : S.retype ?? S.places.length; };
+
+function next() {
+  const h = held(), t = target();
+  if (h || t >= S.slots || !boxText()) return;
+  const typed = input.value, r = TimeEntry.accept(boxText(), S.event, opts());
+  if (r.refused) { S.refusal = r.refused; S.last = {typed, result: `Refused: ${r.refused}`, index: t}; if (S.trial) S.trial.refused++; render(); input.focus(); input.select(); return; }
+  S.places[t] = r.time; S.kept.delete(t); S.retype = null; setBox('');
+  S.last = {typed, result: `Saved ${TimeEntry.ordinal(t + 1)} place as ${r.shown}`, index: t};
+  log(`saved ${TimeEntry.ordinal(t + 1)} = ${r.shown} from "${typed}"`);
+  maybeFinish(); render();
+}
+function maybeFinish() { if (S.trial && S.places.filter(x => x != null).length >= S.slots && !held()) finishTrial(); }
+function retype(index) { S.retype = index; S.refusal = null; setBox(S.box === 'calc' ? TimeEntry.digitsForTime(S.places[index]) : TimeEntry.digitsForTime(S.places[index])); render(); input.focus(); input.select(); }
+
+function renderField() {
+  const o = opts(), r = TimeEntry.read(boxText(), o);
+  const h = held(), t = target();
+  $('field').classList.toggle('field--warn', !!h || !!S.refusal);
+  $('readout').hidden = S.box === 'calc';
+  $('readout').innerHTML = S.box === 'calc' ? '' : !input.value ? '' : r.refused ? `<span class="readout__label">Not a time yet</span>` : `<span class="readout__label">Saves as</span><span class="readout__time">${r.shown}</span>`;
+  $('hint').textContent = S.box === 'calc' ? 'Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.'
+    : o.short === 'seconds' ? 'Type the digits on the timer: 1234 is 12.34, and 21 is 21 seconds.' : 'Type the digits on the timer: 1234 is 12.34.';
+  $('refusal').hidden = !S.refusal; $('refusal').textContent = S.refusal || '';
+  const canNext = !h && t < S.slots && !!boxText();
+  $('next').setAttribute('aria-disabled', String(!canNext));
+}
+function render() {
+  const h = held(), t = target(), full = t >= S.slots, p = TimeEntry.problems(S.places, S.event);
+  $('meta').textContent = `Heat 1 · ${S.event} · Boy Scouts${S.trial ? ' · trial' : ''}`;
+  $('q').textContent = full ? 'Every place has a time' : `${TimeEntry.ordinal(t + 1)} place time?`;
+  $('target').hidden = !S.trial || full; if (S.trial && !full) $('target-time').textContent = TimeEntry.formatTime(TRIAL[t]);
+  $('slots').className = S.slots > 9 ? 'slots slots--compact' : 'slots';
+  $('slots').innerHTML = Array.from({length: S.slots}, (_, i) => {
+    const time = S.places[i], warn = p.has(i), cls = warn ? 'slot slot--warn' : i === t && !full ? 'slot slot--current' : time == null ? 'slot slot--empty' : 'slot';
+    const dis = !!h || (time == null && i !== S.places.length);
+    return `<li><button type="button" class="${cls}" data-i="${i}"${dis ? ' disabled' : ''} aria-label="${TimeEntry.ordinal(i + 1)} place: ${time == null ? 'no time yet' : TimeEntry.formatTime(time)}${warn ? ', ' + p.get(i) : ''}"><span class="slot__ord">${TimeEntry.ordinal(i + 1)}</span><span class="slot__time">${time == null ? '–' : TimeEntry.formatTime(time)}</span>${warn ? `<span class="slot__note">${S.kept.has(i) ? 'Kept' : p.get(i)}</span>` : ''}</button></li>`;
+  }).join('');
+  $('callout').hidden = !h;
+  if (h) $('callout-text').textContent = `The ${TimeEntry.ordinal(h.index + 1)} place time, ${TimeEntry.formatTime(S.places[h.index])}, looks wrong: ${h.reason.toLowerCase()}. Fix it, or keep it if the timer really shows that.`;
+  $('field').hidden = full; $('done').hidden = !full;
+  input.readOnly = !!h;
+  $('back').setAttribute('aria-disabled', String(!S.places.length || !!h));
+  renderField(); renderState();
+}
+function renderState() {
+  const p = TimeEntry.problems(S.places, S.event);
+  const rows = [
+    ['Box setting', S.box === 'calc' ? 'The time itself, filling from the right' : `Digits, time shown below · 21 is ${S.short === 'seconds' ? '21.00' : '0.21'} · point ${S.dot === 'point' ? 'marks hundredths' : 'needs two digits after it'}`],
+    ['In the box now', input.value ? `"${input.value}"` : 'empty'],
+    ['Last entry', S.last ? `"${S.last.typed}" → <span class="changed">${S.last.result}</span>` : 'none yet'],
+    ['Saved times', S.places.length ? S.places.map((x, i) => x == null ? '' : `${TimeEntry.ordinal(i + 1)} ${TimeEntry.formatTime(x)}${p.has(i) ? (S.kept.has(i) ? ' (kept)' : ' (to check)') : ''}`).filter(Boolean).join(', ') : 'none'],
+    ['Checks for this race', (l => `Refused if faster than ${TimeEntry.formatTime(l.fastest)}. Asked to check if slower than ${TimeEntry.formatTime(l.slowest)}, or faster than an earlier place.`)(TimeEntry.limits(S.event))]
+  ];
+  $('state').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+}
+
+$('slots').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b || b.disabled) return; const i = Number(b.dataset.i); if (S.places[i] != null) retype(i); else { S.retype = null; render(); input.focus(); } });
+// Like the app's KeepFocus: a tap on Next or Back does not take focus from the box, so the number pad stays open.
+['next', 'back'].forEach(id => $(id).addEventListener('mousedown', e => e.preventDefault()));
+$('next').addEventListener('click', next);
+$('back').addEventListener('click', () => { if ($('back').getAttribute('aria-disabled') === 'true') return; const b = Math.max(0, (S.retype ?? S.places.length) - 1); if (S.places[b] != null) retype(b); });
+$('fix').addEventListener('click', () => { const h = held(); if (h) retype(h.index); });
+$('keep').addEventListener('click', () => { const h = held(); if (h) { S.kept.add(h.index); maybeFinish(); render(); input.focus(); } });
+$('reset').addEventListener('click', () => setup({event: S.event, places: []}));
+
+function setup({event, places, slots = 6}) {
+  S.event = event; S.places = [...places]; S.kept = new Set(); S.retype = null; S.refusal = null; S.last = null; S.slots = slots; S.trial = null;
+  setBox(''); drawSwitches(); render();
+}
+
+/* Scenarios */
+const CASES = [
+  {name: 'Typed 21 for 21 seconds', setup: {event: '60m', places: []}, type: '21',
+    steps: ['Type 21 and tap Next.', 'Switch "A short entry" to "21 is 21.00 seconds" and do it again.'],
+    watch: 'With 21 as 0.21, the app refuses it as too fast for 60m and says "For 21 seconds, type 2100". With 21 as whole seconds, it saves 21.00. Which one should a volunteer meet?'},
+  {name: 'A dropped digit', setup: {event: '60m', places: [1043, 1088]}, type: '114',
+    steps: ['The timer shows 11.40. Type 114 (the 0 is missing) and tap Next.'],
+    watch: 'Today this saves as 1.14. Now it is refused as too fast for 60m. The box keeps 114 selected to type again.'},
+  {name: 'Over 59 seconds', setup: {event: '400m', places: [7210]}, type: '19234',
+    steps: ['Type 19234 and tap Next.'],
+    watch: 'The box reads it as 1:92.34. Today this saves as 2:32.34. Now it is refused: seconds go up to 59.'},
+  {name: 'The point key', setup: {event: '60m', places: []}, type: '12.3',
+    steps: ['On Android, type 12.3 with the point key. On iPhone, tap "Type it for me".', 'Tap Next. Then switch "The point key" and do it again.'],
+    watch: 'Today the point is dropped and 12.3 saves as 1.23. "Point marks hundredths" saves 12.30. "Refuse one digit after a point" asks for 12.30.'},
+  {name: 'A doubled digit', setup: {event: '200m', places: [2784, 2810]}, type: '31022',
+    steps: ['The timer shows 31.02. Type 31022 (one 2 too many) and tap Next.'],
+    watch: '3:10.22 is a possible time, so it saves, but it is slow for 200m. The app asks you to Fix it or Keep it, as it does for a time faster than an earlier place.'},
+  {name: 'Faster than an earlier place', setup: {event: '60m', places: [1043, 1088]}, type: '1051',
+    steps: ['Type 1051 for 3rd place and tap Next.'],
+    watch: 'This rule is unchanged from today: 10.51 is faster than 2nd place, so the app asks you to Fix it or Keep it.'},
+  {name: 'Change a saved time', setup: {event: '60m', places: [1043, 1088, 1120]}, type: '',
+    steps: ['Tap the 2nd place time (10.88). The box holds it, selected, so typing replaces it.', 'Tap inside the box to put the cursor at the end. Press backspace once, type 5, and tap Next.'],
+    watch: 'With digits in the box, 1088 becomes 108, then 1085. With the filling box, 10.88 becomes 1.08, then 10.85. Both save 10.85: which one is easier to follow? Also try tapping into the middle of the box.'}
+];
+let tab = 0;
+function drawCases() {
+  $('tabs').innerHTML = CASES.map((c, i) => `<button type="button" role="tab" aria-selected="${i === tab}" data-t="${i}">${c.name}</button>`).join('');
+  const c = CASES[tab];
+  $('scenario').innerHTML = `<ol class="steps">${c.steps.map(s => `<li>${s}</li>`).join('')}</ol><p class="watch"><strong>Watch for:</strong> ${c.watch}</p>
+    <div class="actions"><button type="button" class="btn btn--small btn--primary" id="sc-setup">Set up this case</button>${c.type ? '<button type="button" class="btn btn--small" id="sc-type">Type it for me</button>' : ''}</div>`;
+  $('sc-setup').onclick = () => { setup(c.setup); document.querySelector('.phone').scrollIntoView({block: 'start'}); input.focus({preventScroll: true}); };
+  if (c.type) $('sc-type').onclick = () => { if (S.places.join() !== c.setup.places.join() || S.event !== c.setup.event) setup(c.setup); setBox(c.type); afterTyping(); document.querySelector('.phone').scrollIntoView({block: 'start'}); };
+}
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b) { tab = Number(b.dataset.t); drawCases(); } });
+
+/* Trial */
+$('trial').addEventListener('click', () => {
+  setup({event: '200m', places: [], slots: TRIAL.length});
+  S.trial = {started: 0, refused: 0, backspaces: 0};
+  render(); document.querySelector('.phone').scrollIntoView({block: 'start'}); input.focus({preventScroll: true});
+});
+function finishTrial() {
+  const t = S.trial, wrong = TRIAL.filter((x, i) => S.places[i] !== x).length;
+  S.runs.push({box: S.box === 'calc' ? 'Fills from the right' : 'Digits, time below', short: S.box === 'calc' ? '0.21' : S.short === 'seconds' ? '21.00' : '0.21', wrong, refused: t.refused, backspaces: t.backspaces, seconds: t.started ? ((performance.now() - t.started) / 1000).toFixed(1) : '-'});
+  S.trial = null;
+  $('results').hidden = false;
+  $('results').querySelector('tbody').innerHTML = S.runs.map((r, i) => `<tr><td>${i + 1}</td><td>${r.box}</td><td>${r.short}</td><td>${r.wrong}</td><td>${r.refused}</td><td>${r.backspaces}</td><td>${r.seconds}</td></tr>`).join('');
+}
+
+setup({event: '60m', places: [1043, 1088]});
+drawCases();
+</script>
