@@ -108,7 +108,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[race.event.id]);
       }
       await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)} as ${raceLabel({...race,number})}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
-      return {status:'saved',newRaceId:id,...await readEventResults(client,current.dayId,race.event.code)};
+      return {status:'saved',newRaceId:id,newRaceNumber:number,...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
 
