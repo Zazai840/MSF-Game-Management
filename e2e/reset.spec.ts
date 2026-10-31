@@ -1,9 +1,9 @@
-import {ownName,back,expect,join,leadMenuButton,openLeadMenu,test,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,back,expect,join,leadMenuButton,lookProblems,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/');await openLeadMenu(page,'Day setup');
-  await expect(page.getByRole('button',{name:/^Events \d+ events · /})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
 }
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const welcomeBack=(page:Page)=>expect(page.getByRole('heading',{level:1,name:'Someone else? Join'})).toBeVisible({timeout:10000});
@@ -25,8 +25,14 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     await sheet.getByRole('button',{name:'60m',exact:true}).click();await sheet.getByRole('button',{name:'Boy Beavers',exact:true}).click();await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
     await expect(other.getByRole('heading',{level:1,name:'60m · Boy Beavers'})).toBeVisible();
     await asOwner(page);await exportDay(page);
-    await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
-    await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Events \d+ events · not confirmed yet$/})).toBeVisible();
+    // A change after the export: Start a new day is refused until the latest changes are in a day export.
+    await ownEvent(page.request,await ownCode(),'Reset sprint','Girl Cubs','timed');
+    await page.getByLabel('Type NEW DAY to confirm').fill('NEW DAY');await page.getByRole('button',{name:'Start a new day',exact:true}).click();
+    await expect(page.getByRole('region',{name:'Start a new day'}).getByRole('alert')).toHaveText('Download a day export after the last change before starting a new day');
+    expect(await lookProblems(page)).toEqual([]);
+    await exportDay(page);
+    const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
+    await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
     const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();expect(fresh.olympicsPassword).toBe(process.env.E2E_OLYMPICS_PASSWORD);expect(fresh.leadCode).not.toBe(process.env.E2E_LEAD_CODE);
     await expect(page.getByText(fresh.olympicsPassword,{exact:true})).toBeVisible();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('fresh-day.png')});

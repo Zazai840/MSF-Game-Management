@@ -7,7 +7,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it ba
 
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);await page.reload();
   await openLeadMenu(page,'Day setup');
-  await page.getByRole('button',{name:/^Phones \d+ (person|people) signed in today$/}).click();
+  await page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/}).click();
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   const self=page.getByRole('article',{name:'E2E Owner',exact:true});
   await expect(self).toContainText('(you)');await expect(self).toContainText('Lead · Owner');await expect(self.getByRole('button')).toHaveCount(0);
@@ -27,7 +27,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it ba
   await expect(leadMenuButton(other)).toBeVisible({timeout:10000});
   // As a lead it sees the owner's row, which offers Remove but never Make volunteer.
   await openLeadMenu(other,'Day setup');
-  await other.getByRole('button',{name:/^Phones \d+ (person|people) signed in today$/}).click();
+  await other.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/}).click();
   const ownerRow=other.getByRole('article',{name:'E2E Owner',exact:true});
   await expect(ownerRow).toContainText('Lead · Owner');await expect(ownerRow.getByRole('button')).toHaveText(['Remove']);
   await other.goto('/');await expect(leadMenuButton(other)).toBeVisible();

@@ -43,10 +43,10 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await expect(page.getByRole('region',{name:'Event list'})).toHaveText('Event list confirmed');
     await page.screenshot({path:info.outputPath('day-programme.png'),fullPage:true});
     await back(page,'Day setup');
-    await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
+    await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
     // A reload stays on Day setup.
     await page.reload();
-    await expect(page.getByRole('button',{name:/^Events \d+ events · checked and confirmed$/})).toBeVisible();
+    await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
     await page.getByRole('button',{name:/^Events /}).click();
     await expect(page.getByText('Event list confirmed',{exact:true})).toBeVisible();
   } finally {
