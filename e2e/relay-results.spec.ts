@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -10,11 +10,11 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   const token=await signInThroughApi(request,ownName('To check relay volunteer'));
   await writeTeam(request,token,cubs,[cub(1),borrowed,cub(2),cub(3)],{keptWarnings:[borrowed]});
   await writeTeam(request,token,cubs,[cub(4),cub(5),cub(6),shared]);
-  await writeTeam(request,token,cubs,[cub(8),cub(9),cub(10),cub(11)]);
+  await writeTeam(request,token,cubs,[cub(8),cub(9),cub(10),null]);
   await writeTeam(request,token,cubs,[cub(12),cub(13),cub(14),cub(15)]);
   await writeTeam(request,token,scouts,[scout(1),shared,scout(2),scout(3)],{keptWarnings:[shared]});
-  // Teams 1 to 3 are checked in, Team 3 with one child not marked here; Team 4 crosses the line unchecked.
-  for(const team of [1,2,3]) {await tickTeam(request,token,cubs,team);for(let leg=1;leg<=(team===3?3:4);leg++) await markHere(request,token,cubs,team,leg);}
+  // Teams 1 to 3 are checked in, Team 3 running short with three children; Team 4 crosses the line unchecked.
+  for(const team of [1,2,3]) await tickTeam(request,token,cubs,team);
   await writeTeamOrder(request,token,cubs,[1,2,3],{addedTeams:[4]});await writeTimes(request,token,cubs,[1400,1500,1600,1700]);await submitRace(request,token,cubs);
 
   const {page}=await openPhone(ownName('To check relay lead'),{lead:true});

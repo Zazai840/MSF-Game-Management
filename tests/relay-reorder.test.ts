@@ -31,19 +31,17 @@ const legsOf=(race:Pick<RaceRead,'parts'>,number:number)=>teamOf(race,number).le
 const drop=(token:string,read:RaceFlowRead,number:number,legs:Array<number|null>)=>
   call(token,`/api/relays/${read.group.event.id}/teams/${team(read,number).id}`,{version:team(read,number).version,legs,keptWarnings:[],raceId:read.race.id});
 
-test('a drop on a heat writes the race and the team list, Here following each child, a short team\'s empty leg moving, and Runners staying done',async()=>{
+test('a drop on a heat writes the race and the team list, every child still checked in, a short team\'s empty leg moving, and Runners staying done',async()=>{
   const {sam,relays}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,null]);
-  await relays.tick(sam,'R22',1);
-  await relays.here(sam,'R22',1,0);
-  const seen=await relays.here(sam,'R22',1,2);
+  const seen=await relays.tick(sam,'R22',1);
   const done=await ok(sam,`/api/races/${seen.race.id}/steps/runners/done`,{});
   expect(done.steps.runners!.state).toBe('done');
   // The empty 4th leg is dragged to 2nd: 2102 and 2103 move down a leg.
   const dropped=await drop(sam,done,1,[2101,null,2102,2103]);
   expect(dropped.statusCode).toBe(200);
   const read=dropped.json() as RaceFlowRead;
-  expect(legsOf(read.race,1)).toEqual([[2101,true],[null,false],[2102,false],[2103,true]]);
+  expect(legsOf(read.race,1)).toEqual([[2101,true],[null,false],[2102,true],[2103,true]]);
   expect(team(read,1)).toMatchObject({version:team(done,1).version+1,legs:[{wristband:2101},{wristband:null},{wristband:2102},{wristband:2103}]});
   expect(read.steps.runners!.state).toBe('done');
 });

@@ -73,11 +73,11 @@ A lead bringing the next-ranked heat runner or relay team (7th, then 8th) into a
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
-Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay heat, anyone on the start line adds the teams that run from those still to run and marks each child here.
+Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay heat, anyone on the start line puts in the teams that run; every child of a team in the heat is checked in, with no Here per child.
 _Avoid_: Registration, sign-in, line-up, tick
 
 **Take off**:
-Taking a relay team back out of a heat at check-in, while none of its children is marked here. The team is still to run again.
+Taking a relay team back out of a heat at check-in. The team is still to run again.
 _Avoid_: Untick, remove, drop
 
 **Relay team**:

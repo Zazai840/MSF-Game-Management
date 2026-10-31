@@ -32,15 +32,13 @@ export function relayFlowSetup(app:FastifyInstance) {
     post<RacesRead>(token,`/api/relays/${(await group(token,code)).event.id}/teams`,{legs,keptWarnings:legs.filter(leg=>leg!==null)});
   /** The relay's team list, as the races list carries it. */
   const teams=async(token:string,code:string)=>(await group(token,code)).teams!;
-  /** A Start line tap on Team `number`: tick, take-off or here. */
-  async function tap(token:string,code:string,what:'tick'|'take-off'|'here',number:number,body:object={}) {
+  /** A Start line tap on Team `number`: tick or take-off. */
+  async function tap(token:string,code:string,what:'tick'|'take-off',number:number,body:object={}) {
     const read=await worked(token,code),teamId=read.teams!.find(item=>item.number===number)!.id;
     return post<RaceFlowRead>(token,`/api/races/${read.race.id}/teams/${teamId}/${what}`,body);
   }
   const tick=(token:string,code:string,number:number)=>tap(token,code,'tick',number);
   const takeOff=(token:string,code:string,number:number)=>tap(token,code,'take-off',number);
-  /** Marks the child on leg `leg` (0 for the 1st) of Team `number` here, or not here. */
-  const here=(token:string,code:string,number:number,leg:number,isHere=true)=>tap(token,code,'here',number,{leg,here:isHere});
   /** A final's Here / Absent: every seeded team Here but the `absent` ones (by number). */
   async function attend(token:string,code:string,absent:number[]=[]) {
     const read=await worked(token,code),entries=read.race.final!.entries;
@@ -65,5 +63,5 @@ export function relayFlowSetup(app:FastifyInstance) {
     if(read.race.state!=='saved') throw new Error(`${code} ${read.race.kind} ${read.race.number} did not save`);
     return read;
   }
-  return {team,race,worked,teams,tick,takeOff,here,attend,save,post};
+  return {team,race,worked,teams,tick,takeOff,attend,save,post};
 }

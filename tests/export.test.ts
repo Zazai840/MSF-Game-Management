@@ -121,7 +121,6 @@ test('day export recomputes two-relay warnings from the current switched-on team
  const {owner,volunteer,lead}=await start(),relays=relayFlowSetup(app);
  await relays.team(volunteer,'R22',[2101,2102,2103,2104]);
  await relays.tick(volunteer,'R22',1);
- for(let leg=0;leg<4;leg++) await relays.here(volunteer,'R22',1,leg);
  await relays.save(volunteer,'R22',[1],[1400]);
  // The second team list changes after the heat; its warning was never stored on the race's copy.
  await relays.team(volunteer,'R28',[4101,2101,4103,4104]);

@@ -17,12 +17,9 @@ async function start() {
   await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
-  /** Ticks the relay's teams in, marks the children here (all four unless `here` says how many of a team's), then saves the heat in that order. */
-  async function heat(code:string,placed:number[],here:Record<number,number>={}) {
-    for(const number of placed) {
-      await relays.tick(sam,code,number);
-      for(let leg=0;leg<(here[number]??4);leg++) await relays.here(sam,code,number,leg);
-    }
+  /** Adds the relay's teams in, every child checked in, then saves the heat in that order. */
+  async function heat(code:string,placed:number[]) {
+    for(const number of placed) await relays.tick(sam,code,number);
     await relays.save(sam,code,placed,placed.map((_,index)=>1400+index*100));
   }
   /** To check as the lead reads it: each item of the relay's event in To check's words, newest first. */
@@ -46,12 +43,12 @@ test('a kept wrong-Section number in a team that ran is a To check item naming t
 
 test('a team that ran with fewer than four children marked here is a To check item, cleared by Mark checked or by Disqualify',async()=>{
   const {sam,lead,relays,heat,toCheck}=await start();
-  for(const number of [1,2,3]) await relays.team(sam,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
-  await heat('R22',[1,2,3],{2:3,3:0});
+  for(const [number,children] of [[1,4],[2,3],[3,1]]) await relays.team(sam,'R22',[1,2,3,4].map(leg=>leg<=children?2000+number*100+leg:null));
+  await heat('R22',[1,2,3]);
   const items=await toCheck();
   expect(items.map(({kind,title,explanation})=>({kind,title,explanation})).sort((a,b)=>a.explanation.localeCompare(b.explanation))).toEqual([
     {kind:'ran-short',title:'A team ran short',explanation:'Team 2 ran with 3 of 4 children marked here.'},
-    {kind:'ran-short',title:'A team ran short',explanation:'Team 3 ran with 0 of 4 children marked here.'}
+    {kind:'ran-short',title:'A team ran short',explanation:'Team 3 ran with 1 of 4 children marked here.'}
   ]);
   const [team2,team3]=['Team 2','Team 3'].map(name=>items.find(item=>item.explanation.startsWith(name))!);
   expect((await call(lead,`/api/lead/races/${team2.raceId}/runners/${team2.entryId}/mark-warning-checked`,{})).statusCode).toBe(200);
@@ -64,7 +61,6 @@ test('a team added at the finish is a To check item cleared by Mark addition che
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
   await relays.team(sam,'R22',[1045,2202,2203,2204]);
   await relays.tick(sam,'R22',1);
-  for(const leg of [0,1,2,3]) await relays.here(sam,'R22',1,leg);
   // Team 2 was never checked in: the order adds it with "Add team".
   const read=(await relays.race(sam,'R22'))!,raceId=read.race.id,url=(what:string)=>`/api/races/${raceId}/${what}`;
   const team1=read.race.parts.runners.value!.find(entry=>isTeamEntry(entry) && entry.team.number===1)!.id;

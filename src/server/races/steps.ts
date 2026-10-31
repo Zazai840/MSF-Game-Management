@@ -139,7 +139,7 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
 function addedAtFinish(teams:readonly RelayTeam[],teamId:string,me:string):TeamEntry {
   const team=teams.find(item=>item.id===teamId);
   if(!team) throw new Refusal(404,'Team not found');
-  return joiningTeam(team,{here:true,addedAtFinish:true,me});
+  return joiningTeam(team,{addedAtFinish:true,me});
 }
 /**
  * Saves a race whose steps are all done once nothing blocks it (finishers and times agree), with history naming who
