@@ -76,7 +76,9 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Events /}).click();await onScreen(page,'/day/events','Events','Day setup');
   await bothGoBack(page,day);
-  await page.getByRole('button',{name:/^Phones /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
+  await page.getByRole('button',{name:'Change Olympics password',exact:true}).click();await onScreen(page,'/day/olympics-password','Change Olympics password','Day setup');
+  await bothGoBack(page,day);
+  await page.getByRole('button',{name:/^Signed in today /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   expect(await lookProblems(page)).toEqual([]);
   // The job chip opens the job sheet on a lead screen too.
   await press(page.getByRole('banner').getByRole('button',{name:'Your job: Zone lead. Change job',exact:true}));
@@ -100,4 +102,6 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await page.goto('/day/signed-in-today');await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
   await press(arrow(page));await onRaces(page);
+  await page.goto('/day/olympics-password');await onScreen(page,'/day/olympics-password','Change Olympics password','Day setup');
+  await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
 });

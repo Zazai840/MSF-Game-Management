@@ -9,7 +9,7 @@ export type EventTab=typeof eventTabs[number];
  * parentOf, then render it in App with a LeadBar naming it.
  */
 export type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'results'}|{kind:'event';code:string;tab:EventTab}
-  |{kind:'race-page';code:string;raceId:string}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'};
+  |{kind:'race-page';code:string;raceId:string}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'};
 const part=encodeURIComponent;
 /** The screen an address opens; an address the app does not know opens Races. */
 export function viewAt(path:string):View {
@@ -26,6 +26,7 @@ export function viewAt(path:string):View {
     if(!rest.length) return {kind:'day'};
     if(rest.length===1 && a==='signed-in-today') return {kind:'signed-in-today'};
     if(rest.length===1 && a==='events') return {kind:'events'};
+    if(rest.length===1 && a==='olympics-password') return {kind:'olympics-password'};
   }
   return {kind:'races'};
 }
@@ -39,6 +40,7 @@ export function addressOf(view:View):string {
     case 'day': return '/day';
     case 'signed-in-today': return '/day/signed-in-today';
     case 'events': return '/day/events';
+    case 'olympics-password': return '/day/olympics-password';
   }
 }
 /** Where the back arrow goes on a screen reached with no history (a reload of a typed address): one level up. */
@@ -46,7 +48,7 @@ export function parentOf(view:View):View {
   switch(view.kind) {
     case 'race-page': return {kind:'event',code:view.code,tab:'races'};
     case 'event': return {kind:'results'};
-    case 'signed-in-today': case 'events': return {kind:'day'};
+    case 'signed-in-today': case 'events': case 'olympics-password': return {kind:'day'};
     default: return {kind:'races'};
   }
 }

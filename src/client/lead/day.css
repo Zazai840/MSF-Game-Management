@@ -1,4 +1,4 @@
-/* Day setup, Phones and Events (leads). Tokens and button classes from theme.css. */
+/* Signed in today and Events (leads); Day setup is in the design system. Tokens and button classes from theme.css. */
 .day-setup {display:flex; flex-direction:column; gap:12px; margin-top:4px;}
 .day-setup p {margin:0;}
 .day-card {display:flex; flex-direction:column; gap:8px; padding:16px; background:var(--surface); border-radius:var(--radius-box); overflow-wrap:anywhere;}
@@ -6,34 +6,14 @@
 .day-card-title {font-size:17px; font-weight:800; color:var(--navy);}
 .day-card-off {background:var(--idle-fill);}
 .day-card-off h3 {color:var(--idle-text);}
-.day-label {font-size:var(--text-small); font-weight:800; color:var(--muted);}
-.day-card .code {line-height:1.15;}
 .day-text {font-size:var(--text-small); font-weight:600; color:var(--text); line-height:1.35;}
-.day-note {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
 .day-intro {font-size:var(--text-small); font-weight:600; color:var(--muted); line-height:1.35;}
 .day-not-saved {font-size:var(--text-small); font-weight:800; color:var(--amber-text);}
 .day-card .button-small {align-self:flex-start;}
 .day-actions {display:flex; flex-wrap:wrap; gap:10px;}
-.day-confirm {display:grid; gap:1rem;}
 .day-events {display:grid; gap:12px;}
-
-/* Phones and Events as rows that open their screens. */
-.day-rows {display:flex; flex-direction:column; gap:4px;}
-.day-row {
-  display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:52px; padding:6px 0; text-align:left;
-  padding:8px 16px; background:var(--surface); border:0; border-radius:var(--radius-box); color:var(--text);
-}
-.day-row-text {display:flex; flex-direction:column; min-width:0;}
-.day-row-title {font-size:16px; font-weight:800; color:var(--navy);}
-.day-row-sub {font-size:var(--text-small); font-weight:600; color:var(--muted);}
-.day-row-chevron {flex:none; color:var(--faint);}
 
 .day-setup select {font:inherit; font-size:18px; font-weight:700; width:100%; min-height:var(--tap-primary); padding:.7rem 14px; border:2px solid var(--navy); border-radius:var(--radius-box); background:var(--surface); color:var(--text);}
 
-/* Start a new day: typed confirmation, the red outline button, then its one-line caption. */
-.day-reset {display:flex; flex-direction:column; gap:8px; margin-top:12px;}
-.day-reset form {gap:10px;}
-.day-reset .button-danger {min-height:50px; font-size:16px;}
-.day-reset .day-note {text-align:center;}
 .day-audit summary {min-height:var(--tap); display:flex; align-items:center; font-size:var(--text-small); font-weight:800; color:var(--navy); cursor:pointer;}
 .day-audit ol {margin:0; padding-left:1.2rem; font-size:var(--text-small); font-weight:600; color:var(--muted);}

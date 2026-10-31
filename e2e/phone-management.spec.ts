@@ -1,13 +1,13 @@
-import {ownName,join,leadMenuButton,lookProblems,press,expect,expectToast,test} from './fixtures.js';
+import {ownName,join,leadMenuButton,openLeadMenu,lookProblems,press,expect,expectToast,test} from './fixtures.js';
 test('Signed in today: Make lead reaches the other phone, and Remove asks first, then sends it back to Join with its profile kept',async({page,browser},info)=>{
   const name=ownName('Signed lead');
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
   await other.goto('/');await join(other,name,{job:'Start line'});
   await expect(other.getByRole('navigation',{name:'Event type'})).toBeVisible();await expect(leadMenuButton(other)).toHaveCount(0);
 
-  // Day setup's row opens this address (its own ticket); here the screen is opened at its address.
-  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
-  await page.goto('/day/signed-in-today');
+  await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);await page.reload();
+  await openLeadMenu(page,'Day setup');
+  await page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/}).click();
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
   await expect(page.getByText('Role changes last for today only.',{exact:true})).toBeVisible();
@@ -31,7 +31,8 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   // The other phone's Home picks up today's new role on its next refresh.
   await expect(leadMenuButton(other)).toBeVisible({timeout:10000});
   // As a lead it sees the owner's row, which offers Remove but never Make volunteer.
-  await other.goto('/day/signed-in-today');
+  await openLeadMenu(other,'Day setup');
+  await other.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/}).click();
   const ownerRow=other.getByRole('article',{name:'E2E Owner',exact:true});
   await expect(ownerRow).toContainText('Lead · Owner');await expect(ownerRow.getByRole('button')).toHaveText(['Remove']);
   await other.goto('/');await expect(leadMenuButton(other)).toBeVisible();
