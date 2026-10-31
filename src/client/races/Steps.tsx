@@ -7,7 +7,6 @@ import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../.
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint,timeRefusal } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
-import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { phoneStorage } from '../api.js';
 import { NumberBox } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
@@ -359,7 +358,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
           {isWrong && <span className="rz-slot__note">{keptWrong.includes(index)?'Kept':wrong.get(index)!.reason}</span>}
         </button></li>;
       })}</ol>:<p className="rz-empty">Places appear here once {words.placesWhen}.</p>}
-      {held && <Callout message={`${wrongTimesBanner([unkept!])} Fix it, or keep it if the timer really shows that.`}
+      {held && <Callout message={`${unkept!.banner} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button>
           <button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button></>}/>}
       {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held || !!refusal} onChange={setTyped} onEnter={()=>void next()}

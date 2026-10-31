@@ -74,7 +74,7 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
   const [accepted,setAccepted]=useState(false),[comment,setComment]=useState('');
   const places=digits.map(value=>value===null?null:parseTimeDigits(value)),outOfOrder=timesOutOfOrder(places),invalid=digits.some(value=>value!==null && parseTimeDigits(value)===null);
   const mismatch=raceRecording({...race,parts:{...race.parts,times:invalid?race.parts.times:{version:baseVersion,value:{places,outOfOrder}}}}).countMismatch;
-  const wrong=wrongTimesByPlace(places);
+  const wrong=wrongTimesByPlace(places,race.event.name);
   /** Times left beyond the runners (say, after a runner was removed) must be cleared with No finisher; only the runners' places are saved. */
   const runnerCount=race.parts.runners.value?.length||0,leftover=places.slice(runnerCount).some(time=>time!==null);
   function change(index:number,value:string|null) {setAccepted(false);setRefusal(null);setDigits(previous=>previous.map((old,at)=>at===index?value:old));}

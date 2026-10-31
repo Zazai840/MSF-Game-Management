@@ -71,7 +71,7 @@ const kept=(entry:RaceEntry)=>isTeamEntry(entry)?entry.legs.some(leg=>leg.warnin
 export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;onEdit?:()=>void}) {
   const {race}=read,relay=race.event.relay,runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
   const finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
-  const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places).map(time=>time.index));
+  const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places,race.event.name).map(time=>time.index));
   return <>
     <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'places and times joined up':step==='positions'?'the finishing order':`${relay?entryCount(runners.length,true):runners.length} checked in`}</p>
     {step==='runners' && (runners.length?<ul className="rz-chips" aria-label="Checked in">{runners.map(runner=><li key={runner.id}><span className={['rz-chip',kept(runner) && 'rz-chip--warn',relay && 'rz-chip--team'].filter(Boolean).join(' ')}>{entryName(runner)}<TeamLegs entry={runner}/></span></li>)}</ul>

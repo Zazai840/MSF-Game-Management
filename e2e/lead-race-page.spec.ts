@@ -82,6 +82,18 @@ test('Correct times refuses a time no one can run in the amber callout under the
   await expect(saved(page)).toBeVisible();
 });
 
+test('a slow time the timer kept shows in amber with its reason on the race page and in Correct times, as on the Timer',async({page},info)=>{
+  // 45.00 is slower than 1.5 m/s for 60m (over 40.00).
+  const code=await ownCode(),race=await recordedRace(page,code,[2121,2122],[1200,4500],undefined,'60m slow page');
+  await openRace(page,code,ownName('Slow time lead'),race.number);
+  const slow=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2122'});
+  await expect(slow).toContainText('Slow for 60m slow page');expect(await background(slow)).toBe(amber);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-slow-time.png'),fullPage:true});
+  await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  const row=page.getByRole('dialog').getByRole('button',{name:'2nd place · 45.00 · Slow for 60m slow page',exact:true});
+  expect(await background(row)).toBe(amber);
+});
+
 test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[5141,3141,2141,3142],[1300,1310,1320,1330],[5141,3141,3142]);
   const lead=ownName('Warning lead');

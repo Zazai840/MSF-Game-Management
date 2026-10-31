@@ -109,6 +109,17 @@ test('a lead\'s card counts issues by race and kind, the Times tab marks only th
   await expect(record).toHaveText([/^1st\s*2002/,/^2nd\s*3045/,/^3rd\s*2001/,/^4th\s*4046/,/^No place\s*2003/]);
 });
 
+test('a lead\'s Times tab marks a kept slow time amber, as the Timer does',async({openPhone,request})=>{
+  // The distance comes from the event name: 45.00 is slow for 60m (over 40.00).
+  const name=`60m ${ownName('Lead slow')}`,code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,owner(),code,[2001,2002],[1200,4500]);
+  const {page}=await openPhone(ownName('Lead slow'),{lead:true});
+  await openRace(page,name);
+  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
+  await expect(page.getByRole('list',{name:'Times'}).locator('.rz-lead-row--warn')).toHaveText([/^2nd\s*2002\s*45\.00/]);
+});
+
 test('an issue settled elsewhere opens in Results, and the race actions open over the race',async({openPhone,request},info)=>{
   const name=ownName('Lead results'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
