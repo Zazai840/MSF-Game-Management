@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,selected,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -41,8 +41,13 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
   const input=sheet.getByLabel('2nd place time',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
   await expect(input).toBeFocused();
-  await input.pressSequentially('12.2-0');await expect(input).toHaveValue('1220');
-  await expect(sheet.getByText('Shows as 12.20',{exact:true})).toBeVisible();
+  // The same time box as the Timer: the time itself, filling from the right, selected so typing replaces it.
+  await expect(input).toHaveValue('11.00');await expect.poll(()=>selected(page,'2nd place time')).toBe('11.00');
+  await expect(sheet.getByText('Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.',{exact:true})).toBeVisible();
+  await expect(sheet.getByText(/Shows as|Digits only/)).toHaveCount(0);await expect(input).not.toHaveAttribute('placeholder');
+  await input.pressSequentially('12.2-0');await expect(input).toHaveValue('12.20');
+  await input.press('3');await input.press('Backspace');await expect(input).toHaveValue('12.20');
+  await expect(input).toMatchAriaSnapshot('- textbox "2nd place time": "12.20"');
   await page.screenshot({path:info.outputPath('times-editor-typing.png'),fullPage:false});
   await input.press('Enter');
   await expect(sheet.getByRole('button',{name:'2nd place · 12.20',exact:true})).toBeVisible();

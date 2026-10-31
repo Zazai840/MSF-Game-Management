@@ -7,6 +7,7 @@ async function raceWaitingForTimes(request:APIRequestContext,code:string,name:st
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await writeCheckIn(request,await signInThroughApi(request,`Start ${name}`),code,[2601,2602,2603,2604,2605]);
 }
+const hint='Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.';
 const savedTimes=async(request:APIRequestContext,code:string)=>(await flowRace(request,process.env.E2E_OWNER_TOKEN!,code)).race.parts.times.value;
 
 test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one stays marked, and a retyped place clears it',async({openPhone,request},info)=>{
@@ -20,14 +21,14 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await expect(page.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(5);
   const input=page.getByLabel('Place time',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
-  await expect(page.getByText('Type digits only: 1234 shows as 12.34.',{exact:true})).toBeVisible();
-  await input.click();await input.pressSequentially('12.44');await expect(input).toHaveValue('1244');
-  await expect(page.locator('.rz-field__hint')).toHaveText('Shows as 12.44. Type digits only.');
+  await expect(page.locator('.rz-field__hint')).toHaveText(hint);
+  await input.click();await input.pressSequentially('12.44');await expect(input).toHaveValue('12.44');
+  await expect(page.locator('.rz-field__hint')).toHaveText(hint);
   await input.press('Enter');await expect(input).toBeFocused();await expect(input).toHaveValue('');
   await expect(page.getByRole('heading',{level:2,name:'2nd place time?'})).toBeVisible();
   await enterTime(page,'1281');await enterTime(page,'1305');
   await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
-  await input.fill('13240');await expect(page.locator('.rz-field__hint')).toHaveText('Shows as 1:32.40. Type digits only.');
+  await input.fill('13240');await expect(input).toHaveValue('1:32.40');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer.png'),fullPage:true});
   // The 4th place time is faster than 3rd: Fix time or Keep, with the keyboard closed.
   await input.fill('1290');await input.press('Enter');
@@ -41,15 +42,15 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await input.click();
   await expect(warning).toHaveCount(0);
   await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
-  await expect(input).toBeFocused();await expect(input).toHaveValue('1290');
-  await expect.poll(()=>selected(page,'Place time')).toBe('1290');
+  await expect(input).toBeFocused();await expect(input).toHaveValue('12.90');
+  await expect.poll(()=>selected(page,'Place time')).toBe('12.90');
   await input.press('Enter');
   await expect(warning).toBeVisible();
   // Fix time does the same: the time stays, selected, so typing replaces it.
   await warning.getByRole('button',{name:'Fix time',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'4th place time?'})).toBeVisible();
-  await expect(input).toBeFocused();await expect(input).toHaveValue('1290');
-  await expect.poll(()=>selected(page,'Place time')).toBe('1290');
+  await expect(input).toBeFocused();await expect(input).toHaveValue('12.90');
+  await expect.poll(()=>selected(page,'Place time')).toBe('12.90');
   await input.pressSequentially('1290');await input.press('Enter');
   await warning.getByRole('button',{name:'Keep',exact:true}).click();
   // Kept: it stays marked, its note says Kept, and the next place is up.
@@ -61,7 +62,7 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   // Retype 3rd so it is faster than 2nd: the warning asks again about that place.
   await slot(page,'3rd place: 13.05').click();
   await expect(page.getByRole('heading',{level:2,name:'3rd place time?'})).toBeVisible();
-  await expect(input).toHaveValue('1305');await input.fill('1250');
+  await expect(input).toHaveValue('13.05');await input.fill('1250');
   await input.press('Enter');
   const third=page.getByRole('alert').filter({hasText:'The 3rd place time is faster than 2nd.'});
   await expect(third).toBeVisible();
@@ -80,6 +81,37 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   await enterTime(page,'1400');
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await deleteCurrentRace(request,code);
+});
+
+test('the time box shows the time itself, filling from the right as digits are typed: backspace takes off the last digit, and the point key, letters and a 7th digit do nothing',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('Times box');
+  await raceWaitingForTimes(request,code,name);
+  const {page}=await openPhone(ownName('Time box'),{job:'timer'});
+  await openRace(page,name);
+  const input=page.getByLabel('Place time',{exact:true});
+  // The number pad: digits only.
+  await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('pattern','[0-9]*');
+  await expect(input).toHaveValue('');await expect(page.locator('.rz-field__hint')).toHaveText(hint);
+  await input.click();
+  for(const [key,shown] of [['1','0.01'],['2','0.12'],['3','1.23'],['4','12.34']]) {await input.press(key);await expect(input).toHaveValue(shown);}
+  // The time is in the box itself, so there is no separate line, and a screen reader reads the time.
+  await expect(page.getByText(/Shows as/)).toHaveCount(0);
+  await expect(input).toMatchAriaSnapshot('- textbox "Place time": "12.34"');
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('time-box-typing.png'),fullPage:true});
+  for(const key of ['.',',','a','-']) {await input.press(key);await expect(input).toHaveValue('12.34');}
+  await input.press('5');await input.press('6');await expect(input).toHaveValue('12:34.56');
+  await input.press('7');await expect(input).toHaveValue('12:34.56');
+  await input.press('Backspace');await expect(input).toHaveValue('1:23.45');
+  await input.press('Backspace');await expect(input).toHaveValue('12.34');
+  // A keyboard that deletes the character before the cursor itself, at the end of the box, takes off the last digit too.
+  await input.evaluate((box:HTMLInputElement)=>{box.setSelectionRange(box.value.length,box.value.length);box.setRangeText('',box.value.length-1,box.value.length,'end');box.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'deleteContentBackward'}));});
+  await expect(input).toHaveValue('1.23');
+  for(const shown of ['0.12','0.01','']) {await input.press('Backspace');await expect(input).toHaveValue(shown);}
+  await expect(page.locator('.rz-footer').getByRole('button',{name:'Next',exact:true})).toHaveAttribute('aria-disabled','true');
+  await input.pressSequentially('1244');await input.press('Enter');
+  await expect(page.getByRole('heading',{level:2,name:'2nd place time?'})).toBeVisible();await expect(input).toHaveValue('');
+  await expect.poll(async()=>(await savedTimes(request,code))!.places).toEqual([1244]);
   await deleteCurrentRace(request,code);
 });
 
@@ -121,7 +153,7 @@ test('on a 12-runner heat the slots are 4 across, and a wrong time\'s warning, F
   await deleteCurrentRace(request,code);
 });
 
-test('tapping a time while typing retypes that place, then the next place is up again; Back steps to the last time; No more finishers marks Times done',async({openPhone,request})=>{
+test('tapping a time while typing retypes that place, selected so typing replaces it, then the next place is up again; Previous place steps to the place before; No more finishers marks Times done',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Times chip');
   await raceWaitingForTimes(request,code,name);
   const {page}=await openPhone(ownName('Chip retype'),{job:'timer'});
@@ -131,14 +163,22 @@ test('tapping a time while typing retypes that place, then the next place is up 
   await input.fill('13');
   await slot(page,'1st place: 11.00').click();
   await expect(page.getByRole('heading',{level:2,name:'1st place time?'})).toBeVisible();
-  await expect(input).toHaveValue('1100');
+  await expect(input).toHaveValue('11.00');await expect.poll(()=>selected(page,'Place time')).toBe('11.00');
+  await input.press('1');await expect(input).toHaveValue('0.01');
   await input.fill('1050');await input.press('Enter');
   await expect(page.getByRole('heading',{level:2,name:'3rd place time?'})).toBeVisible();
   await expect(slot(page,'1st place: 10.50')).toBeVisible();
-  // Back steps to the last time typed, to retype it.
-  await page.getByRole('button',{name:'Back',exact:true}).click();
+  // Previous place steps to the place before, to retype it, and again to the one before that.
+  await expect(page.getByRole('button',{name:'Back',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Previous place',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'2nd place time?'})).toBeVisible();
-  await expect(input).toHaveValue('1200');
+  await expect(input).toHaveValue('12.00');
+  await page.getByRole('button',{name:'Previous place',exact:true}).click();
+  await expect(page.getByRole('heading',{level:2,name:'1st place time?'})).toBeVisible();
+  await expect(input).toHaveValue('10.50');
+  // There is no place before the 1st.
+  await expect(page.getByRole('button',{name:'Previous place',exact:true})).toHaveAttribute('aria-disabled','true');
+  await slot(page,'2nd place: 12.00').click();await expect(input).toHaveValue('12.00');
   await input.fill('1210');await input.press('Enter');
   await expect.poll(async()=>(await savedTimes(request,code))!.places).toEqual([1050,1210]);
   // Two of five finished: No more finishers marks Times done.
