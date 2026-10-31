@@ -203,7 +203,7 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 }
 .rz-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
 .rz-sheet__close { flex: none; width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); }
-.rz-sheet fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
+.rz-sheet fieldset, .rz-main fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
 .rz-choices { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .rz-choices--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rz-choice { min-height: var(--size-touch); display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); padding: 0 var(--space-14); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); font-family: var(--font-body); font-size: 15px; font-weight: 800; }
@@ -308,6 +308,10 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 /* Day setup's cards: a long password wraps rather than running off the card; a form, a warning or a block button spans it. */
 .rz-codecard__value { max-width: 100%; overflow-wrap: anywhere; }
 .rz-codecard > .rz-callout, .rz-codecard__form { align-self: stretch; }
+/* This day: each field's choices share its row equally, their words centred; the row spans the card. */
+.rz-codecard fieldset { align-self: stretch; }
+.rz-choices--row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.rz-choices--row .rz-choice { justify-content: center; padding: 0 var(--space-8); }
 /* Start a new day: the red outline marks the one card that clears the day; drawn inside, so its text lines up with the other cards'. */
 .rz-codecard--danger { outline: 2px solid var(--red-ink); outline-offset: -2px; }
 .rz-old { font-family: var(--font-body); }

@@ -1,5 +1,5 @@
 import { useId,useState,type FormEvent,type ReactNode } from 'react';
-import { eventTypeNames, sections, type DayRead } from '../../shared/day.js';
+import { dayNumbers, eventTypeNames, regions, sections, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
 import { api,apiDownload,ApiFailure,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { Callout,DockedFooter,ErrorCallout,failureLine,Icon,LeadBar,Sheet } from '../races/parts.js';
@@ -38,6 +38,39 @@ function CodeCard({label,code,text,children}:{label:string;code:string;text:stri
     <p className="rz-codecard__value">{code}</p>
     <p className="rz-codecard__text">{text}</p>
     {children}
+  </section>;
+}
+
+/**
+ * This day labels the day for the scoring team: Year, Region and Day, each a row of choices saved on tap with its
+ * toast. Any lead can change it at any time; Region and Day start empty, and the day export waits for both.
+ */
+function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+  const toast=useToast();
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<unknown>(null);
+  async function save(field:keyof ThisDayRead,value:string|number) {
+    if(busy || day[field]===value) return;
+    setBusy(true);setError(null);
+    try {
+      await api('day/this-day',{[field]:value});
+      const name=({year:'Year',region:'Region',dayNumber:'Day'} as const)[field];
+      toast({message:toastLine({kind:'this-day',field:name,value:field==='dayNumber'?`Day ${value}`:String(value)})});onSaved();await onChanged();
+    } catch(error) {setError(error);}
+    finally {setBusy(false);}
+  }
+  const choices=(field:keyof ThisDayRead,legend:string,values:ReadonlyArray<string|number>)=><fieldset>
+    <legend className="rz-field__label">{legend}</legend>
+    <div className="rz-choices rz-choices--row">{values.map(value=><button key={value} type="button" className="rz-choice" aria-pressed={day[field]===value} onClick={()=>void save(field,value)}>{value}</button>)}</div>
+  </fieldset>;
+  const id=useId();
+  return <section className="rz-codecard" aria-labelledby={id}>
+    <h2 className="rz-codecard__label" id={id}>This day</h2>
+    {choices('year','Year',thisDayYears(new Date()))}
+    {choices('region','Region',regions)}
+    {choices('dayNumber','Day',dayNumbers)}
+    {error!==null && <ErrorCallout error={error} action="save"/>}
+    <p className="rz-codecard__text">Goes on the Day export. Any lead can change it.</p>
   </section>;
 }
 
@@ -120,7 +153,7 @@ function NewDay() {
 }
 
 /**
- * Day setup's cards, in the spec's order: (This day comes first, with #272), the Olympics password, the lead code, rows
+ * Day setup's cards, in the spec's order: This day, the Olympics password, the lead code, rows
  * opening Signed in today and Events, the day export and Start a new day.
  */
 export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(view:View)=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
@@ -130,6 +163,7 @@ export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:nu
     {label:'Events',meta:`${events} ${events===1?'event':'events'}`,view:{kind:'events'}}
   ];
   return <>
+    <ThisDay day={day} onChanged={onChanged} onSaved={onSaved}/>
     <CodeCard label="Olympics password" code={day.olympicsPassword} text="Volunteers type this once on their phone. It stays the same when a new day starts.">
       <button type="button" className="rz-btn rz-btn--small" onClick={()=>onOpen({kind:'olympics-password'})}>Change Olympics password</button>
     </CodeCard>
