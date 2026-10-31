@@ -69,12 +69,13 @@ interface OpenSheet { id:string; path:string; close:()=>void }
 const sheets:OpenSheet[]=[];
 // `leaving`: a closed sheet's entry, to come off once this commit is done unless a sheet opened in its place takes it.
 // `taken`: a sheet entry a screen move took over, which its sheet leaves alone. `ignore`: Backs the app made itself.
-let leaving:string|null=null,taken:string|null=null,ignore=0;
+let leaving:string|null=null,taken:string|null=null,ignore=0,opened=0;
 const entryOfSheet=()=>(history.state as {sheet?:string}|null)?.sheet;
 export function useSheetEntry(onClose:()=>void) {
   const close=useRef(onClose);close.current=onClose;
   useEffect(()=>{
-    const sheet={id:crypto.randomUUID(),path:location.pathname,close:()=>close.current()};
+    // A count, not crypto.randomUUID: Safari 15.0-15.3 has none. Unique enough across reloads with the time in it.
+    const sheet={id:`${Date.now()}-${++opened}`,path:location.pathname,close:()=>close.current()};
     if(leaving && entryOfSheet()===leaving) {leaving=null;history.replaceState({...history.state,sheet:sheet.id},'');}
     else history.pushState({...history.state,sheet:sheet.id},'');
     sheets.push(sheet);
