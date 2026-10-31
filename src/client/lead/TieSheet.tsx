@@ -9,9 +9,12 @@ import type { Stage } from '../../shared/stages.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { SortableList } from '../flow/SortableList.js';
 import { formatTime } from '../../shared/time-entry.js';
+import { toastLine } from '../../shared/toast-lines.js';
+import { useToast } from '../races/Toast.js';
+import type { DayEvent } from '../../shared/day.js';
 import './ties.css';
 /** `stage` is the check sheet the tie was opened from: Results without a final judges it against medal places. */
-export function TieSheet({code,tie,stage,onSaved,onClose}:{code:string;tie:ResultTie;stage?:Stage;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
+export function TieSheet({event,tie,stage,onSaved,onClose}:{event:DayEvent;tie:ResultTie;stage?:Stage;onSaved:(next:EventResultsRead)=>void;onClose:()=>void}) {
   const commentId=useId();
   const [outcome,setOutcome]=useState<TieOutcome|null>(null);
   const [order,setOrder]=useState(tie.entries);
@@ -19,10 +22,12 @@ export function TieSheet({code,tie,stage,onSaved,onClose}:{code:string;tie:Resul
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
   const [who,one]=tie.entries.some(entry=>entry.team)?['teams','team']:['runners','runner'];
-  async function save(event:FormEvent) {
-    event.preventDefault();if(!outcome || saving) return;setSaving(true);setError('');
+  const toast=useToast();
+  async function save(submit:FormEvent) {
+    submit.preventDefault();if(!outcome || saving) return;setSaving(true);setError('');
     try {
-      onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/settle-tie`,{tieId:tie.id,stage,outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})}));
+      onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(event.code)}/settle-tie`,{tieId:tie.id,stage,outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})}));
+      toast({message:toastLine({kind:'tie-saved',event})});
     } catch(error) {setError(error instanceof Error?error.message:'Could not save - try again');}
     finally {setSaving(false);}
   }

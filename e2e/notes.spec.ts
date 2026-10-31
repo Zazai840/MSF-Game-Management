@@ -26,7 +26,7 @@ test('a lead reads a kept wristband warning in the child\'s Notes, checks it wit
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('notes-checked.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Close actions',exact:true}).click();
   // Back up one level, to the event's Results.
-  await page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button').click();
+  await page.getByRole('banner').getByRole('button',{name:/^Back to /}).click();
   const row=page.getByRole('button',{name:`Runner 6000 · Heat ${race.number}`,exact:true});
   await expect(row.locator('.checked-warning')).toHaveText(`Checked by ${lead}: 6000 is not a known wristband number`);
   await expect(row.locator('.note-tag')).toHaveText('note');

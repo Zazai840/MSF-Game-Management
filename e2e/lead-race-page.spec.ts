@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,join,openLeadMenu,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -16,7 +16,6 @@ async function openRace(page:Page,code:string,name:string,number:number) {
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
 }
-const saved=(page:Page)=>page.getByRole('status').filter({hasText:'Saved'});
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 
 test('the race page highlights a wrong time in amber with its reason, and the times editor retypes it on the phone number pad',async({page},info)=>{
@@ -48,7 +47,7 @@ test('the race page highlights a wrong time in amber with its reason, and the ti
   await expect(sheet.getByRole('button',{name:'2nd place · 12.20',exact:true})).toBeVisible();
   await expect(sheet.getByLabel('Accept these out-of-order times',{exact:true})).toHaveCount(0);
   await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expect(saved(page)).toBeVisible();
+  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
   await expect(second).toContainText('12.20');await expect(second).not.toContainText('Faster');
   expect(await background(second)).not.toBe(amber);
 });
@@ -100,7 +99,7 @@ test('a lead corrects a number on the phone number pad: digits only, Enter check
   await input.fill('2115');await sheet.getByRole('button',{name:'Check number',exact:true}).click();
   await expect(sheet.getByText('Change 2112 to',{exact:false})).toBeVisible();
   await sheet.getByRole('button',{name:'Save correction',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expect(saved(page)).toBeVisible();
+  await expectToast(page,`Number saved · 2115 in Heat ${race.number}`);
   await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
   // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
   await page.getByText('Saved versions (4)',{exact:true}).click();
@@ -133,7 +132,7 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
   await expect(sheet.getByRole('heading',{name:'7 runners. Is that right?',exact:true})).toBeVisible();
   await sheet.getByLabel('New runners did not finish',{exact:true}).check();
   await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expect(saved(page)).toBeVisible();
+  await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);
   await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2127'})).toHaveText(/^2nd\s*2127\s*13\.10$/);
 });
 
@@ -152,7 +151,7 @@ test('a race not saved yet shows In progress on the lead race page, with the cor
   await page.getByRole('button',{name:'Disqualify',exact:true}).click();
   await page.getByLabel('Reason',{exact:true}).selectOption({index:1});
   await page.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(saved(page)).toBeVisible();
+  await expectToast(page,/^2132 disqualified · .+$/);
   await page.getByRole('button',{name:'Delete race',exact:true}).click();
   await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();

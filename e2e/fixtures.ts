@@ -86,11 +86,11 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
   return (await created.json()).token as string;
 }
 /**
- * Taps the back arrow under the header, one level at a time, until it has gone back to the named screen
+ * Taps the back arrow in the header, one screen at a time, until it has gone back to the named screen
  * (the arrow's label says "Back to <to>"), for example back(page,'Results'). Wait for the screen to settle first.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button');
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
     await expect(arrow).toBeVisible();
     const label=(await arrow.getAttribute('aria-label'))!;
@@ -390,6 +390,17 @@ export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
   await nextBeside(page,'Place time').click();
 }
+/**
+ * The toast after a lead save: just its line, with no Undo (Undo is only for a race step) and no "Saved" pill anywhere.
+ * Returns the toast, for a look check while it shows.
+ */
+export async function expectToast(page:Page,line:string|RegExp) {
+  const toast=page.getByRole('status').filter({hasText:line});
+  await expect(toast).toHaveText(line);
+  await expect(toast.getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('Saved',{exact:true})).toHaveCount(0);
+  return toast;
+}
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
@@ -500,7 +511,7 @@ export async function lookProblems(page:Page) {
     for(const menu of document.querySelectorAll('[role=menu]')) {
       if(!visible(menu)) continue;
       const area=menu.getBoundingClientRect();
-      for(const avatar of document.querySelectorAll('.rz-avatar,.app-header-person')) {
+      for(const avatar of document.querySelectorAll('.rz-avatar')) {
         const box=avatar.getBoundingClientRect();
         if(visible(avatar)&&area.left<box.right&&area.right>box.left&&area.top<box.bottom&&area.bottom>box.top) problems.push(`menu covers ${describe(avatar)}`);
       }

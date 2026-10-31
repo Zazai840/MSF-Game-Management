@@ -10,6 +10,8 @@ import { resultNotes } from '../../shared/result-notes.js';
 import { resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
 import { resultLabel } from './ResultName.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
+import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
+import { useToast } from '../races/Toast.js';
 const openAddition=(flag:ResultFlag)=>flag.kind==='added-at-finish' && !flag.checked;
 /** The row's Notes (see resultNotes), or nothing when there are none. */
 function Notes({row}:{row:LeaderboardRow}) {
@@ -28,15 +30,17 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
   const [counted,setCounted]=useState(`${row.raceId}:${row.entryId}`);
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
+  const toast=useToast(),who=resultName(row);
   const checking=row.flags.filter(action==='check-added'?openAddition:isOpenEligibilityWarning);
   const choices=rows.filter(other=>resultHolder(other)===resultHolder(row) && !other.disqualification && other.race.kind!=='final');
-  async function command(command:string,body:unknown,target=row) {
+  /** `saved` names the save for the toast. */
+  async function command(command:string,body:unknown,saved:ToastSave,target=row) {
     if(saving) return;setSaving(true);setError('');
-    try {onSaved(await api<EventResultsRead>(`lead/races/${target.raceId}/runners/${target.entryId}/${command}`,body));}
+    try {const answer=await api<EventResultsRead>(`lead/races/${target.raceId}/runners/${target.entryId}/${command}`,body);toast({message:toastLine(saved)});onSaved(answer);}
     catch(error) {setError(error instanceof Error?error.message:'Could not save - try again');}
     finally {setSaving(false);}
   }
-  function save(event:React.FormEvent) {event.preventDefault();void command(action==='lift'?'lift-disqualification':'disqualify',{reason,comment});}
+  function save(event:React.FormEvent) {event.preventDefault();void command(action==='lift'?'lift-disqualification':'disqualify',{reason,comment},action==='lift'?{kind:'counts-again',who}:{kind:'disqualified',who,reason});}
   return <ActionSheet title={`Actions for ${resultName(row)}`} busy={saving} focusKey={action} onClose={onClose}>
     <h3>{resultLabel(row)}</h3>{error && <p role="alert">{error}</p>}
     {action==='choose' && <Notes row={row}/>}
@@ -46,11 +50,11 @@ export function RunnerActions({row,rows,eventCode,onSaved,onClose}:RunnerActions
       <button disabled={saving} onClick={()=>setAction('correct')}>Correct number</button>
       {!row.disqualification && choices.length>1 && <button disabled={saving} onClick={()=>setAction('count')}>Choose which result counts</button>}
       <button disabled={saving} className="button-secondary" onClick={onClose}>Close actions</button>
-    </div>:action==='correct'?<RunnerNumber row={row} eventCode={eventCode} onSaved={onSaved} onClose={onClose} onBusyChange={setSaving}/>:action==='count'?<form onSubmit={event=>{event.preventDefault();const target=choices.find(other=>`${other.raceId}:${other.entryId}`===counted);if(target) void command('count-result',{},target);}}>
+    </div>:action==='correct'?<RunnerNumber row={row} eventCode={eventCode} onSaved={onSaved} onClose={onClose} onBusyChange={setSaving}/>:action==='count'?<form onSubmit={event=>{event.preventDefault();const target=choices.find(other=>`${other.raceId}:${other.entryId}`===counted);if(target) void command('count-result',{},{kind:'result-counts',who,race:target.race},target);}}>
       <p>Choose the result that counts for {resultName(row)}. Other results stay visible as not counted.</p>
       {choices.map(other=><label className="count-choice" key={`${other.raceId}:${other.entryId}`}><input type="radio" name="counted-result" value={`${other.raceId}:${other.entryId}`} checked={counted===`${other.raceId}:${other.entryId}`} onChange={event=>setCounted(event.target.value)} disabled={saving} aria-label={`Count ${raceLabel(other.race)}`}/>{raceLabel(other.race)} · {other.recordingPending?'Not recorded yet':other.time===null?'Did not finish':formatTime(other.time)}{other.notCounted?' · Not counted':''}</label>)}
       <button disabled={saving}>{saving?'Saving…':'Save counted result'}</button><button type="button" className="button-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-    </form>:action==='check-warning' || action==='check-added'?<form onSubmit={event=>{event.preventDefault();void command(action==='check-added'?'mark-added-checked':'mark-warning-checked',{comment});}}>
+    </form>:action==='check-warning' || action==='check-added'?<form onSubmit={event=>{event.preventDefault();void command(action==='check-added'?'mark-added-checked':'mark-warning-checked',{comment},{kind:action==='check-added'?'addition-checked':'warning-checked',who});}}>
       {action==='check-added'?<p>Check {resultName(row)} ran in this race:</p>:<p>Check {checking.length===1?'this warning':'these warnings'} for {resultName(row)}:</p>}
       <div className="warning-box">{checking.map((flag,index)=><p key={index}>{flag.message}</p>)}</div>
       <label htmlFor={commentId}>Note (optional)</label><textarea id={commentId} value={comment} onChange={event=>setComment(event.target.value)} maxLength={1000} disabled={saving}/>

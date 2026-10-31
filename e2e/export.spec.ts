@@ -1,4 +1,4 @@
-import {ownName,ownWristbands,ownCode,openLeadMenu,becomeLead,expect,join,test,back,ownRelay,signInThroughApi,writeTeam,tickTeam,markFinalHere,writeTeamOrder,writeTimes,submitRace} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,openLeadMenu,becomeLead,expect,expectToast,join,test,back,ownRelay,signInThroughApi,writeTeam,tickTeam,markFinalHere,writeTeamOrder,writeTimes,submitRace} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 import readExcelFile from 'read-excel-file/node';
 test('A lead downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
@@ -10,8 +10,8 @@ test('A lead downloads the whole day workbook and sees when its export needs ref
  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Download day export',exact:true}).click();const download=await downloadPromise;expect(download.suggestedFilename()).toMatch(/^msf-running-.*\.xlsx$/);const path=info.outputPath('day-export.xlsx');await download.saveAs(path);
  const sheets=await readExcelFile(path);expect(sheets.map(sheet=>sheet.sheet)).toEqual(['Input - Running','Finals','All results','Audit notes']);const status=page.getByRole('region',{name:'Day export'});await expect(status).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
  await page.screenshot({path:info.outputPath('day-export-phone.png'),fullPage:false});
- await page.getByRole('button',{name:/^Events /}).click();await page.getByRole('button',{name:'Rename R6',exact:true}).click();await page.getByLabel('New name for R6',{exact:true}).fill(ownName('60m export'));await page.getByRole('button',{name:'Save name for R6',exact:true}).click();await expect(page.locator('.dashboard-saved')).toHaveText('Saved');await back(page,'Day setup');await expect(status).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
- await page.reload();await openLeadMenu(page,'Day setup');await expect(status).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
+ await page.getByRole('button',{name:/^Events /}).click();await page.getByRole('button',{name:'Rename R6',exact:true}).click();await page.getByLabel('New name for R6',{exact:true}).fill(ownName('60m export'));await page.getByRole('button',{name:'Save name for R6',exact:true}).click();await expectToast(page,`Name saved · R6 ${ownName('60m export')}`);await back(page,'Day setup');await expect(status).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
+ await page.reload();await expect(page).toHaveURL(/\/day$/);await expect(status).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
  } finally {await page.request.post('/api/day/events/R6/rename',{headers:headers(),data:{name:original}});}
 });
 test('a lead from the lead code has the Day download and its direct export request is accepted',async({page,request})=>{

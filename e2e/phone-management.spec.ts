@@ -1,4 +1,4 @@
-import {ownName,join,leadMenuButton,openLeadMenu,lookProblems,expect,test} from './fixtures.js';
+import {ownName,join,leadMenuButton,openLeadMenu,lookProblems,expect,expectToast,test} from './fixtures.js';
 test('Signed in today: Make lead reaches the other phone, and Remove sends it back to Join with its profile kept',async({page,browser},info)=>{
   const name=ownName('Signed lead');
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
@@ -17,7 +17,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it ba
   expect(await lookProblems(page)).toEqual([]);
 
   await row.getByRole('button',{name:'Make lead',exact:true}).click();
-  await expect(page.locator('.dashboard-saved')).toHaveText('Saved');
+  await expectToast(page,`${name} is a lead now · today only`);
   await expect(row.getByText('Lead',{exact:true})).toBeVisible();
   await expect(row.getByRole('button')).toHaveText(['Make volunteer','Remove']);
   await page.getByText('Phone and access audit notes',{exact:true}).click();
@@ -33,7 +33,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove sends it ba
   await other.goto('/');await expect(leadMenuButton(other)).toBeVisible();
 
   await row.getByRole('button',{name:'Remove',exact:true}).click();
-  await expect(row).toHaveCount(0);await expect(page.locator('.dashboard-saved')).toHaveText('Saved');
+  await expect(row).toHaveCount(0);await expectToast(page,`${name} removed · signed out`);
   await expect(page.getByText(`Removed ${name} · E2E Owner`)).toBeVisible();
   await expect(other.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible({timeout:10000});
   expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual(['msf:profiles']);

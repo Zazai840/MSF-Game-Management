@@ -3,6 +3,8 @@ import { canMakeRole, type PhonesRead } from '../../shared/phones.js';
 import type { Level } from '../../shared/domain.js';
 import { api } from '../api.js';
 import { clock } from '../../shared/clock.js';
+import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
+import { useToast } from '../races/Toast.js';
 /** The role buttons a row offers, in screen order. */
 const makeRole:Record<Level,string>={Lead:'Make lead',Volunteer:'Make volunteer'};
 const roles=Object.keys(makeRole) as Level[];
@@ -12,14 +14,15 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [failed,setFailed]=useState(false);
+  const toast=useToast();
   async function refresh() {
     try {setData(await api('day/phones'));setError('');}
     catch(error) {setError(error instanceof Error?error.message:'Could not connect');}
   }
   useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[]);
-  async function save(path:string,body:unknown) {
+  async function save(path:string,body:unknown,saved:ToastSave) {
     setBusy(true);setError('');setFailed(false);
-    try {await api(path,body);onSaved();await Promise.all([refresh(),onChanged()]);}
+    try {await api(path,body);toast({message:toastLine(saved)});onSaved();await Promise.all([refresh(),onChanged()]);}
     catch(error) {setError(error instanceof Error?error.message:'Could not connect');setFailed(true);}
     finally {setBusy(false);}
   }
@@ -32,8 +35,8 @@ export function Phones({onChanged,onSaved}:{onChanged:()=>Promise<void>;onSaved:
       {phone.id!==data.selfId && <div className="day-actions">
         {/* Skipping the role it already has, and Make volunteer for the owner. */}
         {roles.filter(role=>role!==phone.level && canMakeRole(phone,role)).map(role=>
-          <button key={role} className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/role`,{role})}>{makeRole[role]}</button>)}
-        <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{})}>Remove</button>
+          <button key={role} className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/role`,{role},{kind:'role',name:phone.name,role})}>{makeRole[role]}</button>)}
+        <button className="button-secondary button-small" disabled={busy} onClick={()=>void save(`day/phones/${phone.id}/remove`,{},{kind:'removed',name:phone.name})}>Remove</button>
       </div>}
     </article>)}</div>
     {!!data?.auditNotes.length && <details className="day-card day-audit"><summary>Phone and access audit notes</summary><ol>{data.auditNotes.map(note=><li key={note.id}>{note.message} · {note.actor} · <time dateTime={note.at}>{clock(note.at)}</time></li>)}</ol></details>}

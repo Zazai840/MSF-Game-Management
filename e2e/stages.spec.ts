@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,join,test,type Locator} from './fixtures.js';
+import {ownName,ownEvent,ownCode,backToRaces,deleteCurrentRace,live,openRace,recordRace,back,openLeadMenu,becomeLead,expect,expectToast,join,test,type Locator} from './fixtures.js';
 /** The left border of one section of a stage check sheet, found by its heading: its style and colour, or none. */
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
@@ -23,13 +23,14 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   // Amber marks only a list that holds something to settle or look at.
   await expect.poll(()=>sheetSectionFill(blocked,'Must settle first')).toBe('rgb(255, 244, 220)');
   await page.screenshot({path:info.outputPath('must-settle-first.png'),fullPage:true});
-  await blocked.getByRole('button',{name:'Heat 2 is in progress (1 checked in) - finish its steps or delete it',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Heat 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await back(page,`${name} Girl Cubs`);await page.getByRole('button',{name:'Event complete',exact:true}).click();
+  await blocked.getByRole('button',{name:'Heat 2 is in progress (1 checked in) - finish its steps or delete it',exact:true}).click();await expect(page.getByRole('heading',{name:new RegExp(`^Heat 2 · Stage event`)})).toBeVisible();await page.getByRole('button',{name:'Delete race',exact:true}).click();await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await back(page,`${name} · Girl Cubs`);await page.getByRole('button',{name:'Event complete',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'Event complete',exact:true});await expect(sheet.getByRole('heading',{name:'Must settle first',exact:true})).toBeVisible();await expect(sheet).toContainText('Nothing to settle');await expect.poll(()=>sheetSectionFill(sheet,'Must settle first')).toBe('none');await expect(sheet).toContainText('No open warnings');await expect.poll(()=>sheetSectionFill(sheet,'Worth a look')).toBe('none');await expect(sheet).toContainText('2601');await expect(sheet).toContainText('2602');
   // The volunteer's Heat 2 is gone; they open the saved Heat 1.
   await expect(job.getByText('A lead deleted Heat 2',{exact:true})).toBeVisible(live);
   await backToRaces(job);await openRace(job,name);
   await expect(job.getByRole('status').filter({hasText:'Heat 1 is saved. Ask a lead to change it.'})).toBeVisible();
   await page.screenshot({path:info.outputPath('event-complete-sheet.png'),fullPage:true});await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expectToast(page,`Medals confirmed · ${name} Girl Cubs`);
   await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(`${code}`);await expect(page.getByRole('table',{name:'Input - Running'})).toContainText('2601');
   await page.screenshot({path:info.outputPath('completed-event.png'),fullPage:true});
   // The volunteer's race locks live, and the event offers no new heat.
@@ -39,6 +40,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await page.getByRole('button',{name:'Reopen event',exact:true}).click();const reopen=page.getByRole('dialog',{name:'Reopen event',exact:true});await reopen.getByRole('button',{name:'Reopen',exact:true}).click();await expect(reopen.getByLabel('Comment',{exact:true})).toBeFocused();await reopen.getByLabel('Comment',{exact:true}).fill('Late time correction');
   let failed=false;await page.route('**/api/lead/events/*/reopen-stage',async route=>{if(!failed){failed=true;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Could not save - try again'})});}else await route.continue();});
   await reopen.getByRole('button',{name:'Reopen',exact:true}).click();await expect(reopen.getByRole('alert')).toContainText('Could not save');await expect(reopen.getByLabel('Comment',{exact:true})).toHaveValue('Late time correction');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expectToast(page,`Event reopened · ${name} Girl Cubs`);
   // Reopened, the race is saved again rather than locked, and the event offers its next heat.
   await expect(job.getByRole('status').filter({hasText:'Girl Cubs heats are finished. Ask a lead to change this race.'})).toHaveCount(0,live);
   await expect(job.getByRole('button',{name:'Add heat 3',exact:true})).toBeVisible();

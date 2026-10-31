@@ -1,8 +1,10 @@
-import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
+import { createContext,useContext,useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 import { entryCount } from '../../shared/teams.js';
+import { ApiFailure } from '../api-failure.js';
+import { entryBack,useScreenName } from '../shell/addresses.js';
 /** The design system's line icons (components/Icon/README.md). */
 const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
@@ -36,9 +38,9 @@ export const roleIcons:Record<Role,IconName>={start:'flag',finish:'list',timer:'
 /** What each job does, on Join and in the role sheet. */
 export const roleDescriptions:Record<Role,string>={start:'Type wristband numbers before the start',finish:'Tap runners as they cross the line',timer:'Type times from the stopwatch',lead:'See and fix every step. Needs the lead code.'};
 /** The screen root: the design system's tokens apply only inside it. A test build shows its commit and Report a bug over every screen. */
-export function Screen({screen,fill=true,wide=false,children}:{screen:string;fill?:boolean;wide?:boolean;children:ReactNode}) {
+export function Screen({screen,fill=true,wide=false,bar=false,children}:{screen:string;fill?:boolean;wide?:boolean;bar?:boolean;children:ReactNode}) {
   const testBuild=useTestBuild();
-  return <div className={['rz-screen rz-zone-running rz-app',fill?'':'rz-app--top',wide?'rz-app--wide':''].filter(Boolean).join(' ')}>
+  return <div className={['rz-screen rz-zone-running rz-app',fill?'':'rz-app--top',wide?'rz-app--wide':'',bar?'rz-app--bar':''].filter(Boolean).join(' ')}>
     {testBuild && <div className="rz-testbuild"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
     {children}
   </div>;
@@ -69,6 +71,26 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
       <h1>{title}</h1><CodeTag code={code} role={role}/></div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
+}
+/** What every lead screen's header needs from the app: today's job (and its sheet) and where Back goes. */
+export const LeadFrame=createContext<{role:Role;onRole:()=>void;onBack:()=>void}|null>(null);
+/**
+ * The lead header, on every lead screen: the race screen's compact bar with a back arrow naming, in gold above the
+ * title, the screen it returns to: the one the lead came from, else `up` (the natural parent, for a screen reached
+ * with no history). Then the title (an event as "200m · Boy Cubs" with its code tag), the job chip and `children`
+ * ("⋯" on a race page). It also names the screen, so a screen opened from here names it on its own back arrow.
+ */
+export function LeadBar({title,code,up,children}:{title:string;code?:string;up:string;children?:ReactNode}) {
+  const frame=useContext(LeadFrame)!,back=entryBack()??up;
+  useScreenName(title);
+  // shortcut: not wide yet, so the bar lines up with the older-look body below; wide once the bodies move (spec #250).
+  return <Screen screen={title} bar><header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
+    <div className="rz-appbar__start">
+      <button type="button" className="rz-appbar__back" aria-label={`Back to ${back}`} onClick={frame.onBack}><Icon name="chevron-left" className="rz-icon--bold"/><span>{back}</span></button>
+      <div className="rz-appbar__race"><h1>{title}</h1>{code && <span className="rz-code-tag">{code}</span>}</div>
+    </div>
+    <div className="rz-appbar__end" style={{gap:2}}><RoleChip role={frame.role} onOpen={frame.onRole}/>{children}</div>
+  </header></Screen>;
 }
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
@@ -182,3 +204,18 @@ export function DockedFooter({children}:{children:ReactNode}) {
   },[]);
   return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
 }
+/** "Updated at 10:42:05" with Refresh, on Races and every lead screen. */
+export function UpdatedAt({time,onRefresh}:{time:string;onRefresh:()=>void}) {
+  return <p className="rz-refresh" aria-live="polite">Updated at {time||'…'} <button className="rz-btn rz-btn--small" type="button" onClick={onRefresh}>Refresh</button></p>;
+}
+/**
+ * The words for a request that failed: "Could not connect - try again" when it did not get through (or a read was
+ * refused), "Not saved - try again" when the server refused a save, then the server's reason when it gives one.
+ */
+export function failureLine(error:unknown,action:'read'|'save') {
+  if(!(error instanceof ApiFailure)) return 'Could not connect - try again';
+  const line=action==='save'?'Not saved - try again':'Could not connect - try again';
+  return error.message?`${line}. ${error.message}`:line;
+}
+/** The amber error callout with its warning icon, for a request that failed. */
+export const ErrorCallout=({error,action}:{error:unknown;action:'read'|'save'})=><Callout message={failureLine(error,action)}/>;

@@ -63,6 +63,19 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-appbar__race h1 { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; white-space: nowrap; }
 .rz-appbar__race .rz-code-tag { margin-left: var(--space-6); }
 .rz-appbar .rz-backlink { min-width: var(--size-touch); justify-content: center; color: var(--on-navy); padding: 0 var(--space-6); border: 0; background: none; }
+/* The lead header: the back arrow names the screen it goes to in gold above the title. Its 44px target overlaps the
+   bar's padding and the title's line, so the bar stays compact. Until a lead screen's body moves into the design
+   system, the bar alone is the screen root (rz-app--bar) and the body below keeps the older look. */
+/* shortcut: the bar's gutter copies the older-look body's column (48rem, 16px then 24px padding) so the two line up; it
+   takes the wide Races column once the bodies move. */
+.rz-app--bar { min-height: 0; --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-16)); }
+@media (min-width: 800px) { .rz-app--bar { --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-24)); } }
+.rz-appbar--lead { padding-left: var(--gutter); }
+.rz-appbar__start { flex: 1; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.rz-appbar__start > * { max-width: 100%; }
+.rz-appbar__back { display: inline-flex; align-items: center; gap: var(--space-4); min-height: var(--size-touch); min-width: var(--size-touch); margin: calc(-1 * var(--space-10)) 0 calc(-1 * var(--space-12)) calc(-1 * var(--space-6)); padding: 0 var(--space-6) 0 0; border: 0; background: none; color: var(--gold); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 700; font-size: 16px; line-height: 1; text-transform: uppercase; }
+.rz-appbar__back .rz-icon { flex: none; width: 18px; height: 18px; }
+.rz-appbar__back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rz-iconbtn { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--on-navy); }
 .rz-avatar { border: 0; }
 .rz-testbuild { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); padding-top: var(--space-6); padding-bottom: var(--space-6); background: var(--warn-soft); font-size: 13px; line-height: 1.3; font-weight: 700; }
@@ -162,8 +175,11 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
 
 /* ---------- Toast ---------- */
-.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
+/* Above the lead's Race actions over the race (z-index 20), so a correction there shows its toast. */
+.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 21; display: flex; min-height: var(--size-touch); align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
 .rz-toast__msg { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.3; font-weight: 700; }
+/* A lead save's toast has no button: its line keeps the same space on the right as on the left. */
+.rz-toast__msg:only-child { padding-right: var(--space-8); }
 .rz-toast__msg .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); }
 .rz-toast button { min-height: var(--size-touch); padding: 0 var(--space-10); border: 0; background: none; color: var(--gold); font-size: 15px; font-weight: 800; white-space: nowrap; }
 

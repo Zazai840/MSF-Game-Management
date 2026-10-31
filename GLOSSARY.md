@@ -175,7 +175,7 @@ Anyone who typed today's lead code (or the owner password), trusted with everyth
 _Avoid_: Admin, organiser, superuser
 
 **Avatar menu**:
-What every avatar opens, and the name in the older-look header too: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+What every avatar opens: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
 
 **Log out**:

@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,join,test} from './fixtures.js';
+import {ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,test} from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=await ownCode();
@@ -78,7 +78,7 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
     await expect(rows.first()).toContainText('1st');
     await page.screenshot({path:info.outputPath('tie-sheet-dragged.png'),fullPage:false});
     await sheet.getByRole('button',{name:'Save tie',exact:true}).click();await expect(sheet).toHaveCount(0);
-    await expect(page.getByRole('status').filter({hasText:'Saved'})).toBeVisible();
+    await expectToast(page,`Tie saved · ${ownName('Tie heats')} Girl Cubs`);
     const ranked=board.getByRole('button',{name:/^Runner /});
     await expect(ranked.nth(0)).toContainText('2733');await expect(ranked.nth(1)).toContainText('2731');await expect(ranked.nth(2)).toContainText('2735');
     await expect(board.getByRole('button',{name:/^TIE at/})).toHaveCount(0);
