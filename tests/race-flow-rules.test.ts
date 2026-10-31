@@ -8,7 +8,7 @@ test('every run is named a heat, and an event has one final',()=>{
   expect(raceName({kind:'race',number:2})).toBe('Heat 2');
   expect(raceName({kind:'final',number:1})).toBe('Final');
 });
-test('Ready for you lists groups with a race my step can be worked on, oldest waiting first; the rest are in progress or done',()=>{
+test('Ready for you lists groups with a race my step can be worked on; the rest are in progress or done; each section in the day\'s programme',()=>{
   const checkedIn={runners:status('done'),positions:status('not started'),times:status('not started')};
   const empty={runners:status('not started'),positions:status('not started'),times:status('not started')};
   const placed={runners:status('done'),positions:status('done'),times:status('not started')};
@@ -24,12 +24,20 @@ test('Ready for you lists groups with a race my step can be worked on, oldest wa
     group('no races',[],'')
   ];
   const finishLine=raceSections(groups,'finish');
-  expect(finishLine.ready.map(item=>item.event.code)).toEqual(['older','newer']);
+  expect(finishLine.ready.map(item=>item.event.code)).toEqual(['newer','older']);
   // Nobody is checked in to "nobody yet", so the finish line has nothing to place there yet; every race saved is not done until the medals are decided.
-  expect(finishLine.inProgress.map(item=>item.event.code)).toEqual(['nobody yet','placed','every race saved','final next']);
+  expect(finishLine.inProgress.map(item=>item.event.code)).toEqual(['nobody yet','placed','final next','every race saved']);
   expect(finishLine.done.map(item=>item.event.code)).toEqual(['finished']);
   expect(raceSections(groups,'start').ready.map(item=>item.event.code)).toEqual(['nobody yet']);
-  expect(raceSections(groups,'timer').ready.map(item=>item.event.code)).toEqual(['placed','older','newer']);
+  expect(raceSections(groups,'timer').ready.map(item=>item.event.code)).toEqual(['newer','older','placed']);
+});
+test('a lead\'s sections follow the day\'s programme too, whichever group started waiting or changed last',()=>{
+  const saved={runners:status('done'),positions:status('done'),times:status('done')};
+  const waiting=(code:string,since:string)=>({...group(code,[race(code,'2026-06-01T09:00:00Z',saved,'saved')],since),medalsWaiting:{stage:'event',since}}) as RaceGroup;
+  const running=(code:string,updatedAt:string)=>group(code,[race(code,'2026-06-01T09:00:00Z',{runners:status('in progress'),positions:status('not started'),times:status('not started')})],updatedAt);
+  const sections=leadSections([waiting('60m','2026-06-01T09:00:00Z'),running('60m Hurdles','2026-06-01T09:00:00Z'),waiting('200m','2026-06-01T10:00:00Z'),running('400m','2026-06-01T10:00:00Z')],[]);
+  expect(sections.ready.map(item=>item.event.code)).toEqual(['60m','200m']);
+  expect(sections.inProgress.map(item=>item.event.code)).toEqual(['60m Hurdles','400m']);
 });
 test('a card says each race\'s state in my step, naming the final apart from the heats, and each chip says it too',()=>{
   const step=(state:StepStatus['state'])=>status(state);
