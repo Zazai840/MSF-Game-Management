@@ -45,5 +45,8 @@ export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='fi
 /** A race not saved yet, on a lead's race page and in a correction's refusal: it saves itself once its steps are done. */
 export const inProgressLine=(race:Pick<RaceRead,'kind'|'number'>)=>`${raceLabel(race)} is in progress - finish its steps on Races`;
 export const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
-/** How a lead sees a race deleted by a re-run: it can never be restored, so it names its replacement instead. */
-export const replacedByRerun=(race:Pick<RaceRead,'deleted'|'deleteReason'|'replacedBy'>)=>race.deleted && race.deleteReason==='re-run'?(race.replacedBy?`Replaced by ${race.replacedBy} (re-run)`:'Replaced by a re-run'):null;
+/**
+ * How a lead sees a race deleted by a re-run: it can never be restored. A re-run keeps its race's number, so it is
+ * named only when its number differs, as for a re-run an older build numbered.
+ */
+export const replacedByRerun=(race:Pick<RaceRead,'kind'|'number'|'deleted'|'deleteReason'|'replacedBy'>)=>race.deleted && race.deleteReason==='re-run'?(race.replacedBy && race.replacedBy!==raceLabel(race)?`Replaced by ${race.replacedBy} (re-run)`:'Replaced by a re-run'):null;

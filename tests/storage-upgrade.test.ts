@@ -132,7 +132,6 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
     teams:(await db.query('SELECT id,number,legs,removed,version,changed_by FROM relay_teams ORDER BY event_id,number')).rows,
     saved:(await db.query('SELECT r.state,r.saved_at,r.saved_by,p.part,p.version,p.value,p.done_at FROM races r JOIN race_parts p ON p.race_id=r.id WHERE r.id=$1 ORDER BY p.part',[saved.id])).rows,
     history:(await db.query('SELECT part,version,value,held_by,saved_at FROM race_part_history WHERE race_id=$1 ORDER BY part,version',[saved.id])).rows,
-    counters:(await db.query('SELECT * FROM race_counters ORDER BY event_id,kind')).rows,
     notes:(await db.query('SELECT id,message FROM audit_notes ORDER BY sequence_number')).rows,
   });
   // The old build: Heat 2 waiting on Submit presses (Sam has pressed), job holds on the relay including its teams
@@ -173,5 +172,38 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
     } finally {await db.end();}
     // The people on it carry on in the race flow, and it saves itself.
     expect((await relayFlowSetup(app).save(sam.token,'R22',[2,3],[1500,1600])).race).toMatchObject({id:waiting.id,state:'saved'});
+  } finally {await app.close();}
+});
+test('a day an older build numbered from its counter keeps every race; numbers are unique among live races only, and the next heat follows the live heats',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const owner=(await app.inject({method:'POST',url:'/api/owner-sign-in',payload:{password:'upgrade-owner',name:'Aisha',profiles:[]}})).json().token as string;
+  const heat1=await raceSetup(app).record(owner,'R4',[2001],[1200]),heat2=await raceSetup(app).checkIn(owner,'R4',[2002]);
+  expect((await app.inject({method:'POST',url:`/api/lead/races/${heat2.id}/delete`,headers:{authorization:`Bearer ${owner}`},payload:{permanent:false}})).statusCode).toBe(200);
+  await app.close();
+  // The older build: every row's number unique, taken from a per-event counter that only went up (here at Heat 2).
+  const races=async(db:pg.Client)=>(await db.query('SELECT id,kind,number,deleted FROM races ORDER BY number')).rows;
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  try {
+    await old.query('DROP INDEX live_race_number');
+    await old.query('ALTER TABLE races ADD CONSTRAINT races_event_id_kind_number_key UNIQUE(event_id,kind,number)');
+    await old.query('CREATE TABLE race_counters (event_id uuid NOT NULL REFERENCES events(id), kind text NOT NULL, last_number integer NOT NULL, PRIMARY KEY(event_id,kind))');
+    await old.query("INSERT INTO race_counters(event_id,kind,last_number) SELECT id,'heat',2 FROM events WHERE code='R4'");
+    expect(await races(old)).toEqual([{id:heat1.id,kind:'heat',number:1,deleted:false},{id:heat2.id,kind:'heat',number:2,deleted:true}]);
+  } finally {await old.end();}
+  // Started twice: the upgrade runs on every start.
+  await (await createApp({databaseUrl,ownerPassword:'upgrade-owner'})).close();
+  app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+  try {
+    expect((await raceSetup(app).screen(owner,'R4')).race).toMatchObject({id:null,number:2});
+    const db=new pg.Client({connectionString:databaseUrl});await db.connect();
+    try {
+      expect(await races(db)).toEqual([{id:heat1.id,kind:'heat',number:1,deleted:false},{id:heat2.id,kind:'heat',number:2,deleted:true}]);
+      expect((await db.query("SELECT to_regclass('race_counters') AS counters")).rows).toEqual([{counters:null}]);
+      // A deleted race may share its number with a live race or another deleted race; two live races never do.
+      const copy=(number:number,deleted:boolean)=>db.query('INSERT INTO races(id,day_id,event_id,kind,number,deleted) SELECT gen_random_uuid(),day_id,event_id,kind,$2,$3 FROM races WHERE id=$1',[heat1.id,number,deleted]);
+      await copy(1,true);await copy(2,true);
+      await expect(copy(1,false)).rejects.toThrow(/live_race_number/);
+    } finally {await db.end();}
   } finally {await app.close();}
 });

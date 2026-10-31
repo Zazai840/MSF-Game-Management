@@ -101,7 +101,7 @@ test('a saved or deleted race and a complete stage refuse every step\'s writes',
   const open=await ok(await checkIn(sam,await ok(await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:2})),[2002]));
   await call(owner,`/api/lead/races/${open.race.id}/delete`,{permanent:false});
   expect((await times(sam,open,{places:[]})).json().message).toBe('A lead deleted Heat 2');
-  const third=await ok(await checkIn(sam,await ok(await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:3})),[2003]));
+  const third=await ok(await checkIn(sam,await ok(await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:2})),[2003]));
   await call(owner,`/api/lead/races/${third.race.id}/delete`,{permanent:true});
   expect((await call(owner,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
   expect((await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:4})).json().message).toBe('Girl Cubs heats are finished. Ask a lead to add another heat.');

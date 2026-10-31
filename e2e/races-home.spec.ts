@@ -151,6 +151,27 @@ test('a New race the server refuses says why in the amber callout in the sheet, 
   await deleteCurrentRace(request,code);
 });
 
+test('deleting Heat 1 frees its number: the next heat is Heat 1 again and the chips show H1',async({openPhone,request},info)=>{
+  const name=ownName('Heat 1 again'),code=await ownCode(),owner=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(request,code,name);
+  const child=await ownWristbands('Girl Cubs',1),mistake=(await writeCheckIn(request,owner,code,[child(1)])).race;
+  const {page}=await openPhone(ownName('Heat 1 again volunteer'));
+  const chips=card(page,name).getByRole('button',{name:/^(Heat \d|Add heat)/});
+  await expect(chips).toHaveText(['H1','']);
+  expect((await request.post(`/api/lead/races/${mistake.id}/delete`,{headers:{authorization:`Bearer ${owner}`},data:{permanent:false}})).ok()).toBe(true);
+  await expect(chips).toHaveCount(0,live);
+  await page.getByRole('button',{name:'New race',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'New race'});
+  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
+  await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await expect(chips).toHaveText(['H1','']);
+  await expect(card(page,name).getByRole('button',{name:'Add heat 2',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('heat-1-again.png'),fullPage:true});
+  await deleteCurrentRace(request,code);
+});
 test('a heat someone made a moment before the tap opens theirs: two phones making the same next heat end up in one race',async({openPhone,request})=>{
   const name=ownName('Same heat'),code=await ownCode();
   await ownEvent(request,code,name);

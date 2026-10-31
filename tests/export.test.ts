@@ -102,7 +102,11 @@ test('final export preserves absent seeds, sourced callups, corrected numbers, t
  const all=sheets[2].data;expect(all.some(row=>row[3]==='Heat 1'&&row[4]===1066&&String(row[10]).includes('Q'))).toBe(true);expect(all.some(row=>row[3]==='Final 1'&&row[4]===1066)).toBe(false);expect(all.filter(row=>row[3]==='Final 1').every(row=>row[7]===null)).toBe(true);
  const finalRow=(number:number)=>all.find(row=>row[3]==='Final 1'&&row[4]===number)!;expect(finalRow(1050).slice(7,11)).toEqual([null,2,1,'1st']);expect(finalRow(1005).slice(7,11)).toEqual([null,3,2,'2nd']);expect(finalRow(1012).slice(7,11)).toEqual([null,4,3,'3rd']);expect(finalRow(1135).slice(7,11)).toEqual([null,1,null,'Disqualified: Two false starts']);expect(finalRow(1001).slice(7,11)).toEqual([null,null,null,'Did not finish']);
  expect((await call(lead,`/api/lead/races/${id}/re-run`,{comment:'Run final again'})).statusCode).toBe(200);
- sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);expect(sheets[0].data).toHaveLength(1);expect(sheets[1].data).toHaveLength(17);expect(sheets[1].data.filter(row=>row[3]==='Final 1').every(row=>String(row[9]).startsWith('Deleted race'))).toBe(true);expect(sheets[1].data.filter(row=>row[3]==='Final 2')).toHaveLength(8);expect(sheets[2].data.some(row=>row[3]==='Final 1'&&String(row[10]).includes('Deleted race'))).toBe(true);expect(sheets[2].data.find(row=>row[3]==='Final 1'&&row[4]===1050)?.slice(7,11)).toEqual([null,2,null,'Deleted race; Finished']);expect(sheets[1].data.find(row=>row[3]==='Final 1'&&row[5]===1050)?.[8]).toBe(1);
+ // The re-run keeps the final's number: the replaced final's rows say Deleted race.
+ sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);expect(sheets[0].data).toHaveLength(1);expect(sheets[1].data).toHaveLength(17);
+ const deletedFinal=(row:unknown[],column:number)=>row[3]==='Final 1'&&String(row[column]).startsWith('Deleted race');
+ expect(sheets[1].data.filter(row=>deletedFinal(row,9))).toHaveLength(8);expect(sheets[1].data.filter(row=>row[3]==='Final 1'&&!deletedFinal(row,9))).toHaveLength(8);
+ expect(sheets[2].data.find(row=>deletedFinal(row,10)&&row[4]===1050)?.slice(7,11)).toEqual([null,2,null,'Deleted race; Finished']);expect(sheets[1].data.find(row=>deletedFinal(row,9)&&row[5]===1050)?.[8]).toBe(1);
 });
 test('concurrent export and mutation never record a revision newer than the workbook snapshot',async()=>{
  const {owner,volunteer}=await start();await race(volunteer,'R7',[101]);const before=(await call(owner,'/api/day')).json();

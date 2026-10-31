@@ -12,7 +12,7 @@ import { readEvents } from '../day/events.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
-import { createRace } from './create.js';
+import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { jobRace,listRaces,raceChange,readRace,type Database,type StoredRace } from './records.js';
 import { markFinalistAbsent } from './final-field.js';
@@ -48,7 +48,6 @@ async function finalReason(db:Database,dayId:string,code:string,own:readonly Sto
 async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGroup[]> {
   const events=(await readEvents(db,true,dayId)).filter(event=>!only || event.id===only);
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
-  const counters=(await db.query("SELECT c.event_id,c.last_number FROM race_counters c JOIN events e ON e.id=c.event_id WHERE e.day_id=$1 AND c.kind<>'final'",[dayId])).rows;
   const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
   const teamLists=await readTeamLists(db,dayId),groups:RaceGroup[]=[];
   // One event at a time: a final's reason reads through the same client, which runs one query at a time.
@@ -58,7 +57,8 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
     const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
       && !stageDone(event.id,'heats',stages);
-    const last=counters.find(counter=>counter.event_id===event.id)?.last_number??0;
+    // The highest live heat: listRaces leaves deleted races out.
+    const last=Math.max(0,...own.filter(race=>race.kind!=='final').map(race=>race.number));
     const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
     const medalsDecided=stages.some(item=>item.eventId===event.id && ['event','final','no-final'].includes(item.stage));
@@ -171,8 +171,8 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(stageDone(event.id,stageForRace({kind:heatKind,event}),stages)) throw new Refusal(409,heatsFinishedLine({event}));
       const existing=own.find(race=>race.kind===heatKind && race.number===number);
       if(existing) {unchanged();return existing.id;}
-      const last=(await client.query('SELECT last_number FROM race_counters WHERE event_id=$1 AND kind=$2',[event.id,heatKind])).rows[0]?.last_number??0;
-      if(number!==last+1) throw new Refusal(409,`Heat ${last+1} is next`,{next:last+1});
+      const next=await nextNumber(client,event.id,heatKind);
+      if(number!==next) throw new Refusal(409,`Heat ${next} is next`,{next});
       return (await createRace(client,[],{dayId:phone.dayId,eventId:event.id,kind:heatKind,savedBy:phone.id})).id;
     });
   });
