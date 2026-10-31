@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {eventTab,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
@@ -8,6 +8,7 @@ const makeFinal=async(request:APIRequestContext,leadToken:string,code:string)=>(
 async function openFinalResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Scouts`)}).click();
+  await eventTab(page,'Final');
 }
 
 test('a lead\'s call-up shows live on a relay final\'s start line, and once the final saves itself the Final leaderboard lists each medal team\'s four children',async({openPhone,request},info)=>{

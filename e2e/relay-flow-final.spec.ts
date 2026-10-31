@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {eventTab,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
@@ -87,6 +87,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await boss.screenshot({path:info.outputPath('relay-final-complete-sheet.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
   await expect(sheet).toHaveCount(0);
+  await eventTab(boss,'Final');
   const board=boss.getByRole('list',{name:'Final leaderboard',exact:true});
   for(const team of [3,1,4,2]) await expect(board.getByRole('button',{name:`Team ${team} · ${legs(team)} · Final`,exact:true})).toBeVisible();
   expect(await lookProblems(boss)).toEqual([]);

@@ -1,5 +1,5 @@
 import { expect,test } from 'vitest';
-import { eventResults,type ResultsRace } from '../src/shared/results-rules.js';
+import { eventResults,ruleLine,type ResultsRace } from '../src/shared/results-rules.js';
 const event={code:'R4',name:'60m',section:'Girl Cubs' as const,format:'heats' as const};
 function race(id:string,numbers:number[],times:Array<number|null>,kind:'heat'|'race'='heat'):ResultsRace {
   const runners=numbers.map(wristband=>({id:`${id}-${wristband}`,wristband}));
@@ -69,4 +69,21 @@ test('a disqualification moves the next runner into a medal place and the sevent
   expect(results.medalPlaces.map(row=>[row.wristband,row.medalPlace])).toEqual([[2001,1],[2003,2],[2004,3]]);
   expect(results.leaderboard.filter(row=>row.highlighted).map(row=>row.wristband)).toEqual([2001,2003,2004,2005,2006,2007]);
   expect(results.leaderboard[6]).toMatchObject({wristband:2002,position:null,medalPlace:null,highlighted:false,status:'Disqualified'});
+});
+test('a 6-runner heats event highlights its 6 runners, not 8, and its rule line states only the rule',()=>{
+  const results=eventResults({event,races:[race('heat1',[2001,2002,2003],[1200,1300,1400]),race('heat2',[2004,2005,2006],[1250,1350,1450])]});
+  expect(results.band.highlightCount).toBe(6);
+  expect(ruleLine(results.band)).toBe('Fastest 6 go to the final');
+  const timed=eventResults({event:{...event,format:'timed'},races:[race('race1',[2001,2002],[1200,1300],'race')]});
+  expect(timed.band.highlightCount).toBe(2);
+  expect(ruleLine(timed.band)).toBe('Medal places: 1st, 2nd, 3rd');
+});
+test('each live race is listed with its runners, whether it is saved, and why it does not count yet',()=>{
+  const saved=race('heat1',[2001,2002],[1200,1300]);
+  const awaitingTimes=race('heat2',[2003,2004,2005],[1200,1300,1400]);awaitingTimes.times=null;
+  const open=race('heat3',[2006],[1200]);open.saved=false;
+  const deleted=race('heat4',[2007],[1000]);deleted.deleted=true;
+  expect(eventResults({event,races:[saved,awaitingTimes,open,deleted]}).races.map(item=>[item.race.id,item.runners,item.saved,item.reasons])).toEqual([
+    ['heat1',2,true,[]],['heat2',3,true,['awaiting times']],['heat3',1,false,['in progress']]
+  ]);
 });

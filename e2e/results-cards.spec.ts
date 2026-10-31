@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,lookProblems,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,lookProblems,test,type Page} from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** The design system's event grid colours: a navy Done card, a cream Running card (navy ring), a see-through Not started card (dashed). */
@@ -52,10 +52,9 @@ test('Results is the event grid: a key, events by distance, each card in its Rac
     await card(codes.R).click();
     await expect(page.getByRole('button',{name:'Back to Results',exact:true})).toBeVisible();
     await expect(page.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
-    await expect(page.getByText('Running · 1 race',{exact:true})).toBeVisible();
-    const results=page.locator('.results-view');
-    await expect(results).not.toContainText(/to check|needing you/i);
+    await expect(page.locator('main')).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
+    await eventTab(page,'Races');
     await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
     await expect(page.getByRole('button',{name:`Back to ${name} · Boy Cubs`,exact:true})).toBeVisible();
     await back(page,`${name} · Boy Cubs`);

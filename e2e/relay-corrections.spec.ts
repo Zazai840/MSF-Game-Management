@@ -1,4 +1,4 @@
-import {ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
 
 /** A lead's Results for the relay, then its event page. */
@@ -23,7 +23,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await runHeat(request,volunteer.token,code,[2,1],[1500,1600]);
   const {page}=await openPhone(ownName('Correct teams lead'),{lead:true});
   await openRelayResults(page,code);
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await page.getByRole('button',{name:'Correct teams',exact:true}).click();
   await expect(page.getByRole('button',{name:'Correct runner list',exact:true})).toHaveCount(0);
   const sheet=page.getByRole('dialog',{name:'Correct teams · Heat 1',exact:true});
@@ -57,7 +57,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   expect(await lookProblems(volunteer.page)).toEqual([]);
   await volunteer.page.screenshot({path:info.outputPath('correct-teams-teams-sheet.png')});
   // Correct number on one child of Team 2, from its leaderboard row: the teams sheet changes live.
-  await back(page,`${name} · Boy Scouts`);
+  await back(page,`${name} · Boy Scouts`);await eventTab(page,'Heats');
   await page.getByRole('button',{name:`Team 2 · ${fixed.join(' · ')} · Heat 1`,exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();
   await page.getByRole('button',{name:`2nd leg · ${legs(2)[1]}`,exact:true}).click();
@@ -68,7 +68,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await page.screenshot({path:info.outputPath('correct-number-team.png'),fullPage:true});
   await page.getByRole('button',{name:'Save correction',exact:true}).click();
   await expect(team(2)).toContainText(legsOf([legs(2)[0],n(14),n(13),legs(2)[3]]),live);
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText(`corrected ${legs(2)[1]} to ${n(14)} in Team 2 (Heat 1)`);
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText(`corrected ${legs(2)[1]} to ${n(14)} in Team 2 (Heat 1)`);
 });
 
 test('Delete then Restore on a relay heat: its teams are still to run, then a team in two heats ran twice until the lead chooses which result counts',async({openPhone,request},info)=>{
@@ -80,7 +80,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await runHeat(request,token,code,[1,2],[1500,1600]);
   const {page}=await openPhone(ownName('Relay ran twice lead'),{lead:true});
   await openRelayResults(page,code);
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await page.getByRole('button',{name:'Delete race',exact:true}).click();
   await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();
   await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();
@@ -89,9 +89,10 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await page.getByRole('button',{name:'Restore race',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'Confirm restore',exact:true}).click();
   await expect(page.getByRole('button',{name:'Re-run race',exact:true})).toBeVisible();
-  await back(page,`${name} · Boy Scouts`);
+  await back(page,`${name} · Boy Scouts`);await eventTab(page,'Heats');
   const row=(heat:number)=>page.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat ${heat}`,exact:true});
-  await expect(row(1)).toContainText('Ran twice in this event');await expect(row(2)).toContainText('Ran twice in this event');
+  // Both rows rank; Team 1's sheet offers the choice because it ran twice.
+  await expect(row(1)).toContainText('Heat 1');
   await row(2).click();
   await page.getByRole('button',{name:'Choose which result counts',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('Choose the result that counts for Team 1.');
@@ -99,8 +100,8 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-choose-result.png'),fullPage:true});
   await page.getByRole('button',{name:'Save counted result',exact:true}).click();
-  await expect(row(1)).toContainText('Not counted');await expect(row(2)).not.toContainText('Ran twice in this event');
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('counted Team 1 from Heat 2; Heat 1 not counted');
+  await expect(row(1)).toContainText('Not counted');await expect(row(2)).not.toContainText('Not counted');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('counted Team 1 from Heat 2; Heat 1 not counted');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-ran-twice-settled.png'),fullPage:true});
 });

@@ -20,7 +20,7 @@ const daySetup:Record<DayView['kind'],string>={day:'Day setup',events:'Events','
  * Events, Change Olympics password). Each is its own address (`view`); `onOpen` moves to another and `onBack` goes back. The race flow put a
  * race's issues on the race itself, so there is no Dashboard or To check list.
  */
-export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View)=>void;onBack:()=>void;onChanged:()=>void}) {
+export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged:()=>void}) {
   const [day,setDay] = useState<DayRead|null>(null);
   const [phones,setPhones] = useState<number|null>(null);
   const [error,setError] = useState<unknown>(null);
@@ -43,5 +43,5 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
       {day && <Day day={day} phones={phones} onOpen={onOpen} onChanged={refresh} onSaved={onChanged}/>}</main>
     <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>}/>;
   if(kind==='events' || kind==='rename-event' || kind==='new-event') return <Events view={view} day={day} updated={updated} error={error} onRefresh={refresh} onOpen={onOpen} onBack={onBack} onSaved={async()=>{onChanged();await refresh();}}/>;
-  return <Results key={`${addressOf(view)}:${target?.id??''}`} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
+  return <Results key={`${view.kind==='event'?`event:${view.code}`:addressOf(view)}:${target?.id??''}`} tab={view.kind==='event'?view.tab:undefined} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
 }

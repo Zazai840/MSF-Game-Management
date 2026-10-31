@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,test} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,test} from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
   const code=await ownCode();
   await ownEvent(page.request,code,ownName('Tie event'),'Girl Cubs','timed');
@@ -14,8 +14,8 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   await page.getByRole('button',{name:'No run-off needed',exact:true}).click();
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
-  await createRace(2703,800);await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
+  await eventTab(page,'Heats');await createRace(2703,800);await page.getByRole('button',{name:'Refresh',exact:true}).click();
   await page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}).click();
   await page.getByRole('button',{name:'Decided without a run-off',exact:true}).click();
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
@@ -37,9 +37,9 @@ test('a lead settles a tie, reconsiders a changed medal decision and records its
   await page.screenshot({path:info.outputPath('tie-sheet.png'),fullPage:true});
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  const ranked=page.getByRole('list',{name:'Provisional leaderboard'}).getByRole('listitem').filter({has:page.locator('.result-open')});
+  const ranked=page.getByRole('list',{name:'Provisional leaderboard'}).locator(':scope > li');
   await expect(ranked.nth(1)).toContainText('2702');await expect(ranked.nth(1)).toContainText('10.00');
-  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('without a run-off: 2702 then 2701 - Runner had already left');
+  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('without a run-off: 2702 then 2701 - Runner had already left');
   await page.screenshot({path:info.outputPath('settled-tie.png'),fullPage:true});
 });
 test('a tie between two heats runs end to end: leaderboard highlight, To check, the tie sheet with drag handles and the day export',async({page},info)=>{
@@ -57,7 +57,7 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {
       await expect(board.getByRole('button',{name:`TIE at 10.00 for ${wristband}`,exact:true})).toBeVisible();
-      await expect(board.getByRole('button',{name:new RegExp(`^Runner ${wristband} · Heat`)})).toHaveClass(/highlighted/);
+      await expect(board.getByRole('button',{name:new RegExp(`^Runner ${wristband} · Heat`)})).toContainText('Q');
     }
     await page.screenshot({path:info.outputPath('tie-leaderboard.png'),fullPage:true});
     // The tie opens from its TIE tag on the leaderboard.
@@ -79,9 +79,8 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
     const ranked=board.getByRole('button',{name:/^Runner /});
     await expect(ranked.nth(0)).toContainText('2733');await expect(ranked.nth(1)).toContainText('2731');await expect(ranked.nth(2)).toContainText('2735');
     await expect(board.getByRole('button',{name:/^TIE at/})).toHaveCount(0);
-    // A settled tie is a calm note, not an amber warning.
-    const settled=board.getByText('Tie settled',{exact:true}).first();await expect(settled).toBeVisible();
-    expect(await settled.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toBe('rgb(255, 244, 220)');
+    // A settled tie leaves nothing to check on the leaderboard.
+    await expect(board.getByText('Check',{exact:true})).toHaveCount(0);
     await page.screenshot({path:info.outputPath('tie-settled-leaderboard.png'),fullPage:true});
     const exported=await page.request.post('/api/day/export',{headers,data:{}});expect(exported.ok()).toBe(true);
     const path=info.outputPath('tie-day-export.xlsx');await writeFile(path,await exported.body());

@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
+import {eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
@@ -33,7 +33,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
   await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
   await openResults(page,code,ownName('Eight lead'));
   const board=page.getByRole('list',{name:'Provisional leaderboard'});
-  await expect(board.locator('.leaderboard-row')).toHaveCount(8);await expect(board.locator('.leaderboard-row.highlighted')).toHaveCount(8);await expect(board.locator('.result-mark')).toHaveCount(6);
+  await expect(board.getByRole('button',{name:/^Runner /})).toHaveCount(8);await expect(board.getByText('Q',{exact:true})).toHaveCount(6);
   await expect(board.getByRole('button',{name:'Runner 2808 · Heat 1',exact:true})).toContainText('13.05');
   await page.screenshot({path:info.outputPath('results-eight.png'),fullPage:true});
 });
@@ -58,7 +58,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await expect(phone.locator('.rz-toast')).toContainText('Finishing order saved · Boy Cubs Final');
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
   await openResults(page,code,ownName('Seven lead'));
-  await page.getByRole('button',{name:'Open final',exact:true}).click();await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open final',exact:true}).click();await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
   const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:'Add runner',exact:true}).click();await sheet.getByLabel('Wristband for runner 7',{exact:true}).fill('1806');
   await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeEnabled();
   await page.screenshot({path:info.outputPath('lead-add-seventh.png'),fullPage:true});
@@ -71,7 +71,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await expect(rows).toHaveCount(7);await expect(rows.last()).toContainText('7th1806');
   await page.screenshot({path:info.outputPath('lead-order-seventh.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await back(page,`${name} · Boy Cubs`);await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await back(page,`${name} · Boy Cubs`);await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.locator('.leaderboard-row')).toHaveCount(7);
   await expect(final.locator('.leaderboard-row').first()).toContainText('1801');await expect(final.locator('.leaderboard-row').last()).toContainText('1806');
   await page.getByRole('button',{name:'Final complete',exact:true}).click();const complete=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(complete).toContainText('1st: 1801');await complete.getByRole('button',{name:'Confirm',exact:true}).click();

@@ -94,7 +94,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-rolechip--lead { background: var(--jumping); }
 
 /* ---------- EventTabs ---------- */
-.rz-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
 .rz-tabs button { gap: var(--space-6); }
@@ -317,6 +317,24 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-codecard--danger { outline: 2px solid var(--red-ink); outline-offset: -2px; }
 .rz-old { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .rz-runner:active { transform: none; } }
+
+/* ---------- An event: tabs, the Heats scoreboard, Races and Notes (Results) ---------- */
+.rz-main--event > .rz-tabs { margin: 0; }
+/* The star behind a starred rank is the zone colour: the number reads on it. */
+.rz-lb__rank:not(.rz-lb__rank--plain) > span { background: var(--zone); }
+.rz-scoreboard--tab { border-radius: var(--radius-xl); }
+.rz-scoreboard--tab .rz-board-head { padding-top: var(--space-14); }
+.rz-board__row { display: flex; align-items: center; gap: var(--space-6); }
+.rz-board__row > .rz-lb { flex: 1; min-width: 0; }
+.rz-lb__tie { flex: none; min-width: var(--size-touch); min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; }
+/* shortcut: the Final tab keeps today's older-look final panel and Input - Running table, its old surfaces and text
+   mapped onto the design system's approved pairs; drop when #277 builds the Final tab. */
+.rz-final-today { display: flex; flex-direction: column; gap: var(--space-12); --surface: var(--card); --tint: var(--paper); --text: var(--navy); --muted: var(--ink-muted); }
+.rz-final-today .result-mark, .rz-final-today .badge { color: var(--on-navy); }
+.rz-final-today .note-tag { color: var(--navy); }
+.rz-notes { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.rz-notes li { display: flex; gap: var(--space-10); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; line-height: 1.4; font-weight: 600; }
+.rz-notes time { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 /* ---------- Wider screens: more room, same order ---------- */
 @media (min-width: 700px) {

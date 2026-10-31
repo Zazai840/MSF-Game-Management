@@ -1,4 +1,4 @@
-import {ownCode,ownName,ownWristbands,backToRaces,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
+import {eventTab,ownCode,ownName,ownWristbands,backToRaces,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -24,7 +24,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  test.setTimeout(60000);
  const code=await ownCode(),name=ownName('Final here'),n=await ownWristbands('Boy Cubs',8);
  await heatsToFinal(page,code,name,[[[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]],[[n(17),n(18)],[1150,1250]]],ownName('Final lead'));
- await page.getByRole('button',{name:'Heats complete',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Heats complete',exact:true});await expect(sheet).toContainText('Finals line-up');expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('heats-complete.png'),fullPage:true});await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByText('Heats done · final to run',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Heats complete',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Heats complete',exact:true});await expect(sheet).toContainText('Finals line-up');expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('heats-complete.png'),fullPage:true});await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await eventTab(page,'Final');await expect(page.getByText('Final finishing order not recorded yet.',{exact:true})).toBeVisible();
  const sam=(await openPhone(ownName('Sam final'))).page,priya=(await openPhone(ownName('Priya final'),{job:'finish'})).page;
  await openRace(sam,name,'Boy Cubs','Final');await openRace(priya,name,'Boy Cubs','Final');
  // Heats are complete, so no phone offers another heat, on the race or on its card.
@@ -49,7 +49,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(runnerButtons(priya).filter({hasText:String(n(12))})).toHaveCount(0,live);
  await expect(priya.locator('.rz-prompt__meta')).toContainText('5 runners',live);
  // A lead's call-up for the absent seed appears live, not marked yet: the finish line has them once marked Here.
- await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:new RegExp(`Call up next-ranked runner: ${n(15)}`)}).click();await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(`called up ${n(15)}`);
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:new RegExp(`Call up next-ranked runner: ${n(15)}`)}).click();await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(`called up ${n(15)}`);await eventTab(page,'Final');
  await expect(here(sam,n(15))).toHaveAttribute('aria-pressed','false',live);
  await expect(attendance(sam).filter({hasText:String(n(15))})).toContainText('Called up');
  await expect(runnerButtons(priya).filter({hasText:String(n(15))})).toHaveCount(0);
@@ -67,7 +67,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText(String(n(15)));await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText(`1st: ${n(15)}`);await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(String(n(15)));await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
- await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await expect(final).toContainText(String(n(15)));
+ await eventTab(page,'Heats');await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await eventTab(page,'Final');await expect(final).toContainText(String(n(15)));
 });
 test('only a lead\'s + Final makes the final from the fastest, after a confirm, and an unstarted final rebuilt after a heat correction shows its new line-up live',async({page,openPhone},info)=>{
  const code=await ownCode(),name=ownName('Short sprint'),n=await ownWristbands('Boy Cubs',2);

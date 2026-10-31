@@ -110,6 +110,11 @@ export async function back(page:Page,to:string) {
   }
   throw new Error(`No way back to ${to}`);
 }
+/** On an event in Results: taps one of its tabs and waits for it to show. */
+export async function eventTab(page:Page,name:'Heats'|'Final'|'Races'|'Notes') {
+  const tab=page.getByRole('navigation',{name:'Event'}).getByRole('button',{name,exact:true});
+  await press(tab);await expect(tab).toHaveAttribute('aria-current','page');
+}
 // Race setup: every spec that needs a race entered or saved before it starts goes through these, so they are the one
 // place that knows how a race is entered and saved. Each acts as the phone whose token it is given, in the race flow
 // (ADR 0003), on the race the event is at: its final once it has one, else its latest race not saved, else a new next heat.
@@ -304,8 +309,11 @@ export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H
   // Once the races have come in, a group that is done waits under the closed Done disclosure.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   const done=page.locator('details:not([open])',{has:page.locator('summary',{hasText:/^Done \(/})});
-  if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
-  await card.getByRole('button',{name:label}).click();
+  // A live update can move the card under the closed Done between the look and the tap: look again until the tap lands.
+  await expect(async()=>{
+    if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
+    await card.getByRole('button',{name:label}).click({timeout:2000});
+  }).toPass();
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
 }
 /** On Races: the Relays tab. */

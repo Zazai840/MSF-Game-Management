@@ -48,12 +48,13 @@ export function App() {
   }
   /**
    * Moves to another screen at its own address. The history entry carries the name of the screen left, for the back
-   * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history).
+   * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
+   * event's tab in place, keeping the entry's back label.
    */
   function go(next:View,{replace=false,opening}:{replace?:boolean;opening?:ResultsTarget}={}) {
     setMenu(null);setView(next);setTarget(opening);
-    const path=addressOf(next);
-    if(replace) history.replaceState(null,'',path);
+    const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code;
+    if(replace) history.replaceState(tab?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
     else if(location.pathname!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
     window.scrollTo(0,0);
@@ -123,7 +124,7 @@ export function App() {
     const back=()=>{if(entryBack()) history.go(onSheetEntry()?-2:-1);else go(isLead?parentOf(view):{kind:'races'},{replace:true});};
     // A lead screen's body keeps the older look, which has no race-flow tokens, so the job sheet brings its own .rz-screen.
     return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:back}}>
-      {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={next=>go(next)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
+      {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}
     </LeadFrame.Provider>;
