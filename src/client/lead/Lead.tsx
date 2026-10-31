@@ -8,6 +8,7 @@ import { Results } from './Results.js';
 import { ChangePassword,Day } from './Day.js';
 import { Events } from './Events.js';
 import { SignedInToday } from './SignedInToday.js';
+import { Tie } from './Tie.js';
 import type { PhonesRead } from '../../shared/phones.js';
 import { clockWithSeconds } from '../../shared/clock.js';
 /** A lead screen: every screen but Races and the race screen. */
@@ -37,6 +38,7 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
   }
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   if(kind==='olympics-password') return <ChangePassword/>;
+  if(view.kind==='tie') return <Tie key={addressOf(view)} code={view.code} tieId={view.tieId} stage={view.stage} onBack={onBack}/>;
   if(kind==='signed-in-today') return <SignedInToday onSaved={onChanged}/>;
   if(kind==='day') return <LeadBar title="Day setup" up="Races" body={<>
     <main className="rz-main">{error!==null && <ErrorCallout error={error} action="read"/>}

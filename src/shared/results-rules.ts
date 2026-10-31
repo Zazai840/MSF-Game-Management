@@ -44,7 +44,8 @@ export interface LeaderboardRow extends ResultEntry {
 export type NotRankedReason='in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
-export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
+/** `place`: the place the tie starts at (2 for a tie for 2nd and 3rd). */
+export interface ResultTie { id:string; time:number; place:number; entries:ResultEntry[]; impact:string }
 /**
  * A lead queue item. `message` is v1's terse line; the optional facts beside it let the
  * To check list explain the item in plain English (see src/shared/to-check.ts).

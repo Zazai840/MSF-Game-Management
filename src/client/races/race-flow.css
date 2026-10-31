@@ -174,12 +174,23 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-orderrow[data-dragging="true"] { box-shadow: var(--shadow-raised); }
 .rz-orderrow__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; line-height: 1; text-transform: uppercase; }
 .rz-orderrow__num { font-size: 18px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* A tied runner's heat (and a team's children) under its number, on the tie screen. */
+.rz-orderrow__detail { display: block; color: var(--ink-muted); font-size: 14px; font-weight: 700; }
+.rz-orderrow__num--detail { padding: var(--space-6) 0; }
 .rz-orderrow__handle { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--navy); touch-action: none; }
 .rz-orderrow--unplaced { grid-template-columns: 1fr auto auto; gap: var(--space-6); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); }
 .rz-orderrow--unplaced .rz-btn--pill { padding: 0 var(--space-12); }
 /* A team left over: "Team 6 · 2064" on a line of its own, its two answers side by side below. */
 .rz-orderrow--team { grid-template-columns: 1fr 1fr; padding: var(--space-8) var(--space-8) var(--space-8) var(--space-14); }
 .rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
+
+/* A prompt's line above that keeps its end: a long event name gives way ("…Girl Cubs · decides 2nd and 3rd"), the line stays one line. */
+.rz-prompt__meta--fit { display: flex; white-space: nowrap; }
+.rz-prompt__meta--fit > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rz-prompt__meta--fit > span:last-child { flex: none; }
+
+/* A comment box: a text field that grows with what is typed. */
+.rz-field--text .rz-field__input--comment { height: auto; min-height: calc(var(--size-action) * 2); padding: var(--space-10) var(--space-16); resize: vertical; font-size: 16px; line-height: 1.4; }
 
 /* ---------- Toast ---------- */
 /* Above the lead's Race actions over the race (z-index 20), so a correction there shows its toast. */
@@ -207,6 +218,9 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-sheet fieldset, .rz-main fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
 .rz-choices { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .rz-choices--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Choices one above another, full width (the tie's three outcomes). */
+.rz-choices--stack { flex-direction: column; }
+.rz-choices--stack .rz-choice { min-height: var(--size-action); }
 .rz-choice { min-height: var(--size-touch); display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); padding: 0 var(--space-14); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); font-family: var(--font-body); font-size: 15px; font-weight: 800; }
 .rz-choice[aria-pressed="true"] { background: var(--navy); box-shadow: none; color: var(--on-navy); }
 .rz-choice[aria-pressed="true"] .rz-code-tag { background: var(--gold); color: var(--navy); }

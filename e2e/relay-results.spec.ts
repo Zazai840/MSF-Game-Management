@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {eventTab,ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -171,7 +171,7 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('lifted the disqualification of Team 1 (Heat 1)');
 });
 
-test('a lead settles a tie between two teams on the tie sheet: a run-off puts Team 7 through',async({openPhone,request},info)=>{
+test('a lead settles a tie between two teams on the tie screen: a run-off puts Team 7 through',async({openPhone,request},info)=>{
   const {code,legs,heat}=await scoutsRelay(request,info,'Relay tie',8);
   await heat([1,2,3,4],[1400,1500,1600,1700]);
   await heat([5,6,7,8],[1450,1550,1700,1800]);
@@ -180,17 +180,18 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   // Team 4 and Team 7 share 6th place at 17.00: one of them misses the final.
   await page.getByRole('button',{name:'TIE at 17.00 for Team 4',exact:true}).click();
-  const sheet=page.getByRole('dialog',{name:'Tie at 17.00',exact:true});
-  await expect(sheet).toContainText('Team 4, Team 7 have the same time in different races.');
-  await sheet.getByRole('button',{name:'Run-off held',exact:true}).click();
-  const order=sheet.getByRole('list',{name:'Tie order',exact:true});
-  await expect(order.getByRole('listitem')).toHaveText([`1stTeam 4${legs(4).join(' · ')}`,`2ndTeam 7${legs(7).join(' · ')}`]);
-  await dragTo(page,order.getByRole('button',{name:'Drag to move Team 7',exact:true}),order.getByRole('listitem').first());
+  await expect(page.getByRole('heading',{level:1,name:'Tie at 17.00',exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${ownName('Relay tie')} · Boy Scouts · decides 6th and 7th`);
+  await expect(page.locator('.rz-prompt__help')).toHaveText('Team 4 (Heat 1) and Team 7 (Heat 2) both ran 17.00.');
+  await page.getByRole('button',{name:'Run-off held',exact:true}).click();
+  const order=page.getByRole('list',{name:'Tie order',exact:true});
+  await expect(order.getByRole('listitem')).toHaveText([`6thTeam 4Heat 1 · ${legs(4).join(' · ')}`,`7thTeam 7Heat 2 · ${legs(7).join(' · ')}`]);
+  await dragTo(page,order.getByRole('button',{name:'Move Team 7',exact:true}),order.getByRole('listitem').first());
   await expect(order.getByRole('listitem').first()).toContainText('Team 7');
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('relay-tie-sheet.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Save tie',exact:true}).click();
-  await expect(sheet).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('relay-tie-screen.png'),fullPage:true});
+  await page.getByRole('button',{name:'Save tie',exact:true}).click();
+  await expectToast(page,/^Tie saved · /);
   const rows=page.getByRole('list',{name:'Provisional leaderboard',exact:true}).locator(':scope > li');
   await expect(rows.nth(5)).toContainText('Team 7');await expect(rows.nth(6)).toHaveText('Qualifying line');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('recorded a run-off at 17.00: Team 7 then Team 4');

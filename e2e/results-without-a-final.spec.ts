@@ -18,7 +18,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   // The tie for 3rd and 4th only decides qualifying for now: both qualify, so No run-off needed.
   await lead.getByRole('button',{name:`TIE at 9.80 for ${w(2)}`,exact:true}).click();
   await lead.getByRole('button',{name:'No run-off needed',exact:true}).click();await lead.getByRole('button',{name:'Save tie',exact:true}).click();
-  await expect(lead.getByRole('dialog')).toHaveCount(0);
+  await expect(lead.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   const stages=stageButtons(lead);
   await expect(stages).toHaveText(['Heats complete','Results without a final']);
   await lead.screenshot({path:info.outputPath('a1-heats-run.png'),fullPage:true});
@@ -29,8 +29,11 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await expect(blocked).toContainText('No final will be run. Medals go to the 3 fastest heat times.');
   await lead.screenshot({path:info.outputPath('a2-tie-comes-back.png')});
   await blocked.getByRole('button',{name:`Tie: ${w(2)}, ${w(12)}`,exact:true}).click();
-  const tie=lead.getByRole('dialog',{name:'Tie at 9.80',exact:true});
-  await tie.getByRole('button',{name:'No run-off needed',exact:true}).click();await tie.getByRole('button',{name:'Save tie',exact:true}).click();
+  // Opened from Results without a final, the tie decides the bronze.
+  await expect(lead.getByRole('heading',{level:1,name:'Tie at 9.80',exact:true})).toBeVisible();
+  await expect(lead.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · decides 3rd and 4th`);
+  await lead.getByRole('button',{name:'No run-off needed',exact:true}).click();await lead.getByRole('button',{name:'Save tie',exact:true}).click();
+  await expect(lead.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(lead.getByRole('dialog')).toHaveCount(0);
   await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
   const sheet=lead.getByRole('dialog',{name:'Results without a final',exact:true});

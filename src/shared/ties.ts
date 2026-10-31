@@ -36,6 +36,6 @@ export function eventTies(rows:LeaderboardRow[],highlightCount:number,format:'he
     }
     if(first>=highlightCount) return [];
     for(const row of group) row.flags.push({kind:'tie',message:'TIE'});
-    return [{id,time,impact,entries:group.map(({raceId,entryId,wristband,team})=>({raceId,entryId,wristband,...(team?{team}:{})}))}];
+    return [{id,time,place:first+1,impact,entries:group.map(({raceId,entryId,wristband,team})=>({raceId,entryId,wristband,...(team?{team}:{})}))}];
   });
 }

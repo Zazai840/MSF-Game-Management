@@ -15,13 +15,14 @@ import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 // A failed load (often an old page after a deploy) reloads the app; until then Opening Lead stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 interface HomeRead { phone:Phone; needsYou?:number }
-/** Where Open in Results (or Confirm the medals) lands: a race's item on its race page, anything else on its event. */
-const resultsView=(target:ResultsTarget):View=>target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code,tab:'heats'};
+/** Where Open in Results (or Confirm the medals) lands: a tie on its screen, a race's item on its race page, anything else on its event. */
+const resultsView=(target:ResultsTarget):View=>target.tieId?{kind:'tie',code:target.event.code,tieId:target.tieId}
+  :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code,tab:'heats'};
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
-  const [view,setView] = useState<View>(()=>viewAt(location.pathname));
-  // What Open in Results asked to open on the event (a runner's actions, a tie, a check sheet), on that visit only.
+  const [view,setView] = useState<View>(()=>viewAt(location.pathname+location.search));
+  // What Open in Results asked to open on the event (a runner's actions, a check sheet), on that visit only.
   const [target,setTarget]=useState<ResultsTarget>();
   // Kept here as well as on the phone, so the back arrow returns to the tab you came from even when storage fails.
   const [homeTab,setHomeTab]=useState(phoneStorage.homeTab);
@@ -56,11 +57,11 @@ export function App() {
     const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code;
     if(replace) history.replaceState(tab?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
-    else if(location.pathname!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
+    else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
     window.scrollTo(0,0);
   }
   useEffect(()=>{
-    const back=()=>{if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname));};
+    const back=()=>{if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname+location.search));};
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{

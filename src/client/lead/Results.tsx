@@ -9,7 +9,6 @@ import { RacePage } from './RacePage.js';
 import { RunnerActions } from './RunnerActions.js';
 import { resultLabel,teamWristbands } from './ResultName.js';
 import { resultName,ruleLine,type LeaderboardRow } from '../../shared/results-rules.js';
-import { TieSheet } from './TieSheet.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { Callout,Icon,LeadBar,Star,UpdatedAt } from '../races/parts.js';
 import { eventTabs,type EventTab,type View } from '../shell/addresses.js';
@@ -21,16 +20,13 @@ import './results.css';
 /**
  * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
- * lead header; `onOpen` moves to another screen and `onBack` goes back. `target` is what Open in Results asked to open
- * on the event: a runner's actions, a tie or a check sheet.
+ * lead header; `onOpen` moves to another screen (a tie is one) and `onBack` goes back. `target` is what Open in
+ * Results asked to open on the event: a runner's actions or a check sheet.
  */
 export function Results({code,raceId,tab,target,onOpen,onBack,onChanged}:{code?:string;raceId?:string;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   // Confirm the medals opens the event on its check sheet, once, when its results first arrive.
   const [stageToOpen,setStageToOpen]=useState(target?.stage);
-  const [selectedTieId,setSelectedTieId]=useState<string|null>(target?.tieId||null);
-  // The check sheet a tie was opened from: from Results without a final it is settled against medal places.
-  const [tieStage,setTieStage]=useState<Stage>();
   const [list,setList]=useState<ResultsGridRead|null>(null);
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
@@ -57,14 +53,13 @@ export function Results({code,raceId,tab,target,onOpen,onBack,onChanged}:{code?:
   },[code]);
   const openRace=(id:string)=>onOpen({kind:'race-page',code:code!,raceId:id});
 
-  const tieOn=(stage:Stage|undefined,id:string|null|undefined)=>(stage==='no-final'?detail?.results.noFinalTies:detail?.results.ties)?.find(tie=>tie.id===id);
-  const selectedTie=tieOn(tieStage,selectedTieId);
+  // A tie opened from Results without a final is judged against medal places there.
+  const openTie=(tieId:string,stage?:Stage)=>onOpen({kind:'tie',code:code!,tieId,...(stage==='no-final'?{stage}:{})});
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
-  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedTieId(null);setSelectedStage(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
+  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedStage(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
   function openStageItem(item:StageItem) {
     setSelectedStage(null);
-    const tie=tieOn(selectedStage?.stage,item.tieId);
-    if(tie) {setTieStage(selectedStage?.stage);setSelectedTieId(tie.id);}
+    if(item.tieId) openTie(item.tieId,selectedStage?.stage);
     else if(item.entryId && detail?.results.actionableRunners.some(row=>row.raceId===item.raceId && row.entryId===item.entryId)) setSelected({raceId:item.raceId!,entryId:item.entryId});
     else if(item.raceId) openRace(item.raceId);
   }
@@ -72,12 +67,11 @@ export function Results({code,raceId,tab,target,onOpen,onBack,onChanged}:{code?:
   if(raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack}/>;
   const sheets=detail && <>
     {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.actionableRunners} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}
-    {selectedStage && <StageSheet event={detail.event} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}
-    {selectedTie && <TieSheet key={selectedTie.id} event={detail.event} tie={selectedTie} stage={tieStage} onSaved={saved} onClose={()=>setSelectedTieId(null)}/>}</>;
+    {selectedStage && <StageSheet event={detail.event} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}</>;
   const body=<><main className="rz-main rz-main--event">
     {error && <Callout message={error}/>}
     {!detail?!error && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??'heats'} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
-      onRunner={row=>{setSelectedTieId(null);setSelected({raceId:row.raceId,entryId:row.entryId});}} onTie={id=>{setSelected(null);setTieStage(undefined);setSelectedTieId(id);}}
+      onRunner={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onTie={id=>openTie(id)}
       onStage={setSelectedStage} onRace={openRace} saved={saved}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
   // The older-look sheets sit outside the screen root, so they keep their look until their own tickets move them.

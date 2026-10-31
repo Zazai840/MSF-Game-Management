@@ -37,6 +37,7 @@ html[data-keyboard="open"] .action-sheet-overlay {top:var(--vv-top);bottom:auto;
 .runner-actions h3 {margin-top:0;}
 .runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
+.runner-actions form {margin:1rem 0;}
 .result-flags .checked-warning {background:var(--idle-fill);color:var(--muted);}
 .not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
 .runner-action-choices {display:grid;gap:.6rem;}

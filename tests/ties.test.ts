@@ -91,3 +91,7 @@ test('tie settlements preserve checked warnings and omit entries chosen as not c
   expect(result.leaderboard[1].flags).toContainEqual({kind:'tie-settled',message:'Tie settled'});
   expect(result.leaderboard[2]).toMatchObject({entryId:'entry3',status:'Not counted',position:null,qualification:null,highlighted:false,flags:[]});
 });
+test('a tie knows the place it starts at, for the tie screen\'s "decides 2nd and 3rd" and its order\'s places',()=>{
+  expect(eventResults({event:{...heats,format:'timed'},races:races([900,1000,1000,1100])}).ties.map(tie=>tie.place)).toEqual([2]);
+  expect(eventResults({event:heats,races:races([900,1000,1100,1200,1300,1400,1400])}).ties.map(tie=>tie.place)).toEqual([6]);
+});
