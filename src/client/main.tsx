@@ -11,7 +11,11 @@ const root = document.getElementById('root')!;
 if (root.dataset.unsupported !== 'true') {
   // Ask the browser to keep the pass and profiles even when the phone is short of space; carry on if it says no.
   void navigator.storage?.persist?.().catch(()=>false);
-  startUpdates();
   followKeyboard();
-  createRoot(root).render(<App />);
+  // PROTOTYPE (map #231, ticket #248): the rest of the lead screens in the new look, client only, never merged.
+  if(location.pathname.startsWith('/prototype/lead-screens')) void import('./lead/LeadScreens.prototype.js').then(({LeadScreensPrototype})=>createRoot(root).render(<LeadScreensPrototype/>));
+  else {
+    startUpdates();
+    createRoot(root).render(<App />);
+  }
 }

@@ -15,6 +15,7 @@
     "start": "node dist/server/server/main.js",
     "test:e2e": "playwright test && playwright test -c playwright.test-build.config.ts",
     "test:remote": "playwright test -c playwright.remote.config.ts",
+    "prototype:lead-screens": "vite --host 0.0.0.0 --port 5189",
     "verify": "npm run lint && npm test && npm run typecheck && npm run build"
   },
   "dependencies": {
