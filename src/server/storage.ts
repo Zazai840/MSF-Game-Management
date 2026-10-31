@@ -89,6 +89,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE races DROP CONSTRAINT IF EXISTS races_event_id_kind_number_key;
     CREATE UNIQUE INDEX IF NOT EXISTS live_race_number ON races(event_id,kind,number) WHERE NOT deleted;
     DROP TABLE IF EXISTS race_counters;
+    -- When a race was deleted, shown on its Deleted races row. Races deleted before it was stored have none.
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
     -- A race is in progress until it saves itself (every step done), which is who and when.
     ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','saved'));
     -- A relay race the old race screen left waiting on Submit presses carries on as an ordinary race-flow race: it keeps
