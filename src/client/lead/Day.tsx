@@ -2,7 +2,7 @@ import { useId,useState,type FormEvent,type ReactNode } from 'react';
 import { eventTypeNames, sections, type DayRead } from '../../shared/day.js';
 import { api,apiDownload,ApiFailure,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
-import { Callout,DockedFooter,ErrorCallout,failureLine,Icon,LeadBar,Screen,Sheet } from '../races/parts.js';
+import { Callout,DockedFooter,ErrorCallout,failureLine,Icon,LeadBar,Sheet } from '../races/parts.js';
 import type { View } from '../shell/addresses.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { clock } from '../../shared/clock.js';
@@ -158,8 +158,7 @@ export function ChangePassword() {
     try {await api('day/olympics-password',{password});phoneStorage.signOut();}
     catch(error) {setError(error);setBusy(false);}
   }
-  return <Screen screen="Change Olympics password">
-    <LeadBar title="Change Olympics password" up="Day setup"/>
+  return <LeadBar title="Change Olympics password" up="Day setup" body={<>
     <main className="rz-main rz-main--form">
       <div className="rz-prompt rz-prompt--compact"><h2 className="rz-prompt__q">New <em>Olympics password?</em></h2>
         <p className="rz-prompt__help">Every phone, including yours, goes back to Join.</p></div>
@@ -170,7 +169,7 @@ export function ChangePassword() {
     </main>
     <DockedFooter>{reason && <p className="rz-footer__reason">{reason}</p>}
       <button type="button" className="rz-btn rz-btn--primary rz-btn--block" aria-disabled={reason || busy?true:undefined} onClick={()=>void change()}>Change password</button></DockedFooter>
-  </Screen>;
+  </>}/>;
 }
 
 /** v1's event list for the day: rename, switch off or on, confirm the list and add an event. */

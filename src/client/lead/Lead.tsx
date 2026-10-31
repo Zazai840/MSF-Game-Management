@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api,StaleRequest } from '../api.js';
 import type { DayRead } from '../../shared/day.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
-import { ErrorCallout,LeadBar,Screen,UpdatedAt } from '../races/parts.js';
+import { ErrorCallout,LeadBar,UpdatedAt } from '../races/parts.js';
 import { addressOf,type View } from '../shell/addresses.js';
 import { Results } from './Results.js';
 import { ChangePassword,Day,Events } from './Day.js';
@@ -37,10 +37,10 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
   }
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   if(kind==='olympics-password') return <ChangePassword/>;
-  if(kind==='day') return <Screen screen="Day setup"><LeadBar title="Day setup" up="Races"/>
+  if(kind==='day') return <LeadBar title="Day setup" up="Races" body={<>
     <main className="rz-main">{error!==null && <ErrorCallout error={error} action="read"/>}
       {day && <Day day={day} phones={phones} onOpen={onOpen} onChanged={refresh} onSaved={onChanged}/>}</main>
-    <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></Screen>;
+    <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>}/>;
   return <>{!section?<Results key={`${addressOf(view)}:${target?.id??''}`} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>
     :<><LeadBar title={section} up="Day setup"/><main><section className="dashboard">{error!==null && <p role="alert">{error instanceof Error ? error.message : 'Could not connect'}</p>}
       {kind==='events' && day && <Events day={day} onChanged={refresh} onSaved={onChanged}/>}

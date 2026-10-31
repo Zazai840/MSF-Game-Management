@@ -37,14 +37,12 @@ function Pattern() {
 export const roleIcons:Record<Role,IconName>={start:'flag',finish:'list',timer:'stopwatch',lead:'dashboard'};
 /** What each job does, on Join and in the role sheet. */
 export const roleDescriptions:Record<Role,string>={start:'Type wristband numbers before the start',finish:'Tap runners as they cross the line',timer:'Type times from the stopwatch',lead:'See and fix every step. Needs the lead code.'};
-/** True inside a Screen: a LeadBar there is part of a screen whose body is in the design system too. */
-const InScreen=createContext(false);
 /** The screen root: the design system's tokens apply only inside it. A test build shows its commit and Report a bug over every screen. */
 export function Screen({screen,fill=true,wide=false,bar=false,children}:{screen:string;fill?:boolean;wide?:boolean;bar?:boolean;children:ReactNode}) {
   const testBuild=useTestBuild();
   return <div className={['rz-screen rz-zone-running rz-app',fill?'':'rz-app--top',wide?'rz-app--wide':'',bar?'rz-app--bar':''].filter(Boolean).join(' ')}>
     {testBuild && <div className="rz-testbuild"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
-    <InScreen.Provider value>{children}</InScreen.Provider>
+    {children}
   </div>;
 }
 /** The pill on the app bar naming your job; it opens Switch job. */
@@ -81,11 +79,12 @@ export const LeadFrame=createContext<{role:Role;onRole:()=>void;onBack:()=>void}
  * title, the screen it returns to: the one the lead came from, else `up` (the natural parent, for a screen reached
  * with no history). Then the title (an event as "200m · Boy Cubs" with its code tag), the job chip and `children`
  * ("⋯" on a race page). It also names the screen, so a screen opened from here names it on its own back arrow.
- * Inside a Screen (a body in the design system) it is that screen's header; elsewhere it is its own screen root.
+ * A body in the design system comes in `body` and shares the bar's screen root.
  */
-export function LeadBar({title,code,up,children}:{title:string;code?:string;up:string;children?:ReactNode}) {
-  const frame=useContext(LeadFrame)!,back=entryBack()??up,inScreen=useContext(InScreen);
+export function LeadBar({title,code,up,children,body}:{title:string;code?:string;up:string;children?:ReactNode;body?:ReactNode}) {
+  const frame=useContext(LeadFrame)!,back=entryBack()??up;
   useScreenName(title);
+  // shortcut: a body still in the older look sits below the bar, so the bar alone is the screen root, lined up with it; drop once every body moves (spec #250).
   const header=<header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
     <div className="rz-appbar__start">
       <button type="button" className="rz-appbar__back" aria-label={`Back to ${back}`} onClick={frame.onBack}><Icon name="chevron-left" className="rz-icon--bold"/><span>{back}</span></button>
@@ -93,8 +92,7 @@ export function LeadBar({title,code,up,children}:{title:string;code?:string;up:s
     </div>
     <div className="rz-appbar__end" style={{gap:2}}><RoleChip role={frame.role} onOpen={frame.onRole}/>{children}</div>
   </header>;
-  // shortcut: over an older-look body the bar is its own screen, lined up with that body; it goes once every body moves (spec #250).
-  return inScreen?header:<Screen screen={title} bar>{header}</Screen>;
+  return body===undefined?<Screen screen={title} bar>{header}</Screen>:<Screen screen={title}>{header}{body}</Screen>;
 }
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
