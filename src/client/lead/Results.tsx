@@ -113,7 +113,6 @@ function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|n
     {error && <Callout message={error}/>}
     <ul className="rz-legend" aria-label="Key">{keyStates.map(([state,label])=><li key={state}><span className={`rz-legend__swatch rz-legend__swatch--${state}`} aria-hidden="true"/>{label}</li>)}</ul>
     {!list?!error && <p className="rz-empty">Opening…</p>:<>
-      {!list.eventsConfirmed && <p className="rz-note">Event list awaiting confirmation by a lead</p>}
       {list.groups.map((group,index)=><section key={group.name} aria-labelledby={`results-group-${index}`}><h2 className="rz-section" id={`results-group-${index}`}>{group.name}</h2><ul className="rz-events">{group.events.map(({event,card,latestNoteAt})=><li key={event.id}>
         <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code,tab:'heats'})}>
           <span className="rz-event__name">{event.code} · {event.section}</span>

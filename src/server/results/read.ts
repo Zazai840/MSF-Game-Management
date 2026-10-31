@@ -28,15 +28,14 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const rulings=await readRulings(db,dayId),notes=await readAuditNotes(db,dayId);
   const tieSettlements=await readTieSettlements(db,dayId);
   const stages=await readCompletedStages(db,dayId),relays=await switchedOnRelays(db,dayId);
-  const day=(await db.query('SELECT events_confirmed FROM olympics_days WHERE id=$1',[dayId])).rows[0];
-  if(!day) throw newDay();
+  if(!(await db.query('SELECT 1 FROM olympics_days WHERE id=$1',[dayId])).rowCount) throw newDay();
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
     const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings,relays));
     needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId);return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{})};}));
     const rows=groups.get(event.name)||[];rows.push({event,needsYou:results.needsYou.length,status:results.status,decidedWithoutFinal:results.decidedWithoutFinal,raceCount:results.raceCount,provisional:results.provisional,latestNoteAt:notes.find(note=>note.eventId===event.id)?.at??null});groups.set(event.name,rows);
   }
-  return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),eventsConfirmed:day.events_confirmed,groups:[...groups].map(([name,events])=>({name,events}))};
+  return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),groups:[...groups].map(([name,events])=>({name,events}))};
 }
 export async function readEventResults(db:Database,dayId:string,code:string):Promise<EventResultsRead> {
   const event=(await eventsForDay(db,dayId)).find(event=>event.code===code);

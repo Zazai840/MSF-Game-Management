@@ -1,8 +1,7 @@
 import {ownName,ownCode,enterTime,openLeadMenu,openRace,switchJob,becomeLead,expect,join,ownEvent,recordRace,signInThroughApi,test} from './fixtures.js';
 test('a lead sees a race worked in the race flow appear within one Results poll',async({page,openPhone},info)=>{
-  const code=await ownCode(),name=ownName('Results phone'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  const code=await ownCode(),name=ownName('Results phone');
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await page.goto('/');await join(page,ownName('Results lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // One phone does every job in turn: the start line with a kept warning, the finish line, then the timer.
@@ -31,7 +30,6 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
 test('on a phone a medal mark sits beside its position number, not on a line of its own',async({page},info)=>{
   const code=await ownCode(),name=ownName('Medal marks');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_SCORING_TOKEN}`},data:{}});
   await recordRace(page.request,await signInThroughApi(page.request,ownName('Medal timer')),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);
   await page.goto('/');await join(page,ownName('Medal lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();

@@ -11,7 +11,7 @@ async function openResults(page:Page,code:string,name:string) {
 test('a phone checks in 8 runners and carries them through each job in turn, the race saving itself, and Results',async({page,openPhone},info)=>{
   test.setTimeout(60000);
   const code=await ownCode(),name=ownName('Eight'),numbers=[2801,2802,2803,2804,2805,2806,2807,2808];
-  await ownEvent(page.request,code,name);await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  await ownEvent(page.request,code,name);
   const {page:phone}=await openPhone(ownName('Eight phone'));
   await phone.getByRole('button',{name:'New race',exact:true}).click();
   const newRace=phone.getByRole('dialog',{name:'New race'});
@@ -41,7 +41,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
 test('a lead adds a 7th runner to a saved final and the final is recorded end to end',async({page,openPhone},info)=>{
   test.setTimeout(60000);
   const code=await ownCode(),name=ownName('Seven');
-  await ownEvent(page.request,code,name,'Boy Cubs','heats');await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
+  await ownEvent(page.request,code,name,'Boy Cubs','heats');
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }

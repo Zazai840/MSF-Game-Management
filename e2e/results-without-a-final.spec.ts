@@ -2,7 +2,6 @@ import {ownName,ownCode,back,expect,live,openLeadMenu,openRace,ownEvent,recordRa
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('No final sprint');
   await ownEvent(page.request,code,name);
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // Each project's heats use Girl Cubs wristbands no other test types: heat 1 is w(1)..w(3), heat 2 is w(11)..w(13).
   const w=(number:number)=>2900+at*20+number;
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);
@@ -56,7 +55,6 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
 test('once a lead decides without a final, a volunteer\'s Races shows the event done and its races offer no heat to work',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('No final done');
   await ownEvent(page.request,code,name);
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The numbers the other tests here leave free: heat 1 is w(8)..w(10), heat 2 is w(18), w(19) and w(4).
   const w=(number:number)=>2900+at*20+number;
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(8),w(9),w(10)],[920,980,1040]);
@@ -82,7 +80,6 @@ test('once a lead decides without a final, a volunteer\'s Races shows the event 
 test('a lead reopens results with a comment: the medals clear, the heats open again and Heats complete builds a final',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('Reopened sprint');
   await ownEvent(page.request,code,name);
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The first test's wristbands with numbers it leaves free: heat 1 is w(5)..w(7), heat 2 is w(15)..w(17).
   const w=(number:number)=>2900+at*20+number;
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(5),w(6),w(7)],[920,980,1040]);
@@ -125,7 +122,6 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
 test('after Heats complete, a lead chooses Results without a final before the final starts: its line-up is discarded, and Reopen results then Heats complete builds a fresh final',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('Late no final');
   await ownEvent(page.request,code,name);
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // Girl Cubs wristbands no other test types: heat 1 is w(1)..w(3), heat 2 is w(11)..w(13).
   const w=(number:number)=>2540+at*20+number;
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2),w(3)],[920,980,1040]);

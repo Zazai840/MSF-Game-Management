@@ -103,6 +103,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-racecard__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
 .rz-racecard__title { margin: 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; }
+.rz-racecard__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .rz-racecard__status { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--ink-muted); }
 /* A relay card's Teams row: opens its teams sheet. */
 .rz-racecard__teams { min-height: var(--size-touch); display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); margin-top: var(--space-4); padding: var(--space-6) 0 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--navy); font-family: var(--font-body); font-size: 16px; font-weight: 700; text-align: left; }
@@ -203,7 +204,7 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 }
 .rz-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
 .rz-sheet__close { flex: none; width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--navy); }
-.rz-sheet fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
+.rz-sheet fieldset, .rz-main fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-8); }
 .rz-choices { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .rz-choices--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rz-choice { min-height: var(--size-touch); display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); padding: 0 var(--space-14); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); font-family: var(--font-body); font-size: 15px; font-weight: 800; }

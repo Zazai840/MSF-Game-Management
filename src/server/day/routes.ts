@@ -9,13 +9,10 @@ export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app,pool);
   action('GET','/api/events','Volunteer',async(_request,_reply,phone)=>({events:await readEvents(pool,true,phone.dayId)}));
   action('GET', '/api/day', 'Lead', (_request,_reply,phone) => resultsSnapshot(pool,phone.dayId,async client=>{
-    const day = (await client.query('SELECT lead_code,events_confirmed,revision,exported_at,exported_revision,(SELECT password FROM olympics_settings) AS olympics_password FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
+    const day = (await client.query('SELECT lead_code,revision,exported_at,exported_revision,(SELECT password FROM olympics_settings) AS olympics_password FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
     if(!day) throw newDay();
-    return {olympicsPassword: day.olympics_password, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(client,false,phone.dayId)};
+    return {olympicsPassword: day.olympics_password, leadCode: day.lead_code, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(client,false,phone.dayId)};
   }));
-  action('POST','/api/day/confirm-events','Lead',async(_request,_reply,phone)=>{
-    return changeDay(pool,phone,async()=>{},true);
-  });
   action('POST','/api/day/events/:code/rename','Lead',async(request,_reply,phone)=>{
     const name = eventName((request.body as {name?:unknown}|null)?.name);
     const {code} = request.params as {code:string};

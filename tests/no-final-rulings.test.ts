@@ -13,7 +13,7 @@ afterEach(async()=>{await app?.close();});
 /** Girl Cubs 60m (R4) with two heats run: a tie at 9.80 between 2002 and 2012 for 3rd and 4th. */
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'no-final-owner',resetTestDay:true});
-  const people=await signInOwner(app,'no-final-owner','Owner');await call(people.owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'no-final-owner','Owner');
   const volunteer=(await people.volunteer('Ahmed')).token,lead=(await people.lead('Aisha')).token;
   const setup=raceSetup(app);
   await setup.record(volunteer,'R4',[2001,2002,2003],[920,980,1040]);

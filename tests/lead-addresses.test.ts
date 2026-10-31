@@ -16,7 +16,9 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
-    ['/day/olympics-password',{kind:'olympics-password'}]
+    ['/day/olympics-password',{kind:'olympics-password'}],
+    ['/day/events/R6/rename',{kind:'rename-event',code:'R6'}],
+    ['/day/events/new',{kind:'new-event'}]
   ];
   for(const [address,view] of screens) {
     expect(viewAt(address)).toEqual(view);
@@ -33,6 +35,7 @@ test('an event address without a tab opens Heats, and an address the app does no
 test('codes and race ids with spaces or slashes survive the address',()=>{
   const view={kind:'race-page',code:'R 4/b',raceId:'a/b c'} as const;
   expect(viewAt(addressOf(view))).toEqual(view);
+  expect(viewAt(addressOf({kind:'rename-event',code:'R 4/b'}))).toEqual({kind:'rename-event',code:'R 4/b'});
 });
 
 test('a screen reached with no history goes up one level',()=>{
@@ -43,6 +46,8 @@ test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});
   expect(parentOf({kind:'events'})).toEqual({kind:'day'});
   expect(parentOf({kind:'olympics-password'})).toEqual({kind:'day'});
+  expect(parentOf({kind:'rename-event',code:'R6'})).toEqual({kind:'events'});
+  expect(parentOf({kind:'new-event'})).toEqual({kind:'events'});
 });
 
 test('a failed request says Could not connect, a refused save says Not saved, each with the server\'s reason when it gives one',()=>{

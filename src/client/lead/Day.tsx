@@ -1,31 +1,16 @@
 import { useId,useState,type FormEvent,type ReactNode } from 'react';
-import { eventTypeNames, sections, type DayRead } from '../../shared/day.js';
+import type { DayRead } from '../../shared/day.js';
 import { api,apiDownload,ApiFailure,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { Callout,DockedFooter,ErrorCallout,failureLine,Icon,LeadBar,Sheet } from '../races/parts.js';
 import type { View } from '../shell/addresses.js';
-import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
+import { toastLine } from '../../shared/toast-lines.js';
 import { clock } from '../../shared/clock.js';
-import './day.css';
 
 /** When the day export was last downloaded, and whether anything changed after it. */
 export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>) {
   if(!day.exportedAt) return 'Not downloaded yet.';
   return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
-}
-/** Runs one lead action: the toast naming what was saved (built from the answer), v1's "Not saved" wording and the server's reason on failure. */
-function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
-  const toast=useToast();
-  const [busy,setBusy]=useState(false);
-  const [failed,setFailed]=useState<{where:string;message:string}|null>(null);
-  async function run<T>(where:string,path:string,body:unknown,saved:(answer:T)=>ToastSave) {
-    setBusy(true);setFailed(null);
-    try {const answer=await api<T>(path,body);toast({message:toastLine(saved(answer))});onSaved();await onChanged();return true;}
-    catch(error) {setFailed({where,message:error instanceof Error?error.message:'Could not connect'});return false;}
-    finally {setBusy(false);}
-  }
-  const failure=(where:string,again:string)=>failed?.where===where && <><p className="day-not-saved">Not saved - tap {again} again</p><p role="alert">{failed.message}</p></>;
-  return {busy,run,failure};
 }
 /** A refused download or new day says the server's reason, which already says what to do; a request that did not get through says Could not connect. */
 const refusal=(error:unknown)=>error instanceof ApiFailure && error.message?error.message:failureLine(error,'read');
@@ -170,56 +155,4 @@ export function ChangePassword() {
     <DockedFooter>{reason && <p className="rz-footer__reason">{reason}</p>}
       <button type="button" className="rz-btn rz-btn--primary rz-btn--block" aria-disabled={reason || busy?true:undefined} onClick={()=>void change()}>Change password</button></DockedFooter>
   </>}/>;
-}
-
-/** v1's event list for the day: rename, switch off or on, confirm the list and add an event. */
-export function Events({day,onChanged,onSaved}:{day:DayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
-  const {busy,run,failure}=useAction(onChanged,onSaved);
-  const [editing,setEditing] = useState<string|null>(null);
-  const [name,setName] = useState('');
-  const [newCode,setNewCode] = useState('');
-  const [newName,setNewName] = useState('');
-  const [section,setSection] = useState('');
-  const [format,setFormat] = useState('');
-  const [type,setType] = useState('');
-  async function rename(event:FormEvent) {
-    event.preventDefault();
-    if (editing && await run('list',`day/events/${encodeURIComponent(editing)}/rename`,{name},()=>({kind:'renamed',code:editing,name:name.trim()}))) setEditing(null);
-  }
-  async function add(event:FormEvent) {
-    event.preventDefault();
-    if (await run('add','day/events',{code:newCode,name:newName,section,format,type},()=>({kind:'event-added',code:newCode.trim().toUpperCase()}))) {
-      setNewCode(''); setNewName(''); setSection(''); setFormat(''); setType('');
-    }
-  }
-  return <div className="day-setup">
-    <section className="day-card" aria-label="Event list">
-      <p className="day-text">{day.eventsConfirmed?'Event list confirmed':'Check the events, then confirm the list'}</p>
-      {!day.eventsConfirmed && <button disabled={busy} onClick={()=>void run('list','day/confirm-events',{},()=>({kind:'event-list-confirmed'}))}>Confirm event list</button>}
-      {failure('list','Save')}
-    </section>
-    <div className="day-events">{day.events.map(event=><article key={event.id} className={event.enabled?'day-card':'day-card day-card-off'} aria-label={`${event.code} · ${event.section}`}>
-      <h3>{event.code} · {event.name}</h3>
-      <p className="day-text">{event.section} · {eventTypeNames[event.type]} · {event.format==='heats'?'Heats then final':'Timed'}{!event.enabled && ' · Switched off'}</p>
-      {editing===event.code ? <form onSubmit={rename}>
-        <label>New name for {event.code}<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} required /></label>
-        <div className="day-actions"><button className="button-small" disabled={busy}>Save name for {event.code}</button><button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
-      </form> : <div className="day-actions">
-        <button className="button-secondary button-small" disabled={busy} onClick={()=>{setName(event.name);setEditing(event.code);}}>Rename {event.code}</button>
-        <button className="button-secondary button-small" disabled={busy} onClick={()=>void run('list',`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},()=>({kind:'switched',code:event.code,on:!event.enabled}))}>{event.enabled?'Switch off':'Switch on'} {event.code}</button>
-      </div>}
-    </article>)}</div>
-    <section className="day-card" aria-label="Add an event">
-      <span className="day-card-title">Add an event</span>
-      <form onSubmit={add}>
-        <label>New event code<input value={newCode} onChange={e=>setNewCode(e.target.value)} maxLength={12} autoCapitalize="characters" required /></label>
-        <label>New event name<input value={newName} onChange={e=>setNewName(e.target.value)} maxLength={100} required /></label>
-        <label>New event section<select aria-label="New event section" value={section} onChange={e=>setSection(e.target.value)} required><option value="">Choose section</option>{sections.map(value=><option key={value}>{value}</option>)}</select></label>
-        <label>New event format<select aria-label="New event format" value={format} onChange={e=>setFormat(e.target.value)} required><option value="">Choose event format</option><option value="heats">Heats then final</option><option value="timed">Timed</option></select></label>
-        <label>New event type<select aria-label="New event type" value={type} onChange={e=>setType(e.target.value)} required><option value="">Choose Races or Hurdles</option><option value="races">Races</option><option value="hurdles">Hurdles</option></select></label>
-        <button disabled={busy}>{busy?'Saving…':'Add event'}</button>
-      </form>
-      {failure('add','Add event')}
-    </section>
-  </div>;
 }
