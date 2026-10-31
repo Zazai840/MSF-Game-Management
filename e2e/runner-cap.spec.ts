@@ -71,7 +71,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await expect(rows).toHaveCount(7);await expect(rows.last()).toContainText('7th1806');
   await page.screenshot({path:info.outputPath('lead-order-seventh.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await back(page,`${name} Boy Cubs`);await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await back(page,`${name} · Boy Cubs`);await page.getByRole('button',{name:'Refresh',exact:true}).click();
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.locator('.leaderboard-row')).toHaveCount(7);
   await expect(final.locator('.leaderboard-row').first()).toContainText('1801');await expect(final.locator('.leaderboard-row').last()).toContainText('1806');
   await page.getByRole('button',{name:'Final complete',exact:true}).click();const complete=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(complete).toContainText('1st: 1801');await complete.getByRole('button',{name:'Confirm',exact:true}).click();

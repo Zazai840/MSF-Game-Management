@@ -98,7 +98,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   expect(lines).toEqual([1,1,1,1]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page.png'),fullPage:true});
-  await page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button').click();
+  await page.getByRole('banner').getByRole('button',{name:/^Back to /}).click();
   // Heats complete: the line-up is the six fastest teams across the heats.
   await page.getByRole('button',{name:'Heats complete',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'Heats complete',exact:true});
@@ -222,6 +222,6 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-order-corrected.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await back(page,`${name} Boy Scouts`);
+  await back(page,`${name} · Boy Scouts`);
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('corrected the finishing order for Heat 1: Team 2, Team 1; Didn\'t run Team 3');
 });

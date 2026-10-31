@@ -1,5 +1,6 @@
 import { roles,type Role } from '../shared/race-flow.js';
 import { onThisBuild } from './shell/updates.js';
+import { ApiFailure } from './api-failure.js';
 const prefix = 'msf:';
 let epoch=0;
 let resetPending=false;
@@ -86,7 +87,7 @@ export const phoneStorage = {
 window.addEventListener('storage',event=>{
   if(event.key===`${prefix}session` || event.key===null) changed(Boolean(token() && dayId()));
 });
-export class ApiFailure extends Error { constructor(public status: number, message: string, public body: {reason?:string;taken?:boolean} = {}) { super(message); } }
+export { ApiFailure };
 export class StaleRequest extends Error {constructor(){super('Please refresh');}}
 const sessions=new WeakMap<Response,string>();
 function current(captured:string) {if(captured!==sessionId()) throw new StaleRequest();}

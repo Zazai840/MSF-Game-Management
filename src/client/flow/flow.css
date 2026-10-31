@@ -1,10 +1,5 @@
-/* Shared flow pieces: back arrow, phone number entry with its keyboard bar, drag-and-drop rows, wrong times. Tokens from theme.css. */
+/* Shared flow pieces: phone number entry with its keyboard bar, drag-and-drop rows, wrong times. Tokens from theme.css. */
 
-/* Back arrow: bare, at the left of the row under the header, the glyph lined up with the content column. */
-.app-nav .back-arrow {
-  display:inline-flex; align-items:center; justify-content:center; width:var(--tap); min-height:var(--tap); padding:0; margin-left:-14px;
-  border:0; border-radius:var(--radius-small); background:transparent; color:var(--navy);
-}
 @media(min-width:800px) {
   .action-bar {padding-left:24px; padding-right:24px;}
   .action-bar-inner {max-width:calc(48rem - 48px);}

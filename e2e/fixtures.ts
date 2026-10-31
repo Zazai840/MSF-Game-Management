@@ -86,11 +86,11 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
   return (await created.json()).token as string;
 }
 /**
- * Taps the back arrow under the header, one level at a time, until it has gone back to the named screen
+ * Taps the back arrow in the header, one screen at a time, until it has gone back to the named screen
  * (the arrow's label says "Back to <to>"), for example back(page,'Results'). Wait for the screen to settle first.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button');
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
     await expect(arrow).toBeVisible();
     const label=(await arrow.getAttribute('aria-label'))!;
@@ -511,7 +511,7 @@ export async function lookProblems(page:Page) {
     for(const menu of document.querySelectorAll('[role=menu]')) {
       if(!visible(menu)) continue;
       const area=menu.getBoundingClientRect();
-      for(const avatar of document.querySelectorAll('.rz-avatar,.app-header-person')) {
+      for(const avatar of document.querySelectorAll('.rz-avatar')) {
         const box=avatar.getBoundingClientRect();
         if(visible(avatar)&&area.left<box.right&&area.right>box.left&&area.top<box.bottom&&area.bottom>box.top) problems.push(`menu covers ${describe(avatar)}`);
       }

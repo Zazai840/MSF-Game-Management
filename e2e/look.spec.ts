@@ -193,8 +193,6 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await look('lead-avatar-menu');
   await page.getByRole('menuitem',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
-  // The older look's header, with the same menu.
-  await leadMenuButton(page).click();await expect(page.getByRole('menuitem',{name:'Day setup',exact:true})).toBeVisible();
-  await look('results-avatar-menu');
+  await look('results');
   await deleteCurrentRace(request,code);
 });
