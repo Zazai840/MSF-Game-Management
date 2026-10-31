@@ -3,7 +3,6 @@ import {ownName,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands
 /** A team's card at check-in, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const sheet=(page:Page,title:string)=>page.getByRole('dialog',{name:title,exact:true});
-const here=(page:Page,wristband:number)=>page.getByRole('button',{name:`${wristband}: Here`,exact:true});
 const grip=(scope:Page|ReturnType<Page['getByRole']>,name:string|number)=>scope.getByRole('button',{name:`Move ${name}`,exact:true});
 const grips=(scope:ReturnType<Page['getByRole']>)=>scope.getByRole('button',{name:/^Move /});
 /** A heat card's leg rows as they read: "1st leg2071". */
@@ -28,7 +27,6 @@ test('two start-line phones: a grip drag on a heat team card reorders its legs o
   let made=await flowPost(request,sam.token,'/api/races',{eventCode:code,kind:'heat',number:1});
   const raceId=made.race.id;
   for(const team of made.teams!) made=await flowPost(request,sam.token,`/api/races/${raceId}/teams/${team.id}/tick`,{});
-  await flowPost(request,sam.token,`/api/races/${raceId}/teams/${made.teams![0].id}/here`,{leg:0,here:true});
   for(const phone of [sam,priya]) await phone.page.goto(`/races/${raceId}`);
   const [one,two]=[sam.page,priya.page];
   await expect(heatLegs(one,1)).toHaveText(['1st leg'+w(11),'2nd leg'+w(12),'3rd leg'+w(13),'4th leg–']);
@@ -41,16 +39,13 @@ test('two start-line phones: a grip drag on a heat team card reorders its legs o
   // Done, the phone goes back to the races; Sam opens the heat again, its grips still there until it is saved.
   await one.goto(`/races/${raceId}`);
 
-  // A drag from the grip: the labels follow live, and the drop lands on both phones with Here following the child.
+  // A drag from the grip: the labels follow live, and the drop lands on both phones.
   const drag=await startDrag(one,grip(one,w(11)));
   await drag.over(heatLegs(one,1).nth(2));
   await expect(card(one,1).locator('li[data-dragging="true"] .rz-attendance__seed')).toHaveText('3rd leg');
   await one.screenshot({path:info.outputPath('heat-dragging.png')});
   await drag.drop();
-  for(const page of [one,two]) {
-    await expect(heatLegs(page,1)).toHaveText(['1st leg'+w(12),'2nd leg'+w(13),'3rd leg'+w(11),'4th leg–'],live);
-    await expect(here(page,w(11))).toHaveAttribute('aria-pressed','true');
-  }
+  for(const page of [one,two]) await expect(heatLegs(page,1)).toHaveText(['1st leg'+w(12),'2nd leg'+w(13),'3rd leg'+w(11),'4th leg–'],live);
   // A drop after That's everyone keeps the step done.
   expect((await read(request,priya.token,raceId)).steps.runners!.state).toBe('done');
   // Arrow keys on a grip move its leg at once: the empty 4th leg moves up to 3rd.

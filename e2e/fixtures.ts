@@ -233,17 +233,13 @@ export async function writeTeam(request:APIRequestContext,token:string,relayCode
 /** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
 export const flowPost=(request:APIRequestContext,token:string,url:string,data:object)=>postOk<RaceFlowRead>(request,token,url,data);
 /** A relay Start line tap as that phone on the race the relay is at, naming the team by its number, as tapping it does. */
-async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here'|'absent',number:number,data:object={}) {
+async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'absent',number:number,data:object={}) {
   const read=await flowRace(request,token,relayCode);
   return flowPost(request,token,`/api/races/${read.race.id}/teams/${read.teams!.find(team=>team.number===number)!.id}/${what}`,data);
 }
 /** Adds Team `number` to the heat the relay is at as that phone, as Add does (anyone can: ADR 0002). */
 export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
   return teamTap(request,token,relayCode,'tick',number);
-}
-/** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
-export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
-  return teamTap(request,token,relayCode,'here',number,{leg:leg-1,here});
 }
 /** Marks a relay final's teams Here as that phone, as its start line's Here does, naming each team by its number. */
 export async function markFinalHere(request:APIRequestContext,token:string,relayCode:string,numbers:number[]) {
@@ -258,16 +254,13 @@ export async function writeTeamOrder(request:APIRequestContext,token:string,rela
   const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
   return flowPost(request,token,`/api/races/${race.id}/order`,{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>teams!.find(team=>team.number===number)!.id)});
 }
-/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, each child here, placed in list order and timed. */
+/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, every child checked in, placed in list order and timed. */
 export async function runHeat(request:APIRequestContext,token:string,code:string,teams:number) {
   const post=(url:string,data:object)=>flowPost(request,token,url,data);
   const groups=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups;
   let read=await post('/api/races',{eventCode:code,kind:'heat',number:groups.find(group=>group.event.code===code)!.nextHeat});
   const id=read.race.id;
-  for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) {
-    read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await post(`/api/races/${id}/teams/${team.id}/here`,{leg,here:true});
-  }
+  for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
   read=await post(`/api/races/${id}/steps/runners/done`,{});
   const order=(read.race.parts.runners.value||[]).filter(isTeamEntry).sort((a,b)=>a.team.number-b.team.number).map(entry=>entry.id);
   read=await post(`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order,didNotFinish:[],didNotRun:[],added:[]});
