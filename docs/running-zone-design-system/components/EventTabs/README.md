@@ -1,6 +1,6 @@
 # EventTabs
 
-Races · Hurdles · Relays on Home: a 3-column segmented control. The last tab is remembered per phone. Spec: race-flow.md "New components"; rules in `components/bundle.css`.
+Races · Hurdles · Relays on Home, and an event's tabs in Results: a segmented control, one equal column per tab. The last tab is remembered per phone. Spec: race-flow.md "New components"; rules in `components/bundle.css`.
 
 **Markup** (icon paths from [Icon](../Icon/README.md))
 
@@ -14,5 +14,6 @@ Races · Hurdles · Relays on Home: a 3-column segmented control. The last tab i
 
 **Rules**
 - `card` with `shadow-card` and `radius-tab`, 4px inset; each tab 44px, Saira italic caps 18px.
+- Columns flex to the number of tabs: Home's 3, an event's 4 (Heats · Final · Races · Notes), a timed event's 3.
 - The current tab is `navy` with `on-navy` text and `aria-current="page"`.
 - Which tab an event is on is its stored type, never its name.

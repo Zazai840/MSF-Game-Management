@@ -20,7 +20,7 @@ const daySetup:Record<DayView['kind'],string>={day:'Day setup','signed-in-today'
  * Events). Each is its own address (`view`); `onOpen` moves to another and `onBack` goes back. The race flow put a
  * race's issues on the race itself, so there is no Dashboard or To check list.
  */
-export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View)=>void;onBack:()=>void;onChanged:()=>void}) {
+export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged:()=>void}) {
   const [day,setDay] = useState<DayRead|null>(null);
   const [phones,setPhones] = useState<number|null>(null);
   const [error,setError] = useState('');
@@ -36,7 +36,7 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
     } catch (error) { if(error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect'); }
   }
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
-  return <>{!section?<Results key={`${addressOf(view)}:${target?.id??''}`} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>
+  return <>{!section?<Results key={`${view.kind==='event'?`event:${view.code}`:addressOf(view)}:${target?.id??''}`} tab={view.kind==='event'?view.tab:undefined} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>
     :<><LeadBar title={section} up={kind==='day'?'Races':'Day setup'}/><main><section className="dashboard">{error && <p role="alert">{error}</p>}
       {kind==='day' && day && <Day day={day} phones={phones} onOpen={screen=>onOpen({kind:screen==='Events'?'events':'signed-in-today'})} onChanged={refresh} onSaved={onChanged}/>}
       {kind==='events' && day && <Events day={day} onChanged={refresh} onSaved={onChanged}/>}
