@@ -235,7 +235,7 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
   if(stage) return stage==='final'?'Final saved · confirm the medals':'Every race saved · confirm the medals after the last race';
   return group.medalsDecided?'Medals decided':leadFinalLine(group)??groupStatus(group,'lead');
 }
-/** A lead's sections: Ready for you is the groups with open issues or medals waiting on the lead; the rest as for everyone. */
+/** A lead's sections: Action required (`ready`) is the groups with open issues or medals waiting on the lead; the rest as for everyone. */
 export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {
   const listed=groups.filter(group=>group.races.length);
   const ready=listed.filter(group=>ownIssues(group,issues).length || group.medalsWaiting);
