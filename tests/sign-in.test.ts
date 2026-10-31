@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { raceSetup } from './support/races.js';
+import { labelDay } from './support/sign-in.js';
 import { createApp } from '../src/server/app.js';
 let app: FastifyInstance;
 const post = (url: string, payload: object, remoteAddress?: string) => app.inject({method:'POST', url, payload, remoteAddress});
@@ -164,6 +165,7 @@ test('every 401 says why: signed-out after Remove or with no session, new-day on
   await app.inject({method:'POST', url:`/api/day/phones/${removed.phone.id}/remove`, headers:auth(ownerLead.token), payload:{}});
   expect((await app.inject({url:'/api/home', headers:auth(removed.token)})).json().reason).toBe('signed-out');
   expect((await app.inject({url:'/api/home'})).json().reason).toBe('signed-out');
+  await labelDay(app, ownerLead.token);
   await app.inject({method:'POST', url:'/api/day/export', headers:auth(ownerLead.token), payload:{}});
   expect((await app.inject({method:'POST', url:'/api/day/start-new', headers:auth(ownerLead.token), payload:{confirmation:'NEW DAY'}})).statusCode).toBe(200);
   const old = await app.inject({url:'/api/home', headers:auth(stale.token)});

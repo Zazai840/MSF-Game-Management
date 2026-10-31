@@ -53,6 +53,10 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_at timestamptz;
     ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS exported_revision bigint;
+    -- This day (spec #250): Year is the current year when a day is made (the live day too), Region and Day start empty.
+    ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS year integer NOT NULL DEFAULT EXTRACT(YEAR FROM now() AT TIME ZONE 'UTC');
+    ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS region text CHECK (region IN ('North','South','National'));
+    ALTER TABLE olympics_days ADD COLUMN IF NOT EXISTS day_number integer CHECK (day_number BETWEEN 1 AND 5);
     CREATE TABLE IF NOT EXISTS events (
       id uuid PRIMARY KEY, day_id uuid NOT NULL REFERENCES olympics_days(id),
       code text NOT NULL, name text NOT NULL,
