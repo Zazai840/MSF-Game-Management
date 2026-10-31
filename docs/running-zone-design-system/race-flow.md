@@ -26,7 +26,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 
 | Concept | Meaning | Notes |
 |---|---|---|
-| Event type | Races, Hurdles, Relays | The three tabs on Home. |
+| Event type | Races, Hurdles, Relays | What kind of event it is, stored with it. Home's tab follows from it: races and hurdles on Races, relays on Relays. |
 | Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's event list; New race only offers confirmed, switched-on events. |
 | Section | Boy Beavers … Girl Scouts, with a code per event (R1–R6 for 60m; other events have their own codes, such as R16) | Use the existing code data. |
 | Event group | One event × one section ("60m · Girl Cubs · R4") | One card on Home. Holds its races. |
@@ -67,8 +67,8 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 
 **App bar** (compact, navy, star pattern): eyebrow "MSF Olympics" and title "Running Zone" ("Zone" in `--zone`). On the right are the **RoleChip** and the avatar.
 
-**EventTabs:** Races · Hurdles · Relays.
-- Remember the last tab per device. Default to Races.
+**EventTabs:** Races · Relays. Races holds races and hurdles events; a hurdles card is told apart by its event name only ("60m Hurdles · Girl Cubs"), with no tag.
+- Remember the last tab per device. Default to Races; a phone that remembered the Hurdles tab of an older build opens on Races, with no message.
 - Relays lists the relay cards the same way (see "9. Relays").
 
 **List**, grouped into sections. Hide a section that is empty.
@@ -78,8 +78,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 4. **Done:** collapsed Disclosure, "Done (4)", listing groups whose medals are decided (Event complete, Final complete or Results without a final); until then a group stays in progress, even with every race saved. A lead's card in Done reads "Medals decided".
 
 **Ordering**
-- Within Ready for you: the group whose oldest waiting race was created first comes first. A lead's Action required puts the group that started waiting last first: its newest issue, or for medals waiting, its last race's save.
-- Elsewhere: most recently updated first.
+- Within every section (Ready for you or a lead's Action required, In progress, Done): the day's programme (60m, 60m Hurdles, 200m, 400m; then the relays), for every role.
 
 **RaceCard**, one per event group:
 - Title "60m · Girl Cubs", a code tag (R4), and one status line in words written for my role ("Heats 3 and 4 need times · Heats 1 and 2 done", "Heat 1 checked in", "Heats 1 and 2 and the final done").
@@ -109,7 +108,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons for every races and hurdles event, grouped under the tab names Races and Hurdles whichever of those tabs it was opened from, so a volunteer on the wrong tab still finds theirs. It has no Relays group: on Relays, + New relay lists only the relays. Back from the new race, Races shows that event's tab.
+- **Event:** choice buttons for every races and hurdles event, one list in the day's programme with no Races or Hurdles headings. On Relays, + New relay lists only the relays.
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.
@@ -272,7 +271,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 
 A heat usually has 6 runners (6 lanes, and the 60m final takes the fastest 6). Warn, don't block.
 
-- **Scope:** only events on the **Races** tab (60m, 200m, 400m), heats and finals. Hurdles and Relays don't show it.
+- **Scope:** only Races-type events (60m, 200m, 400m), heats and finals. Hurdles and Relays don't show it, though hurdles share the Races tab.
 - **Setting:** `usualRunnersPerRace`, default **6**, configurable per event in Day setup if that already supports per-event settings. Otherwise use a constant.
 - **Trigger:**
   - On the start line, when the runner count reaches the usual number (the 6th wristband is added).
@@ -293,7 +292,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | Component | Spec |
 |---|---|
 | **RoleChip** | A pill link on the app bar: `paper` fill (lead: `jumping`), `navy` text, 14px/800, job icon 18px, chevron-down 16px, `size-touch` tall. `aria-label="Your job: Timer. Change job"`. Opens the Switch job sheet. |
-| **EventTabs** | 3-column segmented control on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
+| **EventTabs** | 2-column segmented control (Races, Relays) on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
 | **RaceCard** | `card`, `shadow-card`, `radius-xl`, padding 12/14. Title in `display-card`; code tag; status line in `meta` + `ink-muted`; HeatChips row. |
 | **HeatChips** | An `<ol>` of chips, minimum 52 × 44, `radius-md`, Saira 18px "H1". States are set by the **viewer's step**:<br>• Done: `navy` + tick.<br>• Ready for me: `gold` (on Home).<br>• Current race: `gold` + 2px `navy` ring.<br>• Ready but not current: `card` + 2px `navy` ring + gold dot.<br>• Waiting: `card` + 2px `line`.<br>• Add: 44px dashed `line-strong` with a plus.<br>• Create final: dashed `navy` "+ Final".<br>Every chip's `aria-label` says its state in words ("Heat 3, needs times"). |
 | **StepStrip** | 3-column grid of cells at least 48px tall, `radius-md`. Label 13px/800, status 12px.<br>• Mine: `card` + 2px `navy` ring, status starts "You ·".<br>• Others: 1.5px `line` ring; a done step adds a `throwing-ink` tick.<br>Read-only `<li>`s for volunteers; `role="tab"` buttons for leads (selected: `navy` fill, `on-navy` text). |
@@ -362,7 +361,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
 - **Each role on a phone (390 × 844)** can do their step on a 6-runner and a 12-runner heat without scrolling past the footer, and every target is at least 44px.
 - **Two volunteers at once:** a finish-line phone and a timer phone work on the same heat at the same time. Both saves land, and the lead's Times tab shows wristband + time joined by place.
 - **Accessibility:** the WCAG checks in [accessibility.md](accessibility.md) pass on every new component. In particular, every HeatChip and StepStrip state is readable in words without colour.
-- **Soft warning:** shows once at the 6th runner on a Races-tab event, never on Hurdles, and never blocks. It reappears for a 7th runner added at the finish line only if it hasn't been shown to that person on that race.
+- **Soft warning:** shows once at the 6th runner on a Races-type event, never on Hurdles, and never blocks. It reappears for a 7th runner added at the finish line only if it hasn't been shown to that person on that race.
 - **Undo:** each step's save can be undone from the toast. It restores exactly the person's own change and leaves no orphaned data. If someone else edited the same step in between, the toast offers "Open race" instead, and nothing is undone.
 
 ## Decisions already made

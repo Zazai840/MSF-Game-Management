@@ -334,7 +334,7 @@
 .rz-rolechip--lead { background: var(--jumping); }
 
 /* ---------- EventTabs ---------- */
-.rz-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
 

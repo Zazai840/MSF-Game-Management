@@ -4,65 +4,77 @@ const tab=(page:Page,name:string)=>tabs(page).getByRole('button',{name:new RegEx
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 const status=(page:Page,name:string,section='Girl Cubs')=>card(page,name,section).locator('.rz-racecard__status');
 
-test('Races, Hurdles and Relays tabs show their own events, the phone keeps the last tab, and a relay\'s race goes back to Relays',async({openPhone,request},info)=>{
-  const races=ownName('Tab sprint'),hurdles=ownName('Tab hurdles'),relay=ownName('Tab relay');
-  const [racesCode,hurdlesCode,relayCode]=[await ownCode(),await ownCode(),await ownCode()];
-  await ownEvent(request,racesCode,races);
+test('Home has two tabs, Races and Relays: races and hurdles events share Races in programme order, a phone that remembered Hurdles opens on Races, and the phone keeps the last tab',async({openPhone,request},info)=>{
+  const first=ownName('Tab sprint'),hurdles=ownName('Tab hurdles'),last=ownName('Tab long'),relay=ownName('Tab relay');
+  const [firstCode,hurdlesCode,lastCode,relayCode]=[await ownCode(),await ownCode(),await ownCode(),await ownCode()];
+  // Added in this order, so this is their programme order.
+  await ownEvent(request,firstCode,first);
   await ownEvent(request,hurdlesCode,hurdles,'Girl Cubs','timed','hurdles');
+  await ownEvent(request,lastCode,last,'Girl Cubs','timed');
   await ownRelay(relayCode,relay);
   const token=process.env.E2E_OWNER_TOKEN!;
-  await writeCheckIn(request,token,racesCode,[2001]);await writeCheckIn(request,token,hurdlesCode,[2002]);
+  // Heats made against the programme, each waiting for the start line: the last event's has waited longest.
+  for(const code of [lastCode,hurdlesCode,firstCode]) await flowPost(request,token,'/api/races',{eventCode:code,kind:'heat',number:1});
   await writeTeam(request,token,relayCode,[(await ownWristbands('Girl Cubs',1))(1),null,null,null]);
   await flowPost(request,token,'/api/races',{eventCode:relayCode,kind:'heat',number:1});
   const {page}=await openPhone(ownName('Tabs'));
-  // A phone that has never switched opens on Races.
+  // A phone that remembered the Hurdles tab of an older build opens on Races, saying nothing.
+  await page.evaluate(()=>localStorage.setItem('msf:home-tab','hurdles'));await page.reload();
+  await expect(tabs(page).getByRole('button')).toHaveText(['Races','Relays']);
   await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
-  await expect(card(page,races)).toBeVisible();await expect(card(page,hurdles)).toHaveCount(0);
-  await expect(tab(page,'Relays')).toHaveAccessibleName('Relays');
+  // The hurdles card is told apart by its name only, and sits between the races in programme order.
+  await expect(card(page,hurdles).getByRole('heading',{name:`${hurdles} · Girl Cubs`,exact:true})).toBeVisible();
+  const mine=[first,hurdles,last].map(name=>`${name} · Girl Cubs`);
+  await expect.poll(async()=>(await page.locator('h2:text-is("Ready for you") ~ article').evaluateAll(cards=>cards.map(card=>card.getAttribute('aria-label')))).filter(label=>mine.includes(label!))).toEqual(mine);
+  await expect(card(page,relay)).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('races.png'),fullPage:true});
-  await tab(page,'Hurdles').click();
-  await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');await expect(tab(page,'Races')).not.toHaveAttribute('aria-current');
-  await expect(card(page,hurdles)).toBeVisible();await expect(card(page,races)).toHaveCount(0);
-  await page.reload();
-  await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');await expect(card(page,hurdles)).toBeVisible();
-  // Relays lists its relays as race cards, and the back arrow from a relay's race returns to Relays.
+  // Relays lists its relays as race cards; the phone keeps it, and the back arrow from a relay's race returns to it.
   await openRelays(page);
-  await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
+  await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');await expect(tab(page,'Races')).not.toHaveAttribute('aria-current');
   await expect(card(page,relay)).toBeVisible();
-  await expect(card(page,races)).toHaveCount(0);
+  await expect(card(page,first)).toHaveCount(0);await expect(card(page,hurdles)).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relays.png'),fullPage:true});
+  await page.reload();
+  await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');await expect(card(page,relay)).toBeVisible();
   await openRace(page,relay);
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(tab(page,'Relays')).toHaveAttribute('aria-current','page');
   await tab(page,'Races').click();
-  await expect(card(page,races)).toBeVisible();
-  for(const code of [racesCode,hurdlesCode,relayCode]) await deleteCurrentRace(request,code);
+  await expect(card(page,hurdles)).toBeVisible();
+  for(const code of [firstCode,hurdlesCode,lastCode,relayCode]) await deleteCurrentRace(request,code);
 });
 
-test('New race lists every event under its tab\'s name, and a race made from the wrong tab brings Races home back on its own tab',async({openPhone,request},info)=>{
-  const races=ownName('Grouped sprint'),hurdles=ownName('Grouped hurdles');
-  const [racesCode,hurdlesCode]=[await ownCode(),await ownCode()];
-  await ownEvent(request,racesCode,races);
+test('New race on Races is one list of races and hurdles events in programme order, with no Races or Hurdles headings, and New relay lists only the relays',async({openPhone,request},info)=>{
+  const first=ownName('Listed sprint'),hurdles=ownName('Listed hurdles'),last=ownName('Listed long'),relay=ownName('Listed relay');
+  const [firstCode,hurdlesCode,lastCode,relayCode]=[await ownCode(),await ownCode(),await ownCode(),await ownCode()];
+  await ownEvent(request,firstCode,first);
   await ownEvent(request,hurdlesCode,hurdles,'Girl Cubs','timed','hurdles');
-  const {page}=await openPhone(ownName('Grouped'));
+  await ownEvent(request,lastCode,last,'Girl Cubs','timed');
+  await ownRelay(relayCode,relay);
+  const {page}=await openPhone(ownName('Listed'));
   await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
   await page.getByRole('button',{name:'New race',exact:true}).click();
-  const sheet=page.getByRole('dialog',{name:'New race'});
-  const group=(name:string)=>sheet.getByRole('group',{name,exact:true});
-  await expect(group('Races').getByRole('button',{name:races,exact:true})).toBeVisible();
-  await expect(group('Races').getByRole('button',{name:hurdles,exact:true})).toHaveCount(0);
-  await expect(group('Hurdles').getByRole('button',{name:hurdles,exact:true})).toBeVisible();
+  const sheet=page.getByRole('dialog',{name:'New race'}),events=sheet.getByRole('group',{name:'Event',exact:true});
+  const mine=[first,hurdles,last];
+  await expect.poll(async()=>(await events.getByRole('button').allTextContents()).filter(name=>mine.includes(name))).toEqual(mine);
+  await expect(sheet.getByRole('group',{name:'Races',exact:true})).toHaveCount(0);await expect(sheet.getByRole('group',{name:'Hurdles',exact:true})).toHaveCount(0);
+  await expect(sheet.getByRole('button',{name:relay,exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('new-race-grouped.png'),fullPage:true});
-  await group('Hurdles').getByRole('button',{name:hurdles,exact:true}).click();
+  await page.screenshot({path:info.outputPath('new-race-one-list.png'),fullPage:true});
+  await events.getByRole('button',{name:hurdles,exact:true}).click();
   await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:`${hurdles} · Girl Cubs`})).toBeVisible();
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
-  await expect(tab(page,'Hurdles')).toHaveAttribute('aria-current','page');
+  await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
   await expect(card(page,hurdles)).toBeVisible();
+  await openRelays(page);
+  await page.getByRole('button',{name:'New relay',exact:true}).click();
+  const relays=page.getByRole('dialog',{name:'New relay'});
+  await expect(relays.getByRole('group',{name:'Relays',exact:true}).getByRole('button',{name:relay,exact:true})).toBeVisible();
+  await expect(relays.getByRole('button',{name:hurdles,exact:true})).toHaveCount(0);
   await deleteCurrentRace(request,hurdlesCode);
 });
 
@@ -219,7 +231,6 @@ test('a Hurdles event stays under In progress after its heats are saved, and mov
   await recordRace(request,owner,code,[w(1)],[1200]);
   await recordRace(request,owner,code,[w(2)],[1300]);
   const {page}=await openPhone(ownName('Medals timer'),{job:'timer'});
-  await tab(page,'Hurdles').click();
   const section=(heading:string)=>page.locator(`h2:text-is("${heading}") ~ article`);
   await expect(section('In progress').filter({hasText:name})).toHaveCount(1);
   await expect(status(page,name)).toHaveText('Heats 1 and 2 done');

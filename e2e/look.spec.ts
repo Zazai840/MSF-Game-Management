@@ -138,7 +138,7 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await avatar.click();await expect(page.getByRole('menuitem',{name:'Log out',exact:true})).toBeVisible();
   await look('avatar-menu');
   await avatar.click();
-  // New race: Races and Hurdles, a section and its next heat chosen.
+  // New race: one list of events, a section and its next heat chosen.
   await page.getByRole('button',{name:'New race',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'New race'});
   await sheet.getByRole('button',{name,exact:true}).click();

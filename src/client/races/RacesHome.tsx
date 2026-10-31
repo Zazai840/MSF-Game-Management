@@ -11,8 +11,8 @@ import type { SavedStep } from './RaceShell.js';
 import { TeamSheet } from './TeamSheet.js';
 import { Toast } from './Toast.js';
 
-const tabs:Array<[HomeTab,string]>=[['races','Races'],['hurdles','Hurdles'],['relays','Relays']];
-/** Races · Hurdles · Relays, remembered per phone. */
+const tabs:Array<[HomeTab,string]>=[['races','Races'],['relays','Relays']];
+/** Races · Relays, remembered per phone: races and hurdles events are on Races, relays on Relays. */
 export function EventTabs({tab,onTab}:{tab:HomeTab;onTab:(tab:HomeTab)=>void}) {
   return <nav className="rz-tabs" aria-label="Event type">{tabs.map(([key,label])=><button key={key} type="button" aria-current={tab===key?'page':undefined} onClick={()=>onTab(key)}>
     {label}</button>)}</nav>;
@@ -30,9 +30,9 @@ function useLeadItems(on:boolean) {
   return items;
 }
 /**
- * Races, the new Home: the event groups of this tab behind Races · Hurdles · Relays, live from the races stream, in
+ * Races, the new Home: the event groups of this tab behind Races · Relays, live from the races stream, in
  * Ready for you (a race my step can be worked on now; for a lead it is Action required: a group with open issues or
- * medals waiting on their Confirm), In progress and Done.
+ * medals waiting on their Confirm), In progress and Done, each in the day's programme.
  * Each card's chips open a race; "+" makes the next heat and a lead's "+ Final", after a confirm, the final. A relay's
  * card also has its Teams row, which opens its teams sheet, and Relays lists a relay with teams but no heats under Teams
  * ready, no heats yet. `me` is this person's profile id: a team another profile set asks before it is changed.
@@ -50,7 +50,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
   // The relay (event code) whose teams sheet is open, and whether it opened on New team; null code: which relay New team is for.
   const [teamsOf,setTeamsOf]=useState<{code:string|null;start:'list'|'new'}|null>(null);
   const issues=useLeadItems(role==='lead');
-  const all=snapshot?.groups||[],groups=all.filter(group=>group.event.type===tab);
+  const all=snapshot?.groups||[],groups=all.filter(group=>group.event.relay===(tab==='relays'));
   const finalFor=all.find(group=>group.event.code===confirming);
   const relayGroups=all.filter(group=>group.teams),teamsFor=relayGroups.find(group=>group.event.code===teamsOf?.code);
   const relays=relayGroups.map(teamListOf);
@@ -60,9 +60,6 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
     setFailure('');
     try {
       const made=await api<{race:{id:string}}>('races',choice);
-      // New race lists every tab's events: back from the race, Races home shows this one's tab.
-      const type=all.find(group=>group.event.code===choice.eventCode)?.event.type;
-      if(type && type!==tab) onTab(type);
       onRace(made.race.id);
     }
     catch(failure) {setFailure(failure instanceof Error?failure.message:'Could not connect - please try again');}
@@ -100,7 +97,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
       </div>:<button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>New race</button>}
     </footer>
     {saved && <Toast key={`${saved.raceId}:${saved.step}:${saved.version}`} saved={saved} race={snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)} onOpen={onRace} onClose={onSavedShown}/>}
-    {creating && snapshot && <NewRaceSheet groups={all} relays={tab==='relays'} role={role} choice={creating} onRace={onRace} onResults={onResults} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
+    {creating && snapshot && <NewRaceSheet groups={groups} relays={tab==='relays'} role={role} choice={creating} onRace={onRace} onResults={onResults} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{
       const group=all.find(item=>item.event.code===choice.eventCode),made=group && finalMade(group);
       if(choice.kind==='final' && !made) {setCreating(null);setConfirming(choice.eventCode);} else void make(choice);
     }}/>}

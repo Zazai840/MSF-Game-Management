@@ -45,7 +45,7 @@ test('a saved final sits in the lead\'s Action required to confirm the medals, a
   expect(now.done).toEqual(['R4']);
   expect(now.card('R4')).toEqual({line:'Medals decided',confirm:null});
 });
-test('a timed event with every race so far saved waits on Event complete, newest first with the final, and Results without a final never waits',async()=>{
+test('a timed event with every race so far saved waits on Event complete, in the day\'s programme with the final, and Results without a final never waits',async()=>{
   const {volunteer,setup,complete,home,savedFinal}=await start();
   // Boy Cubs 60m Hurdles (R7), timed: two heats saved.
   await setup.record(volunteer,'R7',[1,2],[1000,1100]);await setup.record(volunteer,'R7',[3,4],[1050,1150]);
@@ -61,7 +61,7 @@ test('a timed event with every race so far saved waits on Event complete, newest
   expect(now.ready).toEqual([]);
   expect(now.card('R7')).toEqual({line:'Heat 3 in progress · Heats 1 and 2 saved',confirm:null});
   await setup.record(volunteer,'R7',[5,6],[1080,1180]);
-  // Then the final is saved: it started waiting last, so it comes first.
+  // Then the final is saved: the 60m comes before the hurdles, as in the day's programme.
   await savedFinal();
   expect((await home()).ready).toEqual(['R4','R7']);
   await complete('R7','event');await complete('R5','no-final');
