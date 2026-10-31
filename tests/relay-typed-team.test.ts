@@ -37,7 +37,7 @@ test('a typed team joins the heat in one write, every typed child checked in, nu
   read=(await typed(sam,one,[2111,2112,2113,null])).json() as RaceFlowRead;
   expect(teamsIn(read.race)).toEqual([[1,[[2101,true],[2102,true],[2103,true],[2104,true]]],[2,[[2111,true],[2112,true],[2113,true],[null,false]]]]);
   expect(read.group.nextTeam).toBe(3);
-  await relays.save(sam,'R22',[1,2],[1400,1500]);
+  await relays.save(sam,'R22',[1,2],[3400,3500]);
   // Heat 2's first typed team takes the relay's next number.
   const two=await relays.worked(sam,'R22');
   expect(two.race.number).toBe(2);
@@ -65,7 +65,7 @@ test('a final refuses a new team, and writes nothing',async()=>{
   const {sam,lead,relays}=await start();
   const heat=await relays.worked(sam,'R22');
   for(const legs of [[2101,2102,2103,2104],[2111,2112,2113,2114]]) expect((await typed(sam,heat,legs)).statusCode).toBe(200);
-  await relays.save(sam,'R22',[1,2],[1400,1500]);
+  await relays.save(sam,'R22',[1,2],[3400,3500]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'});
   expect((await typed(sam,final,[2121,2122,2123,2124])).json()).toEqual({message:'A new team can\'t join the final'});
