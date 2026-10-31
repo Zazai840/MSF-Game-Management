@@ -11,7 +11,7 @@ test('a lead edits and confirms the Day programme',async({page},info)=>{
     await page.getByRole('radio',{name:/^Zone lead/}).click();
     await page.getByLabel('Lead code',{exact:true}).fill('wrong-lead-fixture');
     await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
-    await expect(page.getByRole('dialog',{name:'Your job'}).getByRole('alert')).toHaveText('Wrong lead code');
+    await expect(page.getByRole('dialog',{name:'What\'s your job today?'}).getByRole('alert')).toHaveText('Wrong lead code');
     await page.getByLabel('Lead code',{exact:true}).fill('e2e-owner-fixture');
     await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
     await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();

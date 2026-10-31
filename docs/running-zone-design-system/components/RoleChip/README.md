@@ -13,5 +13,5 @@ The pill on the app bar naming your job, which opens Switch job. Spec: race-flow
 
 **Rules**
 - `paper` fill, `navy` text, 14px/800, job icon 18px, chevron 16px, at least `size-touch` tall.
-- A zone lead's reads "Lead" on `jumping` (`rz-rolechip--lead`).
+- A zone lead's reads "Zone lead" on `jumping` (`rz-rolechip--lead`).
 - The label says the job and that it changes: "Your job: Timer. Change job".

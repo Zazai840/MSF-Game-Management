@@ -82,7 +82,7 @@ test('a lead correction that takes an unrelated runner off does not make an olde
   const {lead,setup,queue}=await start();
   // The older warning is saved on R4; the newer on R16 (also Girl Cubs). A lead then takes R4's other runner off.
   const older=await setup.record(lead,'R4',[3045,2001],[1300],{keptWarnings:[3045]});
-  const newer=await setup.record(lead,'R16',[4045],[1400],{keptWarnings:[4045]});
+  const newer=await setup.record(lead,'R16',[4045],[3400],{keptWarnings:[4045]});
   const items=(await queue()).needsYou;
   expect(items.map((item:any)=>[item.kind,item.raceId])).toEqual([['warning',newer.id],['warning',older.id]]);
   const race=(await call(lead,`/api/lead/races/${older.id}`)).json().race;

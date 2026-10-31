@@ -8,25 +8,26 @@
 </head>
 <body class="rz-preview">
 <div class="rz-stage"><div class="rz-phone" style="display:flex;flex-direction:column;gap:16px">
-<section class="rz-teamcard" aria-label="Team 5">
-  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name">Team 5</h3><span class="rz-teamcard__note">Runs short · 3 of 4</span>
-    <span class="rz-teamcard__marks"><button type="button" class="rz-btn rz-btn--small" aria-label="Edit Team 5">Edit</button></span></div>
-  <ol class="rz-attendance rz-attendance--one rz-teamgrips" aria-label="Team 5 legs">
-    <li><span class="rz-attendance__who"><span class="rz-attendance__seed">1st leg</span><span class="label">2071</span></span>
-      <button type="button" class="rz-btn rz-btn--pill rz-btn--primary" aria-pressed="true" aria-label="2071: Here">Here</button>
+<section class="rz-legrow rz-legrow--typing" aria-label="Team 6, being typed">
+  <div class="rz-legrow__head"><h3 class="rz-teamcard__name">Team 6</h3><span class="rz-legrow__count">2 of 4</span></div>
+  <ol class="rz-legchips"><li><span class="rz-legchip"><span class="rz-legchip__ord">1st</span>2041</span></li><li><span class="rz-legchip"><span class="rz-legchip__ord">2nd</span>2042</span></li><li><span class="rz-legchip rz-legchip--next"><span class="rz-legchip__ord">3rd</span>?</span></li><li><span class="rz-legchip rz-legchip--empty"><span class="rz-legchip__ord">4th</span>–</span></li></ol>
+</section>
+<section class="rz-legrow" aria-label="Team 5">
+  <div class="rz-legrow__head"><div class="rz-teamcard__title"><h3 class="rz-teamcard__name">Team 5</h3><span class="rz-teamcard__note">Runs short · 3 of 4</span></div>
+    <button type="button" class="rz-btn rz-btn--small">Take off</button></div>
+  <ol class="rz-legchips rz-teamgrips" aria-label="Team 5 legs">
+    <li><button type="button" class="rz-legchip" aria-label="Team 5 1st leg: 2071. Change"><span class="rz-legchip__ord">1st</span>2071</button>
       <button type="button" class="rz-orderrow__handle" aria-label="Move 2071" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
-    <li data-dragging="true"><span class="rz-attendance__who"><span class="rz-attendance__seed">2nd leg</span><span class="label">2072</span></span>
-      <button type="button" class="rz-btn rz-btn--pill rz-btn--primary" aria-pressed="true" aria-label="2072: Here">Here</button>
+    <li data-dragging="true"><button type="button" class="rz-legchip" aria-label="Team 5 2nd leg: 2072. Change"><span class="rz-legchip__ord">2nd</span>2072</button>
       <button type="button" class="rz-orderrow__handle" aria-label="Move 2072" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
-    <li class="is-absent"><span class="rz-attendance__who"><span class="rz-attendance__seed">3rd leg</span><span class="label">2073</span></span>
-      <button type="button" class="rz-btn rz-btn--pill" aria-pressed="false" aria-label="2073: Here">Not yet</button>
+    <li><button type="button" class="rz-legchip" aria-label="Team 5 3rd leg: 2073. Change"><span class="rz-legchip__ord">3rd</span>2073</button>
       <button type="button" class="rz-orderrow__handle" aria-label="Move 2073" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
-    <li class="is-absent"><span class="rz-attendance__who"><span class="rz-attendance__seed">4th leg</span><span class="label">–</span></span>
+    <li><button type="button" class="rz-legchip" aria-label="Team 5 4th leg: empty. Change"><span class="rz-legchip__ord">4th</span>–</button>
       <button type="button" class="rz-orderrow__handle" aria-label="Move empty 4th leg" aria-roledescription="drag handle"><svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/></svg></button></li>
   </ol>
 </section>
 <section class="rz-teamcard rz-teamcard--final" aria-label="Team 2">
-  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name"><span class="rz-teamcard__seed">1st seed · </span>Team 2</h3>
+  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name"><span class="rz-teamcard__seed">1st fastest · </span>Team 2</h3>
     <button type="button" class="rz-btn rz-btn--small" aria-label="Edit Team 2">Edit</button>
     <span class="rz-teamcard__marks"><button type="button" class="rz-btn rz-btn--pill rz-btn--primary" aria-pressed="true" aria-label="Team 2: Here">Here</button><button type="button" class="rz-btn rz-btn--pill" aria-pressed="false" aria-label="Team 2: Absent">Absent</button></span></div>
   <ol class="rz-teamlegs rz-teamgrips" aria-label="Team 2 legs">
@@ -37,7 +38,7 @@
   </ol>
 </section>
 <section class="rz-teamcard rz-teamcard--final is-absent" aria-label="Team 4">
-  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name"><span class="rz-teamcard__seed">2nd seed · </span>Team 4</h3>
+  <div class="rz-teamcard__head"><h3 class="rz-teamcard__name"><span class="rz-teamcard__seed">2nd fastest · </span>Team 4</h3>
     <span class="rz-teamcard__marks"><button type="button" class="rz-btn rz-btn--pill" aria-pressed="false" aria-label="Team 4: Here">Here</button><button type="button" class="rz-btn rz-btn--pill rz-btn--primary" aria-pressed="true" aria-label="Team 4: Absent">Absent</button></span></div>
   <ul class="rz-teamlegs">
     <li><span class="rz-teamlegs__leg">1st leg</span><span class="label">2081</span></li>

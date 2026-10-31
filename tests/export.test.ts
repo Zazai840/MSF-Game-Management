@@ -102,7 +102,11 @@ test('final export preserves absent seeds, sourced callups, corrected numbers, t
  const all=sheets[2].data;expect(all.some(row=>row[3]==='Heat 1'&&row[4]===1066&&String(row[10]).includes('Q'))).toBe(true);expect(all.some(row=>row[3]==='Final 1'&&row[4]===1066)).toBe(false);expect(all.filter(row=>row[3]==='Final 1').every(row=>row[7]===null)).toBe(true);
  const finalRow=(number:number)=>all.find(row=>row[3]==='Final 1'&&row[4]===number)!;expect(finalRow(1050).slice(7,11)).toEqual([null,2,1,'1st']);expect(finalRow(1005).slice(7,11)).toEqual([null,3,2,'2nd']);expect(finalRow(1012).slice(7,11)).toEqual([null,4,3,'3rd']);expect(finalRow(1135).slice(7,11)).toEqual([null,1,null,'Disqualified: Two false starts']);expect(finalRow(1001).slice(7,11)).toEqual([null,null,null,'Did not finish']);
  expect((await call(lead,`/api/lead/races/${id}/re-run`,{comment:'Run final again'})).statusCode).toBe(200);
- sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);expect(sheets[0].data).toHaveLength(1);expect(sheets[1].data).toHaveLength(17);expect(sheets[1].data.filter(row=>row[3]==='Final 1').every(row=>String(row[9]).startsWith('Deleted race'))).toBe(true);expect(sheets[1].data.filter(row=>row[3]==='Final 2')).toHaveLength(8);expect(sheets[2].data.some(row=>row[3]==='Final 1'&&String(row[10]).includes('Deleted race'))).toBe(true);expect(sheets[2].data.find(row=>row[3]==='Final 1'&&row[4]===1050)?.slice(7,11)).toEqual([null,2,null,'Deleted race; Finished']);expect(sheets[1].data.find(row=>row[3]==='Final 1'&&row[5]===1050)?.[8]).toBe(1);
+ // The re-run keeps the final's number: the replaced final's rows say Deleted race.
+ sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);expect(sheets[0].data).toHaveLength(1);expect(sheets[1].data).toHaveLength(17);
+ const deletedFinal=(row:unknown[],column:number)=>row[3]==='Final 1'&&String(row[column]).startsWith('Deleted race');
+ expect(sheets[1].data.filter(row=>deletedFinal(row,9))).toHaveLength(8);expect(sheets[1].data.filter(row=>row[3]==='Final 1'&&!deletedFinal(row,9))).toHaveLength(8);
+ expect(sheets[2].data.find(row=>deletedFinal(row,10)&&row[4]===1050)?.slice(7,11)).toEqual([null,2,null,'Deleted race; Finished']);expect(sheets[1].data.find(row=>deletedFinal(row,9)&&row[5]===1050)?.[8]).toBe(1);
 });
 test('concurrent export and mutation never record a revision newer than the workbook snapshot',async()=>{
  const {owner,volunteer}=await start();await race(volunteer,'R7',[101]);const before=(await call(owner,'/api/day')).json();
@@ -121,8 +125,7 @@ test('day export recomputes two-relay warnings from the current switched-on team
  const {owner,volunteer,lead}=await start(),relays=relayFlowSetup(app);
  await relays.team(volunteer,'R22',[2101,2102,2103,2104]);
  await relays.tick(volunteer,'R22',1);
- for(let leg=0;leg<4;leg++) await relays.here(volunteer,'R22',1,leg);
- await relays.save(volunteer,'R22',[1],[1400]);
+ await relays.save(volunteer,'R22',[1],[3400]);
  // The second team list changes after the heat; its warning was never stored on the race's copy.
  await relays.team(volunteer,'R28',[4101,2101,4103,4104]);
  const detail=(await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead;
@@ -141,7 +144,7 @@ test('day export recomputes two-relay warnings from the current switched-on team
 async function relayFinal(){
  const people=await start(),relays=relayFlowSetup(app),{volunteer,lead}=people;
  for(const legs of relayTeams) await relays.team(volunteer,'R19',legs);
- for(const [placed,times] of [[[1,2,3,4],[1400,1500,1600,1900]],[[5,6,7],[1450,1550,1700]]]){for(const number of placed) await relays.tick(volunteer,'R19',number);await relays.save(volunteer,'R19',placed,times);}
+ for(const [placed,times] of [[[1,2,3,4],[3400,3500,3600,3900]],[[5,6,7],[3450,3550,3700]]]){for(const number of placed) await relays.tick(volunteer,'R19',number);await relays.save(volunteer,'R19',placed,times);}
  expect((await call(lead,'/api/lead/events/R19/complete-stage',{stage:'heats'})).statusCode).toBe(200);
  // Seeds: Team 1, 5, 2, 6, 3, 7. Team 7 is absent and Team 4 (heat rank 7) is called up; Team 2 swaps its 3rd leg at check-in.
  await relays.attend(volunteer,'R19',[7]);
@@ -173,7 +176,7 @@ test('"Finals" and "All results" give a relay one row per child, with its Team a
  const all=sheets[2].data;expect(all[0]).toEqual(['Event code','Event','Section','Race','Wristband number','Team','Leg','Time','Place in race','Event position','Status','Warning','Note']);
  const rows=(race:string,team:string)=>all.filter(values=>values[0]==='R19'&&values[3]===race&&values[5]===team).map(values=>values.slice(4,11));
  expect(all.filter(values=>values[0]==='R19')).toHaveLength(28+24);
- expect(rows('Heat 1','Team 1')).toEqual([2001,101,102,103].map((wristband,index)=>[wristband,'Team 1',index+1,14,1,1,'Q']));
+ expect(rows('Heat 1','Team 1')).toEqual([2001,101,102,103].map((wristband,index)=>[wristband,'Team 1',index+1,34,1,1,'Q']));
  expect(rows('Final 1','Team 2')).toEqual([3001,3002,3099,3004].map((wristband,index)=>[wristband,'Team 2',index+1,null,2,2,'2nd']));
  expect(rows('Final 1','Team 7')).toEqual([]);
 });

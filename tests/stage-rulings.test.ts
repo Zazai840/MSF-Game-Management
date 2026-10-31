@@ -11,7 +11,7 @@ async function start() {
   const people=await signInOwner(app,'stages-owner','Owner'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
-  const setup=raceSetup(app),recorded=await setup.record(volunteer,'R16',[2001,2002],[1000,1100]);
+  const setup=raceSetup(app),recorded=await setup.record(volunteer,'R16',[2001,2002],[3000,3100]);
   return {owner:owner.token as string,lead,volunteer,setup,race:(await call(lead,`/api/lead/races/${recorded.id}`)).json().race};
 }
 test('a lead completes a timed event with durable official podium and audit, then reopens with a comment',async()=>{
@@ -64,7 +64,7 @@ test('permissions, missing comments and newly blocking recordings are rechecked 
 test.each(['tie','ran-twice'] as const)('the server refuses completion while a %s remains',async kind=>{
   const {lead,volunteer,setup}=await start();
   const number=kind==='tie'?2003:2001;
-  await setup.record(volunteer,'R16',[number],[kind==='tie'?1000:1200],{keptWarnings:[number]});
+  await setup.record(volunteer,'R16',[number],[kind==='tie'?3000:3200],{keptWarnings:[number]});
   const preview=(await call(lead,'/api/lead/events/R16/results')).json();
   expect(preview.results.checkSheet.mustSettleFirst.some((item:any)=>item.kind===kind)).toBe(true);
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(409);
@@ -76,7 +76,7 @@ test('an open kept warning does not prevent completion, and leads can correct a 
   expect(changed.statusCode).toBe(200);
   expect(changed.json().results.checkSheet.worthALook).toHaveLength(1);
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
-  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1000,1200]});
+  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[3000,3200]});
   expect(corrected.statusCode).toBe(200);expect(corrected.json().results.status).toBe('Complete');
-  expect((await call(volunteer,`/api/races/${race.id}/times`,{raceId:race.id,version:2,places:[1000,1300],keptWrong:[]})).json().message).toBe('Girl Cubs heats are finished. Ask a lead to change this race.');
+  expect((await call(volunteer,`/api/races/${race.id}/times`,{raceId:race.id,version:2,places:[3000,3300],keptWrong:[]})).json().message).toBe('Girl Cubs heats are finished. Ask a lead to change this race.');
 });

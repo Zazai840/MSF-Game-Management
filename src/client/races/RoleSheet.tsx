@@ -1,13 +1,14 @@
 import { useState,type FormEvent } from 'react';
 import { roleLabels,type Role } from '../../shared/race-flow.js';
 import { api } from '../api.js';
+import { failureLine } from './writes.js';
 import { Callout,Icon,Sheet,Star,roleDescriptions,roleIcons } from './parts.js';
 const jobs=['start','finish','timer'] as const;
 /** A job as a radio card: its job star, name and one line. */
 export function JobCard({role,checked,onChoose}:{role:Role;checked:boolean;onChoose:()=>void}) {
   return <button type="button" role="radio" aria-checked={checked} className={`rz-jobcard rz-jobcard--${role}`} onClick={onChoose}>
     <span className="rz-jobcard__icon"><Star/><Icon name={roleIcons[role]}/></span>
-    <span><span className="rz-jobcard__title">{role==='lead'?'Zone lead':roleLabels[role]}</span><span className="rz-jobcard__desc">{roleDescriptions[role]}</span></span>
+    <span><span className="rz-jobcard__title">{roleLabels[role]}</span><span className="rz-jobcard__desc">{roleDescriptions[role]}</span></span>
     <span className="rz-jobcard__mark" aria-hidden="true"/>
   </button>;
 }
@@ -23,9 +24,9 @@ export function JobChoice({role,onChoose,label}:{role:Role|null;onChoose:(role:R
  */
 export function RoleSheet({role,lead,onChoose,onLead,onClose}:{role:Role;lead:boolean;onChoose:(role:Role)=>void;onLead:()=>Promise<void>;onClose:()=>void}) {
   const [asking,setAsking]=useState(false);
-  return <Sheet title="Your job" onClose={onClose}>
+  return <Sheet title="What's your job today?" onClose={onClose}>
     <p className="rz-sheet__text">This changes what you see on every race. Switch back any time.</p>
-    <JobChoice role={role} label="Your job" onChoose={onChoose}/>
+    <JobChoice role={role} label="What's your job today?" onChoose={onChoose}/>
     <div style={{borderTop:'1.5px solid var(--line)',paddingTop:12}}>
       <JobCard role="lead" checked={role==='lead'} onChoose={()=>lead?onChoose('lead'):setAsking(true)}/>
     </div>
@@ -39,7 +40,7 @@ export function LeadCode({onLead}:{onLead:()=>Promise<void>}) {
   async function become(event:FormEvent) {
     event.preventDefault();setBusy(true);setError('');
     try {await api('become-lead',{code});await onLead();}
-    catch(failure) {setError(failure instanceof Error?failure.message:'Could not connect - please try again');}
+    catch(failure) {setError(failureLine(failure));}
     finally {setBusy(false);}
   }
   return <form className="rz-field" onSubmit={become}>

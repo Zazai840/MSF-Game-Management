@@ -27,7 +27,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // The start line: each seeded team's card, fastest first, its four children, Here / Absent with neither lit.
   await expect(meta(one)).toHaveText('Final · 0 of 6 teams here · 6 not marked');
   await expect(one.getByRole('heading',{level:2,name:'Which teams are here?'})).toBeVisible();
-  await expect(one.getByRole('heading',{level:3})).toHaveText(['1st seed · Team 1','2nd seed · Team 2','3rd seed · Team 3','4th seed · Team 4','5th seed · Team 5','6th seed · Team 6']);
+  await expect(one.getByRole('heading',{level:3})).toHaveText(['1st fastest · Team 1','2nd fastest · Team 2','3rd fastest · Team 3','4th fastest · Team 4','5th fastest · Team 5','6th fastest · Team 6']);
   await expect(card(one,7)).toHaveCount(0);
   for(const leg of [1,2,3,4]) await expect(card(one,2)).toContainText(String(w(20+leg)));
   await expect(card(one,2).getByText('4th leg',{exact:true})).toBeVisible();
@@ -54,7 +54,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // That's everyone asks about Team 6 before recording it absent.
   await footer(one).getByRole('button',{name:"That's everyone",exact:true}).click();
   const ask=one.getByRole('alert').filter({hasText:'not marked'});
-  await expect(ask).toHaveText('Team 6 is not marked. Record them absent?Record them absentGo back');
+  await expect(ask).toHaveText('Team 6 is not marked. Record them absent?Go backRecord them absent');
   expect(await lookProblems(one)).toEqual([]);
   await one.screenshot({path:info.outputPath('relay-final-ask.png')});
   await ask.getByRole('button',{name:'Record them absent',exact:true}).click();

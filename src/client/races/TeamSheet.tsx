@@ -98,8 +98,8 @@ function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}
       actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>{clearChanged();setVersion(team?.version);setFresh(fresh+1);}}>Show latest</button>}/>}
     <LegBoxes key={fresh} team={team} number={number} relay={relay} relays={relays} busy={busy} error={error} removing={removing}
       onSave={save} onCancel={onDone} onRemove={team && stillToRun(team)?()=>setRemoving(true):undefined}
-      removeActions={team && <><button type="button" className="rz-btn rz-btn--danger" disabled={busy} onClick={()=>void send(`/${team.id}/remove`,{version})}>Remove</button>
-        <button type="button" className="rz-btn" onClick={()=>setRemoving(false)}>Keep it</button></>}/>
+      removeActions={team && <><button type="button" className="rz-btn" onClick={()=>setRemoving(false)}>Keep it</button>
+        <button type="button" className="rz-btn rz-btn--danger" disabled={busy} onClick={()=>void send(`/${team.id}/remove`,{version})}>Remove</button></>}/>
   </>;
 }
 function LegBoxes({team,number,relay,relays,busy,error,removing,onSave,onCancel,onRemove,removeActions}:{team:RelayTeam|null;number:number;relay:TeamList;relays:readonly TeamList[];busy:boolean;error:string;
@@ -122,7 +122,7 @@ function LegBoxes({team,number,relay,relays,busy,error,removing,onSave,onCancel,
       }}/>
     {entry.legs.map((_,index)=>refusals[index]?<Callout key={index} message={refusals[index]} actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>entry.fix(index)}>Fix number</button>}/>
       :amber(index)?<Callout key={index} message={warnings[index].map(warning=>warning.message).join(' ')}
-        actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={()=>entry.fix(index)}>Fix number</button><button type="button" className="rz-btn" onClick={()=>entry.keep(index)}>Keep</button></>}/>:null)}
+        actions={<><button type="button" className="rz-btn" onClick={()=>entry.keep(index)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={()=>entry.fix(index)}>Fix number</button></>}/>:null)}
     {error && <Callout message={error}/>}
     {removing && team && <Callout message={`Remove Team ${team.number}? Its number won't be used again.`} actions={removeActions}/>}
     {!removing && <div className="rz-sheet__foot">

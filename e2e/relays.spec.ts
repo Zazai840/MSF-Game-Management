@@ -52,7 +52,7 @@ test('the Relays tab lists relays as race-flow cards with a Teams row: heats in 
   await newRelay.getByRole('button',{name:/^Girl Cubs/}).click();
   await newRelay.getByRole('button',{name:'Create heat 1',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:`${ready} · Girl Cubs`,exact:true})).toBeVisible();
-  await expect(page.getByRole('heading',{level:2,name:'Which teams are running?'})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:/^Team \d+ · 1st leg: wristband number\?$/})).toBeVisible();
 });
 
 test('two prep phones type different teams of one relay at once in the teams sheet, neither locked out; a team someone else set asks Change anyway, and a Save on an older version says who changed it',async({openPhone,request},info)=>{

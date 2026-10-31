@@ -11,7 +11,7 @@ import { readTeamLists } from '../relays/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readRace,requireStageOpen,listRaces } from '../races/records.js';
 import { publishPart } from '../races/versions.js';
-import { originalRunners } from '../races/create.js';
+import { nextNumber,originalRunners } from '../races/create.js';
 import { readEventResults } from '../results/read.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
@@ -43,8 +43,7 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
     await publishPart(client,phone,existing,'runners',runners);
     await publishPart(client,phone,existing,'finish',null);
   } else {
-    const counter=(await client.query('INSERT INTO race_counters(event_id,kind,last_number) VALUES($1,\'final\',1) ON CONFLICT(event_id,kind) DO UPDATE SET last_number=race_counters.last_number+1 RETURNING last_number',[event.id])).rows[0];
-    await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,\'final\',$4,$5)',[id,phone.dayId,event.id,counter.last_number,originalRunners(lineup)]);
+    await client.query('INSERT INTO races(id,day_id,event_id,kind,number,original_runners) VALUES($1,$2,$3,\'final\',$4,$5)',[id,phone.dayId,event.id,await nextNumber(client,event.id,'final'),originalRunners(lineup)]);
     for(const part of ['runners','finish','times']) await client.query('INSERT INTO race_parts(race_id,part,version,value,saved_by,saved_at) VALUES($1,$2,$3,$4,$5,clock_timestamp())',[id,part,part==='runners'?1:0,part==='runners'?JSON.stringify(runners):null,phone.id]);
   }
   // Keep each runner's copy for Here / Absent without recording attendance while seeding the line-up.

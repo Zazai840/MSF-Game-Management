@@ -28,10 +28,7 @@ async function heat(ticked:number,listed:number) {
   for(let number=1;number<=listed;number++) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   let read=await ok(sam,'/api/races',{eventCode:'R22',kind:'heat',number:1});
   const id=read.race.id,teamId=(number:number)=>read.teams!.find(team=>team.number===number)!.id;
-  for(let number=1;number<=ticked;number++) {
-    read=await ok(sam,`/api/races/${id}/teams/${teamId(number)}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await ok(sam,`/api/races/${id}/teams/${teamId(number)}/here`,{leg,here:true});
-  }
+  for(let number=1;number<=ticked;number++) read=await ok(sam,`/api/races/${id}/teams/${teamId(number)}/tick`,{});
   return {sam,priya,id,teamId,read};
 }
 
@@ -53,7 +50,7 @@ test('Did not finish keeps the whole team in the heat with no place and no time,
   expect(teamsOf(read.race).map(entry=>entry.team.number)).toEqual([1,2]);
   expect(read.race.parts.finish.value).toEqual({order:[one.id],didNotFinish:[two.id]});
   read=await ok(sam,`/api/races/${id}/steps/positions/done`,{});
-  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[1400],keptWrong:[]});
+  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[3400],keptWrong:[]});
   expect((await ok(sam,`/api/races/${id}/steps/times/done`,{})).race.state).toBe('saved');
 });
 
@@ -73,7 +70,7 @@ test('a relay heat saves itself once Runners, Finishing order and Times are done
   expect(teamsOf(read.race).map(entry=>entry.team.number)).toEqual([2,3]);
   expect(read.teams!.find(team=>team.number===1)!.races).toEqual([]);
   read=await ok(sam,`/api/races/${id}/steps/positions/done`,{});
-  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[1400,1500],keptWrong:[]});
+  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[3400,3500],keptWrong:[]});
   expect(read.race.state).toBe('in progress');
   read=await ok(sam,`/api/races/${id}/steps/times/done`,{});
   expect(read.race.state).toBe('saved');

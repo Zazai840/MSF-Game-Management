@@ -4,7 +4,7 @@ import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
-import { timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { onlyRunners,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
@@ -109,6 +109,16 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   const finish=onlyRunners({order:[...order,...atFinish.map(entry=>entry.id)],didNotFinish},runners);
   await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
 }
+/**
+ * Refuses a time no one can run (0.00, faster than 10 m/s for the event's distance) with the phone's words, for the
+ * Times step and a lead's Correct times. Only a changed place is checked: a time saved before stays saved.
+ */
+export function refuseImpossibleTimes(places:readonly(number|null)[],stored:readonly(number|null)[]|undefined,eventName:string) {
+  for(const [index,time] of places.entries()) {
+    const refusal=time===null || time===stored?.[index]?null:timeRefusal(digitsForTime(time),eventName);
+    if(refusal) throw new Refusal(400,refusal);
+  }
+}
 export type TimesInput=ReturnType<typeof timesInput>;
 /** A times body: the whole column by place in hundredths, and the places whose wrong time was kept. */
 export function timesInput(body:unknown) {
@@ -129,7 +139,8 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
   const limit=Math.max(placed,target.race.parts.runners.value?.length||0);
   const unplaced=places.findIndex((time,index)=>index>=limit && time!==stored?.places[index]);
   if(unplaced>=0) throw new Refusal(409,`This race has ${limit} ${limit===1?'runner':'runners'} - add the runner at the finish first`);
-  const wrong=wrongTimes(places).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
+  refuseImpossibleTimes(places,stored?.places,target.event.name);
+  const wrong=wrongTimes(places,target.event.name).map(item=>item.index),accepted=stored?.acceptedByLead && JSON.stringify(stored.places)===JSON.stringify(places);
   await publishPart(client,phone,await readRace(client,phone.dayId,raceId),'times',{places,outOfOrder:timesOutOfOrder(places),keptWrong:wrong.filter(index=>keptWrong.includes(index)),...(accepted?{acceptedByLead:true}:{})});
 }
 /**
@@ -139,7 +150,7 @@ export async function writeTimes(client:pg.PoolClient,phone:Phone,target:WriteTa
 function addedAtFinish(teams:readonly RelayTeam[],teamId:string,me:string):TeamEntry {
   const team=teams.find(item=>item.id===teamId);
   if(!team) throw new Refusal(404,'Team not found');
-  return joiningTeam(team,{here:true,addedAtFinish:true,me});
+  return joiningTeam(team,{addedAtFinish:true,me});
 }
 /**
  * Saves a race whose steps are all done once nothing blocks it (finishers and times agree), with history naming who

@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,makeFinal,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -10,11 +10,11 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   const token=await signInThroughApi(request,ownName('To check relay volunteer'));
   await writeTeam(request,token,cubs,[cub(1),borrowed,cub(2),cub(3)],{keptWarnings:[borrowed]});
   await writeTeam(request,token,cubs,[cub(4),cub(5),cub(6),shared]);
-  await writeTeam(request,token,cubs,[cub(8),cub(9),cub(10),cub(11)]);
+  await writeTeam(request,token,cubs,[cub(8),cub(9),cub(10),null]);
   await writeTeam(request,token,cubs,[cub(12),cub(13),cub(14),cub(15)]);
   await writeTeam(request,token,scouts,[scout(1),shared,scout(2),scout(3)],{keptWarnings:[shared]});
-  // Teams 1 to 3 are checked in, Team 3 with one child not marked here; Team 4 crosses the line unchecked.
-  for(const team of [1,2,3]) {await tickTeam(request,token,cubs,team);for(let leg=1;leg<=(team===3?3:4);leg++) await markHere(request,token,cubs,team,leg);}
+  // Teams 1 to 3 are checked in, Team 3 running short with three children; Team 4 crosses the line unchecked.
+  for(const team of [1,2,3]) await tickTeam(request,token,cubs,team);
   await writeTeamOrder(request,token,cubs,[1,2,3],{addedTeams:[4]});await writeTimes(request,token,cubs,[1400,1500,1600,1700]);await submitRace(request,token,cubs);
 
   const {page}=await openPhone(ownName('To check relay lead'),{lead:true});
@@ -52,7 +52,7 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   await page.screenshot({path:info.outputPath('relay-race-page-checked.png'),fullPage:true});
 });
 
-test('a lead sees a relay\'s two saved heats as team rows with four wristbands and the qualifying line, the race page lists teams, and Heats complete seeds the six fastest',async({openPhone,request},info)=>{
+test('a lead sees a relay\'s two saved heats as team rows with four wristbands and the qualifying line, the race page lists teams, and + Final seeds the six fastest',async({openPhone,request},info)=>{
   const name=ownName('Relay results'),code=await ownCode();
   await ownRelay(code,name,'Girl Cubs');
   // The test day is shared: each project's teams use Girl Cubs wristbands no other relay test types, and Team 4 runs a
@@ -98,15 +98,13 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   expect(lines).toEqual([1,1,1,1]);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page.png'),fullPage:true});
+  // Results offers no Heats complete: the lead makes the final with "+ Final" on Races, from the six fastest teams.
   await page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button').click();
-  // Heats complete: the line-up is the six fastest teams across the heats.
-  await page.getByRole('button',{name:'Heats complete',exact:true}).click();
-  const sheet=page.getByRole('dialog',{name:'Heats complete',exact:true});
-  await expect(sheet).toContainText('Nothing to settle');
-  await expect(sheet.locator('.stage-creates li')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${['1st','2nd','3rd','4th','5th','6th'][index]}: Team ${number} · ${legs(number).join(' · ')}`));
-  expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('relay-heats-complete.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Heats complete',exact:true})).toHaveCount(0);
+  await back(page,'Races');await openRelays(page);
+  await makeFinal(page,name,'Girl Cubs');
+  await openLeadMenu(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await expect(page.locator('.final-lineup li')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${index+1}: Team ${number} · ${legs(number).join(' · ')}`));
   // The final runs (its race screen is another slice's), then the Final leaderboard and Input - Running name each
   // medal team's four children.
@@ -170,7 +168,7 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
 });
 
 test('a lead settles a tie between two teams on the tie sheet: a run-off puts Team 7 through',async({openPhone,request},info)=>{
-  const {code,legs,heat}=await scoutsRelay(request,info,'Relay tie',8);
+  const {code,name,legs,heat}=await scoutsRelay(request,info,'Relay tie',8);
   await heat([1,2,3,4],[1400,1500,1600,1700]);
   await heat([5,6,7,8],[1450,1550,1700,1800]);
   const {page}=await openPhone(ownName('Relay tie lead'),{lead:true});
@@ -192,9 +190,11 @@ test('a lead settles a tie between two teams on the tie sheet: a run-off puts Te
   const rows=page.getByRole('list',{name:'Provisional leaderboard',exact:true}).locator(':scope > li');
   await expect(rows.nth(5)).toContainText('Team 7');await expect(rows.nth(6)).toHaveText('Qualifying line');
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('recorded a run-off at 17.00: Team 7 then Team 4');
-  // Settled, the tie no longer holds Heats complete back.
-  await page.getByRole('button',{name:'Heats complete',exact:true}).click();
-  await expect(page.getByRole('dialog',{name:'Heats complete',exact:true})).toContainText('Nothing to settle');
+  // Settled, the tie no longer holds the final back: "+ Final" on Races is free, with no reason beside it.
+  await back(page,'Races');await openRelays(page);
+  const card=page.getByRole('article',{name:`${name} · Boy Scouts`});
+  await expect(card.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).not.toHaveAttribute('aria-disabled','true');
+  await expect(card.locator('.rz-heat-reason')).toHaveCount(0);
 });
 
 test('a lead corrects a relay heat\'s finishing order by dragging teams, and Didn\'t run makes a team still to run again',async({openPhone,request},info)=>{

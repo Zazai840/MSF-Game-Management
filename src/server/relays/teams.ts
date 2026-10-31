@@ -70,16 +70,16 @@ export async function clearTeamMarks(client:pg.PoolClient,signInId:string) {
 /**
  * A team joining a race from its team list (added at check-in or at the finish, or by a lead's Correct teams): only a
  * team still to run, and one nobody else (`me`, the phone adding it) is changing unless `evenIfChanging`. The race takes a copy of its four
- * children and their kept warnings, each child on the list marked here when `here` (they crossed the line).
+ * children and their kept warnings, each child on the list marked here: a team in a race is checked in whole.
  */
-export function joiningTeam(team:RelayTeam,{here=false,addedAtFinish=false,evenIfChanging=false,me=null as string|null}={}):TeamEntry {
+export function joiningTeam(team:RelayTeam,{addedAtFinish=false,evenIfChanging=false,me=null as string|null}={}):TeamEntry {
   // A team in a race not saved yet hasn't run: say which race holds it.
   const holding=unsavedRace(team);
   if(holding) throw new Refusal(409,`Team ${team.number} is already in ${raceName(holding)}`);
   if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
   const changer=evenIfChanging?null:changerOf(team,me);
   if(changer) throw new Refusal(409,`${changer} is changing Team ${team.number}`);
-  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:here && leg.wristband!==null})),...(addedAtFinish?{addedAtFinish:true}:{})};
+  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null})),...(addedAtFinish?{addedAtFinish:true}:{})};
 }
 /** Four wristband boxes in leg order, each a wristband number or null for an empty box. */
 export const fourBoxes=(legs:unknown):legs is Array<number|null>=>Array.isArray(legs) && legs.length===4 && legs.every(leg=>leg===null || (Number.isSafeInteger(leg) && leg>=0));

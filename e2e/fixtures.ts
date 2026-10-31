@@ -3,7 +3,6 @@ import { isRunner,isTeamEntry } from '../src/shared/races.js';
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import type { RaceFlowRead,RacesRead,Role } from '../src/shared/race-flow.js';
-import { wrongTimes } from '../src/shared/wrong-times.js';
 /** One person's phone in a multi-phone test: its own browser context, its page, and its session token for API setup. */
 export interface PhoneSession { context:BrowserContext; page:Page; token:string }
 /** Every "the other phone sees it" check waits this long, so a fall back to 5 s polling fails. Everything else keeps the 5 s default. */
@@ -162,7 +161,8 @@ export async function submitRace(request:APIRequestContext,token:string,eventCod
 export async function recordRace(request:APIRequestContext,token:string,eventCode:string,runners:number[],places:number[],keptWarnings?:number[]) {
   await writeCheckIn(request,token,eventCode,runners,keptWarnings);
   await writeOrder(request,token,eventCode,runners.slice(0,places.length),{didNotFinish:runners.slice(places.length)});
-  await writeTimes(request,token,eventCode,places,wrongTimes(places).map(wrong=>wrong.index));
+  // The server keeps only the places that are wrong, so keeping every place keeps any wrong one.
+  await writeTimes(request,token,eventCode,places,places.map((_,index)=>index));
   const {race}=await submitRace(request,token,eventCode);
   expect(race.state,'the race is saved').toBe('saved');
   return race;
@@ -233,17 +233,13 @@ export async function writeTeam(request:APIRequestContext,token:string,relayCode
 /** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
 export const flowPost=(request:APIRequestContext,token:string,url:string,data:object)=>postOk<RaceFlowRead>(request,token,url,data);
 /** A relay Start line tap as that phone on the race the relay is at, naming the team by its number, as tapping it does. */
-async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'here'|'absent',number:number,data:object={}) {
+async function teamTap(request:APIRequestContext,token:string,relayCode:string,what:'tick'|'absent',number:number,data:object={}) {
   const read=await flowRace(request,token,relayCode);
   return flowPost(request,token,`/api/races/${read.race.id}/teams/${read.teams!.find(team=>team.number===number)!.id}/${what}`,data);
 }
 /** Adds Team `number` to the heat the relay is at as that phone, as Add does (anyone can: ADR 0002). */
 export function tickTeam(request:APIRequestContext,token:string,relayCode:string,number:number) {
   return teamTap(request,token,relayCode,'tick',number);
-}
-/** Marks the child on leg `leg` (1 for the 1st) of a ticked Team `number` here as that phone, or not here. */
-export function markHere(request:APIRequestContext,token:string,relayCode:string,number:number,leg:number,here=true) {
-  return teamTap(request,token,relayCode,'here',number,{leg:leg-1,here});
 }
 /** Marks a relay final's teams Here as that phone, as its start line's Here does, naming each team by its number. */
 export async function markFinalHere(request:APIRequestContext,token:string,relayCode:string,numbers:number[]) {
@@ -258,16 +254,13 @@ export async function writeTeamOrder(request:APIRequestContext,token:string,rela
   const id=(number:number)=>race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.team.number===number)!.id;
   return flowPost(request,token,`/api/races/${race.id}/order`,{raceId:race.id,version:race.parts.finish.version,order:order.map(id),didNotFinish:didNotFinish.map(id),didNotRun:didNotRun.map(id),added:[],addedTeams:addedTeams.map(number=>teams!.find(team=>team.number===number)!.id)});
 }
-/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, each child here, placed in list order and timed. */
+/** Runs a relay's next heat to saved through the race flow: its first `teams` teams still to run, every child checked in, placed in list order and timed. */
 export async function runHeat(request:APIRequestContext,token:string,code:string,teams:number) {
   const post=(url:string,data:object)=>flowPost(request,token,url,data);
   const groups=((await (await request.get('/api/races',{headers:bearer(token)})).json()) as RacesRead).groups;
   let read=await post('/api/races',{eventCode:code,kind:'heat',number:groups.find(group=>group.event.code===code)!.nextHeat});
   const id=read.race.id;
-  for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) {
-    read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await post(`/api/races/${id}/teams/${team.id}/here`,{leg,here:true});
-  }
+  for(const team of read.teams!.filter(item=>!item.races.length).slice(0,teams)) read=await post(`/api/races/${id}/teams/${team.id}/tick`,{});
   read=await post(`/api/races/${id}/steps/runners/done`,{});
   const order=(read.race.parts.runners.value||[]).filter(isTeamEntry).sort((a,b)=>a.team.number-b.team.number).map(entry=>entry.id);
   read=await post(`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order,didNotFinish:[],didNotRun:[],added:[]});
@@ -327,10 +320,19 @@ export async function backToRaces(page:Page) {
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 }
+/** A lead makes an event's final the one way there is: "+ Final" on its Races card, then Make the final, and back to Races. */
+export async function makeFinal(page:Page,name:string,section:string) {
+  await page.getByRole('article',{name:`${name} · ${section}`}).getByRole('button',{name:'Create the final from the fastest 6',exact:true}).click();
+  await page.getByRole('dialog',{name:`Have all ${section} heats run?`,exact:true}).getByRole('button',{name:'Make the final',exact:true}).click();
+  await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
+  await backToRaces(page);
+}
+/** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
+export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
 /** Switches today's job from the job chip on Races or a race, as a volunteer does. */
 export async function switchJob(page:Page,job:JobName) {
   await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
-  await page.getByRole('radiogroup',{name:'Your job'}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
+  await page.getByRole('radiogroup',{name:'What\'s your job today?'}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
 }
 /** From the job chip: Zone lead, then the lead code (or the owner password). */
 export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {

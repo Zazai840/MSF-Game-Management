@@ -1,15 +1,15 @@
 import {ownName,ownCode,backToRaces,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
- * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Ready for you is the groups with
+ * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Action required is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
  * way to settle it. Results and Day setup are in the lead menu.
  */
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 const status=(page:Page,name:string)=>card(page,name).locator('.rz-racecard__status');
-const readyForYou=(page:Page)=>page.locator('h2:text-is("Ready for you") ~ article');
+const actionRequired=(page:Page)=>page.locator('h2:text-is("Action required") ~ article');
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
 
-test('a lead\'s Ready for you is the groups with open issues or medals to confirm, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
+test('a lead\'s Action required is the groups with open issues or medals to confirm, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
   const name=ownName('Lead issues'),calm=ownName('Lead calm'),code=await ownCode(),calmCode=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');await ownEvent(request,calmCode,calm,'Girl Cubs','timed');
   // A kept time faster than the place before, and a calm race.
@@ -18,9 +18,11 @@ test('a lead\'s Ready for you is the groups with open issues or medals to confir
   const {page}=await openPhone(ownName('Lead issues'),{lead:true});
   await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
-  await expect(readyForYou(page).filter({hasText:name})).toHaveCount(1);
+  await expect(actionRequired(page).filter({hasText:name})).toHaveCount(1);
+  // A lead's first section is Action required; Ready for you is a volunteer's.
+  await expect(page.getByRole('heading',{level:2,name:'Ready for you'})).toHaveCount(0);
   // A calm event, every race saved, is ready for the lead too: its medals wait on the lead's Confirm.
-  await expect(readyForYou(page).filter({hasText:calm})).toHaveCount(1);
+  await expect(actionRequired(page).filter({hasText:calm})).toHaveCount(1);
   await expect(status(page,calm)).toHaveText('Every race saved · confirm the medals after the last race');
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
@@ -53,7 +55,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
   await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check$/,/^Finishing order.*1 to check$/,/^Times.*1 to check$/]);
   // The warning icon on a tab not open is navy on paper, an approved colour pair (accessibility.md).
-  expect(await tabs.getByRole('tab',{name:/^Times/}).locator('.rz-step__status .rz-icon').evaluate(icon=>getComputedStyle(icon).color)).toBe('rgb(30, 43, 81)');
+  await expect(tabs.getByRole('tab',{name:/^Times/}).locator('.rz-step__status .rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
   // Runners: the kept number, with Fix and It's right.
   const runners=page.getByRole('alert').filter({hasText:'3045'});
   await expect(runners).toContainText('A wristband number needs checking. 3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.');
