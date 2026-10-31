@@ -25,14 +25,3 @@ export function reportLink({reportUrl,commit}:TestBuild,screen:string) {
   url.searchParams.set('commit',commit);url.searchParams.set('screen',screen);
   return url.href;
 }
-/**
- * The older-look navy bar, now only on the opening screen. The day has no name in v1's data, so dayName is shown only
- * when known. On a test build it also shows the commit and a Report a bug link that names the current screen.
- */
-export function AppHeader({dayName,screen}:{dayName?:string;screen:string}) {
-  const testBuild=useTestBuild();
-  return <header className="app-header">
-    <div className="app-header-title"><strong>Running Zone</strong>{dayName && <span>{dayName}</span>}</div>
-    {testBuild && <div className="app-header-test"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
-  </header>;
-}

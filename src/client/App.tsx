@@ -4,16 +4,15 @@ import type { ResultsTarget } from '../shared/lead-results.js';
 import type { Role } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { AppHeader } from './shell/AppHeader.js';
 import { addressOf,entryBack,parentOf,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
-import { Avatar,HomeBar,LeadBar,LeadFrame,RoleChip,Screen } from './races/parts.js';
+import { Avatar,Callout,failureLine,HomeBar,LeadBar,LeadFrame,RoleChip,Screen } from './races/parts.js';
 import { RacesHome } from './races/RacesHome.js';
 import { RaceShell } from './races/RaceShell.js';
 import { Toast,ToastContext,type ToastShown } from './races/Toast.js';
 import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
-// A failed load (often an old page after a deploy) reloads the app; until then the Opening Lead line stays.
+// A failed load (often an old page after a deploy) reloads the app; until then Opening Lead stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 interface HomeRead { phone:Phone; needsYou?:number }
 /** Where Open in Results (or Confirm the medals) lands: a race's item on its race page, anything else on its event. */
@@ -34,7 +33,8 @@ export function App() {
   // The app's one toast; `id` makes a new save's toast start afresh.
   const [toast,setToast]=useState<ToastShown&{id:number}|null>(null);
   const showToast=useMemo(()=>(next:ToastShown)=>setToast(held=>({...next,id:(held?.id??0)+1})),[]);
-  const [error,setError] = useState('');
+  // Why the home read failed, while the app has not opened.
+  const [error,setError] = useState<unknown>();
   const request=useRef(0);
   async function refresh() {
     const generation=++request.current;
@@ -42,9 +42,9 @@ export function App() {
       const data = await api<HomeRead>('home');if(generation!==request.current) return;
       const previous=phoneStorage.dayId();
       if(previous && previous!==data.phone.dayId) {phoneStorage.newDay(data.phone.dayId);return;}
-      phoneStorage.rememberDay(data.phone.dayId);setHome(data);setError('');
+      phoneStorage.rememberDay(data.phone.dayId);setHome(data);setError(undefined);
     }
-    catch (error) { if(generation!==request.current || error instanceof StaleRequest) return;setError(error instanceof Error ? error.message : 'Could not connect - tap Refresh'); }
+    catch (error) { if(generation!==request.current || error instanceof StaleRequest) return;setError(error); }
   }
   /**
    * Moves to another screen at its own address. The history entry carries the name of the screen left, for the back
@@ -62,10 +62,10 @@ export function App() {
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{
-    const removed = () => {request.current++;setSignedIn(false);setHome(null);go({kind:'races'});setError('');};
+    const removed = () => {request.current++;setSignedIn(false);setHome(null);go({kind:'races'});setError(undefined);};
     const session=(event:Event)=>{
       const newDay=(event as CustomEvent<{newDay:boolean}>).detail.newDay;
-      request.current++;setSignedIn(Boolean(phoneStorage.token()));setHome(null);go(newDay?{kind:'day'}:{kind:'races'});setError('');
+      request.current++;setSignedIn(Boolean(phoneStorage.token()));setHome(null);go(newDay?{kind:'day'}:{kind:'races'});setError(undefined);
       if(phoneStorage.token()) void refresh();
     };
     window.addEventListener('msf:removed',removed);
@@ -93,7 +93,7 @@ export function App() {
   return withToast(screen());
   function screen() {
     if (!signedIn) return <SignIn onSignedIn={()=>setSignedIn(true)} />;
-    if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
+    if (!home) return <Opening words="Opening the Running Zone…" error={error} onRefresh={()=>void refresh()}/>;
     const name=home.phone.name,toRaces=()=>go({kind:'races'});
     // Every avatar opens this one menu. Log out asks nothing: the phone keeps its listed names.
     const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
@@ -122,11 +122,25 @@ export function App() {
     const back=()=>{if(entryBack()) history.back();else go(isLead?parentOf(view):{kind:'races'},{replace:true});};
     // A lead screen's body keeps the older look, which has no race-flow tokens, so the job sheet brings its own .rz-screen.
     return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:back}}>
-      {isLead?<Suspense fallback={<main><p>Opening Lead…</p></main>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={next=>go(next)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
-        :<><LeadBar title="Zone lead" up="Races"/><main><p>Lead access needed</p></main></>}
+      {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={next=>go(next)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
+        :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}
     </LeadFrame.Provider>;
   }
+}
+/** While the app (or Lead) opens: the app bar and a spinner, or the amber callout with Refresh when the read failed. */
+function Opening({words,error,onRefresh}:{words:string;error?:unknown;onRefresh?:()=>void}) {
+  return <Screen screen="Opening"><HomeBar>{null}</HomeBar>
+    {error===undefined?<main className="rz-main rz-opening"><p className="rz-empty rz-opening__line" role="status"><span className="rz-spinner" aria-hidden="true"/>{words}</p></main>
+      :<main className="rz-main"><Callout message={failureLine(error,'read')} actions={<button type="button" className="rz-btn rz-btn--small" onClick={onRefresh}>Refresh</button>}/></main>}
+  </Screen>;
+}
+/** Lead access needed: someone without lead access at a lead screen's address types the lead code to open it. */
+function LeadAccess({onLead}:{onLead:()=>Promise<void>}) {
+  return <LeadBar title="Zone lead" up="Races" body={<LeadCode onLead={onLead} prompt={<div className="rz-prompt">
+    <p className="rz-prompt__meta">Results and Day setup are for zone leads</p><h2 className="rz-prompt__q">Type the <em>lead code</em></h2>
+    <p className="rz-prompt__help">Ask the zone lead who set up today.</p>
+  </div>}/>}/>;
 }
 /**
  * The job choice for a signed-in phone with no job yet (a name tapped under Welcome back, or a lead's access ended):

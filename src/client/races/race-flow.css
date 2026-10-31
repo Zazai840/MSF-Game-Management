@@ -50,6 +50,12 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-main > .rz-section { margin-top: var(--space-6); }
 .rz-main > .rz-section:first-child { margin-top: var(--space-10); }
 .rz-main--form { padding-top: var(--space-16); }
+/* While the app opens: a spinner over its line, in the middle of the screen. */
+.rz-opening { justify-content: center; }
+.rz-opening__line { display: flex; flex-direction: column; align-items: center; gap: var(--space-12); text-align: center; }
+.rz-spinner { width: var(--size-rank); height: var(--size-rank); border: 3px solid var(--line); border-top-color: var(--navy); border-radius: 50%; animation: rz-spin 1s linear infinite; }
+@keyframes rz-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rz-spinner { animation-duration: 3s; } }
 /* The Updated-at line sits centred in its footer, as it did when the older look's footer centred it. */
 .rz-footer .rz-refresh { justify-content: center; }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
