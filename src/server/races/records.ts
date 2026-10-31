@@ -56,7 +56,7 @@ function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],finalRow?:pg.
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value}]));
   // A final has run once it is saved.
   const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:row.state==='saved',heatsComplete:finalRow.heats_complete}:undefined;
-  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,type:row.type,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
+  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,type:row.type,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,deletedAt:row.deleted_at?.toISOString()??null,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {
