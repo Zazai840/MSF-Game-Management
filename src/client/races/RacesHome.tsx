@@ -4,6 +4,7 @@ import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-re
 import { finalMade,groupStatus,leadLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { teamListOf,teamsReadyLine,teamsRow } from '../../shared/teams.js';
 import { api,StaleRequest,type HomeTab } from '../api.js';
+import { failureLine } from './writes.js';
 import { useLive } from '../live.js';
 import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
@@ -62,7 +63,7 @@ export function RacesHome({tab,me,onTab,role,onRace,onResults,saved,onSavedShown
       const made=await api<{race:{id:string}}>('races',choice);
       onRace(made.race.id);
     }
-    catch(failure) {setFailure(failure instanceof Error?failure.message:'Could not connect - please try again');}
+    catch(failure) {setFailure(failureLine(failure));}
   }
   const card=(group:RaceGroup)=>{
     const confirm=role==='lead'?medalsToConfirm(group,issues):null;

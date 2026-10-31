@@ -323,7 +323,7 @@ export async function backToRaces(page:Page) {
 /** Switches today's job from the job chip on Races or a race, as a volunteer does. */
 export async function switchJob(page:Page,job:JobName) {
   await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
-  await page.getByRole('radiogroup',{name:'Your job'}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
+  await page.getByRole('radiogroup',{name:'What\'s your job today?'}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
 }
 /** From the job chip: Zone lead, then the lead code (or the owner password). */
 export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {

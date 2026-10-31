@@ -130,8 +130,8 @@ A Sheet opened by the RoleChip from any screen:
 One route per race (`/races/:raceId`), the same shell for every role.
 
 **Shell, top to bottom**
-1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag; the RoleChip. Zone leads also get a "⋯" button for race actions.
-2. **HeatChips** for this event group. The current race is the gold chip (`aria-current="page"`); the others link to their race in the same role. "+" adds the next heat. Swiping left or right on the body also moves between heats.
+1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the RoleChip. Zone leads also get a "⋯" button for race actions.
+2. **HeatChips** for this event group. The current race is the gold chip (`aria-current="page"`); the others link to their race in the same role. "+" opens New race on the next heat ("Create heat 3"), as a Races card's "+" does. Swiping left or right on the body also moves between heats.
 3. **StepStrip:** three read-only cells (Runners · Finishing order · Times). Each shows its status in words ("5 checked in", "2 of 8", "Not started"). My step is outlined in navy and starts with "You ·", kept short ("You · not yet", "You · 2 of 8", "You · done"). Each label and status stays on one line, labels top-aligned, at 360px and 390px. For zone leads the strip becomes tabs (see 8).
 4. **The body for my role.** Only my step's controls render; nothing from other steps.
 5. **ActionFooter** for my step.
@@ -196,7 +196,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 #### 8. Zone lead (artboard `N8-Lead`)
 - **Shell differences**
-  - The RoleChip reads "Lead" on a `jumping` fill.
+  - The RoleChip reads "Zone lead" on a `jumping` fill.
   - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
   - These are today's lead actions from screens 24, 27 and 28, moved here.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
@@ -291,7 +291,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 
 | Component | Spec |
 |---|---|
-| **RoleChip** | A pill link on the app bar: `paper` fill (lead: `jumping`), `navy` text, 14px/800, job icon 18px, chevron-down 16px, `size-touch` tall. `aria-label="Your job: Timer. Change job"`. Opens the Switch job sheet. |
+| **RoleChip** | A pill link on the app bar: `paper` fill (lead: `jumping`), `navy` text, 14px/800, job icon 18px, chevron-down 16px, `size-touch` tall. `aria-label="Your job: Timer. Change job"`. Opens the job sheet, "What's your job today?". |
 | **EventTabs** | 2-column segmented control (Races, Relays) on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
 | **RaceCard** | `card`, `shadow-card`, `radius-xl`, padding 12/14. Title in `display-card`; code tag; status line in `meta` + `ink-muted`; HeatChips row. |
 | **HeatChips** | An `<ol>` of chips, minimum 52 × 44, `radius-md`, Saira 18px "H1". States are set by the **viewer's step**:<br>• Done: `navy` + tick.<br>• Ready for me: `gold` (on Home).<br>• Current race: `gold` + 2px `navy` ring.<br>• Ready but not current: `card` + 2px `navy` ring + gold dot.<br>• Waiting: `card` + 2px `line`.<br>• Add: 44px dashed `line-strong` with a plus.<br>• Create final: dashed `navy` "+ Final".<br>Every chip's `aria-label` says its state in words ("Heat 3, needs times"). |

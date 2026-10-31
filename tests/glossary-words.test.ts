@@ -14,7 +14,7 @@ const allowed:Array<{word:string;in?:string;reason:string}>=[
   {word:'Results',reason:"the lead's Results screen and an event's results; the finishing order is never called results"},
   {word:'Result',reason:'a child\'s result in an event (choose which result counts), never a time'},
   {word:'absent',reason:"Absent marks the glossary's absent finalist (or team) at a final's check-in"},
-  {word:'Job',reason:"the everyday word for a role on Join and the role chip (What's your job today?, Switch job); the relay race screen's jobs are gone"},
+  {word:'Job',reason:"Role's own everyday word (What's your job today?, Switch job), which Role no longer avoids; only Step avoids it, and no screen calls a step a job"},
   {word:'remove',reason:'deleting a runner, a phone or a team from its list; Take off is only a team taken out of a heat at check-in'},
   // Spec #194 left Results, Day setup and the relay screens as they were: their words change with their own spec.
   {word:'line-up',in:lead,reason:"a final's line-up, fastest first, the glossary's Finals line-up"},

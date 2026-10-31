@@ -20,7 +20,7 @@ export const stepsOf=(race:Pick<RaceRead,'kind'>):readonly Step[]=>race.kind==='
 /** A person's role, kept on their phone: one volunteer step, or Zone lead, who sees every step. */
 export const roles=['start','finish','timer','lead'] as const;
 export type Role=typeof roles[number];
-export const roleLabels:Record<Role,string>={start:'Start line',finish:'Finish line',timer:'Timer',lead:'Lead'};
+export const roleLabels:Record<Role,string>={start:'Start line',finish:'Finish line',timer:'Timer',lead:'Zone lead'};
 export const roleSteps:Record<Exclude<Role,'lead'>,Step>={start:'runners',finish:'positions',timer:'times'};
 /** A heat usually has 6 runners (6 lanes; the 60m final takes the fastest 6). Only Races-tab events warn past it. */
 export const usualRunnersPerRace=6;

@@ -54,7 +54,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // That's everyone asks about Team 6 before recording it absent.
   await footer(one).getByRole('button',{name:"That's everyone",exact:true}).click();
   const ask=one.getByRole('alert').filter({hasText:'not marked'});
-  await expect(ask).toHaveText('Team 6 is not marked. Record them absent?Record them absentGo back');
+  await expect(ask).toHaveText('Team 6 is not marked. Record them absent?Go backRecord them absent');
   expect(await lookProblems(one)).toEqual([]);
   await one.screenshot({path:info.outputPath('relay-final-ask.png')});
   await ask.getByRole('button',{name:'Record them absent',exact:true}).click();
