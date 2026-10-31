@@ -4,7 +4,7 @@ import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
 import { entryCount } from '../../shared/teams.js';
 import { ApiFailure } from '../api-failure.js';
-import { entryBack,useScreenName } from '../shell/addresses.js';
+import { entryBack,useScreenName,useSheetEntry } from '../shell/addresses.js';
 /** The design system's line icons (components/Icon/README.md). */
 const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
@@ -154,9 +154,10 @@ export function StepStrip({race,role,selected,onSelect,notes={},label,relay=fals
     {shown.map(step=><li key={step} className={step===own?'rz-step rz-step--mine':'rz-step'}>{cell(step)}</li>)}
   </ul>;
 }
-/** A bottom sheet over the screen, closed by its close button, Escape or a tap on the scrim. Focus goes into it. */
+/** A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. Focus goes into it. */
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
   const id=useId(),sheet=useRef<HTMLDivElement>(null);
+  useSheetEntry(onClose);
   useEffect(()=>{
     // A box inside that took focus as it opened (a leg box's autoFocus) keeps it, so its number pad stays open.
     if(!sheet.current?.contains(document.activeElement)) sheet.current?.focus();
