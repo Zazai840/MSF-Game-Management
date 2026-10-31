@@ -3,7 +3,7 @@ import { seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,changedLine,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
 import { isTeamEntry } from '../../shared/races.js';
-import { childCount,legRefusal,legsText,legWarnings,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
+import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
 import { SortableList } from '../flow/SortableList.js';
 import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
 import { DigitsField,KeepFocus,type StepProps } from './Steps.js';
@@ -41,10 +41,8 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
   const [changing,setChanging]=useState<{teamId:string;leg:number;version:number}|null>(null);
   const entry=changing && legsOf(changing.teamId),change=changing && entry?{...changing,entry}:null;
   function problem(teamId:string|null,wristbands:Array<number|null>,index:number):Held|null {
-    const refused=legRefusal(relay.teams,teamId,wristbands,index,read.race.id);
-    if(refused) return {refused};
-    const warnings=legWarnings(wristbands[index]!,relay,relays,teamId,read.race.id);
-    return warnings.length?{warning:warnings.map(warning=>warning.message).join(' ')}:null;
+    const {refusal,warnings}=legCheck(relay,relays,teamId,wristbands,index,read.race.id);
+    return refusal?{refused:refusal}:warnings.length?{warning:warnings.map(warning=>warning.message).join(' ')}:null;
   }
   const fix=()=>setHeld(null);
   function cancel() {setChanging(null);setTyped('');setHeld(null);saves.clearChanged();}

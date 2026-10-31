@@ -28,8 +28,7 @@ async function readStepMeta(db:Database,dayId:string) {
 }
 function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
   const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
-  const changes=[race.checkedInAt,...Object.values(meta).flatMap(item=>[item.at,item.doneAt])].filter((at):at is string=>!!at).sort();
-  return {id:race.id,kind:race.kind,number:race.number,state:race.state,createdAt:race.checkedInAt,updatedAt:changes.at(-1)!,steps:statuses};
+  return {id:race.id,kind:race.kind,number:race.number,state:race.state,steps:statuses};
 }
 /**
  * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
@@ -59,13 +58,12 @@ async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGro
       && !stageDone(event.id,'heats',stages);
     // The highest live heat: listRaces leaves deleted races out.
     const last=Math.max(0,...own.filter(race=>race.kind!=='final').map(race=>race.number));
-    const updatedAt=summaries.map(race=>race.updatedAt).sort().at(-1)??'';
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
     const medalsDecided=stages.some(item=>item.eventId===event.id && ['event','final','no-final'].includes(item.stage));
     // Results without a final never waits: the lead's call decides the medals at once.
     const stage=event.format==='timed'?'event' as const:own.some(race=>race.kind==='final')?'final' as const:null;
     const medalsWaiting=stage && own.length && !medalsDecided && own.every(race=>race.state==='saved')?{stage,since:own.map(race=>savedAt.get(race.id)??'').sort().at(-1)!}:null;
-    groups.push({event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting,updatedAt});
+    groups.push({event,races:summaries,nextHeat:last+1,finalAvailable,finalReason:finalAvailable?await finalReason(db,dayId,event.code,own):null,heatsOpen,medalsDecided,medalsWaiting});
   }
   return groups;
 }

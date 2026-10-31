@@ -77,7 +77,7 @@ export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:Partial<Re
 export const finishedCount=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished`;
 export const finishedWords=(status:StepStatus)=>`${finishedCount(status)}${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
 /** A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. */
-export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; createdAt:string; updatedAt:string; steps:Partial<Record<Step,StepStatus>> }
+export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; steps:Partial<Record<Step,StepStatus>> }
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**
@@ -102,7 +102,7 @@ export function finalHold(kind:'ran-twice'|'tie'|NotRankedReason|undefined,name:
  * decided: Final complete once the final is saved, or Event complete on a timed event; `since` is its last race's save.
  */
 export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean;
-  medalsWaiting:{stage:'final'|'event';since:string}|null; updatedAt:string }
+  medalsWaiting:{stage:'final'|'event';since:string}|null }
 /** The races list, versioned by the day revision: every switched-on event, in programme order. */
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /**

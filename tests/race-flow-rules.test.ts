@@ -2,8 +2,8 @@ import { expect,test } from 'vitest';
 import { changedLine,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
-const race=(id:string,createdAt:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,createdAt,updatedAt:createdAt,steps});
-const group=(code:string,races:RaceSummary[],updatedAt:string,finalAvailable=false,medalsDecided=false)=>({event:{code},races,updatedAt,finalAvailable,medalsDecided}) as unknown as RaceGroup;
+const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
+const group=(code:string,races:RaceSummary[],finalAvailable=false,medalsDecided=false)=>({event:{code},races,finalAvailable,medalsDecided}) as unknown as RaceGroup;
 test('every run is named a heat, and an event has one final',()=>{
   expect(raceName({kind:'race',number:2})).toBe('Heat 2');
   expect(raceName({kind:'final',number:1})).toBe('Final');
@@ -14,14 +14,14 @@ test('Ready for you lists groups with a race my step can be worked on; the rest 
   const placed={runners:status('done'),positions:status('done'),times:status('not started')};
   const saved={runners:status('done'),positions:status('done'),times:status('done')};
   const groups=[
-    group('newer',[race('a','2026-06-01T10:05:00Z',checkedIn)],'2026-06-01T10:06:00Z'),
-    group('older',[race('b','2026-06-01T10:01:00Z',checkedIn)],'2026-06-01T10:02:00Z'),
-    group('nobody yet',[race('c','2026-06-01T09:00:00Z',empty)],'2026-06-01T11:00:00Z'),
-    group('placed',[race('d','2026-06-01T09:00:00Z',placed)],'2026-06-01T09:30:00Z'),
-    group('final next',[race('e','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:10:00Z',true),
-    group('every race saved',[race('s','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:15:00Z'),
-    group('finished',[race('f','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:20:00Z',false,true),
-    group('no races',[],'')
+    group('newer',[race('a',checkedIn)]),
+    group('older',[race('b',checkedIn)]),
+    group('nobody yet',[race('c',empty)]),
+    group('placed',[race('d',placed)]),
+    group('final next',[race('e',saved,'saved')],true),
+    group('every race saved',[race('s',saved,'saved')]),
+    group('finished',[race('f',saved,'saved')],false,true),
+    group('no races',[])
   ];
   const finishLine=raceSections(groups,'finish');
   expect(finishLine.ready.map(item=>item.event.code)).toEqual(['newer','older']);
@@ -31,18 +31,18 @@ test('Ready for you lists groups with a race my step can be worked on; the rest 
   expect(raceSections(groups,'start').ready.map(item=>item.event.code)).toEqual(['nobody yet']);
   expect(raceSections(groups,'timer').ready.map(item=>item.event.code)).toEqual(['newer','older','placed']);
 });
-test('a lead\'s sections follow the day\'s programme too, whichever group started waiting or changed last',()=>{
+test('a lead\'s sections follow the day\'s programme too, whichever group started waiting first',()=>{
   const saved={runners:status('done'),positions:status('done'),times:status('done')};
-  const waiting=(code:string,since:string)=>({...group(code,[race(code,'2026-06-01T09:00:00Z',saved,'saved')],since),medalsWaiting:{stage:'event',since}}) as RaceGroup;
-  const running=(code:string,updatedAt:string)=>group(code,[race(code,'2026-06-01T09:00:00Z',{runners:status('in progress'),positions:status('not started'),times:status('not started')})],updatedAt);
-  const sections=leadSections([waiting('60m','2026-06-01T09:00:00Z'),running('60m Hurdles','2026-06-01T09:00:00Z'),waiting('200m','2026-06-01T10:00:00Z'),running('400m','2026-06-01T10:00:00Z')],[]);
+  const waiting=(code:string,since:string)=>({...group(code,[race(code,saved,'saved')]),medalsWaiting:{stage:'event',since}}) as RaceGroup;
+  const running=(code:string)=>group(code,[race(code,{runners:status('in progress'),positions:status('not started'),times:status('not started')})]);
+  const sections=leadSections([waiting('60m','2026-06-01T09:00:00Z'),running('60m Hurdles'),waiting('200m','2026-06-01T10:00:00Z'),running('400m')],[]);
   expect(sections.ready.map(item=>item.event.code)).toEqual(['60m','200m']);
   expect(sections.inProgress.map(item=>item.event.code)).toEqual(['60m Hurdles','400m']);
 });
 test('a card says each race\'s state in my step, naming the final apart from the heats, and each chip says it too',()=>{
   const step=(state:StepStatus['state'])=>status(state);
-  const heat=(number:number,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race(`h${number}`,'2026-06-01T10:00:00Z',steps,state),number});
-  const final=(steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race('f','2026-06-01T11:00:00Z',steps,state),kind:'final' as const,number:1});
+  const heat=(number:number,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race(`h${number}`,steps,state),number});
+  const final=(steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race('f',steps,state),kind:'final' as const,number:1});
   const saved=(number:number)=>heat(number,{runners:step('done'),positions:step('done'),times:step('done')},'saved');
   const checkedIn=heat(3,{runners:step('done'),positions:step('in progress'),times:step('not started')});
   const placed=heat(4,{runners:step('done'),positions:step('done'),times:step('not started')});
@@ -84,7 +84,7 @@ test('a card says each race\'s state in my step, naming the final apart from the
 });
 test('an event is done once its medals are decided, not when its races are saved',()=>{
   const saved={runners:status('done'),positions:status('done'),times:status('done')};
-  const hurdles=(medalsDecided:boolean)=>({...group('hurdles',[race('a','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:10:00Z'),medalsDecided}) as RaceGroup;
+  const hurdles=(medalsDecided:boolean)=>({...group('hurdles',[race('a',saved,'saved')]),medalsDecided}) as RaceGroup;
   expect(groupDone(hurdles(false))).toBe(false);
   expect(raceSections([hurdles(false)],'timer')).toMatchObject({inProgress:[{event:{code:'hurdles'}}],done:[]});
   expect(groupDone(hurdles(true))).toBe(true);
@@ -92,8 +92,8 @@ test('an event is done once its medals are decided, not when its races are saved
 });
 test('only a lead is offered the final: a volunteer\'s card says who makes it, a lead\'s says when, and the confirm counts the heats',()=>{
   const steps=(state:StepStatus['state'])=>({runners:status(state),positions:status(state),times:status(state)});
-  const saved=(number:number)=>({...race(`h${number}`,'2026-06-01T10:00:00Z',steps('done'),'saved'),number});
-  const running={...race('h3','2026-06-01T10:00:00Z',steps('in progress')),number:3};
+  const saved=(number:number)=>({...race(`h${number}`,steps('done'),'saved'),number});
+  const running={...race('h3',steps('in progress')),number:3};
   const cubs=(races:RaceSummary[],heatsOpen=true,format='heats')=>({event:{format,section:'Girl Cubs'},races,heatsOpen}) as unknown as RaceGroup;
   expect(volunteerFinalLine(cubs([saved(1),running]))).toBe('A lead makes the final once every heat has run.');
   expect(leadFinalLine(cubs([saved(1),saved(2),running]))).toBe('Heat 3 in progress · Heats 1 and 2 saved · make the final once every heat has run');
@@ -109,13 +109,13 @@ test('only a lead is offered the final: a volunteer\'s card says who makes it, a
   expect(finalConfirm(cubs([saved(1)])).text).toBe('1 heat saved. The final takes the fastest 6, and no more heats can be added.');
 });
 test('a relay is listed once it has a heat, as any event is: teams typed ahead with no heats give it no card',()=>{
-  const relay=(code:string,races:RaceSummary[]=[])=>({...group(code,races,'2026-06-01T10:00:00Z'),event:{code,relay:true}}) as unknown as RaceGroup;
-  const groups=[relay('ahead'),relay('running',[race('a','2026-06-01T10:00:00Z',{runners:status('in progress'),positions:status('not started'),times:status('not started')})]),group('race',[],'')];
+  const relay=(code:string,races:RaceSummary[]=[])=>({...group(code,races),event:{code,relay:true}}) as unknown as RaceGroup;
+  const groups=[relay('ahead'),relay('running',[race('a',{runners:status('in progress'),positions:status('not started'),times:status('not started')})]),group('race',[])];
   for(const sections of [raceSections(groups,'start'),leadSections(groups,[])]) {
     expect(sections).not.toHaveProperty('teamsReady');
     expect([...sections.ready,...sections.inProgress,...sections.done].map(item=>item.event.code)).toEqual(['running']);
   }
-  expect(finalConfirm({...relay('cubs',[{...race('h1','2026-06-01T10:00:00Z',{},'saved'),number:1}]),event:{format:'heats',section:'Girl Cubs',relay:true}} as unknown as RaceGroup).text)
+  expect(finalConfirm({...relay('cubs',[{...race('h1',{},'saved'),number:1}]),event:{format:'heats',section:'Girl Cubs',relay:true}} as unknown as RaceGroup).text)
     .toBe('1 heat saved. The final takes the fastest 6 teams, and no more heats can be added.');
 });
 test('a team reads the same on every screen: whether it runs short, and its four children in leg order',()=>{

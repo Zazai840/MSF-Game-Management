@@ -2,7 +2,7 @@ import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
-import { api,StaleRequest,type HomeTab } from '../api.js';
+import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
 import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
@@ -58,7 +58,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onRace,onSaved,
     const already=snapshot!.steps[done]?.state==='done';
     const answer=await flow.write(`steps/${done}/done`,{});
     if(typeof answer!=='object' || (lead && already)) return;
-    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:event.relay?'relays':'races'});
+    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:homeTabOf(event)});
   }
   async function create(kind:'heat'|'final',number=group.nextHeat) {
     setFailure('');

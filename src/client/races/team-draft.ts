@@ -1,13 +1,13 @@
 import { useRef,useState } from 'react';
-import { legRefusal,legWarnings,type RelayTeam,type TeamList } from '../../shared/teams.js';
+import { legCheck,type RelayTeam,type TeamList } from '../../shared/teams.js';
 /** What a team's Save sends: the four boxes in leg order (null when empty) and the wristbands whose warnings were kept. */
 export interface TeamDraft { legs:Array<number|null>; keptWarnings:number[] }
 /**
  * A team's four leg boxes being typed (and put in another leg order by a grip), for any screen to draw: a number already in this team or another team of the
- * race (`raceId`, none on the teams sheet) is refused as it is typed (Fix number only); one that looks wrong (unknown,
+ * race (`raceId`) is refused as it is typed (Fix number only); one that looks wrong (unknown,
  * another Section's, in another heat of the relay or in another relay) shows once its box is left, with Fix number or Keep. `ready` once something is typed and each is fixed or kept.
  */
-export function useTeamDraft(team:RelayTeam|null,relay:TeamList,relays:readonly TeamList[],raceId:string|null) {
+export function useTeamDraft(team:RelayTeam|null,relay:TeamList,relays:readonly TeamList[],raceId:string) {
   const [boxes,setBoxes]=useState(()=>(team?.legs.map(leg=>leg.wristband===null?'':String(leg.wristband))||['','','','']));
   /** Each box's own key, in leg order, so a box keeps its key (and its row) when it is dragged to another leg. */
   const [keys,setKeys]=useState([0,1,2,3]);
@@ -17,8 +17,8 @@ export function useTeamDraft(team:RelayTeam|null,relay:TeamList,relays:readonly 
   const inputs=useRef<Array<HTMLInputElement|null>>([]);
   const legs=boxes.map(box=>box===''?null:Number(box));
   // Each box is checked against the boxes before it, so only the later of two equal numbers is refused.
-  const refusals=legs.map((_,index)=>legRefusal(relay.teams,team?.id??null,legs.slice(0,index+1),index,raceId));
-  const warnings=legs.map((number,index)=>number===null || refusals[index] || kept.includes(number)?[]:legWarnings(number,relay,relays,team?.id??null,raceId));
+  const checks=legs.map((_,index)=>legCheck(relay,relays,team?.id??null,legs.slice(0,index+1),index,raceId));
+  const refusals=checks.map(check=>check.refusal),warnings=checks.map((check,index)=>kept.includes(legs[index]!)?[]:check.warnings);
   const amber=(index:number)=>Boolean(refusals[index]) || (typing!==index && warnings[index].length>0);
   return {boxes,keys,legs,refusals,warnings,amber,inputs,
     /** The boxes in a new leg order (by key), as a grip drag leaves them: only the draft changes until Save. */

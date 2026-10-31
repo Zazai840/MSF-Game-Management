@@ -1,6 +1,6 @@
 import type { Section } from './results-rules.js';
 import { plainWristbandWarning,wristbandWarnings } from './wristband-checks.js';
-/** A warning on one leg of a relay team, in the volunteer's words. Done stores it only once kept. */
+/** A warning on one leg of a relay team, in the volunteer's words. Save stores it only once kept. */
 export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-heat'|'other-relay'; message:string; kept:boolean }
 /** One leg of a relay team: its child's wristband (null while the box is empty) and that child's kept warnings. */
 export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
@@ -50,12 +50,12 @@ export const entryWords=(relay:boolean)=>relay?{
 /** A word as it starts a sentence or a column: "Team", "Runners". */
 export const capitalised=(word:string)=>word[0].toUpperCase()+word.slice(1);
 /** The teams of the relay that race `raceId` holds, apart from team `teamId`: no race, no team. */
-const teamsInRace=(teams:readonly RelayTeam[],teamId:string|null,raceId:string|null)=>teams.filter(team=>team.id!==teamId && team.races.some(race=>race.id===raceId));
+const teamsInRace=(teams:readonly RelayTeam[],teamId:string|null,raceId:string)=>teams.filter(team=>team.id!==teamId && team.races.some(race=>race.id===raceId));
 /**
  * Why the number in box `index` can't go in (Fix number only): it is already in another box of this team, or in
  * another team of this race (`raceId`, the heat or final being checked in or corrected). Each child runs for one team.
  */
-export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:readonly (number|null)[],index:number,raceId:string|null):string|null {
+export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:readonly (number|null)[],index:number,raceId:string):string|null {
   const number=legs[index];
   if(number===null) return null;
   if(legs.some((other,at)=>at!==index && other===number)) return `${number} is already in this team.`;
@@ -69,12 +69,20 @@ export function legRefusal(teams:readonly RelayTeam[],teamId:string|null,legs:re
  * Beaver number is in range for both Beaver relays), the child is in another team of this relay that race `raceId`
  * doesn't hold ("2022 already ran in Heat 1, in Team 2."), or in a team of another relay.
  */
-export function legWarnings(number:number,relay:TeamList,relays:readonly TeamList[],teamId:string|null,raceId:string|null):Array<Omit<TeamWarning,'kept'>> {
+export function legWarnings(number:number,relay:TeamList,relays:readonly TeamList[],teamId:string|null,raceId:string):Array<Omit<TeamWarning,'kept'>> {
   const warnings=wristbandWarnings(number,relay.section,[],{skipAlreadyRan:true}).map(warning=>({kind:warning.kind as TeamWarning['kind'],message:plainWristbandWarning(warning,number,relay.section)}));
   const inRace=teamsInRace(relay.teams,teamId,raceId);
   for(const team of relay.teams) if(team.id!==teamId && !inRace.includes(team) && team.legs.some(leg=>leg.wristband===number)) warnings.push({kind:'other-heat',message:otherHeatLine(number,team)});
   for(const other of relays) if(other.code!==relay.code) for(const team of other.teams) if(team.legs.some(leg=>leg.wristband===number)) warnings.push({kind:'other-relay',message:`${number} is also in Team ${team.number} of ${other.name} ${other.section}.`});
   return warnings;
+}
+/**
+ * Box `index` as the start line checks it while typing: its refusal (Fix number only), else its warnings (Fix number
+ * or Keep); neither for an empty box.
+ */
+export function legCheck(relay:TeamList,relays:readonly TeamList[],teamId:string|null,legs:readonly (number|null)[],index:number,raceId:string) {
+  const refusal=legRefusal(relay.teams,teamId,legs,index,raceId),number=legs[index];
+  return {refusal,warnings:refusal || number===null?[]:legWarnings(number,relay,relays,teamId,raceId)};
 }
 /** A child in another team of this relay, by that team's latest race: "2022 already ran in Heat 1, in Team 2.", "... is already in Heat 2, ...", or still to run. */
 function otherHeatLine(number:number,team:Pick<RelayTeam,'number'|'races'>) {

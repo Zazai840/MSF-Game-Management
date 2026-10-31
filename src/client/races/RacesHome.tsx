@@ -2,7 +2,7 @@ import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { finalMade,groupStatus,leadLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
-import { api,StaleRequest,type HomeTab } from '../api.js';
+import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { failureLine } from './writes.js';
 import { useLive } from '../live.js';
 import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
@@ -46,7 +46,7 @@ export function RacesHome({tab,onTab,role,onRace,onResults,saved,onSavedShown}:{
   const [confirming,setConfirming]=useState<string|null>(null);
   const [failure,setFailure]=useState('');
   const issues=useLeadItems(role==='lead');
-  const all=snapshot?.groups||[],groups=all.filter(group=>group.event.relay===(tab==='relays'));
+  const all=snapshot?.groups||[],groups=all.filter(group=>homeTabOf(group.event)===tab);
   const finalFor=all.find(group=>group.event.code===confirming);
   async function make(choice:Required<NewRaceChoice>) {
     setFailure('');

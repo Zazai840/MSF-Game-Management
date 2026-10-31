@@ -10,6 +10,8 @@ const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${p
 /** Home's last tab belongs to the phone, not the session, so it outlasts sign-ins. */
 const homeTabKey=`${prefix}home-tab`;
 export type HomeTab='races'|'relays';
+/** The Home tab an event is listed on: Relays for a relay, Races for the rest. */
+export const homeTabOf=(event:{relay:boolean}):HomeTab=>event.relay?'relays':'races';
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
   for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session` && key!==homeTabKey) localStorage.removeItem(key);
