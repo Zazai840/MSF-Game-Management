@@ -6,13 +6,14 @@ import { Fragment,useEffect,useState,useRef } from 'react';
 import { api } from '../api.js';
 import type { ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { RacePage } from './RacePage.js';
-import { RunnerActions } from './RunnerActions.js';
+import { RunnerScreens,RunnerSheet } from './RunnerSheet.js';
 import { resultLabel,teamWristbands } from './ResultName.js';
 import { resultName,ruleLine,type LeaderboardRow } from '../../shared/results-rules.js';
 import { TieSheet } from './TieSheet.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { Callout,Icon,LeadBar,Star,UpdatedAt } from '../races/parts.js';
 import { eventTabs,type EventTab,type View } from '../shell/addresses.js';
+type RunnerView=Extract<View,{kind:'runner'}>;
 import { ordinal } from '../../shared/ordinal.js';
 import { raceLabel,runnersText } from '../../shared/races.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
@@ -22,9 +23,9 @@ import './results.css';
  * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
  * lead header; `onOpen` moves to another screen and `onBack` goes back. `target` is what Open in Results asked to open
- * on the event: a runner's actions, a tie or a check sheet.
+ * on the event: the runner sheet, a tie or a check sheet. `runner` is one of the runner sheet's screens.
  */
-export function Results({code,raceId,tab,target,onOpen,onBack,onChanged}:{code?:string;raceId?:string;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void}) {
+export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:{code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   // Confirm the medals opens the event on its check sheet, once, when its results first arrive.
   const [stageToOpen,setStageToOpen]=useState(target?.stage);
@@ -69,9 +70,10 @@ export function Results({code,raceId,tab,target,onOpen,onBack,onChanged}:{code?:
     else if(item.raceId) openRace(item.raceId);
   }
   if(!code) return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
-  if(raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack}/>;
+  if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
+  if(raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack} onOpen={onOpen}/>;
   const sheets=detail && <>
-    {selectedRow && <RunnerActions key={`${selectedRow.raceId}:${selectedRow.entryId}`} row={selectedRow} rows={detail.results.actionableRunners} eventCode={detail.event.code} onSaved={saved} onClose={()=>setSelected(null)}/>}
+    {selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={saved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>}
     {selectedStage && <StageSheet event={detail.event} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}
     {selectedTie && <TieSheet key={selectedTie.id} event={detail.event} tie={selectedTie} stage={tieStage} onSaved={saved} onClose={()=>setSelectedTieId(null)}/>}</>;
   const body=<><main className="rz-main rz-main--event">

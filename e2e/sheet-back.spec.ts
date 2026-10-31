@@ -73,10 +73,10 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
   const eventPage=async(tab='heats')=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/${tab}$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:event,exact:true})).toBeVisible();};
   await eventPage();
-  const runner=page.getByRole('dialog',{name:/^Actions for /}),row=page.getByRole('button',{name:/2042.* · Heat 1$/});
+  const runner=page.getByRole('dialog',{name:/^Runner /}),row=page.getByRole('button',{name:/2042.* · Heat 1$/});
   await opensAndCloses(page,()=>press(row),runner,'back',eventPage);
   await opensAndCloses(page,()=>press(row),runner,'escape',eventPage);
-  await press(row);await press(runner.getByRole('button',{name:'Close actions',exact:true}));await expect(runner).toHaveCount(0);await eventPage();
+  await press(row);await press(runner.getByRole('button',{name:'Close',exact:true}));await expect(runner).toHaveCount(0);await eventPage();
   // A race deleted from its sheet goes back to the event, past the sheet; the next Back goes to Results.
   await eventTab(page,'Races');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));

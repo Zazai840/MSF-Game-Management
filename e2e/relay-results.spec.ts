@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {eventTab,ownName,ownWristbands,ownCode,back,dragTo,expect,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,markFinalHere,markHere,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -27,19 +27,19 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   for(const team of [1,2,3,4]) await expect(teamRow(team)).toContainText('Check');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-warnings.png'),fullPage:true});
-  /** Opens the team's actions sheet from its row and presses the button. */
-  async function settle(team:number,button:string) {
+  /** Opens the team's runner sheet from its row and presses the check, which saves at once. */
+  async function settle(team:number,button:string,toast:string) {
     await teamRow(team).click();
-    const sheet=page.getByRole('dialog',{name:`Actions for Team ${team}`,exact:true});
+    const sheet=page.getByRole('dialog',{name:`Team ${team}`,exact:true});
     // Disqualifying for wrong section or age is a reason under the one Disqualify button, not a button of its own.
     await expect(sheet).toBeVisible();await expect(sheet.getByRole('button',{name:'Disqualify for wrong section or age',exact:true})).toHaveCount(0);
     if(team===1) {expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('relay-team-actions.png'),fullPage:true});}
-    await sheet.getByRole('button',{name:button,exact:true}).click();await sheet.getByRole('button',{name:'Save check',exact:true}).click();await expect(sheet).toHaveCount(0);
+    await sheet.getByRole('button',{name:button,exact:true}).click();await expectToast(page,`${toast} · Team ${team}`);await expect(sheet).toHaveCount(0);
   }
-  await settle(1,'Mark checked');
-  await settle(2,'Mark checked');
-  await settle(3,'Mark checked');
-  await settle(4,'Mark addition checked');
+  await settle(1,'Mark checked','Warning checked');
+  await settle(2,'Mark checked','Warning checked');
+  await settle(3,'Mark checked','Warning checked');
+  await settle(4,'Mark addition checked','Addition checked');
   // Checked, no row says Check any more.
   const checked=`Checked by ${ownName('To check relay lead')}: `;
   await expect(board.getByText('Check',{exact:true})).toHaveCount(0);
@@ -114,7 +114,14 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   // medal team's four children.
   await markFinalHere(request,token,code,[3,2,5,1,6,7]);await writeTeamOrder(request,token,code,[3,2,5,1,6,7]);await submitRace(request,token,code);
   await page.getByRole('button',{name:'Refresh',exact:true}).click();
-  await expect(page.getByRole('list',{name:'Final leaderboard',exact:true}).getByRole('button',{name:`Team 3 · ${legs(3).join(' · ')} · Final`,exact:true})).toContainText('1st');
+  const winner=page.getByRole('list',{name:'Final leaderboard',exact:true}).getByRole('button',{name:`Team 3 · ${legs(3).join(' · ')} · Final`,exact:true});
+  await expect(winner).toContainText('1st');
+  // A team on the Final tab opens the same runner sheet, with its final place and "Open final".
+  await winner.click();
+  const winnerSheet=page.getByRole('dialog',{name:'Team 3',exact:true});
+  await expect(winnerSheet).toContainText(`${name} · Girl Cubs · Final · 1st in race`);await expect(winnerSheet.getByRole('button',{name:'Open final',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await winnerSheet.getByRole('button',{name:'Close',exact:true}).click();await expect(winnerSheet).toHaveCount(0);
   await page.getByRole('button',{name:'Final complete',exact:true}).click();
   await page.getByRole('dialog',{name:'Final complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
   await expect(page.getByRole('table',{name:'Input - Running',exact:true}).locator('tbody td')).toHaveText([code,...[3,2,5].map(number=>`Team ${number}${legs(number).join('')}`)]);
@@ -148,14 +155,14 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
   const team1=board.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat 1`,exact:true});
   await team1.click();
-  const sheet=page.getByRole('dialog',{name:'Actions for Team 1',exact:true});
+  const sheet=page.getByRole('dialog',{name:'Team 1',exact:true});
   await sheet.getByRole('button',{name:'Disqualify Team 1',exact:true}).click();
   // A handover outside the zone goes under Other; the comment is optional, given here.
-  await sheet.getByLabel('Reason',{exact:true}).selectOption('Other');
-  await sheet.getByLabel('Comment (optional)',{exact:true}).fill('Handover outside the zone');
+  await page.getByRole('button',{name:'Other',exact:true}).click();
+  await page.getByLabel('Comment (optional)',{exact:true}).fill('Handover outside the zone');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-disqualify.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Save disqualification',exact:true}).click();
+  await page.getByRole('button',{name:'Disqualify Team 1',exact:true}).click();await expectToast(page,'Team 1 disqualified · Other');
   await expect(team1).toContainText('Disqualified: Other - Handover outside the zone');
   await expect(board.locator(':scope > li').first()).toContainText('Team 2');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('disqualified Team 1 (Heat 1): Other - Handover outside the zone');
@@ -164,8 +171,8 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
   await eventTab(page,'Heats');await team1.click();
   await expect(sheet.getByRole('button',{name:'Disqualify Team 1',exact:true})).toHaveCount(0);
   await sheet.getByRole('button',{name:'Lift disqualification',exact:true}).click();
-  await sheet.getByLabel('Comment',{exact:true}).fill('Judge saw the baton inside the zone');
-  await sheet.getByRole('button',{name:'Save lift',exact:true}).click();
+  await page.getByLabel('Comment',{exact:true}).fill('Judge saw the baton inside the zone');
+  await page.getByRole('button',{name:'Lift disqualification',exact:true}).click();await expectToast(page,'Team 1 counts again');
   await expect(team1).not.toContainText('Disqualified');
   await expect(board.locator(':scope > li').first()).toContainText('Team 1');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('lifted the disqualification of Team 1 (Heat 1)');

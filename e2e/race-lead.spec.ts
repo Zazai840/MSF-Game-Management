@@ -119,13 +119,13 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   await expect(ranTwice).toBeVisible();
   await expect(ranTwice.getByRole('button',{name:"It's right",exact:true})).toHaveCount(0);
   await ranTwice.getByRole('button',{name:'Open in Results',exact:true}).click();
-  // The event's results, with the runner's actions open.
+  // The event's results, with the runner sheet open.
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  const sheet=page.getByRole('dialog',{name:'Actions for 2001'});
-  await expect(sheet.getByRole('heading',{name:'Runner 2001',exact:true})).toBeVisible();
+  const sheet=page.getByRole('dialog',{name:'Runner 2001',exact:true});
   await sheet.getByRole('button',{name:'Choose which result counts',exact:true}).click();
-  await sheet.getByLabel('Count Heat 2',{exact:true}).check();
-  await sheet.getByRole('button',{name:'Save counted result',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await page.getByRole('button',{name:/^Heat 2 · /}).click();
+  await page.getByRole('button',{name:'Save counted result',exact:true}).click();await expectToast(page,'Result counts · 2001 Heat 2');
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   // Back returns to the race Results was opened from.
   await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
   await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
@@ -135,6 +135,17 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   const actions=page.getByRole('dialog',{name:'Race actions'});
   await expect(actions.getByRole('button',{name:'Correct times',exact:true})).toBeVisible();
   await actions.screenshot({path:info.outputPath('race-actions.png')});
+  // A runner there opens the runner sheet over it; Escape closes only the sheet.
+  const runner=page.getByRole('dialog',{name:'Runner 2001',exact:true});
+  await actions.getByRole('button',{name:'Runner 2001',exact:true}).click();await expect(runner).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.keyboard.press('Escape');await expect(runner).toHaveCount(0);await expect(actions).toBeVisible();
+  // Its screens open at their own address; Back returns to the race.
+  await actions.getByRole('button',{name:'Runner 2001',exact:true}).click();await runner.getByRole('button',{name:'Correct number',exact:true}).click();
+  await expect(page).toHaveURL(/\/runners\/[^/]+\/correct-number$/);
+  await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
+  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
+  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
   await page.keyboard.press('Escape');
   await expect(actions).toHaveCount(0);
 });
