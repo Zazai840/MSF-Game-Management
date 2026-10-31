@@ -239,7 +239,7 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
   return group.medalsDecided?'Medals decided':leadFinalLine(group)??groupStatus(group,'lead');
 }
 /**
- * A lead's sections: Ready for you is the groups with open issues or medals waiting on the lead, the one that started
+ * A lead's sections: Action required (`ready`) is the groups with open issues or medals waiting on the lead, the one that started
  * waiting last first (its newest issue, or its last race's save); the rest as for everyone.
  */
 export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {

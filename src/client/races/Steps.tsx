@@ -5,11 +5,11 @@ import { ordinal } from '../../shared/ordinal.js';
 import { andList,emptyRaceLine,finishedWords,onlyRunners,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
-import { digitsForTime,formatTimeDigits,parseTimeDigits,formatTime } from '../../shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { wrongTimesBanner } from '../../shared/wrong-times.js';
 import { phoneStorage } from '../api.js';
-import { digitsOnly } from '../flow/NumberEntry.js';
+import { NumberBox } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useWristbandEntry } from './wristband-entry.js';
@@ -25,16 +25,16 @@ export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWr
  * what is in the box selected, so typing replaces it. Tapping the box while a warning waits calls `onRelease` (as Fix
  * does), keeping the typed digits to edit. Enter calls `onEnter`, as the footer's Next does.
  */
-function DigitsField({id,label,value,onChange,onEnter,onRelease,held=false,busy=false,warn=false,hint,selectKey}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
-  onRelease:()=>void;held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string}) {
+function DigitsField({id,label,value,onChange,onEnter,onRelease,held=false,busy=false,warn=false,hint,selectKey,time=false}:{id:string;label:string;value:string;onChange:(digits:string)=>void;onEnter:()=>void;
+  onRelease:()=>void;held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string;time?:boolean}) {
   const input=useRef<HTMLInputElement>(null),wasHeld=useRef(held);
   useLayoutEffect(()=>{if(held) input.current?.blur();else if(wasHeld.current) {input.current?.focus();input.current?.select();}wasHeld.current=held;},[held]);
   useEffect(()=>{input.current?.focus({preventScroll:true});},[]);
   useLayoutEffect(()=>{if(selectKey!==undefined && !held) {input.current?.focus({preventScroll:true});input.current?.select();}},[selectKey]);
   return <div className={warn?'rz-field rz-field--warn':'rz-field'}>
     <label className="rz-field__label" htmlFor={id}>{label}</label>
-    <input ref={input} className="rz-field__input" id={id} type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" autoCorrect="off" spellCheck={false}
-      value={value} readOnly={busy} aria-describedby={hint?`${id}-hint`:undefined} onChange={event=>onChange(digitsOnly(event.target.value))}
+    <NumberBox ref={input} time={time} className="rz-field__input" id={id}
+      value={value} readOnly={busy} aria-describedby={hint?`${id}-hint`:undefined} onChange={onChange}
       // The tap's own caret placement lands after the release, so select again once it has (unless held again by then:
       // WebKit's select() would focus the box and release it).
       onFocus={()=>{if(held) {onRelease();requestAnimationFrame(()=>{if(document.activeElement===input.current) input.current?.select();});}}}
@@ -309,7 +309,7 @@ export function FinishLine({read,flow,onDone,locked,me}:StepProps) {
 
 /**
  * Timer: one slot per place (each finisher once the order is saved, before that each runner), the current one gold; tap any
- * to retype it. Digits only: the app puts the point in. A time faster than an earlier place waits for Fix time or
+ * to retype it. The time box fills from the right as the timer's digits are typed. A time faster than an earlier place waits for Fix time or
  * Keep, its warning just above the time box and its reason in the footer. The last place's time, or No more finishers,
  * marks Times done. Times never wait for the finish line.
  */
@@ -357,10 +357,10 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
         actions={<><button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button>
           <button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button></>}/>}
       {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held} onChange={setTyped} onEnter={()=>void next()}
-        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={held?undefined:digits?<>Shows as <strong>{formatTimeDigits(digits)}</strong>. Type digits only.</>:'Type digits only: 1234 shows as 12.34.'}/>}
+        selectKey={`${target}:${retype===null?'next':'retype'}`} hint={held?undefined:timeBoxHint} time/>}
     </main>
     {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
-      <KeepFocus className="rz-btn" disabled={target===0 && retype===null && !places.length} onClick={()=>{const back=Math.max(0,(retype??places.length)-1);if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Back</KeepFocus>
+      <KeepFocus className="rz-btn" disabled={target===0} onClick={()=>{const back=target-1;if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Previous place</KeepFocus>
       <button type="button" className="rz-btn" disabled={!places.length || held || writes.sending} onClick={()=>onDone('times')}>No more finishers</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || held || full} onClick={()=>void next()}>Next</KeepFocus>
     </div></DockedFooter>}

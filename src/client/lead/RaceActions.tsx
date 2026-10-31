@@ -8,7 +8,7 @@ import { RaceTeamsEditor } from './RaceTeams.js';
 import { api } from '../api.js';
 import { entryName,entryNumber,inProgressLine,raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
-import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timeBoxHint,timesOutOfOrder } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { entryCount,entryWord } from '../../shared/teams.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
@@ -81,14 +81,15 @@ function RaceTimesEditor({race,busy,onSave,onClose}:{race:LeadRaceRead['race'];b
     if(checked && editing!==null && editing>=index) setEditing(null);
   }
   const rowLabel=(index:number,value:string)=>`${ordinal(index+1)} place · ${value?formatTimeDigits(value):'Time needed'}${wrong.get(index)?` · ${wrong.get(index)!.reason}`:''}`;
-  return <form className="sheet-stack" onSubmit={event=>{event.preventDefault();onSave({baseVersion,places:places.slice(0,runnerCount),acceptOutOfOrder:accepted,comment});}}>
+  // noValidate: the time box shows "12.34", which its digits pattern (there for the number pad) would refuse.
+  return <form className="sheet-stack" noValidate onSubmit={event=>{event.preventDefault();onSave({baseVersion,places:places.slice(0,runnerCount),acceptOutOfOrder:accepted,comment});}}>
     {mismatch && <p className="count-mismatch" role="alert">{mismatch}</p>}
     {leftover && <p className="sheet-hint">This race has {entryCount(runnerCount,!!race.event.relay)}. Choose No finisher for every place after {ordinal(runnerCount)} to save.</p>}
     <p className="sheet-hint">Read times in place order from the SprintTimer recording. Tap a place to retype its time.</p>
     <ol ref={rows} className="time-rows" aria-label="Times">{digits.map((value,index)=><li key={index} className="lead-time-place">
       {value!==null && editing===index?<div className="lead-editing">
-        <NumberEntry label={`${ordinal(index+1)} place time`} placeholder="Digits only, e.g. 1234" value={value} busy={busy} nextLabel="Done" selectKey={index}
-          onChange={digits=>change(index,digits)} onNext={()=>done(index)} display={<p className="time-shows">Shows as <strong>{formatTimeDigits(value)}</strong></p>}/>
+        <NumberEntry label={`${ordinal(index+1)} place time`} value={value} busy={busy} nextLabel="Done" selectKey={index} time
+          onChange={digits=>change(index,digits)} onNext={()=>done(index)} display={<p className="time-hint">{timeBoxHint}</p>}/>
       </div>:value===null?<div className="time-row time-row-none"><span className="time-place">{ordinal(index+1)}</span><span className="time-value">No finisher</span></div>
       :<button type="button" disabled={busy} className={wrong.get(index)?'time-row time-wrong':'time-row'} aria-label={rowLabel(index,value)} onClick={()=>setEditing(index)}>
         <span className="time-place">{ordinal(index+1)}</span><span className="time-value"><strong>{value?formatTimeDigits(value):'Time needed'}</strong><WrongTimeReason wrong={wrong.get(index)}/></span>

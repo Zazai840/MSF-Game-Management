@@ -15,6 +15,16 @@ export function formatTimeDigits(digits:string):string {
   const minutes=Number(padded.slice(0,-4));
   return `${minutes?`${minutes}:${seconds.padStart(2,'0')}`:seconds}.${padded.slice(-2)}`;
 }
+/** The time box's hint, on the Timer and the lead's Correct times. No-break spaces keep "1 2 3 4" on one line. */
+export const timeBoxHint='Type the digits on the timer. They fill from the right: 1\u00a02\u00a03\u00a04 shows 12.34.';
+/**
+ * The time box's digits after an edit to what it shows: digits only, without leading zeros. An edit that would make
+ * a 7th digit does nothing (at most 99:59.99).
+ */
+export function typedTimeDigits(previous:string,shown:string):string {
+  const digits=shown.replace(/\D/g,'').replace(/^0+/,'');
+  return digits.length>6?previous:digits;
+}
 export function formatTime(hundredths:number):string {
   const minutes=Math.floor(hundredths/6000),seconds=Math.floor(hundredths%6000/100),fraction=String(hundredths%100).padStart(2,'0');
   return `${minutes?`${minutes}:${String(seconds).padStart(2,'0')}`:seconds}.${fraction}`;
