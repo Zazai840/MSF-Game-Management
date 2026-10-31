@@ -51,7 +51,7 @@ test('New team at check-in takes the next number and the same checks, and joins 
   const heat=await relays.tick(sam,'R22',1),url=`/api/relays/${heat.group.event.id}/teams`;
   // The race read carries every switched-on relay's list, which the leg boxes' warnings look through.
   expect(heat.relays!.find(list=>list.code==='R28')).toMatchObject({name:'4x100m Relay',section:'Girl Scouts',teams:[{number:1}]});
-  expect((await call(sam,url,{legs:[2201,2102,null,null],keptWarnings:[],joinRaceId:heat.race.id})).json()).toEqual({message:'2102 is already in Team 1. Check the wristband.'});
+  expect((await call(sam,url,{legs:[2201,2102,null,null],keptWarnings:[],joinRaceId:heat.race.id})).json()).toEqual({message:'2102 is already in Team 1 in this heat. Each child runs for one team.'});
   expect((await call(sam,url,{legs:[6100,null,null,null],keptWarnings:[],joinRaceId:heat.race.id})).json()).toEqual({message:'6100 needs Fix number or Keep'});
   const joined=await ok(sam,url,{legs:[2201,2202,6100,null],keptWarnings:[6100],joinRaceId:heat.race.id});
   expect(joined.race.id).toBe(heat.race.id);

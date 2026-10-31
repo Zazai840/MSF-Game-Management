@@ -24,9 +24,9 @@ export function RunnerNumber({row,eventCode,onSaved,onClose,onBusyChange}:{row:L
   /** A team's box is checked against its relay's team list as it stands: a refusal stops it, a warning needs Keep. */
   async function teamWarnings() {
     const read=await api<LeadRaceRead>(`lead/races/${row.raceId}`),legs=team!.wristbands.map((wristband,at)=>at===leg?Number(number):wristband);
-    const refusal=legRefusal(read.teams||[],team!.id,legs,leg!);
+    const refusal=legRefusal(read.teams||[],team!.id,legs,leg!,row.raceId);
     if(refusal) throw new Error(refusal);
-    return legWarnings(Number(number),read.race.event,read.relays||[]);
+    return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},read.relays||[],team!.id,row.raceId);
   }
   async function check() {
     working(true);setError('');

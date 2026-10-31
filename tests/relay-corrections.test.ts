@@ -100,11 +100,12 @@ test('Correct number on a child of a team in its latest race changes the race an
   expect((await teamList())[0].wristbands).toEqual([2101,2109,2103,2104]);
 });
 
-test('Correct number on a team refuses a wristband already in the relay and needs Fix number or Keep for a warning',async()=>{
+test('Correct number on a team refuses a wristband already in this team and needs Fix number or Keep for a warning, a child of a team that ran in another heat too',async()=>{
   const setup=await start(),{lead,teamList}=setup,{latest,entryOf}=await twoRaces(setup);
   const correct=async(body:object)=>{const response=await call(lead,`/api/lead/races/${latest}/runners/${(await entryOf(latest)).id}/correct-number`,body);return [response.statusCode,response.json().message ?? null];};
-  expect(await correct({leg:1,expectedWristband:2102,wristband:2201})).toEqual([409,'2201 is already in Team 2. Check the wristband.']);
-  expect(await correct({leg:1,expectedWristband:2102,wristband:2101})).toEqual([409,'2101 is already in this team. Check the wristband.']);
+  // Team 2 is not in this heat: its child is warned, not refused.
+  expect(await correct({leg:1,expectedWristband:2102,wristband:2201})).toEqual([409,'2201 needs Fix number or Keep']);
+  expect(await correct({leg:1,expectedWristband:2102,wristband:2101})).toEqual([409,'2101 is already in this team.']);
   expect(await correct({leg:1,expectedWristband:2109,wristband:2105})).toEqual([409,'Runner number has changed - open actions again']);
   // 1060 is a Boy Cub's number: kept, it is stored with its warning on the race and the team list.
   expect(await correct({leg:1,expectedWristband:2102,wristband:1060})).toEqual([409,'1060 needs Fix number or Keep']);
@@ -125,7 +126,7 @@ test('Correct teams on a saved heat takes a team off (still to run again), adds 
   const kept={entryId:entryOf(1).id},edited={entryId:entryOf(2).id,legs:[2201,2202,2299,2204]};
   // The team-entry refusals and warnings apply.
   const refused=async(body:object)=>{const response=await correct(body);return [response.statusCode,response.json().message];};
-  expect(await refused({teams:[kept,{entryId:entryOf(2).id,legs:[2201,2202,2101,2204]}]})).toEqual([409,'2101 is already in Team 1. Check the wristband.']);
+  expect(await refused({teams:[kept,{entryId:entryOf(2).id,legs:[2201,2202,2101,2204]}]})).toEqual([409,'2101 is already in Team 1 in this heat. Each child runs for one team.']);
   expect(await refused({teams:[kept,{entryId:entryOf(2).id,legs:[2201,2202,1060,2204]}]})).toEqual([409,'1060 needs Fix number or Keep']);
   expect(await refused({teams:[kept,{teamId:await teamId(1)}]})).toEqual([400,'Choose each team once']);
   const response=await correct({teams:[kept,edited,{teamId:await teamId(4)}],comment:'Team 3 never ran'});

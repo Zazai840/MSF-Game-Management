@@ -112,7 +112,7 @@ test('two prep phones type different teams of one relay at once in the teams she
   await expect(teamCards(a.page).nth(0)).toContainText(`3rd${w(12)}4th${w(11)}`,live);
 });
 
-test('New team from the foot of Relays: four leg boxes, a number already in the relay refused with Fix number only, a wrong-Section number warned with Fix number / Keep; Cancel leaves nothing, and Remove team takes a team never in a race off for good',async({openPhone,request},info)=>{
+test('New team from the foot of Relays: four leg boxes, a number already in the team refused with Fix number only, a wrong-Section number warned with Fix number / Keep; Cancel leaves nothing, and Remove team takes a team never in a race off for good',async({openPhone,request},info)=>{
   const name=ownName('Teams sheet new'),other=ownName('Teams sheet other'),w=await ownWristbands('Girl Cubs',8),boy=await ownWristbands('Boy Cubs',1);
   const [code,otherCode]=[await ownCode(),await ownCode()];
   await ownRelay(code,name);await ownRelay(otherCode,other);
@@ -131,14 +131,14 @@ test('New team from the foot of Relays: four leg boxes, a number already in the 
   await expect(typing).toContainText(`${name} · Girl Cubs`);
   for(const leg of ['1st','2nd','3rd','4th']) await expect(box(page,leg)).toBeVisible();
   await expect(typing.getByRole('button',{name:'Save team 3',exact:true})).toBeDisabled();
-  // A number already in Team 2 is refused: Fix number only.
-  await box(page,'1st').fill(String(w(2)));
+  // A number already in this team is refused: Fix number only.
+  await box(page,'1st').fill(String(w(3)));
+  await box(page,'2nd').fill(String(w(3)));
   const refused=typing.getByRole('alert');
-  await expect(refused).toHaveText(`${w(2)} is already in Team 2. Check the wristband.Fix number`);
+  await expect(refused).toHaveText(`${w(3)} is already in this team.Fix number`);
   await expect(refused.getByRole('button',{name:'Keep'})).toHaveCount(0);
   await refused.getByRole('button',{name:'Fix number',exact:true}).click();
-  await expect(box(page,'1st')).toHaveValue('');
-  await box(page,'1st').fill(String(w(3)));
+  await expect(box(page,'2nd')).toHaveValue('');
   // A Boy Cubs number warns once its box is left: Fix number or Keep.
   await box(page,'2nd').fill(String(boy(1)));
   await box(page,'3rd').focus();

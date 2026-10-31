@@ -110,3 +110,47 @@ test('four phones run a relay heat whose teams are typed in leg by leg: two star
   const saved:RaceFlowRead=await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${sam.token}`}})).json();
   expect(saved.race.state).toBe('saved');
 });
+
+test('a typed leg is checked as at individual check-in: a child in another team of this heat refused with Fix number only, a child who ran in another heat warned with Fix number / Keep, kept with the leg',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('Relay leg checks');
+  await ownRelay(code,name,'Girl Cubs');
+  const w=await ownWristbands('Girl Cubs',8),sam=await openPhone(ownName('Sam Patel leg checks'));
+  const post=(url:string,data:object)=>flowPost(request,sam.token,url,data);
+  // Heat 1 runs with Team 1.
+  let read=await post('/api/races',{eventCode:code,kind:'heat',number:1});
+  const one=read.race.id,url=(what:string)=>`/api/races/${one}/${what}`;
+  read=await post(`/api/relays/${read.group.event.id}/teams`,{legs:[w(1),w(2),w(3),w(4)],keptWarnings:[],joinRaceId:one});
+  read=await post(url('steps/runners/done'),{});
+  read=await post(url('order'),{raceId:one,version:read.race.parts.finish.version,order:read.race.parts.runners.value!.map(entry=>entry.id),didNotFinish:[],didNotRun:[],added:[]});
+  read=await post(url('steps/positions/done'),{});
+  read=await post(url('times'),{raceId:one,version:read.race.parts.times.version,places:[3400],keptWrong:[]});
+  expect((await post(url('steps/times/done'),{})).race.state).toBe('saved');
+  const two=await post('/api/races',{eventCode:code,kind:'heat',number:2}),page=sam.page;
+  await page.goto(`/races/${two.race.id}`);
+  for(const number of [5,6,7]) await leg(page,w(number));
+  await leg(page,w(8),'Save Team 2');
+  await expect(card(page,2)).toBeVisible();
+
+  // A child already in Team 2 of this heat is refused: Fix number only.
+  await leg(page,w(6));
+  const callout=page.locator('main .rz-callout');
+  await expect(callout).toContainText(`${w(6)} is already in Team 2 in this heat. Each child runs for one team.`);
+  await expect(callout.getByRole('button',{name:'Keep'})).toHaveCount(0);
+  await callout.getByRole('button',{name:'Fix number',exact:true}).click();
+  await expect(callout).toHaveCount(0);
+  await expect(prompt(page)).toHaveText('Team 3 · 1st leg: wristband number?');
+
+  // A child who ran in Heat 1 is warned: Fix number or Keep. Keep takes the leg.
+  await leg(page,w(1));
+  await expect(callout).toContainText(`${w(1)} already ran in Heat 1, in Team 1.`);
+  await expect(callout.getByRole('button',{name:'Fix number',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('leg-warning.png'),fullPage:true});
+  await callout.getByRole('button',{name:'Keep',exact:true}).click();
+  await expect(prompt(page)).toHaveText('Team 3 · 2nd leg: wristband number?');
+  await expect(typing(page,3).locator('.rz-legchip')).toHaveText([`1st${w(1)}`,'2nd?','3rd–','4th–']);
+  await page.getByRole('button',{name:'Save Team 3 with 1',exact:true}).click();
+  await expect(chips(page,3)).toHaveText([`1st${w(1)}`,'2nd–','3rd–','4th–']);
+  const saved:RaceFlowRead=await (await request.get(`/api/races/${two.race.id}`,{headers:{authorization:`Bearer ${sam.token}`}})).json();
+  expect(saved.teams!.find(team=>team.number===3)!.legs[0].warnings).toEqual([{kind:'other-heat',message:`${w(1)} already ran in Heat 1, in Team 1.`,kept:true}]);
+});

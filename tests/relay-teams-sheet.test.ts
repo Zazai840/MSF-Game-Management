@@ -54,13 +54,13 @@ test('the races list carries each relay\'s teams; a new team takes the next numb
     [`/api/relays/${id('R22')}/teams/${team3.id}`,{legs:[2401,null,null,null]},'Open the team again']
   ] as const) expect((await call(sam,url,body)).json(),url).toEqual({message});
 });
-test('a number already in the relay is refused; a wrong-Section, unknown or other-relay number needs Keep, and is stored kept',async()=>{
+test('a number already in this team is refused; a wrong-Section, unknown, other-team or other-relay number needs Keep, and is stored kept',async()=>{
   const {sam,id}=await start();
   await ok(sam,`/api/relays/${id('R28')}/teams`,{legs:[4001,4002,4003,2134],keptWarnings:[2134]});
   await ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[2101,2102,null,null],keptWarnings:[]});
   const refused=async(body:object)=>(await call(sam,`/api/relays/${id('R22')}/teams`,body)).json();
-  expect(await refused({legs:[2301,2102,null,null],keptWarnings:[]})).toEqual({message:'2102 is already in Team 1. Check the wristband.'});
-  expect(await refused({legs:[2301,2301,null,null],keptWarnings:[]})).toEqual({message:'2301 is already in this team. Check the wristband.'});
+  expect(await refused({legs:[2301,2102,null,null],keptWarnings:[]})).toEqual({message:'2102 needs Fix number or Keep'});
+  expect(await refused({legs:[2301,2301,null,null],keptWarnings:[]})).toEqual({message:'2301 is already in this team.'});
   expect(await refused({legs:[6100,null,null,null],keptWarnings:[]})).toEqual({message:'6100 needs Fix number or Keep'});
   const kept=group(await ok(sam,`/api/relays/${id('R22')}/teams`,{legs:[6100,1045,2134,2150],keptWarnings:[6100,1045,2134]}),'R22').teams![1];
   expect(kept.legs).toEqual([
