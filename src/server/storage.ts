@@ -82,8 +82,13 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       kind text NOT NULL CHECK (kind IN ('heat','final','race')), number integer NOT NULL,
       checked_in_at timestamptz NOT NULL DEFAULT now(), deleted boolean NOT NULL DEFAULT false,
       delete_reason text, request_id text, original_runners jsonb,
-      UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
+      UNIQUE(day_id,request_id)
     );
+    -- A number is unique among an event's live races of a kind: a deleted race may share it (the next heat is the
+    -- highest live one + 1). Older builds made it unique over every row, from a per-event counter that only went up.
+    ALTER TABLE races DROP CONSTRAINT IF EXISTS races_event_id_kind_number_key;
+    CREATE UNIQUE INDEX IF NOT EXISTS live_race_number ON races(event_id,kind,number) WHERE NOT deleted;
+    DROP TABLE IF EXISTS race_counters;
     -- A race is in progress until it saves itself (every step done), which is who and when.
     ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','saved'));
     -- A relay race the old race screen left waiting on Submit presses carries on as an ordinary race-flow race: it keeps
@@ -100,10 +105,6 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE race_finals DROP COLUMN IF EXISTS presence_confirmed;
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS generation text NOT NULL DEFAULT '';
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS additional_entries jsonb NOT NULL DEFAULT '[]';
-    CREATE TABLE IF NOT EXISTS race_counters (
-      event_id uuid NOT NULL REFERENCES events(id), kind text NOT NULL, last_number integer NOT NULL,
-      PRIMARY KEY(event_id,kind)
-    );
     CREATE TABLE IF NOT EXISTS race_parts (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL DEFAULT 0,

@@ -1,4 +1,4 @@
-import { createRace } from '../races/create.js';
+import { createRace,nextNumber } from '../races/create.js';
 import type { Runner,FinishingOrder,RaceEntry,TeamEntry } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -83,8 +83,11 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!race.deleted) throw new Refusal(409,'This race is already in the event');
       if(race.deleteReason==='re-run') throw new Refusal(409,'This race was replaced by a re-run and cannot be restored');
       if(race.kind==='final' && (await client.query("SELECT 1 FROM event_stages WHERE event_id=$1 AND stage='no-final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
-      await client.query('UPDATE races SET deleted=false,delete_reason=null WHERE id=$1',[race.id]);
-      await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
+      // A live race has its number now: it comes back with the next one, never touching the live race.
+      const taken=(await client.query('SELECT 1 FROM races WHERE event_id=$1 AND kind=$2 AND number=$3 AND NOT deleted',[race.event.id,race.kind,race.number])).rowCount;
+      const number=taken?await nextNumber(client,race.event.id,race.kind):race.number;
+      await client.query('UPDATE races SET deleted=false,delete_reason=null,number=$2 WHERE id=$1',[race.id,number]);
+      await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${taken?` as ${raceLabel({...race,number})}`:''}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
@@ -99,7 +102,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       // The same children in new entries: a team keeps its four children as they ran, a child their warnings.
       const runners:RaceEntry[]=race.parts.runners.value!.map(entry=>isTeamEntry(entry)?{id:randomUUID(),team:entry.team,legs:entry.legs}:{id:randomUUID(),wristband:entry.wristband,warnings:(entry.warnings||[]).filter(warning=>warning.kind!=='already-ran')});
       await client.query('UPDATE races SET deleted=true,delete_reason=$1 WHERE id=$2',['re-run',race.id]);
-      const {id,number}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id});
+      // Made after the replaced race is deleted, so it can keep that race's number.
+      const {id}=await createRace(client,runners,{dayId:current.dayId,eventId:race.event.id,kind:race.kind,savedBy:current.id,number:race.number});
       if(race.final) {
         const ids=new Map(race.final.entries.map(entry=>[entry.finalEntryId,runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.finalEntryId)]?.id||randomUUID()]));
         const entries=race.final.entries.map(entry=>({...entry,finalEntryId:ids.get(entry.finalEntryId)!,...(entry.runner?{runner:{...entry.runner,id:ids.get(entry.finalEntryId)!}}:{}),...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
@@ -107,7 +111,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,generation) VALUES($1,$2,$3,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
         await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[race.event.id]);
       }
-      await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)} as ${raceLabel({...race,number})}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
+      await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
       return {status:'saved',newRaceId:id,...await readEventResults(client,current.dayId,race.event.code)};
     });
   });

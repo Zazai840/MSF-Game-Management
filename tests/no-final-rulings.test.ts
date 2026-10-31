@@ -208,7 +208,7 @@ test.each(['Here','Absent','order','DNF'])('heats cannot reopen after final %s, 
   expect(await setup.screen(volunteer,'R4')).toEqual(screen);
   expect((await call(owner,'/api/day')).json().revision).toBe(revision);
 });
-test('deleting a started final offers it again; the deleted final stays restorable once the results are reopened, and the next final is Final 2',async()=>{
+test('deleting a started final offers it again; the deleted final stays restorable once the results are reopened, and the next final is Final 1 again',async()=>{
   const {lead,volunteer,setup,results,final}=await finalBuilt();
   await setup.attend(volunteer,'R4');await setup.order(volunteer,'R4',[2001,2011,2002,2012,2003,2013]);
   expect((await results()).results.noFinalCheckSheet).toBeNull();
@@ -220,7 +220,7 @@ test('deleting a started final offers it again; the deleted final stays restorab
   expect((await call(lead,`/api/lead/races/${final}/restore`,{})).json()).toEqual({message:'Results were decided without a final - reopen results first'});
   await call(lead,'/api/lead/events/R4/reopen-stage',{stage:'no-final',comment:'Final fits after all'});
   expect((await call(lead,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
-  expect((await setup.screen(volunteer,'R4')).race).toMatchObject({kind:'final',number:2});
+  expect((await setup.screen(volunteer,'R4')).race).toMatchObject({kind:'final',number:1});
 });
 test('a relay final with a team added and no child marked here is discarded; once a team is marked Here it has started',async()=>{
   const {lead,volunteer}=await start();
