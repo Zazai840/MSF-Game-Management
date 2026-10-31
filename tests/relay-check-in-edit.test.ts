@@ -61,7 +61,7 @@ test('New team at check-in takes the next number and the same checks, and joins 
   expect(teamsOf(joined.race).map(entry=>[entry.team.number,entry.legs.map(leg=>leg.wristband)])).toEqual([[1,[2101,2102,2103,2104]],[2,[2201,2202,6100,null]]]);
   expect(team(joined,2).races).toMatchObject([{id:heat.race.id}]);
   // A refused join writes nothing: the team list is as it was.
-  await relays.save(sam,'R22',[1,2],[1400,1500]);
+  await relays.save(sam,'R22',[1,2],[3400,3500]);
   expect((await call(sam,url,{legs:[2301,null,null,null],keptWarnings:[],joinRaceId:heat.race.id})).json()).toEqual({message:'Heat 1 is saved - ask a lead to change it'});
   expect((await relays.teams(sam,'R22')).map(item=>item.number)).toEqual([1,2]);
 });
@@ -96,7 +96,7 @@ test('a final\'s team is changed at its check-in once the heats are complete, an
   const {sam,lead,relays}=await start();
   for(const number of [1,2]) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   for(const number of [1,2]) await relays.tick(sam,'R22',number);
-  await relays.save(sam,'R22',[1,2],[1400,1500]);
+  await relays.save(sam,'R22',[1,2],[3400,3500]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'}),two=team(final,2),url=`/api/relays/${final.group.event.id}/teams/${two.id}`;
   // From the teams sheet the list is frozen; from the final's check-in it is not.

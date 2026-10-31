@@ -20,7 +20,7 @@ async function start() {
   /** Ticks the teams in with all four children marked here and saves the heat with them placed in the order given; answers the saved heat's id. */
   async function heat(placed:number[]) {
     for(const number of placed) {await relays.tick(sam,'R22',number);for(const leg of [0,1,2,3]) await relays.here(sam,'R22',number,leg);}
-    return (await relays.save(sam,'R22',placed,placed.map((_,index)=>1400+index*100))).race.id;
+    return (await relays.save(sam,'R22',placed,placed.map((_,index)=>3400+index*100))).race.id;
   }
   const race=async(id:string)=>((await call(lead,`/api/lead/races/${id}`)).json() as LeadRaceRead).race;
   const teamEntries=async(id:string)=>((await race(id)).parts.runners.value||[]).filter(isTeamEntry);

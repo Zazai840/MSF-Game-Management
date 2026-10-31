@@ -46,8 +46,8 @@ async function start() {
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
   for(let number=1;number<=8;number++) await relays.team(sam,'R22',legs(number));
-  await runHeat(sam,1,[2,1,3,4],[1400,1500,1700,1900]);
-  await runHeat(sam,2,[5,6,7],[1450,1600,1800]);
+  await runHeat(sam,1,[2,1,3,4],[3400,3500,3700,3900]);
+  await runHeat(sam,2,[5,6,7],[3450,3600,3800]);
   return {sam,priya,lead};
 }
 const makeFinal=(token:string)=>call(token,'/api/races',{eventCode:'R22',kind:'final'});

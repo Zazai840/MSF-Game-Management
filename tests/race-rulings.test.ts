@@ -30,6 +30,18 @@ test('a lead corrects or explicitly accepts out-of-order times',async()=>{
   expect((await leadRead(race.id)).parts.times.value.acceptedByLead).not.toBe(true);
   expect((await read()).auditNotes.map((note:any)=>note.action)).toEqual(['correct-times','accept-times','correct-times']);
 });
+test('Correct times refuses a time no one can run, with the phone\'s words, but never checks a time saved before',async()=>{
+  const {owner,lead,race,leadRead}=await start();
+  const correct=(places:number[])=>call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places});
+  for(const [places,message] of [[[1200,0],'0.00 is not a time. Check the timer and type it again.'],[[21,1300],'0.21 is too fast for 60m Hurdles. No one runs 60m in under 6.00. For 21 seconds, type 2100.'],[[599,1300],'5.99 is too fast for 60m Hurdles. No one runs 60m in under 6.00. Check the timer and type it again.']] as const) {
+    const response=await correct([...places]);expect(response.statusCode).toBe(400);expect(response.json().message).toBe(message);
+  }
+  expect((await leadRead(race.id)).parts.times.value.places).toEqual([1300,1200]);
+  await call(owner,'/api/day/events/R10/rename',{name:'Sack race'});
+  expect((await correct([21,1300])).statusCode).toBe(200);
+  await call(owner,'/api/day/events/R10/rename',{name:'60m Hurdles'});
+  expect((await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:race.parts.times.version+1,places:[21,1250]})).statusCode).toBe(200);
+});
 test('lead deletion, restoration and permanent deletion work after Finish and preserve audit notes',async()=>{
   const {lead,volunteer,race,read}=await start();
   await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1200,1300]});

@@ -53,7 +53,7 @@ test('Did not finish keeps the whole team in the heat with no place and no time,
   expect(teamsOf(read.race).map(entry=>entry.team.number)).toEqual([1,2]);
   expect(read.race.parts.finish.value).toEqual({order:[one.id],didNotFinish:[two.id]});
   read=await ok(sam,`/api/races/${id}/steps/positions/done`,{});
-  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[1400],keptWrong:[]});
+  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[3400],keptWrong:[]});
   expect((await ok(sam,`/api/races/${id}/steps/times/done`,{})).race.state).toBe('saved');
 });
 
@@ -73,7 +73,7 @@ test('a relay heat saves itself once Runners, Finishing order and Times are done
   expect(teamsOf(read.race).map(entry=>entry.team.number)).toEqual([2,3]);
   expect(read.teams!.find(team=>team.number===1)!.races).toEqual([]);
   read=await ok(sam,`/api/races/${id}/steps/positions/done`,{});
-  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[1400,1500],keptWrong:[]});
+  read=await ok(sam,`/api/races/${id}/times`,{raceId:id,version:read.race.parts.times.version,places:[3400,3500],keptWrong:[]});
   expect(read.race.state).toBe('in progress');
   read=await ok(sam,`/api/races/${id}/steps/times/done`,{});
   expect(read.race.state).toBe('saved');

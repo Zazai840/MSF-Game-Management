@@ -67,7 +67,7 @@ test('a drop on a final reorders the finalist team, and the heat it already ran 
   const {sam,lead,relays}=await start();
   for(const number of [1,2]) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   for(const number of [1,2]) await relays.tick(sam,'R22',number);
-  const heat=await relays.save(sam,'R22',[1,2],[1400,1500]);
+  const heat=await relays.save(sam,'R22',[1,2],[3400,3500]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'});
   await ok(sam,`/api/races/${final.race.id}/teams/${team(final,2).id}/absent`,{mark:'here'});
@@ -82,6 +82,6 @@ test('a saved race refuses a drop',async()=>{
   const {sam,relays}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
   await relays.tick(sam,'R22',1);
-  const saved=await relays.save(sam,'R22',[1],[1400]);
+  const saved=await relays.save(sam,'R22',[1],[3400]);
   expect((await drop(sam,saved,1,[2102,2101,2103,2104])).json()).toEqual({message:'Heat 1 is saved - ask a lead to change it'});
 });

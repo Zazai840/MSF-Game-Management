@@ -23,7 +23,7 @@ async function start() {
       await relays.tick(sam,code,number);
       for(let leg=0;leg<(here[number]??4);leg++) await relays.here(sam,code,number,leg);
     }
-    await relays.save(sam,code,placed,placed.map((_,index)=>1400+index*100));
+    await relays.save(sam,code,placed,placed.map((_,index)=>3400+index*100));
   }
   /** To check as the lead reads it: each item of the relay's event in To check's words, newest first. */
   async function toCheck(code='R22') {
@@ -71,7 +71,7 @@ test('a team added at the finish is a To check item cleared by Mark addition che
   await relays.post(sam,url('steps/runners/done'),{});
   const ordered=await relays.post<RaceFlowRead>(sam,url('order'),{raceId,version:read.race.parts.finish.version,order:[team1],didNotFinish:[],didNotRun:[],added:[],addedTeams:[read.teams!.find(team=>team.number===2)!.id]});
   await relays.post(sam,url('steps/positions/done'),{});
-  await relays.post(sam,url('times'),{raceId,version:ordered.race.parts.times.version,places:[1400,1500],keptWrong:[]});
+  await relays.post(sam,url('times'),{raceId,version:ordered.race.parts.times.version,places:[3400,3500],keptWrong:[]});
   await relays.post(sam,url('steps/times/done'),{});
   const items=await toCheck();
   expect(items.map(({kind,title,explanation})=>({kind,title,explanation})).sort((a,b)=>a.kind.localeCompare(b.kind))).toEqual([
@@ -90,13 +90,13 @@ test('a time out of order, teams tied on time and a team ran twice are today\'s 
   const at='2026-10-23T10:00:00Z',event={id:'r22',code:'R22',name:'4x50m Relay',section:'Girl Cubs' as const,format:'heats' as const,enabled:true,type:'relays' as const,relay:true};
   const team=(id:string,number:number):TeamEntry=>({id,team:{id:`team-${number}`,number},legs:[1,2,3,4].map(leg=>({wristband:2000+number*100+leg,warnings:[],here:true}))});
   const heat=(id:string,number:number,entries:TeamEntry[],places:number[]):ResultsRace=>({id,kind:'heat',number,checkedInAt:at,deleted:false,saved:true,runners:entries,finish:{order:entries.map(entry=>entry.id),didNotFinish:[]},times:{places,outOfOrder:places.some((time,index)=>index>0 && time<places[index-1])}});
-  // Team 1 ran in both heats (a restored heat); Team 2 and Team 3 tie on 15.00; Heat 3's times are out of order.
-  const races=[heat('h1',1,[team('a',1),team('b',2)],[1400,1500]),heat('h2',2,[team('c',1),team('d',3)],[1450,1500]),heat('h3',3,[team('e',4),team('f',5)],[1700,1600])];
+  // Team 1 ran in both heats (a restored heat); Team 2 and Team 3 tie on 35.00; Heat 3's times are out of order.
+  const races=[heat('h1',1,[team('a',1),team('b',2)],[3400,3500]),heat('h2',2,[team('c',1),team('d',3)],[3450,3500]),heat('h3',3,[team('e',4),team('f',5)],[3700,3600])];
   const items=eventResults({event,races}).needsYou.map(item=>({kind:item.kind,...toCheckWording({...item,event})}));
   expect(items.map(item=>item.kind).sort()).toEqual(['ran-twice','ran-twice','tie','times-out-of-order']);
   expect(items.find(item=>item.kind==='ran-twice')).toMatchObject({title:'A team ran twice',explanation:'Team 1 has a result in more than one race of this event. Choose which result counts.'});
-  expect(items.find(item=>item.kind==='tie')).toMatchObject({title:'Teams tied on time',explanation:'Team 2 and Team 3 both have 15.00. Decide whether a run-off is needed.'});
-  expect(items.find(item=>item.kind==='times-out-of-order')).toMatchObject({title:'A time looks wrong',explanation:'2nd place (16.00) is faster than 1st (17.00). The timer kept it as typed.'});
+  expect(items.find(item=>item.kind==='tie')).toMatchObject({title:'Teams tied on time',explanation:'Team 2 and Team 3 both have 35.00. Decide whether a run-off is needed.'});
+  expect(items.find(item=>item.kind==='times-out-of-order')).toMatchObject({title:'A time looks wrong',explanation:'2nd place (36.00) is faster than 1st (37.00). The timer kept it as typed.'});
   // A lead's step tab lists each team an item is about with its four children: both tied teams, or the one team a race entry names.
   const needsYou=eventResults({event,races}).needsYou;
   expect(itemTeams(needsYou.find(item=>item.kind==='tie')!,races[1].runners)).toEqual(['Team 2 · 2201 · 2202 · 2203 · 2204','Team 3 · 2301 · 2302 · 2303 · 2304']);

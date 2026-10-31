@@ -31,7 +31,7 @@ const ranking=(results:EventResultsRead['results'])=>results.leaderboard.map(row
 test('a lead disqualifies a whole team and lifts it: the team leaves the ranking and comes back',async()=>{
   const {lead,teams,heat,row}=await start();
   await teams(3);
-  await heat([1,2,3],[1400,1500,1600]);
+  await heat([1,2,3],[3400,3500,3600]);
   const team1=await row(1),path=`/api/lead/races/${team1.raceId}/runners/${team1.entryId}`;
   // A handover outside the zone goes under Other, with a comment.
   const disqualified=await call(lead,`${path}/disqualify`,{reason:'Other',comment:'Handover outside the zone'});
@@ -48,12 +48,12 @@ test('a lead disqualifies a whole team and lifts it: the team leaves the ranking
   expect([liftAgain.statusCode,liftAgain.json().message]).toEqual([409,'This team is not disqualified']);
 });
 
-/** Eight teams over two heats: Team 4 and Team 7 share 6th place at 17.00, so one of them misses the final. */
+/** Eight teams over two heats: Team 4 and Team 7 share 6th place at 37.00, so one of them misses the final. */
 async function tiedAtSixth() {
   const started=await start();
   await started.teams(8);
-  await started.heat([1,2,3,4],[1400,1500,1600,1700]);
-  await started.heat([5,6,7,8],[1450,1550,1700,1800]);
+  await started.heat([1,2,3,4],[3400,3500,3600,3700]);
+  await started.heat([5,6,7,8],[3450,3550,3700,3800]);
   return {...started,tie:(await started.read()).results.ties[0]};
 }
 const settle=(lead:string,body:object)=>call(lead,'/api/lead/events/R22/settle-tie',body);
@@ -66,13 +66,13 @@ test('an open tie between teams blocks Heats complete until the lead settles it:
   expect(settled.statusCode).toBe(200);
   const read=settled.json() as EventResultsRead;
   expect(read.results.ties).toEqual([]);
-  expect(read.auditNotes[0].message).toBe('Jo Evans settled the tie at 17.00 (Team 4, Team 7): No run-off needed');
+  expect(read.auditNotes[0].message).toBe('Jo Evans settled the tie at 37.00 (Team 4, Team 7): No run-off needed');
   expect((await row(4)).flags.map(flag=>flag.kind)).toEqual(['tie-settled']);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
 });
 
 test('a run-off or a decision puts the tied teams in the order the lead gives, and the first takes the last final place',async()=>{
-  for(const [outcome,comment,message] of [['run-off','','Jo Evans recorded a run-off at 17.00: Team 7 then Team 4'],['decided','Judges agreed','Jo Evans decided the tie at 17.00 without a run-off: Team 7 then Team 4 - Judges agreed']]) {
+  for(const [outcome,comment,message] of [['run-off','','Jo Evans recorded a run-off at 37.00: Team 7 then Team 4'],['decided','Judges agreed','Jo Evans decided the tie at 37.00 without a run-off: Team 7 then Team 4 - Judges agreed']]) {
     const {lead,tie,row}=await tiedAtSixth();
     const team4=await row(4),team7=await row(7);
     const settled=await settle(lead,{tieId:tie.id,outcome,comment,order:[team7,team4].map(({raceId,entryId})=>({raceId,entryId}))});
@@ -87,25 +87,25 @@ test('a run-off or a decision puts the tied teams in the order the lead gives, a
 test('Correct times on a relay heat retimes its teams by place, refusing more places than teams',async()=>{
   const {lead,teams,heat,read,row,leadRace}=await start();
   await teams(2);
-  await heat([1,2],[1400,1500]);
+  await heat([1,2],[3400,3500]);
   const race={id:(await row(1)).raceId},baseVersion=(await leadRace(race.id)).parts.times.version;
-  const tooMany=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1400,1500,1600]});
+  const tooMany=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[3400,3500,3600]});
   expect([tooMany.statusCode,tooMany.json().message]).toEqual([409,'This race has 2 teams - enter no more places than that']);
-  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1450,1550],comment:'Read again from the recording'});
+  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[3450,3550],comment:'Read again from the recording'});
   expect(corrected.statusCode).toBe(200);
-  expect((await read()).results.leaderboard.map(row=>[row.team?.number,row.time])).toEqual([[1,1450],[2,1550]]);
-  const stale=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[1400,1500]});
+  expect((await read()).results.leaderboard.map(row=>[row.team?.number,row.time])).toEqual([[1,3450],[2,3550]]);
+  const stale=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion,places:[3400,3500]});
   expect([stale.statusCode,stale.json().message]).toEqual([409,'These times have changed - open the race again']);
 });
 
 test('Correct finishing order on a relay heat moves teams by number while times stay by place; Didn\'t run makes a team still to run again',async()=>{
   const {sam,lead,relays,teams,heat,read,row,leadRace}=await start();
   await teams(3);
-  await heat([1,2,3],[1400,1500,1600]);
+  await heat([1,2,3],[3400,3500,3600]);
   const raceId=(await row(1)).raceId,versions=async()=>{const race=await leadRace(raceId);return {baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version};};
   const moved=await call(lead,`/api/lead/races/${raceId}/finish-order`,{...await versions(),order:[2,1,3],didNotFinish:[],didNotRun:[],comment:'Photo checked'});
   expect(moved.statusCode).toBe(200);
-  expect((await read()).results.leaderboard.map(row=>[row.team?.number,row.time])).toEqual([[2,1400],[1,1500],[3,1600]]);
+  expect((await read()).results.leaderboard.map(row=>[row.team?.number,row.time])).toEqual([[2,3400],[1,3500],[3,3600]]);
   expect((await read()).auditNotes[0].message).toBe('Jo Evans corrected the finishing order for Heat 1: Team 2, Team 1, Team 3 - Photo checked');
   // A child's wristband is not a team in this race.
   expect((await call(lead,`/api/lead/races/${raceId}/finish-order`,{...await versions(),order:[2101,2201,2301],didNotFinish:[],didNotRun:[]})).statusCode).toBe(400);
@@ -123,7 +123,7 @@ test('a team\'s notes carry its children\'s warnings, a child also in another re
   await relays.team(sam,'R22',[1045,2102,2103,2134]);
   await relays.team(sam,'R28',[4101,2134,4103,4104]);
   await relays.tick(sam,'R22',1);for(const leg of [0,1,2]) await relays.here(sam,'R22',1,leg);
-  await relays.save(sam,'R22',[1],[1400]);
+  await relays.save(sam,'R22',[1],[3400]);
   const team=await row(1);
   expect(team.flags.map(flag=>[flag.warningKind,flag.message,flag.checked])).toEqual([
     ['wrong-section','1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.',false],

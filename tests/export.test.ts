@@ -122,7 +122,7 @@ test('day export recomputes two-relay warnings from the current switched-on team
  await relays.team(volunteer,'R22',[2101,2102,2103,2104]);
  await relays.tick(volunteer,'R22',1);
  for(let leg=0;leg<4;leg++) await relays.here(volunteer,'R22',1,leg);
- await relays.save(volunteer,'R22',[1],[1400]);
+ await relays.save(volunteer,'R22',[1],[3400]);
  // The second team list changes after the heat; its warning was never stored on the race's copy.
  await relays.team(volunteer,'R28',[4101,2101,4103,4104]);
  const detail=(await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead;
@@ -141,7 +141,7 @@ test('day export recomputes two-relay warnings from the current switched-on team
 async function relayFinal(){
  const people=await start(),relays=relayFlowSetup(app),{volunteer,lead}=people;
  for(const legs of relayTeams) await relays.team(volunteer,'R19',legs);
- for(const [placed,times] of [[[1,2,3,4],[1400,1500,1600,1900]],[[5,6,7],[1450,1550,1700]]]){for(const number of placed) await relays.tick(volunteer,'R19',number);await relays.save(volunteer,'R19',placed,times);}
+ for(const [placed,times] of [[[1,2,3,4],[3400,3500,3600,3900]],[[5,6,7],[3450,3550,3700]]]){for(const number of placed) await relays.tick(volunteer,'R19',number);await relays.save(volunteer,'R19',placed,times);}
  expect((await call(lead,'/api/lead/events/R19/complete-stage',{stage:'heats'})).statusCode).toBe(200);
  // Seeds: Team 1, 5, 2, 6, 3, 7. Team 7 is absent and Team 4 (heat rank 7) is called up; Team 2 swaps its 3rd leg at check-in.
  await relays.attend(volunteer,'R19',[7]);
@@ -173,7 +173,7 @@ test('"Finals" and "All results" give a relay one row per child, with its Team a
  const all=sheets[2].data;expect(all[0]).toEqual(['Event code','Event','Section','Race','Wristband number','Team','Leg','Time','Place in race','Event position','Status','Warning','Note']);
  const rows=(race:string,team:string)=>all.filter(values=>values[0]==='R19'&&values[3]===race&&values[5]===team).map(values=>values.slice(4,11));
  expect(all.filter(values=>values[0]==='R19')).toHaveLength(28+24);
- expect(rows('Heat 1','Team 1')).toEqual([2001,101,102,103].map((wristband,index)=>[wristband,'Team 1',index+1,14,1,1,'Q']));
+ expect(rows('Heat 1','Team 1')).toEqual([2001,101,102,103].map((wristband,index)=>[wristband,'Team 1',index+1,34,1,1,'Q']));
  expect(rows('Final 1','Team 2')).toEqual([3001,3002,3099,3004].map((wristband,index)=>[wristband,'Team 2',index+1,null,2,2,'2nd']));
  expect(rows('Final 1','Team 7')).toEqual([]);
 });

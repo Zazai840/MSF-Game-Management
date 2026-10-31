@@ -18,6 +18,6 @@ test('Home\'s poll answers who the phone is and a lead\'s To check count; its ev
   // A kept warning reaches the lead's To check count once its race is saved.
   await setup.checkIn(volunteer,'R16',[3045],[3045]);
   expect((await call(lead,'/api/home')).json().needsYou).toBe(0);
-  await setup.order(volunteer,'R16',[3045]);await setup.times(volunteer,'R16',[1300]);await setup.submit(volunteer,'R16');
+  await setup.order(volunteer,'R16',[3045]);await setup.times(volunteer,'R16',[3300]);await setup.submit(volunteer,'R16');
   expect((await call(lead,'/api/home')).json().needsYou).toBe(1);
 });

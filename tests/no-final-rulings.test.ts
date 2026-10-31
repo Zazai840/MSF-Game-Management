@@ -68,7 +68,7 @@ test('No run-off needed chosen on the Results without a final sheet is judged ag
 test('only a lead may choose it, and never on a timed event',async()=>{
   const {lead,volunteer,setup}=await start();
   expect((await call(volunteer,'/api/lead/events/R4/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(403);
-  await setup.record(volunteer,'R16',[2001],[1000]);
+  await setup.record(volunteer,'R16',[2001],[3000]);
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(409);
 });
 test('once decided without a final the event is done for volunteers: Races shows it done, no further heat is offered and its heats need a lead',async()=>{
@@ -96,7 +96,7 @@ test('a relay decided without a final locks its team list and refuses call-ups a
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
   for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
-  await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
+  await relays.save(volunteer,'R22',[2,1,3],[3400,3500,3700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   const relay=(await call(volunteer,'/api/races')).json().groups.find((group:{event:{code:string}})=>group.event.code==='R22').event.id;
   expect((await call(volunteer,`/api/relays/${relay}/teams`,{legs:[2401,null,null,null]})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to change the teams.'});
@@ -227,7 +227,7 @@ test('a relay final with a team added and no child marked here is discarded; onc
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3,4]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
   for(const number of [1,2,3]) {await relays.tick(volunteer,'R22',number);for(const leg of [0,1,2,3]) await relays.here(volunteer,'R22',number,leg);}
-  await relays.save(volunteer,'R22',[2,1,3],[1400,1500,1700]);
+  await relays.save(volunteer,'R22',[2,1,3],[3400,3500,3700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const team4=(await call(lead,'/api/lead/events/R22/results')).json().teams.find((team:{number:number})=>team.number===4).id;
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team4})).statusCode).toBe(200);
