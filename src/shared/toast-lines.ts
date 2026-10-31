@@ -12,7 +12,8 @@ export type ToastSave=
   |{kind:'deleted';race:ToastRace;forGood:boolean}
   |{kind:'disqualified';who:string;reason:string}
   |{kind:'counts-again'|'warning-checked'|'addition-checked';who:string}
-  |{kind:'number-saved'|'result-counts'|'called-up';who:string;race:ToastRace}
+  |{kind:'number-saved'|'result-counts';who:string;race:Omit<ToastRace,'section'>}
+  |{kind:'called-up';who:string;race:ToastRace}
   |{kind:'team-added';team:number;race:ToastRace}
   |{kind:'tie-saved';event:ToastEvent}
   |{kind:'stage-complete'|'reopened';stage:Stage;event:ToastEvent}

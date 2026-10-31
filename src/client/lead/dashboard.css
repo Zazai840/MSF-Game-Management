@@ -20,12 +20,3 @@
   align-self:flex-start; margin-top:4px; min-height:var(--tap); padding:0 14px; display:inline-flex; align-items:center;
   border-radius:var(--radius-small); background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800;
 }
-/* A short "Saved" after a lead action, floating above the page so it shows wherever the lead has scrolled. */
-.dashboard-saved {
-  position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:20; margin:0;
-  display:inline-flex; align-items:center; gap:8px; min-height:var(--tap); padding:0 18px; border-radius:999px;
-  background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800; box-shadow:0 8px 20px rgba(27,42,81,.25);
-  animation:dashboard-saved 3s ease forwards; pointer-events:none;
-}
-@keyframes dashboard-saved {0% {opacity:0; transform:translate(-50%,8px);} 8%,85% {opacity:1; transform:translate(-50%,0);} 100% {opacity:0;}}
-@media (prefers-reduced-motion:reduce) {.dashboard-saved {animation:none;}}

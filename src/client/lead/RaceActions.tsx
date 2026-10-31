@@ -14,15 +14,22 @@ import { entryCount,entryWord } from '../../shared/teams.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
+import { useToast } from '../races/Toast.js';
+import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import './race-page.css';
 export interface RaceActionsProps {race:LeadRaceRead['race'];relay?:Pick<LeadRaceRead,'teams'|'relays'>;onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void|Promise<void>;onRemoved:()=>void}
 export function RaceActions({race,relay,onSaved,onRefresh,onRemoved}:RaceActionsProps) {
   const [action,setAction]=useState<'times'|'order'|'runners'|'teams'|'delete'|'re-run'|'restore'|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  /** `stay` keeps the sheet open for corrections that save each change at once. */
-  async function command(command:string,body:unknown,removed=false,stay=false) {
+  const toast=useToast(),named={section:race.event.section,kind:race.kind,number:race.number};
+  /** `saved` names the save for the toast; `stay` keeps the sheet open for corrections that save each change at once. */
+  async function command(command:string,body:unknown,saved:(answer:EventResultsRead&{newRaceNumber?:number})=>ToastSave,removed=false,stay=false) {
     if(busy) return;setBusy(true);setError('');
-    try {onSaved(await api<EventResultsRead>(`lead/races/${race.id}/${command}`,body));if(removed) {setAction(null);onRemoved();} else {await onRefresh();if(!stay) setAction(null);}}
+    try {
+      const answer=await api<EventResultsRead&{newRaceNumber?:number}>(`lead/races/${race.id}/${command}`,body);
+      toast({message:toastLine(saved(answer))});onSaved(answer);
+      if(removed) {setAction(null);onRemoved();} else {await onRefresh();if(!stay) setAction(null);}
+    }
     catch(error) {setError(error instanceof Error?error.message:'Not saved - try again');}
     finally {setBusy(false);}
   }
@@ -30,7 +37,8 @@ export function RaceActions({race,relay,onSaved,onRefresh,onRemoved}:RaceActions
   const replaced=replacedByRerun(race);
   return <div className="race-action-choices">{race.parts.times.value?.acceptedByLead && <p className="calm-note">Out-of-order times accepted by a lead</p>}{race.deleted?<>{replaced?<p>{raceLabel(race)} · {replaced}</p>:<><p>Deleted race</p><button onClick={()=>open('restore')}>Restore race</button></>}<button className="button-secondary" onClick={()=>open('delete')}>Delete permanently</button></>:race.state!=='saved'?<><p className="calm-note">{inProgressLine(race)}</p><button className="button-secondary" onClick={()=>open('delete')}>Delete race</button></>:<>{race.kind!=='final' && <button className="button-secondary" onClick={()=>open('times')}>Correct times</button>}{race.parts.finish.value && <button className="button-secondary" onClick={()=>open('order')}>Correct finishing order</button>}{race.event.relay?<button className="button-secondary" onClick={()=>open('teams')}>Correct teams</button>:<button className="button-secondary" onClick={()=>open('runners')}>Correct runner list</button>}<button className="button-secondary" onClick={()=>open('re-run')}>Re-run race</button><button className="button-secondary" onClick={()=>open('delete')}>Delete race</button></>}
     {action && <ActionSheet title={`${action==='times'?'Correct times':action==='order'?'Correct finishing order':action==='runners'?'Correct runner list':action==='teams'?'Correct teams':action==='restore'?'Restore race':action==='re-run'?'Re-run race':'Delete race'} · ${raceLabel(race)}`} busy={busy} onClose={()=>setAction(null)}><h3>{raceLabel(race)}</h3>{error && <p role="alert">{error}</p>}
-      {action==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body)} onClose={()=>setAction(null)}/>:action==='order'?<RaceOrderEditor race={race} busy={busy} onSave={body=>command('finish-order',body,false,true)} onClose={()=>setAction(null)}/>:action==='teams'?<RaceTeamsEditor race={race} teams={relay?.teams||[]} relays={relay?.relays||[]} busy={busy} onSave={body=>command('teams',body,false,true)} onClose={()=>setAction(null)}/>:action==='runners'?<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body)} onClose={()=>setAction(null)}/>:<RaceLifecycle action={action} race={race} busy={busy} onSave={(body,permanent)=>void command(action==='delete'?'delete':action,body,!!permanent)} onClose={()=>setAction(null)}/>}
+      {action==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body,()=>({kind:'corrected',part:'times',race:named}))} onClose={()=>setAction(null)}/>:action==='order'?<RaceOrderEditor race={race} busy={busy} onSave={body=>command('finish-order',body,()=>({kind:'corrected',part:'order',race:named}),false,true)} onClose={()=>setAction(null)}/>:action==='teams'?<RaceTeamsEditor race={race} teams={relay?.teams||[]} relays={relay?.relays||[]} busy={busy} onSave={body=>command('teams',body,()=>({kind:'corrected',part:'teams',race:named}),false,true)} onClose={()=>setAction(null)}/>:action==='runners'?<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body,()=>({kind:'corrected',part:'runners',race:named}))} onClose={()=>setAction(null)}/>:<RaceLifecycle action={action} race={race} busy={busy} onSave={(body,permanent)=>void command(action,body,answer=>action==='delete'?{kind:'deleted',race:named,forGood:!!permanent}
+        :action==='restore'?{kind:'restored',race:named}:{kind:'re-run',race:{...named,number:answer.newRaceNumber??race.number}},!!permanent)} onClose={()=>setAction(null)}/>}
     </ActionSheet>}
   </div>;
 }

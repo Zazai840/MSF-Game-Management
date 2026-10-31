@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api.js';
+import { toastLine } from '../../shared/toast-lines.js';
+import { useToast } from '../races/Toast.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import type { LeaderboardRow } from '../../shared/results-rules.js';
 import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
@@ -20,6 +22,7 @@ export function RunnerNumber({row,eventCode,onSaved,onClose,onBusyChange}:{row:L
   const [kept,setKept]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const toast=useToast();
   function working(value:boolean) {setBusy(value);onBusyChange(value);}
   /** A team's box is checked against its relay's team list as it stands: a refusal stops it, a warning needs Keep. */
   async function teamWarnings() {
@@ -38,7 +41,10 @@ export function RunnerNumber({row,eventCode,onSaved,onClose,onBusyChange}:{row:L
   }
   async function save() {
     working(true);setError('');
-    try {onSaved(await api<EventResultsRead>(`lead/races/${row.raceId}/runners/${row.entryId}/correct-number`,{expectedWristband:original,wristband:Number(number),keepWarnings:kept,...(team?{leg}:{})}));}
+    try {
+      onSaved(await api<EventResultsRead>(`lead/races/${row.raceId}/runners/${row.entryId}/correct-number`,{expectedWristband:original,wristband:Number(number),keepWarnings:kept,...(team?{leg}:{})}));
+      toast({message:toastLine({kind:'number-saved',who:number,race:row.race})});
+    }
     catch(error) {setError(error instanceof Error?error.message:'Could not save - try again');}
     finally {working(false);}
   }

@@ -390,6 +390,17 @@ export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
   await nextBeside(page,'Place time').click();
 }
+/**
+ * The toast after a lead save: just its line, with no Undo (Undo is only for a race step) and no "Saved" pill anywhere.
+ * Returns the toast, for a look check while it shows.
+ */
+export async function expectToast(page:Page,line:string|RegExp) {
+  const toast=page.getByRole('status').filter({hasText:line});
+  await expect(toast).toHaveText(line);
+  await expect(toast.getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('Saved',{exact:true})).toHaveCount(0);
+  return toast;
+}
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});

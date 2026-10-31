@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Phone } from '../shared/domain.js';
 import type { ResultsTarget } from '../shared/lead-results.js';
 import type { Role,Step } from '../shared/race-flow.js';
@@ -10,7 +10,8 @@ import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,HomeBar,RoleChip,Screen } from './races/parts.js';
 import { RacesHome } from './races/RacesHome.js';
-import { RaceShell,type SavedStep } from './races/RaceShell.js';
+import { RaceShell } from './races/RaceShell.js';
+import { Toast,ToastContext,type ToastShown } from './races/Toast.js';
 import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 // A failed load (often an old page after a deploy) reloads the app; until then the Opening Lead line stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
@@ -32,7 +33,9 @@ export function App() {
   // The avatar menu, when open: placed under the avatar (or name) that opened it, wherever that sits.
   const [menu,setMenu]=useState<{top:number;right:number}|null>(null);
   const logOut=useSubmit();
-  const [saved,setSaved]=useState<SavedStep|null>(null);
+  // The app's one toast; `id` makes a new save's toast start afresh.
+  const [toast,setToast]=useState<ToastShown&{id:number}|null>(null);
+  const showToast=useMemo(()=>(next:ToastShown)=>setToast(held=>({...next,id:(held?.id??0)+1})),[]);
   const [openDay,setOpenDay]=useState(false);
   const [leadSection,setLeadSection]=useState('Results');
   const [error,setError] = useState('');
@@ -84,38 +87,44 @@ export function App() {
     setRole(held==='lead' && !isLead?null:held??(isLead?'lead':null));
   },[dayId,isLead]);
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
-  if (!signedIn) return <SignIn onSignedIn={()=>setSignedIn(true)} />;
-  if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
-  const name=home.phone.name,toRaces=()=>go({kind:'races'});
-  // Every avatar, and the older-look header's name, opens this one menu. Log out asks nothing: the phone keeps its listed names.
-  const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
-    const box=anchor.getBoundingClientRect();
-    setMenu(menu?null:{top:box.bottom+6,right:document.documentElement.clientWidth-box.right});
-  };
-  const menuList=menu && <div className="rz-menu" role="menu" style={menu}>
-    {isLead && <><button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Results'})}>Results</button>
-      <button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Day setup'})}>Day setup</button></>}
-    <button role="menuitem" type="button" disabled={logOut.busy} onClick={()=>void logOut.submit(async()=>{await api('sign-out',{});phoneStorage.signOut();})}>Log out</button>
-    {logOut.error && <p role="alert" className="rz-note">{logOut.error}</p>}
-  </div>;
-  const avatar=<div style={{position:'relative'}}><Avatar name={name} label={menuLabel} onOpen={openMenu}/>{menuList}</div>;
-  if(!role) return <JoinJob avatar={avatar} onChoose={choose} onLead={refresh}/>;
-  const sheet=roleSheet && <RoleSheet role={role} lead={isLead} onChoose={choose} onLead={refresh} onClose={()=>setRoleSheet(false)}/>;
-  const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
-  if(view.kind==='races' || view.kind==='race') {
-    const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-    if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} me={home.phone.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
-      onRace={(id,step)=>go({kind:'race',id,step})} onSaved={next=>{setSaved(next);toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
-    return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={home.phone.profileId} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
-      onResults={target=>go({kind:'lead',section:'Results',target})} saved={saved} onSavedShown={()=>setSaved(null)}/>{sheet}</Screen>;
+  // The older look has no race-flow tokens, so the toast brings its own .rz-screen, as the menu does.
+  const withToast=(screen:ReactNode)=><ToastContext.Provider value={showToast}>{screen}
+    {toast && <div className="rz-screen"><Toast key={toast.id} toast={toast} onOpen={id=>go({kind:'race',id})} onClose={()=>setToast(null)}/></div>}</ToastContext.Provider>;
+  return withToast(screen());
+  function screen() {
+    if (!signedIn) return <SignIn onSignedIn={()=>setSignedIn(true)} />;
+    if (!home) return <><AppHeader screen="Opening" /><main><p>{error || 'Opening…'}</p><button className="button-secondary" onClick={()=>void refresh()}>Refresh</button></main></>;
+    const name=home.phone.name,toRaces=()=>go({kind:'races'});
+    // Every avatar, and the older-look header's name, opens this one menu. Log out asks nothing: the phone keeps its listed names.
+    const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
+      const box=anchor.getBoundingClientRect();
+      setMenu(menu?null:{top:box.bottom+6,right:document.documentElement.clientWidth-box.right});
+    };
+    const menuList=menu && <div className="rz-menu" role="menu" style={menu}>
+      {isLead && <><button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Results'})}>Results</button>
+        <button role="menuitem" type="button" onClick={()=>go({kind:'lead',section:'Day setup'})}>Day setup</button></>}
+      <button role="menuitem" type="button" disabled={logOut.busy} onClick={()=>void logOut.submit(async()=>{await api('sign-out',{});phoneStorage.signOut();})}>Log out</button>
+      {logOut.error && <p role="alert" className="rz-note">{logOut.error}</p>}
+    </div>;
+    const avatar=<div style={{position:'relative'}}><Avatar name={name} label={menuLabel} onOpen={openMenu}/>{menuList}</div>;
+    if(!role) return <JoinJob avatar={avatar} onChoose={choose} onLead={refresh}/>;
+    const sheet=roleSheet && <RoleSheet role={role} lead={isLead} onChoose={choose} onLead={refresh} onClose={()=>setRoleSheet(false)}/>;
+    const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
+    if(view.kind==='races' || view.kind==='race') {
+      const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
+      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} me={home.phone.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
+        onRace={(id,step)=>go({kind:'race',id,step})} onSaved={saved=>{showToast({message:saved.message,saved});toRaces();}} onResults={item=>go({kind:'lead',section:'Results',target:item})}/>{sheet}</Screen>;
+      return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={home.phone.profileId} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+        onResults={target=>go({kind:'lead',section:'Results',target})} />{sheet}</Screen>;
+    }
+    // The older look has no race-flow tokens, so the menu brings its own .rz-screen.
+    return <><AppHeader name={name} label={menuLabel} screen={screenName(view,leadSection)} onMenu={openMenu}/>{menuList && <div className="rz-screen">{menuList}</div>}<BackArea>
+  <main>
+      {isLead?<Suspense fallback={<p>Opening Lead…</p>}><Lead key={`${home.phone.dayId}:${view.section}:${view.target?.id??''}`} initialDay={openDay} initialSection={view.section} target={view.target}
+          onChanged={()=>void refresh()} onHome={()=>{setOpenDay(false);toRaces();}} onSection={setLeadSection}/></Suspense>:<p>Lead access needed</p>}
+      {error && <p role="alert">{error}</p>}
+    </main></BackArea></>;
   }
-  // The older look has no race-flow tokens, so the menu brings its own .rz-screen.
-  return <><AppHeader name={name} label={menuLabel} screen={screenName(view,leadSection)} onMenu={openMenu}/>{menuList && <div className="rz-screen">{menuList}</div>}<BackArea>
-<main>
-    {isLead?<Suspense fallback={<p>Opening Lead…</p>}><Lead key={`${home.phone.dayId}:${view.section}:${view.target?.id??''}`} initialDay={openDay} initialSection={view.section} target={view.target}
-        onChanged={()=>void refresh()} onHome={()=>{setOpenDay(false);toRaces();}} onSection={setLeadSection}/></Suspense>:<p>Lead access needed</p>}
-    {error && <p role="alert">{error}</p>}
-  </main></BackArea></>;
 }
 /**
  * The job choice for a signed-in phone with no job yet (a name tapped under Welcome back, or a lead's access ended):
