@@ -83,7 +83,7 @@ function TeamForm<Answer>({team,number,eventId,relay,relays,offer,onDone}:{team:
     <p className="rz-sheet__text">{relay.name} · {relay.section}<br/>Type each child's wristband in running order, 1st leg first.</p>
     {changed && <Callout status message={`${changedLine(changed.by)}.`}
       actions={<button type="button" className="rz-btn rz-btn--primary" onClick={()=>{clearChanged();setVersion(team?.version);setFresh(fresh+1);}}>Show latest</button>}/>}
-    <LegBoxes key={fresh} team={team} raceId={raceId??null} number={number} relay={relay} relays={relays} busy={busy} error={error} removing={removing}
+    <LegBoxes key={fresh} team={team} raceId={null} number={number} relay={relay} relays={relays} busy={busy} error={error} removing={removing}
       onSave={save} onCancel={onDone} onRemove={team && stillToRun(team)?()=>setRemoving(true):undefined}
       removeActions={team && <><button type="button" className="rz-btn" onClick={()=>setRemoving(false)}>Keep it</button>
         <button type="button" className="rz-btn rz-btn--danger" disabled={busy} onClick={()=>void send(`/${team.id}/remove`,{version})}>Remove</button></>}/>

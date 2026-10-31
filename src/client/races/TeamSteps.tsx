@@ -47,9 +47,9 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
   const [changing,setChanging]=useState<{teamId:string;leg:number;version:number}|null>(null);
   const entry=changing && legsOf(changing.teamId),change=changing && entry?{...changing,entry}:null;
   function problem(teamId:string|null,wristbands:Array<number|null>,index:number):Held|null {
-    const refused=legRefusal(relay.teams,teamId,wristbands,index,race.id);
+    const refused=legRefusal(relay.teams,teamId,wristbands,index,read.race.id);
     if(refused) return {refused};
-    const warnings=legWarnings(wristbands[index]!,relay,relays,teamId,race.id);
+    const warnings=legWarnings(wristbands[index]!,relay,relays,teamId,read.race.id);
     return warnings.length?{warning:warnings.map(warning=>warning.message).join(' ')}:null;
   }
   const fix=()=>setHeld(null);
