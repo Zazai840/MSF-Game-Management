@@ -48,6 +48,16 @@ export async function signOwnerBackIn(request:APIRequestContext) {
   expect(response.ok()).toBe(true);
   process.env.E2E_OWNER_TOKEN=(await response.json()).token;
 }
+/**
+ * Sets the shared day's This day to the current year, South and Day 1, so the day export works. Global setup calls it
+ * once; a spec that starts a new day calls it again (a new day starts with Region and Day empty).
+ */
+export async function labelDay(request:APIRequestContext,token=process.env.E2E_OWNER_TOKEN!) {
+  for(const data of [{year:new Date().getUTCFullYear()},{region:'South'},{dayNumber:1}]) {
+    const response=await request.post('/api/day/this-day',{headers:{authorization:`Bearer ${token}`},data});
+    if(!response.ok()) throw new Error(`This day answered ${response.status()}: ${await response.text()}`);
+  }
+}
 /** A volunteer's job on the Join form and in the job sheet, as the radio cards name it. */
 export type JobName='Start line'|'Finish line'|'Timer';
 /**

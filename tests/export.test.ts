@@ -17,11 +17,11 @@ async function start(){
  const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
  return {owner:owner.token as string,volunteer,lead};
 }
-test('a lead downloads four value-only sheets and records its exact day revision without changing it',async()=>{
+test('a lead downloads five value-only sheets and records its exact day revision without changing it',async()=>{
  const {owner,volunteer,lead}=await start();const before=(await call(owner,'/api/day')).json();expect(before.exportedAt).toBeNull();expect(before.exportedRevision).toBeNull();
  const refused=await call(volunteer,'/api/day/export',{});expect(refused.statusCode).toBe(403);expect(refused.json().message).toBe('Lead access needed');
  const response=await call(lead,'/api/day/export',{});expect(response.statusCode).toBe(200);expect(response.headers['content-type']).toContain('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');expect(response.headers['content-disposition']).toMatch(/attachment; filename=".*\.xlsx"/);expect(response.headers['cache-control']).toBe('no-store');
- const sheets=await readExcelFile(response.rawPayload);expect(sheets.map(sheet=>sheet.sheet)).toEqual(['Input - Running','Finals','All results','Audit notes']);expect(sheets.every(sheet=>sheet.data.length>=1)).toBe(true);
+ const sheets=await readExcelFile(response.rawPayload);expect(sheets.map(sheet=>sheet.sheet)).toEqual(['Input - Running','Finals','All results','Audit notes','Day details']);expect(sheets.every(sheet=>sheet.data.length>=1)).toBe(true);
  const after=(await call(owner,'/api/day')).json();expect(after.revision).toBe(before.revision);expect(after.exportedRevision).toBe(before.revision);expect(Date.parse(after.exportedAt)).toBeGreaterThan(0);
  await call(owner,'/api/day/export',{});expect((await call(owner,'/api/day')).json().revision).toBe(before.revision);
  await call(owner,'/api/day/events/R4/rename',{name:'Changed'});const changed=(await call(owner,'/api/day')).json();expect(changed.revision).toBeGreaterThan(changed.exportedRevision);

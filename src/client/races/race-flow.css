@@ -309,6 +309,10 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 /* Day setup's cards: a long password wraps rather than running off the card; a form, a warning or a block button spans it. */
 .rz-codecard__value { max-width: 100%; overflow-wrap: anywhere; }
 .rz-codecard > .rz-callout, .rz-codecard__form { align-self: stretch; }
+/* This day: each field's choices share its row equally, their words centred; the row spans the card. */
+.rz-codecard fieldset { align-self: stretch; }
+.rz-choices--row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.rz-choices--row .rz-choice { justify-content: center; padding: 0 var(--space-8); }
 /* Start a new day: the red outline marks the one card that clears the day; drawn inside, so its text lines up with the other cards'. */
 .rz-codecard--danger { outline: 2px solid var(--red-ink); outline-offset: -2px; }
 .rz-old { font-family: var(--font-body); }

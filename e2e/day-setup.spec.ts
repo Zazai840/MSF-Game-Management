@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,lookProblems,back,expectToast,join,leadMenuButton,openLeadMenu,expect,test,type Locator,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,back,expectToast,join,labelDay,leadMenuButton,openLeadMenu,press,expect,test,type Locator,type Page} from './fixtures.js';
 
 const redInk='rgb(196, 30, 58)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
@@ -58,12 +58,45 @@ test('Day setup is cards in the spec\'s order: the codes, the Signed in today an
   expect(await start.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(redInk);
   await typed.fill('');await expect(start).toBeDisabled();
 
-  // This day (its own ticket) goes first; then the codes, the two rows, the day export and Start a new day.
-  const tops=await Promise.all([password,leadCode,signedIn,events,dayExport,newDay].map(top));
+  // This day goes first; then the codes, the two rows, the day export and Start a new day.
+  const tops=await Promise.all([section(page,'This day'),password,leadCode,signedIn,events,dayExport,newDay].map(top));
   expect(tops).toEqual([...tops].sort((a,b)=>a-b));
   await expect(page.getByText(/^Updated at \d\d:\d\d:\d\d/)).toBeVisible();
   await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeVisible();
   await page.evaluate(()=>window.scrollTo(0,0));expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-setup.png'),fullPage:true});
+});
+
+test('This day saves each choice on tap with its toast, and the change counts as a change to the day',async({page},info)=>{
+  const year=new Date().getUTCFullYear();
+  await asOwner(page);
+  const thisDay=section(page,'This day'),dayExport=section(page,'Day export');
+  await expect(thisDay).toContainText('Goes on the Day export. Any lead can change it.');
+  const choice=(group:string,name:string)=>thisDay.getByRole('group',{name:group,exact:true}).getByRole('button',{name,exact:true});
+  const pressed=(group:string)=>thisDay.getByRole('group',{name:group,exact:true}).getByRole('button',{pressed:true}).allTextContents();
+  const chosen=()=>Promise.all(['Year','Region','Day'].map(pressed));
+  // Year runs from 2026 to next year; global setup chose the current year, South and Day 1.
+  await expect(thisDay.getByRole('group',{name:'Year',exact:true}).getByRole('button')).toHaveText(Array.from({length:year-2024},(_,index)=>String(2026+index)));
+  await expect(thisDay.getByRole('group',{name:'Region',exact:true}).getByRole('button')).toHaveText(['North','South','National']);
+  await expect(thisDay.getByRole('group',{name:'Day',exact:true}).getByRole('button')).toHaveText(['1','2','3','4','5']);
+  await expect.poll(chosen).toEqual([[String(year)],['South'],['1']]);
+  try {
+    const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
+    await expect(dayExport).toContainText(/includes every change so far\./);
+    await press(choice('Region','North'));
+    await expectToast(page,'Region saved · North');
+    await expect(choice('Region','North')).toHaveAttribute('aria-pressed','true');await expect(choice('Region','South')).toHaveAttribute('aria-pressed','false');
+    await expect(dayExport).toContainText(/with newer changes since\./);
+    expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('this-day-saved.png')});
+    await press(choice('Day','3'));
+    await expectToast(page,'Day saved · Day 3');await expect(choice('Day','3')).toHaveAttribute('aria-pressed','true');
+    await press(choice('Year',String(year+1)));
+    await expectToast(page,`Year saved · ${year+1}`);await expect(choice('Year',String(year+1))).toHaveAttribute('aria-pressed','true');
+    const saved=await(await page.request.get('/api/day',{headers:headers()})).json();
+    expect([saved.year,saved.region,saved.dayNumber]).toEqual([year+1,'North',3]);
+    // It is saved, not just shown: a reload shows the same choices.
+    await page.reload();
+    await expect.poll(chosen).toEqual([[String(year+1)],['North'],['3']]);
+  } finally {await labelDay(page.request);}
 });
 
 test('Make a new lead code asks first: Keep changes nothing, and yes makes the new code with its toast',async({page},info)=>{

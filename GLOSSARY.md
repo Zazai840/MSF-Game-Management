@@ -7,11 +7,11 @@ The running events of the MSF (Muslim Scout Fellowship) Olympics, where voluntee
 ### Competition
 
 **Olympics day**:
-One independent competition day with its own wristbands, events and results; nothing carries over between days. 2026 has three: South day 1, South day 2 and North.
+One independent competition day with its own wristbands, events and results; nothing carries over between days. 2026 has three: South day 1, South day 2 and North. A day is labelled by Year, Region (North, South or National) and Day number, set under This day in Day setup.
 _Avoid_: Event day, session
 
 **Day export**:
-The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day.
+The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day. Its Day details tab names the day (Year, Region, Day) and who downloaded it when.
 _Avoid_: Backup, archive, dump
 
 **Running Zone**:
