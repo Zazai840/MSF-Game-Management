@@ -13,7 +13,6 @@ const legs=(number:number)=>[1,2,3,4].map(leg=>2000+number*100+leg);
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-corrections-owner',resetTestDay:true});
   const people=await signInOwner(app,'relay-corrections-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
   async function teams(count:number) {for(let number=1;number<=count;number++) await relays.team(sam,'R22',legs(number));}

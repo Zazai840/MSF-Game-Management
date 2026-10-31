@@ -6,7 +6,6 @@ test.afterEach(async({request})=>{for(const id of created.splice(0)) await reque
 /** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
 async function recordedRace(page:Page,code:string,runners:number[],places:number[],keptWarnings?:number[]) {
   await ownEvent(page.request,code,'Race page','Girl Cubs','timed');
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places,keptWarnings);
   created.push(race.id);
   return race;
@@ -139,7 +138,6 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
 test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
   const code=await ownCode(),token=process.env.E2E_OWNER_TOKEN!;
   await ownEvent(page.request,code,'Race page','Girl Cubs','timed');
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);

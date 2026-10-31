@@ -3,7 +3,6 @@ const amber='rgb(255, 244, 220)';
 test('a lead reads a kept wristband warning in the child\'s Notes, checks it with a note, and sees who checked it',async({page},info)=>{
   const code=await ownCode(),lead=ownName('Notes lead');
   await ownEvent(page.request,code,'Notes','Girl Cubs','timed');
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   // The volunteer kept the out-of-range wristband at check-in, and the race was saved.
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2301,6000],[1100,1200],[6000]);
   await page.goto('/');await join(page,lead,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');

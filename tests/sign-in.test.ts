@@ -118,7 +118,6 @@ test('the history of a saved race names who held each job, and tapping the name 
   await start();
   const ownerLead = await owner();
   const pass = await olympicsPass(ownerLead.token);
-  await app.inject({method:'POST', url:'/api/day/confirm-events', headers:auth(ownerLead.token), payload:{}});
   const {profile} = (await post('/api/profiles', {pass, name:'Sam Patel'})).json();
   const {token, phone} = (await post('/api/sign-in', {pass, profileId:profile.id, secret:profile.secret})).json();
   const setup = raceSetup(app), race = await setup.checkIn(token, 'R4', [2001,2002]);

@@ -3,9 +3,8 @@ import {eventTab,ownName,ownEvent,ownCode,backToRaces,deleteCurrentRace,live,ope
 /** The amber fill marking a stage sheet list that holds something to settle, or 'none'. */
 const sheetSectionFill=(sheet:Locator,heading:string)=>sheet.locator('section').filter({has:sheet.page().getByRole('heading',{name:heading,exact:true})}).evaluate(section=>{const fill=getComputedStyle(section).backgroundColor;return fill==='rgba(0, 0, 0, 0)'?'none':fill;});
 test('timed Event complete checks blockers, locks the event\'s races live, and reopens with a retained comment',async({page,openPhone},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},code=await ownCode(),name=ownName('Stage event');
+  const code=await ownCode(),name=ownName('Stage event');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2601,2602],[1000,1100]);
   // A volunteer starts Heat 2 from the card and checks a runner in.
   const job=(await openPhone(ownName('Stage starter'))).page;

@@ -1,8 +1,8 @@
 import {eventTab,ownName,ownEvent,ownCode,deleteCurrentRace,recordRace,goHome,back,openLeadMenu,openRace,becomeLead,expect,join,dragTo,lookProblems,test} from './fixtures.js';
 test('a lead repairs a race, keeps failed corrections, deletes and restores it, then calls a prefilled re-run',async({page},info)=>{
   // The test day is shared and projects run at once: each names its own event, so its race screen tile is its alone.
-  const code=await ownCode(),name=ownName('Race corrections'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  await ownEvent(page.request,code,name,'Girl Cubs','timed');await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  const code=await ownCode(),name=ownName('Race corrections');
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
   await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
@@ -23,7 +23,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
 });
 test('a lead can correct times again straight after saving, even when the race is slow to re-read',async({page})=>{
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
@@ -38,7 +38,7 @@ test('a lead can correct times again straight after saving, even when the race i
 });
 test('a lead corrects a saved race\'s finishing order: drags a wristband, marks Did not finish, and Results updates',async({page},info)=>{
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  await ownEvent(page.request,code,'Order corrections','Girl Cubs','timed');await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await ownEvent(page.request,code,'Order corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002,2003],[1200,1300,1400]);
   await page.goto('/');await join(page,ownName('Order lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();

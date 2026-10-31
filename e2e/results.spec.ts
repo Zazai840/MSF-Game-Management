@@ -1,8 +1,7 @@
 import {eventTab,ownName,ownCode,enterTime,openLeadMenu,openRace,switchJob,becomeLead,expect,join,ownEvent,recordRace,signInThroughApi,test} from './fixtures.js';
 test('a lead sees a race worked in the race flow appear within one Results poll',async({page,openPhone},info)=>{
-  const code=await ownCode(),name=ownName('Results phone'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
+  const code=await ownCode(),name=ownName('Results phone');
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
   await page.goto('/');await join(page,ownName('Results lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   // One phone does every job in turn: the start line with a kept warning, the finish line, then the timer.

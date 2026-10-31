@@ -157,12 +157,14 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - `display-screen` "Day setup".
 - CodeCard "Day code" (6509) with the text "Volunteers type this to join today." and a small Button "Make a new day code".
 - CodeCard "Lead code" (KG6C42) with "Give this only to zone leads. It opens the Dashboard." and a small Button "Make a new lead code".
-- ListRows "Phones" (meta "4 people joined today") and "Events" (meta "20 events · checked and confirmed").
+- ListRows "Phones" (meta "4 people joined today") and "Events" (meta "20 events").
 - `rz-section` "Day export".
 
 **31 Day setup: events**
-- `display-screen` "Events", an ok StatusTag "Event list confirmed".
-- A card for each event: label "R1 · 60m", meta "Boy Beavers · Heats then final", and small Buttons "Rename R1" and "Switch off R1".
+- `display-screen` "Events".
+- A card for each event: title "60m · Boy Beavers" with its code tag R1, meta "Races · Heats then final" (plus " · Switched off" when off), and small Buttons "Rename" and "Switch off". A refused save shows "Not saved - try again" on that card.
+- A block Button "+ Add an event", then "Updated at" with Refresh.
+- Rename and Add an event are full race-flow screens with a docked button ("Save name", "Add event").
 
 **32 Day setup: phones**
 - `display-screen` "Phones", a `body` line explaining Remove.

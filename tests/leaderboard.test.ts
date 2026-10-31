@@ -9,7 +9,6 @@ afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'finish-owner',resetTestDay:true});
   const people=await signInOwner(app,'finish-owner','Aisha'),owner=people.owner,day=people.day;
-  await call(owner.token,'/api/day/confirm-events',{});
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed');
   const lead=await signInAs('Maryam');await call(lead,'/api/become-lead',{code:day.leadCode});
@@ -19,7 +18,7 @@ test('only leads read the ordered event list and live provisional results; a sav
   const {owner,lead,volunteer,setup}=await start();
   for(const path of ['/api/lead/results','/api/lead/events/R4/results']) expect((await call(volunteer,path)).statusCode).toBe(403);
   const list=(await call(lead,'/api/lead/results')).json();
-  expect(list.eventsConfirmed).toBe(true);expect(list.groups.map((group:any)=>group.name)).toEqual(['60m','60m Hurdles','200m','400m','4x50m Relay','4x100m Relay']);
+  expect(list).not.toHaveProperty('eventsConfirmed');expect(list.groups.map((group:any)=>group.name)).toEqual(['60m','60m Hurdles','200m','400m','4x50m Relay','4x100m Relay']);
   expect(list.groups[0].events.map((item:any)=>item.event.code)).toEqual(['R1','R2','R3','R4','R5','R6']);
   expect(list.groups[0].events[3]).toMatchObject({event:{code:'R4'},status:'Not started',raceCount:0});
   const race=await setup.checkIn(volunteer,'R4',[2001,3045]);

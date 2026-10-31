@@ -9,7 +9,6 @@ async function events(page:Page,name:string,codes:Record<"D"|"R"|"H"|"N",string>
   const add=(code:string,section:string,format:"heats"|"timed")=>ownEvent(page.request,code,name,section,format);
   await add(`${codes.D}`,'Girl Cubs','timed');await add(`${codes.R}`,'Boy Cubs','timed');await add(`${codes.H}`,'Girl Scouts','heats');await add(`${codes.N}`,'Boy Scouts','timed');
   expect((await page.request.post(`/api/day/events/${codes.N}/enabled`,{headers:headers(),data:{enabled:false}})).ok()).toBe(true);
-  await page.request.post('/api/day/confirm-events',{headers:headers(),data:{}});
   const token=process.env.E2E_OWNER_TOKEN!;
   const done=await recordRace(page.request,token,`${codes.D}`,[2001,2002],[1000,1100],[2001,2002]);
   expect((await page.request.post(`/api/lead/events/${codes.D}/complete-stage`,{headers:headers(),data:{stage:'event'}})).ok()).toBe(true);

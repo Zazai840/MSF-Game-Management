@@ -44,7 +44,6 @@ test('old phones see the browser message before the application opens',async({br
 });
 
 test('a deployed version reloads the phone by itself',async({page},info)=>{
-  await page.request.post('/api/day/confirm-events',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{}});
   await page.goto('/');
   await join(page,ownName('Update'),{job:'Start line'});
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();

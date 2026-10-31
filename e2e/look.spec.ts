@@ -90,9 +90,9 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
 test('Day setup, Phones and Events meet the touch, text size and contrast rules',async({page})=>{
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/');await openLeadMenu(page,'Day setup');
-  await expect(page.getByRole('button',{name:/^Phones \d+ (person|people) signed in today$/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:/^Phones /}).click();
+  await page.getByRole('button',{name:/^Signed in today /}).click();
   await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await back(page,'Day setup');

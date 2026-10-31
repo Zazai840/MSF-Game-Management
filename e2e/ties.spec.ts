@@ -2,10 +2,8 @@ import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
 import {eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,test} from './fixtures.js';
 test('a lead settles a tie, reconsiders a changed medal decision and records its order with a comment',async({page},info)=>{
-  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=await ownCode();
   await ownEvent(page.request,code,ownName('Tie event'),'Girl Cubs','timed');
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const createRace=(number:number,time:number)=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[number],[time]);
   await createRace(2701,1000);await createRace(2702,1000);
   await page.goto('/');await join(page,ownName('Tie lead'),{job:'Start line'});
@@ -49,7 +47,6 @@ test('a tie between two heats runs end to end: leaderboard highlight, To check, 
   const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   const code=await ownCode();
   await ownEvent(page.request,code,ownName('Tie heats'),'Girl Cubs','heats');
-  await page.request.post('/api/day/confirm-events',{headers,data:{}});
   const races:string[]=[];
   const heat=async(runners:number[],places:number[])=>{races.push((await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,places)).id);};
   // 2731 and 2735 share a time in Heat 1; 2733 has the same time in Heat 2.
