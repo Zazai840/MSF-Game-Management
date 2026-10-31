@@ -73,7 +73,7 @@ test('a timed event with every race so far saved waits on Event complete, in the
 test('an event with something in To check shows that line first, and the confirm wording only once To check is clear; a volunteer\'s cards are unchanged',async()=>{
   const {volunteer,lead,setup,home}=await start();
   // Girl Cubs 200m (R16), timed: 2nd place's kept time is faster than 1st's.
-  const race=await setup.record(volunteer,'R16',[2001,2002],[1600,1305],{keptWrong:[1]});
+  const race=await setup.record(volunteer,'R16',[2001,2002],[3600,3305],{keptWrong:[1]});
   let now=await home();
   expect(now.ready).toEqual(['R16']);
   expect(now.card('R16')).toEqual({line:'Heat 1: 1 time to check',confirm:null});
@@ -81,7 +81,7 @@ test('an event with something in To check shows that line first, and the confirm
   expect(raceSections(groups,'start').inProgress.map(item=>item.event.code)).toEqual(['R16']);
   expect(groupStatus(group,'start')).toBe('Heat 1 done');
   const version=((await call(lead,`/api/races/${race.id}`)).json()).race.parts.times.version;
-  expect((await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:version,places:[1305,1600]})).statusCode).toBe(200);
+  expect((await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:version,places:[3305,3600]})).statusCode).toBe(200);
   now=await home();
   expect(now.ready).toEqual(['R16']);
   expect(now.card('R16')).toEqual({line:'Every race saved · confirm the medals after the last race',confirm:'event'});

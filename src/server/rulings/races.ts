@@ -1,4 +1,5 @@
 import { createRace,nextNumber } from '../races/create.js';
+import { refuseImpossibleTimes } from '../races/steps.js';
 import type { Runner,FinishingOrder,RaceEntry,TeamEntry } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -46,6 +47,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const count=race.parts.runners.value?.length||0;
       if(places.length>count) throw new Refusal(409,`This race has ${entryCount(count,race.event.relay)} - enter no more places than that`);
       if(places.length<count) throw new Refusal(409,race.event.relay?'The teams in this race have changed - open the race again':'The runner list has changed - open the race again');
+      refuseImpossibleTimes(places,race.parts.times.value?.places,race.event.name);
       const currentPlaces=places,outOfOrder=timesOutOfOrder(currentPlaces),acceptedByLead=outOfOrder && value.acceptOutOfOrder===true;
       await correctPart(client,current,race,'times',{places:currentPlaces,outOfOrder,...(acceptedByLead?{acceptedByLead:true}:{})});
       await writeAuditNote(client,current,race.event.id,{action:acceptedByLead?'accept-times':'correct-times',comment,message:`${current.name} ${acceptedByLead?'accepted out-of-order times':'corrected the times'} for ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});

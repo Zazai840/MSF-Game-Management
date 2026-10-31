@@ -125,7 +125,7 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,2302,2303,2304]]) await relays.team(sam.token,'R22',legs);
   // Heat 1 saved in the race flow, with a lead's audit note on the day; Heat 2 with two teams added.
   await relays.tick(sam.token,'R22',1);
-  const saved=(await relays.save(sam.token,'R22',[1],[1500])).race;
+  const saved=(await relays.save(sam.token,'R22',[1],[3500])).race;
   await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);
   const waiting=(await relays.worked(sam.token,'R22')).race;
   await app.close();
@@ -172,7 +172,7 @@ test('a day under way on the old relay path upgrades without retyping: a relay r
       expect(await untouched(db)).toEqual(before);
     } finally {await db.end();}
     // The people on it carry on in the race flow, and it saves itself.
-    expect((await relayFlowSetup(app).save(sam.token,'R22',[2,3],[1500,1600])).race).toMatchObject({id:waiting.id,state:'saved'});
+    expect((await relayFlowSetup(app).save(sam.token,'R22',[2,3],[3500,3600])).race).toMatchObject({id:waiting.id,state:'saved'});
   } finally {await app.close();}
 });
 test('a relay heat under way on the old build has every filled leg of its teams marked here; a saved heat keeps its marks and its To check',async()=>{
@@ -183,7 +183,7 @@ test('a relay heat under way on the old build has every filled leg of its teams 
   const relays=relayFlowSetup(app);
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204],[2301,null,2303,2304]]) await relays.team(sam.token,'R22',legs);
   await relays.tick(sam.token,'R22',1);
-  const saved=(await relays.save(sam.token,'R22',[1],[1500])).race;
+  const saved=(await relays.save(sam.token,'R22',[1],[3500])).race;
   await relays.tick(sam.token,'R22',2);await relays.tick(sam.token,'R22',3);
   const underWay=(await relays.worked(sam.token,'R22')).race;
   await app.close();

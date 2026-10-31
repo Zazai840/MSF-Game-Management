@@ -45,7 +45,7 @@ test('a relay final\'s Here / Absent keeps its seeded teams: those Here are its 
   const {sam,phone,lead,relays}=await start();
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204]]) await relays.team(sam,'R22',legs);
   for(const number of [1,2]) await relays.tick(sam,'R22',number);
-  await relays.save(sam,'R22',[2,1],[1400,1500]);
+  await relays.save(sam,'R22',[2,1],[3400,3500]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const seeded=(await relays.race(sam,'R22'))!.race,raceId=seeded.id!,[fastest,second]=seeded.final!.entries;
   expect([fastest.team?.number,second.team?.number]).toEqual([2,1]);
@@ -68,13 +68,13 @@ test('a relay heat saves itself once every step is done and each team is placed 
   await relays.tick(sam,'R22',1);
   const ticked=await relays.tick(sam,'R22',2),raceId=ticked.race.id!,[one,two]=teamsOf(ticked.race);
   await step(phone,raceId,(client,target)=>writeOrder(client,phone,target,orderInput({raceId,version:target.race.parts.finish.version,order:[two.id],didNotFinish:[],didNotRun:[],added:[]})));
-  await step(phone,raceId,(client,target)=>writeTimes(client,phone,target,timesInput({raceId,version:target.race.parts.times.version,places:[1400],keptWrong:[]})));
+  await step(phone,raceId,(client,target)=>writeTimes(client,phone,target,timesInput({raceId,version:target.race.parts.times.version,places:[3400],keptWrong:[]})));
   await pool!.query('UPDATE race_parts SET done_at=clock_timestamp(),done_by=$2 WHERE race_id=$1',[raceId,phone.id]);
   // Team 1 has no place yet, so the heat waits.
   await step(phone,raceId,client=>saveIfDone(client,phone,raceId));
   expect((await relays.race(sam,'R22'))!.race.state).toBe('in progress');
   await step(phone,raceId,(client,target)=>writeOrder(client,phone,target,orderInput({raceId,version:target.race.parts.finish.version,order:[two.id,one.id],didNotFinish:[],didNotRun:[],added:[]})));
-  await step(phone,raceId,(client,target)=>writeTimes(client,phone,target,timesInput({raceId,version:target.race.parts.times.version,places:[1400,1500],keptWrong:[]})));
+  await step(phone,raceId,(client,target)=>writeTimes(client,phone,target,timesInput({raceId,version:target.race.parts.times.version,places:[3400,3500],keptWrong:[]})));
   await step(phone,raceId,client=>saveIfDone(client,phone,raceId));
   const saved=(await call(lead,`/api/lead/races/${raceId}`)).json() as {race:RaceRead;history:Array<{part:string;author:string|null;at:string|null}>};
   expect(saved.race.state).toBe('saved');

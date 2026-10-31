@@ -81,7 +81,7 @@ test('a team short of four never blocks: That\'s everyone marks Runners done, th
   expect(read.steps.runners!.state).toBe('done');
   const entry=teamsOf(read.race)[0];
   read=await ok(sam,`/api/races/${heat.race.id}/order`,{raceId:heat.race.id,version:read.race.parts.finish.version,order:[entry.id],didNotFinish:[],didNotRun:[],added:[]});
-  read=await ok(sam,`/api/races/${heat.race.id}/times`,{raceId:heat.race.id,version:read.race.parts.times.version,places:[1400],keptWrong:[]});
+  read=await ok(sam,`/api/races/${heat.race.id}/times`,{raceId:heat.race.id,version:read.race.parts.times.version,places:[3400],keptWrong:[]});
   for(const step of ['positions','times']) expect((await call(sam,`/api/races/${heat.race.id}/steps/${step}/done`,{})).statusCode).toBe(200);
   expect((await ok(sam,`/api/races/${heat.race.id}`)).race.state).toBe('saved');
   const items=((await call(lead,'/api/lead/results')).json() as ResultsRead).needsYou.filter(item=>item.event.code==='R22');

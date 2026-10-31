@@ -96,7 +96,7 @@ test('Did not finish stays in the race, Didn\'t run takes the runner off, and a 
 });
 test('a saved or deleted race and a complete stage refuse every step\'s writes',async()=>{
   const {owner,sam}=await start();
-  const setup=raceSetup(app),saved=await setup.record(sam,'R16',[2001],[1200]),read=await ok(await call(sam,`/api/races/${saved.id}`));
+  const setup=raceSetup(app),saved=await setup.record(sam,'R16',[2001],[3200]),read=await ok(await call(sam,`/api/races/${saved.id}`));
   expect((await order(sam,read,{})).json().message).toBe('Heat 1 is saved - ask a lead to change it');
   const open=await ok(await checkIn(sam,await ok(await call(sam,'/api/races',{eventCode:'R16',kind:'heat',number:2})),[2002]));
   await call(owner,`/api/lead/races/${open.race.id}/delete`,{permanent:false});
@@ -125,6 +125,20 @@ test('times are by place; a kept wrong time is stored for a lead, a retyped one 
   const removed=await ok(await checkIn(sam,third,[2001,2002]));
   expect((await ok(await times(jo,removed,{places:[1290,1312,1340]}))).race.parts.times.value!.places).toEqual([1290,1312,1340]);
   expect((await times(jo,await ok(await call(jo,`/api/races/${checked.race.id}`)),{places:[1290,1312,1345]})).json().message).toBe('This race has 2 runners - add the runner at the finish first');
+});
+test('times refuses a time no one can run, with the phone\'s words, but never checks a time saved before',async()=>{
+  const {owner,sam,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
+  const refused=async(places:number[],message:string)=>{const response=await times(jo,checked,{places});expect(response.statusCode).toBe(400);expect(response.json().message).toBe(message);};
+  await refused([0],'0.00 is not a time. Check the timer and type it again.');
+  await refused([1295,21],'0.21 is too fast for 60m. No one runs 60m in under 6.00. For 21 seconds, type 2100.');
+  await refused([124],'1.24 is too fast for 60m. No one runs 60m in under 6.00. Check the timer and type it again.');
+  const fastest=await ok(await times(jo,checked,{places:[600]}));
+  // An event with no known distance refuses only 0.00. A time saved then stays saved when the name gains a distance.
+  await call(owner,'/api/day/events/R4/rename',{name:'Sack race'});
+  const quick=await ok(await times(jo,fastest,{places:[21]}));
+  await call(owner,'/api/day/events/R4/rename',{name:'60m'});
+  expect((await ok(await times(jo,quick,{places:[21,1300]}))).race.parts.times.value!.places).toEqual([21,1300]);
 });
 /** Two heats of R4 (eight runners, 2001 fastest), then heats complete: the final seeds the six fastest. */
 async function final() {
