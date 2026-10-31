@@ -9,8 +9,7 @@ const kept=[`${prefix}pass`,`${prefix}profiles`];
 const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],moved:kept};
 /** Home's last tab belongs to the phone, not the session, so it outlasts sign-ins. */
 const homeTabKey=`${prefix}home-tab`;
-export type HomeTab='races'|'hurdles'|'relays';
-const homeTabs:HomeTab[]=['races','hurdles','relays'];
+export type HomeTab='races'|'relays';
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
   for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session` && key!==homeTabKey) localStorage.removeItem(key);
@@ -48,7 +47,8 @@ export const phoneStorage = {
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
   forgetProfile,
   /** The Home tab this phone used last: Races on a phone that never switched, or when storage fails. */
-  homeTab:():HomeTab=>{try {const tab=localStorage.getItem(homeTabKey) as HomeTab;return homeTabs.includes(tab)?tab:'races';} catch {return 'races';}},
+  // Anything but Relays reads as Races, the Hurdles tab an older build remembered too.
+  homeTab:():HomeTab=>{try {return localStorage.getItem(homeTabKey)==='relays'?'relays':'races';} catch {return 'races';}},
   rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},
   /** The job chosen for today on this phone (Start line, Finish line, Timer or Zone lead), or null before it is chosen. */
   role:(day:string):Role|null=>{try {const held=JSON.parse(localStorage.getItem(`${prefix}role`)||'null');return held?.day===day && roles.includes(held.role)?held.role:null;} catch {return null;}},

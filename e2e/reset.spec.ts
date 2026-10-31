@@ -40,7 +40,12 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     await other.getByRole('button',{name:new RegExp(ownName('^Reset helper'))}).click();
     await expect(other.getByRole('heading',{level:1,name:"What's your job today?"})).toBeVisible();
     await other.getByRole('radio',{name:/^Start line/}).click();
-    await races(other);await expect(other.getByText('No races yet. Tap New race when a race lines up.',{exact:true})).toBeVisible();
+    const empty=other.getByText('No races yet. Tap New race when a race lines up.',{exact:true});
+    await races(other);await expect(empty).toBeVisible();
+    // The empty line sits 12px under the tabs, as a section heading does.
+    const tabsBox=(await other.getByRole('navigation',{name:'Event type'}).boundingBox())!,emptyBox=(await empty.boundingBox())!;
+    expect(Math.round(emptyBox.y-(tabsBox.y+tabsBox.height))).toBe(12);
+    await other.screenshot({path:info.outputPath('empty-races.png')});
     await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await welcomeBack(other);await expect(newDayLine).toHaveCount(0);
     await page.getByLabel('Type NEW DAY to confirm').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
     await back(page,'Races');await expect(leadMenuButton(page)).toBeVisible();

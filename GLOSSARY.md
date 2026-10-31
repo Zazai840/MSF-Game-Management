@@ -35,7 +35,7 @@ How an event decides its medals: either heats then a final (60m and relays), unl
 _Avoid_: Race type
 
 **Event type**:
-Which tab of Races an event is on: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events.
+What kind of event it is: Races, Hurdles or Relays. It is stored with the event, never read from its name: a new day's events come with theirs, and a lead adding an event chooses Races or Hurdles. Relays are the relay events. Home's tab follows from it: races and hurdles events are on the Races tab, relays on Relays. Hurdles skip the usual heat size note.
 _Avoid_: Category, kind
 
 **Relay**:
@@ -223,7 +223,7 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab (Races, Hurdles or Relays) in Ready for you, In progress and Done, each with its heat chips. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race lists the races and hurdles events, grouped under Races and Hurdles whichever of those tabs it was opened from, and makes the next heat, or for a lead the final; back from the new race, Races shows that event's tab. On Relays, New relay lists only the relays.
+Home: the event cards of one tab in Ready for you, In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: each relay card also has a Teams row that opens its teams sheet, and a relay with teams but no heats sits under Teams ready, no heats yet. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:

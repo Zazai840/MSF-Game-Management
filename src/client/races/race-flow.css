@@ -49,6 +49,8 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 /* A section heading sits nearer the cards it heads than what is above it. */
 .rz-main > .rz-section { margin-top: var(--space-6); }
 .rz-main > .rz-section:first-child { margin-top: var(--space-10); }
+/* The empty tab's line sits 12px under the tabs, as a section heading does. */
+.rz-main > .rz-empty:first-child { margin-top: var(--space-6); }
 .rz-main--form { padding-top: var(--space-16); }
 /* The Updated-at line sits centred in its footer, as it did when the older look's footer centred it. */
 .rz-footer .rz-refresh { justify-content: center; }
@@ -75,7 +77,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-rolechip--lead { background: var(--jumping); }
 
 /* ---------- EventTabs ---------- */
-.rz-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
 .rz-tabs button { gap: var(--space-6); }
