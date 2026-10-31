@@ -15,7 +15,7 @@ async function start(){
  const people=await signInOwner(app,'export-owner','Owner'),owner=people.owner,day=people.day;
  const signInAs=async(name:string)=>(await people.volunteer(name)).token;
  const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
- await call(owner.token,'/api/day/confirm-events',{});return {owner:owner.token as string,volunteer,lead};
+ return {owner:owner.token as string,volunteer,lead};
 }
 test('a lead downloads four value-only sheets and records its exact day revision without changing it',async()=>{
  const {owner,volunteer,lead}=await start();const before=(await call(owner,'/api/day')).json();expect(before.exportedAt).toBeNull();expect(before.exportedRevision).toBeNull();

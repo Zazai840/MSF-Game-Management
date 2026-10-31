@@ -3,7 +3,7 @@ import readExcelFile from 'read-excel-file/node';
 import {ownName,ownCode,deleteCurrentRace,ownEvent,writeCheckIn,recordRace,goHome,back,openLeadMenu,openRace,becomeLead,expect,join,test} from './fixtures.js';
 test('a heat replaced by a re-run says which heat replaced it, offers no Restore, and the re-run reaches Races and the day export',async({page},info)=>{
   const code=await ownCode(),name=ownName('Re-run heats'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-  await ownEvent(page.request,code,name,'Girl Cubs','heats');await page.request.post('/api/day/confirm-events',{headers,data:{}});
+  await ownEvent(page.request,code,name,'Girl Cubs','heats');
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2011,2012,2013],[1200,1300,1400]);
   await page.goto('/');await join(page,ownName('Re-run lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await page.getByRole('button',{name:'Re-run race',exact:true}).click();

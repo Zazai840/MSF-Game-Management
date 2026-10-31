@@ -102,7 +102,6 @@ export function Results({code,raceId,target,onOpen,onBack,onChanged}:{code?:stri
       {detail.auditNotes.length>0 && <section className="audit-notes"><h3>Audit notes</h3><ol aria-label="Audit notes">{detail.auditNotes.map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol></section>}
     </>}</> : !list?<p className="results-opening">Opening events…</p>:<>
       <ul className="results-legend" aria-label="Card colours">{(['done','running','not-started'] as const).map(state=><li key={state}><span className={`results-swatch event-card-${state}`} aria-hidden="true"/>{state==='done'?'Done':state==='running'?'Running':'Not started'}</li>)}</ul>
-      {!list.eventsConfirmed && <p className="calm-note">Event list awaiting confirmation by a lead</p>}
       {list.groups.map((group,index)=><section key={group.name} className="results-group" aria-labelledby={`results-group-${index}`}><h2 id={`results-group-${index}`}>{group.name}</h2><div className="results-events">{group.events.map(item=>{
         const card=eventState({status:item.status,raceCount:item.raceCount,format:item.event.format,decidedWithoutFinal:item.decidedWithoutFinal});
         return <button key={item.event.id} className={`event-card event-card-${card.state}`} onClick={()=>onOpen({kind:'event',code:item.event.code,tab:'heats'})}>

@@ -42,7 +42,6 @@ async function runHeat(token:string,number:number,placed:number[],times:number[]
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-flow-final-owner',resetTestDay:true});
   const people=await signInOwner(app,'relay-flow-final-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
   for(let number=1;number<=8;number++) await relays.team(sam,'R22',legs(number));

@@ -31,7 +31,7 @@ test('Day setup explains each code, row, the day export and Start a new day in p
   await expect(leadCode).toContainText('Other leads go back to being volunteers. You and the owner keep access.');
 
   await expect(page.getByRole('button',{name:`Phones ${phones} ${phones===1?'person':'people'} signed in today`,exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:`Events ${day.events.length} events · ${day.eventsConfirmed?'checked and confirmed':'not confirmed yet'}`,exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`Events ${day.events.length} events`,exact:true})).toBeVisible();
 
   const dayExport=section(page,'Day export');
   await expect(dayExport).toContainText("Excel file of today's results for the scoring workbook.");
@@ -59,7 +59,7 @@ test('the day export says when it was last downloaded and whether changes came a
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-export.png'),fullPage:true});
 });
 
-test('Phones and Events open their screens with a back arrow to Day setup, and lead actions there show the toast',async({page},info)=>{
+test('Phones and Events open their screens with a back arrow to Day setup, and a new lead code shows the toast',async({page},info)=>{
   await asOwner(page);
   await page.getByRole('button',{name:/^Phones /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
@@ -73,17 +73,6 @@ test('Phones and Events open their screens with a back arrow to Day setup, and l
   await page.getByRole('button',{name:/^Events /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
-  const code=await ownCode();
-  await page.getByLabel('New event code',{exact:true}).fill(code);
-  await page.getByLabel('New event name',{exact:true}).fill('Saved sprint');
-  await page.getByLabel('New event section',{exact:true}).selectOption('Girl Cubs');
-  await page.getByLabel('New event format',{exact:true}).selectOption('timed');
-  await page.getByLabel('New event type',{exact:true}).selectOption('races');
-  await page.getByRole('button',{name:'Add event',exact:true}).click();
-  await expectToast(page,`Event added · ${code}`);
-  await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();
-  await expect(page.getByRole('article',{name:`${code} · Girl Cubs`})).toContainText('Saved sprint');
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('events.png'),fullPage:true});
   await back(page,'Day setup');
 
   const before=process.env.E2E_LEAD_CODE!;

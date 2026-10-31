@@ -79,18 +79,20 @@ export const LeadFrame=createContext<{role:Role;onRole:()=>void;onBack:()=>void}
  * title, the screen it returns to: the one the lead came from, else `up` (the natural parent, for a screen reached
  * with no history). Then the title (an event as "200m · Boy Cubs" with its code tag), the job chip and `children`
  * ("⋯" on a race page). It also names the screen, so a screen opened from here names it on its own back arrow.
+ * A body in the design system comes in `body` and shares the bar's screen root.
  */
-export function LeadBar({title,code,up,children}:{title:string;code?:string;up:string;children?:ReactNode}) {
+export function LeadBar({title,code,up,children,body}:{title:string;code?:string;up:string;children?:ReactNode;body?:ReactNode}) {
   const frame=useContext(LeadFrame)!,back=entryBack()??up;
   useScreenName(title);
-  // shortcut: not wide yet, so the bar lines up with the older-look body below; wide once the bodies move (spec #250).
-  return <Screen screen={title} bar><header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
+  // shortcut: a body still in the older look sits below the bar, so the bar alone is the screen root, lined up with it; drop once every body moves (spec #250).
+  const header=<header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
     <div className="rz-appbar__start">
       <button type="button" className="rz-appbar__back" aria-label={`Back to ${back}`} onClick={frame.onBack}><Icon name="chevron-left" className="rz-icon--bold"/><span>{back}</span></button>
       <div className="rz-appbar__race"><h1>{title}</h1>{code && <span className="rz-code-tag">{code}</span>}</div>
     </div>
     <div className="rz-appbar__end" style={{gap:2}}><RoleChip role={frame.role} onOpen={frame.onRole}/>{children}</div>
-  </header></Screen>;
+  </header>;
+  return body===undefined?<Screen screen={title} bar>{header}</Screen>:<Screen screen={title}>{header}{body}</Screen>;
 }
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the

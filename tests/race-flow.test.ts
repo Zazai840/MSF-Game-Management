@@ -12,7 +12,6 @@ afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'race-flow-owner',resetTestDay:true});
   const people=await signInOwner(app,'race-flow-owner'),owner=people.owner.token as string;
-  await call(owner,'/api/day/confirm-events',{});
   return {owner,ahmed:(await people.volunteer('Ahmed')).token,tom:(await people.volunteer('Tom Barker')).token,lena:(await people.lead('Lena')).token};
 }
 async function ok<T=RaceFlowRead>(token:string,url:string,body?:unknown) {

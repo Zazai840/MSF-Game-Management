@@ -24,7 +24,6 @@ export type ToastSave=
   |{kind:'renamed';code:string;name:string}
   |{kind:'switched';code:string;on:boolean}
   |{kind:'event-added';code:string}
-  |{kind:'event-list-confirmed'}
   |{kind:'downloaded';file:string};
 const parts={times:'Times',order:'Finishing order',runners:'Runner list',teams:'Teams'};
 const reopened:Record<Stage,string>={final:'Final',heats:'Heats',event:'Event','no-final':'Results'};
@@ -55,7 +54,6 @@ export function toastLine(save:ToastSave):string {
     case 'renamed': return `Name saved · ${save.code} ${save.name}`;
     case 'switched': return `${save.code} switched ${save.on?'on':'off'}`;
     case 'event-added': return `Event added · ${save.code}`;
-    case 'event-list-confirmed': return 'Event list confirmed';
     case 'downloaded': return `Downloaded · ${save.file}`;
   }
 }

@@ -74,7 +74,13 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   const day=()=>onScreen(page,'/day','Day setup','Races');
   await day();
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:/^Events /}).click();await onScreen(page,'/day/events','Events','Day setup');
+  await page.getByRole('button',{name:/^Events /}).click();
+  const events=()=>onScreen(page,'/day/events','Events','Day setup');
+  await events();
+  await page.getByRole('button',{name:'Rename R4',exact:true}).click();await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
+  await bothGoBack(page,events);
+  await page.getByRole('button',{name:'Add an event',exact:true}).click();await onScreen(page,'/day/events/new','Add an event','Events');
+  await bothGoBack(page,events);
   await bothGoBack(page,day);
   await page.getByRole('button',{name:/^Phones /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   expect(await lookProblems(page)).toEqual([]);
@@ -99,5 +105,9 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await press(arrow(page));await onRaces(page);
   await page.goto('/day/signed-in-today');await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
-  await press(arrow(page));await onRaces(page);
+  await press(arrow(page));await onRaces(page);  // Rename and Add an event go up to Events.
+  await page.goto('/day/events/new');await onScreen(page,'/day/events/new','Add an event','Events');
+  await press(arrow(page));await onScreen(page,'/day/events','Events','Day setup');
+  await page.goto('/day/events/R4/rename');await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
+  await press(arrow(page));await onScreen(page,'/day/events','Events','Day setup');
 });

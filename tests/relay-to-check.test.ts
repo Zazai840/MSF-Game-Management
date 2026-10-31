@@ -14,7 +14,6 @@ afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-to-check-owner',resetTestDay:true});
   const people=await signInOwner(app,'relay-to-check-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
   /** Ticks the relay's teams in, marks the children here (all four unless `here` says how many of a team's), then saves the heat in that order. */

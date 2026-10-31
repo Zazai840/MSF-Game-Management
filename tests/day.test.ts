@@ -14,7 +14,8 @@ async function start() {
 test('a new Olympics day starts with exactly the 20 individual running events, then the six relays',async()=>{
   const token = await start();
   const day = (await call(token,'/api/day')).json();
-  expect(day.eventsConfirmed).toBe(false);
+  // There is no event list to confirm (spec #250): the day read carries no confirmed flag.
+  expect(day).not.toHaveProperty('eventsConfirmed');
   expect(day.events.filter((event:any)=>!event.relay).map((event:any)=>[event.code,event.name,event.section,event.format,event.enabled])).toEqual([
     ['R1','60m','Boy Beavers','heats',true],['R2','60m','Girl Beavers','heats',true],
     ['R3','60m','Boy Cubs','heats',true],['R4','60m','Girl Cubs','heats',true],
@@ -34,24 +35,17 @@ test('a new Olympics day starts with exactly the 20 individual running events, t
     ['R27','4x100m Relay','Boy Scouts','heats',true,true],['R28','4x100m Relay','Girl Scouts','heats',true,true]
   ]);
 });
-test('a lead confirms the event list for the Olympics day',async()=>{
+test('there is no event list to confirm: the confirm route is gone',async()=>{
   const token = await start();
-  const before = (await call(token,'/api/day')).json();
-  const saved = await call(token,'/api/day/confirm-events',{});
-  expect(saved.statusCode).toBe(200);
-  const after = (await call(token,'/api/day')).json();
-  expect(after.eventsConfirmed).toBe(true);
-  expect(after.revision).toBeGreaterThan(before.revision);
+  expect((await call(token,'/api/day/confirm-events',{})).statusCode).toBe(404);
 });
-test('a lead renames an event and the changed list needs confirmation again',async()=>{
+test('a lead renames an event, and the rename is a change to the day',async()=>{
   const token = await start();
-  await call(token,'/api/day/confirm-events',{});
   const before = (await call(token,'/api/day')).json();
   const saved = await call(token,'/api/day/events/R4/rename',{name:'60m sprint'});
   expect(saved.statusCode).toBe(200);
   const after = (await call(token,'/api/day')).json();
   expect(after.events.find((event:any)=>event.code==='R4')).toMatchObject({name:'60m sprint',section:'Girl Cubs',format:'heats'});
-  expect(after.eventsConfirmed).toBe(false);
   expect(after.revision).toBeGreaterThan(before.revision);
 });
 test('a lead adds an event with its code, name, section, event format and type',async()=>{
@@ -104,7 +98,6 @@ test('a lead who is not the owner can use every Day setup action and a volunteer
   await start();
   const volunteer = await people.volunteer('Volunteer Ahmed'), lead = await people.lead('Lead Maryam');
   const actions = [
-    ['/api/day/confirm-events',{}],
     ['/api/day/events/R4/rename',{name:'Changed'}],
     ['/api/day/events/R4/enabled',{enabled:false}],
     ['/api/day/events',{code:'R25',name:'Changed',section:'Girl Cubs',format:'timed',type:'races'}]
