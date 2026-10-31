@@ -41,7 +41,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   const tied=(await call(lead,'/api/lead/events/R7/results')).json().results.ties[0];
   expect((await call(lead,'/api/lead/events/R7/settle-tie',{tieId:tied.id,outcome:'no-run-off'})).statusCode).toBe(200);
   await call(lead,`/api/lead/races/${first.id}/runners/${first.parts.runners.value![0].id}/disqualify`,{reason:'Obstruction'});
-  await record('R3',1001);const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);const finalId=complete.json().results.finalResults.raceId;
+  await record('R3',1001);const finalId=(await setup.makeFinal(lead,'R3')).race.id;
   // A race left in progress with a step done, and a relay with a team in a heat: Start new day clears them all.
   const running=await setup.checkIn(volunteer,'R4',[2001]);await setup.order(lead,'R4',[2001]);
   expect((await call(volunteer,`/api/races/${running.id}/steps/runners/done`,{})).statusCode).toBe(200);

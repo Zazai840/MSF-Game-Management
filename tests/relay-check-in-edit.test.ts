@@ -68,7 +68,6 @@ test('a final\'s team is changed at its check-in once the heats are complete, an
   for(const number of [1,2]) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   for(const number of [1,2]) await relays.tick(sam,'R22',number);
   await relays.save(sam,'R22',[1,2],[3400,3500]);
-  expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'}),two=team(final,2),url=`/api/relays/${final.group.event.id}/teams/${two.id}`;
   await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:'here'});
   const saved=await ok(sam,url,{version:two.version,legs:[2122,2121,2199,2124],keptWarnings:[],raceId:final.race.id});

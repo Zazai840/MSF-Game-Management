@@ -51,9 +51,8 @@ test('Heats complete on a relay seeds the six fastest teams into the final, each
   const sheet=(await results()).heatsCheckSheet!;
   expect(sheet.mustSettleFirst).toEqual([]);
   expect(sheet.creates.map(place=>[place.position,place.team?.number,place.team?.wristbands])).toEqual([[1,2,legs(2)],[2,5,legs(5)],[3,1,legs(1)],[4,6,legs(6)],[5,3,legs(3)],[6,7,legs(7)]]);
-  const complete=await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'});
-  expect(complete.statusCode).toBe(200);
-  const final=(complete.json() as EventResultsRead).results.finalResults!;
+  expect((await call(lead,'/api/races',{eventCode:'R22',kind:'final'})).statusCode).toBe(200);
+  const final=(await results()).finalResults!;
   expect(final.entries.map(entry=>entry.seed)).toEqual([1,2,3,4,5,6]);
   expect(final.entries.map(entry=>entry.runner && isTeamEntry(entry.runner) && [entry.runner.team.number,entry.runner.legs.map(leg=>[leg.wristband,leg.here])])).toEqual([2,5,1,6,3,7].map(number=>[number,legs(number).map(wristband=>[wristband,false])]));
   // Nobody runs it until marked Here at the start line, as on a children's final.

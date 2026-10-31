@@ -83,8 +83,8 @@ async function finalWithHeats() {
   for(const [index,runners] of heats.entries()) {
     await tokens.setup.record(volunteer,'R3',runners,times[index]);
   }
-  const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);
-  return {...tokens,results:complete.json().results};
+  await tokens.setup.makeFinal(lead,'R3');
+  return {...tokens,results:(await call(lead,'/api/lead/events/R3/results')).json().results};
 }
 
 test('a final is seeded with exactly the 6 fastest qualifiers in seed order',async()=>{

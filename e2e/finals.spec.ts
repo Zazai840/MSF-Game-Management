@@ -1,4 +1,4 @@
-import {ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page} from './fixtures.js';
+import {ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page,flowPost} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -209,7 +209,7 @@ test('a final\'s check-in starts with nobody marked; That\'s everyone asks befor
  const code=await ownCode(),name=ownName('Final read'),n=await ownWristbands('Boy Cubs',4);
  await ownEvent(request,code,name,'Boy Cubs');
  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(51),n(52),n(53),n(54)],[900,1000,1100,1200]);
- expect((await request.post(`/api/lead/events/${code}/complete-stage`,{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{stage:'heats'}})).ok()).toBe(true);
+ await flowPost(request,process.env.E2E_OWNER_TOKEN!,'/api/races',{eventCode:code,kind:'final'});
  const sam=(await openPhone(ownName('Sam read'))).page,jo=(await openPhone(ownName('Jo read'))).page,priya=(await openPhone(ownName('Priya read'),{job:'finish'})).page;
  await openRace(sam,name,'Boy Cubs','Final');await openRace(jo,name,'Boy Cubs','Final');await openRace(priya,name,'Boy Cubs','Final');
  // Nobody is marked at the start: each row has Here and Absent, neither lit, and That's everyone waits for someone Here.

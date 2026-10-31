@@ -46,7 +46,7 @@ test('a relay final\'s Here / Absent keeps its seeded teams: those Here are its 
   for(const legs of [[2101,2102,2103,2104],[2201,2202,2203,2204]]) await relays.team(sam,'R22',legs);
   for(const number of [1,2]) await relays.tick(sam,'R22',number);
   await relays.save(sam,'R22',[2,1],[3400,3500]);
-  expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  expect((await call(lead,'/api/races',{eventCode:'R22',kind:'final'})).statusCode).toBe(200);
   const seeded=(await relays.race(sam,'R22'))!.race,raceId=seeded.id!,[fastest,second]=seeded.final!.entries;
   expect([fastest.team?.number,second.team?.number]).toEqual([2,1]);
   await step(phone,raceId,(client,target)=>markAbsent(client,phone,target,absentInput({raceId,version:target.race.parts.runners.version,here:[second.finalEntryId],absent:[fastest.finalEntryId]})));

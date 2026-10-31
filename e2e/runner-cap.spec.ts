@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime} from './fixtures.js';
+import {ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
@@ -45,7 +45,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   for(const [runners,times] of [[[1801,1802,1803,1804,1805,1806],[900,910,920,930,940,950]],[[1807,1808],[945,1000]]]) {
     await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
   }
-  expect((await page.request.post(`/api/lead/events/${code}/complete-stage`,{headers:headers(),data:{stage:'heats'}})).ok()).toBe(true);
+  await flowPost(page.request,process.env.E2E_OWNER_TOKEN!,'/api/races',{eventCode:code,kind:'final'});
   // The final of six runs in the race flow: everyone marked Here at the start line, then the finishing order, and it saves itself.
   const {page:phone}=await openPhone(ownName('Seven phone'));await openRace(phone,name,'Boy Cubs','Final');
   await expect(phone.locator('.rz-prompt__meta')).toHaveText('Final · 0 of 6 here · 6 not marked');

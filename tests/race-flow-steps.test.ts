@@ -166,7 +166,7 @@ test('an event with no known distance holds no slow time, and a race saved then 
 async function final() {
   const people=await start(),setup=raceSetup(app);
   for(const runners of [[2001,2002,2003,2004,2005,2006],[2007,2008]]) await setup.record(people.owner,'R4',runners,runners.map(wristband=>1000+wristband-2000));
-  expect((await call(people.owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  await setup.makeFinal(people.owner,'R4');
   const groups=(await call(people.sam,'/api/races')).json().groups,id=groups.find((group:{event:{code:string}})=>group.event.code==='R4').races.find((race:{kind:string})=>race.kind==='final').id;
   return {...people,read:()=>call(people.sam,`/api/races/${id}`).then(ok)};
 }
@@ -263,7 +263,7 @@ test('only saved races count for results, ranking, To check and the export, and 
   results=(await call(alex,'/api/lead/events/R4/results')).json().results;
   expect(results.leaderboard.map((row:{wristband:number;position:number|null})=>[row.wristband,row.position])).toEqual([[2001,1],[3045,2]]);
   expect((await call(alex,'/api/lead')).json().needsYou.map((item:{kind:string})=>item.kind)).toEqual(['warning']);
-  expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  await setup.makeFinal(owner,'R4');
   await setup.attend(sam,'R4');await setup.order(priya,'R4',[2001,3045]);
   expect((await call(alex,'/api/lead/events/R4/results')).json().results.finalResults.hasRun).toBe(false);
   const saved=await setup.submit(priya,'R4');
@@ -280,7 +280,7 @@ test('a race with every runner Did not finish needs no times, and Absent runners
   await setup.order(priya,'R4',[],{didNotFinish:[2001,2002]});
   expect((await setup.submit(priya,'R4')).race.state).toBe('saved');
   await setup.record(priya,'R4',[2003,2004],[1200,1300]);
-  expect((await call(owner,'/api/lead/events/R4/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  await setup.makeFinal(owner,'R4');
   const final=await ok(await call(sam,`/api/races/${(await setup.screen(sam,'R4')).race.id}`));
   const everyone=await ok(await attend(sam,final,[],[2003,2004]));
   expect((await done(sam,final.race.id,'runners')).json().message).toBe('Nobody is marked Here yet');

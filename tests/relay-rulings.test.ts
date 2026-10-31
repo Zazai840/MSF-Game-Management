@@ -58,9 +58,9 @@ async function tiedAtSixth() {
 }
 const settle=(lead:string,body:object)=>call(lead,'/api/lead/events/R22/settle-tie',body);
 
-test('an open tie between teams blocks Heats complete until the lead settles it: No run-off needed',async()=>{
+test('an open tie between teams blocks + Final until the lead settles it: No run-off needed',async()=>{
   const {lead,tie,row}=await tiedAtSixth();
-  const blocked=await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'});
+  const blocked=await call(lead,'/api/races',{eventCode:'R22',kind:'final'});
   expect(blocked.statusCode).toBe(409);
   const settled=await settle(lead,{tieId:tie.id,outcome:'no-run-off',comment:''});
   expect(settled.statusCode).toBe(200);
@@ -68,7 +68,7 @@ test('an open tie between teams blocks Heats complete until the lead settles it:
   expect(read.results.ties).toEqual([]);
   expect(read.auditNotes[0].message).toBe('Jo Evans settled the tie at 37.00 (Team 4, Team 7): No run-off needed');
   expect((await row(4)).flags.map(flag=>flag.kind)).toEqual(['tie-settled']);
-  expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  expect((await call(lead,'/api/races',{eventCode:'R22',kind:'final'})).statusCode).toBe(200);
 });
 
 test('a run-off or a decision puts the tied teams in the order the lead gives, and the first takes the last final place',async()=>{

@@ -20,6 +20,8 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
     const {value,comment}=rulingDetails(request.body,reopening || (request.body as {stage?:unknown}|null)?.stage==='no-final');
     const stage=value.stage;
     if(!['event','heats','final','no-final'].includes(String(stage))) throw new Refusal(400,'Choose a stage');
+    // Completing heats makes the final, which only "+ Final" does: it first checks every heat is saved.
+    if(!reopening && stage==='heats') throw new Refusal(409,'Make the final with + Final on Races');
     return rulingChange(pool,phone,async(client,current)=>{
       const code=(request.params as {code:string}).code;
       await changeStage(client,current,code,stage as Stage,reopening,comment);
@@ -29,7 +31,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
 }
 /**
  * Completes or reopens one stage of an event, under the caller's day lock. Completing refuses while its check sheet
- * has anything to settle first. Heats complete seeds the final: the race flow's "+ Final" is the lead's way here.
+ * has anything to settle first. Heats complete seeds the final: only the race flow's "+ Final" completes heats.
  */
 export async function changeStage(client:pg.PoolClient,current:Phone,code:string,stage:Stage,reopening:boolean,comment:string|null) {
   const command=reopening?'reopen-stage':'complete-stage';

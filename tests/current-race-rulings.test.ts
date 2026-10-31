@@ -55,24 +55,24 @@ test('Restore never waits on an individual event: a heat deleted before it was s
   expect((await call(lead,`/api/lead/races/${heat1.id}/restore`,{})).statusCode).toBe(200);
   expect(await races()).toEqual([[1,'saved'],[2,'in progress'],[3,'in progress']]);
 });
-test('Heats complete waits on a heat with check-ins, ignores an empty current heat, and the event shows its Final',async()=>{
+test('+ Final waits on a heat with check-ins, ignores an empty current heat, and the event shows its Final',async()=>{
   const {jo,lead,setup,screen}=await start();
   const heat2=await setup.checkIn(jo,'R1',[1004,1005,1006,1007]);
   const sheet=(await call(lead,'/api/lead/events/R1/results')).json().results.heatsCheckSheet;
   expect(sheet.mustSettleFirst).toEqual([{id:`race:${heat2.id}`,kind:'incomplete',raceId:heat2.id,message:'Heat 2 is in progress (4 checked in) - finish its steps or delete it'}]);
-  expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).json().message).toBe('Must settle first - open the completion check sheet');
+  expect((await call(lead,'/api/races',{eventCode:'R1',kind:'final'})).json().message).toBe('The final opens when every heat has times');
   // A lead corrects only a saved race: one in progress is finished in its steps.
   expect((await call(lead,`/api/lead/races/${heat2.id}/re-run`,{})).json().message).toBe('Heat 2 is in progress - finish its steps on Races');
-  // Every runner taken off: Heat 2 is the empty current heat again, and heats complete over it.
+  // Every runner taken off: Heat 2 is the empty current heat again, and the final is made over it.
   await setup.checkIn(jo,'R1',[]);
-  expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  await setup.makeFinal(lead,'R1');
   const final=(await screen()).race;
   expect(final).toMatchObject({kind:'final',state:'in progress'});
   expect(final.final!.entries.map(entry=>entry.wristband).sort()).toEqual([1001,1002,1003]);
 });
-test('Heats complete with the empty next heat never stored',async()=>{
-  const {lead,screen}=await start();
+test('+ Final with the empty next heat never stored',async()=>{
+  const {lead,setup,screen}=await start();
   expect((await screen()).race).toMatchObject({id:null,kind:'heat',number:2});
-  expect((await call(lead,'/api/lead/events/R1/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+  await setup.makeFinal(lead,'R1');
   expect((await screen()).race).toMatchObject({kind:'final'});
 });

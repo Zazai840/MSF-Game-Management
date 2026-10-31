@@ -66,7 +66,6 @@ test('a drop on a final reorders the finalist team, and the heat it already ran 
   for(const number of [1,2]) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   for(const number of [1,2]) await relays.tick(sam,'R22',number);
   const heat=await relays.save(sam,'R22',[1,2],[3400,3500]);
-  expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'heats'})).statusCode).toBe(200);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'});
   await ok(sam,`/api/races/${final.race.id}/teams/${team(final,2).id}/absent`,{mark:'here'});
   const marked=await ok(sam,`/api/races/${final.race.id}`);

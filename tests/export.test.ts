@@ -86,8 +86,7 @@ test('the Note column holds the same notes as the child\'s row, oldest first, wi
 });
 test('final export preserves absent seeds, sourced callups, corrected numbers, typed additions and deleted final generations',async()=>{
  const {owner,lead,volunteer}=await start();await race(volunteer,'R3',[1023,1066,1088,1005,1012,1110],[900,910,920,930,940,950]);await race(volunteer,'R3',[1135,1047],[960,970]);
- const completed=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(completed.statusCode).toBe(200);const id=completed.json().results.finalResults.raceId;
- const setup=raceSetup(app),current=async()=>(await setup.screen(volunteer,'R3')).race as any;
+ const setup=raceSetup(app),id=(await setup.makeFinal(lead,'R3')).race.id,current=async()=>(await setup.screen(volunteer,'R3')).race as any;
  let final=await current();expect(final.id).toBe(id);
  await setup.attend(volunteer,'R3',undefined,[1066]);
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect((await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:detail.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
@@ -145,7 +144,7 @@ async function relayFinal(){
  const people=await start(),relays=relayFlowSetup(app),{volunteer,lead}=people;
  for(const legs of relayTeams) await relays.team(volunteer,'R19',legs);
  for(const [placed,times] of [[[1,2,3,4],[3400,3500,3600,3900]],[[5,6,7],[3450,3550,3700]]]){for(const number of placed) await relays.tick(volunteer,'R19',number);await relays.save(volunteer,'R19',placed,times);}
- expect((await call(lead,'/api/lead/events/R19/complete-stage',{stage:'heats'})).statusCode).toBe(200);
+ await raceSetup(app).makeFinal(lead,'R19');
  // Seeds: Team 1, 5, 2, 6, 3, 7. Team 7 is absent and Team 4 (heat rank 7) is called up; Team 2 swaps its 3rd leg at check-in.
  await relays.attend(volunteer,'R19',[7]);
  const next=((await call(lead,'/api/lead/events/R19/results')).json() as EventResultsRead).results.finalResults!.nextCallUp!;

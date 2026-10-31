@@ -1,4 +1,4 @@
-import {ownName,ownWristbands,ownCode,openLeadMenu,becomeLead,expect,join,test,back,ownRelay,signInThroughApi,writeTeam,tickTeam,markFinalHere,writeTeamOrder,writeTimes,submitRace} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,openLeadMenu,becomeLead,expect,join,test,back,ownRelay,signInThroughApi,writeTeam,tickTeam,markFinalHere,writeTeamOrder,writeTimes,submitRace,flowPost} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 import readExcelFile from 'read-excel-file/node';
 test('A lead downloads the whole day workbook and sees when its export needs refreshing',async({page},info)=>{
@@ -28,7 +28,7 @@ test('a relay with a saved Final exports its medal teams in Input - Running and 
  for(const team of [1,2,3]) await writeTeam(request,token,code,team===1?team1:legs(team),{keptWarnings:team===1?[borrowed]:[]});
  for(const team of [1,2,3]) await tickTeam(request,token,code,team);
  await writeTeamOrder(request,token,code,[1,2,3]);await writeTimes(request,token,code,[1400,1500,1600]);await submitRace(request,token,code);
- expect((await request.post(`/api/lead/events/${code}/complete-stage`,{...lead,data:{stage:'heats'}})).ok()).toBe(true);
+ await flowPost(request,process.env.E2E_OWNER_TOKEN!,'/api/races',{eventCode:code,kind:'final'});
  // Only teams marked Here at the final's start line run in it.
  await markFinalHere(request,token,code,[1,2,3]);await writeTeamOrder(request,token,code,[1,2,3]);await submitRace(request,token,code);
  expect((await request.post(`/api/lead/events/${code}/complete-stage`,{...lead,data:{stage:'final'}})).ok()).toBe(true);
