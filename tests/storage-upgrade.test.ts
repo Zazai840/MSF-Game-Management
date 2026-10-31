@@ -222,6 +222,7 @@ test('a day an older build numbered from its counter keeps every race; numbers a
   const old=new pg.Client({connectionString:databaseUrl});await old.connect();
   try {
     await old.query('DROP INDEX live_race_number');
+    await old.query('ALTER TABLE races DROP COLUMN deleted_at');
     await old.query('ALTER TABLE races ADD CONSTRAINT races_event_id_kind_number_key UNIQUE(event_id,kind,number)');
     await old.query('CREATE TABLE race_counters (event_id uuid NOT NULL REFERENCES events(id), kind text NOT NULL, last_number integer NOT NULL, PRIMARY KEY(event_id,kind))');
     await old.query("INSERT INTO race_counters(event_id,kind,last_number) SELECT id,'heat',2 FROM events WHERE code='R4'");
@@ -232,10 +233,14 @@ test('a day an older build numbered from its counter keeps every race; numbers a
   app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
   try {
     expect((await raceSetup(app).screen(owner,'R4')).race).toMatchObject({id:null,number:2});
+    // A race deleted before deletion times were stored has none.
+    const deleted=await app.inject({method:'GET',url:'/api/lead/events/R4/deleted-races',headers:{authorization:`Bearer ${owner}`}});
+    expect(deleted.json().map((race:{id:string;deletedAt:string|null})=>[race.id,race.deletedAt]),deleted.body).toEqual([[heat2.id,null]]);
     const db=new pg.Client({connectionString:databaseUrl});await db.connect();
     try {
       expect(await races(db)).toEqual([{id:heat1.id,kind:'heat',number:1,deleted:false},{id:heat2.id,kind:'heat',number:2,deleted:true}]);
       expect((await db.query("SELECT to_regclass('race_counters') AS counters")).rows).toEqual([{counters:null}]);
+      expect((await db.query('SELECT id,deleted_at FROM races WHERE deleted')).rows).toEqual([{id:heat2.id,deleted_at:null}]);
       // A deleted race may share its number with a live race or another deleted race; two live races never do.
       const copy=(number:number,deleted:boolean)=>db.query('INSERT INTO races(id,day_id,event_id,kind,number,deleted) SELECT gen_random_uuid(),day_id,event_id,kind,$2,$3 FROM races WHERE id=$1',[heat1.id,number,deleted]);
       await copy(1,true);await copy(2,true);
