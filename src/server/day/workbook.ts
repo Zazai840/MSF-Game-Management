@@ -24,8 +24,11 @@ function medalTeam(team:ResultTeam,section:Section) {
 const perChild=({wristband,team}:Pick<ResultEntry,'wristband'|'team'>)=>team?team.wristbands.map((child,leg)=>[child,`Team ${team.number}`,leg+1] as const):[[wristband,null,null] as const];
 /** A race entry by id, or the stored copy of one no longer on the race's runner list. */
 const named=(race:StoredRace,id:string,copy?:RaceEntry)=>{const entry=race.parts.runners.value?.find(runner=>runner.id===id)??copy;return entry&&resultEntry(race,entry);};
-/** All reads use the export transaction's day lock, including records omitted by live queues. */
-export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
+/**
+ * All reads use the export transaction's day lock, including records omitted by live queues. `details` is the Day
+ * details row: Year, Region, "Day 1", this download's time (as Audit notes write times) and the downloading lead.
+ */
+export async function dayWorkbook(client:pg.PoolClient,dayId:string,details:[number,string,string,string,string]) {
  const events=await readEvents(client,false,dayId),races:StoredRace[]=[];
  const ids=(await client.query('SELECT id FROM races WHERE day_id=$1 ORDER BY checked_in_at,id',[dayId])).rows;
  for(const row of ids) races.push(await readRace(client,dayId,row.id));
@@ -62,6 +65,7 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string) {
   {sheet:'Input - Running',data:input,widths:Array(35).fill(12)},
   {sheet:'Finals',data:finals,widths:[12,22,20,12,8,18,10,6,15,24,24,12,22,24]},
   {sheet:'All results',data:all,widths:[12,22,20,12,18,10,6,12,15,15,40,55,85]},
-  {sheet:'Audit notes',data:audit,widths:[12,28,22,85,65]}
+  {sheet:'Audit notes',data:audit,widths:[12,28,22,85,65]},
+  {sheet:'Day details',data:[['Year','Region','Day','Downloaded at','Downloaded by'],details],widths:[8,12,8,28,22]}
  ].map(({sheet,data,widths})=>({sheet,stickyRowsCount:1,columns:widths.map(width=>({width})),data:data.map((row,index)=>row.map(cell=>typeof cell==='string'?{type:String,value:cell.length>32767?`${cell.slice(0,32700)}… See Audit notes for the full history.`:cell,wrap:true,alignVertical:'top' as const,...(index===0?{fontWeight:'bold' as const}:{})}:cell))}))).toBuffer();
 }
