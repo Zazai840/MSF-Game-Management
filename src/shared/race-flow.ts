@@ -3,7 +3,8 @@ import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
 import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
 import type { NotRankedReason } from './results-rules.js';
-import { entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
+import type { EventState } from './event-state.js';
+import { entryCount,entryNoun,entryWord,teamsReadyLine,type RelayTeam,type TeamList } from './teams.js';
 import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
@@ -238,6 +239,17 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
   if(stage) return stage==='final'?'Final saved · confirm the medals':'Every race saved · confirm the medals after the last race';
   return group.medalsDecided?'Medals decided':leadFinalLine(group)??groupStatus(group,'lead');
 }
+type CardGroup=Parameters<typeof leadLine>[0] & Pick<RaceGroup,'teams'>;
+/**
+ * A lead's card words for an event, the same on Races and Results: before its first race a relay's ready teams, else
+ * "No races yet"; then the lead's line.
+ */
+export function leadCardLine(group:CardGroup,issues:readonly DayLeadItem[]) {
+  if(!group.races.length) return group.teams?.length?teamsReadyLine(group.teams):'No races yet';
+  return leadLine(group,issues);
+}
+/** A Results card's colour: Done once the medals are decided, Running once a race is made, else Not started. */
+export const cardState=(group:Pick<RaceGroup,'races'|'medalsDecided'>):EventState=>group.medalsDecided?'done':group.races.length?'running':'not-started';
 /**
  * A lead's sections: Ready for you is the groups with open issues or medals waiting on the lead, the one that started
  * waiting last first (its newest issue, or its last race's save); the rest as for everyone.
