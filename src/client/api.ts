@@ -88,7 +88,7 @@ export const phoneStorage = {
 window.addEventListener('storage',event=>{
   if(event.key===`${prefix}session` || event.key===null) changed(Boolean(token() && dayId()));
 });
-export class ApiFailure extends Error { constructor(public status: number, message: string, public body: {reason?:string;taken?:boolean} = {}) { super(message); } }
+export class ApiFailure extends Error { constructor(public status: number, message: string, public body: {message?:string;reason?:string;taken?:boolean} = {}) { super(message); } }
 export class StaleRequest extends Error {constructor(){super('Please refresh');}}
 const sessions=new WeakMap<Response,string>();
 function current(captured:string) {if(captured!==sessionId()) throw new StaleRequest();}
@@ -107,7 +107,8 @@ export async function apiResponse(path:string,body?:unknown,signal?:AbortSignal)
   current(captured);
   onThisBuild(response.headers.get('x-build-id'));
   if (!response.ok) {
-    const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
+    // No JSON (a host's own page) is no reason from the app: `body.message` stays empty.
+    const result = await response.json().catch(()=>({}));
     current(captured);
     if (response.status === 401) {
       phoneStorage.clear(result.reason);

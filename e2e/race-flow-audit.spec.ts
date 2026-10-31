@@ -100,6 +100,10 @@ test('a callout puts its main button on the right, and a failed request reads "C
   await expect(failed).toHaveText('Could not connect - try again');
   await expect(failed.locator('.rz-callout__msg .rz-icon')).toHaveCount(1);
   await page.screenshot({path:info.outputPath('callout-could-not-connect.png'),fullPage:true});
+  // Something between the phone and the app answers with a page of its own, no reason from the app: as unreachable.
+  await page.route('**/api/wristband-check',route=>route.fulfill({status:413,contentType:'text/html',body:'<html>Request too large</html>'}));
+  await input.fill(String(n(1)));await input.press('Enter');
+  await expect(failed).toHaveText('Could not connect - try again');
   await page.unroute('**/api/wristband-check');
   // The app is reached but refuses the save with no reason of its own.
   await page.route('**/api/races/*/check-in',route=>route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({message:'Something went wrong - please try again'})}));
