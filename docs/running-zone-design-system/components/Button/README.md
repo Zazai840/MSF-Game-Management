@@ -11,6 +11,7 @@ Every action in the app. All variants are at least 44px tall and use `radius-lg`
 | `rz-btn` | 52px, 2px navy outline | Secondary ("Keep", "That's everyone", "+ Runner not on the list"). |
 | `rz-btn rz-btn--danger` | `red-ink` fill, `on-navy` text | Disqualify, Delete race. Only inside a Sheet or after a confirm. |
 | `rz-btn rz-btn--small` | 44px pill, `card` with `line` border | Utility actions: Refresh, Rename R1, Switch off R1, Edit runners. |
+| `rz-btn rz-btn--small rz-btn--danger` | Small pill with `red-ink` text | A risky action in a card that asks first in a Sheet: Remove on Signed in today. |
 | `rz-btn rz-btn--pill` | 44px pill, navy outline | Mode switches: "I'm a zone lead". |
 | `disabled` / `aria-disabled="true"` | `disabled-fill`, `disabled-ink` | Only when the reason is visible nearby. |
 
