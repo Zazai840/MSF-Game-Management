@@ -19,7 +19,8 @@ test('two start-line phones check a relay heat in at once: Add and Take off land
   for(const phone of [sam,priya]) await phone.page.goto(`/races/${raceId}`);
   const [one,two]=[sam.page,priya.page];
   await expect(meta(one)).toHaveText('Heat 1 · 0 teams · 0 children here');
-  await expect(one.getByRole('heading',{level:2,name:'Which teams are running?'})).toBeVisible();
+  // Teams typed ahead on the team list wait under Still to run; a new one would be Team 4.
+  await expect(one.getByRole('heading',{level:2,name:'Team 4 · 1st leg: wristband number?'})).toBeVisible();
   await expect(stillToRun(one).getByRole('listitem')).toHaveCount(3);
   const short=stillToRun(one).getByRole('listitem').nth(1);
   for(const text of ['Team 2',`${w(21)} · ${w(22)} · – · ${w(24)}`,'Runs short · 3 of 4']) await expect(short).toContainText(text);
@@ -31,9 +32,8 @@ test('two start-line phones check a relay heat in at once: Add and Take off land
     await expect(stillToRun(page).getByRole('listitem')).toHaveCount(1,live);
   }
   await expect(card(one,2)).toContainText('Runs short · 3 of 4');
-  await expect(card(one,1).getByText('1st leg',{exact:true})).toBeVisible();
-  // A short team's empty leg reads "–", so it can be dragged to another leg.
-  await expect(card(one,2).locator('.rz-attendance__who').nth(2)).toHaveText('3rd leg–');
+  // A team in this heat is four leg chips; a short team's empty leg reads "–", so it can be dragged to another leg.
+  await expect(card(one,2).locator('.rz-legchip')).toHaveText([`1st${w(21)}`,`2nd${w(22)}`,'3rd–',`4th${w(24)}`]);
   // Every child of a team in the heat is checked in: there is no Here / Not yet per child.
   for(const page of [one,two]) await expect(meta(page)).toHaveText('Heat 1 · 2 teams · 7 children here',live);
   await expect(one.getByRole('button',{name:/: Here$/})).toHaveCount(0);
@@ -47,11 +47,9 @@ test('two start-line phones check a relay heat in at once: Add and Take off land
   await expect(card(two,1)).toBeVisible(live);
   await expect(meta(two)).toHaveText('Heat 1 · 2 teams · 7 children here',live);
   await expect(one.getByText('changed this a moment ago')).toHaveCount(0);
-  // A short team's Edit and Take off sit where a full team's Edit does, beside the name, its note under the name.
-  const top=async(team:number,button:string)=>(await card(one,team).getByRole('button',{name:button,exact:true}).boundingBox())!.y-(await card(one,team).boundingBox())!.y;
-  const edit=await top(1,'Edit Team 1');
-  expect(await top(2,'Edit Team 2')).toBeCloseTo(edit,0);
-  expect(await top(2,'Take off')).toBeCloseTo(edit,0);
+  // A short team's Take off sits where a full team's does, beside the name, its note under the name.
+  const top=async(team:number)=>(await card(one,team).getByRole('button',{name:'Take off',exact:true}).boundingBox())!.y-(await card(one,team).boundingBox())!.y;
+  expect(await top(2)).toBeCloseTo(await top(1),0);
   const title=(await card(one,2).getByRole('heading',{name:'Team 2'}).boundingBox())!,note=(await card(one,2).getByText('Runs short · 3 of 4').boundingBox())!;
   expect(note.y).toBeGreaterThanOrEqual(title.y+title.height-1);
   expect(await lookProblems(one)).toEqual([]);
