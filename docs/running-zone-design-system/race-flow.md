@@ -249,8 +249,8 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 
 **Start line on a final**
 - Prompt meta "Final · 5 of 6 teams here", question "Which teams are here?".
-- A card per seeded team (and any team a lead called up or added): "1st fastest · Team 2" with **Edit** beside the name, then **Here** / **Absent** for the whole team, neither lit at first; tapping a lit mark again clears it. Its legs follow ("1st leg", wristband), with no per-child Here. An Absent card is dashed.
-- Unless a team is Absent, its legs have grips and Edit works, as on a heat.
+- A card per seeded team (and any team a lead called up or added): "1st fastest · Team 2", then **Here** / **Absent** for the whole team, neither lit at first; tapping a lit mark again clears it. Its four leg chips follow, as on a heat, with no per-child Here. An Absent card is dashed.
+- Unless a team is Absent, its leg chips have grips and open the box on that leg, as on a heat: "Change Team 2's 1st leg", **Cancel** / **Save**, the Save checked against the team's version. The team's kept copy in the final takes the new legs, Here or not marked.
 - As on a children's final, only teams marked Here run it: the finish line shows no team until the start line marks one Here, and an unmarked or Absent team can't be placed.
 - That's everyone with a team unmarked asks first: "Team 4 is not marked. Record them absent?" with Record them absent / Go back.
 

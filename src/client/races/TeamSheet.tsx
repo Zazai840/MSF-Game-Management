@@ -1,6 +1,6 @@
 import { useEffect,useId,useState,type ReactNode } from 'react';
 import { ordinal } from '../../shared/ordinal.js';
-import { changedLine,type RaceFlowRead,type RaceGroup,type RacesRead } from '../../shared/race-flow.js';
+import { changedLine,type RaceGroup,type RacesRead } from '../../shared/race-flow.js';
 import { legsText,stillToRun,teamListOf,teamState,teamsSheetLine,type RelayTeam,type TeamList } from '../../shared/teams.js';
 import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberEntry.js';
@@ -59,25 +59,12 @@ function ChangeAnyway({team,onCancel,onChange}:{team:RelayTeam;onCancel:()=>void
   </div>;
 }
 /**
- * The teams sheet opened from a team card at check-in: Edit opens the team's leg boxes straight away (no Change
- * anyway), and New team's saved team joins this heat. Each Save answers with the race as it then stands.
- */
-export function CheckInTeamSheet({read,teamId,offer,onClose}:{read:RaceFlowRead;teamId:string|null;offer:(next:RaceFlowRead)=>void;onClose:()=>void}) {
-  const {group}=read,relay=teamListOf({...group,teams:read.teams}),team=teamId===null?null:relay.teams.find(item=>item.id===teamId);
-  if(team===undefined) return null;
-  return <Sheet title={team?`Edit team ${team.number}`:'New team · joins this heat'} onClose={onClose}>
-    <TeamForm team={team} number={team?.number??group.nextTeam!} eventId={group.event.id} raceId={read.race.id} offer={offer} onDone={onClose}
-      relay={relay} relays={read.relays||[]}/>
-  </Sheet>;
-}
-/**
  * One team's four leg boxes, 1st leg first, each with a grip to drag it to another leg, with Fix number / Keep, then
  * Cancel and Save team 9. Edit on a team never
  * in a race also has Remove team 7. A Save someone overtook shows who, with Show latest to start again from theirs.
- * From check-in (`raceId`) a Save also writes the team's entry in that race, and New team joins it. While a team is
- * open, other phones see "Aisha Noor is changing this team".
+ * While a team is open, other phones see "Aisha Noor is changing this team".
  */
-function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}:{team:RelayTeam|null;number:number;eventId:string;raceId?:string;relay:TeamList;relays:readonly TeamList[];offer:(next:Answer)=>void;onDone:()=>void}) {
+function TeamForm<Answer>({team,number,eventId,relay,relays,offer,onDone}:{team:RelayTeam|null;number:number;eventId:string;relay:TeamList;relays:readonly TeamList[];offer:(next:Answer)=>void;onDone:()=>void}) {
   /** The version this team was opened at: Save and Remove send it, so a change made meanwhile refuses them. */
   const [version,setVersion]=useState(team?.version),[fresh,setFresh]=useState(0);
   const [removing,setRemoving]=useState(false),{busy,error,changed,clearChanged,send:write}=useWrites<Answer>(offer);
@@ -91,7 +78,7 @@ function TeamForm<Answer>({team,number,eventId,raceId,relay,relays,offer,onDone}
   async function send(path:string,body:object) {
     if(typeof await write(`relays/${eventId}/teams${path}`,body)==='object') onDone();
   }
-  const save=(draft:TeamDraft)=>void send(team?`/${team.id}`:'',{...draft,...(team?{version,raceId}:{joinRaceId:raceId})});
+  const save=(draft:TeamDraft)=>void send(team?`/${team.id}`:'',{...draft,...(team?{version}:{})});
   return <>
     <p className="rz-sheet__text">{relay.name} · {relay.section}<br/>Type each child's wristband in running order, 1st leg first.</p>
     {changed && <Callout status message={`${changedLine(changed.by)}.`}

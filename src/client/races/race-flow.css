@@ -230,17 +230,13 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-teamcard__seed { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
 .rz-teamcard__marks { display: flex; gap: var(--space-6); margin-left: auto; }
 .rz-teamcard__marks .rz-btn { margin-left: 0; }
-/* A relay final's team card: the whole team on one card, its children in leg order, Here / Absent for the team. */
-.rz-teamcard--final { gap: 0; padding: var(--space-4) var(--space-10) var(--space-4) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
+/* A relay final's team card: the whole team on one card, its leg chips in leg order, Here / Absent for the team. */
+.rz-teamcard--final { padding: var(--space-4) var(--space-10) var(--space-10); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-teamcard--final.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
-.rz-teamlegs { margin: 0; padding: 0; list-style: none; }
-.rz-teamlegs li { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); border-top: 1px solid var(--line); }
-.rz-teamlegs__leg { min-width: 56px; font-size: 13px; font-weight: 700; color: var(--ink-muted); }
 /* A start-line team's legs with grips: the grip ends each row, and the dragged row lifts over the others. */
 .rz-teamgrips li[data-dragging="true"] { position: relative; z-index: 1; border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-raised); }
 .rz-attendance.rz-teamgrips li { grid-template-columns: 1fr auto var(--size-touch); padding-right: var(--space-4); }
 .rz-attendance.rz-teamgrips .rz-orderrow__handle { grid-column: 3; }
-.rz-teamlegs.rz-teamgrips .rz-orderrow__handle { margin-left: auto; }
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 /* A relay heat's start line: a team as a row of four leg chips, leg order left to right, each with its grip under it. */
 .rz-legrow { display: flex; flex-direction: column; gap: var(--space-6); }

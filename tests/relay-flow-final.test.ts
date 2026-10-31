@@ -142,6 +142,29 @@ test('a lead\'s call-up for an absent team and a lead\'s added team join the fin
   expect(marks(await ok(sam,`/api/races/${read.race.id}`)).at(-1)).toEqual([8,'absent']);
 });
 
+test('a finalist\'s child changed by its leg chip: one leg, against the team\'s version, its kept copy changed whether Here or not, the marks unchanged',async()=>{
+  const {sam,priya,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  const raceId=read.race.id,team=(number:number)=>read.teams!.find(item=>item.number===number)!;
+  const url=(number:number)=>`/api/relays/${read.group.event.id}/teams/${team(number).id}`;
+  const inRace=(number:number)=>teamsOf(read.race).find(entry=>entry.team.number===number)?.legs.map(leg=>[leg.wristband,leg.here]);
+  // Team 2 marked Here: a chip Save sends its legs with the 2nd changed, the others kept as they are; every child is still here.
+  await mark(sam,read,2,'here');
+  const two=team(2);
+  read=await ok(priya,url(2),{version:two.version,legs:[2201,2199,2203,2204],keptWarnings:[2201,2203,2204],raceId});
+  expect(inRace(2)).toEqual([[2201,true],[2199,true],[2203,true],[2204,true]]);
+  // A chip tapped before Priya's Save is refused as changed.
+  expect((await call(sam,url(2),{version:two.version,legs:[2201,2202,2203,2198],keptWarnings:[2201,2202,2203],raceId})).json()).toMatchObject({reason:'changed',by:'Priya Shah'});
+  // Team 5 not marked: its kept copy takes the change, and keeps it once marked Here.
+  read=await ok(sam,url(5),{version:team(5).version,legs:[2501,2502,2503,2198],keptWarnings:[2501,2502,2503],raceId});
+  expect(read.race.final!.entries.find(item=>item.team?.number===5)!.legs!.map(leg=>leg.wristband)).toEqual([2501,2502,2503,2198]);
+  expect(inRace(5)).toBeUndefined();
+  await mark(sam,read,5,'here');
+  read=await ok(sam,`/api/races/${raceId}`);
+  expect(inRace(5)).toEqual([[2501,true],[2502,true],[2503,true],[2198,true]]);
+  expect(marks(read)).toEqual([[2,'here'],[5,'here'],[1,'unmarked'],[6,'unmarked'],[3,'unmarked'],[7,'unmarked']]);
+});
+
 test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{
   const {sam,priya,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;

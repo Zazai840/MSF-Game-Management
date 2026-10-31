@@ -4,9 +4,8 @@ import {ownName,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const grip=(scope:Page|ReturnType<Page['getByRole']>,name:string|number)=>scope.getByRole('button',{name:`Move ${name}`,exact:true});
 const grips=(scope:ReturnType<Page['getByRole']>)=>scope.getByRole('button',{name:/^Move /});
-/** A heat team's leg chips as they read: "1st2071". */
-const heatLegs=(page:Page,team:number)=>card(page,team).locator('.rz-legchip');
-const finalLegs=(page:Page,team:number)=>card(page,team).locator('.rz-teamlegs li');
+/** A team's leg chips, in a heat or the final, as they read: "1st2071". */
+const chips=(page:Page,team:number)=>card(page,team).locator('.rz-legchip');
 const read=async(request:APIRequestContext,token:string,raceId:string)=>await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${token}`}})).json() as RaceFlowRead;
 /** Every grip on the page is a 44px target. */
 async function gripsAreTargets(page:Page) {
@@ -27,7 +26,7 @@ test('two start-line phones: a grip drag on a team\'s leg chips in this heat reo
   for(const team of made.teams!) made=await flowPost(request,sam.token,`/api/races/${raceId}/teams/${team.id}/tick`,{});
   for(const phone of [sam,priya]) await phone.page.goto(`/races/${raceId}`);
   const [one,two]=[sam.page,priya.page];
-  await expect(heatLegs(one,1)).toHaveText(['1st'+w(11),'2nd'+w(12),'3rd'+w(13),'4th–']);
+  await expect(chips(one,1)).toHaveText(['1st'+w(11),'2nd'+w(12),'3rd'+w(13),'4th–']);
   await expect(grip(card(one,1),'empty 4th leg')).toBeVisible();
   await gripsAreTargets(one);
   expect(await lookProblems(one)).toEqual([]);
@@ -38,18 +37,18 @@ test('two start-line phones: a grip drag on a team\'s leg chips in this heat reo
   await one.goto(`/races/${raceId}`);
 
   // A drag from the grip, sideways: the labels follow live, and the drop lands on both phones.
-  const from=(await grip(one,w(11)).boundingBox())!,to=(await heatLegs(one,1).nth(2).boundingBox())!;
+  const from=(await grip(one,w(11)).boundingBox())!,to=(await chips(one,1).nth(2).boundingBox())!;
   const drag=await startDrag(one,grip(one,w(11)));
   await drag.toPoint(to.x+to.width/2,from.y+from.height/2);
   await expect(card(one,1).locator('li[data-dragging="true"] .rz-legchip__ord')).toHaveText('3rd');
   await one.screenshot({path:info.outputPath('heat-dragging.png')});
   await drag.drop();
-  for(const page of [one,two]) await expect(heatLegs(page,1)).toHaveText(['1st'+w(12),'2nd'+w(13),'3rd'+w(11),'4th–'],live);
+  for(const page of [one,two]) await expect(chips(page,1)).toHaveText(['1st'+w(12),'2nd'+w(13),'3rd'+w(11),'4th–'],live);
   // A drop after That's everyone keeps the step done.
   expect((await read(request,priya.token,raceId)).steps.runners!.state).toBe('done');
   // Arrow keys on a grip move its leg at once: the empty 4th leg moves left to 3rd.
   await grip(card(two,1),'empty 4th leg').press('ArrowLeft');
-  for(const page of [one,two]) await expect(heatLegs(page,1)).toHaveText(['1st'+w(12),'2nd'+w(13),'3rd–','4th'+w(11)],live);
+  for(const page of [one,two]) await expect(chips(page,1)).toHaveText(['1st'+w(12),'2nd'+w(13),'3rd–','4th'+w(11)],live);
 
   // While Priya changes a leg by its chip, her grips hide; Sam's stay. Cancel brings hers back.
   await card(two,2).getByRole('button',{name:`Team 2 1st leg: ${w(21)}. Change`,exact:true}).click();
@@ -73,11 +72,13 @@ test('a relay final: a grip drag on a finalist team reorders its legs on both ph
   await gripsAreTargets(page);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('final-grips.png'),fullPage:true});
+  // A drag from the grip, sideways onto the 1st leg, as on a heat.
+  const from=(await grip(page,w(24)).boundingBox())!,to=(await chips(page,2).first().boundingBox())!;
   const drag=await startDrag(page,grip(page,w(24)));
-  await drag.over(finalLegs(page,2).first());
-  await expect(card(page,2).locator('li[data-dragging="true"] .rz-teamlegs__leg')).toHaveText('1st leg');
+  await drag.toPoint(to.x+to.width/2,from.y+from.height/2);
+  await expect(card(page,2).locator('li[data-dragging="true"] .rz-legchip__ord')).toHaveText('1st');
   await drag.drop();
-  for(const phone of [page,lead.page]) await expect(finalLegs(phone,2)).toHaveText(['1st leg'+w(24),'2nd leg'+w(21),'3rd leg'+w(22),'4th leg'+w(23)],live);
+  for(const phone of [page,lead.page]) await expect(chips(phone,2)).toHaveText(['1st'+w(24),'2nd'+w(21),'3rd'+w(22),'4th'+w(23)],live);
   await expect(card(page,2).getByRole('button',{name:'Team 2: Here',exact:true})).toHaveAttribute('aria-pressed','true');
   // Saved, the final keeps its order and its grips go.
   await card(page,1).getByRole('button',{name:'Team 1: Here',exact:true}).click();
@@ -88,6 +89,6 @@ test('a relay final: a grip drag on a finalist team reorders its legs on both ph
   expect(placed.race.parts.finish.value!.order).toHaveLength(2);
   expect((await flowPost(request,sam.token,`/api/races/${final.race.id}/steps/positions/done`,{})).race.state).toBe('saved');
   await page.goto(`/races/${final.race.id}`);
-  await expect(finalLegs(page,2)).toHaveText(['1st leg'+w(24),'2nd leg'+w(21),'3rd leg'+w(22),'4th leg'+w(23)]);
+  await expect(chips(page,2)).toHaveText(['1st'+w(24),'2nd'+w(21),'3rd'+w(22),'4th'+w(23)]);
   await expect(grips(card(page,2))).toHaveCount(0);
 });

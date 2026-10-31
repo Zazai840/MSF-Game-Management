@@ -1,4 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
+import { ordinal } from '../src/shared/ordinal.js';
 import {ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
@@ -30,7 +31,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await expect(one.getByRole('heading',{level:3})).toHaveText(['1st fastest · Team 1','2nd fastest · Team 2','3rd fastest · Team 3','4th fastest · Team 4','5th fastest · Team 5','6th fastest · Team 6']);
   await expect(card(one,7)).toHaveCount(0);
   for(const leg of [1,2,3,4]) await expect(card(one,2)).toContainText(String(w(20+leg)));
-  await expect(card(one,2).getByText('4th leg',{exact:true})).toBeVisible();
+  await expect(card(one,2).locator('.rz-legchip')).toHaveText([1,2,3,4].map(leg=>`${ordinal(leg)}${w(20+leg)}`));
   for(const mark of ['Here','Absent'] as const) await expect(markButton(one,1,mark)).toHaveAttribute('aria-pressed','false');
   // No per-child Here on a final.
   await expect(one.getByRole('button',{name:`${w(11)}: Here`,exact:true})).toHaveCount(0);
