@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {confirmTheMedals,eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -122,7 +122,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   expect(await lookProblems(page)).toEqual([]);
   await winnerSheet.getByRole('button',{name:'Close',exact:true}).click();await expect(winnerSheet).toHaveCount(0);
   await page.getByRole('button',{name:'Confirm the medals',exact:true}).click();
-  await page.getByRole('dialog',{name:'Final complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+  await confirmTheMedals(page);
   await expect(page.getByText('Day export 1st Team 3 · 2nd Team 2 · 3rd Team 5',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-final-panel.png'),fullPage:true});

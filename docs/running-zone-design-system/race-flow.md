@@ -91,7 +91,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
   - "Final saved · confirm the medals" for a saved final;
   - "Every race saved · confirm the medals after the last race" for a timed event;
   - the event's To check line instead, while it has anything to check. The confirm wording comes only once To check is clear.
-- Under the status line, while To check is clear, a primary **Confirm the medals** button opens Results on that event with its Final complete or Event complete check sheet open. The back arrow returns to Races.
+- Under the status line, while To check is clear, a primary **Confirm the medals** button opens the Confirm the medals screen (`/results/<code>/confirm-the-medals`). The back arrow returns to Races, and so does Confirm, with the toast.
 - Once the Confirm is recorded the card moves to Done and reads "Medals decided".
 - Volunteers' cards keep their wording and sections.
 

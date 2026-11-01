@@ -7,7 +7,7 @@ import type { AuditNote } from './rulings.js';
 import type { Stage } from './stages.js';
 import type { RaceReference,LeadItem,EventResults } from './results-rules.js';
 export interface DayLeadItem extends LeadItem { race?:RaceReference; event:DayEvent }
-/** What Results opens on: a lead item, or only its event, maybe with its check sheet open (Confirm the medals). */
+/** What Results opens on: a lead item, or only its event; with `stage`, a Races card's Confirm the medals, which opens that screen. */
 export type ResultsTarget=Pick<DayLeadItem,'event'> & Partial<DayLeadItem> & {stage?:Stage};
 export interface EventSummary { needsYou:number; event:DayEvent; status:EventResults['status']; decidedWithoutFinal:boolean; raceCount:number; provisional:boolean; latestNoteAt:string|null }
 export interface ResultsRead { needsYou:DayLeadItem[]; groups:Array<{name:string;events:EventSummary[]}> }

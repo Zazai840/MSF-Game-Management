@@ -1,4 +1,4 @@
-import {back,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page,flowPost} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page,flowPost} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -91,13 +91,13 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(page).toHaveURL(new RegExp(`/results/${code}/final$`));await expect(final.getByRole('button')).toHaveCount(6);
  // No Day export line until the medals are confirmed; then it names what the export's row holds, and Reopen final takes the button's place.
  await expect(page.getByText(/^Day export/)).toHaveCount(0);
- await page.getByRole('button',{name:'Confirm the medals',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText(`1st: ${n(15)}`);await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+ await page.getByRole('button',{name:'Confirm the medals',exact:true}).click();await expect(medalPlaces(page).first()).toContainText(String(n(15)));await confirmTheMedals(page);
  await expect(page.getByText(`Day export 1st ${n(15)} · 2nd ${n(11)} · 3rd ${n(17)}`,{exact:true})).toBeVisible();
  await expect(stageButtons(page)).toHaveText(['Reopen final']);
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
- await eventTab(page,'Heats');await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await eventTab(page,'Final');await expect(final).toContainText(String(n(15)));
+ await eventTab(page,'Heats');await page.getByRole('button',{name:'Reopen heats',exact:true}).click();const sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await eventTab(page,'Final');await expect(final).toContainText(String(n(15)));
 });
 test('only a lead\'s + Final makes the final from the fastest, after a confirm; Reopen heats removes the unrun final and + Final makes it again from the corrected heats',async({page,openPhone},info)=>{
  const code=await ownCode(),name=ownName('Short sprint'),n=await ownWristbands('Boy Cubs',3);

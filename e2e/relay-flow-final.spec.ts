@@ -1,6 +1,6 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { ordinal } from '../src/shared/ordinal.js';
-import {eventTab,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
@@ -73,8 +73,8 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await expect.poll(async()=>(await read()).race.state).toBe('saved');
   expect((await read()).steps.times).toBeUndefined();
 
-  // The lead's Races home: the relay waits on the lead. Confirm the medals opens Final complete; once confirmed the card
-  // is in Done as Medals decided, and Results names every child of each team.
+  // The lead's Races home: the relay waits on the lead. Confirm the medals opens its screen, naming every child of each
+  // medal team; once confirmed the lead is back on Races, the card is in Done as Medals decided, and Results names every child too.
   const boss=lead.page,legs=(team:number)=>[1,2,3,4].map(leg=>w(team*10+leg)).join(' · ');
   await boss.reload();
   await openRelays(boss);
@@ -83,19 +83,19 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   expect(await lookProblems(boss)).toEqual([]);
   await boss.screenshot({path:info.outputPath('relay-final-waiting.png'),fullPage:true});
   await relayCard.getByRole('button',{name:'Confirm the medals',exact:true}).click();
-  const sheet=boss.getByRole('dialog',{name:'Final complete',exact:true});
-  await expect(sheet.locator('.stage-creates li')).toHaveText([3,1,4].map((team,index)=>`${['1st','2nd','3rd'][index]}: Team ${team} · ${legs(team)}`));
-  await boss.screenshot({path:info.outputPath('relay-final-complete-sheet.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
-  await expect(sheet).toHaveCount(0);
+  await expect(medalPlaces(boss)).toHaveText([3,1,4].map((team,index)=>new RegExp(`^${index+1}Team ${team}Final${legs(team)}\\s*Fix$`)));
+  expect(await lookProblems(boss)).toEqual([]);
+  await boss.screenshot({path:info.outputPath('relay-confirm-the-medals.png'),fullPage:true});
+  await confirmTheMedals(boss);
+  await expectToast(boss,`Medals confirmed · ${name} Girl Cubs`);
+  const done=boss.locator('details',{hasText:/^Done \(\d+\)/});
+  await done.locator('summary').click();
+  await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');
+  await expect(relayCard.getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
+  await openLeadMenu(boss,'Results');await boss.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await eventTab(boss,'Final');
   const board=boss.getByRole('list',{name:'Final leaderboard',exact:true});
   for(const team of [3,1,4,2]) await expect(board.getByRole('button',{name:`Team ${team} · ${legs(team)} · Final`,exact:true})).toBeVisible();
   expect(await lookProblems(boss)).toEqual([]);
   await boss.screenshot({path:info.outputPath('relay-final-results.png'),fullPage:true});
-  await boss.getByRole('button',{name:'Back to Races',exact:true}).click();
-  const done=boss.locator('details',{hasText:/^Done \(\d+\)/});
-  await done.locator('summary').click();
-  await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');
-  await expect(relayCard.getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
 });
