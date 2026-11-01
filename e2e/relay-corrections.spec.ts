@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownWristbands,ownCode,back,expect,expectToast,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,press,raceAction,ownName,ownWristbands,ownCode,back,expect,expectToast,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
 import type {RaceFlowRead,RacesRead} from '../src/shared/race-flow.js';
 
@@ -25,8 +25,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   const {page}=await openPhone(ownName('Correct teams lead'),{lead:true});
   await openRelayResults(page,code);
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
-  await page.getByRole('button',{name:'Correct teams',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Correct runner list',exact:true})).toHaveCount(0);
+  await raceAction(page,'Correct teams');
   const sheet=page.getByRole('dialog',{name:'Correct teams · Heat 1',exact:true});
   // Team 2's 3rd child was typed wrong at the prep area: the fix keeps Team 2's place.
   await sheet.getByRole('button',{name:'Change Team 2',exact:true}).click();
@@ -47,7 +46,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('correct-teams.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();
-  await expect(page.getByText('Teams: Team 2 · Team 3',{exact:true})).toBeVisible();
+  await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem')).toHaveText([/Team 2/,/Team 3/]);
   // Heat 1 is Team 2's latest race, so the team takes the fix too: the typo won't come back at the Final. Team 1,
   // taken off, is still to run.
   const team=async(number:number)=>{
@@ -85,14 +84,15 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   const {page}=await openPhone(ownName('Relay ran twice lead'),{lead:true});
   await openRelayResults(page,code);
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
-  await page.getByRole('button',{name:'Delete race',exact:true}).click();
-  await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();
-  await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();
+  const racePage=page.url();
+  await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
+  await expectToast(page,'Heat 1 moved to Deleted races · Boy Scouts');
+  await page.getByRole('button',{name:'Open deleted Heat 1',exact:true}).click();await expect(page).toHaveURL(racePage);
   // Heat 1 deleted, Team 1 is still to run, and runs again in Heat 2.
   await runHeat(request,token,code,[1],[1450]);
-  await page.getByRole('button',{name:'Restore race',exact:true}).click();
-  await page.getByRole('dialog').getByRole('button',{name:'Confirm restore',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Re-run race',exact:true})).toBeVisible();
+  // The heat Team 1 ran again took the freed number, so Heat 1 comes back as Heat 2, and the toast says so.
+  await raceAction(page,'Restore Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));
+  await expectToast(page,'Heat 2 restored · Boy Scouts');await expect(page).toHaveURL(racePage);
   await back(page,`${name} · Boy Scouts`);await eventTab(page,'Heats');
   const row=(heat:number)=>page.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat ${heat}`,exact:true});
   // Both rows rank; Team 1's sheet offers the choice because it ran twice.

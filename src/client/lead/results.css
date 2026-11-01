@@ -1,6 +1,4 @@
-/* An event's older-look parts until their screens move: the final panel, the race page and the runner sheet. Tokens from theme.css. */
-.results-view {flex:1; display:flex; flex-direction:column;}
-.results-view > h1 {margin-bottom:10px;}
+/* An event's older-look parts until their screens move: the final panel and the older sheets. Tokens from theme.css. */
 /* Leaderboard */
 .leaderboard {padding:0; margin:0; list-style:none;}
 .leaderboard > li {margin:8px 0;}
@@ -41,8 +39,6 @@ html[data-keyboard="open"] .action-sheet-overlay {top:var(--vv-top);bottom:auto;
 .result-flags .checked-warning {background:var(--idle-fill);color:var(--muted);}
 .not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
 
-.race-action-choices {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
-.race-action-choices>p {width:100%;}
 
 /* Final */
 .final-panel {margin-top:18px; padding:16px; background:var(--surface); border-radius:var(--radius-box);}

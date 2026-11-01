@@ -9,6 +9,7 @@ import { ChangePassword,Day } from './Day.js';
 import { Events } from './Events.js';
 import { SignedInToday } from './SignedInToday.js';
 import { Tie } from './Tie.js';
+import { RaceLifecycle } from './RaceLifecycle.js';
 import type { PhonesRead } from '../../shared/phones.js';
 import { clockWithSeconds } from '../../shared/clock.js';
 /** A lead screen: every screen but Races and the race screen. */
@@ -21,7 +22,7 @@ const daySetup:Record<DayView['kind'],string>={day:'Day setup',events:'Events','
  * Events, Change Olympics password). Each is its own address (`view`); `onOpen` moves to another and `onBack` goes back. The race flow put a
  * race's issues on the race itself, so there is no Dashboard or To check list.
  */
-export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged:()=>void}) {
+export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean;over?:boolean})=>void;onBack:(levels?:1|2)=>void;onChanged:()=>void}) {
   const [day,setDay] = useState<DayRead|null>(null);
   const [phones,setPhones] = useState<number|null>(null);
   const [error,setError] = useState<unknown>(null);
@@ -38,12 +39,13 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
   }
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   if(kind==='olympics-password') return <ChangePassword/>;
-  if(view.kind==='tie') return <Tie key={addressOf(view)} code={view.code} tieId={view.tieId} stage={view.stage} onBack={onBack}/>;
+  if(view.kind==='tie') return <Tie key={addressOf(view)} code={view.code} tieId={view.tieId} stage={view.stage} onBack={()=>onBack()}/>;
+  if(view.kind==='race-action') return <RaceLifecycle key={addressOf(view)} view={view} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
   if(kind==='signed-in-today') return <SignedInToday onSaved={onChanged}/>;
   if(kind==='day') return <LeadBar title="Day setup" up="Races" body={<>
     <main className="rz-main">{error!==null && <ErrorCallout error={error} action="read"/>}
       {day && <Day day={day} phones={phones} onOpen={onOpen} onChanged={refresh} onSaved={onChanged}/>}</main>
     <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>}/>;
-  if(kind==='events' || kind==='rename-event' || kind==='new-event') return <Events view={view} day={day} updated={updated} error={error} onRefresh={refresh} onOpen={onOpen} onBack={onBack} onSaved={async()=>{onChanged();await refresh();}}/>;
-  return <Results key={`${view.kind==='event'?`event:${view.code}`:addressOf(view)}:${target?.id??''}`} tab={view.kind==='event'?view.tab:undefined} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} runner={view.kind==='runner'?view:undefined} target={target} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
+  if(kind==='events' || kind==='rename-event' || kind==='new-event') return <Events view={view} day={day} updated={updated} error={error} onRefresh={refresh} onOpen={onOpen} onBack={()=>onBack()} onSaved={async()=>{onChanged();await refresh();}}/>;
+  return <Results key={`${view.kind==='event'?`event:${view.code}`:addressOf(view)}:${target?.id??''}`} tab={view.kind==='event'?view.tab:undefined} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} runner={view.kind==='runner'?view:undefined} target={target} onOpen={onOpen} onBack={()=>onBack()} onChanged={onChanged}/>;
 }

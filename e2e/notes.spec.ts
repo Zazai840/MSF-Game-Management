@@ -1,5 +1,5 @@
 import {eventTab,expectToast,ownName,ownCode,becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,press,recordRace,test} from './fixtures.js';
-const amber='rgb(255, 244, 220)';
+const amber='rgb(255, 241, 199)';
 test('a lead reads a kept wristband warning in the child\'s Notes on the runner sheet, checks it at once, and sees who checked it',async({page},info)=>{
   const code=await ownCode(),lead=ownName('Notes lead');
   await ownEvent(page.request,code,'Notes','Girl Cubs','timed');
@@ -9,10 +9,10 @@ test('a lead reads a kept wristband warning in the child\'s Notes on the runner 
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await eventTab(page,'Races');await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();
   const racePage=new RegExp(`/results/${code}/races/${race.id}$`);await expect(page).toHaveURL(racePage);
-  // The warning shows in amber beside the child's number on the race page's Current record.
+  // The warning shows on the child's row of the race page's Current record, the row amber while it is open.
   const child=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'6000'});
-  const warning=child.getByText('6000 is not a known wristband number',{exact:true});
-  await expect(warning).toBeVisible();expect(await warning.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(amber);
+  await expect(child.getByText('6000 is not a known wristband number',{exact:true})).toBeVisible();
+  expect(await child.getByRole('button',{name:'Runner 6000',exact:true}).evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(amber);
   // The same runner sheet opens from the race page, without "Open Heat" (this is that race).
   await press(child.getByRole('button',{name:'Runner 6000',exact:true}));
   const sheet=page.getByRole('dialog',{name:'Runner 6000',exact:true}),notes=sheet.getByRole('list',{name:'Notes',exact:true});

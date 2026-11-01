@@ -139,12 +139,13 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 
 **27 The runner sheet.** Tapping a runner (on the Heats leaderboard, the Final tab or a race page) opens a Sheet titled "Runner 2002" (or "Team 3"): a meta line (event, heat, place in race, time, any disqualification), the runner's Notes as IssueCards, then block Buttons: primary "Mark checked" (only with an open warning; saves at once), "Correct number", "Choose which result counts" (when the runner has more than one result), "Open Heat 1", and a danger "Disqualify 2002" last (or "Lift disqualification"). Correct number, Choose which result counts, Disqualify and Lift disqualification are race-flow screens with a docked button.
 
-**28 A race in detail**
-- `display-screen` "Heat 1 · 60m Girl Cubs", meta "Checked in 11:41:12 AM".
-- A row of small Buttons: "Correct times", "Correct runner list", "Re-run race", "Delete race".
-- `rz-section` "Current record", a `body` line listing runners, an ok StatusTag "6 times · 6 finishers".
-- ListRows "2001 · Place 2 · 10.45".
-- A Disclosure "Saved versions (5)".
+**28 A race page** at `/results/<code>/races/<raceId>`, and its Race actions:
+- Lead header "Heat 1" with the event code, back to the event's tab, and "⋯" (Race actions). Meta "60m · Girl Cubs · checked in 10:05 · saved" (or "deleted", "not saved yet").
+- A deleted race: a status WarningCallout "Deleted at 10:42 by Sara Ahmed: wrong section checked in. Its results do not count." ("Replaced by a re-run at …" for a re-run's race). A race not saved yet: "Heat 3 is not saved yet. Open it to finish its steps." with "Open Heat 3".
+- An ok StatusTag "6 times · 6 finishers", then the lead's rows: place, wristband or team (its four children under it), time; a wrong time's reason or a kept warning on its own line, the row amber while one is open. A row opens the runner sheet.
+- A Disclosure "Saved versions (5)", then Updated at.
+- "⋯" here and on the race screen opens one Sheet "Heat 1 · actions": Correct times (not on a final), Correct finishing order, Correct runner list (Correct teams on a relay), Re-run race, then a danger "Delete Heat 1" set apart. A deleted race: primary "Restore Heat 4" and a danger "Delete for good". A race not saved yet: where to finish its steps ("… on this screen first." on the race screen), "Open Heat 3" on a race page, and Delete.
+- Re-run, Delete and Restore are race-flow screens at `<race>/re-run`, `/delete`, `/restore` (under the race page or `/races/<raceId>`): Re-run "Re-run *Heat 2?*", "Heat 2 moves to Deleted races. A new Heat 2 opens with the same runners checked in.", docked "Re-run Heat 2", landing on the new heat at its first step in place of the old race in history; Delete with stacked choices "Move to Deleted races" / "Delete for good" and a danger docked "Delete Heat 1" (or "… for good"), back to the screen before the race; Restore "Its results count again." (and the number it comes back as when its own is taken), docked "Restore Heat 4", staying on the restored race page.
 
 **29 Heats complete check.** Removed. A lead makes the final with "+ Final" on the event's card, after a confirm ("Have all Girl Cubs heats run?"). "+ Final" is greyed, with the reason, while a heat is not saved or has something to settle first (a tie at 6th, a time to check).
 

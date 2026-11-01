@@ -42,6 +42,3 @@ html {scroll-padding-bottom:calc(12px + var(--action-bar-height, 0px) + var(--rz
 .time-wrong,button.time-wrong {background:var(--amber-fill); border:2px solid var(--amber-line); color:var(--text);}
 .wrong-time-reason {display:block; font-size:13px; font-weight:800; line-height:1.25; color:var(--amber-text);}
 .wrong-time-icon {flex:none; color:var(--amber-line);}
-.time-count {display:inline-flex; align-items:center; gap:4px; margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums;}
-.time-count-agree {color:var(--green-text);}
-.time-count-mismatch {color:var(--amber-text);}

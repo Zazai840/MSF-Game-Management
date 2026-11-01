@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {eventTab,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -48,8 +48,9 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   // The race page's Current record shows the same checked warnings beside each team, grey and worded as on the leaderboard.
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   const record=page.getByRole('list',{name:'Current record',exact:true});
-  await expect(record.locator('.record-warning')).toHaveText([`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]);
-  for(const warning of await record.locator('.record-warning').all()) expect(await warning.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toBe('rgb(255, 244, 220)');
+  for(const line of [`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]) await expect(record.getByText(line,{exact:true})).toBeVisible();
+  // Checked, so no row is amber.
+  for(const row of await record.getByRole('button').all()) expect(await row.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toBe('rgb(255, 241, 199)');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-race-page-checked.png'),fullPage:true});
 });
@@ -85,15 +86,14 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await page.screenshot({path:info.outputPath('relay-leaderboard.png'),fullPage:true});
   // The race page lists Heat 1's teams in place of runners, Team 4 with its kept warning.
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
-  await expect(page.getByText('Teams: Team 2 · Team 1 · Team 3 · Team 4',{exact:true})).toBeVisible();
-  const record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
-  await expect(record.nth(0)).toContainText(`Team 2${legs(2).join(' · ')}`);await expect(record.nth(0)).toContainText('14.00');
-  // Open, so amber, and worded as on the leaderboard.
-  const kept=record.nth(3).locator('.record-warning').filter({hasText:String(borrowed)});
-  await expect(kept).toHaveText(`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`);
-  expect(await kept.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe('rgb(255, 244, 220)');
-  // Each team's button keeps its four children on one line, at 360 as at 390.
-  const lines=await page.locator('.record-team .result-legs').evaluateAll(all=>all.map(legs=>{
+  const list=page.getByRole('list',{name:'Current record',exact:true}),record=list.getByRole('button');
+  await expect(record).toHaveText([/^1st\s*Team 2/,/^2nd\s*Team 1/,/^3rd\s*Team 3/,/^4th\s*Team 4/]);
+  await expect(record.nth(0)).toContainText(legs(2).join(' · '));await expect(record.nth(0)).toContainText('14.00');
+  // Open, so the row is amber, and worded as on the leaderboard.
+  await expect(record.nth(3).getByText(`${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,{exact:true})).toBeVisible();
+  expect(await record.nth(3).evaluate(element=>getComputedStyle(element).backgroundColor)).toBe('rgb(255, 241, 199)');
+  // Each team's row keeps its four children on one line, at 360 as at 390.
+  const lines=await list.getByText(/^\d+( · \d+){3}$/).evaluateAll(all=>all.map(legs=>{
     const range=document.createRange();range.selectNodeContents(legs);
     return new Set([...range.getClientRects()].map(line=>Math.round(line.top))).size;
   }));
@@ -214,7 +214,9 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
-  await page.getByRole('button',{name:'Correct finishing order',exact:true}).click();
+  // The race page names each team, its four children on the line under it.
+  await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('button')).toHaveText([/^1st\s*Team 1\s*14\.00\s*\d+ · \d+ · \d+ · \d+$/,/^2nd\s*Team 2\s*15\.00/,/^3rd\s*Team 3\s*16\.00/]);
+  await raceAction(page,'Correct finishing order');
   const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveText(['1st14.00Team 1No place','2nd15.00Team 2No place','3rd16.00Team 3No place']);
   // Times stay by place: Team 2 dragged to 1st takes 1st place's time.

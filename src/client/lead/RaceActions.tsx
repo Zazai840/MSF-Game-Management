@@ -1,57 +1,84 @@
 import { raceRecording } from '../../shared/recording.js';
-import type { LeadRaceRead } from '../../shared/lead-results.js';
+import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { useEffect,useRef,useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ActionSheet } from './ActionSheet.js';
 import { RaceTeamsEditor } from './RaceTeams.js';
 import { api } from '../api.js';
-import { entryName,entryNumber,inProgressLine,raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
-import type { EventResultsRead } from '../../shared/lead-results.js';
+import { entryName,entryNumber,raceLabel,replacedByRerun,runnersOf } from '../../shared/races.js';
+import { raceName } from '../../shared/race-flow.js';
 import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timeBoxHint,timesOutOfOrder } from '../../shared/time-entry.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 // The race flow's amber callout; the older look has no race-flow tokens, so it brings its own .rz-screen.
-import { Callout } from '../races/parts.js';
+import { Callout,Sheet } from '../races/parts.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { entryCount,entryWord } from '../../shared/teams.js';
 import { NumberEntry } from '../flow/NumberEntry.js';
 import { SortableList } from '../flow/SortableList.js';
 import { WrongTimeIcon,WrongTimeReason,wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useToast } from '../races/Toast.js';
-import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
+import { toastLine } from '../../shared/toast-lines.js';
+import type { RaceAction,View } from '../shell/addresses.js';
 import './race-page.css';
-export interface RaceActionsProps {race:LeadRaceRead['race'];relay?:Pick<LeadRaceRead,'teams'|'relays'>;onSaved:(next:EventResultsRead)=>void;onRefresh:()=>void|Promise<void>;onRemoved:()=>void}
-export function RaceActions({race,relay,onSaved,onRefresh,onRemoved}:RaceActionsProps) {
-  const [action,setAction]=useState<'times'|'order'|'runners'|'teams'|'delete'|'re-run'|'restore'|null>(null);
+type Correction='times'|'order'|'runners'|'teams';
+/** A race not saved yet, in Race actions and on its race page: where its steps are finished. */
+export const notSavedLine=(race:LeadRaceRead['race'],where:'page'|'screen')=>`${raceName(race)} is not saved yet. ${where==='page'?'Open it to finish its steps.':'Finish its steps on this screen first.'}`;
+/**
+ * Race actions, the one sheet "⋯" opens on a race page (`where="page"`) and on the race screen: the corrections, Re-run,
+ * then a red Delete set apart; on a deleted race Restore and a red Delete for good; on a race not saved yet, where its
+ * steps are finished and Delete. Re-run, Delete and Restore open their screens; a correction opens today's editor in
+ * the sheet's place. `onSaved` takes a correction's answer and re-reads the race, so an editor that saves each change
+ * at once works on the latest versions.
+ */
+export function RaceActions({read,where,onOpen,onClose,onSaved,onRace}:{read:LeadRaceRead;where:'page'|'screen';onOpen:(view:View)=>void;onClose:()=>void;onSaved:(next:EventResultsRead)=>void|Promise<void>;onRace?:()=>void}) {
+  const {race}=read,name=raceName(race);
+  const [editing,setEditing]=useState<Correction|null>(null);
+  if(editing) return <CorrectionEditor read={read} part={editing} onSaved={onSaved} onClose={onClose}/>;
+  const screen=(action:RaceAction)=>onOpen({kind:'race-action',...(where==='page'?{code:race.event.code}:{}),raceId:race.id,action});
+  const button=(label:string,onClick:()=>void,kind='')=><button type="button" className={`rz-btn rz-btn--block${kind}`} onClick={onClick}>{label}</button>;
+  const remove=(label:string)=>button(label,()=>screen('delete'),' rz-btn--danger rz-sheet__apart');
+  return <Sheet title={`${name} · actions`} onClose={onClose}>
+    {race.state!=='saved' && !race.deleted && <p className="rz-sheet__text">{notSavedLine(race,where)}</p>}
+    <div className="rz-sheet__actions">
+      {race.deleted?<>{!replacedByRerun(race) && button(`Restore ${name}`,()=>screen('restore'),' rz-btn--primary')}{remove('Delete for good')}</>
+        :race.state!=='saved'?<>{where==='page' && onRace && button(`Open ${name}`,onRace)}{remove(`Delete ${name}`)}</>
+        :<>
+          {race.kind!=='final' && button('Correct times',()=>setEditing('times'))}
+          {race.parts.finish.value && button('Correct finishing order',()=>setEditing('order'))}
+          {race.event.relay?button('Correct teams',()=>setEditing('teams')):button('Correct runner list',()=>setEditing('runners'))}
+          {button('Re-run race',()=>screen('re-run'))}
+          {remove(`Delete ${name}`)}
+        </>}
+    </div>
+  </Sheet>;
+}
+const correctionTitles:Record<Correction,string>={times:'Correct times',order:'Correct finishing order',runners:'Correct runner list',teams:'Correct teams'};
+/**
+ * Today's correction editor, in the older look until #279 and #280 make each a screen: outside the race flow's screen
+ * root, so its look stays. Correct finishing order and Correct teams save each change at once and stay open.
+ */
+function CorrectionEditor({read,part,onSaved,onClose}:{read:LeadRaceRead;part:Correction;onSaved:(next:EventResultsRead)=>void|Promise<void>;onClose:()=>void}) {
+  const {race}=read;
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const toast=useToast(),named={section:race.event.section,kind:race.kind,number:race.number};
-  /** `saved` names the save for the toast; `stay` keeps the sheet open for corrections that save each change at once. */
-  async function command(command:string,body:unknown,saved:()=>ToastSave,removed=false,stay=false) {
+  async function command(command:string,body:unknown,stay=false) {
     if(busy) return;setBusy(true);setError('');
     try {
       const answer=await api<EventResultsRead>(`lead/races/${race.id}/${command}`,body);
-      toast({message:toastLine(saved())});onSaved(answer);
-      if(removed) {setAction(null);onRemoved();} else {await onRefresh();if(!stay) setAction(null);}
+      toast({message:toastLine({kind:'corrected',part,race:named})});await onSaved(answer);
+      if(!stay) onClose();
     }
     catch(error) {setError(error instanceof Error?error.message:'Not saved - try again');}
     finally {setBusy(false);}
   }
-  function open(next:typeof action) {setAction(next);setError('');}
-  const replaced=replacedByRerun(race);
-  return <div className="race-action-choices">{race.parts.times.value?.acceptedByLead && <p className="calm-note">Out-of-order times accepted by a lead</p>}{race.deleted?<>{replaced?<p>{raceLabel(race)} · {replaced}</p>:<><p>Deleted race</p><button onClick={()=>open('restore')}>Restore race</button></>}<button className="button-secondary" onClick={()=>open('delete')}>Delete permanently</button></>:race.state!=='saved'?<><p className="calm-note">{inProgressLine(race)}</p><button className="button-secondary" onClick={()=>open('delete')}>Delete race</button></>:<>{race.kind!=='final' && <button className="button-secondary" onClick={()=>open('times')}>Correct times</button>}{race.parts.finish.value && <button className="button-secondary" onClick={()=>open('order')}>Correct finishing order</button>}{race.event.relay?<button className="button-secondary" onClick={()=>open('teams')}>Correct teams</button>:<button className="button-secondary" onClick={()=>open('runners')}>Correct runner list</button>}<button className="button-secondary" onClick={()=>open('re-run')}>Re-run race</button><button className="button-secondary" onClick={()=>open('delete')}>Delete race</button></>}
-    {action && <ActionSheet title={`${action==='times'?'Correct times':action==='order'?'Correct finishing order':action==='runners'?'Correct runner list':action==='teams'?'Correct teams':action==='restore'?'Restore race':action==='re-run'?'Re-run race':'Delete race'} · ${raceLabel(race)}`} busy={busy} onClose={()=>setAction(null)}><h3>{raceLabel(race)}</h3>{error && <p role="alert">{error}</p>}
-      {action==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body,()=>({kind:'corrected',part:'times',race:named}))} onClose={()=>setAction(null)}/>:action==='order'?<RaceOrderEditor race={race} busy={busy} onSave={body=>command('finish-order',body,()=>({kind:'corrected',part:'order',race:named}),false,true)} onClose={()=>setAction(null)}/>:action==='teams'?<RaceTeamsEditor race={race} teams={relay?.teams||[]} relays={relay?.relays||[]} busy={busy} onSave={body=>command('teams',body,()=>({kind:'corrected',part:'teams',race:named}),false,true)} onClose={()=>setAction(null)}/>:action==='runners'?<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body,()=>({kind:'corrected',part:'runners',race:named}))} onClose={()=>setAction(null)}/>:<RaceLifecycle action={action} race={race} busy={busy} onSave={(body,permanent)=>void command(action,body,()=>action==='delete'?{kind:'deleted',race:named,forGood:!!permanent}
-        :action==='restore'?{kind:'restored',race:named}:{kind:'re-run',race:named},!!permanent)} onClose={()=>setAction(null)}/>}
-    </ActionSheet>}
-  </div>;
-}
-function RaceLifecycle({action,race,busy,onSave,onClose}:{action:'delete'|'restore'|'re-run';race:LeadRaceRead['race'];busy:boolean;onSave:(body:unknown,permanent?:boolean)=>void;onClose:()=>void}) {
-  const [comment,setComment]=useState('');
-  return <div className="sheet-stack">{action==='re-run'?<p>Call a re-run as a last resort. This record moves to Deleted races; a new {race.kind==='final'?'final':'heat'} opens on Races, with the same {race.event.relay?'teams':'runners'} checked in.</p>:action==='restore'?<p>Restore {raceLabel(race)} and include its record in this event again?</p>:<p>{race.deleted?'Delete this record permanently?':'Move this race to Deleted races, or delete it permanently?'} Permanent deletion cannot be undone. Audit notes remain.</p>}
-    <label>Comment (optional)<textarea maxLength={1000} disabled={busy} value={comment} onChange={event=>setComment(event.target.value)}/></label>
-    {action==='delete'?<>{!race.deleted && <button disabled={busy} onClick={()=>onSave({permanent:false,comment})}>Move to Deleted races</button>}<button disabled={busy} onClick={()=>onSave({permanent:true,comment},true)}>Confirm permanent deletion</button></>:<button disabled={busy} onClick={()=>onSave({comment})}>{action==='re-run'?'Confirm re-run':'Confirm restore'}</button>}
-    <button className="button-secondary" disabled={busy} onClick={onClose}>Keep current record</button>
-  </div>;
+  return createPortal(<ActionSheet title={`${correctionTitles[part]} · ${raceLabel(race)}`} busy={busy} onClose={onClose}><h3>{raceLabel(race)}</h3>{error && <p role="alert">{error}</p>}
+    {part==='times'?<RaceTimesEditor race={race} busy={busy} onSave={body=>void command('times',body)} onClose={onClose}/>
+      :part==='order'?<RaceOrderEditor race={race} busy={busy} onSave={body=>command('finish-order',body,true)} onClose={onClose}/>
+      :part==='teams'?<RaceTeamsEditor race={race} teams={read.teams||[]} relays={read.relays||[]} busy={busy} onSave={body=>command('teams',body,true)} onClose={onClose}/>
+      :<RaceRunnersEditor race={race} busy={busy} onSave={body=>void command('runners',body)} onClose={onClose}/>}
+  </ActionSheet>,document.body);
 }
 /**
  * Keeps the place or runner being retyped in sight inside the sheet (clear of its sticky buttons, see race-page.css),

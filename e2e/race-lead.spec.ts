@@ -1,4 +1,4 @@
-import {ownName,ownCode,back,backToRaces,expect,expectToast,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,back,press,raceAction,backToRaces,expect,expectToast,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Action required is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
@@ -87,7 +87,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   expect(notes).toEqual(expect.arrayContaining(['mark-warning-checked','mark-added-checked']));
 });
 
-test('a lead\'s card counts issues by race and kind, the Times tab marks only the wrong time amber, and Race actions lists runners by place',async({openPhone,request},info)=>{
+test('a lead\'s card counts issues by race and kind, the Times tab marks only the wrong time amber, and Race actions offers the corrections over the race',async({openPhone,request},info)=>{
   const name=ownName('Lead counts'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // Two kept wrong-section numbers, a runner who did not finish checked in first, and a kept wrong time in 3rd place.
@@ -104,9 +104,9 @@ test('a lead\'s card counts issues by race and kind, the Times tab marks only th
   await expect(rows).toHaveCount(4);
   await expect(page.getByRole('list',{name:'Times'}).locator('.rz-lead-row--warn')).toHaveText([/^3rd\s*2001\s*13\.50/]);
   await page.screenshot({path:info.outputPath('lead-times-one-amber.png'),fullPage:true});
-  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
-  const record=page.getByRole('dialog',{name:'Race actions'}).getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
-  await expect(record).toHaveText([/^1st\s*2002/,/^2nd\s*3045/,/^3rd\s*2001/,/^4th\s*4046/,/^No place\s*2003/]);
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await expect(page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}).getByRole('button')).toHaveText(['','Correct times','Correct finishing order','Correct runner list','Re-run race','Delete Heat 1']);
+  expect(await lookProblems(page)).toEqual([]);
 });
 
 test('a lead\'s Times tab marks a kept slow time amber, as the Timer does',async({openPhone,request})=>{
@@ -143,24 +143,17 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
   await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
   await expect(page.getByRole('alert').filter({hasText:'2001'})).toHaveCount(0);
-  // "⋯" opens the race actions over the race.
-  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
-  const actions=page.getByRole('dialog',{name:'Race actions'});
+  // "⋯" opens Race actions as a sheet over the race, not a page in a panel; Escape and the phone's Back close it, and the race stays.
+  const more=page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}),actions=page.getByRole('dialog',{name:'Heat 2 · actions',exact:true});
+  await press(more);
   await expect(actions.getByRole('button',{name:'Correct times',exact:true})).toBeVisible();
-  await actions.screenshot({path:info.outputPath('race-actions.png')});
-  // A runner there opens the runner sheet over it; Escape closes only the sheet.
-  const runner=page.getByRole('dialog',{name:'Runner 2001',exact:true});
-  await actions.getByRole('button',{name:'Runner 2001',exact:true}).click();await expect(runner).toBeVisible();
+  await expect(actions.getByRole('list',{name:'Current record'})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
-  await page.keyboard.press('Escape');await expect(runner).toHaveCount(0);await expect(actions).toBeVisible();
-  // Its screens open at their own address; Back returns to the race.
-  await actions.getByRole('button',{name:'Runner 2001',exact:true}).click();await runner.getByRole('button',{name:'Correct number',exact:true}).click();
-  await expect(page).toHaveURL(/\/runners\/[^/]+\/correct-number$/);
-  await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
+  await actions.screenshot({path:info.outputPath('race-actions.png')});
+  await page.keyboard.press('Escape');await expect(actions).toHaveCount(0);
+  await press(more);await expect(actions).toBeVisible();
+  await page.goBack();await expect(actions).toHaveCount(0);
   await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
-  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
-  await page.keyboard.press('Escape');
-  await expect(actions).toHaveCount(0);
 });
 
 test('a tie between two heats shows on both heats\' Times tab, and Open in Results opens the tie screen, with Back to the race',async({openPhone,request},info)=>{
@@ -196,8 +189,7 @@ test('a correction from Race actions on the race screen shows its toast, with no
   await recordRace(request,owner(),code,[2011,2012],[1200,1300]);
   const {page}=await openPhone(ownName('Lead toast'),{lead:true});
   await openRace(page,name);
-  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
-  await page.getByRole('dialog',{name:'Race actions'}).getByRole('button',{name:'Correct times',exact:true}).click();
+  await raceAction(page,'Correct times');
   const sheet=page.getByRole('dialog',{name:'Correct times'});
   await sheet.getByRole('button',{name:'2nd place · 13.00',exact:true}).click();
   const input=sheet.getByLabel('2nd place time',{exact:true});await input.fill('1350');await input.press('Enter');
