@@ -35,7 +35,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   const otherOwner=(await people.volunteer('Other owner')).token;
   await call(otherOwner,'/api/become-lead',{code:'reset-owner'});
   await call(owner,'/api/day/events',{code:'EXTRA',name:'Extra',section:'Girl Cubs',format:'timed',type:'races'});
-  await call(owner,'/api/day/events/R4/rename',{name:'Renamed'});await call(owner,'/api/day/events/R24/enabled',{enabled:false});await call(owner,'/api/day/confirm-events',{});
+  await call(owner,'/api/day/events/R4/rename',{name:'Renamed'});await call(owner,'/api/day/events/R24/enabled',{enabled:false});
   const setup=raceSetup(app),record=(eventCode:string,number:number)=>setup.record(volunteer,eventCode,[number],[1000]);
   const first=await record('R7',101),second=await record('R7',102);
   const tied=(await call(lead,'/api/lead/events/R7/results')).json().results.ties[0];
@@ -50,7 +50,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   expect((await call(owner,'/api/day/export',{})).statusCode).toBe(200);
   const reset=await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'});expect(reset.statusCode).toBe(200);
   const me=(await call(owner,'/api/me')).json();expect(me).toMatchObject({id:before.id,name:'Owner',level:'Lead'});expect(me.dayId).not.toBe(before.dayId);
-  const fresh=(await call(owner,'/api/day')).json();expect(fresh.leadCode).not.toBe(day.leadCode);expect(fresh.eventsConfirmed).toBe(false);expect(fresh.exportedAt).toBeNull();expect(fresh.exportedRevision).toBeNull();expect(fresh.events).toHaveLength(26);expect(fresh.events.every((event:any)=>event.enabled)).toBe(true);expect(fresh.events.find((event:any)=>event.code==='R4').name).toBe('60m');expect(fresh.events.some((event:any)=>event.code==='EXTRA')).toBe(false);
+  const fresh=(await call(owner,'/api/day')).json();expect(fresh.leadCode).not.toBe(day.leadCode);expect(fresh).not.toHaveProperty('eventsConfirmed');expect(fresh.exportedAt).toBeNull();expect(fresh.exportedRevision).toBeNull();expect(fresh.events).toHaveLength(26);expect(fresh.events.every((event:any)=>event.enabled)).toBe(true);expect(fresh.events.find((event:any)=>event.code==='R4').name).toBe('60m');expect(fresh.events.some((event:any)=>event.code==='EXTRA')).toBe(false);
   expect((await call(owner,'/api/home')).json()).toMatchObject({needsYou:0});
   expect(await setup.screen(owner,'R4')).toMatchObject({race:{id:null,number:1}});
   expect(await relays.race(owner,'R19')).toBeNull();expect((await relays.worked(owner,'R19')).teams).toEqual([]);
@@ -60,7 +60,7 @@ test('reset erases a populated day, retains only its initiating lead phone and r
   expect((await call(owner,'/api/lead/events/R7/deleted-races')).json()).toEqual([]);expect((await call(owner,'/api/lead/events/R7/results')).json().auditNotes).toEqual([]);expect((await call(owner,'/api/lead/events/R3/results')).json().results.finalResults).toBeNull();
   const signedIn=await people.volunteer('Yusuf');expect((await call(signedIn.token,'/api/me')).json().dayId).toBe(me.dayId);expect((await call(signedIn.token,'/api/become-lead',{code:day.leadCode})).statusCode).toBe(403);
   expect((await call(owner,'/api/day/start-new',{confirmation:'NEW DAY'})).statusCode).toBe(409);
-  await call(owner,'/api/day/confirm-events',{});expect((await setup.checkIn(owner,'R7',[101])).number).toBe(1);
+  expect((await setup.checkIn(owner,'R7',[101])).number).toBe(1);
 });
 test('requests racing a reset never read the new day through an old phone or fail with a missing-day server error',async()=>{
   const {owner,volunteer,lead,people}=await start();await call(owner,'/api/day/export',{});
@@ -73,10 +73,10 @@ test('requests racing a reset never read the new day through an old phone or fai
   expect(responses[0].statusCode).toBe(200);
   for(const response of responses.slice(1,31)) expect([200,401]).toContain(response.statusCode);
   expect(responses[31].statusCode).toBe(401);expect([401,403]).toContain(responses[32].statusCode);
-  const fresh=(await call(owner,'/api/day')).json();expect(fresh.eventsConfirmed).toBe(false);expect((await call(owner,'/api/day/phones')).json().phones).toHaveLength(1);
+  const fresh=(await call(owner,'/api/day')).json();expect(fresh).not.toHaveProperty('eventsConfirmed');expect((await call(owner,'/api/day/phones')).json().phones).toHaveLength(1);
 });
 test('sign-ins, lead code rotations, recording and rulings each invalidate the reset export guard',async()=>{
-  const {owner,volunteer,day,people}=await start();await call(owner,'/api/day/confirm-events',{});
+  const {owner,volunteer,day,people}=await start();
   const race=await raceSetup(app).checkIn(volunteer,'R7',[101]),entry=race.parts.runners.value![0].id;
   const changes=[
     ()=>app.inject({method:'POST',url:'/api/profiles',payload:{pass:people.pass,name:'Signed in after export'}}),

@@ -1,5 +1,6 @@
 import { expect,test } from 'vitest';
-import { changedLine,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { eventTitle } from '../src/shared/day.js';
+import { cardState,changedLine,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
@@ -136,4 +137,15 @@ test('a write someone overtook names them, on a race step and a relay team alike
 test('a race with nobody in it says so the same way on its finish line and its refused That\'s everyone',()=>{
   const race=(kind:'heat'|'final',relay:boolean)=>({kind,event:{relay}});
   expect([race('heat',false),race('heat',true),race('final',false),race('final',true)].map(emptyRaceLine)).toEqual(['Nobody is checked in yet','No team is in this heat yet','Nobody is marked Here yet','No team is marked Here yet']);
+});
+test('a lead\'s card words and colour are one function on Races and Results: no races yet, the lead\'s line, medals decided',()=>{
+  const saved={runners:status('done'),positions:status('done'),times:status('done')};
+  const idle=group('R6',[]),relay={...group('X1',[]),event:{code:'X1',relay:true}} as RaceGroup;
+  const running={...group('R3',[race('h1',saved,'saved'),{...race('h2',{runners:status('in progress'),positions:status('not started'),times:status('not started')}),number:2}]),event:{code:'R3',format:'timed'}} as RaceGroup;
+  const decided={...group('R5',[race('h1',saved,'saved')],false,true),event:{code:'R5',format:'timed'}} as RaceGroup;
+  expect([idle,relay,running,decided].map(item=>leadCardLine(item,[]))).toEqual(['No races yet','No races yet','Heat 2 in progress · Heat 1 saved','Medals decided']);
+  expect([idle,relay,running,decided].map(cardState)).toEqual(['not-started','not-started','running','done']);
+});
+test('an event is named "200m · Boy Cubs" on every screen, its code in a tag beside it',()=>{
+  expect(eventTitle({name:'200m',section:'Boy Cubs'})).toBe('200m · Boy Cubs');
 });

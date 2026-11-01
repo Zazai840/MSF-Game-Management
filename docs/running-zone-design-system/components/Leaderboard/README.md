@@ -9,7 +9,7 @@ Standings for one event and section on the dark scoreboard surface (screen 26). 
 - The rule note in `scoreboard-muted` ("Top 8 · Q = fastest 6").
 - The star pattern and speed stripes sit behind the head only.
 
-**Rows:** an `<ol>`; each row is a `<button>` that opens the runner's actions sheet.
+**Rows:** an `<ol>`; each row is a `<button>` that opens the runner sheet.
 - **Qualifier** (`rz-lb--q`):
   - rank on a zone-coloured star (`size-rank`) in `navy`;
   - wristband in `label`, with a Q tag;
@@ -17,7 +17,7 @@ Standings for one event and section on the dark scoreboard surface (screen 26). 
   - time in `display-time`, `gold`.
 - **Other highlighted places:** rank in a plain outline square (`radius-sm`, `scoreboard-line-strong`) and the time in `on-navy`.
 - **Outside the highlighted top places** (`rz-lb--outside`): transparent with a dashed outline, and the detail says "outside top 8".
-- **Tied rows** carry a TIE tag before the time; tapping one opens the Settle-a-tie sheet.
+- **Tied rows** carry a TIE tag before the time; tapping one opens the tie screen.
 - **Qualifying line** (`rz-qline`): two `red` bars with "Qualifying line" between, as a list item with an `aria-label` that explains it. Only on events where the fastest 6 go to a final (60m and relay).
 
 **Tokens:** `scoreboard`, `scoreboard-row`, `scoreboard-line`, `scoreboard-line-strong`, `scoreboard-muted`, `on-navy`, `gold`, `red`, `live`, `--zone`.

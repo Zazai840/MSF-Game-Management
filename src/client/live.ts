@@ -1,7 +1,8 @@
 import { useEffect,useRef,useState } from 'react';
 import { frameData,newerSnapshot,splitFrames } from '../shared/live.js';
-import { ApiFailure,apiResponse,StaleRequest } from './api.js';
-import { failureLine } from './races/writes.js';
+import { api,ApiFailure,apiResponse,StaleRequest } from './api.js';
+import { clockWithSeconds } from '../shared/clock.js';
+import { failureLine } from '../shared/request-failure.js';
 import { onThisBuild } from './shell/updates.js';
 /** Silence this long means the link is dead. Spread over 30-45 s so phones that lost signal together don't all reconnect at once. */
 const silence=()=>30_000+Math.random()*15_000;
@@ -50,7 +51,7 @@ export function useLive<T extends {revision:number}>(path:string) {
       } catch(failure) {
         // A 401 has already sent the phone to sign in, and a changed session ends this screen; other refusals say why and stop.
         if(failure instanceof StaleRequest) return;
-        if(failure instanceof ApiFailure && failure.status<500) {if(failure.status!==401) setError(failureLine(failure));setGone(!!failure.body.gone);return;}
+        if(failure instanceof ApiFailure && failure.status<500) {if(failure.status!==401) setError(failureLine(failure,'read'));setGone(!!failure.body.gone);return;}
         // A phone holding a snapshot keeps showing it, with a calm note that it is reconnecting.
         if(!mine.signal.aborted) setError(held.current?'Connection lost - trying again':'Could not connect - trying again');
       } finally {
@@ -75,4 +76,24 @@ export function useLive<T extends {revision:number}>(path:string) {
   },[path]);
   const offer=(next:T)=>{if(newerSnapshot(held.current,next)) {held.current=next;setSnapshot(next);}};
   return {snapshot,error,gone,offer};
+}
+/**
+ * A lead screen's read of `path`, read again every 5 s while the page is visible (lead reads have no live stream): the
+ * newest answer, when it arrived ("10:42:05"), why the last read failed (null once one arrives), `refresh` to read now,
+ * and `offer` to show a save's answer in its place (a read already on its way is then dropped).
+ */
+export function usePolledRead<T>(path:string) {
+  const [read,setRead]=useState<T|null>(null),[updated,setUpdated]=useState(''),[error,setError]=useState<unknown>(null);
+  const request=useRef(0);
+  function show(next:T) {setRead(next);setUpdated(clockWithSeconds(new Date()));setError(null);}
+  async function refresh() {
+    const generation=++request.current;
+    try {const next=await api<T>(path);if(generation===request.current) show(next);}
+    catch(failure) {if(generation===request.current) setError(failure);}
+  }
+  useEffect(()=>{
+    void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
+    return ()=>{request.current++;clearInterval(timer);};
+  },[path]);
+  return {read,updated,error,refresh,offer:(next:T)=>{request.current++;show(next);}};
 }

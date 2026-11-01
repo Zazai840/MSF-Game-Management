@@ -43,9 +43,9 @@ async function finalReason(db:Database,dayId:string,code:string,own:readonly Sto
   if(item.kind==='tie') return {raceId,...finalHold('tie',name)};
   return {raceId,...finalHold(results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0],name)};
 }
-/** Each switched-on event as an event group, its races in order (heats, then the final). */
-async function readGroups(db:Database,dayId:string,only?:string):Promise<RaceGroup[]> {
-  const events=(await readEvents(db,true,dayId)).filter(event=>!only || event.id===only);
+/** Each switched-on event (with `switchedOff`, every event) as an event group, its races in order (heats, then the final). */
+export async function readGroups(db:Database,dayId:string,only?:string,switchedOff=false):Promise<RaceGroup[]> {
+  const events=(await readEvents(db,!switchedOff,dayId)).filter(event=>!only || event.id===only);
   const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
   const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
   const groups:RaceGroup[]=[];

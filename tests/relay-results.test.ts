@@ -12,7 +12,6 @@ afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-results-owner',resetTestDay:true});
   const people=await signInOwner(app,'relay-results-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
   /** Types one Girl Cubs team per entry of `teams` on R22's team list: Team 1 is 2101-2104, Team 2 is 2201-2204, ... */
@@ -42,7 +41,7 @@ test('a relay\'s leaderboard has one row per team with its four children in leg 
   // Teams are told apart by their team, not taken for one child who ran seven times.
   expect(ranked.leaderboard.flatMap(row=>row.flags)).toEqual([]);
   expect(ranked.qualifiers.map(row=>row.team?.number)).toEqual([2,5,1,6,3,7]);
-  expect(ranked.band).toEqual({highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'});
+  expect(ranked.band).toEqual({highlightCount:7,lineAfter:6,lineLabel:'Qualifying line'});
 });
 
 test('+ Final on a relay seeds the six fastest teams into the final, each with its four children',relayDay,async()=>{

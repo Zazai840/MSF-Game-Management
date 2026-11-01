@@ -1,176 +1,191 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { eventTypeNames, sections, type DayRead } from '../../shared/day.js';
+import { useId,useState,type FormEvent,type ReactNode } from 'react';
+import { dayNumbers, regions, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
-import { useSubmit } from '../flow/useSubmit.js';
+import { useToast } from '../races/Toast.js';
+import { DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
+import type { View } from '../shell/addresses.js';
+import { toastLine } from '../../shared/toast-lines.js';
 import { clock } from '../../shared/clock.js';
-import './day.css';
 
-const chevron=<svg className="day-row-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
 /** When the day export was last downloaded, and whether anything changed after it. */
 export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>) {
   if(!day.exportedAt) return 'Not downloaded yet.';
   return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
 }
-/** Runs one lead action: a short "Saved" on success, v1's "Not saved" wording and the server's reason on failure. */
-function useAction(onChanged:()=>Promise<void>,onSaved:()=>void) {
-  const [busy,setBusy]=useState(false);
-  const [failed,setFailed]=useState<{where:string;message:string}|null>(null);
-  async function run(where:string,path:string,body:unknown) {
-    setBusy(true);setFailed(null);
-    try {await api(path,body);onSaved();await onChanged();return true;}
-    catch(error) {setFailed({where,message:error instanceof Error?error.message:'Could not connect'});return false;}
-    finally {setBusy(false);}
-  }
-  const failure=(where:string,again:string)=>failed?.where===where && <><p className="day-not-saved">Not saved - tap {again} again</p><p role="alert">{failed.message}</p></>;
-  return {busy,run,failure};
-}
 
-/** A code a lead reads out; with an action, a button that makes a new one, or the children that change it. */
-function CodeCard({label,code,explanation,note,make,children}:{label:string;code:string;explanation:string;note:string;make?:{action:string;busy:boolean;onMake:()=>void;failure:ReactNode};children?:ReactNode}) {
-  return <section className="day-card" aria-label={label}>
-    <span className="day-label" aria-hidden="true">{label}</span>
-    <span className="code">{code}</span>
-    <p className="day-text">{explanation}</p>
-    {make && <button className="button-secondary button-small" disabled={make.busy} onClick={make.onMake}>{make.action}</button>}
+/** A code a lead reads out, with the button that changes it. */
+function CodeCard({label,code,text,children}:{label:string;code:string;text:string;children:ReactNode}) {
+  const id=useId();
+  return <section className="rz-codecard" aria-labelledby={id}>
+    <h2 className="rz-codecard__label" id={id}>{label}</h2>
+    <p className="rz-codecard__value">{code}</p>
+    <p className="rz-codecard__text">{text}</p>
     {children}
-    <p className="day-note">{note}</p>
-    {make?.failure}
   </section>;
 }
 
-/** Change Olympics password: the new password and what it does to every phone, then this phone goes to the password screen too. */
-function ChangePassword() {
-  const [open,setOpen]=useState(false);
-  const [password,setPassword]=useState('');
-  const [confirming,setConfirming]=useState(false);
-  const {busy,error,submit,setError}=useSubmit();
-  // The change ends this phone's session too, so it signs out as the server's password-changed reason would.
-  const change=()=>void submit(async()=>{await api('day/olympics-password',{password});phoneStorage.signOut();},()=>setConfirming(false));
-  if(!open) return <button className="button-secondary button-small" onClick={()=>setOpen(true)}>Change Olympics password</button>;
-  if(confirming) return <div className="day-confirm">
-    <p className="calm-note">Every phone, including yours, goes back to Join. Profiles stay on the phones.</p>
-    <div className="day-actions"><button className="button-small" disabled={busy} onClick={change}>{busy?'Changing…':'Yes, change password'}</button>
-      <button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setConfirming(false)}>Keep the old password</button></div>
-  </div>;
-  return <form onSubmit={(event:FormEvent)=>{event.preventDefault();setError('');setConfirming(true);}}>
-    <label>New Olympics password<input value={password} onChange={event=>setPassword(event.target.value)} autoComplete="off" autoCapitalize="none" required /></label>
-    {error && <p role="alert">{error}</p>}
-    <div className="day-actions"><button className="button-small">Change password</button>
-      <button type="button" className="button-secondary button-small" onClick={()=>{setOpen(false);setPassword('');setError('');}}>Cancel</button></div>
-  </form>;
-}
-
 /**
- * Day setup (v1's Day tab): the Olympics password and lead code, rows opening Phones and Events, the day export and
- * Start a new day. Start a new day keeps v1's typed confirmation; the server still refuses it until the
- * latest changes are in a day export.
+ * This day labels the day for the scoring team: Year, Region and Day, each a row of choices saved on tap with its
+ * toast. Any lead can change it at any time; Region and Day start empty, and the day export waits for both.
  */
-export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(screen:'Signed in today'|'Events')=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
-  const {busy:saving,run,failure}=useAction(onChanged,onSaved);
-  const [busy,setBusy] = useState(false);
-  const [exportMessage,setExportMessage] = useState('');
-  const [exportError,setExportError] = useState('');
-  const [confirmation,setConfirmation]=useState('');
-  const [resetError,setResetError]=useState('');
-  async function startNew(event:FormEvent) {
-    event.preventDefault();setBusy(true);setResetError('');
-    try {await startNewDay(confirmation);}
-    catch(error) {setResetError(error instanceof Error?error.message:'Could not connect - tap Start a new day again');}
+function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+  const toast=useToast();
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<unknown>(null);
+  async function save(field:keyof ThisDayRead,value:string|number) {
+    if(busy || day[field]===value) return;
+    setBusy(true);setError(null);
+    try {
+      await api('day/this-day',{[field]:value});
+      const name=({year:'Year',region:'Region',dayNumber:'Day'} as const)[field];
+      toast({message:toastLine({kind:'this-day',field:name,value:field==='dayNumber'?`Day ${value}`:String(value)})});onSaved();await onChanged();
+    } catch(error) {setError(error);}
     finally {setBusy(false);}
   }
+  const choices=(field:keyof ThisDayRead,legend:string,values:ReadonlyArray<string|number>)=><fieldset>
+    <legend className="rz-field__label">{legend}</legend>
+    <div className="rz-choices rz-choices--row">{values.map(value=><button key={value} type="button" className="rz-choice" aria-pressed={day[field]===value} onClick={()=>void save(field,value)}>{value}</button>)}</div>
+  </fieldset>;
+  const id=useId();
+  return <section className="rz-codecard" aria-labelledby={id}>
+    <h2 className="rz-codecard__label" id={id}>This day</h2>
+    {choices('year','Year',thisDayYears(new Date()))}
+    {choices('region','Region',regions)}
+    {choices('dayNumber','Day',dayNumbers)}
+    {error!==null && <ErrorCallout error={error} action="save"/>}
+    <p className="rz-codecard__text">Goes on the Day export. Any lead can change it.</p>
+  </section>;
+}
+
+/** Make a new lead code, asked first in a sheet: the red yes on the right, a plain Keep naming the code that stays. */
+function LeadCode({code,onChanged,onSaved}:{code:string;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+  const toast=useToast();
+  const [asking,setAsking]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<unknown>(null);
+  const close=()=>{setAsking(false);setError(null);};
+  async function make() {
+    if(busy) return;
+    setBusy(true);setError(null);
+    try {
+      const {leadCode}=await api<{leadCode:string}>('day/lead-code',{});
+      setAsking(false);toast({message:toastLine({kind:'lead-code',code:leadCode})});onSaved();await onChanged();
+    } catch(error) {setError(error);}
+    finally {setBusy(false);}
+  }
+  return <CodeCard label="Lead code" code={code} text="Give this only to zone leads. Typed on Join or when changing job, it makes the phone a zone lead.">
+    <button type="button" className="rz-btn rz-btn--small" onClick={()=>setAsking(true)}>Make a new lead code</button>
+    {asking && <Sheet title="Make a new lead code?" onClose={close}>
+      <p className="rz-sheet__text">Every other lead loses lead access until they type the new code.</p>
+      {error!==null && <ErrorCallout error={error} action="save"/>}
+      <div className="rz-sheet__pair">
+        <button type="button" className="rz-btn" onClick={close}>Keep {code}</button>
+        <button type="button" className="rz-btn rz-btn--danger" aria-disabled={busy || undefined} onClick={()=>void make()}>Make a new lead code</button>
+      </div>
+    </Sheet>}
+  </CodeCard>;
+}
+
+/** The day export: when it was last downloaded, and the download with its toast naming the file. */
+function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
+  const toast=useToast();
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<unknown>(null);
   async function download() {
-    setBusy(true);setExportError('');setExportMessage('');
+    setBusy(true);setError(null);
     try {
       const {blob,filename}=await apiDownload('day/export');
       const url=URL.createObjectURL(blob),link=document.createElement('a');
       link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();
       window.setTimeout(()=>URL.revokeObjectURL(url),1000);
-      setExportMessage('Day export downloaded');await onChanged();
-    } catch(error) {setExportError(error instanceof Error?error.message:'Could not connect');setExportMessage('Not downloaded - tap Download day export again');}
+      toast({message:toastLine({kind:'downloaded',file:filename})});await onChanged();
+    } catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  const events=day.events.length;
-  return <div className="day-setup">
-    <CodeCard label="Olympics password" code={day.olympicsPassword} explanation="Volunteers type this once on their phone. Only leads can see it here."
-      note="It stays the same when a new day starts."><ChangePassword/></CodeCard>
-    <CodeCard label="Lead code" code={day.leadCode} explanation="Give this only to zone leads. Typed on Join or in Your job, it makes the phone a zone lead."
-      note="Other leads go back to being volunteers. You and the owner keep access."
-      make={{action:'Make a new lead code',busy:saving,onMake:()=>void run('lead','day/lead-code',{}),failure:failure('lead','Make a new lead code')}}/>
-    <div className="day-rows">
-      <button className="day-row" onClick={()=>onOpen('Signed in today')}>
-        <span className="day-row-text"><span className="day-row-title">Phones</span>
-          <span className="day-row-sub">{phones===null?'Signed in today':`${phones} ${phones===1?'person':'people'} signed in today`}</span></span>{chevron}
-      </button>
-      <button className="day-row" onClick={()=>onOpen('Events')}>
-        <span className="day-row-text"><span className="day-row-title">Events</span>
-          <span className="day-row-sub">{events} {events===1?'event':'events'} · {day.eventsConfirmed?'checked and confirmed':'not confirmed yet'}</span></span>{chevron}
-      </button>
-    </div>
-    <section className="day-card" aria-label="Day export">
-      <span className="day-card-title">Day export</span>
-      <p className="day-text">Excel file of today's results for the scoring workbook. <span>{exportStatus(day)}</span></p>
-      <button disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
-      {exportMessage && <p className="day-note" role="status">{exportMessage}</p>}{exportError && <p role="alert">{exportError}</p>}
-    </section>
-    <section className="day-reset" aria-label="Start a new day">
-      <form onSubmit={startNew}>
-        <label>Type NEW DAY to confirm<input value={confirmation} onChange={event=>setConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" /></label>
-        <button className="button-danger" disabled={busy || confirmation!=='NEW DAY'}>Start a new day</button>
-      </form>
-      <p className="day-note">Clears today's races. Download the day export first.</p>
-      {resetError && <p role="alert">{resetError}</p>}
-    </section>
-  </div>;
+  const id=useId();
+  return <section className="rz-codecard" aria-labelledby={id}>
+    <h2 className="rz-codecard__label" id={id}>Day export</h2>
+    <p className="rz-codecard__text">Excel file of today's results for the scoring workbook. <span>{exportStatus(day)}</span></p>
+    {error!==null && <ErrorCallout error={error} action="read"/>}
+    <button type="button" className="rz-btn rz-btn--primary rz-btn--block" disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
+  </section>;
 }
 
-/** v1's event list for the day: rename, switch off or on, confirm the list and add an event. */
-export function Events({day,onChanged,onSaved}:{day:DayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
-  const {busy,run,failure}=useAction(onChanged,onSaved);
-  const [editing,setEditing] = useState<string|null>(null);
-  const [name,setName] = useState('');
-  const [newCode,setNewCode] = useState('');
-  const [newName,setNewName] = useState('');
-  const [section,setSection] = useState('');
-  const [format,setFormat] = useState('');
-  const [type,setType] = useState('');
-  async function rename(event:FormEvent) {
-    event.preventDefault();
-    if (editing && await run('list',`day/events/${encodeURIComponent(editing)}/rename`,{name})) setEditing(null);
+/** Start a new day, in its red-outlined card: typed NEW DAY first; the server still refuses it until the latest changes are in a day export. */
+function NewDay() {
+  const [typed,setTyped]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<unknown>(null);
+  async function start(event:FormEvent) {
+    event.preventDefault();setBusy(true);setError(null);
+    try {await startNewDay(typed);}
+    catch(error) {setError(error);}
+    finally {setBusy(false);}
   }
-  async function add(event:FormEvent) {
-    event.preventDefault();
-    if (await run('add','day/events',{code:newCode,name:newName,section,format,type})) {
-      setNewCode(''); setNewName(''); setSection(''); setFormat(''); setType('');
-    }
+  const id=useId();
+  return <section className="rz-codecard rz-codecard--danger" aria-labelledby={id}>
+    <h2 className="rz-codecard__label" id={id}>Start a new day</h2>
+    <p className="rz-codecard__text">Clears today's races. Download the day export first.</p>
+    <form className="rz-codecard__form" onSubmit={start}>
+      <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor={`${id}-typed`}>Type NEW DAY to confirm</label>
+        <input className="rz-field__input" id={`${id}-typed`} value={typed} onChange={event=>setTyped(event.target.value)} autoComplete="off" autoCapitalize="characters"/></div>
+      {error!==null && <ErrorCallout error={error} action="read"/>}
+      <button className="rz-btn rz-btn--danger rz-btn--block" disabled={busy || typed!=='NEW DAY'}>Start a new day</button>
+    </form>
+  </section>;
+}
+
+/**
+ * Day setup's cards, in the spec's order: This day, the Olympics password, the lead code, rows
+ * opening Signed in today and Events, the day export and Start a new day.
+ */
+export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(view:View)=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+  const events=day.events.length;
+  const rows:Array<{label:string;meta:string|null;view:View}>=[
+    {label:'Signed in today',meta:phones===null?null:`${phones} ${phones===1?'person':'people'} signed in today`,view:{kind:'signed-in-today'}},
+    {label:'Events',meta:`${events} ${events===1?'event':'events'}`,view:{kind:'events'}}
+  ];
+  return <>
+    <ThisDay day={day} onChanged={onChanged} onSaved={onSaved}/>
+    <CodeCard label="Olympics password" code={day.olympicsPassword} text="Volunteers type this once on their phone. It stays the same when a new day starts.">
+      <button type="button" className="rz-btn rz-btn--small" onClick={()=>onOpen({kind:'olympics-password'})}>Change Olympics password</button>
+    </CodeCard>
+    <LeadCode code={day.leadCode} onChanged={onChanged} onSaved={onSaved}/>
+    <ul className="rz-list">{rows.map(row=><li key={row.label}><button type="button" className="rz-listrow" onClick={()=>onOpen(row.view)}>
+      <span className="rz-listrow__main"><span className="rz-listrow__label">{row.label}</span>{row.meta && <span className="rz-listrow__meta">{row.meta}</span>}</span>
+      <Icon name="chevron-right" className="rz-icon--bold"/></button></li>)}</ul>
+    <DayExport day={day} onChanged={onChanged}/>
+    <NewDay/>
+  </>;
+}
+
+/**
+ * Change Olympics password: one race-flow screen, with no second question. The help line says what saving does, and
+ * after saving this phone goes back to Join too, so there is no toast.
+ */
+export function ChangePassword() {
+  const [password,setPassword]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<unknown>(null);
+  const id=useId(),reason=password?'':'Type the new password first.';
+  async function change() {
+    if(reason || busy) return;
+    setBusy(true);setError(null);
+    // The change ends this phone's session too, so it signs out as the server's password-changed reason would.
+    try {await api('day/olympics-password',{password});phoneStorage.signOut();}
+    catch(error) {setError(error);setBusy(false);}
   }
-  return <div className="day-setup">
-    <section className="day-card" aria-label="Event list">
-      <p className="day-text">{day.eventsConfirmed?'Event list confirmed':'Check the events, then confirm the list'}</p>
-      {!day.eventsConfirmed && <button disabled={busy} onClick={()=>void run('list','day/confirm-events',{})}>Confirm event list</button>}
-      {failure('list','Save')}
-    </section>
-    <div className="day-events">{day.events.map(event=><article key={event.id} className={event.enabled?'day-card':'day-card day-card-off'} aria-label={`${event.code} · ${event.section}`}>
-      <h3>{event.code} · {event.name}</h3>
-      <p className="day-text">{event.section} · {eventTypeNames[event.type]} · {event.format==='heats'?'Heats then final':'Timed'}{!event.enabled && ' · Switched off'}</p>
-      {editing===event.code ? <form onSubmit={rename}>
-        <label>New name for {event.code}<input value={name} onChange={e=>setName(e.target.value)} maxLength={100} required /></label>
-        <div className="day-actions"><button className="button-small" disabled={busy}>Save name for {event.code}</button><button type="button" className="button-secondary button-small" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
-      </form> : <div className="day-actions">
-        <button className="button-secondary button-small" disabled={busy} onClick={()=>{setName(event.name);setEditing(event.code);}}>Rename {event.code}</button>
-        <button className="button-secondary button-small" disabled={busy} onClick={()=>void run('list',`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled})}>{event.enabled?'Switch off':'Switch on'} {event.code}</button>
-      </div>}
-    </article>)}</div>
-    <section className="day-card" aria-label="Add an event">
-      <span className="day-card-title">Add an event</span>
-      <form onSubmit={add}>
-        <label>New event code<input value={newCode} onChange={e=>setNewCode(e.target.value)} maxLength={12} autoCapitalize="characters" required /></label>
-        <label>New event name<input value={newName} onChange={e=>setNewName(e.target.value)} maxLength={100} required /></label>
-        <label>New event section<select aria-label="New event section" value={section} onChange={e=>setSection(e.target.value)} required><option value="">Choose section</option>{sections.map(value=><option key={value}>{value}</option>)}</select></label>
-        <label>New event format<select aria-label="New event format" value={format} onChange={e=>setFormat(e.target.value)} required><option value="">Choose event format</option><option value="heats">Heats then final</option><option value="timed">Timed</option></select></label>
-        <label>New event type<select aria-label="New event type" value={type} onChange={e=>setType(e.target.value)} required><option value="">Choose Races or Hurdles</option><option value="races">Races</option><option value="hurdles">Hurdles</option></select></label>
-        <button disabled={busy}>{busy?'Saving…':'Add event'}</button>
-      </form>
-      {failure('add','Add event')}
-    </section>
-  </div>;
+  return <LeadBar title="Change Olympics password" up="Day setup" body={<>
+    <main className="rz-main rz-main--form">
+      <div className="rz-prompt rz-prompt--compact"><h2 className="rz-prompt__q">New <em>Olympics password?</em></h2>
+        <p className="rz-prompt__help">Every phone, including yours, goes back to Join.</p></div>
+      <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor={id}>New password</label>
+        <input className="rz-field__input" id={id} value={password} onChange={event=>setPassword(event.target.value)} onKeyDown={event=>{if(event.key==='Enter') void change();}}
+          autoComplete="off" autoCapitalize="none" spellCheck={false}/></div>
+      {error!==null && <ErrorCallout error={error} action="save"/>}
+    </main>
+    <DockedFooter>{reason && <p className="rz-footer__reason">{reason}</p>}
+      <button type="button" className="rz-btn rz-btn--primary rz-btn--block" aria-disabled={reason || busy?true:undefined} onClick={()=>void change()}>Change password</button></DockedFooter>
+  </>}/>;
 }

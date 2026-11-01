@@ -4,7 +4,8 @@ import { timedCheckSheet,heatsCheckSheet,noFinalCheckSheet,finalCheckSheet,type 
 import { eventLeadItems } from './lead-items.js';
 import { leaderboardRowFacts,resultEntry } from './leaderboard-row.js';
 import type { WristbandWarning } from './wristband-checks.js';
-import type { RelayTeam,TeamList,TeamWarning } from './teams.js';
+import { legsText,type RelayTeam,type TeamList,type TeamWarning } from './teams.js';
+import { ordinal } from './ordinal.js';
 import type { FinishingOrder,RaceEntry } from './races.js';
 import type { AuditNote,CheckedBy,RunnerRuling,Disqualification } from './rulings.js';
 import type { RaceTimes } from './time-entry.js';
@@ -35,6 +36,16 @@ export interface ResultEntry { raceId:string; entryId:string; wristband:number|n
 export const resultHolder=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`team:${entry.team.id}`:`wristband:${entry.wristband}`;
 /** A result as a lead names it in a message: "2001", or "Team 3". */
 export const resultName=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?`Team ${entry.team.number}`:String(entry.wristband);
+/** A relay team's children in leg order, as on the race steps: "2101 · 2134 · 2187 · –". */
+export const teamWristbands=(team:Pick<ResultTeam,'wristbands'>)=>legsText(team.wristbands.map(wristband=>({wristband})));
+/** A relay team with its children: "Team 3 · 2101 · 2134 · 2187 · 2150". */
+export const teamLine=(team:Pick<ResultTeam,'number'|'wristbands'>)=>`Team ${team.number} · ${teamWristbands(team)}`;
+/** How a result's button is announced: "Runner 2001", or "Team 3 · 2101 · 2134 · 2187 · 2150". */
+export const resultLabel=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?teamLine(entry.team):`Runner ${entry.wristband}`;
+/** Where a result finished in its race: "6th in race", "Did not finish", or "Not recorded yet" while the race does not count yet. */
+export const placeText=(row:Pick<LeaderboardRow,'place'|'recordingPending'>)=>row.recordingPending?'Not recorded yet':row.place===null?'Did not finish':`${ordinal(row.place)} in race`;
+/** A result's Check tag: anything on it still open for a lead (a warning, an addition at the finish, a second run). A tie has its own TIE tag. */
+export const needsCheck=(row:Pick<LeaderboardRow,'flags'>)=>row.flags.some(flag=>flag.kind!=='tie' && flag.kind!=='tie-settled' && !flag.checked);
 export interface LeaderboardRow extends ResultEntry {
   race:RaceReference; recordingPending?:true; position:number|null; place:number|null; time:number|null; status:'Finished'|'Did not finish'|'Disqualified'|'Not counted'|'Pending'; notCounted:boolean; disqualification:Disqualification|null;
   /** The result's audit notes (see resultAuditNotes; its Notes are resultNotes); `hasNote` is its note badge (see hasNotes). */
@@ -44,7 +55,8 @@ export interface LeaderboardRow extends ResultEntry {
 export type NotRankedReason='in progress'|'checked in'|'awaiting finishing order'|'awaiting times'|'times out of order'|"finishers and times don't agree";
 export interface NotRankedRace { race:RaceReference; reasons:NotRankedReason[] }
 /** Later rulings extend these typed derivatives at the same eventResults seam. */
-export interface ResultTie { id:string; time:number; entries:ResultEntry[]; impact:string }
+/** `place`: the place the tie starts at (2 for a tie for 2nd and 3rd). */
+export interface ResultTie { id:string; time:number; place:number; entries:ResultEntry[]; impact:string }
 /**
  * A lead queue item. `message` is v1's terse line; the optional facts beside it let the
  * To check list explain the item in plain English (see src/shared/to-check.ts).
@@ -60,9 +72,31 @@ export interface LeadItem {
   tie?:{ time:number; names:string[]; raceIds:string[]; teams?:ResultTeam[] };
 }
 export interface ResultsBand { highlightCount:number; lineAfter:number; lineLabel:'Qualifying line'|'Medal line' }
+/** The line above an event's leaderboard: only the rule, never how many rows are highlighted. */
+export const ruleLine=(band:Pick<ResultsBand,'lineLabel'>)=>band.lineLabel==='Qualifying line'?'Fastest 6 go to the final':'Medal places: 1st, 2nd, 3rd';
+/** The position the qualifying line sits under on the Heats leaderboard: the 6th, or the last ranked when fewer ran; null with no final. */
+export function qualifyingLineAt(results:Pick<EventResults,'band'|'leaderboard'>):number|null {
+  const ranked=results.leaderboard.filter(row=>row.position!==null).length;
+  return results.band.lineLabel==='Qualifying line' && ranked?Math.min(results.band.lineAfter,ranked):null;
+}
+/**
+ * The check the medal decision offers (Confirm the medals, or the stage's Reopen once confirmed): an event's or a
+ * decided-without-a-final event's once a runner ranks, a final's once its order is saved. Open heats offer none:
+ * "+ Final" on Races makes the final.
+ */
+export function medalSheet(results:Pick<EventResults,'checkSheet'|'leaderboard'|'finalResults'>):StageCheckSheet|null {
+  const sheet=results.checkSheet;
+  if(!sheet || sheet.stage==='heats') return null;
+  const ranked=sheet.stage==='final'?!!results.finalResults?.leaderboard.length:results.leaderboard.some(row=>row.position!==null);
+  return sheet.completed || ranked?sheet:null;
+}
+/** Reopen heats: offered once the heats are complete, until the final starts. The server refuses it after. */
+export const reopenHeatsSheet=(results:Pick<EventResults,'heatsCheckSheet'|'finalResults'>)=>results.heatsCheckSheet?.completed && !results.finalResults?.started?results.heatsCheckSheet:null;
+/** A live race on an event's Races tab: its runners, whether it is saved, and why it does not count yet. */
+export interface EventRace { race:RaceReference; runners:number; saved:boolean; reasons:NotRankedReason[] }
 export interface EventResults {
   allResults:ResultRecord[]; finalRecords:FinalRecord[]; leaderboard:LeaderboardRow[]; actionableRunners:LeaderboardRow[]; qualifiers:LeaderboardRow[]; medalPlaces:LeaderboardRow[];
-  ties:ResultTie[]; notRankedYet:NotRankedRace[]; needsYou:LeadItem[]; band:ResultsBand;
+  ties:ResultTie[]; notRankedYet:NotRankedRace[]; races:EventRace[]; needsYou:LeadItem[]; band:ResultsBand;
   checkSheet:StageCheckSheet|null; heatsCheckSheet:StageCheckSheet|null; finalResults:FinalResults|null; inputRunning:InputRunning|null;
   /** Results without a final while a lead may choose it, with the ties it must settle judged against medal places; once chosen, `checkSheet` is that sheet. */
   noFinalCheckSheet:StageCheckSheet|null; noFinalTies:ResultTie[]; decidedWithoutFinal:boolean;
@@ -78,7 +112,7 @@ export function eventResults(state:EventState):EventResults {
   const band:ResultsBand=rankedAs==='heats'?{highlightCount:8,lineAfter:6,lineLabel:'Qualifying line'}:{highlightCount:6,lineAfter:3,lineLabel:'Medal line'};
   const publishedRows:LeaderboardRow[]=[],actionableRunners:LeaderboardRow[]=[];
   const recordingReasons=new Map<string,NotRankedReason[]>();
-  const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[];
+  const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[],races:EventRace[]=[];
   const reference=(race:ResultsRace):RaceReference=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt});
   // Ran twice counts saved races only, as To check does.
   const appearances=new Map<string,Set<string>>();
@@ -91,6 +125,7 @@ export function eventResults(state:EventState):EventResults {
     const reasons=notCountedReasons(race);
     recordingReasons.set(race.id,reasons);
     if(reasons.length && !race.deleted && race.kind!=='final') notRankedYet.push({race:reference(race),reasons});
+    if(!race.deleted) races.push({race:reference(race),runners:race.runners.length,saved:race.saved,reasons});
     for(const runner of race.runners) {
       const index=race.finish?.order.indexOf(runner.id)??-1,isFinisher=index>=0;
       const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
@@ -106,6 +141,8 @@ export function eventResults(state:EventState):EventResults {
     }
   }
   finished.sort((left,right)=>(left.time!-right.time!) || (left.raceId===right.raceId?left.place!-right.place!:left.race.number-right.race.number || left.race.checkedInAt.localeCompare(right.race.checkedInAt) || left.raceId.localeCompare(right.raceId)));
+  // The highlight never covers more rows than there are ranked runners.
+  band.highlightCount=Math.min(band.highlightCount,finished.length);
   const ties=eventTies(finished,band.highlightCount,rankedAs,state.tieSettlements);
   for(const [index,row] of finished.entries()) {
     row.position=index+1;row.highlighted=index<band.highlightCount;
@@ -129,5 +166,5 @@ export function eventResults(state:EventState):EventResults {
   const complete=checkSheet?.stage!=='heats' && (checkSheet?.completed??false);
   const podium=checkSheet?.creates.slice(0,3)||[];
   const inputRunning=complete?{eventCode:state.event.code,first:podium[0].wristband,second:podium[1].wristband,third:podium[2].wristband,...(podium.some(place=>place.team)?{teams:podium.map(place=>place.team??null)}:{})}:null;
-  return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,noFinalCheckSheet:noFinalSheet,noFinalTies,decidedWithoutFinal,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:rankedAs==='heats'?finished.slice(0,6):[],medalPlaces:rankedAs==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
+  return {finalRecords:finalRecords(state),allResults:resultRecords(state,publishedRows,recordingReasons),heatsCheckSheet:heatsSheet,noFinalCheckSheet:noFinalSheet,noFinalTies,decidedWithoutFinal,finalResults:final,checkSheet,inputRunning,leaderboard,actionableRunners,qualifiers:rankedAs==='heats'?finished.slice(0,6):[],medalPlaces:rankedAs==='timed'?finished.slice(0,3):final?.leaderboard.filter(row=>row.medalPlace!==null)||[],ties,notRankedYet,races,needsYou,band,status:complete?'Complete':heatsSheet?.completed?'Heats complete - final to run':active.length?'In progress - provisional':'Not started',raceCount:active.length,provisional:!complete};
 }

@@ -20,7 +20,6 @@ async function ok<T=RaceFlowRead>(token:string,url:string,body?:unknown) {
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'check-in-edit-owner',resetTestDay:true});
   const people=await signInOwner(app,'check-in-edit-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Noor')).token,lead=(await people.lead('Jo Evans')).token;
   return {owner:people.owner.token as string,sam,priya,lead,relays:relayFlowSetup(app)};
 }

@@ -1,7 +1,6 @@
 /*
  * The race flow's look: the Running Zone design system (docs/running-zone-design-system), copied from its
- * tokens.css and components/bundle.css. Its tokens are scoped to .rz-screen, not :root, so they never reach the
- * screens that keep the older look (theme.css): Results, Day setup and the lead's race actions.
+ * tokens.css and components/bundle.css. Its tokens are scoped to .rz-screen, the root every screen renders in.
  * Saira is self-hosted (race-flow.css); the fallbacks only show while it loads.
  */
 .rz-screen {
@@ -214,6 +213,8 @@
 .rz-btn--small { min-height: var(--size-touch); padding: 0 var(--space-16); border-color: var(--line); border-radius: var(--radius-pill); background: var(--card); font-size: 14px; }
 .rz-btn--pill { min-height: var(--size-touch); padding: 0 var(--space-16); border-radius: var(--radius-pill); font-size: 14px; white-space: nowrap; }
 .rz-btn--primary.rz-btn--small { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+/* A small red button keeps the small button's card ground with red-ink text (Remove on Signed in today). */
+.rz-btn--danger.rz-btn--small { border-color: var(--line); background: var(--card); color: var(--red-ink); }
 .rz-btn--block { display: flex; width: 100%; }
 .rz-btn:active { transform: translateY(1px); }
 .rz-btn:disabled, .rz-btn[aria-disabled="true"] { background: var(--disabled-fill); border-color: var(--disabled-fill); color: var(--disabled-ink); cursor: not-allowed; transform: none; }
@@ -422,7 +423,7 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-codecard__text { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
 
 /* ---------- Disclosure ---------- */
-.rz-disclosure summary { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); font-size: 15px; line-height: 1.2; font-weight: 800; color: var(--navy); cursor: pointer; list-style: none; }
+.rz-disclosure summary { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); font-size: 15px; line-height: 1.2; font-weight: 800; color: var(--navy); cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent; }
 .rz-disclosure summary::-webkit-details-marker { display: none; }
 .rz-disclosure summary::before { content: ""; width: 9px; height: 9px; margin-left: 2px; border-right: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s ease-out; }
 .rz-disclosure[open] summary::before { transform: rotate(45deg); }

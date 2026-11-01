@@ -1,5 +1,6 @@
 import { request } from '@playwright/test';
-/** Signs the owner in as a lead through the API with the owner password, starting the day, and reads its codes. */
+import { labelDay } from './fixtures.js';
+/** Signs the owner in as a lead through the API with the owner password, starting the day, reads its codes and sets This day. */
 export default async function setup() {
   const api = await request.newContext({baseURL:process.env.E2E_BASE_URL});
   const response = await api.post('/api/owner-sign-in', {data:{password:'e2e-owner-fixture', name:'E2E Owner', profiles:[]}});
@@ -13,5 +14,7 @@ export default async function setup() {
   const {leadCode,olympicsPassword} = await day.json();
   process.env.E2E_LEAD_CODE = leadCode;
   process.env.E2E_OLYMPICS_PASSWORD = olympicsPassword;
+  // The day export needs This day's Region and Day.
+  await labelDay(api, token);
   await api.dispose();
 }

@@ -14,7 +14,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'medals-owner',resetTestDay:true});
-  const people=await signInOwner(app,'medals-owner','Owner');await call(people.owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'medals-owner','Owner');
   const volunteer=(await people.volunteer('Ahmed')).token as string,lead=(await people.lead('Aisha')).token as string;
   const setup=raceSetup(app);
   const complete=async(code:string,stage:string)=>expect((await call(lead,`/api/lead/events/${code}/complete-stage`,{stage,comment:'Out of time'})).statusCode).toBe(200);

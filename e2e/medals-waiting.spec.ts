@@ -1,38 +1,28 @@
-import {ownName,expect,flowRace,live,lookProblems,ownCode,ownEvent,ownWristbands,recordRace,submitRace,test,writeCheckIn,writeOrder,type APIRequestContext,type Page} from './fixtures.js';
+import {back,confirmTheMedals,ownName,expect,expectToast,live,lookProblems,medalPlaces,ownCode,ownEvent,ownWristbands,press,recordRace,saveFinal,test,writeCheckIn,type Page} from './fixtures.js';
 /**
  * Medals waiting on the lead: once an event's medals wait on the lead's Confirm in Results (Final complete, or Event
  * complete on a timed event), the lead's Races home lists it in Action required saying so, with Confirm the medals, which
- * opens Results on that check sheet. After the Confirm the card is in Done as "Medals decided". Volunteers see no change.
+ * opens the Confirm the medals screen; Back returns to Races. After the Confirm the lead is back on Races with the toast
+ * and the card is in Done as "Medals decided". Volunteers see no change.
  */
 const card=(page:Page,name:string)=>page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
 const status=(page:Page,name:string)=>card(page,name).locator('.rz-racecard__status');
 const section=(page:Page,heading:string)=>page.locator(`h2:text-is("${heading}") ~ article`);
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
-const headers=()=>({authorization:`Bearer ${owner()}`});
 
-/** Confirms the open check sheet, goes back to Races and finds the card in Done as Medals decided. */
-async function confirmAndFindDone(page:Page,name:string,sheetName:string) {
-  const sheet=page.getByRole('dialog',{name:sheetName,exact:true});
-  await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
-  await expect(sheet).toHaveCount(0);
-  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+/** Confirms the medals on their screen, lands back on Races with the toast and finds the card in Done as Medals decided. */
+async function confirmAndFindDone(page:Page,name:string) {
+  await confirmTheMedals(page);
+  await expectToast(page,`Medals confirmed · ${name} Girl Cubs`);
+  await expect(page).toHaveURL(/\/$/);
   const done=page.locator('details',{hasText:/^Done \(\d+\)/});
   await done.locator('summary').click();
   await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Medals decided');
   await expect(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
 }
-/** The final made by a lead, everyone marked Here, placed in this order and saved. */
-async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
-  expect((await request.post('/api/races',{headers:headers(),data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
-  const {race}=(await flowRace(request,owner(),code));
-  const here=race.final!.entries.map(entry=>entry.finalEntryId);
-  expect((await request.post(`/api/races/${race.id}/absent`,{headers:headers(),data:{raceId:race.id,version:race.parts.runners.version,here,absent:[]}})).ok()).toBe(true);
-  await writeOrder(request,owner(),code,order);
-  await submitRace(request,owner(),code);
-}
 
-test('a saved 60m final waits in the lead\'s Action required; Confirm the medals opens Final complete, and the card moves to Done',async({openPhone,request},info)=>{
+test('a saved 60m final waits in the lead\'s Action required; Confirm the medals opens its screen, Fix opens Correct finishing order and returns, and the card moves to Done',async({openPhone,request},info)=>{
   const name=ownName('Medals final'),code=await ownCode(),w=await ownWristbands('Girl Cubs',2);
   await ownEvent(request,code,name);
   await recordRace(request,owner(),code,[w(1),w(2)],[1100,1200]);
@@ -48,11 +38,33 @@ test('a saved 60m final waits in the lead\'s Action required; Confirm the medals
   await expect(section(volunteer,'In progress').filter({hasText:name})).toHaveCount(1);
   await expect(status(volunteer,name)).toHaveText('Heat 1 and the final done');
   await expect(card(volunteer,name).getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
-  await card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
-  await expect(page.getByRole('dialog',{name:'Final complete',exact:true})).toContainText(`1st: ${w(2)}`);
-  await page.screenshot({path:info.outputPath('final-complete-sheet.png'),fullPage:true});
-  await confirmAndFindDone(page,name,'Final complete');
+  await press(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}));
+  // The screen, at its own address, in the race-flow frame: nothing to settle, the final's medal places, each with Fix.
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
+  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__meta')).toHaveText('1 heat · final');
+  await expect(page.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(medalPlaces(page)).toHaveText([new RegExp(`^1${w(2)}Final\\s*Fix$`),new RegExp(`^2${w(1)}Final\\s*Fix$`),/^3-$/]);
+  await expect(page.getByText('A place is wrong? Tap Fix beside it.',{exact:true})).toBeVisible();
+  await expect(page.locator('.rz-footer__reason')).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('confirm-the-medals-final.png'),fullPage:true});
+  // Back returns to Races.
+  await back(page,'Races');
+  await expect(page).toHaveURL(/\/$/);
+  await press(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}));
+  // Fix on a final's place opens the final straight on Correct finishing order; Back returns to the screen.
+  await press(page.getByRole('button',{name:`Fix 1st: ${w(2)}`,exact:true}));
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+/correct-finishing-order$`));
+  await expect(page.getByRole('heading',{level:1,name:'Correct finishing order',exact:true})).toBeVisible();
+  // The phone's Back returns to the screen as the back arrow would.
+  await expect(page.getByRole('banner').getByRole('button',{name:`Back to ${name} · Girl Cubs`,exact:true})).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
+  await expect(page.getByRole('banner').getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
+  await expect(medalPlaces(page).first()).toContainText(String(w(2)));
+  await confirmAndFindDone(page,name);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('final-done.png'),fullPage:true});
 });
@@ -72,7 +84,9 @@ test('a timed event waits on Event complete only while every race so far is save
   await expect(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
   await recordRace(request,owner(),code,[w(2)],[1300]);
   await expect(status(page,name)).toHaveText('Every race saved · confirm the medals after the last race',live);
-  await card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}).click();
-  await expect(page.getByRole('dialog',{name:'Event complete',exact:true})).toBeVisible();
-  await confirmAndFindDone(page,name,'Event complete');
+  await press(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}));
+  await expect(page.locator('.rz-prompt__meta')).toHaveText('2 heats · no final');
+  await expect(medalPlaces(page)).toHaveText([new RegExp(`^1${w(1)}Heat 1 · 12\\.00\\s*Fix$`),new RegExp(`^2${w(2)}Heat 2 · 13\\.00\\s*Fix$`),/^3-$/]);
+  expect(await lookProblems(page)).toEqual([]);
+  await confirmAndFindDone(page,name);
 });

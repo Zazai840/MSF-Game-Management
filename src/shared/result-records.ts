@@ -1,3 +1,4 @@
+import { disqualifiedText } from './rulings.js';
 import { flagText } from './runner-rulings.js';
 import { noteText } from './result-notes.js';
 import { finalRows,type FinalField } from './finals.js';
@@ -9,7 +10,7 @@ export function resultRecords(state:EventState,rows:readonly LeaderboardRow[],re
   const race=state.races.find(race=>race.id===row.raceId)!;
   const statuses:string[]=[];
   if(race.deleted) statuses.push('Deleted race');
-  if(row.disqualification) statuses.push(`Disqualified: ${row.disqualification.reason}`);
+  if(row.disqualification) statuses.push(disqualifiedText({reason:row.disqualification.reason}));
   else if(row.notCounted) statuses.push('Not counted');
   else if(race.finish?.didNotFinish.includes(row.entryId)) statuses.push('Did not finish');
   else if(row.medalPlace!==null) statuses.push(['1st','2nd','3rd'][row.medalPlace-1]);

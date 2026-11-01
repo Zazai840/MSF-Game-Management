@@ -90,9 +90,9 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
 test('Day setup, Phones and Events meet the touch, text size and contrast rules',async({page})=>{
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/');await openLeadMenu(page,'Day setup');
-  await expect(page.getByRole('button',{name:/^Phones \d+ (person|people) signed in today$/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.getByRole('button',{name:/^Phones /}).click();
+  await page.getByRole('button',{name:/^Signed in today /}).click();
   await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await back(page,'Day setup');
@@ -189,8 +189,6 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await look('lead-avatar-menu');
   await page.getByRole('menuitem',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
-  // The older look's header, with the same menu.
-  await leadMenuButton(page).click();await expect(page.getByRole('menuitem',{name:'Day setup',exact:true})).toBeVisible();
-  await look('results-avatar-menu');
+  await look('results');
   await deleteCurrentRace(request,code);
 });

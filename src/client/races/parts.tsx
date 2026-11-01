@@ -1,8 +1,11 @@
-import { useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
+import { useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
-import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
+import { initials,reportLink,useTestBuild } from '../shell/app-bar.js';
 import { entryCount } from '../../shared/teams.js';
+import { failureLine } from '../../shared/request-failure.js';
+import { useSheetEntry } from '../shell/addresses.js';
+import { useSheetFocus } from './sheet-focus.js';
 /** The design system's line icons (components/Icon/README.md). */
 const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
@@ -26,7 +29,7 @@ export const Icon=({name,className=''}:{name:IconName;className?:string})=><svg 
 /** The 8-point star, the design system's medal shape. */
 export const Star=()=><svg className="rz-star" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="7" width="26" height="26" rx="3"/><rect x="7" y="7" width="26" height="26" rx="3" transform="rotate(45 20 20)"/></svg>;
 /** The star texture on navy; each needs its own pattern id. */
-function Pattern() {
+export function Pattern() {
   const id=`rz-star-${useId().replace(/:/g,'')}`;
   return <svg className="rz-pattern" aria-hidden="true"><defs><pattern id={id} width="44" height="44" patternUnits="userSpaceOnUse"><g>
     <rect x="12" y="12" width="20" height="20"/><rect x="12" y="12" width="20" height="20" transform="rotate(45 22 22)"/><path d="M0 22H8M36 22H44M22 0V8M22 36V44"/>
@@ -36,9 +39,9 @@ export const roleIcons:Record<Role,IconName>={start:'flag',finish:'list',timer:'
 /** What each job does, on Join and in the role sheet. */
 export const roleDescriptions:Record<Role,string>={start:'Type wristband numbers before the start',finish:'Tap runners as they cross the line',timer:'Type times from the stopwatch',lead:'See and fix every step. Needs the lead code.'};
 /** The screen root: the design system's tokens apply only inside it. A test build shows its commit and Report a bug over every screen. */
-export function Screen({screen,fill=true,wide=false,children}:{screen:string;fill?:boolean;wide?:boolean;children:ReactNode}) {
+export function Screen({screen,wide=false,children}:{screen:string;wide?:boolean;children:ReactNode}) {
   const testBuild=useTestBuild();
-  return <div className={['rz-screen rz-zone-running rz-app',fill?'':'rz-app--top',wide?'rz-app--wide':''].filter(Boolean).join(' ')}>
+  return <div className={wide?'rz-screen rz-zone-running rz-app rz-app--wide':'rz-screen rz-zone-running rz-app'}>
     {testBuild && <div className="rz-testbuild"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
     {children}
   </div>;
@@ -137,17 +140,15 @@ export function StepStrip({race,role,selected,onSelect,notes={},label,relay=fals
     {shown.map(step=><li key={step} className={step===own?'rz-step rz-step--mine':'rz-step'}>{cell(step)}</li>)}
   </ul>;
 }
-/** A bottom sheet over the screen, closed by its close button, Escape or a tap on the scrim. Focus goes into it. */
+/**
+ * A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. The sheet
+ * itself takes focus (no field does), Tab stays inside it, and closing gives focus back to what opened it.
+ */
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
-  const id=useId(),sheet=useRef<HTMLDivElement>(null);
-  useEffect(()=>{
-    // A box inside that took focus as it opened (a leg box's autoFocus) keeps it, so its number pad stays open.
-    if(!sheet.current?.contains(document.activeElement)) sheet.current?.focus();
-    const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};
-    addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);
-  },[]);
+  const id=useId(),focus=useSheetFocus(onClose);
+  useSheetEntry(onClose);
   return <div className="rz-scrim" onClick={event=>{if(event.target===event.currentTarget) onClose();}}>
-    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={sheet}>
+    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={focus.ref} onKeyDown={focus.onKeyDown}>
       <div className="rz-sheet__grip" aria-hidden="true"/>
       <div className="rz-sheet__head"><h2 className="rz-sheet__title" id={id}>{title}</h2><button type="button" className="rz-sheet__close" aria-label="Close" onClick={onClose}><Icon name="close"/></button></div>
       {children}
@@ -187,3 +188,5 @@ export function DockedFooter({children}:{children:ReactNode}) {
   },[]);
   return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
 }
+/** The amber error callout with its warning icon, for a request that failed. */
+export const ErrorCallout=({error,action}:{error:unknown;action:'read'|'save'})=><Callout message={failureLine(error,action)}/>;

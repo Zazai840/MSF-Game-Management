@@ -113,6 +113,8 @@
 .rz-btn--small { min-height: var(--size-touch); padding: 0 var(--space-16); border-color: var(--line); border-radius: var(--radius-pill); background: var(--card); font-size: 14px; }
 .rz-btn--pill { min-height: var(--size-touch); padding: 0 var(--space-16); border-radius: var(--radius-pill); font-size: 14px; white-space: nowrap; }
 .rz-btn--primary.rz-btn--small { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+/* A small red button keeps the small button's card ground with red-ink text (Remove on Signed in today). */
+.rz-btn--danger.rz-btn--small { border-color: var(--line); background: var(--card); color: var(--red-ink); }
 .rz-btn--block { display: flex; width: 100%; }
 .rz-btn:active { transform: translateY(1px); }
 .rz-btn:disabled, .rz-btn[aria-disabled="true"] { background: var(--disabled-fill); border-color: var(--disabled-fill); color: var(--disabled-ink); cursor: not-allowed; transform: none; }
@@ -320,7 +322,7 @@
 .rz-codecard__text { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
 
 /* ---------- Disclosure ---------- */
-.rz-disclosure summary { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); font-size: 15px; line-height: 1.2; font-weight: 800; color: var(--navy); cursor: pointer; list-style: none; }
+.rz-disclosure summary { min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-10); font-size: 15px; line-height: 1.2; font-weight: 800; color: var(--navy); cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent; }
 .rz-disclosure summary::-webkit-details-marker { display: none; }
 .rz-disclosure summary::before { content: ""; width: 9px; height: 9px; margin-left: 2px; border-right: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s ease-out; }
 .rz-disclosure[open] summary::before { transform: rotate(45deg); }
@@ -334,7 +336,7 @@
 .rz-rolechip--lead { background: var(--jumping); }
 
 /* ---------- EventTabs ---------- */
-.rz-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
+.rz-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
 
@@ -426,7 +428,7 @@
 .rz-attendance--one li { grid-template-columns: 1fr auto; }
 .rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
-.rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
+.rz-teamcard__name { margin: 0; font-size: 18px; line-height: 1.2; font-weight: 800; color: var(--navy); }
 .rz-teamcard__head .rz-btn { margin-left: auto; }
 .rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
 .rz-teamcard__seed { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
@@ -454,6 +456,9 @@
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 
 
+/* Signed in today: a card per person, its name over Lead or Volunteer, then its small buttons. */
+.rz-person__name { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 800; color: var(--navy); }
+.rz-person__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: var(--space-4); }
 @media (prefers-reduced-motion: reduce) {
   .rz-btn:active, .rz-tile:active, .rz-runner:active { transform: none; }
   .rz-disclosure summary::before { transition: none; }

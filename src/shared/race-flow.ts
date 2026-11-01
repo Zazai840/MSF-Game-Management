@@ -3,6 +3,7 @@ import type { DayLeadItem } from './lead-results.js';
 import { ordinal } from './ordinal.js';
 import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
 import type { NotRankedReason } from './results-rules.js';
+import type { EventState } from './event-state.js';
 import { entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
 import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
@@ -234,6 +235,10 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
   if(stage) return stage==='final'?'Final saved · confirm the medals':'Every race saved · confirm the medals after the last race';
   return group.medalsDecided?'Medals decided':leadFinalLine(group)??groupStatus(group,'lead');
 }
+/** A lead's card words for an event, the same on Races and Results: "No races yet" before its first race, then the lead's line. */
+export const leadCardLine=(group:Parameters<typeof leadLine>[0],issues:readonly DayLeadItem[])=>group.races.length?leadLine(group,issues):'No races yet';
+/** A Results card's colour: Done once the medals are decided, Running once a race is made, else Not started. */
+export const cardState=(group:Pick<RaceGroup,'races'|'medalsDecided'>):EventState=>group.medalsDecided?'done':group.races.length?'running':'not-started';
 /** A lead's sections: Action required (`ready`) is the groups with open issues or medals waiting on the lead; the rest as for everyone. */
 export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {
   const listed=groups.filter(group=>group.races.length);

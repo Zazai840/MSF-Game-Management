@@ -4,17 +4,18 @@ import { randomUUID } from 'node:crypto';
 import { actions, newDay, Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { readEvents } from './events.js';
-import { changeDay, eventName, eventDetails } from './mutations.js';
+import { changeDay, eventName, eventDetails, thisDayChange } from './mutations.js';
 export function dayRoutes(app: FastifyInstance, pool: pg.Pool) {
   const action = actions(app,pool);
   action('GET','/api/events','Volunteer',async(_request,_reply,phone)=>({events:await readEvents(pool,true,phone.dayId)}));
   action('GET', '/api/day', 'Lead', (_request,_reply,phone) => resultsSnapshot(pool,phone.dayId,async client=>{
-    const day = (await client.query('SELECT lead_code,events_confirmed,revision,exported_at,exported_revision,(SELECT password FROM olympics_settings) AS olympics_password FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
+    const day = (await client.query('SELECT lead_code,revision,exported_at,exported_revision,year,region,day_number,(SELECT password FROM olympics_settings) AS olympics_password FROM olympics_days WHERE id=$1',[phone.dayId])).rows[0];
     if(!day) throw newDay();
-    return {olympicsPassword: day.olympics_password, leadCode: day.lead_code, eventsConfirmed:day.events_confirmed, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), events:await readEvents(client,false,phone.dayId)};
+    return {olympicsPassword: day.olympics_password, leadCode: day.lead_code, revision:Number(day.revision), exportedAt:day.exported_at?.toISOString()??null, exportedRevision:day.exported_revision===null?null:Number(day.exported_revision), year:day.year, region:day.region, dayNumber:day.day_number, events:await readEvents(client,false,phone.dayId)};
   }));
-  action('POST','/api/day/confirm-events','Lead',async(_request,_reply,phone)=>{
-    return changeDay(pool,phone,async()=>{},true);
+  action('POST','/api/day/this-day','Lead',async(request,_reply,phone)=>{
+    const {column,value}=thisDayChange(request.body);
+    return changeDay(pool,phone,(client,dayId)=>client.query(`UPDATE olympics_days SET ${column}=$1 WHERE id=$2`,[value,dayId]));
   });
   action('POST','/api/day/events/:code/rename','Lead',async(request,_reply,phone)=>{
     const name = eventName((request.body as {name?:unknown}|null)?.name);

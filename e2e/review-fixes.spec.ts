@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,deleteCurrentRace,openLeadMenu,openRace,becomeLead,expect,join,lookProblems,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext,type Page} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,deleteCurrentRace,openLeadMenu,openRace,becomeLead,expect,join,lookProblems,press,expectToast,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext,raceAction,type Page} from './fixtures.js';
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await join(page,name,{job:'Start line'});
 }
@@ -42,12 +42,15 @@ test('after a lead takes a finisher off a saved race, the lead sees the surplus 
   // Finishers and times only disagree after a lead's correction: 2406 turns out not to have run.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;
   expect((await page.request.post(`/api/lead/races/${race.id}/finish-order`,{headers,data:{baseVersion:saved.parts.finish.version,runnersVersion:saved.parts.runners.version,order:runners.slice(0,5),didNotFinish:[],didNotRun:[2406]}})).ok()).toBe(true);
-  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await page.getByRole('button',{name:'Correct times',exact:true}).click();
-  const sheet=page.getByRole('dialog');await expect(sheet.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(sheet.getByText(mismatch,{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
-  const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.';
-  await expect(sheet.getByText(leftover,{exact:true})).toBeVisible();await expect(sheet.getByRole('button',{name:'Save times',exact:true})).toBeDisabled();
-  await sheet.getByLabel('No finisher',{exact:true}).nth(5).check();await expect(sheet.getByText(mismatch,{exact:true})).toHaveCount(0);await expect(sheet.getByText(leftover,{exact:true})).toHaveCount(0);
-  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await sheet.getByRole('button',{name:'Save times',exact:true}).click();expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600]);await expect(sheet).toHaveCount(0);
+  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Races');await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await raceAction(page,'Correct times');
+  await expect(page.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
+  // The leftover place is the docked Save's reason; "No finisher" stays on one line beside each place.
+  const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.',footer=page.getByRole('contentinfo'),save=footer.getByRole('button',{name:'Save times',exact:true});
+  await expect(footer.getByText(leftover,{exact:true})).toBeVisible();await expect(save).toHaveAttribute('aria-disabled','true');
+  const sixth=page.getByRole('button',{name:'No finisher for 6th place',exact:true});expect((await sixth.boundingBox())!.height).toBeLessThan(50);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
+  await press(sixth);await expect(sixth).toHaveAttribute('aria-pressed','true');await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);await expect(page.getByText(leftover,{exact:true})).toHaveCount(0);
+  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await press(save);expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600]);await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
   const corrected=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

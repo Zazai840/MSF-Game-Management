@@ -1,13 +1,20 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
 const makeFinal=async(request:APIRequestContext,leadToken:string,code:string)=>(await flowPost(request,leadToken,'/api/races',{eventCode:code,kind:'final'})).race.id;
+/** The rows of the Final tab's "Line-up, fastest first", opened. */
+async function lineUp(page:Page) {
+  const rows=page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem');
+  if(!await rows.first().isVisible()) await page.getByText('Line-up, fastest first',{exact:true}).click();
+  return rows;
+}
 async function openFinalResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Scouts`)}).click();
+  await eventTab(page,'Final');
 }
 
 test('a lead\'s call-up shows live on a relay final\'s start line, and once the final saves itself the Final leaderboard lists each medal team\'s four children',async({openPhone,request},info)=>{
@@ -25,7 +32,8 @@ test('a lead\'s call-up shows live on a relay final\'s start line, and once the 
   await card(sam.page,5).getByRole('button',{name:'Team 5: Absent',exact:true}).click();
   await openFinalResults(lead.page,code);
   await lead.page.getByRole('button',{name:'Call up next-ranked team: Team 7 (7th)',exact:true}).click();
-  await expect(lead.page.locator('.final-lineup li').last()).toHaveText(`5: Team 7 · ${legs(7).join(' · ')} · Called up from heat rank 7`);
+  await expectToast(lead.page,'Team 7 called up · Girl Scouts Final');
+  await expect((await lineUp(lead.page)).last()).toHaveText(`Called up from heat rank 7 · Team 7 · ${legs(7).join(' · ')}`);
   await expect(card(sam.page,7).getByRole('heading',{level:3})).toHaveText('Called up · Team 7',live);
   expect(await lookProblems(sam.page)).toEqual([]);
   await sam.page.screenshot({path:info.outputPath('relay-final-call-up.png'),fullPage:true});
@@ -59,12 +67,19 @@ test('a lead adds a team to a relay Final by picking it from the relay\'s teams,
   await expect(card(sam.page,2)).toBeVisible();
   await openFinalResults(lead.page,code);
   await lead.page.getByRole('button',{name:'Add a team to the final',exact:true}).click();
-  // The pick list is the relay's teams not in the Final yet.
-  const picks=lead.page.locator('.final-add .pick-list').getByRole('button');
+  // A sheet of the relay's teams not in the Final yet; a tap adds the team at once.
+  const sheet=lead.page.getByRole('dialog',{name:'Add a team to the final',exact:true});
+  const picks=sheet.getByRole('button',{name:/^Team/});
   await expect(picks).toHaveText([`Team 3${legs(3).join(' · ')}`]);
   expect(await lookProblems(lead.page)).toEqual([]);
   await lead.page.screenshot({path:info.outputPath('relay-final-add-team.png'),fullPage:true});
   await picks.first().click();
-  await expect(lead.page.locator('.final-lineup li').last()).toHaveText(`Team 3 · ${legs(3).join(' · ')} · Added team`);
+  await expectToast(lead.page,'Team 3 added · Girl Scouts Final');
+  await expect(sheet).toHaveCount(0);
+  await expect((await lineUp(lead.page)).last()).toHaveText(`Added · Team 3 · ${legs(3).join(' · ')}`);
+  // Every team is in now: the sheet says so.
+  await lead.page.getByRole('button',{name:'Add a team to the final',exact:true}).click();
+  await expect(sheet.getByText('Every team is in the final.',{exact:true})).toBeVisible();
+  expect(await lookProblems(lead.page)).toEqual([]);
   await expect(card(sam.page,3).getByRole('heading',{level:3})).toHaveText('Added · Team 3',live);
 });

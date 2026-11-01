@@ -13,10 +13,9 @@ import { raceSetup } from './support/races.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
 afterEach(async()=>{await app?.close();});
-async function start(confirmed=true) {
+async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'steps-owner',resetTestDay:true});
   const people=await signInOwner(app,'steps-owner','Aisha'),owner=people.owner.token as string;
-  if(confirmed) await call(owner,'/api/day/confirm-events',{});
   return {owner,people,sam:(await people.volunteer('Sam')).token,priya:(await people.volunteer('Priya')).token,jo:(await people.volunteer('Jo')).token};
 }
 async function ok(response:Awaited<ReturnType<typeof call>>) {
@@ -40,8 +39,8 @@ test.each([
   const response=await checkIn(sam,await heat(sam),runners as number[]);
   expect(response.statusCode).toBe(400);expect(response.json().message).toBe(message);
 });
-test('check-in works on any switched-on event while programme confirmation remains a reminder; a switched-off event makes no new race',async()=>{
-  const {owner,sam}=await start(false);
+test('check-in works on any switched-on event; a switched-off event makes no new race',async()=>{
+  const {owner,sam}=await start();
   expect((await ok(await checkIn(sam,await heat(sam),[2001]))).race.number).toBe(1);
   await call(owner,'/api/day/events/R16/rename',{name:'200m sprint'});
   expect((await heat(sam,'R16')).group.event.name).toBe('200m sprint');

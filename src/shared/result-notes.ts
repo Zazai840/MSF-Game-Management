@@ -12,7 +12,7 @@ export const resultAuditNotes=(state:Pick<EventState,'auditNotes'>,raceId:string
 /** What a note says, with the lead's comment when the message does not already carry it. */
 export const noteText=(note:Pick<AuditNote,'message'|'comment'>)=>`${note.message}${note.comment && !note.message.includes(note.comment)?` - ${note.comment}`:''}`;
 /**
- * A result's Notes, as the lead's actions sheet lists them: its warnings and addition at the finish with who settled
+ * A result's Notes, as the runner sheet lists them: its warnings and addition at the finish with who settled
  * them, then its audit notes, leaving out a check's audit note already on its warning's line.
  */
 export function resultNotes(row:Pick<LeaderboardRow,'flags'|'notes'>):NoteLine[] {

@@ -1,4 +1,4 @@
-import {ownName,ownCode,press,ownEvent,ownWristbands,expect,inViewAboveFooter,openRace,signInThroughApi,test,writeCheckIn,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownName,ownCode,press,ownEvent,becomeLead,join,openLeadMenu,recordRace,ownWristbands,expect,inViewAboveFooter,openRace,signInThroughApi,test,writeCheckIn,type Locator,type Page,type PhoneSession} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -120,4 +120,40 @@ test('Join\'s button stays at the foot of the screen while typing',async({page})
   // Two frames: the docking reads the viewport a frame after it changes.
   await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
   expect(Math.abs(await footerBottom(footer)-foot)).toBeLessThanOrEqual(1);
+});
+test('a lead\'s Correct times keeps Save times on the keyboard',async({page})=>{
+  const code=await ownCode(),name=ownName('Docked times fix'),n=await ownWristbands('Girl Cubs',2);
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
+  await page.goto('/');await join(page,ownName('Docked times fix lead'),{job:'Start line'});await becomeLead(page);
+  await page.goto(`/results/${code}/races/${race.id}/correct-times`);
+  await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
+  const box=page.getByLabel('2nd place time',{exact:true});
+  await docksAboveKeyboard(page,box);
+  await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Save times',exact:true})).toBeVisible();
+});
+test('a lead\'s Correct number keeps Save number on the keyboard',async({page})=>{
+  const code=await ownCode(),name=ownName('Docked number'),n=await ownWristbands('Girl Cubs',2);
+  await ownEvent(page.request,code,name);
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
+  await page.goto('/');await join(page,ownName('Docked number lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  await press(page.getByRole('button',{name:new RegExp(`^Runner ${n(2)} · `)}));
+  await press(page.getByRole('dialog',{name:`Runner ${n(2)}`,exact:true}).getByRole('button',{name:'Correct number',exact:true}));
+  const box=page.getByLabel('New wristband number',{exact:true});
+  await box.focus();
+  await docksAboveKeyboard(page,box);
+  await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Save number',exact:true})).toBeVisible();
+});
+test('a lead\'s Correct runner list, opened at its own address, keeps Done on the keyboard while a runner is retyped',async({page})=>{
+  const code=await ownCode(),name=ownName('Docked runner list'),n=await ownWristbands('Girl Cubs',2);
+  await ownEvent(page.request,code,name);
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
+  await page.goto('/');await join(page,ownName('Docked runner list lead'),{job:'Start line'});await becomeLead(page);
+  // A reload at the address opens the screen, its back arrow going up to the race page.
+  await page.goto(`/results/${code}/races/${race.id}/correct-runner-list`);
+  await expect(page.getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
+  await press(page.getByRole('button',{name:`Runner 2 · ${n(2)}`,exact:true}));
+  await docksAboveKeyboard(page,page.getByLabel('Wristband for runner 2',{exact:true}));
+  await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Done',exact:true})).toBeVisible();
 });

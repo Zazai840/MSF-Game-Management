@@ -7,11 +7,11 @@ The running events of the MSF (Muslim Scout Fellowship) Olympics, where voluntee
 ### Competition
 
 **Olympics day**:
-One independent competition day with its own wristbands, events and results; nothing carries over between days. 2026 has three: South day 1, South day 2 and North.
+One independent competition day with its own wristbands, events and results; nothing carries over between days. 2026 has three: South day 1, South day 2 and North. A day is labelled by Year, Region (North, South or National) and Day number, set under This day in Day setup.
 _Avoid_: Event day, session
 
 **Day export**:
-The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day.
+The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day. Its Day details tab names the day (Year, Region, Day) and who downloaded it when. Once an event's medals are confirmed, its Final tab (the Heats tab on a timed event or results without a final) shows the Day export line: the 1st, 2nd and 3rd its Input - Running row holds ("1st 2014 · 2nd 2003 · 3rd 2021", on a relay "1st Team 3 · 2nd Team 1 · 3rd Team 2").
 _Avoid_: Backup, archive, dump
 
 **Running Zone**:
@@ -153,7 +153,7 @@ A note attached to a child in a race when their wristband number looks wrong for
 _Avoid_: Error, alert, validation failure
 
 **Notes**:
-What the lead's actions sheet shows about one child or relay team in one race: its warnings, and any addition at the finish, each with who settled it (checked by a lead, settled by disqualification, or not checked yet), then the audit notes about that child or their whole race, oldest first. The "note" badge on a leaderboard row and the Day export's Note column come from the same notes.
+What the runner sheet shows about one child or relay team in one race: its warnings, and any addition at the finish, each with who settled it (checked by a lead, settled by disqualification, or not checked yet), then the audit notes about that child or their whole race, oldest first. The Day export's Note column comes from the same notes.
 _Avoid_: Participant notes, comments, history
 
 ### People
@@ -175,7 +175,7 @@ Anyone who typed today's lead code (or the owner password), trusted with everyth
 _Avoid_: Admin, organiser, superuser
 
 **Avatar menu**:
-What every avatar opens, and the name in the older-look header too: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+What every avatar opens: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
 
 **Log out**:
@@ -211,8 +211,8 @@ Join's answer to "Is this you on a new phone?", asked when the name typed belong
 _Avoid_: Claim profile, transfer
 
 **Signed in**:
-A profile using the app on the current Olympics day, with its role for that day. A lead sees everyone signed in today and can change anyone else's role or sign them out, though nobody can make the owner a volunteer.
-_Avoid_: Joined phone, logged in, online
+A profile using the app on the current Olympics day, with its role for that day. The list of them is Signed in today, a row of Day setup and its own screen, where a lead can change anyone else's role or sign them out, though nobody can make the owner a volunteer.
+_Avoid_: Joined phone, logged in, online, Phones
 
 **Lead code**:
 The secret a person types to make their profile a lead for the current Olympics day: with their full name before signing in, or on its own once signed in. Holding it is trust enough to make a new profile; a name already taken by a profile on another phone gets That's me at Join, as with the Olympics password. Making a new lead code turns every other lead back into a volunteer, except whoever made it and the owner.
@@ -247,7 +247,7 @@ The toast's way to reverse your own save of a step, only while nobody else has c
 _Avoid_: Revert, roll back
 
 **Confirm the medals**:
-A lead's Final complete or Event complete in Results, which decides an event's medals. Until then the event waits in the lead's Action required.
+A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event), with Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
 _Avoid_: Sign off, approve, publish
 
 ### Testing

@@ -1,15 +1,17 @@
+import { eventTitle } from '../../shared/day.js';
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
-import { createPortal } from 'react-dom';
-import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import type { DayLeadItem,LeadRaceRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
-import { RacePage } from '../lead/RacePage.js';
-import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
+import { RaceActions } from '../lead/RaceActions.js';
+import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,Sheet,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
-import { failureLine,useFlowWrite } from './writes.js';
+import { useFlowWrite } from './writes.js';
+import { failureLine } from '../../shared/request-failure.js';
+import { useScreenName,type View } from '../shell/addresses.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, its words, and the Races-home tab holding its event. */
 export interface SavedStep { raceId:string; step:Step; version:number; message:string; tab:HomeTab }
@@ -29,8 +31,8 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,onSaved,onResults}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
-  onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
+export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,onSaved,onResults,onOpen}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+  onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void;onOpen:(view:View)=>void}) {
   const {snapshot,error,gone,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
   useEffect(()=>{if(gone) onGone(snapshot?`A lead removed ${snapshot.group.event.section} ${raceName(snapshot.race)}`:'That race is gone');},[gone]);
@@ -47,6 +49,8 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   // "Show latest" starts the step's body afresh from what the server has.
   const [fresh,setFresh]=useState(0);
   const swipe=useRef<{x:number;y:number}|null>(null);
+  // "Back to Heat 2" on a lead screen opened from here (Open in Results).
+  useScreenName(snapshot?raceName(snapshot.race):'Race');
   if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/></RaceBar>
     <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
@@ -65,7 +69,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   async function create(kind:'heat'|'final',number=group.nextHeat) {
     setFailure('');
     try {const made=await api<RaceFlowRead>('races',{eventCode:event.code,kind,number});setAdding(null);onRace(made.race.id);}
-    catch(failure) {setFailure(failureLine(failure));}
+    catch(failure) {setFailure(failureLine(failure,'save'));}
   }
   function swiped(touch:TouchEvent) {
     const start=swipe.current,end=touch.changedTouches[0];swipe.current=null;
@@ -82,9 +86,9 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   }
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
-    <RaceBar title={`${event.name} · ${event.section}`} code={event.code} role={role} onBack={onBack}>
+    <RaceBar title={eventTitle(event)} code={event.code} role={role} onBack={onBack}>
       <RoleChip role={role} onOpen={onRole}/>
-      {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
+      {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
@@ -114,20 +118,15 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
         if(choice.kind==='final' && !finalMade(group)) {setAdding(null);setConfirmingFinal(true);} else void create(choice.kind,choice.number);
       }}/>}
     {confirmingFinal && <FinalSheet group={group} onClose={()=>setConfirmingFinal(false)} onMake={()=>{setConfirmingFinal(false);void create('final');}}/>}
-    {actions && <LeadRaceSheet raceId={race.id} eventCode={event.code} onClose={()=>{setActions(false);void issues.refresh();}} onRemoved={()=>{setActions(false);onBack();}}/>}
+    {actions && <LeadRaceActions raceId={race.id} onOpen={onOpen} onClose={()=>{setActions(false);void issues.refresh();}}/>}
   </>;
 }
-/**
- * The lead's race actions (Re-run, Delete, Correct times, order or runners, Disqualify a runner): today's lead race
- * page, over the race screen. It keeps the older look, so it opens outside the race flow's screen.
- */
-function LeadRaceSheet({raceId,eventCode,onClose,onRemoved}:{raceId:string;eventCode:string;onClose:()=>void;onRemoved:()=>void}) {
-  const [results,setResults]=useState<EventResultsRead|null>(null);
-  useEffect(()=>{void api<EventResultsRead>(`lead/events/${encodeURIComponent(eventCode)}/results`).then(setResults).catch(()=>{});},[eventCode]);
-  useEffect(()=>{const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);},[]);
-  return createPortal(<div className="lead-race-overlay" role="dialog" aria-modal="true" aria-label="Race actions">
-    <div className="lead-race-panel"><div className="lead-race-head"><h2>Race actions</h2><button className="button-secondary" onClick={onClose}>Close</button></div>
-      <RacePage raceId={raceId} onSaved={setResults} onClose={onRemoved} actionableRunners={results?.results.actionableRunners}/>
-    </div>
-  </div>,document.body);
+/** Race actions over the race screen: the lead's read of the race (its corrections need it), then the sheet. */
+function LeadRaceActions({raceId,onOpen,onClose}:{raceId:string;onOpen:(view:View)=>void;onClose:()=>void}) {
+  const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
+  const load=()=>api<LeadRaceRead>(`lead/races/${raceId}`).then(next=>{setRead(next);setError('');}).catch(failure=>setError(failureLine(failure,'read')));
+  useEffect(()=>{void load();},[raceId]);
+  // Opening takes a moment; one sheet opens with what it offers, rather than a second sheet replacing a first.
+  if(!read) return error?<Sheet title="Race actions" onClose={onClose}><Callout message={error}/></Sheet>:null;
+  return <RaceActions read={read} where="screen" onOpen={onOpen} onClose={onClose}/>;
 }

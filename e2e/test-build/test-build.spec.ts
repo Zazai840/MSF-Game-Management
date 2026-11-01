@@ -6,7 +6,7 @@ const commit=process.env.E2E_TEST_BUILD_COMMIT!;
 
 /**
  * The marker and the Report a bug link, checked against the screen they report and the look rules: in the race
- * flow's test build bar above the app bar, or in the header of the older lead screens.
+ * flow's test build bar above the app bar, on the lead screens too.
  */
 async function expectReports(page:Page,screen:string,bar:Locator=page.locator('.rz-testbuild')) {
   await expect(bar.getByText(`Test build · ${commit.slice(0,7)}`,{exact:true})).toBeVisible();
@@ -14,7 +14,6 @@ async function expectReports(page:Page,screen:string,bar:Locator=page.locator('.
   await expect(link).toHaveAttribute('target','_blank');
   const expected=new URL('https://github.com/Zazai840/MSF-Game-Management/issues/new?template=tester-bug.yml');
   expected.searchParams.set('commit',commit);expected.searchParams.set('screen',screen);
-  // Inside the lead area the header learns the screen just after it shows, so wait for the link to catch up.
   await expect(link).toHaveAttribute('href',expected.href);
   expect(await lookProblems(page)).toEqual([]);
   // Nothing in the bar overlaps, and nothing pushes the page wider than the phone.
@@ -51,11 +50,11 @@ test('inside the lead area the Report a bug link names the screen shown',async({
   await becomeLead(page);
   await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
-  await expectReports(page,'Results',page.getByRole('banner'));
+  await expectReports(page,'Results');
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
-  await expectReports(page,'Day setup',page.getByRole('banner'));
+  await expectReports(page,'Day setup');
 });
 
 test('the Report a bug link fills fields the tester bug form has',async()=>{

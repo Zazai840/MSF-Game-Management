@@ -23,7 +23,6 @@ const teamsOf=(race:Pick<RaceRead,'parts'>)=>(race.parts.runners.value||[]).filt
 async function heat(ticked:number,listed:number) {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'relay-finish-owner',resetTestDay:true});
   const people=await signInOwner(app,'relay-finish-owner','Aisha');
-  await call(people.owner.token,'/api/day/confirm-events',{});
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token,relays=relayFlowSetup(app);
   for(let number=1;number<=listed;number++) await relays.team(sam,'R22',[2100+number*10+1,2100+number*10+2,2100+number*10+3,2100+number*10+4]);
   let read=await ok(sam,'/api/races',{eventCode:'R22',kind:'heat',number:1});

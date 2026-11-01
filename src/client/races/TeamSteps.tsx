@@ -12,21 +12,21 @@ import { useWrites } from './writes.js';
 /** A final's mark for a finalist: Here, Absent, or not marked yet. */
 export type Mark='here'|'absent'|null;
 /** Under a team's name, when it runs short: "Runs short · 3 of 4". */
-function TeamNote({legs}:{legs:readonly TeamLeg[]}) {
+export function TeamNote({legs}:{legs:ReadonlyArray<{wristband:number|null}>}) {
   const line=runsShortLine({legs});
   return line?<span className="rz-teamcard__note">{line}</span>:null;
 }
 /** A team still to run, at a heat's Start line and in "+ Team not on the list": "Team 3", its four children, and Add. */
-function TeamRow({team,onAdd}:{team:RelayTeam;onAdd:()=>void}) {
+export function TeamRow({team,onAdd}:{team:Pick<RelayTeam,'number'|'legs'>;onAdd:()=>void}) {
   return <li className="rz-listrow"><span className="rz-listrow__main"><span className="rz-listrow__label">Team {team.number}</span>
     <span className="rz-listrow__meta">{legsText(team.legs)}</span><TeamNote legs={team.legs}/></span>
     <button type="button" className="rz-btn rz-btn--small rz-btn--primary" aria-label={`Add Team ${team.number}`} onClick={onAdd}><Icon name="plus"/>Add</button>
   </li>;
 }
 /** A leg as the start line checks it: refused (Fix number only), or a warning (Fix number or Keep). */
-type Held={refused:string}|{warning:string};
+export type Held={refused:string}|{warning:string};
 /** A held leg under the box: refused with Fix number only, or warned with Keep and Fix number. */
-const HeldCallout=({held,onKeep,onFix}:{held:Held;onKeep:()=>void;onFix:()=>void})=><Callout message={'refused' in held?held.refused:held.warning}
+export const HeldCallout=({held,onKeep,onFix}:{held:Held;onKeep:()=>void;onFix:()=>void})=><Callout message={'refused' in held?held.refused:held.warning}
   actions={<>{'warning' in held && <button type="button" className="rz-btn" onClick={onKeep}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={onFix}>Fix number</button></>}/>;
 /**
  * The start line's number box, on a heat or a final, and changing one leg by its chip: tapping a chip opens the box on

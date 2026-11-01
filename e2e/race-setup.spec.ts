@@ -11,7 +11,7 @@ async function leadRead(request:APIRequestContext,id:string) {
 }
 test('the race setup helpers check in, write the finishing order and times, submit, and record a whole race, each as the phone they are given',async({request})=>{
   const code=await ownCode(),name=ownName('Race setup');
-  await ownEvent(request,code,'Setup sprint','Girl Cubs','timed');await request.post('/api/day/confirm-events',{headers:owner(),data:{}});
+  await ownEvent(request,code,'Setup sprint','Girl Cubs','timed');
   const token=await signInThroughApi(request,name);
   await writeCheckIn(request,token,code,[2001,2002,2003]);
   await writeOrder(request,token,code,[2002,2001],{didNotFinish:[2003]});

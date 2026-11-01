@@ -47,6 +47,16 @@ export async function signOwnerBackIn(request:APIRequestContext) {
   expect(response.ok()).toBe(true);
   process.env.E2E_OWNER_TOKEN=(await response.json()).token;
 }
+/**
+ * Sets the shared day's This day to the current year, South and Day 1, so the day export works. Global setup calls it
+ * once; a spec that starts a new day calls it again (a new day starts with Region and Day empty).
+ */
+export async function labelDay(request:APIRequestContext,token=process.env.E2E_OWNER_TOKEN!) {
+  for(const data of [{year:new Date().getUTCFullYear()},{region:'South'},{dayNumber:1}]) {
+    const response=await request.post('/api/day/this-day',{headers:{authorization:`Bearer ${token}`},data});
+    if(!response.ok()) throw new Error(`This day answered ${response.status()}: ${await response.text()}`);
+  }
+}
 /** A volunteer's job on the Join form and in the job sheet, as the radio cards name it. */
 export type JobName='Start line'|'Finish line'|'Timer';
 /**
@@ -85,11 +95,11 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
   return (await created.json()).token as string;
 }
 /**
- * Taps the back arrow under the header, one level at a time, until it has gone back to the named screen
+ * Taps the back arrow in the header, one screen at a time, until it has gone back to the named screen
  * (the arrow's label says "Back to <to>"), for example back(page,'Results'). Wait for the screen to settle first.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('navigation',{name:'Back',exact:true}).getByRole('button');
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
     await expect(arrow).toBeVisible();
     const label=(await arrow.getAttribute('aria-label'))!;
@@ -98,6 +108,11 @@ export async function back(page:Page,to:string) {
     await expect(arrow).not.toHaveAttribute('aria-label',label);
   }
   throw new Error(`No way back to ${to}`);
+}
+/** On an event in Results: taps one of its tabs and waits for it to show. */
+export async function eventTab(page:Page,name:'Heats'|'Final'|'Races'|'Notes') {
+  const tab=page.getByRole('navigation',{name:'Event'}).getByRole('button',{name,exact:true});
+  await press(tab);await expect(tab).toHaveAttribute('aria-current','page');
 }
 // Race setup: every spec that needs a race entered or saved before it starts goes through these, so they are the one
 // place that knows how a race is entered and saved. Each acts as the phone whose token it is given, in the race flow
@@ -298,8 +313,11 @@ export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H
   // Once the races have come in, a group that is done waits under the closed Done disclosure.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   const done=page.locator('details:not([open])',{has:page.locator('summary',{hasText:/^Done \(/})});
-  if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
-  await card.getByRole('button',{name:label}).click();
+  // A live update can move the card under the closed Done between the look and the tap: look again until the tap lands.
+  await expect(async()=>{
+    if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
+    await card.getByRole('button',{name:label}).click({timeout:2000});
+  }).toPass();
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
 }
 /** On Races: the Relays tab. */
@@ -337,6 +355,29 @@ export async function makeFinal(page:Page,name:string,section:string) {
   await page.getByRole('dialog',{name:`Have all ${section} heats run?`,exact:true}).getByRole('button',{name:'Make the final',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
   await backToRaces(page);
+}
+/** The final made by the owner from the fastest heats, everyone marked Here, placed in this order and saved. */
+export async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
+  const token=process.env.E2E_OWNER_TOKEN!,headers={authorization:`Bearer ${token}`};
+  expect((await request.post('/api/races',{headers,data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
+  const {race}=await flowRace(request,token,code);
+  const here=race.final!.entries.map(entry=>entry.finalEntryId);
+  expect((await request.post(`/api/races/${race.id}/absent`,{headers,data:{raceId:race.id,version:race.parts.runners.version,here,absent:[]}})).ok()).toBe(true);
+  await writeOrder(request,token,code,order);
+  await submitRace(request,token,code);
+}
+/** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
+export async function raceAction(page:Page,action:string) {
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await press(page.getByRole('dialog',{name:/ · actions$/}).getByRole('button',{name:action,exact:true}));
+}
+/** The Confirm the medals screen's medal places, one row per place ("1st 2041 Heat 2 · 10.00 Fix"). */
+export const medalPlaces=(page:Page)=>page.getByRole('list',{name:'Medal places',exact:true}).getByRole('listitem');
+/** On the Confirm the medals screen: taps its docked Confirm the medals, which goes back where the screen was opened. */
+export async function confirmTheMedals(page:Page) {
+  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Confirm the medals',exact:true}));
+  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toHaveCount(0);
 }
 /** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
 export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
@@ -388,7 +429,9 @@ export async function startDrag(page:Page,from:Locator) {
     /** Moves so the dragged point sits on the middle of `target` (same column as the start). */
     async over(target:Locator) {const to=(await target.boundingBox())!;await toPoint(x,to.y+to.height/2);},
     async drop() {
-      if(touch) {await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
+      // A person stops over the place before letting go. A finger lifted while still moving is a flick: Chromium on
+      // Linux (CI) then takes the next tap as the one that stops the flick and sends no click for it.
+      if(touch) {await page.waitForTimeout(100);await finger('touchMove');await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
       // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
       await page.waitForTimeout(100);
     },
@@ -402,6 +445,17 @@ export async function dragTo(page:Page,from:Locator,to:Locator) {
 export async function enterTime(page:Page,digits:number|string) {
   await page.getByLabel('Place time',{exact:true}).fill(String(digits));
   await nextBeside(page,'Place time').click();
+}
+/**
+ * The toast after a lead save: just its line, with no Undo (Undo is only for a race step) and no "Saved" pill anywhere.
+ * Returns the toast, for a look check while it shows.
+ */
+export async function expectToast(page:Page,line:string|RegExp) {
+  const toast=page.getByRole('status').filter({hasText:line});
+  await expect(toast).toHaveText(line);
+  await expect(toast.getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('Saved',{exact:true})).toHaveCount(0);
+  return toast;
 }
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
@@ -431,10 +485,9 @@ const approvedColours=(()=>{
   return {pairs,names:Object.fromEntries([...tokens.keys()].reverse().map(name=>[colour(name),name]))};
 })();
 /**
- * Every rule of the look that can be measured on the screen currently shown. The race flow's screens (inside
- * `.rz-screen`) follow the Running Zone design system (docs/running-zone-design-system/accessibility.md): 44px
- * targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS. The older screens (Results, Day setup, a relay's race
- * screen) also keep the v2 house style: no outlines, sentence case, 15px text, 22-26px headings.
+ * Every rule of the look that can be measured on the screen currently shown. Every screen renders inside the Running
+ * Zone screen root (`.rz-screen`) and follows the design system (docs/running-zone-design-system/accessibility.md):
+ * 44px targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS.
  */
 export async function lookProblems(page:Page) {
   await page.evaluate(()=>document.fonts.ready);
@@ -453,15 +506,9 @@ export async function lookProblems(page:Page) {
       const box=(target.matches('input[type=radio],input[type=checkbox]')&&target.closest('label')?target.closest('label')!:target).getBoundingClientRect();
       if(box.height<43.5||box.width<43.5) problems.push(`tap target ${describe(target)} is ${Math.round(box.width)}x${Math.round(box.height)}`);
     }
-    // House style: surfaces are told apart by tone, not outlines; labels in sentence case; one clock; Refresh says only Refresh.
-    const designSystem=(element:Element)=>!!element.closest('.rz-screen');
-    for(const box of document.querySelectorAll('div,li,section,article,nav,ol,ul,details,aside,header,footer,p,small,span')) {
-      if(!visible(box) || designSystem(box)) continue;
-      // An outline that marks a state stays: a wrong time, the row being edited, the row being dragged, a legend swatch.
-      if(box.matches(".time-wrong,.lead-editing,[data-dragging],.results-swatch")) continue;
-      const style=getComputedStyle(box);
-      if(['top','right','bottom','left'].some(side=>parseFloat(style.getPropertyValue(`border-${side}-width`))>0&&style.getPropertyValue(`border-${side}-style`)!=='none')) problems.push(`outlined ${describe(box)}`);
-      if(style.textTransform==='uppercase') problems.push(`uppercase ${describe(box)}`);
+    // Nothing shows outside a screen root: the older look is gone. One clock; Refresh says only Refresh.
+    for(const element of document.body.querySelectorAll(':not(script,style)')) {
+      if(visible(element) && !element.closest('.rz-screen') && !element.querySelector('.rz-screen')) problems.push(`outside the screen root ${describe(element)}`);
     }
     if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
     for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
@@ -513,14 +560,10 @@ export async function lookProblems(page:Page) {
     for(const menu of document.querySelectorAll('[role=menu]')) {
       if(!visible(menu)) continue;
       const area=menu.getBoundingClientRect();
-      for(const avatar of document.querySelectorAll('.rz-avatar,.app-header-person')) {
+      for(const avatar of document.querySelectorAll('.rz-avatar')) {
         const box=avatar.getBoundingClientRect();
         if(visible(avatar)&&area.left<box.right&&area.right>box.left&&area.top<box.bottom&&area.bottom>box.top) problems.push(`menu covers ${describe(avatar)}`);
       }
-    }
-    for(const heading of document.querySelectorAll('h1,h2')) {
-      const size=parseFloat(getComputedStyle(heading).fontSize);
-      if(visible(heading)&&!designSystem(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);
     }
     const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     for(let node=walker.nextNode();node;node=walker.nextNode()) {
@@ -529,13 +572,12 @@ export async function lookProblems(page:Page) {
       if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled:not(.rz-slot),script,style')) continue;
       const style=getComputedStyle(element);
       const size=parseFloat(style.fontSize);
-      if(!designSystem(element)&&element.closest('p,li,label,dd,dt,td,th,button,output,a')&&!element.closest('small,.badge,h1,h2,h3')&&size<15) problems.push(`text ${describe(element)} is ${style.fontSize}`);
       const [a,b]=[luminance(style.color),luminance(background(element))].sort((x,y)=>y-x);
-      const ratio=(a+0.05)/(b+0.05),large=designSystem(element)&&(size>=24||size>=19&&Number(style.fontWeight)>=700);
+      const ratio=(a+0.05)/(b+0.05),large=size>=24||size>=19&&Number(style.fontWeight)>=700;
       if(ratio<(large?3:4.5)) problems.push(`text ${describe(element)} contrast ${ratio.toFixed(2)}`);
-      // The design system's screens use only its approved colour pairs, whatever their contrast.
+      // Only the design system's approved colour pairs, whatever their contrast.
       const pair=`${rgb(style.color).slice(0,3).join(',')} on ${rgb(background(element)).slice(0,3).join(',')}`;
-      if(designSystem(element)&&!approved.pairs.includes(pair)) problems.push(`text ${describe(element)} is an unapproved colour pair ${pair.replace(/[\d,]+/g,colour=>approved.names[colour]??`rgb(${colour})`)}`);
+      if(!approved.pairs.includes(pair)) problems.push(`text ${describe(element)} is an unapproved colour pair ${pair.replace(/[\d,]+/g,colour=>approved.names[colour]??`rgb(${colour})`)}`);
     }
     return problems;
   },approvedColours);

@@ -64,19 +64,17 @@ test('a lead\'s step tabs on a relay name each team with its four children, sett
   await page.screenshot({path:info.outputPath('relay-lead-times.png'),fullPage:true});
 
   // The race actions: Correct teams in place of Correct runner list, with Re-run and Delete.
-  await page.getByRole('button',{name:'Race actions: re-run, delete, correct, disqualify',exact:true}).click();
-  const actions=page.getByRole('dialog',{name:'Race actions'});
-  for(const action of ['Correct teams','Re-run race','Delete race']) await expect(actions.getByRole('button',{name:action,exact:true})).toBeVisible();
-  await expect(actions.getByRole('button',{name:'Correct runner list',exact:true})).toHaveCount(0);
-  // Its current record names each team over its four children; the lead screens write an empty leg as "-".
-  await expect(actions.getByRole('list',{name:'Current record',exact:true}).getByRole('button')).toHaveText([`Team 2${team2.replace('–','-')}`,`Team 1${team1}`]);
+  await page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}).click();
+  const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true});
+  await expect(actions.getByRole('button')).toHaveText(['','Correct times','Correct finishing order','Correct teams','Re-run race','Delete Heat 1']);
   await page.screenshot({path:info.outputPath('relay-lead-actions.png'),fullPage:true});
   await actions.getByRole('button',{name:'Re-run race',exact:true}).click();
-  await expect(page.getByText(/current race/)).toHaveCount(0);
+  await expect(page.getByText('Heat 1 moves to Deleted races. A new Heat 1 opens with the same teams checked in.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-lead-rerun.png'),fullPage:true});
 });
 
-test('a tie between two relay heats shows on both heats\' Times tab with each team\'s four children, and Open in Results opens the tie',async({openPhone,request},info)=>{
+test('a tie between two relay heats shows on both heats\' Times tab with each team\'s four children, and Open in Results opens the tie screen, with Back to the race',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Relay tie');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',8);
@@ -97,6 +95,9 @@ test('a tie between two relay heats shows on both heats\' Times tab with each te
     await page.screenshot({path:info.outputPath(`relay-lead-tie-heat-${index+1}.png`),fullPage:true});
   }
   await page.getByRole('alert').filter({hasText:'Teams tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:`${name} Girl Cubs`,exact:true})).toBeVisible();
-  await expect(page.getByRole('dialog',{name:'Tie at 14.00',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:1,name:'Tie at 14.00',exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__help')).toHaveText('Team 1 (Heat 1) and Team 2 (Heat 2) both ran 14.00.');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.goBack();
+  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
 });

@@ -8,7 +8,7 @@ const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===un
 afterEach(async()=>{await app?.close();});
 async function start() {
   app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'race-owner',resetTestDay:true});
-  const people=await signInOwner(app,'race-owner','Owner'),owner=people.owner,day=people.day;await call(owner.token,'/api/day/confirm-events',{});
+  const people=await signInOwner(app,'race-owner','Owner'),owner=people.owner,day=people.day;
   const signInAs=async(name:string)=>(await people.volunteer(name)).token;
   const volunteer=await signInAs('Ahmed'),lead=await signInAs('Aisha');await call(lead,'/api/become-lead',{code:day.leadCode});
   // Saved with its out-of-order times kept, as the timer typed them.
@@ -49,8 +49,11 @@ test('lead deletion, restoration and permanent deletion work after Finish and pr
   const deleted=await call(lead,`/api/lead/races/${race.id}/delete`,{permanent:false,comment:'Mistaken race'});expect(deleted.statusCode).toBe(200);
   expect(deleted.json().results.raceCount).toBe(0);
   const removed=(await call(lead,'/api/lead/events/R10/deleted-races')).json();expect(removed.map((item:any)=>item.id)).toEqual([race.id]);
-  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race.deleted).toBe(true);
+  // The deleted race's page says who deleted it and why, from the audit note.
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json()).toMatchObject({race:{deleted:true},deletion:{by:'Aisha',comment:'Mistaken race'}});
   const restored=await call(lead,`/api/lead/races/${race.id}/restore`,{});expect(restored.statusCode).toBe(200);expect(restored.json().results.leaderboard).toHaveLength(2);
+  expect(restored.json().number).toBe(1);
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json().deletion).toBeNull();
   expect((await call(lead,'/api/lead/events/R10/deleted-races')).json()).toEqual([]);
   const permanent=await call(lead,`/api/lead/races/${race.id}/delete`,{permanent:true});expect(permanent.statusCode).toBe(200);
   expect((await call(lead,`/api/lead/races/${race.id}`)).statusCode).toBe(404);
@@ -66,7 +69,7 @@ test('a re-run deletes the old record with its reason and creates a prefilled ra
   expect(fresh.parts.runners.value.flatMap((runner:any)=>runner.warnings).some((warning:any)=>warning.kind==='already-ran')).toBe(false);
   expect(fresh.parts.runners.value[0].id).not.toBe(race.parts.runners.value[0].id);
   expect((await call(volunteer,`/api/races/${newId}`)).json().race).toMatchObject({id:newId,state:'in progress'});
-  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race).toMatchObject({deleted:true,deleteReason:'re-run'});
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json()).toMatchObject({race:{deleted:true,deleteReason:'re-run'},deletion:{by:'Aisha',comment:'Recording lost'}});
   expect((await read()).auditNotes[0]).toMatchObject({action:'re-run',actor:'Aisha',comment:'Recording lost',message:'Aisha called a re-run of Heat 1: Recording lost',touches:[{raceId:race.id},{raceId:newId}]});
   const before=await read();
   const revision=(await call(owner,'/api/day')).json().revision;

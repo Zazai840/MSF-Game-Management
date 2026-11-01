@@ -27,7 +27,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 | Concept | Meaning | Notes |
 |---|---|---|
 | Event type | Races, Hurdles, Relays | What kind of event it is, stored with it. Home's tab follows from it: races and hurdles on Races, relays on Relays. |
-| Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's event list; New race only offers confirmed, switched-on events. |
+| Event | A distance within a type: 60m, 200m, 400m (Races); 60m Hurdles (Hurdles); 4x50m Relay and 4x100m Relay (Relays) | Comes from Day setup's Events; New race only offers switched-on events. |
 | Section | Boy Beavers … Girl Scouts, with a code per event (R1–R6 for 60m; other events have their own codes, such as R16) | Use the existing code data. |
 | Event group | One event × one section ("60m · Girl Cubs · R4") | One card on Home. Holds its races. |
 | Race | One run of an event group: Heat *n* or the Final | The next heat is the highest live heat + 1 (decision 4). Every event type uses "Heat": 200m and 400m runs that today's app calls "Race 1" become "Heat 1". Chips read "H1", "H2"; everywhere else write "Heat 1". |
@@ -91,7 +91,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
   - "Final saved · confirm the medals" for a saved final;
   - "Every race saved · confirm the medals after the last race" for a timed event;
   - the event's To check line instead, while it has anything to check. The confirm wording comes only once To check is clear.
-- Under the status line, while To check is clear, a primary **Confirm the medals** button opens Results on that event with its Final complete or Event complete check sheet open. The back arrow returns to Races.
+- Under the status line, while To check is clear, a primary **Confirm the medals** button opens the Confirm the medals screen (`/results/<code>/confirm-the-medals`). The back arrow returns to Races, and so does Confirm, with the toast.
 - Once the Confirm is recorded the card moves to Done and reads "Medals decided".
 - Volunteers' cards keep their wording and sections.
 
@@ -255,7 +255,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 **Zone lead**
 - Every step tab shows "Team 5" with its four children in leg order wherever a team appears (Runners chips, Finishing order rows, Times rows, To check callouts; a tie lists each tied team). Relay problems (a team that ran short, a child in two relays, a kept warning, a wrong time) sit on the step they are about, with It's right or the way to settle it. A team that ran short reads "A team ran short".
 - "⋯" race actions are a race's, with Correct teams in place of Correct runner list.
-- Results, the race page, Correct teams and the final's line-up keep their older look.
+- Correct teams is a race-flow screen built on these leg chips (screens.md, 28).
 
 ## Soft warning: usual heat size
 

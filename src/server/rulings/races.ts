@@ -90,7 +90,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const number=taken?await nextNumber(client,race.event.id,race.kind):race.number;
       await client.query('UPDATE races SET deleted=false,delete_reason=null,deleted_at=null,number=$2 WHERE id=$1',[race.id,number]);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${taken?` as ${raceLabel({...race,number})}`:''}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
-      return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
+      return {status:'saved',number,...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
 

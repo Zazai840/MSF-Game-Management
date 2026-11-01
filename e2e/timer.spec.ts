@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)',gold='rgb(255, 184, 0)',navy='rgb(30, 43, 81)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -328,6 +328,11 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await openRace(lead.page,name);
   await lead.page.getByRole('tab',{name:/^Times/}).click();
   await expect(lead.page.getByRole('list',{name:'Times'}).getByRole('listitem')).toHaveText([/^1st\s*2202\s*12\.34/,/^2nd\s*2201\s*13\.01/,/^3rd\s*2203\s*13\.50/]);
-  await expect(lead.page.locator('.rz-refresh')).toHaveText(/^Updated at \d\d:\d\d:\d\d$/);
+  // The lead's race steps show the same Updated at as Races and every lead screen, and Refresh reads the race again.
+  const updated=lead.page.locator('.rz-refresh');
+  await expect(updated).toHaveText(/^Updated at \d\d:\d\d:\d\d Refresh$/);
+  const reread=lead.page.waitForRequest(sent=>sent.method()==='GET' && /^\/api\/races\/[^/]+$/.test(new URL(sent.url()).pathname));
+  await press(updated.getByRole('button',{name:'Refresh',exact:true}));
+  await reread;
   expect(await lookProblems(lead.page)).toEqual([]);await lead.page.screenshot({path:info.outputPath('lead-times.png'),fullPage:true});
 });
