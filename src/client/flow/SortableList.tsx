@@ -1,11 +1,12 @@
 import { useState,type KeyboardEvent,type ReactNode } from 'react';
 import { closestCenter,DndContext,KeyboardSensor,PointerSensor,useSensor,useSensors,type Announcements,type DragEndEvent,type Modifier,type UniqueIdentifier } from '@dnd-kit/core';
-import { arrayMove,SortableContext,sortableKeyboardCoordinates,useSortable,verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove,horizontalListSortingStrategy,SortableContext,sortableKeyboardCoordinates,useSortable,verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ordinal } from '../../shared/ordinal.js';
 import './flow.css';
-/** Rows only ever move up and down. */
+/** Rows only ever move up and down (or, `across`, left and right). */
 const upAndDown:Modifier=({transform})=>({...transform,x:0});
+const sideways:Modifier=({transform})=>({...transform,y:0});
 /**
  * A list put in order by dragging, with touch, mouse or keyboard (Space, arrows, Space).
  * Each row has a grip handle on the right and dragging starts only from it, so scrolling
@@ -14,9 +15,10 @@ const upAndDown:Modifier=({transform})=>({...transform,x:0});
  * itself when dragging near the top or bottom edge. `onReorder` gets the new order on drop;
  * `isAllowed` can refuse an order, which then springs back. `look` swaps in another screen's classes (a row's can follow
  * its item), handle icon and handle name (the race flow's order rows: "Move 2033"); there, the arrow keys on a handle
- * also move its row at once.
+ * also move its row at once. `across` lays the rows side by side (a relay team's leg chips): they move left and right,
+ * and so do the arrow keys.
  */
-export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReorder,isAllowed,disabled=false,look}:{
+export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReorder,isAllowed,disabled=false,across=false,look}:{
   /** The list's accessible name, for example "Finishing order". */
   label:string;
   items:readonly T[];
@@ -28,6 +30,7 @@ export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReord
   onReorder:(next:T[])=>void;
   isAllowed?:(next:T[])=>boolean;
   disabled?:boolean;
+  across?:boolean;
   look?:{list:string;row:string|((item:T)=>string);handle:string;icon:ReactNode;handleName:(name:string)=>string};
 }) {
   const sensors=useSensors(useSensor(PointerSensor),useSensor(KeyboardSensor,{coordinateGetter:sortableKeyboardCoordinates}));
@@ -59,21 +62,22 @@ export function SortableList<T>({label,items,itemKey,itemName,renderItem,onReord
     const next=arrayMove([...items],start,finish);
     if(!isAllowed || isAllowed(next)) onReorder(next);
   }
-  return <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[upAndDown]} accessibility={{announcements}}
+  return <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[across?sideways:upAndDown]} accessibility={{announcements}}
     onDragStart={event=>{setActive(event.active.id);setOver(event.active.id);}} onDragOver={event=>setOver(event.over?.id??null)}
     onDragEnd={end} onDragCancel={()=>{setActive(null);setOver(null);}}>
-    <SortableContext items={ids} strategy={verticalListSortingStrategy} disabled={disabled}>
+    <SortableContext items={ids} strategy={across?horizontalListSortingStrategy:verticalListSortingStrategy} disabled={disabled}>
       <ol className={look?.list??'sortable-list'} aria-label={label}>
-        {items.map((item,index)=><Row key={ids[index]} id={ids[index]} name={itemName(item)} look={look} className={typeof look?.row==='function'?look.row(item):look?.row} onStep={look?by=>step(index,by):undefined}>{renderItem(item,projected.indexOf(ids[index])+1)}</Row>)}
+        {items.map((item,index)=><Row key={ids[index]} id={ids[index]} name={itemName(item)} look={look} className={typeof look?.row==='function'?look.row(item):look?.row} onStep={look?by=>step(index,by):undefined} across={across}>{renderItem(item,projected.indexOf(ids[index])+1)}</Row>)}
       </ol>
     </SortableContext>
   </DndContext>;
 }
-function Row({id,name,look,className,onStep,children}:{id:string;name:string;look?:{handle:string;icon:ReactNode;handleName:(name:string)=>string};className?:string;onStep?:(by:number)=>void;children:ReactNode}) {
+function Row({id,name,look,className,onStep,across,children}:{id:string;name:string;look?:{handle:string;icon:ReactNode;handleName:(name:string)=>string};className?:string;onStep?:(by:number)=>void;across:boolean;children:ReactNode}) {
   const {attributes,listeners,setNodeRef,setActivatorNodeRef,transform,transition,isDragging}=useSortable({id});
   const move=CSS.Translate.toString(transform);
   const keyDown=(event:KeyboardEvent<HTMLButtonElement>)=>{
-    if(onStep && !isDragging && (event.key==='ArrowUp' || event.key==='ArrowDown')) {event.preventDefault();onStep(event.key==='ArrowUp'?-1:1);return;}
+    const [back,on]=across?['ArrowLeft','ArrowRight']:['ArrowUp','ArrowDown'];
+    if(onStep && !isDragging && (event.key===back || event.key===on)) {event.preventDefault();onStep(event.key===back?-1:1);return;}
     listeners?.onKeyDown?.(event);
   };
   return <li ref={setNodeRef} className={className??'sortable-row'} data-dragging={isDragging?'true':undefined} style={{transform:isDragging?`${move||''} scale(1.02)`:move,transition}}>

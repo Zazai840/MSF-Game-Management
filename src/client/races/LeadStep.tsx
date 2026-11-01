@@ -9,6 +9,7 @@ import { formatTime } from '../../shared/time-entry.js';
 import { itemTeams,toCheckWording } from '../../shared/to-check.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
+import { failureLine } from './writes.js';
 import { Callout,Icon } from './parts.js';
 import { FinishLine,StartLine,Timer,type StepProps } from './Steps.js';
 /** Which step a lead item is about: a runner's warning to Runners, an addition at the finish to Finishing order, times and ties to Times. */
@@ -36,14 +37,14 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
         await api(`lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places,acceptOutOfOrder:true});
       } else await api(`lead/races/${item.raceId}/runners/${item.entryId}/${item.kind==='added-at-finish'?'mark-added-checked':'mark-warning-checked'}`,{});
       onIssue();
-    } catch(failure) {setError(failure instanceof Error?failure.message:'Not saved - try again');}
+    } catch(failure) {setError(failureLine(failure));}
     finally {setBusy('');}
   }
   const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='two-relays' || item.kind==='ran-short' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
   const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);
     return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
-    actions={acceptable(item)?<><button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button>
-      <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button></>
+    actions={acceptable(item)?<><button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>
+      <button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button></>
       :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;
   const mismatch=step!=='runners' && race.recording.countMismatch;
   if(race.state!=='saved') return <>
@@ -70,7 +71,7 @@ const kept=(entry:RaceEntry)=>isTeamEntry(entry)?entry.legs.some(leg=>leg.warnin
 export function StepRecord({read,step,onEdit}:{read:StepProps['read'];step:Step;onEdit?:()=>void}) {
   const {race}=read,relay=race.event.relay,runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
   const finish=race.parts.finish.value,places=race.parts.times.value?.places||[];
-  const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places).map(time=>time.index));
+  const rows=Math.max(places.length,finish?.order.length||0),wrong=new Set(wrongTimes(places,race.event.name).map(time=>time.index));
   return <>
     <p className="rz-prompt__meta">{raceName(race)} · {step==='times'?'places and times joined up':step==='positions'?'the finishing order':`${relay?entryCount(runners.length,true):runners.length} checked in`}</p>
     {step==='runners' && (runners.length?<ul className="rz-chips" aria-label="Checked in">{runners.map(runner=><li key={runner.id}><span className={['rz-chip',kept(runner) && 'rz-chip--warn',relay && 'rz-chip--team'].filter(Boolean).join(' ')}>{entryName(runner)}<TeamLegs entry={runner}/></span></li>)}</ul>

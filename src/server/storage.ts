@@ -82,8 +82,15 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       kind text NOT NULL CHECK (kind IN ('heat','final','race')), number integer NOT NULL,
       checked_in_at timestamptz NOT NULL DEFAULT now(), deleted boolean NOT NULL DEFAULT false,
       delete_reason text, request_id text, original_runners jsonb,
-      UNIQUE(event_id,kind,number), UNIQUE(day_id,request_id)
+      UNIQUE(day_id,request_id)
     );
+    -- A number is unique among an event's live races of a kind: a deleted race may share it (the next heat is the
+    -- highest live one + 1). Older builds made it unique over every row, from a per-event counter that only went up.
+    ALTER TABLE races DROP CONSTRAINT IF EXISTS races_event_id_kind_number_key;
+    CREATE UNIQUE INDEX IF NOT EXISTS live_race_number ON races(event_id,kind,number) WHERE NOT deleted;
+    DROP TABLE IF EXISTS race_counters;
+    -- When a race was deleted, shown on its Deleted races row. Races deleted before it was stored have none.
+    ALTER TABLE races ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
     -- A race is in progress until it saves itself (every step done), which is who and when.
     ALTER TABLE races ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'in progress' CHECK (state IN ('in progress','saved'));
     -- A relay race the old race screen left waiting on Submit presses carries on as an ordinary race-flow race: it keeps
@@ -100,10 +107,6 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     ALTER TABLE race_finals DROP COLUMN IF EXISTS presence_confirmed;
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS generation text NOT NULL DEFAULT '';
     ALTER TABLE race_finals ADD COLUMN IF NOT EXISTS additional_entries jsonb NOT NULL DEFAULT '[]';
-    CREATE TABLE IF NOT EXISTS race_counters (
-      event_id uuid NOT NULL REFERENCES events(id), kind text NOT NULL, last_number integer NOT NULL,
-      PRIMARY KEY(event_id,kind)
-    );
     CREATE TABLE IF NOT EXISTS race_parts (
       race_id uuid NOT NULL REFERENCES races(id) ON DELETE CASCADE,
       part text NOT NULL CHECK (part IN ('runners','finish','times')), version integer NOT NULL DEFAULT 0,
@@ -149,23 +152,31 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     -- No part of the race flow has holds (ADR 0003), nor Submit presses: older builds kept them for relays here.
     DROP TABLE IF EXISTS job_holds;
     DROP TABLE IF EXISTS submit_presses;
-    -- A relay's team list: one row per team, numbered within the relay and never renumbered. Legs are four
-    -- {wristband,warnings} in leg order. A removed team keeps its row, so its number is never used again.
+    -- A relay's teams: one row per team, made by typing it into a heat, numbered within the relay and never renumbered.
+    -- Legs are four {wristband,warnings} in leg order. A team an older build removed keeps its row, so its number is never
+    -- used again; teams an older build typed ahead are rows in no race, still to run.
     CREATE TABLE IF NOT EXISTS relay_teams (
       id uuid PRIMARY KEY, event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       number integer NOT NULL, legs jsonb NOT NULL, removed boolean NOT NULL DEFAULT false, version integer NOT NULL DEFAULT 1,
       UNIQUE(event_id,number)
     );
-    -- Who is changing a team (the "is changing this team" mark) and since when, and who last changed it, named in a late Done's refusal.
-    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_by uuid REFERENCES sign_ins(id) ON DELETE SET NULL;
-    ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changing_since timestamptz;
+    -- Who last changed a team, named in a late Save's refusal.
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by text;
-    -- Whose profile last changed a team, so Change anyway asks only when it was someone else; the name stays for display.
+    -- Whose profile last changed a team, so a late Save names someone else but not this person; the name stays for display.
     -- Older rows take the profile of that name (profile names are unique and never change).
     ALTER TABLE relay_teams ADD COLUMN IF NOT EXISTS changed_by_profile uuid REFERENCES profiles(id);
     UPDATE relay_teams t SET changed_by_profile=p.id FROM profiles p WHERE t.changed_by_profile IS NULL AND t.changed_by IS NOT NULL AND lower(p.name)=lower(t.changed_by);
-    -- No phone has a team's leg boxes open across a restart, so nobody is still changing a team.
-    UPDATE relay_teams SET changing_by=NULL,changing_since=NULL WHERE changing_by IS NOT NULL OR changing_since IS NOT NULL;
+    -- Nothing marks a team as being changed any more: older builds kept "is changing this team" here.
+    ALTER TABLE relay_teams DROP COLUMN IF EXISTS changing_by, DROP COLUMN IF EXISTS changing_since;
+    -- A relay heat has no per-child Here: every child of a team in it is here. Older builds marked each child by a tap,
+    -- so a heat not saved yet has every filled leg marked here. Saved races keep their marks (a team that ran short
+    -- stays in To check), and a final's team is here whole already. Changes nothing once done.
+    UPDATE race_parts p SET value=(SELECT jsonb_agg(CASE WHEN jsonb_typeof(entry->'legs')='array' THEN jsonb_set(entry,'{legs}',
+        (SELECT jsonb_agg(leg || jsonb_build_object('here',jsonb_typeof(leg->'wristband')='number') ORDER BY i) FROM jsonb_array_elements(entry->'legs') WITH ORDINALITY AS l(leg,i)))
+      ELSE entry END ORDER BY n) FROM jsonb_array_elements(p.value) WITH ORDINALITY AS e(entry,n))
+    FROM races r WHERE r.id=p.race_id AND p.part='runners' AND r.kind<>'final' AND r.state<>'saved' AND jsonb_typeof(p.value)='array'
+      AND EXISTS (SELECT 1 FROM jsonb_array_elements(p.value) entry, jsonb_array_elements(CASE WHEN jsonb_typeof(entry->'legs')='array' THEN entry->'legs' ELSE '[]' END) leg
+        WHERE jsonb_typeof(leg->'wristband')='number' AND leg->'here'<>'true'::jsonb);
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       tie_id text NOT NULL, settlement jsonb NOT NULL,

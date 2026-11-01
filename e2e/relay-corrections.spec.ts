@@ -1,5 +1,6 @@
-import {ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,back,expect,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
+import type {RaceFlowRead,RacesRead} from '../src/shared/race-flow.js';
 
 /** A lead's Results for the relay, then its event page. */
 async function openRelayResults(page:Page,code:string) {
@@ -12,7 +13,7 @@ async function runHeat(request:APIRequestContext,token:string,code:string,placed
   await writeTeamOrder(request,token,code,placed);await writeTimes(request,token,code,times);await submitRace(request,token,code);
 }
 
-test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, takes a team off and adds one, and the teams sheet shows the fix',async({openPhone,request},info)=>{
+test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, takes a team off and adds one, and the team keeps the fix for its next race',async({openPhone,request},info)=>{
   test.setTimeout(60000);
   const name=ownName('Correct teams'),code=await ownCode();
   await ownRelay(code,name,'Boy Scouts');
@@ -47,16 +48,16 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await page.screenshot({path:info.outputPath('correct-teams.png'),fullPage:true});
   await sheet.getByRole('button',{name:'Done',exact:true}).click();
   await expect(page.getByText('Teams: Team 2 · Team 3',{exact:true})).toBeVisible();
-  // Heat 1 is Team 2's latest race, so the teams sheet has the fix: the typo won't come back at the Final.
-  await openRelays(volunteer.page);
-  await volunteer.page.getByRole('article',{name:`${name} · Boy Scouts`,exact:true}).getByRole('button',{name:/^Teams 3/}).click();
-  const team=(number:number)=>volunteer.page.getByRole('list',{name:'Teams',exact:true}).getByRole('listitem').filter({hasText:`Team ${number}`});
-  const legsOf=(wristbands:number[])=>wristbands.map((wristband,index)=>`${['1st','2nd','3rd','4th'][index]}${wristband}`).join('');
-  await expect(team(2)).toContainText(`Team 2Heat 1 · ran${legsOf(fixed)}`,live);
-  await expect(team(1)).toContainText('Team 1Still to run');
-  expect(await lookProblems(volunteer.page)).toEqual([]);
-  await volunteer.page.screenshot({path:info.outputPath('correct-teams-teams-sheet.png')});
-  // Correct number on one child of Team 2, from its leaderboard row: the teams sheet changes live.
+  // Heat 1 is Team 2's latest race, so the team takes the fix too: the typo won't come back at the Final. Team 1,
+  // taken off, is still to run.
+  const team=async(number:number)=>{
+    const get=async<T>(url:string)=>(await (await request.get(url,{headers:{authorization:`Bearer ${volunteer.token}`}})).json()) as T;
+    const heat=(await get<RacesRead>('/api/races')).groups.find(group=>group.event.code===code)!.races[0];
+    return (await get<RaceFlowRead>(`/api/races/${heat.id}`)).teams!.find(item=>item.number===number)!;
+  };
+  expect((await team(2)).legs.map(leg=>leg.wristband)).toEqual(fixed);
+  expect((await team(1)).races).toEqual([]);
+  // Correct number on one child of Team 2, from its leaderboard row: the team takes it too.
   await back(page,`${name} Boy Scouts`);
   await page.getByRole('button',{name:`Team 2 · ${fixed.join(' · ')} · Heat 1`,exact:true}).click();
   await page.getByRole('button',{name:'Correct number',exact:true}).click();
@@ -67,7 +68,9 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('correct-number-team.png'),fullPage:true});
   await page.getByRole('button',{name:'Save correction',exact:true}).click();
-  await expect(team(2)).toContainText(legsOf([legs(2)[0],n(14),n(13),legs(2)[3]]),live);
+  const corrected=[legs(2)[0],n(14),n(13),legs(2)[3]];
+  await expect(page.getByRole('button',{name:`Team 2 · ${corrected.join(' · ')} · Heat 1`,exact:true})).toBeVisible(live);
+  expect((await team(2)).legs.map(leg=>leg.wristband)).toEqual(corrected);
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText(`corrected ${legs(2)[1]} to ${n(14)} in Team 2 (Heat 1)`);
 });
 

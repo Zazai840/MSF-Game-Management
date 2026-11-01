@@ -8,7 +8,7 @@ import { legRefusal,legWarnings } from '../../shared/teams.js';
 /**
  * A lead corrects one runner's wristband on the phone's own number pad (as on check-in):
  * Check number, then Fix number (clears it and reopens the keyboard) or Keep for any warning, then Save.
- * On a team, the lead first picks the child, and the number is checked as the teams sheet checks a box.
+ * On a team, the lead first picks the child, and the number is checked as the start line checks a leg's box.
  */
 export function RunnerNumber({row,eventCode,onSaved,onClose,onBusyChange}:{row:LeaderboardRow;eventCode:string;onSaved:(next:EventResultsRead)=>void;onClose:()=>void;onBusyChange:(busy:boolean)=>void}) {
   const [team]=useState(row.team);
@@ -24,9 +24,9 @@ export function RunnerNumber({row,eventCode,onSaved,onClose,onBusyChange}:{row:L
   /** A team's box is checked against its relay's team list as it stands: a refusal stops it, a warning needs Keep. */
   async function teamWarnings() {
     const read=await api<LeadRaceRead>(`lead/races/${row.raceId}`),legs=team!.wristbands.map((wristband,at)=>at===leg?Number(number):wristband);
-    const refusal=legRefusal(read.teams||[],team!.id,legs,leg!);
+    const refusal=legRefusal(read.teams||[],team!.id,legs,leg!,row.raceId);
     if(refusal) throw new Error(refusal);
-    return legWarnings(Number(number),read.race.event,read.relays||[]);
+    return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},read.relays||[],team!.id,row.raceId);
   }
   async function check() {
     working(true);setError('');

@@ -1,6 +1,6 @@
 import type { Event } from './results-rules.js';
 export const sections = ['Boy Beavers','Girl Beavers','Boy Cubs','Girl Cubs','Boy Scouts','Girl Scouts'] as const;
-/** Home's tabs, one per event type. Every event has one, stored with it; a lead adds Races or Hurdles. */
+/** What kind of event it is, stored with it; a lead adds Races or Hurdles. Home's Races tab holds races and hurdles. */
 export const eventTypes = ['races','hurdles','relays'] as const;
 export type EventType = typeof eventTypes[number];
 export const eventTypeNames: Record<EventType,string> = {races:'Races',hurdles:'Hurdles',relays:'Relays'};

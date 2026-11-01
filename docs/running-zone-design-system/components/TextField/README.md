@@ -12,9 +12,9 @@ A labelled input. The numeric version is the workhorse: big tabular digits in a 
 
 **Parts**
 - `rz-field__label` (`meta` style, `ink-muted`) is always visible; the placeholder never replaces it.
-- `rz-field__hint` (optional) shows the formatted value ("Shows as **12.34**") or the format rule ("Type digits only: 1234 shows as 12.34, 13240 as 1:32.40.").
+- `rz-field__hint` (optional) says how to type ("Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.").
 
-**Times:** the volunteer types digits only. The app formats them (1234 → 12.34, 13240 → 1:32.40) and shows the result in the hint.
+**Times:** the volunteer types the timer's digits only. The box shows the time itself, filling from the right (1234 → 12.34, 13240 → 1:32.40). A time that cannot be one is refused in a WarningCallout under the box, its digits selected so the next digit replaces them.
 
 **Tokens:** `card`, 2px `navy` border, `radius-lg`, `placeholder`, `warn-soft`, `warn-line`.
 
@@ -33,8 +33,8 @@ A labelled input. The numeric version is the workhorse: big tabular digits in a 
 
 <div class="rz-field">
   <label class="rz-field__label" for="pt">Place time</label>
-  <input class="rz-field__input" id="pt" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="1234" aria-describedby="pt-hint">
-  <p class="rz-field__hint" id="pt-hint">Shows as <strong>12.34</strong></p>
+  <input class="rz-field__input" id="pt" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="12.34" aria-describedby="pt-hint">
+  <p class="rz-field__hint" id="pt-hint">Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.</p>
 </div>
 
 <div class="rz-field rz-field--warn">

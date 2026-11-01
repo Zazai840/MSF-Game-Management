@@ -64,8 +64,8 @@ function Join({onSignedIn}:{onSignedIn:(result:SignedIn)=>void}) {
           <input ref={nameBox} className="rz-field__input" id="join-name" autoComplete="name" enterKeyHint="go" maxLength={80} value={name} onChange={event=>{setName(event.target.value);if(refused==='taken') join.setError('');}} required/>
           {someoneElse && <p className="rz-field__hint">Add a middle name or initial, for example Sara K Ahmed.</p>}</div>
         {join.error && refused==='taken' && <div ref={refusal}><Callout message={join.error} actions={<>
-          <button type="button" className="rz-btn rz-btn--primary" disabled={join.busy} onClick={()=>send(true)}>That's me</button>
-          <button type="button" className="rz-btn" onClick={notMe}>No, I'm someone else</button></>}/></div>}
+          <button type="button" className="rz-btn" onClick={notMe}>No, I'm someone else</button>
+          <button type="button" className="rz-btn rz-btn--primary" disabled={join.busy} onClick={()=>send(true)}>That's me</button></>}/></div>}
         {/* Shown as typed, so a typo is seen before Join; no capitals or corrections, since the password may be lower case. */}
         <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="join-code">Password</label>
           <input className="rz-field__input" id="join-code" type="text" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="go" value={code} onChange={event=>setCode(event.target.value)} required/></div>

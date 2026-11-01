@@ -45,7 +45,7 @@ export function Screen({screen,fill=true,wide=false,children}:{screen:string;fil
 }
 /** The pill on the app bar naming your job; it opens Switch job. */
 export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
-  return <button type="button" className={role==='lead'?'rz-rolechip rz-rolechip--lead':'rz-rolechip'} aria-label={`Your job: ${role==='lead'?'Zone lead':roleLabels[role]}. Change job`} onClick={onOpen}>
+  return <button type="button" className={role==='lead'?'rz-rolechip rz-rolechip--lead':'rz-rolechip'} aria-label={`Your job: ${roleLabels[role]}. Change job`} onClick={onOpen}>
     <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
@@ -66,7 +66,8 @@ export const CodeTag=({code,role}:{code:string;role:Role})=>role==='lead' && cod
 export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
-      <h1>{title}</h1><CodeTag code={code} role={role}/></div>
+      {/* Up to two lines, the code tag flowing after the last word, so a long event name still shows its section. */}
+      <div className="rz-appbar__heading"><h1>{title}</h1> <CodeTag code={code} role={role}/></div></div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
 }
@@ -78,16 +79,20 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
  */
 export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
   onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:ReactNode}) {
+  // "+" sits right after the last heat, before the final (races come heats first, then the final).
+  const heats=races.filter(race=>race.kind!=='final').length;
+  const chip=(race:RaceSummary)=>{
+    const state=chipState(race,role),here=race.id===current;
+    const kind=here?'current':state==='done'?'done':state==='ready'?current?'pending':'ready':'waiting';
+    return <li key={race.id}><button type="button" className={`rz-heat rz-heat--${kind}`} aria-current={here?'page':undefined}
+      aria-label={here?`${chipLabel(race,role)}, this race`:chipLabel(race,role)} onClick={()=>{if(!here) onRace(race.id);}}>
+      {chipName(race)}{state==='done' && !here && <Icon name="check"/>}
+    </button></li>;
+  };
   return <ol className="rz-heats" aria-label="Heats">
-    {races.map(race=>{
-      const state=chipState(race,role),here=race.id===current;
-      const kind=here?'current':state==='done'?'done':state==='ready'?current?'pending':'ready':'waiting';
-      return <li key={race.id}><button type="button" className={`rz-heat rz-heat--${kind}`} aria-current={here?'page':undefined}
-        aria-label={here?`${chipLabel(race,role)}, this race`:chipLabel(race,role)} onClick={()=>{if(!here) onRace(race.id);}}>
-        {chipName(race)}{state==='done' && !here && <Icon name="check"/>}
-      </button></li>;
-    })}
+    {races.slice(0,heats).map(chip)}
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
+    {races.slice(heats).map(chip)}
     {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
       onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
     {onFinal && finalReason && <li>{finalReason}</li>}

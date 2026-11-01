@@ -1,40 +1,48 @@
 import { expect,test } from 'vitest';
 import { changedLine,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
-import { changerOf,changingLine,childCount,entryWords,legsText,runsShortLine,teamListOf,teamState,teamsReadyLine,teamsRow,teamsSheetLine,type RelayTeam } from '../src/shared/teams.js';
+import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
-const race=(id:string,createdAt:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,createdAt,updatedAt:createdAt,steps});
-const group=(code:string,races:RaceSummary[],updatedAt:string,finalAvailable=false,medalsDecided=false)=>({event:{code},races,updatedAt,finalAvailable,medalsDecided}) as unknown as RaceGroup;
+const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
+const group=(code:string,races:RaceSummary[],finalAvailable=false,medalsDecided=false)=>({event:{code},races,finalAvailable,medalsDecided}) as unknown as RaceGroup;
 test('every run is named a heat, and an event has one final',()=>{
   expect(raceName({kind:'race',number:2})).toBe('Heat 2');
   expect(raceName({kind:'final',number:1})).toBe('Final');
 });
-test('Ready for you lists groups with a race my step can be worked on, oldest waiting first; the rest are in progress or done',()=>{
+test('Ready for you lists groups with a race my step can be worked on; the rest are in progress or done; each section in the day\'s programme',()=>{
   const checkedIn={runners:status('done'),positions:status('not started'),times:status('not started')};
   const empty={runners:status('not started'),positions:status('not started'),times:status('not started')};
   const placed={runners:status('done'),positions:status('done'),times:status('not started')};
   const saved={runners:status('done'),positions:status('done'),times:status('done')};
   const groups=[
-    group('newer',[race('a','2026-06-01T10:05:00Z',checkedIn)],'2026-06-01T10:06:00Z'),
-    group('older',[race('b','2026-06-01T10:01:00Z',checkedIn)],'2026-06-01T10:02:00Z'),
-    group('nobody yet',[race('c','2026-06-01T09:00:00Z',empty)],'2026-06-01T11:00:00Z'),
-    group('placed',[race('d','2026-06-01T09:00:00Z',placed)],'2026-06-01T09:30:00Z'),
-    group('final next',[race('e','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:10:00Z',true),
-    group('every race saved',[race('s','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:15:00Z'),
-    group('finished',[race('f','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:20:00Z',false,true),
-    group('no races',[],'')
+    group('newer',[race('a',checkedIn)]),
+    group('older',[race('b',checkedIn)]),
+    group('nobody yet',[race('c',empty)]),
+    group('placed',[race('d',placed)]),
+    group('final next',[race('e',saved,'saved')],true),
+    group('every race saved',[race('s',saved,'saved')]),
+    group('finished',[race('f',saved,'saved')],false,true),
+    group('no races',[])
   ];
   const finishLine=raceSections(groups,'finish');
-  expect(finishLine.ready.map(item=>item.event.code)).toEqual(['older','newer']);
+  expect(finishLine.ready.map(item=>item.event.code)).toEqual(['newer','older']);
   // Nobody is checked in to "nobody yet", so the finish line has nothing to place there yet; every race saved is not done until the medals are decided.
-  expect(finishLine.inProgress.map(item=>item.event.code)).toEqual(['nobody yet','placed','every race saved','final next']);
+  expect(finishLine.inProgress.map(item=>item.event.code)).toEqual(['nobody yet','placed','final next','every race saved']);
   expect(finishLine.done.map(item=>item.event.code)).toEqual(['finished']);
   expect(raceSections(groups,'start').ready.map(item=>item.event.code)).toEqual(['nobody yet']);
-  expect(raceSections(groups,'timer').ready.map(item=>item.event.code)).toEqual(['placed','older','newer']);
+  expect(raceSections(groups,'timer').ready.map(item=>item.event.code)).toEqual(['newer','older','placed']);
+});
+test('a lead\'s sections follow the day\'s programme too, whichever group started waiting first',()=>{
+  const saved={runners:status('done'),positions:status('done'),times:status('done')};
+  const waiting=(code:string,since:string)=>({...group(code,[race(code,saved,'saved')]),medalsWaiting:{stage:'event',since}}) as RaceGroup;
+  const running=(code:string)=>group(code,[race(code,{runners:status('in progress'),positions:status('not started'),times:status('not started')})]);
+  const sections=leadSections([waiting('60m','2026-06-01T09:00:00Z'),running('60m Hurdles'),waiting('200m','2026-06-01T10:00:00Z'),running('400m')],[]);
+  expect(sections.ready.map(item=>item.event.code)).toEqual(['60m','200m']);
+  expect(sections.inProgress.map(item=>item.event.code)).toEqual(['60m Hurdles','400m']);
 });
 test('a card says each race\'s state in my step, naming the final apart from the heats, and each chip says it too',()=>{
   const step=(state:StepStatus['state'])=>status(state);
-  const heat=(number:number,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race(`h${number}`,'2026-06-01T10:00:00Z',steps,state),number});
-  const final=(steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race('f','2026-06-01T11:00:00Z',steps,state),kind:'final' as const,number:1});
+  const heat=(number:number,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race(`h${number}`,steps,state),number});
+  const final=(steps:RaceSummary['steps'],state:RaceSummary['state']='in progress')=>({...race('f',steps,state),kind:'final' as const,number:1});
   const saved=(number:number)=>heat(number,{runners:step('done'),positions:step('done'),times:step('done')},'saved');
   const checkedIn=heat(3,{runners:step('done'),positions:step('in progress'),times:step('not started')});
   const placed=heat(4,{runners:step('done'),positions:step('done'),times:step('not started')});
@@ -76,7 +84,7 @@ test('a card says each race\'s state in my step, naming the final apart from the
 });
 test('an event is done once its medals are decided, not when its races are saved',()=>{
   const saved={runners:status('done'),positions:status('done'),times:status('done')};
-  const hurdles=(medalsDecided:boolean)=>({...group('hurdles',[race('a','2026-06-01T09:00:00Z',saved,'saved')],'2026-06-01T09:10:00Z'),medalsDecided}) as RaceGroup;
+  const hurdles=(medalsDecided:boolean)=>({...group('hurdles',[race('a',saved,'saved')]),medalsDecided}) as RaceGroup;
   expect(groupDone(hurdles(false))).toBe(false);
   expect(raceSections([hurdles(false)],'timer')).toMatchObject({inProgress:[{event:{code:'hurdles'}}],done:[]});
   expect(groupDone(hurdles(true))).toBe(true);
@@ -84,8 +92,8 @@ test('an event is done once its medals are decided, not when its races are saved
 });
 test('only a lead is offered the final: a volunteer\'s card says who makes it, a lead\'s says when, and the confirm counts the heats',()=>{
   const steps=(state:StepStatus['state'])=>({runners:status(state),positions:status(state),times:status(state)});
-  const saved=(number:number)=>({...race(`h${number}`,'2026-06-01T10:00:00Z',steps('done'),'saved'),number});
-  const running={...race('h3','2026-06-01T10:00:00Z',steps('in progress')),number:3};
+  const saved=(number:number)=>({...race(`h${number}`,steps('done'),'saved'),number});
+  const running={...race('h3',steps('in progress')),number:3};
   const cubs=(races:RaceSummary[],heatsOpen=true,format='heats')=>({event:{format,section:'Girl Cubs'},races,heatsOpen}) as unknown as RaceGroup;
   expect(volunteerFinalLine(cubs([saved(1),running]))).toBe('A lead makes the final once every heat has run.');
   expect(leadFinalLine(cubs([saved(1),saved(2),running]))).toBe('Heat 3 in progress · Heats 1 and 2 saved · make the final once every heat has run');
@@ -100,42 +108,23 @@ test('only a lead is offered the final: a volunteer\'s card says who makes it, a
   expect(finalConfirm(cubs([saved(1),saved(2),saved(3)]))).toEqual({title:'Have all Girl Cubs heats run?',text:'3 heats saved. The final takes the fastest 6, and no more heats can be added.'});
   expect(finalConfirm(cubs([saved(1)])).text).toBe('1 heat saved. The final takes the fastest 6, and no more heats can be added.');
 });
-test('a relay with teams and no heats sits in Teams ready, no heats yet, after In progress; one with neither is not listed',()=>{
-  const team=(number:number,races:RelayTeam['races']=[]):RelayTeam=>({id:`t${number}`,number,legs:[],version:1,changedBy:null,changing:null,races});
-  const relay=(code:string,teams:RelayTeam[],races:RaceSummary[]=[])=>({...group(code,races,'2026-06-01T10:00:00Z'),teams}) as RaceGroup;
-  const groups=[relay('ready',[team(1),team(2)]),relay('empty',[]),relay('running',[team(1)],[race('a','2026-06-01T10:00:00Z',{runners:status('in progress'),positions:status('not started'),times:status('not started')})]),group('race',[],'')];
+test('a relay is listed once it has a heat, as any event is: teams typed ahead with no heats give it no card',()=>{
+  const relay=(code:string,races:RaceSummary[]=[])=>({...group(code,races),event:{code,relay:true}}) as unknown as RaceGroup;
+  const groups=[relay('ahead'),relay('running',[race('a',{runners:status('in progress'),positions:status('not started'),times:status('not started')})]),group('race',[])];
   for(const sections of [raceSections(groups,'start'),leadSections(groups,[])]) {
-    expect(sections.teamsReady.map(item=>item.event.code)).toEqual(['ready']);
+    expect(sections).not.toHaveProperty('teamsReady');
     expect([...sections.ready,...sections.inProgress,...sections.done].map(item=>item.event.code)).toEqual(['running']);
   }
-  expect(finalConfirm({...relay('cubs',[team(1)],[{...race('h1','2026-06-01T10:00:00Z',{},'saved'),number:1}]),event:{format:'heats',section:'Girl Cubs',relay:true}} as unknown as RaceGroup).text)
+  expect(finalConfirm({...relay('cubs',[{...race('h1',{},'saved'),number:1}]),event:{format:'heats',section:'Girl Cubs',relay:true}} as unknown as RaceGroup).text)
     .toBe('1 heat saved. The final takes the fastest 6 teams, and no more heats can be added.');
 });
-test('a relay\'s Teams row and teams sheet say how many teams there are, which are still to run, and what each team is doing',()=>{
+test('a team reads the same on every screen: whether it runs short, and its four children in leg order',()=>{
   const legs=(filled:number)=>[0,1,2,3].map(index=>({wristband:index<filled?2001+index:null,warnings:[]}));
-  const team=(number:number,races:RelayTeam['races']=[],filled=4):RelayTeam=>({id:`t${number}`,number,legs:legs(filled),version:1,changedBy:null,changing:null,races});
-  const ran=team(1,[{id:'h1',kind:'heat',number:1,state:'saved'}]),checking=team(2,[{id:'h2',kind:'heat',number:2,state:'in progress'}]);
-  const final=team(3,[{id:'h1',kind:'heat',number:1,state:'saved'},{id:'f',kind:'final',number:1,state:'in progress'}]);
-  expect([ran,checking,final,team(4),team(5,[],3)].map(teamState)).toEqual(['Heat 1 · ran','Heat 2 · change it at check-in','Final · change it at check-in','Still to run','Still to run · 3 of 4']);
-  expect(teamsRow([ran,checking,team(4),team(5,[],3)])).toBe('Teams 4 · 2 still to run');
-  expect(teamsRow([ran,checking])).toBe('Teams 2');
-  expect(teamsSheetLine([ran,team(4)],true)).toBe('2 teams · 1 still to run. Tap a team still to run to change it.');
-  expect(teamsSheetLine([team(4)],true)).toBe('1 team · 1 still to run. Tap a team still to run to change it.');
-  expect(teamsSheetLine([],true)).toBe('No teams yet. Tap New team to type the first.');
-  expect(teamsSheetLine([ran],false)).toBe('The final has been made, so the teams can\'t change. A lead can correct a team in Results.');
-  expect(teamsReadyLine([team(1),team(2),team(3)])).toBe('3 teams ready · no heats yet');
-});
-test('a team reads the same on every screen: who else is changing it, whether it runs short, and its four children in leg order',()=>{
-  const legs=(filled:number)=>[0,1,2,3].map(index=>({wristband:index<filled?2001+index:null,warnings:[]}));
-  const team=(filled=4,changing:RelayTeam['changing']=null):RelayTeam=>({id:'t1',number:1,legs:legs(filled),version:1,changedBy:null,changing,races:[]});
-  const open=team(4,{id:'phone-a',name:'Priya Shah',since:'2026-06-01T10:00:00Z'});
-  // This phone's own open team is not someone else changing it.
-  expect([changerOf(open,'phone-a'),changerOf(open,'phone-b'),changerOf(open),changerOf(team())]).toEqual([null,'Priya Shah','Priya Shah',null]);
-  expect(changingLine('Priya Shah')).toBe('Priya Shah is changing this team');
+  const team=(filled=4):RelayTeam=>({id:'t1',number:1,legs:legs(filled),version:1,changedBy:null,races:[]});
   expect([runsShortLine(team(3)),runsShortLine(team())]).toEqual(['Runs short · 3 of 4',null]);
   expect(legsText(team(3).legs)).toBe('2001 · 2002 · 2003 · –');
   expect([childCount(1),childCount(3)]).toEqual(['1 child','3 children']);
-  expect(teamListOf({event:{code:'R22',name:'4x50m Relay',section:'Girl Cubs'},teams:[open]})).toEqual({code:'R22',name:'4x50m Relay',section:'Girl Cubs',teams:[open]});
+  expect(teamListOf({event:{code:'R22',name:'4x50m Relay',section:'Girl Cubs'},teams:[team()]})).toEqual({code:'R22',name:'4x50m Relay',section:'Girl Cubs',teams:[team()]});
 });
 test('the finish line and Timer word a relay\'s teams and a race\'s runners from one place',()=>{
   expect(entryWords(true)).toMatchObject({add:'+ Team not on the list',allPlaced:'Every team is placed',who:'Which team',noneElse:'No other team crossed the line',appear:'Teams appear here as the start line adds them or marks them Here.',timerMeta:'time each team\'s 4th leg'});

@@ -6,7 +6,7 @@ What ADR 0001 really protected stays: every write still carries the version of t
 
 With no holders, Submit Race goes too: each step is marked done (That's everyone, Save the order, No more finishers), and a race whose steps are all done and agree saves itself. A race whose steps disagree waits, done, for a lead. Undo reverses only the person's own done mark, and refuses once anyone has changed that step since.
 
-Relays now run in the race flow too, and the old relay race screen, its routes, Submit Race and Take over are gone. A relay's team list has no hold either: each team is saved whole, against the version of that team the phone last saw, so two people can type different teams of one relay at once. Editing a team someone else set asks first ("Aisha Noor has already set this team.", with Change anyway), and a Save on an older version is refused.
+Relays now run in the race flow too, and the old relay race screen, its routes, Submit Race and Take over are gone. A relay team has no hold either. It is made only by typing it into a heat at its start line, and two people can type different teams into one heat at once (ADR 0002). A change to a team's children, by a leg chip or a leg drag, is saved whole against the version of that team the phone last saw, from anyone, with nothing asked first; a Save on an older version is refused.
 
 ## Consequences
 

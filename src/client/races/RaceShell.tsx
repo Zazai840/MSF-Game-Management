@@ -1,17 +1,18 @@
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { DayLeadItem,EventResultsRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { changedLine,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
-import { api,StaleRequest } from '../api.js';
+import { changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
+import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RacePage } from '../lead/RacePage.js';
 import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
-import { useFlowWrite } from './writes.js';
+import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
+import { failureLine,useFlowWrite } from './writes.js';
 
-/** What a done mark hands back for the toast on Races: the step, the part version it was marked at, and its words. */
-export interface SavedStep { raceId:string; step:Step; version:number; message:string }
+/** What a done mark hands back for the toast on Races: the step, the part version it was marked at, its words, and the Races-home tab holding its event. */
+export interface SavedStep { raceId:string; step:Step; version:number; message:string; tab:HomeTab }
 /** This race's open lead items (To check), read while a lead has it open. */
 function useRaceIssues(raceId:string,on:boolean) {
   const [items,setItems]=useState<DayLeadItem[]>([]);
@@ -28,9 +29,11 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;me:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
-  onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
-  const {snapshot,error,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
+export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,onSaved,onResults}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+  onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
+  const {snapshot,error,gone,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
+  // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
+  useEffect(()=>{if(gone) onGone(snapshot?`A lead removed ${snapshot.group.event.section} ${raceName(snapshot.race)}`:'That race is gone');},[gone]);
   const flow=useFlowWrite(raceId,offer);
   const lead=role==='lead',issues=useRaceIssues(raceId,lead);
   const [tab,setTab]=useState<Step>(opened??'runners');
@@ -38,6 +41,8 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
   const [viewing,setViewing]=useState<Step|null>(null);
   const [actions,setActions]=useState(false);
   const [confirmingFinal,setConfirmingFinal]=useState(false);
+  // "+" asks first, in New race's sheet: the heat it offers, as a Races card's "+" does.
+  const [adding,setAdding]=useState<NewRaceChoice|null>(null);
   const [failure,setFailure]=useState('');
   // "Show latest" starts the step's body afresh from what the server has.
   const [fresh,setFresh]=useState(0);
@@ -51,16 +56,16 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
   const summary=group.races.find(item=>item.id===race.id)!,index=group.races.indexOf(summary);
   const locked=race.state==='saved' || race.stageComplete===true;
   async function markDone(done:Step) {
+    // Read before the write: a lead correcting a step already done stays on the race.
+    const already=snapshot!.steps[done]?.state==='done';
     const answer=await flow.write(`steps/${done}/done`,{});
-    if(typeof answer!=='object') return;
-    // A lead marking a step done stays on the race; everyone else goes back to Races with the toast.
-    if(lead) return;
-    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`});
+    if(typeof answer!=='object' || (lead && already)) return;
+    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:homeTabOf(event)});
   }
-  async function create(kind:'heat'|'final') {
+  async function create(kind:'heat'|'final',number=group.nextHeat) {
     setFailure('');
-    try {const made=await api<RaceFlowRead>('races',{eventCode:event.code,kind,number:group.nextHeat});onRace(made.race.id);}
-    catch(failure) {setFailure(failure instanceof Error?failure.message:'Could not connect - please try again');}
+    try {const made=await api<RaceFlowRead>('races',{eventCode:event.code,kind,number});setAdding(null);onRace(made.race.id);}
+    catch(failure) {setFailure(failureLine(failure));}
   }
   function swiped(touch:TouchEvent) {
     const start=swipe.current,end=touch.changedTouches[0];swipe.current=null;
@@ -75,20 +80,20 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
     for(const item of issues.items) {const at=issueStep(item);notes[at]=`${issues.items.filter(other=>issueStep(other)===at).length} to check`;}
     if(!notes.runners && usualSizeApplies(event) && (race.parts.runners.value?.length||0)>usualRunnersPerRace) notes.runners='More than usual';
   }
-  const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked,me};
+  const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
     <RaceBar title={`${event.name} · ${event.section}`} code={event.code} role={role} onBack={onBack}>
       <RoleChip role={role} onOpen={onRole}/>
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions: re-run, delete, correct, disqualify" onClick={()=>setActions(true)}><Icon name="more"/></button>}
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
-      onAdd={group.heatsOpen?()=>void create('heat'):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
+      onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes} relay={event.relay}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}
-        {failure && <Callout message={failure}/>}
+        {failure && !adding && <Callout message={failure}/>}
         {flow.changed && <div className="rz-callout rz-callout--status" role="status"><p className="rz-callout__msg"><Icon name="warning"/><span>{changedLine(flow.changed.by)}.</span></p>
           <div className="rz-callout__actions"><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{flow.clearChanged();setFresh(fresh+1);}}>Show latest</button></div></div>}
         {race.stageComplete?<p className="rz-note" role="status">{raceFinishedLine({kind:race.kind,event})}</p>:race.state==='saved' && !lead && <p className="rz-note" role="status">{raceName(race)} is saved. Ask a lead to change it.</p>}
@@ -104,6 +109,10 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
       :lead?<LeadStep key={`${race.id}:${step}:${fresh}`} step={step} {...props} issues={issues.items} onIssue={()=>void issues.refresh()} onResults={onResults} onActions={()=>setActions(true)}/>
         :step==='runners'?<StartLine key={`${race.id}:${fresh}`} {...props}/>:step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
     </div>
+    {adding && <NewRaceSheet groups={[group]} relays={event.relay} role={role} choice={adding} onRace={onRace} onResults={onResults} failure={failure}
+      onClose={()=>{setAdding(null);setFailure('');}} onCreate={choice=>{
+        if(choice.kind==='final' && !finalMade(group)) {setAdding(null);setConfirmingFinal(true);} else void create(choice.kind,choice.number);
+      }}/>}
     {confirmingFinal && <FinalSheet group={group} onClose={()=>setConfirmingFinal(false)} onMake={()=>{setConfirmingFinal(false);void create('final');}}/>}
     {actions && <LeadRaceSheet raceId={race.id} eventCode={event.code} onClose={()=>{setActions(false);void issues.refresh();}} onRemoved={()=>{setActions(false);onBack();}}/>}
   </>;

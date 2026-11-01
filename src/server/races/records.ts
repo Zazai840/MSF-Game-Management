@@ -38,10 +38,11 @@ export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> 
 export function requireStageOpen(race:Pick<RaceRead,'stageComplete'|'kind'> & {event:Pick<RaceRead['event'],'section'>}) {
   if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
 }
+/** One race of the day, deleted or not. A race not found is `gone` (removed for good), unlike one in Deleted races. */
 export async function readRace(db:Database,dayId:string,id:string):Promise<StoredRace> {
-  if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) throw new Refusal(404,'Race not found');
+  if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) throw new Refusal(404,'Race not found',{gone:true});
   const row=(await db.query(`${raceRowsQuery} WHERE r.day_id=$1 AND r.id=$2`,[dayId,id])).rows[0];
-  if (!row) throw new Refusal(404,'Race not found');
+  if (!row) throw new Refusal(404,'Race not found',{gone:true});
   const rows=(await db.query('SELECT part,version,value FROM race_parts WHERE race_id=$1',[id])).rows;
   const finalRow=row.kind==='final'?(await db.query(`${finalRowsQuery} WHERE f.race_id=$1`,[id])).rows[0]:undefined;
   return storedRace(row,rows,finalRow);
@@ -56,7 +57,7 @@ function storedRace(row:pg.QueryResultRow,rows:pg.QueryResultRow[],finalRow?:pg.
   const parts=Object.fromEntries(rows.map(row=>[row.part,{version:row.version,value:row.value}]));
   // A final has run once it is saved.
   const final=finalRow?{generation:finalRow.generation,entries:finalRow.entries,additionalEntries:finalRow.additional_entries,hasRun:row.state==='saved',heatsComplete:finalRow.heats_complete}:undefined;
-  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,type:row.type,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
+  const race={...(final?{final}:{}),id:row.id,event:{id:row.event_id,code:row.code,name:row.name,section:row.section,format:row.format,enabled:row.enabled,type:row.type,relay:row.relay},kind:row.kind,number:row.number,checkedInAt:row.checked_in_at.toISOString(),deleted:row.deleted,deletedAt:row.deleted_at?.toISOString()??null,state:row.state,stageComplete:row.stage_complete,deleteReason:row.delete_reason,parts:parts as RaceRead['parts']};
   return {...race,recording:raceRecording(race)};
 }
 export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<T>) {

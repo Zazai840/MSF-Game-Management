@@ -12,8 +12,7 @@
 
 /* Phone number entry. */
 .number-entry {display:grid; gap:12px;}
-.time-shows {margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted);}
-.time-shows strong {color:var(--text); font-variant-numeric:tabular-nums;}
+.time-hint {margin:0; font-size:var(--text-small); font-weight:700; color:var(--muted);}
 .number-input {height:60px; padding:0 16px; font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.02em;}
 .number-input::placeholder {color:var(--muted); font-weight:600; font-size:20px;}
 .number-input:focus-visible {outline:none; box-shadow:inset 0 0 0 1.5px var(--navy);}

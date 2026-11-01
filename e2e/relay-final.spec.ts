@@ -20,7 +20,7 @@ test('a lead\'s call-up shows live on a relay final\'s start line, and once the 
   await runHeat(request,sam.token,code,7);
   const finalId=await makeFinal(request,lead.token,code);
   await sam.page.goto(`/races/${finalId}`);
-  await expect(sam.page.getByRole('heading',{level:3})).toHaveText(['1st seed · Team 1','2nd seed · Team 2','3rd seed · Team 3','4th seed · Team 4','5th seed · Team 5','6th seed · Team 6']);
+  await expect(sam.page.getByRole('heading',{level:3})).toHaveText(['1st fastest · Team 1','2nd fastest · Team 2','3rd fastest · Team 3','4th fastest · Team 4','5th fastest · Team 5','6th fastest · Team 6']);
   // Team 5 isn't here: Absent frees its seed, and the lead calls up the next-ranked team, which appears at once.
   await card(sam.page,5).getByRole('button',{name:'Team 5: Absent',exact:true}).click();
   await openFinalResults(lead.page,code);
