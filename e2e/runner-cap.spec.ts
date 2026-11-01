@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction} from './fixtures.js';
+import {eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction,press,expectToast} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
   if(lead) {await becomeLead(page);}
@@ -65,11 +65,11 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await sheet.getByLabel('New runners did not finish',{exact:true}).check();
   await sheet.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
   await raceAction(page,'Correct finishing order');
-  await sheet.getByRole('button',{name:'Give a place to 1806',exact:true}).click();
-  const rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
+  await press(page.getByRole('button',{name:'Give a place to 1806',exact:true}));
+  const rows=page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveCount(7);await expect(rows.last()).toContainText('7th1806');
   await page.screenshot({path:info.outputPath('lead-order-seventh.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved · Boy Cubs Final');
   await back(page,`${name} · Boy Cubs`);await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.getByRole('button')).toHaveCount(7);
   await expect(final.getByRole('button').first()).toContainText('1801');await expect(final.getByRole('button').last()).toContainText('1806');

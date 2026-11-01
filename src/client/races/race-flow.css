@@ -189,6 +189,11 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 /* A team left over: "Team 6 · 2064" on a line of its own, its two answers side by side below. */
 .rz-orderrow--team { grid-template-columns: 1fr 1fr; padding: var(--space-8) var(--space-8) var(--space-8) var(--space-14); }
 .rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
+/* Correct finishing order: a placed row with its No place button between the number and the handle. */
+.rz-orderrow--action { grid-template-columns: var(--size-touch) 1fr auto var(--size-touch); column-gap: var(--space-6); }
+/* Correct times: a place's row, or its time box while retyped, with No finisher beside it on the same line. */
+.rz-timefix { display: flex; align-items: center; gap: var(--space-8); }
+.rz-timefix > :first-child { flex: 1; min-width: 0; }
 
 /* A prompt's line above that keeps its end: a long event name gives way ("…Girl Cubs · decides 2nd and 3rd"), the line stays one line. */
 .rz-prompt__meta--fit { display: flex; white-space: nowrap; }

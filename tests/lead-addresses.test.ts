@@ -25,6 +25,10 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races/r-1/restore',{kind:'race-action',code:'R4',raceId:'r-1',action:'restore'}],
     ['/races/r-1/re-run',{kind:'race-action',raceId:'r-1',action:'re-run'}],
     ['/races/r-1/delete',{kind:'race-action',raceId:'r-1',action:'delete'}],
+    ['/results/R4/races/r-1/correct-times',{kind:'correction',code:'R4',raceId:'r-1',action:'correct-times'}],
+    ['/results/R4/races/r-1/correct-finishing-order',{kind:'correction',code:'R4',raceId:'r-1',action:'correct-finishing-order'}],
+    ['/races/r-1/correct-times',{kind:'correction',raceId:'r-1',action:'correct-times'}],
+    ['/races/r-1/correct-finishing-order',{kind:'correction',raceId:'r-1',action:'correct-finishing-order'}],
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
@@ -62,6 +66,9 @@ test('a screen reached with no history goes up one level',()=>{
   // Re-run, Delete and Restore go up to their race: its race page under Results, else the race screen.
   expect(parentOf({kind:'race-action',code:'R4',raceId:'r-1',action:'delete'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
   expect(parentOf({kind:'race-action',raceId:'r-1',action:'re-run'})).toEqual({kind:'race',id:'r-1'});
+  // A correction goes up to its race the same way.
+  expect(parentOf({kind:'correction',code:'R4',raceId:'r-1',action:'correct-times'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
+  expect(parentOf({kind:'correction',raceId:'r-1',action:'correct-finishing-order'})).toEqual({kind:'race',id:'r-1'});
   expect(parentOf({kind:'results'})).toEqual({kind:'races'});
   expect(parentOf({kind:'day'})).toEqual({kind:'races'});
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});

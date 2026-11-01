@@ -183,17 +183,19 @@ test('a tie between two heats shows on both heats\' Times tab, and Open in Resul
   await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
 });
 
-test('a correction from Race actions on the race screen shows its toast, with no Undo',async({openPhone,request},info)=>{
+test('a correction from Race actions on the race screen returns to the race screen with its toast, with no Undo',async({openPhone,request},info)=>{
   const name=ownName('Lead toast'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
-  await recordRace(request,owner(),code,[2011,2012],[1200,1300]);
+  const race=await recordRace(request,owner(),code,[2011,2012],[1200,1300]);
   const {page}=await openPhone(ownName('Lead toast'),{lead:true});
   await openRace(page,name);
   await raceAction(page,'Correct times');
-  const sheet=page.getByRole('dialog',{name:'Correct times'});
-  await sheet.getByRole('button',{name:'2nd place · 13.00',exact:true}).click();
-  const input=sheet.getByLabel('2nd place time',{exact:true});await input.fill('1350');await input.press('Enter');
-  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expectToast(page,'Times saved · Girl Cubs Heat 1');
+  await expect(page).toHaveURL(new RegExp(`/races/${race.id}/correct-times$`));
+  await expect(page.getByRole('banner').getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
+  await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
+  const input=page.getByLabel('2nd place time',{exact:true});await input.fill('1350');await input.press('Enter');
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
+  await expectToast(page,'Times saved · Girl Cubs Heat 1');await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
+  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions-toast.png')});
 });

@@ -121,6 +121,17 @@ test('Join\'s button stays at the foot of the screen while typing',async({page})
   await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
   expect(Math.abs(await footerBottom(footer)-foot)).toBeLessThanOrEqual(1);
 });
+test('a lead\'s Correct times keeps Save times on the keyboard',async({page})=>{
+  const code=await ownCode(),name=ownName('Docked times fix'),n=await ownWristbands('Girl Cubs',2);
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
+  await page.goto('/');await join(page,ownName('Docked times fix lead'),{job:'Start line'});await becomeLead(page);
+  await page.goto(`/results/${code}/races/${race.id}/correct-times`);
+  await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
+  const box=page.getByLabel('2nd place time',{exact:true});
+  await docksAboveKeyboard(page,box);
+  await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Save times',exact:true})).toBeVisible();
+});
 test('a lead\'s Correct number keeps Save number on the keyboard',async({page})=>{
   const code=await ownCode(),name=ownName('Docked number'),n=await ownWristbands('Girl Cubs',2);
   await ownEvent(page.request,code,name);
