@@ -255,7 +255,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 **Zone lead**
 - Every step tab shows "Team 5" with its four children in leg order wherever a team appears (Runners chips, Finishing order rows, Times rows, To check callouts; a tie lists each tied team). Relay problems (a team that ran short, a child in two relays, a kept warning, a wrong time) sit on the step they are about, with It's right or the way to settle it. A team that ran short reads "A team ran short".
 - "⋯" race actions are a race's, with Correct teams in place of Correct runner list.
-- Results, the race page, Correct teams and the final's line-up keep their older look.
+- Correct teams is a race-flow screen built on these leg chips (screens.md, 28).
 
 ## Soft warning: usual heat size
 

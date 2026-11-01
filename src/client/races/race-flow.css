@@ -323,6 +323,11 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
 .rz-sheet__apart { margin-top: var(--space-12); }
 /* A choice with a line under its name: Delete's "Move to Deleted races / You can restore it later." */
 .rz-choice__detail { display: block; margin-top: var(--space-4); font-size: 14px; font-weight: 600; }
+/* Correct runner list: a runner's row (tap to retype) with its red Remove beside it; Add runner and Change runner list sit under the list. */
+.rz-runner-edit { display: flex; align-items: center; gap: var(--space-8); }
+.rz-runner-edit > .rz-lead-row, .rz-runner-edit > .rz-field { flex: 1; min-width: 0; }
+.rz-runner-edit__remove { flex: none; padding: 0; width: var(--size-touch); }
+.rz-runner-edit__add { align-self: flex-start; }
 .rz-choices--stack .rz-choice > span { padding: var(--space-8) 0; text-align: left; }
 .rz-chip--team { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); }
 .rz-callout__team { display: block; margin-top: var(--space-4); font-variant-numeric: tabular-nums; }

@@ -197,3 +197,24 @@ test('a correction from Race actions on the race screen shows its toast, with no
   await expectToast(page,'Times saved · Girl Cubs Heat 1');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions-toast.png')});
 });
+
+test('Correct runner list from Race actions on the race screen has the race screen\'s address under it, saves on Save runner list, and returns to the race',async({openPhone,request},info)=>{
+  const name=ownName('Lead runner list'),code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const race=await recordRace(request,owner(),code,[2021,2022],[1200,1300]);
+  const {page}=await openPhone(ownName('Lead runner list'),{lead:true});
+  await openRace(page,name);
+  await raceAction(page,'Correct runner list');
+  await expect(page).toHaveURL(new RegExp(`/races/${race.id}/correct-runner-list$`));
+  await expect(page.getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Runner 2 · 2022',exact:true}).click();
+  await page.getByLabel('Wristband for runner 2',{exact:true}).fill('2029');await page.keyboard.press('Enter');
+  const docked=page.getByRole('contentinfo');
+  await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
+  await expect(page.getByRole('heading',{level:2,name:'2 runners. Is that right?',exact:true})).toBeVisible();
+  await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
+  await expectToast(page,'Runner list saved · Girl Cubs Heat 1');
+  await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
+  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-runner-list-saved.png')});
+});
