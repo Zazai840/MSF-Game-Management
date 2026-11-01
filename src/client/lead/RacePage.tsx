@@ -1,5 +1,6 @@
 import { eventTitle } from '../../shared/day.js';
-import { RunnerActions } from './RunnerActions.js';
+import { RunnerSheet } from './RunnerSheet.js';
+import type { View } from '../shell/addresses.js';
 import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions } from './RaceActions.js';
 import { useEffect,useRef,useState } from 'react';
@@ -20,9 +21,10 @@ import { LeadBar } from '../races/parts.js';
 import './results.css';
 /**
  * A lead's page for one race. With `screen` (its event's code) it is a screen of its own under the lead header ("Heat 1",
- * back to its event); without, it is the body of the race actions over the race screen.
+ * back to its event); without, it is the body of the race actions over the race screen. A runner opens the runner sheet;
+ * `onOpen` moves to its screens.
  */
-export function RacePage({raceId,screen,onSaved,onClose,actionableRunners=[]}:{raceId:string;screen?:{code:string};onSaved:(next:EventResultsRead)=>void;onClose:()=>void;actionableRunners?:readonly LeaderboardRow[]}) {
+export function RacePage({raceId,screen,onSaved,onClose,onOpen,actionableRunners=[]}:{raceId:string;screen?:{code:string};onSaved:(next:EventResultsRead)=>void;onClose:()=>void;onOpen:(view:View)=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
   const [selectedEntry,setSelectedEntry]=useState<string|null>(null);
   const selectedRow=actionableRunners.find(row=>row.raceId===raceId && row.entryId===selectedEntry);
@@ -37,7 +39,7 @@ export function RacePage({raceId,screen,onSaved,onClose,actionableRunners=[]}:{r
   const body=<section className="race-page">{error && <p role="alert">{error}</p>}{!read?<p>Opening race…</p>:<>
     <h3>{raceLabel(read.race)} · {read.race.event.name} {read.race.event.section}</h3><p>Checked in {clock(read.race.checkedInAt)}</p>
     <RaceActions race={read.race} relay={read} onSaved={onSaved} onRefresh={refresh} onRemoved={onClose}/>
-    {selectedRow && <RunnerActions key={selectedRow.entryId} row={selectedRow} rows={actionableRunners} eventCode={read.race.event.code} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)}/>}
+    {selectedRow && <RunnerSheet key={selectedRow.entryId} event={read.race.event} row={selectedRow} rows={actionableRunners} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)} onOpen={onOpen}/>}
     <h4>Current record</h4><p>{capitalised(entryNoun(read.race.event.relay))}s: {read.race.parts.runners.value?.map(entryName).join(' · ')||'None'}</p>
     <CurrentRecord race={read.race} rowFor={entryId=>actionableRunners.find(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
     <details><summary>Saved versions ({read.history.length})</summary><ol>{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>

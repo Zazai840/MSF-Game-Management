@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownEvent,ownCode,lookProblems,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,join,openLeadMenu,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 const amber='rgb(255, 244, 220)';
 const created:string[]=[];
@@ -63,42 +63,43 @@ test('a single child\'s warnings show beside their number on the Current record,
   await expect(row(2141).locator('.record-note')).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-open-warnings.png'),fullPage:true});
 
-  // Checked by a lead: grey, worded as on the leaderboards. Tapping the number still opens the child's actions.
+  // Checked by a lead: grey, worded as on the leaderboards. Tapping the number still opens the runner sheet.
   await page.getByRole('button',{name:'Runner 3141',exact:true}).click();
-  const sheet=page.getByRole('dialog',{name:'Actions for 3141',exact:true});
-  await sheet.getByRole('button',{name:'Mark checked',exact:true}).click();await sheet.getByRole('button',{name:'Save check',exact:true}).click();await expect(sheet).toHaveCount(0);
+  const sheet=page.getByRole('dialog',{name:'Runner 3141',exact:true});
+  await sheet.getByRole('button',{name:'Mark checked',exact:true}).click();await expectToast(page,'Warning checked · 3141');await expect(sheet).toHaveCount(0);
   await expect(warning(3141)).toHaveText(`Checked by ${lead}: 3141 belongs to Boy Scouts - this race is Girl Cubs`);
   expect(await background(warning(3141))).not.toBe(amber);
   // Settled by a Wrong section or age disqualification.
   await page.getByRole('button',{name:'Runner 3142',exact:true}).click();
-  await page.getByRole('button',{name:'Disqualify',exact:true}).click();
-  await page.getByLabel('Reason',{exact:true}).selectOption('Wrong section or age');
-  await page.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button',{name:'Disqualify 3142',exact:true}).click();
+  await page.getByRole('button',{name:'Wrong section or age',exact:true}).click();
+  await page.getByRole('button',{name:'Disqualify 3142',exact:true}).click();await expectToast(page,'3142 disqualified · Wrong section or age');
   await expect(warning(3142)).toHaveText('Checked: 3142 belongs to Boy Scouts - this race is Girl Cubs');
   expect(await background(warning(3142))).not.toBe(amber);
   await expect(warning(5141)).toHaveText('5141 is not a known wristband number');expect(await background(warning(5141))).toBe(amber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-checked-warnings.png'),fullPage:true});
 });
 
-test('a lead corrects a number on the phone number pad: digits only, Enter checks, a warning closes the keyboard and Fix clears it',async({page},info)=>{
+test('a lead corrects a number on its screen with the phone number pad: digits only, Enter saves, a warning closes the keyboard and Fix clears it; the save lands back on the race page',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2111,2112],[1300,1400]);
   await openRace(page,code,ownName('Number lead'),race.number);
-  await page.getByRole('button',{name:'Runner 2112',exact:true}).click();
-  await page.getByRole('button',{name:'Correct number',exact:true}).click();
-  const sheet=page.getByRole('dialog'),input=sheet.getByLabel('New wristband number',{exact:true});
-  await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');await expect(input).toBeFocused();
-  await input.pressSequentially('40-45');await expect(input).toHaveValue('4045');
+  const racePage=page.url();
+  await press(page.getByRole('button',{name:'Runner 2112',exact:true}));
+  await press(page.getByRole('dialog',{name:'Runner 2112',exact:true}).getByRole('button',{name:'Correct number',exact:true}));
+  await expect(page.getByRole('banner').getByRole('button',{name:`Back to Heat ${race.number}`,exact:true})).toBeVisible();
+  const input=page.getByLabel('New wristband number',{exact:true});
+  await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).not.toBeFocused();
+  await press(input);await input.pressSequentially('40-45');await expect(input).toHaveValue('4045');
   await page.screenshot({path:info.outputPath('correct-number-typing.png'),fullPage:false});
   await input.press('Enter');
-  await expect(sheet.getByText('4045 belongs to Girl Scouts - this race is Girl Cubs',{exact:true})).toBeVisible();
-  await expect(input).not.toBeFocused();
-  await page.screenshot({path:info.outputPath('correct-number-warning.png'),fullPage:false});
-  await sheet.getByRole('button',{name:'Fix number',exact:true}).click();
+  const held=page.getByRole('alert').filter({hasText:'4045 belongs to Girl Scouts - this race is Girl Cubs'});
+  await expect(held).toBeVisible();await expect(input).not.toBeFocused();
+  await expect(page.getByText('Fix the number or keep it.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('correct-number-warning.png'),fullPage:false});
+  await press(held.getByRole('button',{name:'Fix number',exact:true}));
   await expect(input).toHaveValue('');await expect(input).toBeFocused();
-  await input.fill('2115');await sheet.getByRole('button',{name:'Check number',exact:true}).click();
-  await expect(sheet.getByText('Change 2112 to',{exact:false})).toBeVisible();
-  await sheet.getByRole('button',{name:'Save correction',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expectToast(page,`Number saved · 2115 in Heat ${race.number}`);
+  await input.fill('2115');await input.press('Enter');
+  await expectToast(page,`Number saved · 2115 in Heat ${race.number}`);await expect(page).toHaveURL(racePage);
   await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
   // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
   await page.getByText('Saved versions (4)',{exact:true}).click();
@@ -146,10 +147,10 @@ test('a race not saved yet shows In progress on the lead race page, with the cor
   for(const tool of ['Correct times','Correct finishing order','Correct runner list','Re-run race']) await expect(page.getByRole('button',{name:tool,exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-in-progress.png'),fullPage:true});
   await page.getByRole('button',{name:'Runner 2132',exact:true}).click();
-  await page.getByRole('button',{name:'Disqualify',exact:true}).click();
-  await page.getByLabel('Reason',{exact:true}).selectOption({index:1});
-  await page.getByRole('button',{name:'Save disqualification',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expectToast(page,/^2132 disqualified · .+$/);
+  await page.getByRole('button',{name:'Disqualify 2132',exact:true}).click();
+  await page.getByRole('button',{name:'Obstruction',exact:true}).click();
+  await page.getByRole('button',{name:'Disqualify 2132',exact:true}).click();
+  await expectToast(page,'2132 disqualified · Obstruction');
   await page.getByRole('button',{name:'Delete race',exact:true}).click();
   await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();

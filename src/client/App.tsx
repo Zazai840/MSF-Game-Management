@@ -22,7 +22,7 @@ export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
   const [view,setView] = useState<View>(()=>viewAt(location.pathname+location.search));
-  // What Open in Results asked to open on the event (a runner's actions, a check sheet), on that visit only.
+  // What Open in Results asked to open on the event (the runner sheet, a check sheet), on that visit only.
   const [target,setTarget]=useState<ResultsTarget>();
   // Kept here as well as on the phone, so the back arrow returns to the tab you came from even when storage fails.
   const [homeTab,setHomeTab]=useState(phoneStorage.homeTab);
@@ -117,7 +117,7 @@ export function App() {
     if(view.kind==='races' || view.kind==='race') {
       const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
       if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} me={home.phone.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
-        onRace={(id,step)=>go({kind:'race',id,step})} onSaved={saved=>{showToast({message:saved.message,saved});toRaces();}} onResults={toResults}/>{sheet}</Screen>;
+        onRace={(id,step)=>go({kind:'race',id,step})} onSaved={saved=>{showToast({message:saved.message,saved});toRaces();}} onResults={toResults} onOpen={next=>go(next)}/>{sheet}</Screen>;
       return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={home.phone.profileId} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
         onResults={toResults}/>{sheet}</Screen>;
     }

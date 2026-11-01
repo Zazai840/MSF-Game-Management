@@ -15,6 +15,10 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races/r-1',{kind:'race-page',code:'R4',raceId:'r-1'}],
     ['/results/R4/ties/t-1',{kind:'tie',code:'R4',tieId:'t-1'}],
     ['/results/R4/ties/t-1?stage=no-final',{kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'}],
+    ['/results/R4/races/r-1/runners/e-2/disqualify',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'disqualify'}],
+    ['/results/R4/races/r-1/runners/e-2/lift-disqualification',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'lift-disqualification'}],
+    ['/results/R4/races/r-1/runners/e-2/correct-number',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'correct-number'}],
+    ['/results/R4/races/r-1/runners/e-2/choose-result',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'choose-result'}],
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
@@ -31,6 +35,7 @@ test('each lead screen has its own address, and opening an address opens that sc
 test('an event address without a tab opens Heats, and an address the app does not know opens Races',()=>{
   expect(viewAt('/results/R4')).toEqual({kind:'event',code:'R4',tab:'heats'});
   expect(viewAt('/results/R4/medals')).toEqual({kind:'races'});
+  expect(viewAt('/results/R4/races/r-1/runners/e-2/promote')).toEqual({kind:'races'});
   expect(viewAt('/nowhere')).toEqual({kind:'races'});
 });
 
@@ -45,6 +50,7 @@ test('codes and race ids with spaces or slashes survive the address',()=>{
 
 test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'race-page',code:'R4',raceId:'r-1'})).toEqual({kind:'event',code:'R4',tab:'races'});
+  expect(parentOf({kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'disqualify'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
   expect(parentOf({kind:'event',code:'R4',tab:'final'})).toEqual({kind:'results'});
   expect(parentOf({kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'})).toEqual({kind:'event',code:'R4',tab:'heats'});
   expect(parentOf({kind:'results'})).toEqual({kind:'races'});

@@ -137,7 +137,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - `rz-board-title` "60m / Girl Cubs" with an R4 code tag, the live chip "Heats running · 5 races", and the note "Top 8 · Q = fastest 6".
 - Leaderboard: qualifiers (star rank, Q tag, gold time), the qualifying line, places 7–8 with plain ranks, then places outside the top 8 as `--outside` rows. Tied rows carry a TIE tag.
 
-**27 Runner actions (disqualify).** Tapping a leaderboard row opens a Sheet titled "Runner 2002" with a block danger Button "Disqualify", a block primary "Correct number" and a block secondary "Close actions".
+**27 The runner sheet.** Tapping a runner (on the Heats leaderboard, the Final tab or a race page) opens a Sheet titled "Runner 2002" (or "Team 3"): a meta line (event, heat, place in race, time, any disqualification), the runner's Notes as IssueCards, then block Buttons: primary "Mark checked" (only with an open warning; saves at once), "Correct number", "Choose which result counts" (when the runner has more than one result), "Open Heat 1", and a danger "Disqualify 2002" last (or "Lift disqualification"). Correct number, Choose which result counts, Disqualify and Lift disqualification are race-flow screens with a docked button.
 
 **28 A race in detail**
 - `display-screen` "Heat 1 · 60m Girl Cubs", meta "Checked in 11:41:12 AM".

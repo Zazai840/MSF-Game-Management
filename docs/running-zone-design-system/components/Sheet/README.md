@@ -1,6 +1,6 @@
 # Sheet
 
-A modal panel that slides up from the bottom for a decision about one thing: a tie (24), a runner's actions (27), heats complete (29).
+A modal panel that slides up from the bottom for a decision about one thing: a tie (24), the runner sheet (27), heats complete (29).
 
 **Use**
 - `role="dialog" aria-modal="true"`, labelled by its title. Focus goes to the first action, is trapped inside, and returns to the opener on close. Escape closes it.
@@ -9,7 +9,7 @@ A modal panel that slides up from the bottom for a decision about one thing: a t
   2. Title (`display-screen`, 28px): names the thing ("Tie at 11.30", "Runner 2002").
   3. One `body` sentence.
   4. Stacked block actions.
-- The closing action comes last as a small button ("Close tie", "Close actions").
+- The closing action comes last as a small button ("Close tie").
 - Destructive actions use the danger Button, and the scrim does not close a sheet that holds one.
 - Slides up in 200ms ease-out; appears instantly with reduced motion.
 

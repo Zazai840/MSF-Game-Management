@@ -10,7 +10,7 @@ import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,St
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { useFlowWrite } from './writes.js';
-import { useScreenName } from '../shell/addresses.js';
+import { useScreenName,type View } from '../shell/addresses.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, and its words. */
 export interface SavedStep { raceId:string; step:Step; version:number; message:string }
@@ -30,8 +30,8 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSaved,onResults}:{raceId:string;me:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
-  onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void}) {
+export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSaved,onResults,onOpen}:{raceId:string;me:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+  onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void;onOpen:(view:View)=>void}) {
   const {snapshot,error,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   const flow=useFlowWrite(raceId,offer);
   const lead=role==='lead',issues=useRaceIssues(raceId,lead);
@@ -109,20 +109,21 @@ export function RaceShell({raceId,me,step:opened,role,onRole,onBack,onRace,onSav
         :step==='runners'?<StartLine key={`${race.id}:${fresh}`} {...props}/>:step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
     </div>
     {confirmingFinal && <FinalSheet group={group} onClose={()=>setConfirmingFinal(false)} onMake={()=>{setConfirmingFinal(false);void create('final');}}/>}
-    {actions && <LeadRaceSheet raceId={race.id} eventCode={event.code} onClose={()=>{setActions(false);void issues.refresh();}} onRemoved={()=>{setActions(false);onBack();}}/>}
+    {actions && <LeadRaceSheet raceId={race.id} eventCode={event.code} onOpen={onOpen} onClose={()=>{setActions(false);void issues.refresh();}} onRemoved={()=>{setActions(false);onBack();}}/>}
   </>;
 }
 /**
  * The lead's race actions (Re-run, Delete, Correct times, order or runners, Disqualify a runner): today's lead race
  * page, over the race screen. It keeps the older look, so it opens outside the race flow's screen.
  */
-function LeadRaceSheet({raceId,eventCode,onClose,onRemoved}:{raceId:string;eventCode:string;onClose:()=>void;onRemoved:()=>void}) {
+function LeadRaceSheet({raceId,eventCode,onOpen,onClose,onRemoved}:{raceId:string;eventCode:string;onOpen:(view:View)=>void;onClose:()=>void;onRemoved:()=>void}) {
   const [results,setResults]=useState<EventResultsRead|null>(null);
   useEffect(()=>{void api<EventResultsRead>(`lead/events/${encodeURIComponent(eventCode)}/results`).then(setResults).catch(()=>{});},[eventCode]);
-  useEffect(()=>{const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);},[]);
+  // Escape with the runner sheet open closes only the sheet.
+  useEffect(()=>{const key=(event:KeyboardEvent)=>{if(event.key==='Escape' && !document.querySelector('.rz-sheet')) onClose();};addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);},[]);
   return createPortal(<div className="lead-race-overlay" role="dialog" aria-modal="true" aria-label="Race actions">
     <div className="lead-race-panel"><div className="lead-race-head"><h2>Race actions</h2><button className="button-secondary" onClick={onClose}>Close</button></div>
-      <RacePage raceId={raceId} onSaved={setResults} onClose={onRemoved} actionableRunners={results?.results.actionableRunners}/>
+      <RacePage raceId={raceId} onSaved={setResults} onClose={onRemoved} onOpen={onOpen} actionableRunners={results?.results.actionableRunners}/>
     </div>
   </div>,document.body);
 }

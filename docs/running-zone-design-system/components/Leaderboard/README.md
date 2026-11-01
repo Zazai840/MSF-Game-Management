@@ -9,7 +9,7 @@ Standings for one event and section on the dark scoreboard surface (screen 26). 
 - The rule note in `scoreboard-muted` ("Top 8 · Q = fastest 6").
 - The star pattern and speed stripes sit behind the head only.
 
-**Rows:** an `<ol>`; each row is a `<button>` that opens the runner's actions sheet.
+**Rows:** an `<ol>`; each row is a `<button>` that opens the runner sheet.
 - **Qualifier** (`rz-lb--q`):
   - rank on a zone-coloured star (`size-rank`) in `navy`;
   - wristband in `label`, with a Q tag;
