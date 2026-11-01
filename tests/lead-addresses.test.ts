@@ -16,6 +16,11 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races/r-1',{kind:'race-page',code:'R4',raceId:'r-1'}],
     ['/results/R4/ties/t-1',{kind:'tie',code:'R4',tieId:'t-1'}],
     ['/results/R4/confirm-the-medals',{kind:'confirm-the-medals',code:'R4'}],
+    ['/results/R4/results-without-a-final',{kind:'stage',code:'R4',screen:'results-without-a-final'}],
+    ['/results/R4/reopen-heats',{kind:'stage',code:'R4',screen:'reopen-heats'}],
+    ['/results/R4/reopen-final',{kind:'stage',code:'R4',screen:'reopen-final'}],
+    ['/results/R4/reopen-event',{kind:'stage',code:'R4',screen:'reopen-event'}],
+    ['/results/R4/reopen-results',{kind:'stage',code:'R4',screen:'reopen-results'}],
     ['/results/R4/ties/t-1?stage=no-final',{kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'}],
     ['/results/R4/races/r-1/runners/e-2/disqualify',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'disqualify'}],
     ['/results/R4/races/r-1/runners/e-2/lift-disqualification',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'lift-disqualification'}],
@@ -70,6 +75,7 @@ test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'})).toEqual({kind:'event',code:'R4',tab:'heats'});
   // Confirm the medals goes up to its event, which opens on the tab holding the medal decision.
   expect(parentOf({kind:'confirm-the-medals',code:'R4'})).toEqual({kind:'event',code:'R4'});
+  expect(parentOf({kind:'stage',code:'R4',screen:'reopen-heats'})).toEqual({kind:'event',code:'R4'});
   // Re-run, Delete and Restore go up to their race: its race page under Results, else the race screen.
   expect(parentOf({kind:'race-action',code:'R4',raceId:'r-1',action:'delete'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
   expect(parentOf({kind:'race-action',raceId:'r-1',action:'re-run'})).toEqual({kind:'race',id:'r-1'});

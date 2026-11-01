@@ -20,8 +20,6 @@ const allowed:Array<{word:string;in?:string;reason:string}>=[
   {word:'line-up',in:lead,reason:"a final's line-up, fastest first, the glossary's Finals line-up"},
   {word:'comment',in:lead,reason:"lead-only rulings keep their Comment box (an audit note's comment)"},
   {word:'Official',in:lead,reason:"lead-only Results keeps its Official leaderboard"},
-  {word:'Positions',in:lead,reason:"lead-only Results keeps a final's Final positions"},
-  {word:'stage',in:lead,reason:'lead-only Results keeps "unlocks the stage for corrections"'},
 ];
 const isAllowed=(word:string,file:string)=>allowed.some(allow=>allow.word===word&&file.startsWith(allow.in??''));
 const words=(text:string)=>{

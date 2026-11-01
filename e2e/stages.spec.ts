@@ -48,10 +48,20 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await expect(job.getByRole('status').filter({hasText:'Girl Cubs heats are finished. Ask a lead to change this race.'})).toBeVisible(live);
   await expect(job.getByLabel('Wristband number',{exact:true})).toHaveCount(0);await expect(job.getByRole('button',{name:/^Add heat/})).toHaveCount(0);
   await job.screenshot({path:info.outputPath('locked-race.png'),fullPage:true});
-  await page.getByRole('button',{name:'Reopen event',exact:true}).click();const reopen=page.getByRole('dialog',{name:'Reopen event',exact:true});await reopen.getByRole('button',{name:'Reopen',exact:true}).click();await expect(reopen.getByLabel('Comment',{exact:true})).toBeFocused();await reopen.getByLabel('Comment',{exact:true}).fill('Late time correction');
+  // Reopen event sits in Confirm the medals' place and opens its own screen: the warning, a required comment, docked Reopen event.
+  await press(page.getByRole('button',{name:'Reopen event',exact:true}));
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-event$`));
+  await expect(page.getByRole('heading',{level:2,name:'Reopen the event?',exact:true})).toBeVisible();
+  const reopen=footer.getByRole('button',{name:'Reopen event',exact:true});
+  await expect(footer.locator('.rz-footer__reason')).toHaveText('Write a comment first.');await press(reopen,true);await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-event$`));
+  await page.getByLabel('Comment',{exact:true}).fill('Late time correction');
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('reopen-event.png'),fullPage:true});
+  // A failed save stays on the screen with the comment kept.
   let failed=false;await page.route('**/api/lead/events/*/reopen-stage',async route=>{if(!failed){failed=true;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Could not save - try again'})});}else await route.continue();});
-  await reopen.getByRole('button',{name:'Reopen',exact:true}).click();await expect(reopen.getByRole('alert')).toContainText('Could not save');await expect(reopen.getByLabel('Comment',{exact:true})).toHaveValue('Late time correction');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expectToast(page,`Event reopened · ${name} Girl Cubs`);
+  await press(reopen);await expect(page.getByRole('main').getByRole('alert')).toContainText('Not saved - try again');await expect(page.getByLabel('Comment',{exact:true})).toHaveValue('Late time correction');
+  await press(reopen);
+  await expectToast(page,`Event reopened · ${name} Girl Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   // Reopened, the race is saved again rather than locked, and the event offers its next heat: Heat 2 again, as the deleted Heat 2 freed its number.
   await expect(job.getByRole('status').filter({hasText:'Girl Cubs heats are finished. Ask a lead to change this race.'})).toHaveCount(0,live);
   await expect(job.getByRole('button',{name:'Add heat 2',exact:true})).toBeVisible();

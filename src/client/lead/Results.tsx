@@ -1,6 +1,6 @@
 import { Final } from './Final.js';
-import { StageSheet,reopenLabel } from './StageSheet.js';
-import { dayExportLine,type InputRunning,type Stage,type StageCheckSheet,type StageItem } from '../../shared/stages.js';
+import { reopenLabel,stageView } from './ConfirmTheMedals.js';
+import { dayExportLine,type InputRunning,type StageCheckSheet } from '../../shared/stages.js';
 import { DeletedRaces,RaceRows } from './DeletedRaces.js';
 import { Fragment,useEffect,useState,useRef } from 'react';
 import { api } from '../api.js';
@@ -25,7 +25,6 @@ import './results.css';
  * Results asked to open on the event: the runner sheet. `runner` is one of the runner sheet's screens.
  */
 export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:{code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void}) {
-  const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
   const [list,setList]=useState<ResultsGridRead|null>(null);
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
@@ -47,32 +46,21 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
     return()=>{request.current++;clearInterval(timer);};
   },[code]);
   const openRace=(id:string)=>onOpen({kind:'race-page',code:code!,raceId:id});
-
-  // A tie opened from Results without a final is judged against medal places there.
-  const openTie=(tieId:string,stage?:Stage)=>onOpen({kind:'tie',code:code!,tieId,...(stage==='no-final'?{stage}:{})});
+  const openTie=(tieId:string)=>onOpen({kind:'tie',code:code!,tieId});
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
-  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedStage(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
-  // Event complete and Final complete are the Confirm the medals screen; Results without a final and Reopen stay sheets for now.
-  const openStage=(sheet:StageCheckSheet)=>!sheet.completed && (sheet.stage==='event' || sheet.stage==='final')?onOpen({kind:'confirm-the-medals',code:code!}):setSelectedStage(sheet);
-  function openStageItem(item:StageItem) {
-    setSelectedStage(null);
-    if(item.tieId) openTie(item.tieId,selectedStage?.stage);
-    else if(item.entryId && detail?.results.actionableRunners.some(row=>row.raceId===item.raceId && row.entryId===item.entryId)) setSelected({raceId:item.raceId!,entryId:item.entryId});
-    else if(item.raceId) openRace(item.raceId);
-  }
+  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
+  const openStage=(sheet:StageCheckSheet)=>onOpen(stageView(code!,sheet));
   if(!code) return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
   if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
   if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onOpen={onOpen}/>;
-  const sheets=detail && <>
-    {selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={saved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>}
-    {selectedStage && <StageSheet event={detail.event} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}</>;
+  const sheets=detail && selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={saved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>;
   const body=<><main className="rz-main rz-main--event">
     {error && <Callout message={error}/>}
     {!detail?!error && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??openingTab(detail)} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
       onRunner={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onTie={id=>openTie(id)}
       onStage={openStage} onRace={openRace} saved={saved}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
-  // The older-look sheets sit outside the screen root, so they keep their look until their own tickets move them.
+  // The runner sheet wraps itself in its own screen root, beside this one.
   return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" wide body={body}/>{sheets}</>;
 }
 const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',races:'Races',notes:'Notes'};
@@ -98,7 +86,7 @@ function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:Even
       :<p className="rz-empty">Notes appear here when a lead changes this event's results.</p>)}
   </>;
 }
-/** A check-sheet button: Reopen once its stage is complete, else the stage's own label. */
+/** A medal decision button (Reopen heats, Results without a final): Reopen once its stage is complete, else the stage's own label. */
 const StageButton=({sheet,label=sheet.completed?reopenLabel(sheet.stage):sheet.label,onStage}:{sheet:StageCheckSheet;label?:string;onStage:(sheet:StageCheckSheet)=>void})=>
   <button type="button" className="rz-btn rz-btn--block" onClick={()=>onStage(sheet)}>{label}</button>;
 /**
@@ -110,13 +98,14 @@ const Medals=({input,sheet,onStage}:{input:InputRunning|null;sheet:StageCheckShe
   {sheet && (sheet.completed?<StageButton sheet={sheet} onStage={onStage}/>
     :<button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onStage(sheet)}>Confirm the medals</button>)}
 </>;
-/** The scoreboard of every heat's runners, then (until their screens move) the stage buttons under it. */
+/** The scoreboard of every heat's runners, then the medal decision (no Final tab), Reopen heats and Results without a final under it. */
 function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolean}) {
   const results=detail.results,ranked=results.leaderboard.filter(row=>row.position!==null).length;
   // A lead makes the final with "+ Final" on Races, so open heats offer no stage here: only Reopen heats once complete.
   // A timed event's medals wait for a ranked runner before Confirm the medals shows.
   const sheet=results.checkSheet?.stage==='final' || results.checkSheet?.stage==='heats' || !(results.checkSheet?.completed || ranked)?null:results.checkSheet;
-  const reopenHeats=results.heatsCheckSheet?.completed?results.heatsCheckSheet:null;
+  // Reopen heats applies only until the final starts (the server refuses after).
+  const reopenHeats=results.heatsCheckSheet?.completed && !results.finalResults?.started?results.heatsCheckSheet:null;
   return <>
     {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
       <div className="rz-stripes" aria-hidden="true"><span/><span/><span/></div>

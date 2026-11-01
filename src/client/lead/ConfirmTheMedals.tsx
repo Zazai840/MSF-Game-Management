@@ -5,56 +5,95 @@ import type { EventResultsRead } from '../../shared/lead-results.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { raceName } from '../../shared/race-flow.js';
 import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
-import type { StageCheckSheet,StageItem,StagePlace } from '../../shared/stages.js';
+import type { Stage,StageCheckSheet,StageItem,StagePlace } from '../../shared/stages.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { toastLine } from '../../shared/toast-lines.js';
-import { ErrorCallout,Icon,LeadBar,Star } from '../races/parts.js';
+import { Callout,ErrorCallout,Icon,LeadBar,Star } from '../races/parts.js';
 import { useToast } from '../races/Toast.js';
-import type { View } from '../shell/addresses.js';
+import type { StageScreen,View } from '../shell/addresses.js';
+import { Comment } from './Comment.js';
 import { teamWristbands } from './ResultName.js';
 import { Frame,RunnerSheet } from './RunnerSheet.js';
-/** The check Confirm the medals decides: Event complete on a timed event, Final complete on a final, until confirmed. */
-const medalsSheet=(detail:EventResultsRead|null)=>{
-  const sheet=detail?.results.checkSheet;
-  return sheet && !sheet.completed && (sheet.stage==='event' || sheet.stage==='final')?sheet:null;
-};
+/** What each stage's Reopen names: "Reopen heats" at /results/<code>/reopen-heats. */
+const reopened:Record<Stage,string>={event:'event',heats:'heats',final:'final','no-final':'results'};
+export const reopenLabel=(stage:Stage)=>`Reopen ${reopened[stage]}`;
+/** The screen a medal decision's button opens: Confirm the medals, Results without a final, or the stage's Reopen once complete. */
+export function stageView(code:string,sheet:StageCheckSheet):View {
+  if(sheet.completed) return {kind:'stage',code,screen:`reopen-${reopened[sheet.stage]}` as StageScreen};
+  return sheet.stage==='no-final'?{kind:'stage',code,screen:'results-without-a-final'}:{kind:'confirm-the-medals',code};
+}
+/**
+ * The check a screen decides. Confirm the medals: Event complete on a timed event, Final complete on a final, until
+ * confirmed. Results without a final: its own check while offered. A Reopen: its stage once complete, and Reopen heats
+ * only until the final starts (the server refuses after).
+ */
+function decidedSheet(detail:EventResultsRead|null,screen?:StageScreen) {
+  const results=detail?.results;
+  if(!results) return null;
+  if(!screen) {
+    const sheet=results.checkSheet;
+    return sheet && !sheet.completed && (sheet.stage==='event' || sheet.stage==='final')?sheet:null;
+  }
+  const reopening=screen!=='results-without-a-final',stage=reopening?(Object.keys(reopened) as Stage[]).find(stage=>`reopen-${reopened[stage]}`===screen):'no-final';
+  if(stage==='heats' && results.finalResults?.started) return null;
+  return [results.heatsCheckSheet,results.noFinalCheckSheet,results.checkSheet].find(sheet=>sheet?.stage===stage && sheet?.completed===reopening)??null;
+}
+/** Why a screen has nothing to decide, at an address typed or kept after the decision changed. */
+function nothingLine(detail:EventResultsRead,screen?:StageScreen) {
+  if(!screen || screen==='results-without-a-final') return detail.results.checkSheet?.completed?'These medals are confirmed.':'There are no medals to confirm yet.';
+  return screen==='reopen-heats' && detail.results.finalResults?.started?detail.results.heatsCheckSheet!.reopenWarning!:'There is nothing to reopen.';
+}
 /** "3 heats · no final": the event's live heats, and whether a final decides its medals. */
 function medalsMeta(detail:EventResultsRead,sheet:StageCheckSheet) {
   const heats=detail.results.races.filter(({race})=>race.kind!=='final').length;
-  return `${heats} ${heats===1?'heat':'heats'} · ${sheet.stage==='final'?'final':'no final'}`;
+  return `${heats} ${heats===1?'heat':'heats'} · ${sheet.stage==='final' || sheet.stage==='heats'?'final':'no final'}`;
 }
+/** What a Reopen warns of (Reopen heats' warning is the check's own, from #249). */
+const reopenHelp:Record<Exclude<Stage,'heats'>,string>={final:'The medals are no longer confirmed, and the final opens for corrections.',
+  event:"The medals are no longer confirmed, and the event's races open for corrections.",
+  'no-final':'This clears the medals and opens the heats again. You can then run a final or choose Results without a final again.'};
 /**
- * Confirm the medals as its own screen (spec #250 "Confirm the medals and the tie"), at /results/<code>/confirm-the-medals:
- * Settle first, Worth a look and the medal places, each with Fix, then the docked Confirm the medals, grey while anything
- * must be settled first. Back is the only way out and goes where it was opened (Races, or the event's tab); a Confirm
- * goes back too, with the toast. Each screen it opens (the tie, a race page, a correction) comes back here, which reads
- * the event again so the places are up to date.
+ * A medal decision as its own screen (spec #250 "Confirm the medals and the tie"): Confirm the medals at
+ * /results/<code>/confirm-the-medals, and (`screen`) Results without a final and each Reopen at /results/<code>/<screen>.
+ * Confirm the medals and Results without a final show Settle first, Worth a look and the medal places, each with Fix,
+ * then the docked Confirm the medals, grey while anything must be settled first; Results without a final and a Reopen
+ * need a comment. Back is the only way out and goes where it was opened (Races, or the event's tab); a save goes back
+ * too, with the toast. Each screen it opens (the tie, a race page, a correction) comes back here, which reads the event
+ * again so the places are up to date.
  */
-export function ConfirmTheMedals({code,onOpen,onBack}:{code:string;onOpen:(view:View)=>void;onBack:()=>void}) {
+export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen?:StageScreen;onOpen:(view:View)=>void;onBack:()=>void}) {
   const toast=useToast();
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [error,setError]=useState<unknown>(null),[refused,setRefused]=useState<unknown>(null),[busy,setBusy]=useState(false);
-  const [runner,setRunner]=useState<LeaderboardRow|null>(null);
+  const [runner,setRunner]=useState<LeaderboardRow|null>(null),[comment,setComment]=useState('');
   useEffect(()=>{
     api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`).then(setDetail,failure=>{if(!(failure instanceof StaleRequest)) setError(failure);});
   },[code]);
-  const sheet=medalsSheet(detail),title=detail?eventTitle(detail.event):code;
+  const sheet=decidedSheet(detail,screen),title=detail?eventTitle(detail.event):code;
   if(!detail || !sheet) return <LeadBar title={title} code={code} up={title} body={<main className="rz-main rz-main--form">
-    {error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">{!detail?'Opening…':detail.results.checkSheet?.completed?'These medals are confirmed.':'There are no medals to confirm yet.'}</p>}
+    {error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">{!detail?'Opening…':nothingLine(detail,screen)}</p>}
   </main>}/>;
-  const event=detail.event,settle=sheet.mustSettleFirst.length;
-  async function confirm() {
+  const event=detail.event,reopening=sheet.completed,settle=reopening?0:sheet.mustSettleFirst.length;
+  async function save() {
     setBusy(true);setRefused(null);
     try {
-      await api(`lead/events/${encodeURIComponent(event.code)}/complete-stage`,{stage:sheet!.stage});
-      toast({message:toastLine({kind:'stage-complete',stage:sheet!.stage,event})});onBack();
+      await api(`lead/events/${encodeURIComponent(event.code)}/${reopening?'reopen-stage':'complete-stage'}`,{stage:sheet!.stage,...(screen?{comment}:{})});
+      toast({message:toastLine({kind:reopening?'reopened':'stage-complete',stage:sheet!.stage,event})});onBack();
     } catch(failure) {setRefused(failure);setBusy(false);}
   }
+  const reason=settle?`Settle ${settle===1?'1 thing':`${settle} things`} first.`:screen && !comment.trim()?'Write a comment first.':null;
+  const check=<MedalsCheck detail={detail} sheet={sheet} onOpen={onOpen} onRunner={setRunner}/>;
+  const frame={meta:medalsMeta(detail,sheet),reason,busy,refused,onGo:()=>void save()};
   return <><LeadBar title={title} code={event.code} up={title} body={
-    <Frame meta={medalsMeta(detail,sheet)} question={<>Confirm the <em>medals</em></>} help="Check the places, then confirm. They go to the Day export."
-      reason={settle?`Settle ${settle===1?'1 thing':`${settle} things`} first.`:null} busy={busy} label="Confirm the medals" refused={refused} onGo={()=>void confirm()}>
-      <MedalsCheck detail={detail} sheet={sheet} onOpen={onOpen} onRunner={setRunner}/>
-    </Frame>}/>
+    reopening?<Frame {...frame} question={<>Reopen the <em>{reopened[sheet.stage]}</em>?</>} help={sheet.stage==='heats'?sheet.reopenWarning!:reopenHelp[sheet.stage]} label={reopenLabel(sheet.stage)}>
+      <Comment value={comment} onChange={setComment} required/>
+    </Frame>
+    :screen?<Frame {...frame} question={<>Results <em>without a final</em>?</>} help="No final will be run. Medals go to the 3 fastest heat times." label="Confirm the medals">
+      {detail.results.finalResults && <Callout status message="The final's line-up will be discarded."/>}
+      {check}
+      <Comment value={comment} onChange={setComment} required/>
+    </Frame>
+    :<Frame {...frame} question={<>Confirm the <em>medals</em></>} help="Check the places, then confirm. They go to the Day export." label="Confirm the medals">{check}</Frame>}/>
     {runner && <RunnerSheet key={`${runner.raceId}:${runner.entryId}`} event={event} row={runner} rows={detail.results.actionableRunners} onSaved={next=>{setRunner(null);setDetail(next);}}
       onClose={()=>setRunner(null)} onOpen={onOpen} onRace={()=>onOpen({kind:'race-page',code:event.code,raceId:runner.raceId})}/>}</>;
 }
