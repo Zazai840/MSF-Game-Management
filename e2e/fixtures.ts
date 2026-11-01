@@ -420,6 +420,7 @@ export async function startDrag(page:Page,from:Locator) {
     /** Moves so the dragged point sits on the middle of `target` (same column as the start). */
     async over(target:Locator) {const to=(await target.boundingBox())!;await toPoint(x,to.y+to.height/2);},
     async drop() {
+      if(touch && process.env.DEBUG_REST!=='0') {await page.waitForTimeout(100);await finger('touchMove');} // [DEBUG-c1f3]
       if(touch) {await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
       // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
       await page.waitForTimeout(Number(process.env.DEBUG_WAIT??100)); // [DEBUG-c1f3]
