@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,ownName,expect,expectToast,flowRace,live,lookProblems,medalPlaces,ownCode,ownEvent,ownWristbands,press,recordRace,submitRace,test,writeCheckIn,writeOrder,type APIRequestContext,type Page} from './fixtures.js';
+import {back,confirmTheMedals,ownName,expect,expectToast,live,lookProblems,medalPlaces,ownCode,ownEvent,ownWristbands,press,recordRace,saveFinal,test,writeCheckIn,type Page} from './fixtures.js';
 /**
  * Medals waiting on the lead: once an event's medals wait on the lead's Confirm in Results (Final complete, or Event
  * complete on a timed event), the lead's Races home lists it in Action required saying so, with Confirm the medals, which
@@ -9,7 +9,6 @@ const card=(page:Page,name:string)=>page.getByRole('article',{name:`${name} · G
 const status=(page:Page,name:string)=>card(page,name).locator('.rz-racecard__status');
 const section=(page:Page,heading:string)=>page.locator(`h2:text-is("${heading}") ~ article`);
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
-const headers=()=>({authorization:`Bearer ${owner()}`});
 
 /** Confirms the medals on their screen, lands back on Races with the toast and finds the card in Done as Medals decided. */
 async function confirmAndFindDone(page:Page,name:string) {
@@ -21,15 +20,6 @@ async function confirmAndFindDone(page:Page,name:string) {
   await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Medals decided');
   await expect(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
-}
-/** The final made by a lead, everyone marked Here, placed in this order and saved. */
-async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
-  expect((await request.post('/api/races',{headers:headers(),data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
-  const {race}=(await flowRace(request,owner(),code));
-  const here=race.final!.entries.map(entry=>entry.finalEntryId);
-  expect((await request.post(`/api/races/${race.id}/absent`,{headers:headers(),data:{raceId:race.id,version:race.parts.runners.version,here,absent:[]}})).ok()).toBe(true);
-  await writeOrder(request,owner(),code,order);
-  await submitRace(request,owner(),code);
 }
 
 test('a saved 60m final waits in the lead\'s Action required; Confirm the medals opens its screen, Fix opens Correct finishing order and returns, and the card moves to Done',async({openPhone,request},info)=>{

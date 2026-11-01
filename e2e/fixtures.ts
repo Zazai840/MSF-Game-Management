@@ -356,6 +356,16 @@ export async function makeFinal(page:Page,name:string,section:string) {
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
   await backToRaces(page);
 }
+/** The final made by the owner from the fastest heats, everyone marked Here, placed in this order and saved. */
+export async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
+  const token=process.env.E2E_OWNER_TOKEN!,headers={authorization:`Bearer ${token}`};
+  expect((await request.post('/api/races',{headers,data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
+  const {race}=await flowRace(request,token,code);
+  const here=race.final!.entries.map(entry=>entry.finalEntryId);
+  expect((await request.post(`/api/races/${race.id}/absent`,{headers,data:{raceId:race.id,version:race.parts.runners.version,here,absent:[]}})).ok()).toBe(true);
+  await writeOrder(request,token,code,order);
+  await submitRace(request,token,code);
+}
 /** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
 export async function raceAction(page:Page,action:string) {
   await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
