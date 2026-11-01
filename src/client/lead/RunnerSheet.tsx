@@ -102,8 +102,8 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
   const Body={disqualify:Disqualify,'lift-disqualification':Lift,'correct-number':CorrectNumber,'choose-result':ChooseResult}[view.screen];
   return <LeadBar title={title} code={view.code} up={up} body={<Body {...props}/>}/>;
 }
-/** A runner screen's frame: the prompt and fields, then the docked button, greyed with `reason` above it until it can go. */
-function Frame({meta,question,help,children,reason,busy,label,danger=false,refused,onGo}:{meta:string;question:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void}) {
+/** A full race-flow screen's frame (the runner screens, Re-run, Delete, Restore): the prompt and fields, then the docked button, greyed with `reason` above it until it can go. */
+export function Frame({meta,question,help,children,reason,busy,label,danger=false,refused,onGo}:{meta:string;question:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void}) {
   return <><main className="rz-main rz-main--form">
     <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{meta}</p><h2 className="rz-prompt__q">{question}</h2><p className="rz-prompt__help">{help}</p></div>
     {children}

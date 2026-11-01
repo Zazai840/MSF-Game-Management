@@ -356,6 +356,11 @@ export async function makeFinal(page:Page,name:string,section:string) {
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
   await backToRaces(page);
 }
+/** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
+export async function raceAction(page:Page,action:string) {
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await press(page.getByRole('dialog',{name:/ · actions$/}).getByRole('button',{name:action,exact:true}));
+}
 /** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
 export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
 /** Switches today's job from the job chip on Races or a race, as a volunteer does. */

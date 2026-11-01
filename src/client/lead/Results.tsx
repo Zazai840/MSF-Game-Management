@@ -68,7 +68,7 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
   }
   if(!code) return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
   if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
-  if(raceId) return <RacePage key={raceId} raceId={raceId} screen={{code}} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onClose={onBack} onOpen={onOpen}/>;
+  if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onOpen={onOpen}/>;
   const sheets=detail && <>
     {selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={saved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>}
     {selectedStage && <StageSheet event={detail.event} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}</>;

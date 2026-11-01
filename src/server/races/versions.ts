@@ -24,5 +24,6 @@ export async function correctPart(client:pg.PoolClient,lead:Phone,race:StoredRac
 export async function leadRace(db:Database,dayId:string,id:string):Promise<LeadRaceRead> {
   const race=await withReplacement(db,dayId,await readRace(db,dayId,id));
   const rows=(await db.query(`SELECT part,version,coalesce(corrected_by,held_by) AS author,saved_at FROM race_part_history WHERE race_id=$1 ORDER BY saved_at NULLS FIRST,version,array_position(ARRAY['runners','finish','times'],part)`,[race.id])).rows;
-  return {race,history:rows.map(({saved_at,...row})=>({...row,at:saved_at?.toISOString()??null}))};
+  const deletion=race.deleted?(await db.query(`SELECT actor_name AS by,comment FROM audit_notes WHERE day_id=$1 AND action IN ('delete-race','re-run') AND touches->0->>'raceId'=$2 ORDER BY sequence_number DESC LIMIT 1`,[dayId,race.id])).rows[0]??null:null;
+  return {race,history:rows.map(({saved_at,...row})=>({...row,at:saved_at?.toISOString()??null})),deletion:deletion && {by:deletion.by,comment:deletion.comment||null}};
 }

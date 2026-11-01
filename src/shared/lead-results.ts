@@ -20,5 +20,8 @@ export interface EventResultsRead { event:DayEvent; results:EventResults; auditN
  * correction (by that lead). Rows an older build kept have no time or author.
  */
 export interface SavedVersion { part:RacePartName; version:number; author:string|null; at:string|null }
-/** One race for a lead; a relay race also carries its team list and every switched-on relay's, for Correct teams' checks. */
-export interface LeadRaceRead { race:Omit<RaceRead,'final'> & {final?:FinalField}; history:SavedVersion[]; teams?:RelayTeam[]; relays?:TeamList[] }
+/**
+ * One race for a lead; a relay race also carries its team list and every switched-on relay's, for Correct teams' checks.
+ * `deletion` is who deleted a deleted race (or called its re-run) and their comment, from its audit note; null when live.
+ */
+export interface LeadRaceRead { race:Omit<RaceRead,'final'> & {final?:FinalField}; history:SavedVersion[]; deletion:{by:string;comment:string|null}|null; teams?:RelayTeam[]; relays?:TeamList[] }

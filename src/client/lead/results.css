@@ -1,6 +1,4 @@
-/* An event's older-look parts until their screens move: the race page and its sheets. Tokens from theme.css. */
-.results-view {flex:1; display:flex; flex-direction:column;}
-.results-view > h1 {margin-bottom:10px;}
+/* An event's older-look parts until their screens move: the older sheets. Tokens from theme.css. */
 .result-number {font-size:20px; font-weight:800; color:var(--navy); font-variant-numeric:tabular-nums;}
 /* A relay team: "Team 3", its four children in leg order on the line under it. */
 .result-legs {display:block; font-size:var(--text-small); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; text-wrap:balance;}
@@ -14,6 +12,4 @@ html[data-keyboard="open"] .action-sheet-overlay {top:var(--vv-top);bottom:auto;
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
 .runner-actions form {margin:1rem 0;}
 
-.race-action-choices {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
-.race-action-choices>p {width:100%;}
 

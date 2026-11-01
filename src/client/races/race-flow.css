@@ -83,6 +83,8 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-app--bar { min-height: 0; --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-16)); }
 @media (min-width: 800px) { .rz-app--bar { --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-24)); } }
 .rz-appbar--lead { padding-left: var(--gutter); }
+/* The lead header's title and its code tag: apart, so the slanted tag never touches the last letter. */
+.rz-appbar--lead .rz-appbar__race { gap: var(--space-8); }
 .rz-appbar__start { flex: 1; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .rz-appbar__start > * { max-width: 100%; }
 .rz-appbar__back { display: inline-flex; align-items: center; gap: var(--space-4); min-height: var(--size-touch); min-width: var(--size-touch); margin: calc(-1 * var(--space-10)) 0 calc(-1 * var(--space-12)) calc(-1 * var(--space-6)); padding: 0 var(--space-6) 0 0; border: 0; background: none; color: var(--gold); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 700; font-size: 16px; line-height: 1; text-transform: uppercase; }
@@ -312,6 +314,16 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 /* A relay team as a lead reads it: "Team 5" over its four children in leg order. */
 .rz-team-legs { display: block; font-size: 14px; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .rz-lead-row__legs { grid-column: 2 / -1; margin-top: calc(-1 * var(--space-8)); }
+/* A race page's line under the header ("60m · Girl Cubs · checked in 10:05 · saved"): a long event name may wrap it. */
+.rz-page-meta { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
+/* A race page's row: the whole row opens the runner sheet; a wrong time's reason or a warning sits on its own line under the number. */
+button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); color: var(--navy); }
+.rz-lead-row__note { grid-column: 2 / -1; margin-top: calc(-1 * var(--space-4)); font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--ink-muted); overflow-wrap: anywhere; }
+/* Race actions: Delete set apart from the corrections above it. */
+.rz-sheet__apart { margin-top: var(--space-12); }
+/* A choice with a line under its name: Delete's "Move to Deleted races / You can restore it later." */
+.rz-choice__detail { display: block; margin-top: var(--space-4); font-size: 14px; font-weight: 600; }
+.rz-choices--stack .rz-choice > span { padding: var(--space-8) 0; text-align: left; }
 .rz-chip--team { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: var(--space-6) var(--space-14); border-radius: var(--radius-md); }
 .rz-callout__team { display: block; margin-top: var(--space-4); font-variant-numeric: tabular-nums; }
 .rz-callout--status { border-color: var(--navy); background: var(--card); }

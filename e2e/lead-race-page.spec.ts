@@ -1,6 +1,8 @@
-import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,selected,join,openLeadMenu,test,type Page} from './fixtures.js';
+import { clock } from '../src/shared/clock.js';
+import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,raceAction,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,selected,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
-const amber='rgb(255, 244, 220)';
+// The race page's amber (the race flow's), and the older look's amber in today's correction editors (until #279 and #280).
+const amber='rgb(255, 241, 199)',editorAmber='rgb(255, 244, 220)',red='rgb(196, 30, 58)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
@@ -17,23 +19,33 @@ async function openRace(page:Page,code:string,name:string,number:number) {
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 
-test('the race page highlights a wrong time in amber with its reason, and the times editor retypes it on the phone number pad',async({page},info)=>{
+test('the race page is in the race-flow look: its meta line, a wrong time in amber with its reason, and "⋯" opening Race actions with Delete red and last; Correct times retypes on the number pad',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2101,2102,2103],[1200,1100,1250]);
   await openRace(page,code,ownName('Wrong time lead'),race.number);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:`Heat ${race.number}`,exact:true})).toBeVisible();
+  await expect(page.getByText(`Race page · Girl Cubs · checked in ${clock(race.checkedInAt)} · saved`,{exact:true})).toBeVisible();
   const record=page.getByRole('list',{name:'Current record',exact:true});
-  const second=record.getByRole('listitem').filter({hasText:'2102'});
+  const second=page.getByRole('button',{name:'Runner 2102',exact:true});
   await expect(second).toContainText('Faster than 1st place');
   expect(await background(second)).toBe(amber);
-  await expect(record.getByRole('listitem').filter({hasText:'2103'})).not.toContainText('Faster');
+  await expect(page.getByRole('button',{name:'Runner 2103',exact:true})).not.toContainText('Faster');
   await expect(page.getByText('3 times · 3 finishers',{exact:true})).toBeVisible();
   // A wrong time's amber outline must not nudge its row's content off the line the plain rows keep.
-  expect(new Set(await page.locator('.record-row').evaluateAll(rows=>rows.map(row=>row.querySelector('.record-place')!.getBoundingClientRect().left)))).toHaveProperty('size',1);
+  expect(new Set(await record.getByText(/^(1st|2nd|3rd)$/).evaluateAll(places=>places.map(place=>place.getBoundingClientRect().left)))).toHaveProperty('size',1);
+  await expect(page.getByText(/^Saved versions \(\d+\)$/)).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-wrong-time.png'),fullPage:true});
+  // "⋯" opens one Race actions sheet: the corrections, Re-run, then a red Delete set apart at the end.
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  const actions=page.getByRole('dialog',{name:`Heat ${race.number} · actions`,exact:true});
+  await expect(actions.getByRole('button')).toHaveText(['','Correct times','Correct finishing order','Correct runner list','Re-run race',`Delete Heat ${race.number}`]);
+  expect(await background(actions.getByRole('button',{name:`Delete Heat ${race.number}`,exact:true}))).toBe(red);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions.png'),fullPage:false});
+  await press(actions.getByRole('button',{name:'Close',exact:true}));await expect(actions).toHaveCount(0);
 
-  await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  await raceAction(page,'Correct times');
   const sheet=page.getByRole('dialog');
   const wrongRow=sheet.getByRole('button',{name:'2nd place · 11.00 · Faster than 1st place',exact:true});
-  expect(await background(wrongRow)).toBe(amber);
+  expect(await background(wrongRow)).toBe(editorAmber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('times-editor-wrong.png'),fullPage:true});
   await wrongRow.click();
   const input=sheet.getByLabel('2nd place time',{exact:true});
@@ -60,7 +72,7 @@ test('Correct times refuses a time no one can run in the amber callout under the
   // The race's distance comes from its event name.
   const code=await ownCode(),race=await recordedRace(page,code,[2111,2112],[1200,1300],undefined,'60m race page');
   await openRace(page,code,ownName('Refusing lead'),race.number);
-  await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  await raceAction(page,'Correct times');
   const sheet=page.getByRole('dialog');
   await sheet.getByRole('button',{name:'2nd place · 13.00',exact:true}).click();
   const input=sheet.getByLabel('2nd place time',{exact:true});
@@ -87,40 +99,40 @@ test('a slow time the timer kept shows in amber with its reason on the race page
   // 45.00 is slower than 1.5 m/s for 60m (over 40.00).
   const code=await ownCode(),race=await recordedRace(page,code,[2121,2122],[1200,4500],undefined,'60m slow page');
   await openRace(page,code,ownName('Slow time lead'),race.number);
-  const slow=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2122'});
+  const slow=page.getByRole('button',{name:'Runner 2122',exact:true});
   await expect(slow).toContainText('Slow for 60m slow page');expect(await background(slow)).toBe(amber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-slow-time.png'),fullPage:true});
-  await page.getByRole('button',{name:'Correct times',exact:true}).click();
+  await raceAction(page,'Correct times');
   const row=page.getByRole('dialog').getByRole('button',{name:'2nd place · 45.00 · Slow for 60m slow page',exact:true});
-  expect(await background(row)).toBe(amber);
+  expect(await background(row)).toBe(editorAmber);
 });
 
 test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[5141,3141,2141,3142],[1300,1310,1320,1330],[5141,3141,3142]);
   const lead=ownName('Warning lead');
   await openRace(page,code,lead,race.number);
-  const record=page.getByRole('list',{name:'Current record',exact:true}),row=(number:number)=>record.getByRole('listitem').filter({hasText:String(number)});
-  const warning=(number:number)=>row(number).locator('.record-warning');
-  await expect(warning(5141)).toHaveText('5141 is not a known wristband number');
-  await expect(warning(3141)).toHaveText('3141 belongs to Boy Scouts - this race is Girl Cubs');
-  for(const number of [5141,3141]) expect(await background(warning(number))).toBe(amber);
-  await expect(row(2141).locator('.record-note')).toHaveCount(0);
+  // Each row is the runner's button; its warnings sit on the row, amber while one is open.
+  const row=(number:number)=>page.getByRole('button',{name:`Runner ${number}`,exact:true});
+  await expect(row(5141)).toContainText('5141 is not a known wristband number');
+  await expect(row(3141)).toContainText('3141 belongs to Boy Scouts - this race is Girl Cubs');
+  for(const number of [5141,3141]) expect(await background(row(number))).toBe(amber);
+  await expect(row(2141)).toHaveText(/^3rd\s*2141\s*13\.20$/);expect(await background(row(2141))).not.toBe(amber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-open-warnings.png'),fullPage:true});
 
   // Checked by a lead: grey, worded as on the leaderboards. Tapping the number still opens the runner sheet.
-  await page.getByRole('button',{name:'Runner 3141',exact:true}).click();
+  await row(3141).click();
   const sheet=page.getByRole('dialog',{name:'Runner 3141',exact:true});
   await sheet.getByRole('button',{name:'Mark checked',exact:true}).click();await expectToast(page,'Warning checked · 3141');await expect(sheet).toHaveCount(0);
-  await expect(warning(3141)).toHaveText(`Checked by ${lead}: 3141 belongs to Boy Scouts - this race is Girl Cubs`);
-  expect(await background(warning(3141))).not.toBe(amber);
+  await expect(row(3141)).toContainText(`Checked by ${lead}: 3141 belongs to Boy Scouts - this race is Girl Cubs`);
+  expect(await background(row(3141))).not.toBe(amber);
   // Settled by a Wrong section or age disqualification.
-  await page.getByRole('button',{name:'Runner 3142',exact:true}).click();
+  await row(3142).click();
   await page.getByRole('button',{name:'Disqualify 3142',exact:true}).click();
   await page.getByRole('button',{name:'Wrong section or age',exact:true}).click();
   await page.getByRole('button',{name:'Disqualify 3142',exact:true}).click();await expectToast(page,'3142 disqualified · Wrong section or age');
-  await expect(warning(3142)).toHaveText('Checked: 3142 belongs to Boy Scouts - this race is Girl Cubs');
-  expect(await background(warning(3142))).not.toBe(amber);
-  await expect(warning(5141)).toHaveText('5141 is not a known wristband number');expect(await background(warning(5141))).toBe(amber);
+  await expect(row(3142)).toContainText('Checked: 3142 belongs to Boy Scouts - this race is Girl Cubs');
+  expect(await background(row(3142))).not.toBe(amber);
+  await expect(row(5141)).toContainText('5141 is not a known wristband number');expect(await background(row(5141))).toBe(amber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-checked-warnings.png'),fullPage:true});
 });
 
@@ -147,7 +159,7 @@ test('a lead corrects a number on its screen with the phone number pad: digits o
   await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
   // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
   await page.getByText('Saved versions (4)',{exact:true}).click();
-  const versions=page.locator('.race-page details li');
+  const versions=page.getByRole('list',{name:'Saved versions',exact:true}).getByRole('listitem');
   await expect(versions.nth(3)).toContainText(`${ownName('Number lead')} · Runners · `);
   expect(await versions.allTextContents()).toEqual(expect.arrayContaining([expect.stringMatching(/ · Finishing order · \d/),expect.stringMatching(/ · Times · \d/)]));
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('saved-versions.png'),fullPage:true});
@@ -156,7 +168,7 @@ test('a lead corrects a number on its screen with the phone number pad: digits o
 test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2121,2122,2123,2124,2125,2126],[1300,1310,1320,1330,1340,1350]);
   await openRace(page,code,ownName('Runner list lead'),race.number);
-  await page.getByRole('button',{name:'Correct runner list',exact:true}).click();
+  await raceAction(page,'Correct runner list');
   const sheet=page.getByRole('dialog');
   await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeInViewport();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('runner-list-editor.png'),fullPage:false});
@@ -177,25 +189,85 @@ test('the runner list editor keeps Add runner on screen and types numbers on the
   await sheet.getByLabel('New runners did not finish',{exact:true}).check();
   await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
   await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);
-  await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'2127'})).toHaveText(/^2nd\s*2127\s*13\.10$/);
+  await expect(page.getByRole('button',{name:'Runner 2127',exact:true})).toHaveText(/^2nd\s*2127\s*13\.10$/);
 });
 
-test('a race not saved yet shows In progress on the lead race page, with the correction tools and Re-run hidden, while Disqualify and Delete still work',async({page},info)=>{
+test('a race not saved yet says so on its race page with Open Heat 1; Race actions offers only Delete, a screen that moves it to Deleted races and goes back to the event',async({page},info)=>{
   const code=await ownCode(),token=process.env.E2E_OWNER_TOKEN!;
   await ownEvent(page.request,code,'Race page','Girl Cubs','timed');
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);
   await openRace(page,code,ownName('In progress lead'),race.number);
-  await expect(page.getByText('Heat 1 is in progress - finish its steps on Races',{exact:true})).toBeVisible();
-  for(const tool of ['Correct times','Correct finishing order','Correct runner list','Re-run race']) await expect(page.getByRole('button',{name:tool,exact:true})).toHaveCount(0);
+  const racePage=page.url();
+  const notSaved=page.getByRole('status').filter({hasText:'Heat 1 is not saved yet. Open it to finish its steps.'});
+  await expect(notSaved).toBeVisible();
+  await expect(page.getByText(`Race page · Girl Cubs · checked in ${clock(race.checkedInAt)} · not saved yet`,{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-in-progress.png'),fullPage:true});
+  // Open Heat 1 goes to the race screen to finish its steps; Back returns here.
+  await press(notSaved.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
+  await page.goBack();await expect(page).toHaveURL(racePage);
+  // Race actions: no corrections or Re-run until it is saved, only the red Delete.
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true});
+  await expect(actions.getByText('Heat 1 is not saved yet. Open it to finish its steps.',{exact:true})).toBeVisible();
+  await expect(actions.getByRole('button')).toHaveText(['','Open Heat 1','Delete Heat 1']);
+  expect(await lookProblems(page)).toEqual([]);
+  await press(actions.getByRole('button',{name:'Close',exact:true}));
   await page.getByRole('button',{name:'Runner 2132',exact:true}).click();
   await page.getByRole('button',{name:'Disqualify 2132',exact:true}).click();
   await page.getByRole('button',{name:'Obstruction',exact:true}).click();
   await page.getByRole('button',{name:'Disqualify 2132',exact:true}).click();
   await expectToast(page,'2132 disqualified · Obstruction');
-  await page.getByRole('button',{name:'Delete race',exact:true}).click();
-  await page.getByRole('button',{name:'Move to Deleted races',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('Deleted race',{exact:true})).toBeVisible();
+  // Delete is a screen of its own: Move to Deleted races by default, or Delete for good, on a red docked button.
+  await raceAction(page,'Delete Heat 1');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/races/${race.id}/delete$`));
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Delete race',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Delete Heat 1?',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Move to Deleted races/})).toHaveAttribute('aria-pressed','true');
+  const footer=page.getByRole('contentinfo'),remove=footer.getByRole('button',{name:'Delete Heat 1',exact:true});
+  expect(await background(remove)).toBe(red);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('delete-race.png'),fullPage:true});
+  await press(page.getByRole('button',{name:/^Delete for good/}));
+  await expect(footer.getByRole('button',{name:'Delete Heat 1 for good',exact:true})).toBeVisible();
+  await press(page.getByRole('button',{name:/^Move to Deleted races/}));
+  await page.getByLabel('Comment (optional)',{exact:true}).fill('Opened by mistake');
+  await press(remove);
+  // Back on the screen before the race, the event's Races tab; the next Back leaves the event.
+  await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/races$`));
+  await page.goBack();await expect(page).toHaveURL(/\/results$/);
+});
+
+test('a deleted race says when and by whom, Restore brings it back on its race page, and a heat whose number is taken comes back with the next one, named in the toast',async({page},info)=>{
+  const code=await ownCode(),token=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(page.request,code,'Restore page','Girl Cubs','heats');
+  const first=await recordRace(page.request,token,code,[2161,2162],[1200,1300]);created.push(first.id);
+  const deleted=await page.request.post(`/api/lead/races/${first.id}/delete`,{headers:headers(),data:{permanent:false,comment:'Wrong section checked in'}});expect(deleted.ok()).toBe(true);
+  // A new Heat 1 runs in its place.
+  const second=await recordRace(page.request,token,code,[2163,2164],[1250,1350]);created.push(second.id);expect(second.number).toBe(1);
+  const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
+  await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await eventTab(page,'Races');await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
+  await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveText(new RegExp(`^Deleted at ${clock(deletedAt)} by .+: Wrong section checked in\\. Its results do not count\\.$`));
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('deleted-race-page.png'),fullPage:true});
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true});
+  await expect(actions.getByRole('button')).toHaveText(['','Restore Heat 1','Delete for good']);
+  expect(await lookProblems(page)).toEqual([]);
+  await press(actions.getByRole('button',{name:'Restore Heat 1',exact:true}));
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/races/${first.id}/restore$`));
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Restore race',exact:true})).toBeVisible();
+  await expect(page.getByText('Its results count again. Heat 1 is taken now, so it comes back as Heat 2.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('restore-race.png'),fullPage:true});
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));
+  // It stays on the restored race page, now Heat 2.
+  await expectToast(page,'Heat 2 restored · Girl Cubs');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/races/${first.id}$`));
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 2',exact:true})).toBeVisible();
+  await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · saved`,{exact:true})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveCount(0);
 });
