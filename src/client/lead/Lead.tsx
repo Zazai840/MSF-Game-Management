@@ -9,6 +9,7 @@ import { ChangePassword,Day } from './Day.js';
 import { Events } from './Events.js';
 import { SignedInToday } from './SignedInToday.js';
 import { Tie } from './Tie.js';
+import { ConfirmTheMedals } from './ConfirmTheMedals.js';
 import { RaceLifecycle } from './RaceLifecycle.js';
 import { RaceCorrection } from './CorrectRunners.js';
 import { TimesAndOrder } from './TimesAndOrder.js';
@@ -42,6 +43,7 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   if(kind==='olympics-password') return <ChangePassword/>;
   if(view.kind==='tie') return <Tie key={addressOf(view)} code={view.code} tieId={view.tieId} stage={view.stage} onBack={()=>onBack()}/>;
+  if(view.kind==='confirm-the-medals') return <ConfirmTheMedals key={addressOf(view)} code={view.code} onOpen={onOpen} onBack={()=>onBack()}/>;
   if(view.kind==='correction') {
     const Correction=view.action==='correct-runner-list' || view.action==='correct-teams'?RaceCorrection:TimesAndOrder;
     return <Correction key={addressOf(view)} view={view} onBack={()=>onBack()} onChanged={onChanged}/>;

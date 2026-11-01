@@ -21,7 +21,7 @@ export type RaceCorrection=typeof corrections[number];
  * parentOf, then render it in App with a LeadBar naming it.
  */
 export type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'results'}|{kind:'event';code:string;tab?:EventTab}
-  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'runner';code:string;raceId:string;entryId:string;screen:RunnerScreen}|{kind:'race-action';code?:string;raceId:string;action:RaceAction}|{kind:'correction';code?:string;raceId:string;action:RaceCorrection}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
+  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'confirm-the-medals';code:string}|{kind:'runner';code:string;raceId:string;entryId:string;screen:RunnerScreen}|{kind:'race-action';code?:string;raceId:string;action:RaceAction}|{kind:'correction';code?:string;raceId:string;action:RaceCorrection}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
   |{kind:'rename-event';code:string}|{kind:'new-event'};
 const part=encodeURIComponent;
 /**
@@ -39,6 +39,7 @@ export function viewAt(address:string):View {
     if(!rest.length) return {kind:'results'};
     if(rest.length===1) return {kind:'event',code:a!};
     if(rest.length===2 && eventTabs.includes(b as EventTab)) return {kind:'event',code:a!,tab:b as EventTab};
+    if(rest.length===2 && b==='confirm-the-medals') return {kind:'confirm-the-medals',code:a!};
     if(rest.length===3 && b==='races') return {kind:'race-page',code:a!,raceId:c!};
     if(rest.length===4 && b==='races' && raceActions.includes(d as RaceAction)) return {kind:'race-action',code:a!,raceId:c!,action:d as RaceAction};
     if(rest.length===4 && b==='races' && corrections.includes(d as RaceCorrection)) return {kind:'correction',code:a!,raceId:c!,action:d as RaceCorrection};
@@ -63,6 +64,7 @@ export function addressOf(view:View):string {
     case 'event': return `/results/${part(view.code)}${view.tab?`/${view.tab}`:''}`;
     case 'race-page': return `/results/${part(view.code)}/races/${part(view.raceId)}`;
     case 'tie': return `/results/${part(view.code)}/ties/${part(view.tieId)}${view.stage?`?stage=${view.stage}`:''}`;
+    case 'confirm-the-medals': return `/results/${part(view.code)}/confirm-the-medals`;
     case 'runner': return `/results/${part(view.code)}/races/${part(view.raceId)}/runners/${part(view.entryId)}/${view.screen}`;
     case 'race-action': case 'correction': return `${view.code===undefined?'':`/results/${part(view.code)}`}/races/${part(view.raceId)}/${view.action}`;
     case 'day': return '/day';
@@ -81,6 +83,7 @@ export function parentOf(view:View):View {
     case 'race-action': case 'correction': return view.code===undefined?{kind:'race',id:view.raceId}:{kind:'race-page',code:view.code,raceId:view.raceId};
     case 'event': return {kind:'results'};
     case 'tie': return {kind:'event',code:view.code,tab:'heats'};
+    case 'confirm-the-medals': return {kind:'event',code:view.code};
     case 'signed-in-today': case 'events': case 'olympics-password': return {kind:'day'};
     case 'rename-event': case 'new-event': return {kind:'events'};
     default: return {kind:'races'};

@@ -121,10 +121,16 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 
 **23 To check list.** `display-screen` "5 things need a zone lead", then IssueCards, newest first. Each has where ("R4 · 60m Girl Cubs · Heat 3"), time, title ("A time looks wrong"), a body sentence, and a small primary Button "Open race".
 
-**24 Settle a tie.** A full screen at `/results/<code>/ties/<tieId>`, opened from a TIE tag, a race's "Open in Results" or a check sheet's tie; Back (the only way out) returns there:
+**24 Settle a tie.** A full screen at `/results/<code>/ties/<tieId>`, opened from a TIE tag, a race's "Open in Results" or Confirm the medals' "Settle tie"; Back (the only way out) returns there:
 - Lead header "Tie at 11.30" with the event code. Prompt: meta "60m · Girl Cubs · decides 2nd and 3rd", question "How was the tie *decided?*", help "2006 (Heat 1) and 2012 (Heat 2) both ran 11.30."
 - Stacked choices "No run-off needed", "Run-off held", "Decided without a run-off". The last two show "Order, 2nd first" with OrderRows (place from the tie's first place, the number, its heat below) that keep same-race order.
 - Comment (needed only for Decided without a run-off), then a docked "Save tie" with its reason above while it cannot save. Saving shows "Tie saved · 60m Girl Cubs" and goes back.
+
+**25 Confirm the medals.** A full screen at `/results/<code>/confirm-the-medals`, opened from a Races card, the Final tab, or the Heats tab of a timed event; Back (the only way out) returns there:
+- Lead header "200m · Boy Cubs" with the event code. Prompt: meta "3 heats · no final" ("2 heats · final" on a final), question "Confirm the *medals*", help "Check the places, then confirm. They go to the Day export."
+- "Settle first" and "Worth a look": IssueCards, each with one small button naming its action and thing: "Settle tie" (the tie screen), "Open Heat 3" (the race page), "Open 2041" (the runner sheet over the screen). Settle first's are primary. A section with nothing in it is left out.
+- "Medal places": "A place is wrong? Tap Fix beside it.", then a row per place: the place on a gold star, the number or team, its race and time below ("Heat 2 · 10.00"; "Final" on a final), a TIE tag while an open tie holds it, and a small "Fix" with the pencil, which opens that race on Correct times (Correct finishing order on a final) and comes back here.
+- A docked "Confirm the medals", grey with "Settle 2 things first." above it while Settle first holds anything. Confirming shows "Medals confirmed · 200m Boy Cubs" and goes back.
 
 ## Results
 

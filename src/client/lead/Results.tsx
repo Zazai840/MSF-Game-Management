@@ -22,12 +22,10 @@ import './results.css';
  * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
  * lead header; `onOpen` moves to another screen (a tie is one) and `onBack` goes back. `target` is what Open in
- * Results asked to open on the event: the runner sheet or a check sheet. `runner` is one of the runner sheet's screens.
+ * Results asked to open on the event: the runner sheet. `runner` is one of the runner sheet's screens.
  */
 export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:{code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void}) {
   const [selectedStage,setSelectedStage]=useState<StageCheckSheet|null>(null);
-  // Confirm the medals opens the event on its check sheet, once, when its results first arrive.
-  const [stageToOpen,setStageToOpen]=useState(target?.stage);
   const [list,setList]=useState<ResultsGridRead|null>(null);
   const [detail,setDetail]=useState<EventResultsRead|null>(null);
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
@@ -42,12 +40,6 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
       setUpdated(clockWithSeconds(new Date()));setError('');
     } catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
   }
-  useEffect(()=>{
-    if(!detail || !stageToOpen) return;
-    const sheet=[detail.results.checkSheet,detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet].find(sheet=>sheet?.stage===stageToOpen);
-    if(sheet && !sheet.completed) setSelectedStage(sheet);
-    setStageToOpen(undefined);
-  },[detail]);
   // An event opened with no tab opens where the work is, and its address takes that tab.
   useEffect(()=>{if(detail && code && !tab && !raceId && !runner) onOpen({kind:'event',code,tab:openingTab(detail)},{replace:true});},[detail,tab]);
   useEffect(()=>{
@@ -60,6 +52,8 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
   const openTie=(tieId:string,stage?:Stage)=>onOpen({kind:'tie',code:code!,tieId,...(stage==='no-final'?{stage}:{})});
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
   function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setSelectedStage(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
+  // Event complete and Final complete are the Confirm the medals screen; Results without a final and Reopen stay sheets for now.
+  const openStage=(sheet:StageCheckSheet)=>!sheet.completed && (sheet.stage==='event' || sheet.stage==='final')?onOpen({kind:'confirm-the-medals',code:code!}):setSelectedStage(sheet);
   function openStageItem(item:StageItem) {
     setSelectedStage(null);
     if(item.tieId) openTie(item.tieId,selectedStage?.stage);
@@ -76,7 +70,7 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
     {error && <Callout message={error}/>}
     {!detail?!error && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??openingTab(detail)} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
       onRunner={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onTie={id=>openTie(id)}
-      onStage={setSelectedStage} onRace={openRace} saved={saved}/>}
+      onStage={openStage} onRace={openRace} saved={saved}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
   // The older-look sheets sit outside the screen root, so they keep their look until their own tickets move them.
   return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" wide body={body}/>{sheets}</>;

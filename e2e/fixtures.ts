@@ -361,6 +361,14 @@ export async function raceAction(page:Page,action:string) {
   await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
   await press(page.getByRole('dialog',{name:/ · actions$/}).getByRole('button',{name:action,exact:true}));
 }
+/** The Confirm the medals screen's medal places, one row per place ("1st 2041 Heat 2 · 10.00 Fix"). */
+export const medalPlaces=(page:Page)=>page.getByRole('list',{name:'Medal places',exact:true}).getByRole('listitem');
+/** On the Confirm the medals screen: taps its docked Confirm the medals, which goes back where the screen was opened. */
+export async function confirmTheMedals(page:Page) {
+  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Confirm the medals',exact:true}));
+  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toHaveCount(0);
+}
 /** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
 export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
 /** Switches today's job from the job chip on Races or a race, as a volunteer does. */
