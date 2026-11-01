@@ -67,7 +67,7 @@ test('a sheet takes focus as it opens, keeps Tab inside it, and gives focus back
     const count=await job.locator('button:not(:disabled),select,textarea,input,a[href]').count();
     for(let tab=0;tab<count;tab++) {expect(await inside()).toBe(true);await page.keyboard.press('Tab');}
     await expect(close).toBeFocused();
-    if(how==='close') await page.keyboard.press('Enter');else await closers[how](page,job);
+    if(how==='close') await page.keyboard.press('Enter');else await closers[how](page);
     await expect(job).toHaveCount(0);await expect(chip).toBeFocused();
   }
 });
