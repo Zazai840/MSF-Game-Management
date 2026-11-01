@@ -2,7 +2,7 @@ import { createContext,useContext,useEffect,useRef,useState,type ReactNode } fro
 import type { RacesRead,Step } from '../../shared/race-flow.js';
 import { ApiFailure,api } from '../api.js';
 import { useLive } from '../live.js';
-import { failureLine } from './writes.js';
+import { failureLine } from '../../shared/request-failure.js';
 import { Icon } from './parts.js';
 import type { SavedStep } from './RaceShell.js';
 /** How long the toast stays, unless it has focus. */
@@ -20,10 +20,10 @@ export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:st
   return toast.saved?<StepToast saved={toast.saved} onOpen={onOpen} onClose={onClose}/>
     :<ToastBox onClose={onClose}><span className="rz-toast__msg"><Icon name="check"/>{toast.message}</span></ToastBox>;
 }
-/** The toast's box: it closes after 6 seconds, the count starting again when `again` changes, and waits while focused. */
-function ToastBox({again,onClose,children}:{again?:unknown;onClose:()=>void;children:ReactNode}) {
+/** The toast's box: it closes after 6 seconds, the count starting again when `restartOn` changes, and waits while focused. */
+function ToastBox({restartOn,onClose,children}:{restartOn?:unknown;onClose:()=>void;children:ReactNode}) {
   const [focused,setFocused]=useState(false),box=useRef<HTMLDivElement>(null);
-  useEffect(()=>{if(focused) return;const timer=window.setTimeout(onClose,showFor);return ()=>clearTimeout(timer);},[focused,again]);
+  useEffect(()=>{if(focused) return;const timer=window.setTimeout(onClose,showFor);return ()=>clearTimeout(timer);},[focused,restartOn]);
   return <div ref={box} className="rz-toast" role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
 }
 /**
@@ -42,10 +42,10 @@ function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string
     try {await api(`races/${saved.raceId}/steps/${saved.step}/undone`,{version:saved.version});onClose();onOpen(saved.raceId,saved.step);}
     catch(failure) {
       const body=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
-      if(body.reason==='changed-since') setChangedBy(body.by??'Someone');else setError(failureLine(failure));
+      if(body.reason==='changed-since') setChangedBy(body.by??'Someone');else setError(failureLine(failure,'save'));
     } finally {setBusy(false);}
   }
-  return <ToastBox again={changed} onClose={onClose}>
+  return <ToastBox restartOn={changed} onClose={onClose}>
     <span className="rz-toast__msg"><Icon name={error?'warning':'check'}/>{error||(changed?`${changed} changed this since. Open the race to edit it.`:saved.message)}</span>
     {changed?<button type="button" onClick={()=>{onClose();onOpen(saved.raceId,saved.step);}}>Open race</button>:<button type="button" disabled={busy} onClick={()=>void undo()}>Undo</button>}
   </ToastBox>;

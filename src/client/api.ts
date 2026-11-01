@@ -1,6 +1,6 @@
 import { roles,type Role } from '../shared/race-flow.js';
 import { onThisBuild } from './shell/updates.js';
-import { ApiFailure } from './api-failure.js';
+import { ApiFailure,StaleRequest } from '../shared/request-failure.js';
 const prefix = 'msf:';
 let epoch=0;
 let resetPending=false;
@@ -89,8 +89,7 @@ export const phoneStorage = {
 window.addEventListener('storage',event=>{
   if(event.key===`${prefix}session` || event.key===null) changed(Boolean(token() && dayId()));
 });
-export { ApiFailure };
-export class StaleRequest extends Error {constructor(){super('Please refresh');}}
+export { ApiFailure,StaleRequest };
 const sessions=new WeakMap<Response,string>();
 function current(captured:string) {if(captured!==sessionId()) throw new StaleRequest();}
 /** JSON and binary calls share authentication, removal and session lifetime. */

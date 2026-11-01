@@ -2,62 +2,58 @@ import { Final } from './Final.js';
 import { reopenLabel,stageView } from './ConfirmTheMedals.js';
 import { dayExportLine,type InputRunning,type StageCheckSheet } from '../../shared/stages.js';
 import { DeletedRaces,RaceRows } from './DeletedRaces.js';
-import { Fragment,useEffect,useState,useRef } from 'react';
-import { api } from '../api.js';
+import { Fragment,useEffect,useState } from 'react';
 import type { ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { RacePage } from './RacePage.js';
 import { RunnerScreens,RunnerSheet } from './RunnerSheet.js';
-import { resultLabel,teamWristbands } from './ResultName.js';
-import { resultName,ruleLine,type LeaderboardRow } from '../../shared/results-rules.js';
+import { medalSheet,needsCheck,placeText,qualifyingLineAt,reopenHeatsSheet,resultLabel,resultName,ruleLine,teamWristbands,type LeaderboardRow } from '../../shared/results-rules.js';
+import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { Callout,Icon,LeadBar,Star,UpdatedAt } from '../races/parts.js';
+import { ErrorCallout,Icon,Star } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
+import { UpdatedAt } from '../races/UpdatedAt.js';
+import { usePolledRead } from '../live.js';
 import { eventTabs,type EventTab,type View } from '../shell/addresses.js';
 type RunnerView=Extract<View,{kind:'runner'}>;
 import { ordinal } from '../../shared/ordinal.js';
-import { raceLabel,runnersText } from '../../shared/races.js';
-import { clock,clockWithSeconds } from '../../shared/clock.js';
+import { openRaceLabel,raceLabel,runnersText } from '../../shared/races.js';
+import { clock } from '../../shared/clock.js';
 import { eventTitle } from '../../shared/day.js';
+type ResultsProps={code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void};
 /**
  * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
  * lead header; `onOpen` moves to another screen (a tie is one) and `onBack` goes back. `target` is what Open in
  * Results asked to open on the event: the runner sheet. `runner` is one of the runner sheet's screens.
  */
-export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:{code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void}) {
-  const [list,setList]=useState<ResultsGridRead|null>(null);
-  const [detail,setDetail]=useState<EventResultsRead|null>(null);
+export function Results({code,...props}:ResultsProps) {
+  return code?<EventResults code={code} {...props}/>:<ResultsGrid onOpen={props.onOpen}/>;
+}
+/** Results: the event grid, read every 5 s. */
+function ResultsGrid({onOpen}:{onOpen:(view:View)=>void}) {
+  const {read:list,updated,error,refresh}=usePolledRead<ResultsGridRead>('lead/results');
+  return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
+}
+/** An event's screens (its tabs, a race page, a runner screen), on the event's results read every 5 s. */
+function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:ResultsProps & {code:string}) {
+  const {read:detail,updated,error,refresh,offer}=usePolledRead<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`);
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
-  const [updated,setUpdated]=useState('');
-  const [error,setError]=useState('');
-  const request=useRef(0);
-  async function refresh() {
-    const generation=++request.current;
-    try {
-      if(code) {const next=await api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`);if(generation!==request.current) return;setDetail(next);}
-      else {const next=await api<ResultsGridRead>('lead/results');if(generation!==request.current) return;setList(next);}
-      setUpdated(clockWithSeconds(new Date()));setError('');
-    } catch(error) {if(generation===request.current) setError(error instanceof Error?error.message:'Could not connect');}
-  }
   // An event opened with no tab opens where the work is, and its address takes that tab.
-  useEffect(()=>{if(detail && code && !tab && !raceId && !runner) onOpen({kind:'event',code,tab:openingTab(detail)},{replace:true});},[detail,tab]);
-  useEffect(()=>{
-    void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
-    return()=>{request.current++;clearInterval(timer);};
-  },[code]);
-  const openRace=(id:string)=>onOpen({kind:'race-page',code:code!,raceId:id});
-  const openTie=(tieId:string)=>onOpen({kind:'tie',code:code!,tieId});
+  useEffect(()=>{if(detail && !tab && !raceId && !runner) onOpen({kind:'event',code,tab:openingTab(detail)},{replace:true});},[detail,tab]);
+  const openRace=(id:string)=>onOpen({kind:'race-page',code,raceId:id});
+  const openTie=(tieId:string)=>onOpen({kind:'tie',code,tieId});
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
-  function saved(next:EventResultsRead) {request.current++;setDetail(next);setSelected(null);setUpdated(clockWithSeconds(new Date()));onChanged?.();}
-  const openStage=(sheet:StageCheckSheet)=>onOpen(stageView(code!,sheet));
-  if(!code) return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
+  /** A save answered with the event's results: show them, close the runner sheet, and tell the app. */
+  function showSaved(next:EventResultsRead) {offer(next);setSelected(null);onChanged?.();}
+  const openStage=(sheet:StageCheckSheet)=>onOpen(stageView(code,sheet));
   if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
-  if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} actionableRunners={detail?.results.actionableRunners} onSaved={saved} onOpen={onOpen}/>;
-  const sheets=detail && selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={saved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>;
+  if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} actionableRunners={detail?.results.actionableRunners} onSaved={showSaved} onOpen={onOpen}/>;
+  const sheets=detail && selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={showSaved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>;
   const body=<><main className="rz-main rz-main--event">
-    {error && <Callout message={error}/>}
-    {!detail?!error && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??openingTab(detail)} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
+    {error!==null && <ErrorCallout error={error} action="read"/>}
+    {!detail?error===null && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??openingTab(detail)} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
       onRunner={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onTie={id=>openTie(id)}
-      onStage={openStage} onRace={openRace} saved={saved}/>}
+      onStage={openStage} onRace={openRace} onSaved={showSaved}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
   // The runner sheet wraps itself in its own screen root, beside this one.
   return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" body={body}/>{sheets}</>;
@@ -67,7 +63,7 @@ const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',races:'Races
 const hasFinalTab=(detail:EventResultsRead)=>detail.event.format==='heats' && !detail.results.decidedWithoutFinal;
 /** The tab an event opens on: Final once its final has a finishing order, else Heats. */
 const openingTab=(detail:EventResultsRead):EventTab=>hasFinalTab(detail) && !!detail.results.finalResults?.leaderboard.length?'final':'heats';
-type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie:(id:string)=>void;onStage:(sheet:StageCheckSheet)=>void;onRace:(id:string)=>void;saved:(next:EventResultsRead)=>void};
+type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie:(id:string)=>void;onStage:(sheet:StageCheckSheet)=>void;onRace:(id:string)=>void;onSaved:(next:EventResultsRead)=>void};
 /**
  * An event's tabs: Heats (the scoreboard), Final (a heats event not decided without one), Races and Notes. The tab is
  * part of the address; switching replaces it in place, so Back leaves the event.
@@ -99,18 +95,13 @@ const Medals=({input,sheet,onStage}:{input:InputRunning|null;sheet:StageCheckShe
 </>;
 /** The scoreboard of every heat's runners, then the medal decision (no Final tab), Reopen heats and Results without a final under it. */
 function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolean}) {
-  const results=detail.results,ranked=results.leaderboard.filter(row=>row.position!==null).length;
-  // A lead makes the final with "+ Final" on Races, so open heats offer no stage here: only Reopen heats once complete.
-  // A timed event's medals wait for a ranked runner before Confirm the medals shows.
-  const sheet=results.checkSheet?.stage==='final' || results.checkSheet?.stage==='heats' || !(results.checkSheet?.completed || ranked)?null:results.checkSheet;
-  // Reopen heats applies only until the final starts (the server refuses after).
-  const reopenHeats=results.heatsCheckSheet?.completed && !results.finalResults?.started?results.heatsCheckSheet:null;
+  const results=detail.results,reopenHeats=reopenHeatsSheet(results),line=qualifyingLineAt(results);
   return <>
     {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
       <div className="rz-stripes" aria-hidden="true"><span/><span/><span/></div>
       <div className="rz-board-head"><p className="rz-board-note">{ruleLine(results.band)}</p></div>
       <ol className="rz-board" aria-label={results.provisional?'Provisional leaderboard':'Official leaderboard'}>{results.leaderboard.map(row=>{
-        const star=row.qualification!==null || row.medalPlace!==null,check=row.flags.some(flag=>flag.kind!=='tie' && flag.kind!=='tie-settled' && !flag.checked);
+        const star=row.qualification!==null || row.medalPlace!==null,check=needsCheck(row);
         const ties=results.ties.filter(tie=>tie.entries.some(entry=>entry.raceId===row.raceId && entry.entryId===row.entryId));
         return <Fragment key={`${row.raceId}:${row.entryId}`}><li className="rz-board__row">
           <button type="button" className={`rz-lb${star?' rz-lb--q':row.highlighted?'':' rz-lb--outside'}`} aria-label={`${resultLabel(row)} · ${raceLabel(row.race)}`} onClick={()=>onRunner(row)}>
@@ -121,10 +112,10 @@ function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolea
             <span className="rz-lb__end"><span className="rz-lb__time">{row.time===null?'-':formatTime(row.time)}</span></span>
           </button>
           {ties.map(tie=><button key={tie.id} type="button" className="rz-lb__tie" aria-label={`TIE at ${formatTime(tie.time)} for ${resultName(row)}`} onClick={()=>onTie(tie.id)}><span className="rz-tag rz-tag--tie">Tie</span></button>)}</li>
-          {final && row.position===Math.min(results.band.lineAfter,ranked) && <li className="rz-qline" aria-label="Qualifying line: places above go through to the final"><span aria-hidden="true">Qualifying line</span></li>}
+          {line!==null && row.position===line && <li className="rz-qline" aria-label="Qualifying line: places above go through to the final"><span aria-hidden="true">Qualifying line</span></li>}
         </Fragment>;})}</ol>
     </section>}
-    {!final && <Medals input={results.inputRunning} sheet={sheet} onStage={onStage}/>}
+    {!final && <Medals input={results.inputRunning} sheet={medalSheet(results)} onStage={onStage}/>}
     {reopenHeats && <StageButton sheet={reopenHeats} onStage={onStage}/>}
     {results.noFinalCheckSheet && <StageButton sheet={results.noFinalCheckSheet} onStage={onStage}/>}
   </>;
@@ -132,24 +123,24 @@ function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolea
 /** A heats row's detail: its race and place, or why it does not rank. */
 function rowDetail(row:LeaderboardRow) {
   const race=raceLabel(row.race);
-  if(row.disqualification) return `${race} · Disqualified: ${row.disqualification.reason}${row.disqualification.comment?` - ${row.disqualification.comment}`:''}`;
+  if(row.disqualification) return `${race} · ${disqualifiedText(row.disqualification)}`;
   if(row.notCounted) return `${race} · Not counted`;
-  return `${race} · ${row.place!==null?`${ordinal(row.place)} in race`:'Did not finish'}`;
+  return `${race} · ${placeText(row)}`;
 }
 /** The final (once made), then the Day export line and Confirm the medals (once the final has an order) or Reopen final. */
-function FinalTab({detail,onRunner,onStage,saved}:TabProps) {
+function FinalTab({detail,onRunner,onStage,onSaved}:TabProps) {
   const results=detail.results,final=results.finalResults;
   if(!final) return <p className="rz-empty">The final's order appears here once its finishing order is saved.</p>;
   return <>
-    <Final event={detail.event} teams={detail.teams} final={final} onSaved={saved} onRunner={onRunner}/>
-    <Medals input={results.inputRunning} sheet={results.checkSheet?.stage==='final' && (results.checkSheet.completed || final.leaderboard.length)?results.checkSheet:null} onStage={onStage}/>
+    <Final event={detail.event} teams={detail.teams} final={final} onSaved={onSaved} onRunner={onRunner}/>
+    <Medals input={results.inputRunning} sheet={medalSheet(results)} onStage={onStage}/>
   </>;
 }
 /** A row per live race (its runners, saved or not, checked in at, why it does not count yet), then Deleted races. */
 function RacesTab({detail,onRace}:TabProps) {
   const races=detail.results.races;
   return <>
-    {races.length?<RaceRows rows={races.map(({race,runners,saved,reasons})=>({id:race.id,label:`Open ${race.kind==='final'?'final':raceLabel(race)}`,meta:[runnersText(runners),saved?'saved':'not saved yet',`checked in ${clock(race.checkedInAt)}`,...reasons.filter(reason=>reason!=='in progress')].join(' · ')}))} onRace={onRace}/>
+    {races.length?<RaceRows rows={races.map(({race,runners,saved,reasons})=>({id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),saved?'saved':'not saved yet',`checked in ${clock(race.checkedInAt)}`,...reasons.filter(reason=>reason!=='in progress')].join(' · ')}))} onRace={onRace}/>
       :<p className="rz-empty">Races appear here once one is checked in.</p>}
     <h2 className="rz-section">Deleted races</h2>
     <DeletedRaces eventCode={detail.event.code} onOpen={onRace}/>
@@ -158,11 +149,11 @@ function RacesTab({detail,onRace}:TabProps) {
 
 const keyStates=[['done','Done'],['running','Running'],['idle','Not started']] as const;
 /** Results: the key, then each distance's events as a grid of cards worded and coloured as their Races cards. */
-function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|null;error:string;updated:string;onRefresh:()=>void;onOpen:(view:View)=>void}) {
+function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|null;error:unknown;updated:string;onRefresh:()=>void;onOpen:(view:View)=>void}) {
   return <><main className="rz-main">
-    {error && <Callout message={error}/>}
+    {error!==null && <ErrorCallout error={error} action="read"/>}
     <ul className="rz-legend" aria-label="Key">{keyStates.map(([state,label])=><li key={state}><span className={`rz-legend__swatch rz-legend__swatch--${state}`} aria-hidden="true"/>{label}</li>)}</ul>
-    {!list?!error && <p className="rz-empty">Opening…</p>:<>
+    {!list?error===null && <p className="rz-empty">Opening…</p>:<>
       {list.groups.map((group,index)=><section key={group.name} aria-labelledby={`results-group-${index}`}><h2 className="rz-section" id={`results-group-${index}`}>{group.name}</h2><ul className="rz-events">{group.events.map(({event,card,latestNoteAt})=><li key={event.id}>
         <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code})}>
           <span className="rz-event__name">{event.code} · {event.section}</span>

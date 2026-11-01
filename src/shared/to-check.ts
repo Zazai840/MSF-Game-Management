@@ -5,13 +5,14 @@ import { entryName,isTeamEntry,raceLabel,type RaceEntry } from './races.js';
 import { ordinal } from './ordinal.js';
 import { capitalised,entryNoun,legsText } from './teams.js';
 import { raceName } from './race-flow.js';
+import { teamLine } from './results-rules.js';
 export interface ToCheckWording { race:string; title:string; explanation:string }
 /**
  * On a relay, each team an item is about with its four children, "Team 5 · 2101 · 2134 · 2187 · –": both tied teams, or
  * the team the item's race entry names (looked up in the race's `entries`). Nothing for a child's item.
  */
 export function itemTeams(item:Pick<DayLeadItem,'entryId'|'tie'>,entries:readonly RaceEntry[]):string[] {
-  if(item.tie?.teams) return item.tie.teams.map(team=>`Team ${team.number} · ${legsText(team.wristbands.map(wristband=>({wristband})))}`);
+  if(item.tie?.teams) return item.tie.teams.map(teamLine);
   const entry=entries.find(other=>other.id===item.entryId);
   return entry && isTeamEntry(entry)?[`${entryName(entry)} · ${legsText(entry.legs)}`]:[];
 }

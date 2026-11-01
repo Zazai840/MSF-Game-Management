@@ -1,7 +1,8 @@
 import { useRef,useState,type ReactNode } from 'react';
 import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberBox.js';
-import { Callout,DockedFooter,ErrorCallout,LeadBar,Sheet } from '../races/parts.js';
+import { Callout,DockedFooter,ErrorCallout,Sheet } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
 import { Comment } from './Comment.js';
 import { useToast } from '../races/Toast.js';
 import type { RunnerScreen,View } from '../shell/addresses.js';
@@ -10,8 +11,9 @@ import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js
 import { ordinal } from '../../shared/ordinal.js';
 import { raceName } from '../../shared/race-flow.js';
 import { resultNotes } from '../../shared/result-notes.js';
-import { resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
-import { disqualificationReasons } from '../../shared/rulings.js';
+import { placeText,resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
+import { disqualificationReasons,disqualifiedText } from '../../shared/rulings.js';
+import { openRaceLabel } from '../../shared/races.js';
 import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { legRefusal,legWarnings } from '../../shared/teams.js';
 import { formatTime } from '../../shared/time-entry.js';
@@ -22,16 +24,13 @@ type RunnerView=Extract<View,{kind:'runner'}>;
 const openAddition=(flag:ResultFlag)=>flag.kind==='added-at-finish' && !flag.checked;
 /** "Runner 2041", or "Team 3". */
 const runnerTitle=(row:LeaderboardRow)=>row.team?`Team ${row.team.number}`:`Runner ${row.wristband}`;
-/** The race a result came from, as its button names it: "Open Heat 1", "Open final". */
-const openRaceLabel=(row:LeaderboardRow)=>`Open ${row.race.kind==='final'?'final':raceName(row.race)}`;
 /** "60m · Girl Cubs · Heat 1 · 6th in race · 11.85", then why it does not count. */
 function runnerMeta(event:Event,row:LeaderboardRow) {
-  const place=row.recordingPending?'Not recorded yet':row.place===null?'Did not finish':`${ordinal(row.place)} in race${row.time===null?'':` · ${formatTime(row.time)}`}`;
-  const disqualified=row.disqualification && `Disqualified: ${row.disqualification.reason}${row.disqualification.comment?` - ${row.disqualification.comment}`:''}`;
-  return [eventTitle(event),raceName(row.race),place,row.notCounted && 'Not counted',disqualified].filter(Boolean).join(' · ');
+  const time=!row.recordingPending && row.time!==null && formatTime(row.time);
+  return [eventTitle(event),raceName(row.race),placeText(row),time,row.notCounted && 'Not counted',row.disqualification && disqualifiedText(row.disqualification)].filter(Boolean).join(' · ');
 }
 /** A runner screen's line above its question, short enough for one line (the event is on the back arrow): "Heat 1 · 6th in race". */
-const placeMeta=(row:LeaderboardRow)=>`${raceName(row.race)} · ${row.recordingPending?'Not recorded yet':row.place===null?'Did not finish':`${ordinal(row.place)} in race`}`;
+const placeMeta=(row:LeaderboardRow)=>`${raceName(row.race)} · ${placeText(row)}`;
 /** The results a lead can count for this child or team: each of their heat results not disqualified. */
 const countable=(row:LeaderboardRow,rows:readonly LeaderboardRow[])=>rows.filter(other=>resultHolder(other)===resultHolder(row) && !other.disqualification && other.race.kind!=='final');
 const runnerPath=(row:Pick<LeaderboardRow,'raceId'|'entryId'>,command:string)=>`lead/races/${row.raceId}/runners/${row.entryId}/${command}`;
@@ -73,7 +72,7 @@ export function RunnerSheet({event,row,rows,onSaved,onClose,onOpen,onRace}:{even
       {addition && button('Mark addition checked',()=>void check('mark-added-checked',{kind:'addition-checked',who}),warning?'':' rz-btn--primary')}
       {button('Correct number',()=>screen('correct-number'))}
       {!row.disqualification && countable(row,rows).length>1 && button('Choose which result counts',()=>screen('choose-result'))}
-      {onRace && button(openRaceLabel(row),onRace)}
+      {onRace && button(openRaceLabel(row.race),onRace)}
       {row.disqualification?button('Lift disqualification',()=>screen('lift-disqualification')):button(`Disqualify ${who}`,()=>screen('disqualify'),' rz-btn--danger')}
     </div>
   </Sheet></div>;
@@ -85,7 +84,7 @@ interface ScreenProps { event:Event; row:LeaderboardRow; rows:readonly Leaderboa
  * One of the runner sheet's screens, at its own address under the result's race: a prompt, the fields and a docked
  * button with the reason above it while it cannot be used. A save shows its toast and goes back where it was opened.
  */
-export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerView;detail:EventResultsRead|null;error:string;onBack:()=>void;onChanged?:()=>void}) {
+export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerView;detail:EventResultsRead|null;error:unknown;onBack:()=>void;onChanged?:()=>void}) {
   const toast=useToast();
   const [busy,setBusy]=useState(false);
   const row=detail?.results.actionableRunners.find(row=>row.raceId===view.raceId && row.entryId===view.entryId);
@@ -97,7 +96,7 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
   }
   const title=titles[view.screen],up=row?raceName(row.race):'Race';
   if(!detail || !row) return <LeadBar title={title} code={view.code} up={up} body={<main className="rz-main">
-    {error?<Callout message={error}/>:detail?<Callout status message="This result is no longer in Results."/>:<p className="rz-empty">Opening…</p>}</main>}/>;
+    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<p className="rz-empty">Opening…</p>}</main>}/>;
   const props:ScreenProps={event:detail.event,row,rows:detail.results.actionableRunners,save,busy};
   const Body={disqualify:Disqualify,'lift-disqualification':Lift,'correct-number':CorrectNumber,'choose-result':ChooseResult}[view.screen];
   return <LeadBar title={title} code={view.code} up={up} body={<Body {...props}/>}/>;
@@ -130,7 +129,7 @@ function Disqualify({row,save,busy}:ScreenProps) {
 function Lift({row,save,busy}:ScreenProps) {
   const who=resultName(row);
   const [comment,setComment]=useState(''),[refused,setRefused]=useState<unknown>(null);
-  return <Frame meta={`Disqualified: ${row.disqualification?.reason}`} question={<>Lift <em>{who}'s</em> disqualification?</>} help="Their result counts again."
+  return <Frame meta={row.disqualification?disqualifiedText({reason:row.disqualification.reason}):''} question={<>Lift <em>{who}'s</em> disqualification?</>} help="Their result counts again."
     reason={comment.trim()?null:'Write a comment first.'} busy={busy} label="Lift disqualification" refused={refused}
     onGo={async()=>setRefused(await save(runnerPath(row,'lift-disqualification'),{comment},{kind:'counts-again',who}))}>
     <Comment value={comment} onChange={setComment} required/>

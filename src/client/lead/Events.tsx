@@ -3,7 +3,9 @@ import { eventTitle,eventTypeNames,sections,type DayEvent,type DayRead } from '.
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
-import { Callout,DockedFooter,ErrorCallout,Icon,LeadBar,UpdatedAt } from '../races/parts.js';
+import { Callout,DockedFooter,ErrorCallout,Icon } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
+import { UpdatedAt } from '../races/UpdatedAt.js';
 import type { View } from '../shell/addresses.js';
 
 type EventsView=Extract<View,{kind:'events'|'rename-event'|'new-event'}>;

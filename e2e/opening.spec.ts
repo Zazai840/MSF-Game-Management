@@ -38,7 +38,7 @@ test('a volunteer at a lead address sees Lead access needed; Back goes to Races,
   const {page}=await openPhone(ownName('Access volunteer'));
   await page.goto('/day');
   const header=page.getByRole('banner');
-  await expect(header.getByRole('heading',{level:1,name:'Zone lead',exact:true})).toBeVisible();
+  await expect(header.getByRole('heading',{level:1,name:'Lead access needed',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Type the lead code',exact:true})).toBeVisible();
   await expect(page.getByText('Results and Day setup are for zone leads',{exact:true})).toBeVisible();
   await expect(page.getByText('Ask the zone lead who set up today.',{exact:true})).toBeVisible();
@@ -50,7 +50,7 @@ test('a volunteer at a lead address sees Lead access needed; Back goes to Races,
   await press(header.getByRole('button',{name:'Back to Races',exact:true}));
   await races(page);await expect(page).toHaveURL(/\/$/);
   await page.goto('/results');
-  await expect(header.getByRole('heading',{level:1,name:'Zone lead',exact:true})).toBeVisible();
+  await expect(header.getByRole('heading',{level:1,name:'Lead access needed',exact:true})).toBeVisible();
   // A faked refusal shows the error style without adding to the server's wrong-code backoff.
   await page.route('**/api/become-lead',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Wrong lead code - ask a zone lead'})}),{times:1});
   await page.getByLabel('Lead code',{exact:true}).fill('wrong-fixture');

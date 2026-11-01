@@ -5,7 +5,9 @@ import { api,StaleRequest } from '../api.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { useToast } from '../races/Toast.js';
-import { ErrorCallout,LeadBar,Sheet,UpdatedAt } from '../races/parts.js';
+import { ErrorCallout,Sheet } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
+import { UpdatedAt } from '../races/UpdatedAt.js';
 /** The role buttons a card offers, in screen order. */
 const makeRole:Record<Level,string>={Lead:'Make lead',Volunteer:'Make volunteer'};
 const roles=Object.keys(makeRole) as Level[];

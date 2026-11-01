@@ -1,10 +1,11 @@
-import { createContext,useContext,useEffect,useId,useLayoutEffect,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type ReactNode } from 'react';
+import { useId,useLayoutEffect,useRef,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/app-bar.js';
 import { entryCount } from '../../shared/teams.js';
-import { ApiFailure } from '../api-failure.js';
-import { entryBack,useScreenName,useSheetEntry } from '../shell/addresses.js';
+import { failureLine } from '../../shared/request-failure.js';
+import { useSheetEntry } from '../shell/addresses.js';
+import { useSheetFocus } from './sheet-focus.js';
 /** The design system's line icons (components/Icon/README.md). */
 const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
@@ -28,7 +29,7 @@ export const Icon=({name,className=''}:{name:IconName;className?:string})=><svg 
 /** The 8-point star, the design system's medal shape. */
 export const Star=()=><svg className="rz-star" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="7" width="26" height="26" rx="3"/><rect x="7" y="7" width="26" height="26" rx="3" transform="rotate(45 20 20)"/></svg>;
 /** The star texture on navy; each needs its own pattern id. */
-function Pattern() {
+export function Pattern() {
   const id=`rz-star-${useId().replace(/:/g,'')}`;
   return <svg className="rz-pattern" aria-hidden="true"><defs><pattern id={id} width="44" height="44" patternUnits="userSpaceOnUse"><g>
     <rect x="12" y="12" width="20" height="20"/><rect x="12" y="12" width="20" height="20" transform="rotate(45 22 22)"/><path d="M0 22H8M36 22H44M22 0V8M22 36V44"/>
@@ -72,28 +73,6 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
       <div className="rz-appbar__heading"><h1>{title}</h1> <CodeTag code={code} role={role}/></div></div>
     <div className="rz-appbar__end" style={{gap:2}}>{children}</div>
   </header>;
-}
-/** What every lead screen's header needs from the app: today's job (and its sheet) and where Back goes. */
-export const LeadFrame=createContext<{role:Role;onRole:()=>void;onBack:()=>void}|null>(null);
-/**
- * The lead header, on every lead screen: the race screen's compact bar with a back arrow naming, in gold above the
- * title, the screen it returns to: the one the lead came from, else `up` (the natural parent, for a screen reached
- * with no history). Then the title (an event as "200m · Boy Cubs" with its code tag), the job chip and `children`
- * ("⋯" on a race page). It also names the screen, so a screen opened from here names it on its own back arrow.
- * The screen's `body` shares the bar's screen root; `wide` lets a card grid widen on a laptop, as on Races.
- */
-export function LeadBar({title,code,up,children,body,wide=false}:{title:string;code?:string;up:string;children?:ReactNode;body:ReactNode;wide?:boolean}) {
-  const frame=useContext(LeadFrame)!,back=entryBack()??up;
-  useScreenName(title);
-  const header=<header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
-    <div className="rz-appbar__start">
-      <button type="button" className="rz-appbar__back" aria-label={`Back to ${back}`} onClick={frame.onBack}><Icon name="chevron-left" className="rz-icon--bold"/><span>{back}</span></button>
-      {/* The race bar's title: up to two lines in display type, the code tag after the last word. */}
-      <div className="rz-appbar__heading"><h1>{title}</h1>{code && <> <span className="rz-code-tag">{code}</span></>}</div>
-    </div>
-    <div className="rz-appbar__end" style={{gap:2}}><RoleChip role={frame.role} onOpen={frame.onRole}/>{children}</div>
-  </header>;
-  return <Screen screen={title} wide={wide}>{header}{body}</Screen>;
 }
 /**
  * One chip per race of an event group, then "+" for the next heat and, for a lead when it applies, "+ Final". States follow the
@@ -161,31 +140,15 @@ export function StepStrip({race,role,selected,onSelect,notes={},label,relay=fals
     {shown.map(step=><li key={step} className={step===own?'rz-step rz-step--mine':'rz-step'}>{cell(step)}</li>)}
   </ul>;
 }
-const focusable='button:not(:disabled),select:not(:disabled),textarea:not(:disabled),input:not(:disabled),a[href]';
 /**
  * A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. The sheet
  * itself takes focus (no field does), Tab stays inside it, and closing gives focus back to what opened it.
  */
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
-  const id=useId(),sheet=useRef<HTMLDivElement>(null);
-  // Read while rendering, before a box inside can take focus with autoFocus.
-  const [opener]=useState(()=>document.activeElement);
+  const id=useId(),focus=useSheetFocus(onClose);
   useSheetEntry(onClose);
-  useEffect(()=>{
-    // A box inside that took focus as it opened (a leg box's autoFocus) keeps it, so its number pad stays open.
-    if(!sheet.current?.contains(document.activeElement)) sheet.current?.focus();
-    const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};
-    addEventListener('keydown',key);
-    return ()=>{removeEventListener('keydown',key);if(opener instanceof HTMLElement && opener.isConnected) opener.focus();};
-  },[]);
-  function keepTab(event:ReactKeyboardEvent<HTMLDivElement>) {
-    if(event.key!=='Tab') return;
-    const items=[...event.currentTarget.querySelectorAll<HTMLElement>(focusable)],at=items.indexOf(document.activeElement as HTMLElement);
-    const to=!items.length?event.currentTarget:event.shiftKey?(at<=0?items[items.length-1]:null):(at===-1 || at===items.length-1?items[0]:null);
-    if(to) {event.preventDefault();to.focus();}
-  }
   return <div className="rz-scrim" onClick={event=>{if(event.target===event.currentTarget) onClose();}}>
-    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={sheet} onKeyDown={keepTab}>
+    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={focus.ref} onKeyDown={focus.onKeyDown}>
       <div className="rz-sheet__grip" aria-hidden="true"/>
       <div className="rz-sheet__head"><h2 className="rz-sheet__title" id={id}>{title}</h2><button type="button" className="rz-sheet__close" aria-label="Close" onClick={onClose}><Icon name="close"/></button></div>
       {children}
@@ -224,19 +187,6 @@ export function DockedFooter({children}:{children:ReactNode}) {
     return ()=>{observer.disconnect();root.style.removeProperty('--rz-footer-height');};
   },[]);
   return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
-}
-/** "Updated at 10:42:05" with Refresh, on Races and every lead screen. */
-export function UpdatedAt({time,onRefresh}:{time:string;onRefresh:()=>void}) {
-  return <p className="rz-refresh" aria-live="polite">Updated at {time||'…'} <button className="rz-btn rz-btn--small" type="button" onClick={onRefresh}>Refresh</button></p>;
-}
-/**
- * The words for a request that failed: "Could not connect - try again" when it did not get through (or a read was
- * refused), "Not saved - try again" when the server refused a save, then the server's reason when it gives one.
- */
-export function failureLine(error:unknown,action:'read'|'save') {
-  if(!(error instanceof ApiFailure)) return 'Could not connect - try again';
-  const line=action==='save'?'Not saved - try again':'Could not connect - try again';
-  return error.message?`${line}. ${error.message}`:line;
 }
 /** The amber error callout with its warning icon, for a request that failed. */
 export const ErrorCallout=({error,action}:{error:unknown;action:'read'|'save'})=><Callout message={failureLine(error,action)}/>;

@@ -3,21 +3,23 @@ import { RunnerSheet } from './RunnerSheet.js';
 import type { View } from '../shell/addresses.js';
 import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions,notSavedLine } from './RaceActions.js';
-import { useEffect,useRef,useState } from 'react';
+import { useState } from 'react';
 import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
-import { isTeamEntry,partLabel,replacedByRerun } from '../../shared/races.js';
+import { isTeamEntry,openRaceLabel,partLabel,replacedByRerun } from '../../shared/races.js';
 import { raceName } from '../../shared/race-flow.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
-import { resultLabel,teamWristbands } from './ResultName.js';
+import { resultLabel,teamWristbands } from '../../shared/results-rules.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { legsText } from '../../shared/teams.js';
 import type { WrongTime } from '../../shared/wrong-times.js';
-import { api } from '../api.js';
+import { usePolledRead } from '../live.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { flagText } from '../../shared/runner-rulings.js';
-import { Callout,ErrorCallout,Icon,LeadBar,UpdatedAt } from '../races/parts.js';
+import { Callout,ErrorCallout,Icon } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
+import { UpdatedAt } from '../races/UpdatedAt.js';
 const plural=(count:number,word:string)=>`${count} ${word}${count===1?'':'s'}`;
 /**
  * A lead's page for one race, under the lead header ("Heat 1", back to its event, "⋯" for Race actions): its meta line,
@@ -25,17 +27,9 @@ const plural=(count:number,word:string)=>`${count} ${word}${count===1?'':'s'}`;
  * the race's Re-run, Delete and Restore screens.
  */
 export function RacePage({raceId,code,onSaved,onOpen,actionableRunners=[]}:{raceId:string;code:string;onSaved:(next:EventResultsRead)=>void;onOpen:(view:View)=>void;actionableRunners?:readonly LeaderboardRow[]}) {
-  const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState<unknown>(null);
+  const {read,updated,error,refresh}=usePolledRead<LeadRaceRead>(`lead/races/${raceId}`);
   const [selectedEntry,setSelectedEntry]=useState<string|null>(null),[actions,setActions]=useState(false);
   const selectedRow=actionableRunners.find(row=>row.raceId===raceId && row.entryId===selectedEntry);
-  const [updated,setUpdated]=useState('');
-  const request=useRef(0);
-  async function refresh() {
-    const generation=++request.current;
-    try {const next=await api<LeadRaceRead>(`lead/races/${raceId}`);if(generation===request.current) {setRead(next);setUpdated(clockWithSeconds(new Date()));setError(null);}}
-    catch(error) {if(generation===request.current) setError(error);}
-  }
-  useEffect(()=>{void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>{request.current++;clearInterval(timer);};},[raceId]);
   const race=read?.race,openRace=()=>onOpen({kind:'race',id:raceId});
   const more=read && <button type="button" className="rz-iconbtn" aria-label="Race actions" onClick={()=>setActions(true)}><Icon name="more"/></button>;
   const body=<><main className="rz-main">
@@ -43,7 +37,7 @@ export function RacePage({raceId,code,onSaved,onOpen,actionableRunners=[]}:{race
     {!race?error===null && <p className="rz-empty">Opening…</p>:<>
       <p className="rz-page-meta">{eventTitle(race.event)} · checked in {clock(race.checkedInAt)} · {race.deleted?'deleted':race.state==='saved'?'saved':'not saved yet'}</p>
       {race.deleted && <Callout status message={deletedLine(read)}/>}
-      {!race.deleted && race.state!=='saved' && <Callout status message={notSavedLine(race,'page')} actions={<button type="button" className="rz-btn rz-btn--primary" onClick={openRace}>Open {raceName(race)}</button>}/>}
+      {!race.deleted && race.state!=='saved' && <Callout status message={notSavedLine(race,'page')} actions={<button type="button" className="rz-btn rz-btn--primary" onClick={openRace}>{openRaceLabel(race)}</button>}/>}
       {race.parts.times.value?.acceptedByLead && <p className="rz-note">Out-of-order times accepted by a lead</p>}
       <Record race={race} rowFor={entryId=>actionableRunners.find(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
       <details className="rz-disclosure"><summary>Saved versions ({read.history.length})</summary>

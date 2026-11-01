@@ -4,15 +4,15 @@ import { eventTitle } from '../../shared/day.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { raceName } from '../../shared/race-flow.js';
-import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
+import { reopenHeatsSheet,resultName,teamWristbands,type LeaderboardRow } from '../../shared/results-rules.js';
 import type { Stage,StageCheckSheet,StageItem,StagePlace } from '../../shared/stages.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { toastLine } from '../../shared/toast-lines.js';
-import { Callout,ErrorCallout,Icon,LeadBar,Star } from '../races/parts.js';
+import { Callout,ErrorCallout,Icon,Star } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
 import { useToast } from '../races/Toast.js';
 import type { StageScreen,View } from '../shell/addresses.js';
 import { Comment } from './Comment.js';
-import { teamWristbands } from './ResultName.js';
 import { Frame,RunnerSheet } from './RunnerSheet.js';
 /** What each stage's Reopen names: "Reopen heats" at /results/<code>/reopen-heats. */
 const reopened:Record<Stage,string>={event:'event',heats:'heats',final:'final','no-final':'results'};
@@ -35,7 +35,7 @@ function decidedSheet(detail:EventResultsRead|null,screen?:StageScreen) {
     return sheet && !sheet.completed && (sheet.stage==='event' || sheet.stage==='final')?sheet:null;
   }
   const reopening=screen!=='results-without-a-final',stage=reopening?(Object.keys(reopened) as Stage[]).find(stage=>`reopen-${reopened[stage]}`===screen):'no-final';
-  if(stage==='heats' && results.finalResults?.started) return null;
+  if(stage==='heats' && !reopenHeatsSheet(results)) return null;
   return [results.heatsCheckSheet,results.noFinalCheckSheet,results.checkSheet].find(sheet=>sheet?.stage===stage && sheet?.completed===reopening)??null;
 }
 /** Why a screen has nothing to decide, at an address typed or kept after the decision changed. */

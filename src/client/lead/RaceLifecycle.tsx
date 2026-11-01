@@ -5,7 +5,7 @@ import { clock } from '../../shared/clock.js';
 import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
 import { raceName } from '../../shared/race-flow.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
-import { ErrorCallout,LeadBar } from '../races/parts.js';
+import { LeadBar,LeadOpening } from './LeadBar.js';
 import { useToast } from '../races/Toast.js';
 import type { RaceAction,View } from '../shell/addresses.js';
 import { Comment } from './Comment.js';
@@ -33,7 +33,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
     } catch(error) {setError(error);}
   })();},[]);
   const title=titles[view.action];
-  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">Opening…</p>}</main>}/>;
+  if(!read) return <LeadOpening title={title} code={view.code} up="Race" error={error}/>;
   const {race}=read,name=raceName(race),named={section:race.event.section,kind:race.kind,number:race.number};
   /** Sends the save; a refusal shows on the screen, which stays. */
   async function save(body:object,saved:(answer:Answer)=>ToastSave,land:(answer:Answer)=>void) {

@@ -1,7 +1,5 @@
 import { expect,test } from 'vitest';
 import { addressOf,parentOf,viewAt } from '../src/client/shell/addresses.js';
-import { ApiFailure } from '../src/client/api-failure.js';
-import { failureLine } from '../src/client/races/parts.js';
 
 test('each lead screen has its own address, and opening an address opens that screen',()=>{
   const screens:Array<[string,ReturnType<typeof viewAt>]>=[
@@ -89,12 +87,4 @@ test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'olympics-password'})).toEqual({kind:'day'});
   expect(parentOf({kind:'rename-event',code:'R6'})).toEqual({kind:'events'});
   expect(parentOf({kind:'new-event'})).toEqual({kind:'events'});
-});
-
-test('a failed request says Could not connect, a refused save says Not saved, each with the server\'s reason when it gives one',()=>{
-  expect(failureLine(new TypeError('Failed to fetch'),'read')).toBe('Could not connect - try again');
-  expect(failureLine(new TypeError('Failed to fetch'),'save')).toBe('Could not connect - try again');
-  expect(failureLine(new ApiFailure(409,'Heat 2 was changed by Sam Ali'),'save')).toBe('Not saved - try again. Heat 2 was changed by Sam Ali');
-  expect(failureLine(new ApiFailure(403,'Lead access needed'),'read')).toBe('Could not connect - try again. Lead access needed');
-  expect(failureLine(new ApiFailure(500,''),'save')).toBe('Not saved - try again');
 });

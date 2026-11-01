@@ -151,7 +151,7 @@ test('a New race the server refuses says why in the amber callout in the sheet, 
   const sheet=page.getByRole('dialog',{name:'New race'});
   await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:'Girl Cubs',exact:true}).click();
   await sheet.getByRole('button',{name:'Create heat 1',exact:true}).click();
-  await expect(sheet.getByRole('alert')).toHaveText('This event is switched off');
+  await expect(sheet.getByRole('alert')).toHaveText('Not saved - try again. This event is switched off');
   await expect(sheet.getByRole('alert')).toHaveClass('rz-callout');
   await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);

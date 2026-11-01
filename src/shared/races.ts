@@ -42,6 +42,8 @@ export interface RaceRead {
 }
 /** Every run of every event type is a Heat (race-flow.md decision 1), the final a Final. */
 export const raceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`${race.kind==='final'?'Final':'Heat'} ${race.number}`;
+/** The button that opens a race: "Open Heat 2", or "Open final". */
+export const openRaceLabel=(race:Pick<RaceRead,'kind'|'number'>)=>`Open ${race.kind==='final'?'final':raceLabel(race)}`;
 /** A race not saved yet, on a lead's race page and in a correction's refusal: it saves itself once its steps are done. */
 export const inProgressLine=(race:Pick<RaceRead,'kind'|'number'>)=>`${raceLabel(race)} is in progress - finish its steps on Races`;
 export const runnersText=(count:number)=>`${count} ${count===1?'runner':'runners'}`;
