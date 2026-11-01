@@ -52,3 +52,22 @@ test('a race not saved yet must be settled, saying how many are checked in, whil
   expect(eventResults({event:heats,races:[heat(race('a',1,1000)),heat(inProgress('b',3,[2004]))]}).heatsCheckSheet?.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 3 is in progress (1 checked in) - finish its steps or delete it']);
   expect(eventResults({event:heats,races:[heat(race('a',1,1000)),heat(inProgress('b',2,[]))]}).heatsCheckSheet?.mustSettleFirst).toEqual([]);
 });
+test('each medal place carries its race, its time and whether it is in an open tie, for Confirm the medals',()=>{
+  const races=[race('a',1,900),race('b',2,1000),race('c',3,1000)],result=eventResults({event,races});
+  expect(result.checkSheet?.creates).toEqual([
+    {position:1,wristband:2001,race:{id:'a',name:'Heat 1'},entryId:'entry-a',time:900,tied:false},
+    {position:2,wristband:2002,race:{id:'b',name:'Heat 2'},entryId:'entry-b',time:1000,tied:true},
+    {position:3,wristband:2003,race:{id:'c',name:'Heat 3'},entryId:'entry-c',time:1000,tied:true}]);
+  // Settled, the tie no longer marks its places.
+  const tie=result.ties[0]!,settled=eventResults({event,races,tieSettlements:[{tieId:tie.id,outcome:'no-run-off',order:tie.entries,impact:tie.impact}]});
+  expect(settled.checkSheet?.creates.map(place=>place.tied)).toEqual([false,false,false]);
+  // A place nobody holds has no race or time.
+  expect(eventResults({event,races:[race('a',1,900)]}).checkSheet?.creates[1]).toEqual({position:2,wristband:null,time:null,tied:false});
+});
+test('a final\'s medal places name the final as their race, with no time',()=>{
+  const heats={...event,code:'R3',format:'heats' as const};
+  const heat:ResultsRace={...race('heat',1,900),kind:'heat',runners:[{id:'h1',wristband:1023}],finish:{order:['h1'],didNotFinish:[]},times:{places:[900],outOfOrder:false}};
+  const final:ResultsRace={...race('final',1,0),kind:'final',runners:[{id:'f1',wristband:1023}],finish:{order:['f1'],didNotFinish:[]},times:null,
+    final:{generation:'initial',hasRun:true,heatsComplete:true,entries:[{finalEntryId:'f1',heatRaceId:'heat',heatEntryId:'h1',heatWristband:1023,seed:1,heatRank:1,kind:'qualifier',absent:false}]}};
+  expect(eventResults({event:heats,races:[heat,final],completedStages:['heats']}).checkSheet).toMatchObject({stage:'final',creates:[{position:1,wristband:1023,race:{id:'final',name:'Final'},entryId:'f1',time:null,tied:false},{position:2,wristband:null},{position:3,wristband:null}]});
+});
