@@ -4,8 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import type { Phone } from '../../shared/domain.js';
 import type { DayEvent } from '../../shared/day.js';
 import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
-import type { FinalEntry } from '../../shared/finals.js';
-import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
+import { finalTakesChanges,teamInFinal,type FinalEntry } from '../../shared/finals.js';
+import { entryName,type RaceEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { readTeamLists } from '../relays/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
@@ -56,7 +56,7 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(typeof value.expectedHeatEntryId!=='string') throw new Refusal(400,'Choose the suggested next-ranked runner');
     return rulingChange(pool,phone,async(client,current)=>{
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults;
-      if(!final || !final.heatsComplete || final.hasRun || !final.vacancy || !final.nextCallUp) throw new Refusal(409,'There is no open place to call up a runner');
+      if(!final || !finalTakesChanges(final) || !final.vacancy || !final.nextCallUp) throw new Refusal(409,'There is no open place to call up a runner');
       const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
       const next=final.nextCallUp;if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
       const id=randomUUID(),called=finalist(await relayTeams(client,current.dayId,detail.event.id),next,id);
@@ -79,10 +79,9 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(!detail.event.relay) throw new Refusal(400,'Only a relay has teams');
       const team=detail.teams!.find(item=>item.id===value.teamId);
       if(!team) throw new Refusal(404,'Team not found');
-      if(!final || !final.heatsComplete || final.hasRun) throw new Refusal(409,'There is no final to add a team to');
+      if(!final || !finalTakesChanges(final)) throw new Refusal(409,'There is no final to add a team to');
       const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
-      const lineup=[...race.parts.runners.value||[],...final.entries.flatMap(entry=>entry.runner?[entry.runner]:[]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
-      if(lineup.some(entry=>isTeamEntry(entry) && entry.team.id===team.id)) throw new Refusal(409,`Team ${team.number} is already in the Final`);
+      if(teamInFinal({...final,runners:race.parts.runners.value||[]},team.id)) throw new Refusal(409,`Team ${team.number} is already in the Final`);
       // Not marked yet, like every finalist: it runs once marked Here.
       const entry=teamEntry(team,randomUUID());
       await client.query("UPDATE race_finals SET additional_entries=COALESCE(additional_entries,'[]'::jsonb)||$1::jsonb WHERE race_id=$2",[JSON.stringify([{runner:entry,absent:false}]),race.id]);

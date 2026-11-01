@@ -1,6 +1,6 @@
 import { useEffect,useId,useState } from 'react';
 import { api,StaleRequest } from '../api.js';
-import { resultName,type ResultEntry,type ResultTie } from '../../shared/results-rules.js';
+import { resultName,teamWristbands,type ResultEntry,type ResultTie } from '../../shared/results-rules.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { keepsSameRaceOrder,tieEntryKey,type TieOutcome } from '../../shared/ties.js';
 import { ordinal } from '../../shared/ordinal.js';
@@ -11,8 +11,8 @@ import { useToast } from '../races/Toast.js';
 import { eventTitle } from '../../shared/day.js';
 import { andList } from '../../shared/race-flow.js';
 import { raceLabel } from '../../shared/races.js';
-import { DockedFooter,ErrorCallout,Icon,LeadBar } from '../races/parts.js';
-import { teamWristbands } from './ResultName.js';
+import { DockedFooter,ErrorCallout,Icon } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
 const outcomes:ReadonlyArray<[TieOutcome,string]>=[['no-run-off','No run-off needed'],['run-off','Run-off held'],['decided','Decided without a run-off']];
 /**
  * The tie as its own screen (spec #250 "The tie"), at /results/<code>/ties/<tieId>: how it was decided, the order for a

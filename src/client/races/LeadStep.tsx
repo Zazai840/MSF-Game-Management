@@ -2,15 +2,16 @@ import { useEffect,useState } from 'react';
 import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem } from '../../shared/lead-results.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { raceName,stepLabels,type Step } from '../../shared/race-flow.js';
+import { raceName,stepLabels,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import { entryCount,legsText } from '../../shared/teams.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { itemTeams,toCheckWording } from '../../shared/to-check.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
-import { failureLine } from './writes.js';
+import { failureLine } from '../../shared/request-failure.js';
 import { Callout,Icon } from './parts.js';
+import { UpdatedAt } from './UpdatedAt.js';
 import { FinishLine,StartLine,Timer,type StepProps } from './Steps.js';
 /** Which step a lead item is about: a runner's warning to Runners, an addition at the finish to Finishing order, times and ties to Times. */
 export function issueStep(item:DayLeadItem):Step {
@@ -27,7 +28,7 @@ export function issueStep(item:DayLeadItem):Step {
 export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:StepProps & {step:Step;issues:readonly DayLeadItem[];onIssue:()=>void;onResults:(item:DayLeadItem)=>void;onActions:()=>void}) {
   const {read}=props,{race}=read,own=issues.filter(item=>issueStep(item)===step);
   const [busy,setBusy]=useState(''),[error,setError]=useState(''),[updated,setUpdated]=useState(()=>clockWithSeconds(new Date()));
-  useEffect(()=>setUpdated(clockWithSeconds(new Date())),[read.revision]);
+  useEffect(()=>setUpdated(clockWithSeconds(new Date())),[read]);
   async function accept(item:DayLeadItem) {
     setBusy(item.id);setError('');
     try {
@@ -37,9 +38,11 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
         await api(`lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places,acceptOutOfOrder:true});
       } else await api(`lead/races/${item.raceId}/runners/${item.entryId}/${item.kind==='added-at-finish'?'mark-added-checked':'mark-warning-checked'}`,{});
       onIssue();
-    } catch(failure) {setError(failureLine(failure));}
+    } catch(failure) {setError(failureLine(failure,'save'));}
     finally {setBusy('');}
   }
+  /** Refresh: the race and its To check read again now, as the live stream would bring them. */
+  function refresh() {void api<RaceFlowRead>(`races/${race.id}`).then(props.flow.offer).catch(()=>{});onIssue();}
   const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='two-relays' || item.kind==='ran-short' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
   const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);
     return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
@@ -56,7 +59,7 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
       {callouts}{mismatch && <Callout status message={mismatch}/>}
       <StepRecord read={read} step={step} onEdit={onActions}/>
     </main>
-    <footer className="rz-footer"><p className="rz-refresh" aria-live="polite">Updated at {updated}</p></footer>
+    <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={refresh}/></footer>
   </>;
 }
 /** A relay team's four children on the line under its name, in a chip or across a row; nothing for a child. */

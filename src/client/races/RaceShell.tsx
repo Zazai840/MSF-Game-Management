@@ -9,7 +9,8 @@ import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,Sh
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
-import { failureLine,useFlowWrite } from './writes.js';
+import { useFlowWrite } from './writes.js';
+import { failureLine } from '../../shared/request-failure.js';
 import { useScreenName,type View } from '../shell/addresses.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, its words, and the Races-home tab holding its event. */
@@ -68,7 +69,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   async function create(kind:'heat'|'final',number=group.nextHeat) {
     setFailure('');
     try {const made=await api<RaceFlowRead>('races',{eventCode:event.code,kind,number});setAdding(null);onRace(made.race.id);}
-    catch(failure) {setFailure(failureLine(failure));}
+    catch(failure) {setFailure(failureLine(failure,'save'));}
   }
   function swiped(touch:TouchEvent) {
     const start=swipe.current,end=touch.changedTouches[0];swipe.current=null;
@@ -123,7 +124,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
 /** Race actions over the race screen: the lead's read of the race (its corrections need it), then the sheet. */
 function LeadRaceActions({raceId,onOpen,onClose}:{raceId:string;onOpen:(view:View)=>void;onClose:()=>void}) {
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState('');
-  const load=()=>api<LeadRaceRead>(`lead/races/${raceId}`).then(next=>{setRead(next);setError('');}).catch(failure=>setError(failureLine(failure)));
+  const load=()=>api<LeadRaceRead>(`lead/races/${raceId}`).then(next=>{setRead(next);setError('');}).catch(failure=>setError(failureLine(failure,'read')));
   useEffect(()=>{void load();},[raceId]);
   // Opening takes a moment; one sheet opens with what it offers, rather than a second sheet replacing a first.
   if(!read) return error?<Sheet title="Race actions" onClose={onClose}><Callout message={error}/></Sheet>:null;

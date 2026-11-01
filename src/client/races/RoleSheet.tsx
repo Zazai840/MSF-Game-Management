@@ -1,7 +1,7 @@
 import { useId,useState,type FormEvent,type ReactNode } from 'react';
 import { roleLabels,type Role } from '../../shared/race-flow.js';
 import { api } from '../api.js';
-import { failureLine } from './writes.js';
+import { failureLine } from '../../shared/request-failure.js';
 import { Callout,DockedFooter,Icon,Sheet,Star,roleDescriptions,roleIcons } from './parts.js';
 const jobs=['start','finish','timer'] as const;
 /** A job as a radio card: its job star, name and one line. */
@@ -46,7 +46,7 @@ export function LeadCode({onLead,prompt}:{onLead:()=>Promise<void>;prompt?:React
     event.preventDefault();if(!code) return;
     setBusy(true);setError('');
     try {await api('become-lead',{code});await onLead();}
-    catch(failure) {setError(failureLine(failure));}
+    catch(failure) {setError(failureLine(failure,'read'));}
     finally {setBusy(false);}
   }
   const button=<button className="rz-btn rz-btn--primary rz-btn--block" form={`${id}-form`} disabled={busy} aria-disabled={docked && !code || undefined}>{busy?'Checking…':docked?'Become lead':'Switch to Zone lead'}</button>;

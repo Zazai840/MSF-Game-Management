@@ -4,9 +4,10 @@ import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { finalMade,groupStatus,leadCardLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
-import { failureLine } from './writes.js';
+import { failureLine } from '../../shared/request-failure.js';
 import { useLive } from '../live.js';
-import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon,UpdatedAt } from './parts.js';
+import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
+import { UpdatedAt } from './UpdatedAt.js';
 import { useScreenName } from '../shell/addresses.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 
@@ -54,7 +55,7 @@ export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;on
       const made=await api<{race:{id:string}}>('races',choice);
       onRace(made.race.id);
     }
-    catch(failure) {setFailure(failureLine(failure));}
+    catch(failure) {setFailure(failureLine(failure,'save'));}
   }
   const card=(group:RaceGroup)=>{
     const confirm=role==='lead'?medalsToConfirm(group,issues):null;

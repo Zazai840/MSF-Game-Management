@@ -58,7 +58,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('reopen-event.png'),fullPage:true});
   // A failed save stays on the screen with the comment kept.
-  let failed=false;await page.route('**/api/lead/events/*/reopen-stage',async route=>{if(!failed){failed=true;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Could not save - try again'})});}else await route.continue();});
+  let failed=false;await page.route('**/api/lead/events/*/reopen-stage',async route=>{if(!failed){failed=true;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'This stage changed - try again'})});}else await route.continue();});
   await press(reopen);await expect(page.getByRole('main').getByRole('alert')).toContainText('Not saved - try again');await expect(page.getByLabel('Comment',{exact:true})).toHaveValue('Late time correction');
   await press(reopen);
   await expectToast(page,`Event reopened · ${name} Girl Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));

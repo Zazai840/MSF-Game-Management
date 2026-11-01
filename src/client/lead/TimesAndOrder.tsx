@@ -12,7 +12,8 @@ import { toastLine } from '../../shared/toast-lines.js';
 import { SortableList } from '../flow/SortableList.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
-import { Callout,ErrorCallout,Icon,LeadBar,Sheet } from '../races/parts.js';
+import { Callout,Icon,Sheet } from '../races/parts.js';
+import { LeadBar,OpeningBody } from './LeadBar.js';
 import { DigitsField } from '../races/Steps.js';
 import { useToast } from '../races/Toast.js';
 import type { View } from '../shell/addresses.js';
@@ -32,7 +33,7 @@ export function TimesAndOrder({view,onBack,onChanged}:{view:CorrectionView;onBac
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState<unknown>(null),[busy,setBusy]=useState(false);
   useEffect(()=>{api<LeadRaceRead>(`lead/races/${view.raceId}`).then(setRead,setError);},[]);
   const title=view.action==='correct-times'?'Correct times':'Correct finishing order';
-  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">Opening…</p>}</main>}/>;
+  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
   const {race}=read;
   const save:Save=async(command,body)=>{
     setBusy(true);

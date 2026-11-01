@@ -1,8 +1,9 @@
 import { useId,useState,type FormEvent,type ReactNode } from 'react';
 import { dayNumbers, regions, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
-import { api,apiDownload,ApiFailure,phoneStorage,startNewDay } from '../api.js';
+import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
-import { Callout,DockedFooter,ErrorCallout,failureLine,Icon,LeadBar,Sheet } from '../races/parts.js';
+import { DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
+import { LeadBar } from './LeadBar.js';
 import type { View } from '../shell/addresses.js';
 import { toastLine } from '../../shared/toast-lines.js';
 import { clock } from '../../shared/clock.js';
@@ -12,8 +13,6 @@ export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'r
   if(!day.exportedAt) return 'Not downloaded yet.';
   return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
 }
-/** A refused download or new day says the server's reason, which already says what to do; a request that did not get through says Could not connect. */
-const refusal=(error:unknown)=>error instanceof ApiFailure && error.message?error.message:failureLine(error,'read');
 
 /** A code a lead reads out, with the button that changes it. */
 function CodeCard({label,code,text,children}:{label:string;code:string;text:string;children:ReactNode}) {
@@ -108,7 +107,7 @@ function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   return <section className="rz-codecard" aria-labelledby={id}>
     <h2 className="rz-codecard__label" id={id}>Day export</h2>
     <p className="rz-codecard__text">Excel file of today's results for the scoring workbook. <span>{exportStatus(day)}</span></p>
-    {error!==null && <Callout message={refusal(error)}/>}
+    {error!==null && <ErrorCallout error={error} action="read"/>}
     <button type="button" className="rz-btn rz-btn--primary rz-btn--block" disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
   </section>;
 }
@@ -131,7 +130,7 @@ function NewDay() {
     <form className="rz-codecard__form" onSubmit={start}>
       <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor={`${id}-typed`}>Type NEW DAY to confirm</label>
         <input className="rz-field__input" id={`${id}-typed`} value={typed} onChange={event=>setTyped(event.target.value)} autoComplete="off" autoCapitalize="characters"/></div>
-      {error!==null && <Callout message={refusal(error)}/>}
+      {error!==null && <ErrorCallout error={error} action="read"/>}
       <button className="rz-btn rz-btn--danger rz-btn--block" disabled={busy || typed!=='NEW DAY'}>Start a new day</button>
     </form>
   </section>;

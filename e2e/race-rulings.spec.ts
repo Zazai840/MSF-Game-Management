@@ -11,7 +11,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A refused save keeps the screen and what was typed, and says why.
-  let failed=true;await page.route('**/api/lead/races/*/times',async route=>{if(failed){failed=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'The server is busy'})});}else await route.continue();});
+  let failed=true;await page.route('**/api/lead/races/*/times',async route=>{if(failed){failed=false;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'The server is busy'})});}else await route.continue();});
   await press(save);await expect(page.getByRole('alert')).toHaveText('Not saved - try again. The server is busy');await expect(page.getByLabel('2nd place time',{exact:true})).toHaveValue('14.00');
   await press(save);await expectToast(page,'Times saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
   // Out-of-order times need the lead's explicit acceptance, taken back by any change to a time.

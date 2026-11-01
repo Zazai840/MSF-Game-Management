@@ -55,7 +55,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   expect(await lookProblems(page)).toEqual([]);
   let fail=true;
   await page.route('**/api/lead/events/*/settle-tie',async route=>{
-    if(fail) {fail=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'The server is busy'})});}
+    if(fail) {fail=false;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'The server is busy'})});}
     else await route.continue();
   });
   await press(saveTie(page));

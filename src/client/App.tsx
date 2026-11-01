@@ -7,7 +7,9 @@ import { SignIn } from './access/SignIn.js';
 import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
-import { Avatar,Callout,failureLine,HomeBar,LeadBar,LeadFrame,RoleChip,Screen } from './races/parts.js';
+import { Avatar,Callout,HomeBar,RoleChip,Screen } from './races/parts.js';
+import { failureLine } from '../shared/request-failure.js';
+import { LeadBar,LeadFrame } from './lead/LeadBar.js';
 import { RacesHome } from './races/RacesHome.js';
 import { RaceShell } from './races/RaceShell.js';
 import { Toast,ToastContext,type ToastShown } from './races/Toast.js';
@@ -154,7 +156,7 @@ function Opening({words,error,onRefresh}:{words:string;error?:unknown;onRefresh?
 }
 /** Lead access needed: someone without lead access at a lead screen's address types the lead code to open it. */
 function LeadAccess({onLead}:{onLead:()=>Promise<void>}) {
-  return <LeadBar title="Zone lead" up="Races" body={<LeadCode onLead={onLead} prompt={<div className="rz-prompt">
+  return <LeadBar title="Lead access needed" up="Races" body={<LeadCode onLead={onLead} prompt={<div className="rz-prompt">
     <p className="rz-prompt__meta">Results and Day setup are for zone leads</p><h2 className="rz-prompt__q">Type the <em>lead code</em></h2>
     <p className="rz-prompt__help">Ask the zone lead who set up today.</p>
   </div>}/>}/>;

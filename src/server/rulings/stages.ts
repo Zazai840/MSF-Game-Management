@@ -7,6 +7,7 @@ import type { Stage } from '../../shared/stages.js';
 import { actions,Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
+import { reopenHeatsSheet } from '../../shared/results-rules.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 export async function readCompletedStages(db:Database,dayId:string):Promise<CompletedStage[]> {
@@ -39,7 +40,7 @@ export async function changeStage(client:pg.PoolClient,current:Phone,code:string
   const sheet=[detail.results.heatsCheckSheet,detail.results.noFinalCheckSheet,detail.results.checkSheet].find(sheet=>sheet?.stage===stage);
   if(!sheet) throw new Refusal(409,stage==='no-final' && detail.results.finalResults?.started?'The final has started - medals come from the final':'This stage is not available');
   if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
-  if(reopening && stage==='heats' && detail.results.finalResults?.started) throw new Refusal(409,'The final has started - heats cannot be reopened');
+  if(reopening && stage==='heats' && !reopenHeatsSheet(detail.results)) throw new Refusal(409,'The final has started - heats cannot be reopened');
   if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Settle everything under Settle first, then confirm',{mustSettleFirst:sheet.mustSettleFirst.map(item=>item.message)});
   if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
   else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);

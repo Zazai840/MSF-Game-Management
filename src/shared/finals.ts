@@ -35,4 +35,9 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
   return {...race.final,raceId:race.id,runners:race.runners,leaderboard:finalRows(state,race),nextCallUp,vacancy,started};
 }
 /** A finalist's place in the line-up at the final's check-in: "1st fastest", "Called up" or "Added". */
+/** A final still taking call-ups and added teams: its heats are complete and it has not run. */
+export const finalTakesChanges=(final:Pick<FinalField,'heatsComplete'|'hasRun'>)=>final.heatsComplete && !final.hasRun;
+/** Whether a relay team is in the final's line-up, Absent ones included: such a team is not added again. */
+export const teamInFinal=(final:{runners:readonly RaceEntry[];entries:ReadonlyArray<{runner?:RaceEntry}>;additionalEntries?:ReadonlyArray<{runner:RaceEntry}>},teamId:string)=>
+  [...final.runners,...final.entries.flatMap(entry=>entry.runner?[entry.runner]:[]),...(final.additionalEntries||[]).map(entry=>entry.runner)].some(entry=>isTeamEntry(entry) && entry.team.id===teamId);
 export const seedLabel=(entry:Pick<FinalPresence['entries'][number],'calledUp'|'seed'>)=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} fastest`;
