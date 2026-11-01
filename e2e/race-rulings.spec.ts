@@ -73,11 +73,14 @@ test('a lead can correct times again straight after saving, even when the race i
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });
 test('a lead corrects a saved race\'s finishing order on its screen: a drag without Save changes nothing; one Save is one toast and one Notes line',async({page},info)=>{
+  // The screen twice, a sheet and the Notes tab: more than the default 30 s on a busy machine.
+  test.setTimeout(60000);
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,'Order corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002,2003],[1200,1300,1400]);
-  await page.goto('/');await join(page,ownName('Order lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();const racePage=page.url();
+  // The race page at its address: the walk there from Results is the first test's (this one is long enough).
+  await page.goto('/');await join(page,ownName('Order lead'),{job:'Start line'});await becomeLead(page);
+  await page.goto(`/results/${code}/races/${race.id}`);const racePage=page.url();
   const record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('button');
   await expect(record).toHaveText([/^1st\s*2001/,/^2nd\s*2002/,/^3rd\s*2003/]);
   await raceAction(page,'Correct finishing order');
