@@ -75,7 +75,7 @@ function LeadCode({code,onChanged,onSaved}:{code:string;onChanged:()=>Promise<vo
     } catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  return <CodeCard label="Lead code" code={code} text="Give this only to zone leads. Typed on Join or in Your job, it makes the phone a zone lead.">
+  return <CodeCard label="Lead code" code={code} text="Give this only to zone leads. Typed on Join or when changing job, it makes the phone a zone lead.">
     <button type="button" className="rz-btn rz-btn--small" onClick={()=>setAsking(true)}>Make a new lead code</button>
     {asking && <Sheet title="Make a new lead code?" onClose={close}>
       <p className="rz-sheet__text">Every other lead loses lead access until they type the new code.</p>

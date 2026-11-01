@@ -44,8 +44,8 @@ export function toastLine(save:ToastSave):string {
     case 'called-up': return `${save.who} called up · ${raceLine(save.race)}`;
     case 'team-added': return `Team ${save.team} added · ${raceLine(save.race)}`;
     case 'tie-saved': return `Tie saved · ${eventLine(save.event)}`;
-    // Heats complete makes the final's line-up; every other stage confirms the medals.
-    case 'stage-complete': return `${save.stage==='heats'?'Heats complete':'Medals confirmed'} · ${eventLine(save.event)}`;
+    // "+ Final" on Races completes heats, so every stage completed here confirms the medals.
+    case 'stage-complete': return `Medals confirmed · ${eventLine(save.event)}`;
     case 'reopened': return `${reopened[save.stage]} reopened · ${eventLine(save.event)}`;
     case 'this-day': return `${save.field} saved · ${save.value}`;
     case 'lead-code': return `New lead code · ${save.code}`;
