@@ -15,13 +15,16 @@ export type RaceAction=typeof raceActions[number];
 /** A race's corrections, at the same addresses as Re-run, Delete and Restore. */
 export const corrections=['correct-times','correct-finishing-order','correct-runner-list','correct-teams'] as const;
 export type RaceCorrection=typeof corrections[number];
+/** The medal decision's other screens, at /results/<code>/<screen>: Results without a final and each Reopen. */
+export const stageScreens=['results-without-a-final','reopen-heats','reopen-final','reopen-event','reopen-results'] as const;
+export type StageScreen=typeof stageScreens[number];
 /**
  * Every screen with its own address (spec #250 "Navigation"). Races and the race screen are the race flow; the rest are
  * the lead's screens. To add a screen: add its kind here, its address in viewAt and addressOf, its natural parent in
  * parentOf, then render it in App with a LeadBar naming it.
  */
 export type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'results'}|{kind:'event';code:string;tab?:EventTab}
-  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'confirm-the-medals';code:string}|{kind:'runner';code:string;raceId:string;entryId:string;screen:RunnerScreen}|{kind:'race-action';code?:string;raceId:string;action:RaceAction}|{kind:'correction';code?:string;raceId:string;action:RaceCorrection}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
+  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'confirm-the-medals';code:string}|{kind:'stage';code:string;screen:StageScreen}|{kind:'runner';code:string;raceId:string;entryId:string;screen:RunnerScreen}|{kind:'race-action';code?:string;raceId:string;action:RaceAction}|{kind:'correction';code?:string;raceId:string;action:RaceCorrection}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
   |{kind:'rename-event';code:string}|{kind:'new-event'};
 const part=encodeURIComponent;
 /**
@@ -40,6 +43,7 @@ export function viewAt(address:string):View {
     if(rest.length===1) return {kind:'event',code:a!};
     if(rest.length===2 && eventTabs.includes(b as EventTab)) return {kind:'event',code:a!,tab:b as EventTab};
     if(rest.length===2 && b==='confirm-the-medals') return {kind:'confirm-the-medals',code:a!};
+    if(rest.length===2 && stageScreens.includes(b as StageScreen)) return {kind:'stage',code:a!,screen:b as StageScreen};
     if(rest.length===3 && b==='races') return {kind:'race-page',code:a!,raceId:c!};
     if(rest.length===4 && b==='races' && raceActions.includes(d as RaceAction)) return {kind:'race-action',code:a!,raceId:c!,action:d as RaceAction};
     if(rest.length===4 && b==='races' && corrections.includes(d as RaceCorrection)) return {kind:'correction',code:a!,raceId:c!,action:d as RaceCorrection};
@@ -65,6 +69,7 @@ export function addressOf(view:View):string {
     case 'race-page': return `/results/${part(view.code)}/races/${part(view.raceId)}`;
     case 'tie': return `/results/${part(view.code)}/ties/${part(view.tieId)}${view.stage?`?stage=${view.stage}`:''}`;
     case 'confirm-the-medals': return `/results/${part(view.code)}/confirm-the-medals`;
+    case 'stage': return `/results/${part(view.code)}/${view.screen}`;
     case 'runner': return `/results/${part(view.code)}/races/${part(view.raceId)}/runners/${part(view.entryId)}/${view.screen}`;
     case 'race-action': case 'correction': return `${view.code===undefined?'':`/results/${part(view.code)}`}/races/${part(view.raceId)}/${view.action}`;
     case 'day': return '/day';
@@ -83,7 +88,7 @@ export function parentOf(view:View):View {
     case 'race-action': case 'correction': return view.code===undefined?{kind:'race',id:view.raceId}:{kind:'race-page',code:view.code,raceId:view.raceId};
     case 'event': return {kind:'results'};
     case 'tie': return {kind:'event',code:view.code,tab:'heats'};
-    case 'confirm-the-medals': return {kind:'event',code:view.code};
+    case 'confirm-the-medals': case 'stage': return {kind:'event',code:view.code};
     case 'signed-in-today': case 'events': case 'olympics-password': return {kind:'day'};
     case 'rename-event': case 'new-event': return {kind:'events'};
     default: return {kind:'races'};

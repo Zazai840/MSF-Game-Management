@@ -55,7 +55,6 @@ test('a saved 60m final waits in the lead\'s Action required; Confirm the medals
   await expect(page.locator('.rz-prompt__meta')).toHaveText('1 heat · final');
   await expect(page.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Close check sheet',exact:true})).toHaveCount(0);
   await expect(medalPlaces(page)).toHaveText([new RegExp(`^1${w(2)}Final\\s*Fix$`),new RegExp(`^2${w(1)}Final\\s*Fix$`),/^3-$/]);
   await expect(page.getByText('A place is wrong? Tap Fix beside it.',{exact:true})).toBeVisible();
   await expect(page.locator('.rz-footer__reason')).toHaveCount(0);

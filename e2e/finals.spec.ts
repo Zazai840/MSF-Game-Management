@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page,flowPost} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,type Page,flowPost} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -97,7 +97,11 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
- await eventTab(page,'Heats');await page.getByRole('button',{name:'Reopen heats',exact:true}).click();const sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await eventTab(page,'Final');await expect(final).toContainText(String(n(15)));
+ // The final has run, so Reopen heats no longer applies: the Heats tab does not offer it, and its address says why.
+ await eventTab(page,'Heats');await expect(stageButtons(page)).toHaveCount(0);
+ await page.goto(`/results/${code}/reopen-heats`);
+ await expect(page.getByText('The final has started. Heats cannot be reopened.',{exact:true})).toBeVisible();await expect(page.getByRole('contentinfo').getByRole('button')).toHaveCount(0);
+ await back(page,`${name} · Boy Cubs`);await expect(final).toContainText(String(n(15)));
 });
 test('only a lead\'s + Final makes the final from the fastest, after a confirm; Reopen heats removes the unrun final and + Final makes it again from the corrected heats',async({page,openPhone},info)=>{
  const code=await ownCode(),name=ownName('Short sprint'),n=await ownWristbands('Boy Cubs',3);
@@ -137,12 +141,17 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await expect(attendance(sam.page)).toHaveText([seed('1st',n(41)),seed('2nd',n(42))]);
  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
- await page.getByRole('button',{name:'Reopen heats',exact:true}).click();
- const reopen=page.getByRole('dialog',{name:'Reopen heats',exact:true});
- await expect(reopen.getByRole('status')).toHaveText('The final has not run. It is removed. Make it again with + Final on Races after every heat has run.');
- expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('reopen-heats.png')});
- await reopen.getByLabel('Comment',{exact:true}).fill('Corrected heat timer');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
- await expect(reopen).toHaveCount(0);
+ // Reopen heats, a plain button under the Heats leaderboard, opens its own screen with #249's warning and a required comment.
+ await press(page.getByRole('button',{name:'Reopen heats',exact:true}));
+ await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-heats$`));
+ await expect(page.getByRole('heading',{level:2,name:'Reopen the heats?',exact:true})).toBeVisible();
+ await expect(page.getByText('The final has not run. It is removed. Make it again with + Final on Races after every heat has run.',{exact:true})).toBeVisible();
+ const reopen=page.getByRole('contentinfo').getByRole('button',{name:'Reopen heats',exact:true});
+ await expect(page.getByRole('contentinfo').locator('.rz-footer__reason')).toHaveText('Write a comment first.');
+ await page.getByLabel('Comment',{exact:true}).fill('Corrected heat timer');
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('reopen-heats.png'),fullPage:true});
+ await press(reopen);
+ await expectToast(page,`Heats reopened · ${name} Boy Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
  // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
  await expect(stageButtons(page)).toHaveText(['Results without a final']);
  await eventTab(page,'Final');await expect(page.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
