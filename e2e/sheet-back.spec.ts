@@ -25,7 +25,7 @@ test('the phone\'s Back closes the job sheet, New race and Add heat on Races, an
   await ownEvent(request,code,name);
   expect((await request.post('/api/races',{headers:owner(),data:{eventCode:code,kind:'heat',number:1}})).ok()).toBe(true);
   const {page}=await openPhone(ownName('Sheet back volunteer'));
-  const job=page.getByRole('dialog',{name:'Your job'}),newRace=page.getByRole('dialog',{name:'New race'});
+  const job=page.getByRole('dialog',{name:'What\'s your job today?'}),newRace=page.getByRole('dialog',{name:'New race'});
   const races=()=>onRaces(page),card=page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
   await opensAndCloses(page,()=>press(jobChip(page)),job,'back',races);
   await opensAndCloses(page,()=>press(page.getByRole('button',{name:'New race',exact:true})),newRace,'back',races);

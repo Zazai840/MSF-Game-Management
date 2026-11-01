@@ -10,8 +10,9 @@ const kept=[`${prefix}pass`,`${prefix}profiles`];
 const keptAfter:Record<string,string[]>={'new-day':kept,'password-changed':[`${prefix}profiles`],'signed-out':[`${prefix}profiles`],moved:kept};
 /** Home's last tab belongs to the phone, not the session, so it outlasts sign-ins. */
 const homeTabKey=`${prefix}home-tab`;
-export type HomeTab='races'|'hurdles'|'relays';
-const homeTabs:HomeTab[]=['races','hurdles','relays'];
+export type HomeTab='races'|'relays';
+/** The Home tab an event is listed on: Relays for a relay, Races for the rest. */
+export const homeTabOf=(event:{relay:boolean}):HomeTab=>event.relay?'relays':'races';
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
   for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session` && key!==homeTabKey) localStorage.removeItem(key);
@@ -49,7 +50,8 @@ export const phoneStorage = {
   /** Edit list: forgets a profile on this phone only; the profile stays on the server. */
   forgetProfile,
   /** The Home tab this phone used last: Races on a phone that never switched, or when storage fails. */
-  homeTab:():HomeTab=>{try {const tab=localStorage.getItem(homeTabKey) as HomeTab;return homeTabs.includes(tab)?tab:'races';} catch {return 'races';}},
+  // Anything but Relays reads as Races, the Hurdles tab an older build remembered too.
+  homeTab:():HomeTab=>{try {return localStorage.getItem(homeTabKey)==='relays'?'relays':'races';} catch {return 'races';}},
   rememberHomeTab:(tab:HomeTab)=>{try {localStorage.setItem(homeTabKey,tab);} catch {/* the tab still switches; it is just not remembered */}},
   /** The job chosen for today on this phone (Start line, Finish line, Timer or Zone lead), or null before it is chosen. */
   role:(day:string):Role|null=>{try {const held=JSON.parse(localStorage.getItem(`${prefix}role`)||'null');return held?.day===day && roles.includes(held.role)?held.role:null;} catch {return null;}},
@@ -106,13 +108,16 @@ export async function apiResponse(path:string,body?:unknown,signal?:AbortSignal)
   current(captured);
   onThisBuild(response.headers.get('x-build-id'));
   if (!response.ok) {
-    const result = await response.json().catch(()=>({message:'Could not connect - please try again'}));
+    // No JSON (a host's own page, or a body never read) is no reason from the app: `body.message` stays empty.
+    const result:ApiFailure['body']|null = await response.json().catch(()=>null);
     current(captured);
-    if (response.status === 401) {
+    // A 401 whose reason was never read (the screen let go of the request, or the link dropped) clears nothing:
+    // erasing as if no reason were given would drop the listed names. The phone's next request is told again.
+    if (response.status === 401 && result) {
       phoneStorage.clear(result.reason);
       window.dispatchEvent(new Event('msf:removed'));
     }
-    throw new ApiFailure(response.status, result.message || 'Could not connect - please try again', result);
+    throw new ApiFailure(response.status, result?.message || 'Could not connect - please try again', result ?? {});
   }
   sessions.set(response,captured);
   return response;

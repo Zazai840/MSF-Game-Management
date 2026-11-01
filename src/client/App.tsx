@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Phone } from '../shared/domain.js';
 import type { ResultsTarget } from '../shared/lead-results.js';
-import type { Role } from '../shared/race-flow.js';
+import type { Role,Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
 import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
@@ -34,6 +34,8 @@ export function App() {
   // The app's one toast; `id` makes a new save's toast start afresh.
   const [toast,setToast]=useState<ToastShown&{id:number}|null>(null);
   const showToast=useMemo(()=>(next:ToastShown)=>setToast(held=>({...next,id:(held?.id??0)+1})),[]);
+  // Why the race this phone had open went back to Races (a lead removed it), until another race is opened.
+  const [gone,setGone]=useState('');
   // Why the home read failed, while the app has not opened.
   const [error,setError] = useState<unknown>();
   const request=useRef(0);
@@ -92,7 +94,7 @@ export function App() {
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
   // The older look has no race-flow tokens, so the toast brings its own .rz-screen, as the job sheet does.
   const withToast=(screen:ReactNode)=><ToastContext.Provider value={showToast}>{screen}
-    {toast && <div className="rz-screen"><Toast key={toast.id} toast={toast} onOpen={id=>go({kind:'race',id})} onClose={()=>setToast(null)}/></div>}</ToastContext.Provider>;
+    {toast && <div className="rz-screen"><Toast key={toast.id} toast={toast} onOpen={(id,step)=>go({kind:'race',id,step})} onClose={()=>setToast(null)}/></div>}</ToastContext.Provider>;
   return withToast(screen());
   function screen() {
     if (!signedIn) return <SignIn onSignedIn={()=>setSignedIn(true)} />;
@@ -116,9 +118,10 @@ export function App() {
     const toResults=(opening:ResultsTarget)=>go(resultsView(opening),{opening});
     if(view.kind==='races' || view.kind==='race') {
       const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
-      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} me={home.phone.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces}
-        onRace={(id,step)=>go({kind:'race',id,step})} onSaved={saved=>{showToast({message:saved.message,saved});toRaces();}} onResults={toResults} onOpen={next=>go(next)}/>{sheet}</Screen>;
-      return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} me={home.phone.profileId} onTab={pickTab} role={role} onRace={(id,step)=>go({kind:'race',id,step})}
+      const toRace=(id:string,step?:Step)=>{setGone('');go({kind:'race',id,step});};
+      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
+        onRace={toRace} onSaved={saved=>{showToast({message:saved.message,saved});pickTab(saved.tab);toRaces();}} onResults={toResults} onOpen={next=>go(next)}/>{sheet}</Screen>;
+      return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={toRace}
         onResults={toResults}/>{sheet}</Screen>;
     }
     // Back goes where the lead came from; with no history, up a level. A non-lead goes back to Races.

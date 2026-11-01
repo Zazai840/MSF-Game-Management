@@ -1,7 +1,8 @@
 import { createContext,useContext,useEffect,useRef,useState,type ReactNode } from 'react';
-import type { RacesRead } from '../../shared/race-flow.js';
+import type { RacesRead,Step } from '../../shared/race-flow.js';
 import { ApiFailure,api } from '../api.js';
 import { useLive } from '../live.js';
+import { failureLine } from './writes.js';
 import { Icon } from './parts.js';
 import type { SavedStep } from './RaceShell.js';
 /** How long the toast stays, unless it has focus. */
@@ -15,7 +16,7 @@ export const useToast=()=>useContext(ToastContext);
  * The race-flow toast, above any docked button: one line, 6 seconds, paused while focused. A lead save shows its line
  * alone; a race step's save also offers Undo.
  */
-export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:string)=>void;onClose:()=>void}) {
+export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:string,step:Step)=>void;onClose:()=>void}) {
   return toast.saved?<StepToast saved={toast.saved} onOpen={onOpen} onClose={onClose}/>
     :<ToastBox onClose={onClose}><span className="rz-toast__msg"><Icon name="check"/>{toast.message}</span></ToastBox>;
 }
@@ -30,7 +31,7 @@ function ToastBox({again,onClose,children}:{again?:unknown;onClose:()=>void;chil
  * reopens the race at that step. If someone else has changed the same step since, Undo would wipe out their work, so
  * it offers Open race instead. It watches the races list (one shared read for every phone) to see that change.
  */
-function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string)=>void;onClose:()=>void}) {
+function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string,step:Step)=>void;onClose:()=>void}) {
   const {snapshot}=useLive<RacesRead>('live/races');
   const [changedBy,setChangedBy]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const status=snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)?.steps[saved.step];
@@ -38,14 +39,14 @@ function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string
   const changed=changedBy ?? (status && status.version!==saved.version?status.by??'Someone':null);
   async function undo() {
     setBusy(true);setError('');
-    try {await api(`races/${saved.raceId}/steps/${saved.step}/undone`,{version:saved.version});onClose();onOpen(saved.raceId);}
+    try {await api(`races/${saved.raceId}/steps/${saved.step}/undone`,{version:saved.version});onClose();onOpen(saved.raceId,saved.step);}
     catch(failure) {
       const body=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
-      if(body.reason==='changed-since') setChangedBy(body.by??'Someone');else setError(failure instanceof Error?failure.message:'Could not undo');
+      if(body.reason==='changed-since') setChangedBy(body.by??'Someone');else setError(failureLine(failure));
     } finally {setBusy(false);}
   }
   return <ToastBox again={changed} onClose={onClose}>
-    <span className="rz-toast__msg"><Icon name="check"/>{error||(changed?`${changed} changed this since. Open the race to edit it.`:saved.message)}</span>
-    {changed?<button type="button" onClick={()=>{onClose();onOpen(saved.raceId);}}>Open race</button>:<button type="button" disabled={busy} onClick={()=>void undo()}>Undo</button>}
+    <span className="rz-toast__msg"><Icon name={error?'warning':'check'}/>{error||(changed?`${changed} changed this since. Open the race to edit it.`:saved.message)}</span>
+    {changed?<button type="button" onClick={()=>{onClose();onOpen(saved.raceId,saved.step);}}>Open race</button>:<button type="button" disabled={busy} onClick={()=>void undo()}>Undo</button>}
   </ToastBox>;
 }

@@ -52,7 +52,7 @@ export function RacePage({raceId,screen,onSaved,onClose,onOpen,actionableRunners
 /** The race's places and times in place order (no place last), a wrong time in amber with its reason as on the Times screens, each child's or relay team's warnings beside them (grey once settled), and v1's count check. */
 function CurrentRecord({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryId:string)=>LeaderboardRow|undefined;onRunner:(entryId:string)=>void}) {
   const times=race.kind==='final'?null:race.parts.times.value;
-  const wrong=times?wrongTimesByPlace(times.places):new Map<number,WrongTime>();
+  const wrong=times?wrongTimesByPlace(times.places,race.event.name):new Map<number,WrongTime>();
   const mismatch=race.recording.countMismatch;
   return <>
     {times && <TimeCount times={times.places.filter(time=>time!==null).length} finishers={race.parts.finish.value?.order.length??null} mismatch={mismatch}/>}

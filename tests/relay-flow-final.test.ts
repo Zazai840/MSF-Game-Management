@@ -22,14 +22,11 @@ async function ok<T=RaceFlowRead>(token:string,url:string,body?:unknown) {
 const teamsOf=(race:Pick<RaceRead,'parts'>)=>(race.parts.runners.value||[]).filter(isTeamEntry);
 /** Team N of R22 (Girl Cubs) is 2N01-2N04. */
 const legs=(number:number)=>[1,2,3,4].map(leg=>2000+number*100+leg);
-/** Runs a relay heat to saved in the race flow: the teams ticked in, every child here, placed in the order given and timed. */
+/** Runs a relay heat to saved in the race flow: the teams added in, every child checked in, placed in the order given and timed. */
 async function runHeat(token:string,number:number,placed:number[],times:number[]) {
   let read=await ok(token,'/api/races',{eventCode:'R22',kind:'heat',number});
   const id=read.race.id,teamId=(team:number)=>read.teams!.find(item=>item.number===team)!.id;
-  for(const team of placed) {
-    read=await ok(token,`/api/races/${id}/teams/${teamId(team)}/tick`,{});
-    for(const leg of [0,1,2,3]) read=await ok(token,`/api/races/${id}/teams/${teamId(team)}/here`,{leg,here:true});
-  }
+  for(const team of placed) read=await ok(token,`/api/races/${id}/teams/${teamId(team)}/tick`,{});
   read=await ok(token,`/api/races/${id}/steps/runners/done`,{});
   const entryOf=(team:number)=>teamsOf(read.race).find(entry=>entry.team.number===team)!.id;
   read=await ok(token,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:placed.map(entryOf),didNotFinish:[],didNotRun:[],added:[]});
@@ -45,8 +42,8 @@ async function start() {
   const sam=(await people.volunteer('Sam Patel')).token,priya=(await people.volunteer('Priya Shah')).token,lead=(await people.lead('Jo Evans')).token;
   const relays=relayFlowSetup(app);
   for(let number=1;number<=8;number++) await relays.team(sam,'R22',legs(number));
-  await runHeat(sam,1,[2,1,3,4],[1400,1500,1700,1900]);
-  await runHeat(sam,2,[5,6,7],[1450,1600,1800]);
+  await runHeat(sam,1,[2,1,3,4],[3400,3500,3700,3900]);
+  await runHeat(sam,2,[5,6,7],[3450,3600,3800]);
   return {sam,priya,lead};
 }
 const makeFinal=(token:string)=>call(token,'/api/races',{eventCode:'R22',kind:'final'});
@@ -74,7 +71,7 @@ test('only a lead makes a relay final: it seeds the fastest 6 teams, fastest fir
   expect(marks(final).map(([,state])=>state)).toEqual(Array(6).fill('unmarked'));
   // As on a children's final, nobody runs it until marked Here: the finish line has no team to place yet.
   expect(teamsOf(final.race)).toEqual([]);
-  // Each seeded team is in the final all the same (its teams sheet reads "Final · change it at check-in"); Team 4 is not.
+  // Each seeded team is in the final all the same; Team 4 is not.
   const inFinal=(read:RaceFlowRead)=>read.teams!.filter(team=>team.races.some(race=>race.kind==='final')).map(team=>team.number).sort();
   expect(inFinal(final)).toEqual([1,2,3,5,6,7]);
   expect(final.teams!.find(team=>team.number===2)!.races.map(race=>race.kind)).toEqual(['heat','final']);
@@ -106,8 +103,8 @@ test('Here / Absent per seeded team lands from two phones at once with no versio
   await mark(sam,read,1,'absent');
   expect(marks(await ok(sam,`/api/races/${final.race.id}`))[2]).toEqual([1,'absent']);
   const child=await call(sam,`/api/races/${final.race.id}/teams/${read.race.final!.entries[0].team!.id}/here`,{leg:0,here:true});
-  expect(child.statusCode).toBe(409);
-  expect(child.json().message).toBe("Mark the final's teams Here or Absent");
+  // There is no per-child Here, at a final or a heat.
+  expect(child.statusCode).toBe(404);
   const bad=await call(sam,`/api/races/${final.race.id}/teams/${read.race.final!.entries[0].team!.id}/absent`,{mark:'maybe'});
   expect(bad.statusCode).toBe(400);
 });
@@ -142,6 +139,29 @@ test('a lead\'s call-up for an absent team and a lead\'s added team join the fin
   expect(marks(read).at(-1)).toEqual([8,'unmarked']);
   await mark(sam,read,8,'absent');
   expect(marks(await ok(sam,`/api/races/${read.race.id}`)).at(-1)).toEqual([8,'absent']);
+});
+
+test('a finalist\'s child changed by its leg chip: one leg, against the team\'s version, its kept copy changed whether Here or not, the marks unchanged',async()=>{
+  const {sam,priya,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  const raceId=read.race.id,team=(number:number)=>read.teams!.find(item=>item.number===number)!;
+  const url=(number:number)=>`/api/relays/${read.group.event.id}/teams/${team(number).id}`;
+  const inRace=(number:number)=>teamsOf(read.race).find(entry=>entry.team.number===number)?.legs.map(leg=>[leg.wristband,leg.here]);
+  // Team 2 marked Here: a chip Save sends its legs with the 2nd changed, the others kept as they are; every child is still here.
+  await mark(sam,read,2,'here');
+  const two=team(2);
+  read=await ok(priya,url(2),{version:two.version,legs:[2201,2199,2203,2204],keptWarnings:[2201,2203,2204],raceId});
+  expect(inRace(2)).toEqual([[2201,true],[2199,true],[2203,true],[2204,true]]);
+  // A chip tapped before Priya's Save is refused as changed.
+  expect((await call(sam,url(2),{version:two.version,legs:[2201,2202,2203,2198],keptWarnings:[2201,2202,2203],raceId})).json()).toMatchObject({reason:'changed',by:'Priya Shah'});
+  // Team 5 not marked: its kept copy takes the change, and keeps it once marked Here.
+  read=await ok(sam,url(5),{version:team(5).version,legs:[2501,2502,2503,2198],keptWarnings:[2501,2502,2503],raceId});
+  expect(read.race.final!.entries.find(item=>item.team?.number===5)!.legs!.map(leg=>leg.wristband)).toEqual([2501,2502,2503,2198]);
+  expect(inRace(5)).toBeUndefined();
+  await mark(sam,read,5,'here');
+  read=await ok(sam,`/api/races/${raceId}`);
+  expect(inRace(5)).toEqual([[2501,true],[2502,true],[2503,true],[2198,true]]);
+  expect(marks(read)).toEqual([[2,'here'],[5,'here'],[1,'unmarked'],[6,'unmarked'],[3,'unmarked'],[7,'unmarked']]);
 });
 
 test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{

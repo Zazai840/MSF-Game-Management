@@ -3,6 +3,7 @@ import type { DayEvent } from '../../shared/day.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import { api } from '../api.js';
+import { failureLine } from './writes.js';
 /**
  * The typing and checks behind a wristband entry, for any screen to draw: `type` the digits, `next` checks the number
  * (refused outright if already in this race, else the shared warnings and the server's), and saves it when nothing is
@@ -32,7 +33,7 @@ export function useWristbandEntry(event:DayEvent,raceId:string|null,taken:readon
       const warnings=[...local,...response.warnings.filter(warning=>!local.some(item=>item.kind===warning.kind))];
       if(warnings.length) setPending(warnings);
       else await save(false);
-    } catch(failure) {setError(failure instanceof Error?failure.message:'Could not check this number - tap Next again');}
+    } catch(failure) {setError(failureLine(failure));}
     finally {setChecking(false);}
   }
   return {current,pending,refused,error,checking,held:pending.length>0 || !!refused,

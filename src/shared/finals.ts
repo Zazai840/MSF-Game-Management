@@ -34,5 +34,5 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
     || race.runners.some(runner=>isTeamEntry(runner) && runner.legs.some(leg=>leg.here));
   return {...race.final,raceId:race.id,runners:race.runners,leaderboard:finalRows(state,race),nextCallUp,vacancy,started};
 }
-/** A finalist's place in the line-up at the final's check-in: "1st seed", "Called up" or "Added". */
-export const seedLabel=(entry:Pick<FinalPresence['entries'][number],'calledUp'|'seed'>)=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} seed`;
+/** A finalist's place in the line-up at the final's check-in: "1st fastest", "Called up" or "Added". */
+export const seedLabel=(entry:Pick<FinalPresence['entries'][number],'calledUp'|'seed'>)=>entry.calledUp?'Called up':entry.seed===null?'Added':`${ordinal(entry.seed)} fastest`;

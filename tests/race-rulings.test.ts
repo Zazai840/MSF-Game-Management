@@ -30,6 +30,18 @@ test('a lead corrects or explicitly accepts out-of-order times',async()=>{
   expect((await leadRead(race.id)).parts.times.value.acceptedByLead).not.toBe(true);
   expect((await read()).auditNotes.map((note:any)=>note.action)).toEqual(['correct-times','accept-times','correct-times']);
 });
+test('Correct times refuses a time no one can run, with the phone\'s words, but never checks a time saved before',async()=>{
+  const {owner,lead,race,leadRead}=await start();
+  const correct=(places:number[])=>call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places});
+  for(const [places,message] of [[[1200,0],'0.00 is not a time. Check the timer and type it again.'],[[21,1300],'0.21 is too fast for 60m Hurdles. No one runs 60m in under 6.00. For 21 seconds, type 2100.'],[[599,1300],'5.99 is too fast for 60m Hurdles. No one runs 60m in under 6.00. Check the timer and type it again.']] as const) {
+    const response=await correct([...places]);expect(response.statusCode).toBe(400);expect(response.json().message).toBe(message);
+  }
+  expect((await leadRead(race.id)).parts.times.value.places).toEqual([1300,1200]);
+  await call(owner,'/api/day/events/R10/rename',{name:'Sack race'});
+  expect((await correct([21,1300])).statusCode).toBe(200);
+  await call(owner,'/api/day/events/R10/rename',{name:'60m Hurdles'});
+  expect((await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:race.parts.times.version+1,places:[21,1250]})).statusCode).toBe(200);
+});
 test('lead deletion, restoration and permanent deletion work after Finish and preserve audit notes',async()=>{
   const {lead,volunteer,race,read}=await start();
   await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1200,1300]});
@@ -44,18 +56,18 @@ test('lead deletion, restoration and permanent deletion work after Finish and pr
   expect((await call(lead,`/api/lead/races/${race.id}`)).statusCode).toBe(404);
   expect((await read()).auditNotes.map((note:any)=>note.action)).toEqual(['delete-race-permanently','restore-race','delete-race','correct-times']);
 });
-test('a re-run deletes the old record with its reason and creates a new numbered prefilled race without already-ran warnings',async()=>{
+test('a re-run deletes the old record with its reason and creates a prefilled race with its number, without already-ran warnings',async()=>{
   const {owner,lead,volunteer,race,read,leadRead}=await start();
   const rerun=await call(lead,`/api/lead/races/${race.id}/re-run`,{comment:'Recording lost'});expect(rerun.statusCode).toBe(200);
   const newId=rerun.json().newRaceId;expect(newId).not.toBe(race.id);
   const fresh=await leadRead(newId);
-  expect(fresh).toMatchObject({number:2,kind:'race',deleted:false,parts:{finish:{value:null},times:{value:null}}});
+  expect(fresh).toMatchObject({number:1,kind:'race',deleted:false,parts:{finish:{value:null},times:{value:null}}});
   expect(fresh.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2001,2002]);
   expect(fresh.parts.runners.value.flatMap((runner:any)=>runner.warnings).some((warning:any)=>warning.kind==='already-ran')).toBe(false);
   expect(fresh.parts.runners.value[0].id).not.toBe(race.parts.runners.value[0].id);
   expect((await call(volunteer,`/api/races/${newId}`)).json().race).toMatchObject({id:newId,state:'in progress'});
   expect((await call(lead,`/api/lead/races/${race.id}`)).json().race).toMatchObject({deleted:true,deleteReason:'re-run'});
-  expect((await read()).auditNotes[0]).toMatchObject({action:'re-run',actor:'Aisha',comment:'Recording lost',touches:[{raceId:race.id},{raceId:newId}]});
+  expect((await read()).auditNotes[0]).toMatchObject({action:'re-run',actor:'Aisha',comment:'Recording lost',message:'Aisha called a re-run of Heat 1: Recording lost',touches:[{raceId:race.id},{raceId:newId}]});
   const before=await read();
   const revision=(await call(owner,'/api/day')).json().revision;
   const restored=await call(lead,`/api/lead/races/${race.id}/restore`,{});
@@ -69,8 +81,8 @@ test('a re-run deletes the old record with its reason and creates a new numbered
 test('a race replaced by a re-run names its replacing race from the audit note, or says a re-run when that race is gone',async()=>{
   const {lead,race,setup}=await start();
   const newId=(await call(lead,`/api/lead/races/${race.id}/re-run`,{})).json().newRaceId;
-  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race.replacedBy).toBe('Heat 2');
-  expect((await call(lead,'/api/lead/events/R10/deleted-races')).json()).toMatchObject([{id:race.id,replacedBy:'Heat 2'}]);
+  expect((await call(lead,`/api/lead/races/${race.id}`)).json().race.replacedBy).toBe('Heat 1');
+  expect((await call(lead,'/api/lead/events/R10/deleted-races')).json()).toMatchObject([{id:race.id,replacedBy:'Heat 1'}]);
   const ordinary=await setup.checkIn(lead,'R10',[2003]);
   await call(lead,`/api/lead/races/${ordinary.id}/delete`,{permanent:false});
   expect((await call(lead,`/api/lead/races/${ordinary.id}`)).json().race.replacedBy).toBeUndefined();

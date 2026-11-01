@@ -104,7 +104,9 @@ const StageButton=({sheet,label=sheet.completed?reopenLabel(sheet.stage):sheet.l
 /** The scoreboard of every heat's runners, then (until their screens move) the stage buttons under it. */
 function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolean}) {
   const results=detail.results,ranked=results.leaderboard.filter(row=>row.position!==null).length;
-  const sheet=results.checkSheet?.stage==='final'?null:results.checkSheet;
+  // A lead makes the final with "+ Final" on Races, so open heats offer no stage here: only Reopen heats once complete.
+  const sheet=results.checkSheet?.stage==='final' || results.checkSheet?.stage==='heats'?null:results.checkSheet;
+  const reopenHeats=results.heatsCheckSheet?.completed?results.heatsCheckSheet:null;
   return <>
     {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
       <div className="rz-stripes" aria-hidden="true"><span/><span/><span/></div>
@@ -124,8 +126,8 @@ function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolea
           {final && row.position===Math.min(results.band.lineAfter,ranked) && <li className="rz-qline" aria-label="Qualifying line: places above go through to the final"><span aria-hidden="true">Qualifying line</span></li>}
         </Fragment>;})}</ol>
     </section>}
-    {sheet && <StageButton sheet={sheet} label={sheet.completed?reopenLabel(sheet.stage):sheet.stage==='heats'?'Heats complete':sheet.label} onStage={onStage}/>}
-    {results.heatsCheckSheet && sheet?.stage!=='heats' && <StageButton sheet={results.heatsCheckSheet} label={results.heatsCheckSheet.completed?reopenLabel('heats'):'Heats complete'} onStage={onStage}/>}
+    {sheet && <StageButton sheet={sheet} onStage={onStage}/>}
+    {reopenHeats && <StageButton sheet={reopenHeats} onStage={onStage}/>}
     {results.noFinalCheckSheet && <StageButton sheet={results.noFinalCheckSheet} onStage={onStage}/>}
     {!final && <InputRunning detail={detail}/>}
   </>;

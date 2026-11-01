@@ -27,15 +27,13 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   for(const phone of [sam,priya,finish,timer]) await phone.page.goto(`/races/${raceId}`);
   const [one,two,line,clock]=[sam.page,priya.page,finish.page,timer.page];
 
-  // Both start lines put teams in and mark children here; That's everyone marks Runners done.
+  // Both start lines put teams in, every child checked in; That's everyone marks Runners done.
   const stillToRun=(page:Page)=>page.getByRole('list',{name:'Still to run'});
   await stillToRun(one).getByRole('button',{name:'Add Team 1',exact:true}).click();
   await stillToRun(two).getByRole('button',{name:'Add Team 2',exact:true}).click();
   await expect(stillToRun(two).getByRole('button',{name:'Add Team 3',exact:true})).toBeVisible();
   await stillToRun(two).getByRole('button',{name:'Add Team 3',exact:true}).click();
-  await one.getByRole('button',{name:`${w(14)}: Here`,exact:true}).click();
-  await two.getByRole('button',{name:`${w(24)}: Here`,exact:true}).click();
-  await expect(meta(one)).toHaveText('Heat 1 · 3 teams · 2 children here',live);
+  await expect(meta(one)).toHaveText('Heat 1 · 3 teams · 11 children here',live);
   await footer(one).getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(one.locator('.rz-toast')).toContainText('Runners saved');
 

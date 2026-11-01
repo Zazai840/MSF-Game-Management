@@ -14,12 +14,12 @@ test('a Results card gives the same status words and colour as its Races card, a
   const people=await signInOwner(app,'grid-owner','Owner');
   const volunteer=(await people.volunteer('Ahmed')).token as string,lead=(await people.lead('Aisha')).token as string;
   const setup=raceSetup(app);
-  // R4 Girl Cubs 60m: a heat and the final saved. R7 (timed hurdles): Heat 1 saved, Heat 2 checking in. R16: a time to check. R5: a heat saved, then switched off.
+  // R4 Girl Cubs 60m: a heat and the final saved. R7 (timed hurdles): Heat 1 saved, Heat 2 checking in. R16 (200m, real paces): a time to check. R5: a heat saved, then switched off.
   await setup.record(volunteer,'R4',[2001,2002],[1100,1200]);
   expect((await call(lead,'/api/races',{eventCode:'R4',kind:'final'})).statusCode).toBe(200);
   await setup.attend(volunteer,'R4');await setup.order(volunteer,'R4',[2002,2001]);await setup.submit(volunteer,'R4');
   await setup.record(volunteer,'R7',[1,2],[1000,1100]);await setup.checkIn(volunteer,'R7',[3,4]);
-  await setup.record(volunteer,'R16',[2001,2002],[1600,1305],{keptWrong:[1]});
+  await setup.record(volunteer,'R16',[2001,2002],[3600,3305],{keptWrong:[1]});
   await setup.record(volunteer,'R5',[3001,3002],[1100,1200]);
   const read=async()=>{
     const grid=(await call(lead,'/api/lead/results')).json() as ResultsGridRead,cards=grid.groups.flatMap(group=>group.events);

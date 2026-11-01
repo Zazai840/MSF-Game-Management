@@ -7,7 +7,7 @@ import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
 /**
  * The lead's Races home once an event's medals wait on the lead's Confirm in Results (Final complete, or Event complete
- * on a timed event): the event sits in Ready for you saying so, until the Confirm moves it to Done as "Medals decided".
+ * on a timed event): the event sits in the lead's Action required saying so, until the Confirm moves it to Done as "Medals decided".
  */
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
@@ -33,7 +33,7 @@ async function start() {
   }
   return {volunteer,lead,setup,complete,home,savedFinal};
 }
-test('a saved final sits in the lead\'s Ready for you to confirm the medals, and Final complete moves it to Done as Medals decided',async()=>{
+test('a saved final sits in the lead\'s Action required to confirm the medals, and Final complete moves it to Done as Medals decided',async()=>{
   const {complete,home,savedFinal}=await start();
   await savedFinal();
   let now=await home();
@@ -45,7 +45,7 @@ test('a saved final sits in the lead\'s Ready for you to confirm the medals, and
   expect(now.done).toEqual(['R4']);
   expect(now.card('R4')).toEqual({line:'Medals decided',confirm:null});
 });
-test('a timed event with every race so far saved waits on Event complete, newest first with the final, and Results without a final never waits',async()=>{
+test('a timed event with every race so far saved waits on Event complete, in the day\'s programme with the final, and Results without a final never waits',async()=>{
   const {volunteer,setup,complete,home,savedFinal}=await start();
   // Boy Cubs 60m Hurdles (R7), timed: two heats saved.
   await setup.record(volunteer,'R7',[1,2],[1000,1100]);await setup.record(volunteer,'R7',[3,4],[1050,1150]);
@@ -61,7 +61,7 @@ test('a timed event with every race so far saved waits on Event complete, newest
   expect(now.ready).toEqual([]);
   expect(now.card('R7')).toEqual({line:'Heat 3 in progress · Heats 1 and 2 saved',confirm:null});
   await setup.record(volunteer,'R7',[5,6],[1080,1180]);
-  // Then the final is saved: it started waiting last, so it comes first.
+  // Then the final is saved: the 60m comes before the hurdles, as in the day's programme.
   await savedFinal();
   expect((await home()).ready).toEqual(['R4','R7']);
   await complete('R7','event');await complete('R5','no-final');
@@ -73,7 +73,7 @@ test('a timed event with every race so far saved waits on Event complete, newest
 test('an event with something in To check shows that line first, and the confirm wording only once To check is clear; a volunteer\'s cards are unchanged',async()=>{
   const {volunteer,lead,setup,home}=await start();
   // Girl Cubs 200m (R16), timed: 2nd place's kept time is faster than 1st's.
-  const race=await setup.record(volunteer,'R16',[2001,2002],[1600,1305],{keptWrong:[1]});
+  const race=await setup.record(volunteer,'R16',[2001,2002],[3600,3305],{keptWrong:[1]});
   let now=await home();
   expect(now.ready).toEqual(['R16']);
   expect(now.card('R16')).toEqual({line:'Heat 1: 1 time to check',confirm:null});
@@ -81,7 +81,7 @@ test('an event with something in To check shows that line first, and the confirm
   expect(raceSections(groups,'start').inProgress.map(item=>item.event.code)).toEqual(['R16']);
   expect(groupStatus(group,'start')).toBe('Heat 1 done');
   const version=((await call(lead,`/api/races/${race.id}`)).json()).race.parts.times.version;
-  expect((await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:version,places:[1305,1600]})).statusCode).toBe(200);
+  expect((await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:version,places:[3305,3600]})).statusCode).toBe(200);
   now=await home();
   expect(now.ready).toEqual(['R16']);
   expect(now.card('R16')).toEqual({line:'Every race saved · confirm the medals after the last race',confirm:'event'});

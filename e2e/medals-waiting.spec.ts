@@ -1,7 +1,7 @@
 import {ownName,expect,flowRace,live,lookProblems,ownCode,ownEvent,ownWristbands,recordRace,submitRace,test,writeCheckIn,writeOrder,type APIRequestContext,type Page} from './fixtures.js';
 /**
  * Medals waiting on the lead: once an event's medals wait on the lead's Confirm in Results (Final complete, or Event
- * complete on a timed event), the lead's Races home lists it in Ready for you saying so, with Confirm the medals, which
+ * complete on a timed event), the lead's Races home lists it in Action required saying so, with Confirm the medals, which
  * opens Results on that check sheet. After the Confirm the card is in Done as "Medals decided". Volunteers see no change.
  */
 const card=(page:Page,name:string)=>page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
@@ -32,14 +32,14 @@ async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
   await submitRace(request,owner(),code);
 }
 
-test('a saved 60m final waits in the lead\'s Ready for you; Confirm the medals opens Final complete, and the card moves to Done',async({openPhone,request},info)=>{
+test('a saved 60m final waits in the lead\'s Action required; Confirm the medals opens Final complete, and the card moves to Done',async({openPhone,request},info)=>{
   const name=ownName('Medals final'),code=await ownCode(),w=await ownWristbands('Girl Cubs',2);
   await ownEvent(request,code,name);
   await recordRace(request,owner(),code,[w(1),w(2)],[1100,1200]);
   await saveFinal(request,code,[w(2),w(1)]);
   const volunteer=(await openPhone(ownName('Medals final start'))).page;
   const {page}=await openPhone(ownName('Medals final lead'),{lead:true});
-  await expect(section(page,'Ready for you').filter({hasText:name})).toHaveCount(1);
+  await expect(section(page,'Action required').filter({hasText:name})).toHaveCount(1);
   await expect(status(page,name)).toHaveText('Final saved · confirm the medals');
   await expect(card(page,name).getByRole('button',{name:/^Final/})).toHaveAccessibleName('Final, saved');
   expect(await lookProblems(page)).toEqual([]);
@@ -62,7 +62,7 @@ test('a timed event waits on Event complete only while every race so far is save
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await recordRace(request,owner(),code,[w(1)],[1200]);
   const {page}=await openPhone(ownName('Medals timed lead'),{lead:true});
-  await expect(section(page,'Ready for you').filter({hasText:name})).toHaveCount(1);
+  await expect(section(page,'Action required').filter({hasText:name})).toHaveCount(1);
   await expect(status(page,name)).toHaveText('Every race saved · confirm the medals after the last race');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('timed-waiting.png'),fullPage:true});

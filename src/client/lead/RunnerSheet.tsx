@@ -134,7 +134,7 @@ function Lift({row,save,busy}:ScreenProps) {
 }
 /**
  * Correct number: on a relay team, the lead first picks the child. The docked Save checks the number as check-in does
- * (a team's as the teams sheet checks a box): a refusal waits for Fix number, a warning for Fix number or Keep.
+ * (a team's as the start line checks a leg's box): a refusal waits for Fix number, a warning for Fix number or Keep.
  */
 function CorrectNumber({event,row,save,busy}:ScreenProps) {
   const team=row.team,input=useRef<HTMLInputElement>(null);
@@ -146,9 +146,9 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
     if(!team) return (await api<{warnings:Array<{kind:string;message:string}>}>('wristband-check',{eventCode:event.code,wristband:Number(number),raceId:row.raceId})).warnings
       .filter(warning=>row.race.kind!=='final' || warning.kind!=='already-ran').map(warning=>warning.message);
     const read=await api<LeadRaceRead>(`lead/races/${row.raceId}`),legs=team.wristbands.map((wristband,at)=>at===leg?Number(number):wristband);
-    const refusal=legRefusal(read.teams||[],team.id,legs,leg!);
+    const refusal=legRefusal(read.teams||[],team.id,legs,leg!,row.raceId);
     if(refusal) throw refusal;
-    return legWarnings(Number(number),read.race.event,read.relays||[]).map(warning=>warning.message);
+    return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},read.relays||[],team.id,row.raceId).map(warning=>warning.message);
   }
   async function send(keep:boolean) {
     setHeld(null);setRefused(await save(runnerPath(row,'correct-number'),{expectedWristband:original,wristband:Number(number),keepWarnings:keep,...(team?{leg}:{})},{kind:'number-saved',who:number,race:row.race}));

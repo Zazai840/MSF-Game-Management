@@ -9,7 +9,7 @@ Read this file first, then [race-flow.md](race-flow.md) (the race-first flow to 
 3. **Thumb first.** Every target is at least `size-touch` (44px). Main actions sit at the bottom in the ActionFooter, and runner tiles are 150px tall.
 4. **Sporty, not childish.** Use condensed italic display capitals, slanted tags, speed stripes and a hard-edged tile lift. No mascots, cartoons, emoji or bouncy animation.
 5. **Rooted in the community.** The 8-point star (two overlapping squares) echoes Islamic geometric pattern and the star in the MSF logo. Use it as a quiet texture and as the "medal" shape, never as decoration for its own sake.
-6. **Warn, don't block.** A suspicious value (wrong-section wristband, time faster than the place before) gets an amber warning with **Fix** and **Keep**. Keep always works and flags it for a zone lead.
+6. **Warn, don't block.** A suspicious value (wrong-section wristband, time faster than the place before or slow for the race) gets an amber warning with **Fix** and **Keep**. Keep always works; most kept warnings are flagged for a zone lead. Only a value that cannot be true (a time with seconds over 59, or faster than anyone runs) is refused.
 
 ## Content fundamentals
 
@@ -148,5 +148,5 @@ Motion is minimal and functional.
 - **Load order:** fonts link, then `tokens.css`, then `components/bundle.css`.
 - **Root:** wrap each screen in `<div class="rz-screen rz-zone-running">`. The zone class sets `--zone` and `--zone-ink` for everything inside.
 - **Markup:** use real elements. A `<button>` for anything that does something in place, `<a href>` for navigation, `<input>` with a `<label>`, `<ol>` for ordered places and leaderboards. Copy the markup from each component's README.
-- **Numeric inputs** use `inputmode="numeric"`, `pattern="[0-9]*"` and `autocomplete="off"`. Times are typed as digits only and the hint shows the formatted value ("Shows as 12.34").
+- **Numeric inputs** use `inputmode="numeric"`, `pattern="[0-9]*"` and `autocomplete="off"`. Times are typed as digits only, and the box shows the time itself, filling from the right (1234 shows 12.34).
 - **Never** put `paper` text on `gold` or a zone colour, put `red` under text, or put a second display-primary button on a screen.

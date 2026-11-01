@@ -3,11 +3,9 @@ import {ownName,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,wri
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 /** A team's card in this heat, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
-/** A child's Here / Not yet in this heat, by wristband. */
-const here=(page:Page,wristband:number)=>page.getByRole('button',{name:`${wristband}: Here`,exact:true});
 const stillToRun=(page:Page)=>page.getByRole('list',{name:'Still to run'});
 
-test('two start-line phones check a relay heat in at once: Add, Take off and every Here tap land on both, and That\'s everyone marks Runners done',async({openPhone,request},info)=>{
+test('two start-line phones check a relay heat in at once: Add and Take off land on both, every child of a team checked in with no Here per child, and That\'s everyone marks Runners done',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Relay start');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',11);
@@ -21,7 +19,8 @@ test('two start-line phones check a relay heat in at once: Add, Take off and eve
   for(const phone of [sam,priya]) await phone.page.goto(`/races/${raceId}`);
   const [one,two]=[sam.page,priya.page];
   await expect(meta(one)).toHaveText('Heat 1 · 0 teams · 0 children here');
-  await expect(one.getByRole('heading',{level:2,name:'Which teams are running?'})).toBeVisible();
+  // Teams typed ahead on the team list wait under Still to run; a new one would be Team 4.
+  await expect(one.getByRole('heading',{level:2,name:'Team 4 · 1st leg: wristband number?'})).toBeVisible();
   await expect(stillToRun(one).getByRole('listitem')).toHaveCount(3);
   const short=stillToRun(one).getByRole('listitem').nth(1);
   for(const text of ['Team 2',`${w(21)} · ${w(22)} · – · ${w(24)}`,'Runs short · 3 of 4']) await expect(short).toContainText(text);
@@ -33,38 +32,24 @@ test('two start-line phones check a relay heat in at once: Add, Take off and eve
     await expect(stillToRun(page).getByRole('listitem')).toHaveCount(1,live);
   }
   await expect(card(one,2)).toContainText('Runs short · 3 of 4');
-  await expect(card(one,1).getByText('1st leg',{exact:true})).toBeVisible();
-  // A short team's empty leg reads "–", with no Here, so it can be dragged to another leg.
-  await expect(card(one,2).locator('.rz-attendance__who').nth(2)).toHaveText('3rd leg–');
-  await expect(card(one,2).getByRole('button',{name:/: Here$/})).toHaveCount(3);
-  await expect(here(one,w(11))).toHaveText('Not yet');
-  // Both phones tap at once, on different children of one team: both land, with no version refusal.
-  await Promise.all([here(one,w(11)).click(),here(two,w(12)).click()]);
-  for(const page of [one,two]) {
-    await expect(here(page,w(11))).toHaveAttribute('aria-pressed','true',live);
-    await expect(here(page,w(12))).toHaveAttribute('aria-pressed','true',live);
-    await expect(here(page,w(11))).toHaveText('Here');
-    await expect(meta(page)).toHaveText('Heat 1 · 2 teams · 2 children here',live);
-  }
-  await expect(one.getByText('changed this a moment ago')).toHaveCount(0);
-  // Take off only while none of the team's children is here.
-  await expect(card(one,1).getByRole('button',{name:'Take off',exact:true})).toHaveCount(0);
-  await card(two,2).getByRole('button',{name:'Take off',exact:true}).click();
-  await expect(card(one,2)).toHaveCount(0,live);
+  // A team in this heat is four leg chips; a short team's empty leg reads "–", so it can be dragged to another leg.
+  await expect(card(one,2).locator('.rz-legchip')).toHaveText([`1st${w(21)}`,`2nd${w(22)}`,'3rd–',`4th${w(24)}`]);
+  // Every child of a team in the heat is checked in: there is no Here / Not yet per child.
+  for(const page of [one,two]) await expect(meta(page)).toHaveText('Heat 1 · 2 teams · 7 children here',live);
+  await expect(one.getByRole('button',{name:/: Here$/})).toHaveCount(0);
+  await expect(one.getByRole('button',{name:'Not yet',exact:true})).toHaveCount(0);
+  // Take off works on any team in the heat and returns it to Still to run; Add puts it back.
+  await card(two,1).getByRole('button',{name:'Take off',exact:true}).click();
+  await expect(card(one,1)).toHaveCount(0,live);
   await expect(stillToRun(one).getByRole('listitem')).toHaveCount(2,live);
-  await stillToRun(one).getByRole('button',{name:'Add Team 2',exact:true}).click();
-  await expect(card(two,2)).toBeVisible(live);
-  // The last tap on a child wins.
-  await here(two,w(11)).click();
-  await expect(here(one,w(11))).toHaveAttribute('aria-pressed','false',live);
-  await expect(here(one,w(11))).toHaveText('Not yet');
-  await here(one,w(11)).click();
-  await expect(meta(two)).toHaveText('Heat 1 · 2 teams · 2 children here',live);
-  // A short team's Edit and Take off sit where a full team's Edit does, beside the name, its note under the name.
-  const top=async(team:number,button:string)=>(await card(one,team).getByRole('button',{name:button,exact:true}).boundingBox())!.y-(await card(one,team).boundingBox())!.y;
-  const edit=await top(1,'Edit Team 1');
-  expect(await top(2,'Edit Team 2')).toBeCloseTo(edit,0);
-  expect(await top(2,'Take off')).toBeCloseTo(edit,0);
+  await expect(meta(one)).toHaveText('Heat 1 · 1 team · 3 children here',live);
+  await stillToRun(one).getByRole('button',{name:'Add Team 1',exact:true}).click();
+  await expect(card(two,1)).toBeVisible(live);
+  await expect(meta(two)).toHaveText('Heat 1 · 2 teams · 7 children here',live);
+  await expect(one.getByText('changed this a moment ago')).toHaveCount(0);
+  // A short team's Take off sits where a full team's does, beside the name, its note under the name.
+  const top=async(team:number)=>(await card(one,team).getByRole('button',{name:'Take off',exact:true}).boundingBox())!.y-(await card(one,team).boundingBox())!.y;
+  expect(await top(2)).toBeCloseTo(await top(1),0);
   const title=(await card(one,2).getByRole('heading',{name:'Team 2'}).boundingBox())!,note=(await card(one,2).getByText('Runs short · 3 of 4').boundingBox())!;
   expect(note.y).toBeGreaterThanOrEqual(title.y+title.height-1);
   expect(await lookProblems(one)).toEqual([]);

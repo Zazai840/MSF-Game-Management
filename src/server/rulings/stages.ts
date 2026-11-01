@@ -20,6 +20,8 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
     const {value,comment}=rulingDetails(request.body,reopening || (request.body as {stage?:unknown}|null)?.stage==='no-final');
     const stage=value.stage;
     if(!['event','heats','final','no-final'].includes(String(stage))) throw new Refusal(400,'Choose a stage');
+    // Completing heats makes the final, which only "+ Final" does: it first checks every heat is saved.
+    if(!reopening && stage==='heats') throw new Refusal(409,'Make the final with + Final on Races');
     return rulingChange(pool,phone,async(client,current)=>{
       const code=(request.params as {code:string}).code;
       await changeStage(client,current,code,stage as Stage,reopening,comment);
@@ -29,7 +31,7 @@ export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
 }
 /**
  * Completes or reopens one stage of an event, under the caller's day lock. Completing refuses while its check sheet
- * has anything to settle first. Heats complete seeds the final: the race flow's "+ Final" comes here too.
+ * has anything to settle first. Heats complete seeds the final: only the race flow's "+ Final" completes heats.
  */
 export async function changeStage(client:pg.PoolClient,current:Phone,code:string,stage:Stage,reopening:boolean,comment:string|null) {
   const command=reopening?'reopen-stage':'complete-stage';
@@ -41,13 +43,11 @@ export async function changeStage(client:pg.PoolClient,current:Phone,code:string
   if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Must settle first - open the completion check sheet',{mustSettleFirst:sheet.mustSettleFirst.map(item=>item.message)});
   if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
   else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
-  if(sheet.stage==='heats') await seedFinal(client,current,detail.event,detail.results.qualifiers);
-  // Decided without a final, the event has no race left to work. An unrun final goes
-  // with its line-up, call-ups and added runners, and the heats are no longer complete: Reopen results opens them.
-  if(!reopening && sheet.stage==='no-final') {
+  if(sheet.stage==='heats' && !reopening) await seedFinal(client,current,detail.event,detail.results.qualifiers);
+  // Decided without a final, or its heats reopened, the event has no final left to work. An unrun final goes with its
+  // line-up, call-ups and added runners, not into Deleted races, so "+ Final" makes "Final" again once every heat is saved.
+  if(!reopening && sheet.stage==='no-final' || reopening && sheet.stage==='heats') {
     if(detail.results.finalResults) await client.query('DELETE FROM races WHERE id=$1',[detail.results.finalResults.raceId]);
-    // The next final is Final 1 again, unless a deleted final keeps its number.
-    await client.query("DELETE FROM race_counters WHERE event_id=$1 AND kind='final' AND NOT EXISTS(SELECT 1 FROM races WHERE event_id=$1 AND kind='final')",[detail.event.id]);
     await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage IN ('heats','final')",[detail.event.id]);
   }
   const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);

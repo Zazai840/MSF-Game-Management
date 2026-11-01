@@ -9,7 +9,7 @@ type Worked=Pick<RaceFlowRead,'race'> & Partial<RaceFlowRead> & {event?:RaceFlow
  *
  * An individual event is worked in the race flow (ADR 0003), on the race the event is at: its final once it has one,
  * else its latest race not saved, else a new next heat. Submit marks every step done, which saves the race. Relays
- * have their own helpers (`relayFlowSetup`).
+ * have their own helpers (`relayFlowSetup`), but share `makeFinal`.
  */
 export function raceSetup(app:FastifyInstance) {
   async function post<T>(token:string,url:string,body:object) {
@@ -86,5 +86,7 @@ export function raceSetup(app:FastifyInstance) {
     await submit(token,code);
     return race;
   }
-  return {screen,checkIn,attend,order,times,submit,record};
+  /** A lead's "+ Final" (the one way to make a final, races and relays alike): answers the new final. */
+  const makeFinal=(token:string,code:string)=>post<RaceFlowRead>(token,'/api/races',{eventCode:code,kind:'final'});
+  return {screen,checkIn,attend,order,times,submit,record,makeFinal};
 }

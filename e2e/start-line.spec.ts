@@ -1,5 +1,5 @@
 import { isRunner } from '../src/shared/races.js';
-import {ownName,ownCode,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 const chips=(page:Page)=>page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footerButton=(page:Page,name:string)=>page.locator('footer.rz-footer').getByRole('button',{name,exact:true});
@@ -281,5 +281,18 @@ test('the 6th runner brings the usual heat size note once; That\'s everyone save
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   await expect(page.getByRole('tablist',{name:'Heat 1 progress'})).toContainText('You · 7 so far');
   await expect(chips(page)).toHaveCount(7);
+  await deleteCurrentRace(request,code);
+});
+test('a hurdles heat on the Races tab takes 8 runners with no usual heat size note',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('Usual size hurdles'),n=await ownWristbands('Girl Cubs',8);
+  await ownEvent(request,code,name,'Girl Cubs','heats','hurdles');
+  const {page,token}=await openPhone(ownName('Hurdles start'));
+  await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode:code,kind:'heat',number:1}});
+  await openRace(page,name);
+  const input=page.getByLabel('Wristband number',{exact:true});
+  for(const key of [1,2,3,4,5,6,7,8]) {await expect(input).toBeEditable();await input.fill(String(n(key)));await input.press('Enter');await expect(chips(page)).toHaveCount(key);}
+  await expect(page.getByRole('status').filter({hasText:'usual number'})).toHaveCount(0);
+  await expect(meta(page)).toHaveText('Heat 1 · 8 runners so far');
+  await page.screenshot({path:info.outputPath('hurdles-eight.png'),fullPage:true});
   await deleteCurrentRace(request,code);
 });

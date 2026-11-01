@@ -29,9 +29,9 @@ async function markAbsent(token:string,wristbands:number[]) {
 }
 test('heat-to-final attendance, audited next ranked callups, order-only podium and final locks',async()=>{
  const {volunteer,lead,setup}=await start();
- const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);
+ await setup.makeFinal(lead,'R3');
  expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(409);
- const result=complete.json().results;expect(result.status).toBe('Heats complete - final to run');expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1023,1066,1088,1005,1012,1110]);const id=result.finalResults.raceId;
+ const result=(await call(lead,'/api/lead/events/R3/results')).json().results;expect(result.status).toBe('Heats complete - final to run');expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1023,1066,1088,1005,1012,1110]);const id=result.finalResults.raceId;
  let final=await finalRead(volunteer);expect(final.id).toBe(id);expect(final.final.entries[0].heatRank).toBeUndefined();expect(final.final.entries[0].heatRaceId).toBeUndefined();expect(final.parts.runners.value).toEqual([]);
  expect((await call(volunteer,`/api/races/${id}/steps/times/done`,{})).json().message).toBe('A final has no times');
  expect((await markAbsent(volunteer,[1066,1088])).statusCode).toBe(200);
@@ -54,16 +54,23 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
  expect((await call(volunteer,'/api/lead/events/R3/complete-stage',{stage:'heats'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Correction'})).statusCode).toBe(403);expect((await call(volunteer,'/api/lead/events/R3/reopen-stage',{stage:'final',comment:'Correction'})).statusCode).toBe(403);
  const reopened=await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'final',comment:'Review final placing'});expect(reopened.statusCode).toBe(200);expect(reopened.json().results.inputRunning).toBeNull();expect(reopened.json().results.finalResults.hasRun).toBe(true);
 });
-test('unstarted final rebuilds after heat correction; a saved final with cleared Finish prevents reopening heats',async()=>{
+test('Reopen heats removes the unrun final, not into Deleted races; + Final makes "Final" afresh; a saved final with cleared Finish prevents reopening heats',async()=>{
  const {lead,volunteer,heats,setup}=await start([[1023,1088]]);
- let result=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json().results;const id=result.finalResults.raceId;let race=await finalRead(volunteer);const oldVersion=race.parts.runners.version;
- expect((await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Late timer correction'})).statusCode).toBe(200);
+ const made=await call(lead,'/api/races',{eventCode:'R3',kind:'final'});expect(made.statusCode).toBe(200);const oldId=made.json().race.id;const oldVersion=(await finalRead(volunteer)).parts.runners.version;
+ const reopenedHeats=await call(lead,'/api/lead/events/R3/reopen-stage',{stage:'heats',comment:'Late timer correction'});expect(reopenedHeats.statusCode).toBe(200);
+ // The final has not run: it goes with its line-up, so the event is as one with no final, and nobody checks in on it.
+ expect(reopenedHeats.json().results.finalResults).toBeNull();expect(await finalRead(volunteer)).toBeUndefined();
+ expect((await call(lead,'/api/lead/events/R3/deleted-races')).json()).toEqual([]);
+ expect(reopenedHeats.json().auditNotes[0]).toMatchObject({action:'reopen-stage',comment:'Late timer correction',message:'Aisha reopened Heats complete - Late timer correction'});
+ expect((await call(volunteer,`/api/races/${oldId}/absent`,{raceId:oldId,version:oldVersion,here:[],absent:[]})).statusCode).toBe(404);
+ const group=(await call(lead,'/api/races')).json().groups.find((group:any)=>group.event.code==='R3');
+ expect(group).toMatchObject({heatsOpen:true,finalAvailable:true,nextHeat:2});expect(group.races.map((race:any)=>race.kind)).toEqual(['heat']);
  await call(lead,`/api/lead/races/${heats[0].id}/times`,{baseVersion:1,places:[1000,900],acceptOutOfOrder:true});
- result=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json().results;expect(result.finalResults.raceId).toBe(id);expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1088,1023]);expect(result.finalResults.entries.every((e:any)=>!e.absent)).toBe(true);
- // A Here / Absent list written before the rebuild names the old line-up, so it is not saved.
- expect((await call(volunteer,`/api/races/${id}/absent`,{raceId:id,version:oldVersion,here:[],absent:[]})).statusCode).toBe(409);
+ const remade=await call(lead,'/api/races',{eventCode:'R3',kind:'final'});expect(remade.statusCode).toBe(200);const id=remade.json().race.id;
+ expect(remade.json().race).toMatchObject({kind:'final',number:1});expect(id).not.toBe(oldId);
+ const result=(await call(lead,'/api/lead/events/R3/results')).json().results;expect(result.finalResults.raceId).toBe(id);expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1088,1023]);expect(result.finalResults.entries.every((e:any)=>!e.absent)).toBe(true);
  await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
- race=await finalRead(volunteer);await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}]});
+ const race=await finalRead(volunteer);await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}]});
  // A saved final is read as a lead reads it after correcting its runners.
  const leadRead=async()=>(await call(lead,`/api/lead/races/${id}`)).json().race;
  const before=await leadRead();expect(before.parts.finish.value).toBeNull();expect(before.final.hasRun).toBe(true);
@@ -71,19 +78,18 @@ test('unstarted final rebuilds after heat correction; a saved final with cleared
  const rerun=await call(lead,`/api/lead/races/${id}/re-run`,{});expect(rerun.statusCode).toBe(200);expect(rerun.json().results.finalResults).toMatchObject({hasRun:false});expect(rerun.json().results.finalResults.entries[0]).toMatchObject({heatRaceId:heats[0].id,heatWristband:1088,seed:1});
  const newFinal=await finalRead(volunteer);expect(newFinal.id).toBe(rerun.json().newRaceId);expect(newFinal.final.entries.map((entry:any)=>entry.wristband)).toContain(1012);expect(newFinal.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1088,1023,1012]);
 });
-test('an empty event still creates an empty final and completes without fabricated podium',async()=>{
- const {lead,volunteer}=await start([]);const complete=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});expect(complete.statusCode).toBe(200);
- // A final nobody qualified for has nothing to record or submit.
- expect(await finalRead(volunteer)).toMatchObject({kind:'final',parts:{runners:{value:[]}}});expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).json().results.inputRunning).toEqual({eventCode:'R3',first:null,second:null,third:null});
+test('an event with no heats run has no final to make',async()=>{
+ const {lead,volunteer}=await start([]);const refused=await call(lead,'/api/races',{eventCode:'R3',kind:'final'});
+ expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('The final opens when every heat has times');expect(await finalRead(volunteer)).toBeUndefined();
 });
 test('typed final additions and corrected numbers keep actual eligibility warnings without a heat-to-final repeat warning',async()=>{
- const {lead,volunteer,setup}=await start([[1023]]);let detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json();const id=detail.results.finalResults.raceId;
+ const {lead,volunteer,setup}=await start([[1023]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
  await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,2005],{added:[2005],keptWarnings:[2005]});await setup.submit(volunteer,'R3');
- detail=(await call(lead,'/api/lead/events/R3/results')).json();expect(detail.results.needsYou.filter((item:any)=>item.kind==='warning')).toHaveLength(1);expect(detail.results.needsYou.some((item:any)=>item.kind==='ran-twice')).toBe(false);expect(detail.results.checkSheet.worthALook).toMatchObject([{kind:'warning',raceId:id}]);expect(detail.results.checkSheet.mustSettleFirst).toEqual([]);expect(detail.results.finalResults.leaderboard[1].flags).toContainEqual(expect.objectContaining({kind:'warning',warningKind:'wrong-section'}));
+ const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect(detail.results.needsYou.filter((item:any)=>item.kind==='warning')).toHaveLength(1);expect(detail.results.needsYou.some((item:any)=>item.kind==='ran-twice')).toBe(false);expect(detail.results.checkSheet.worthALook).toMatchObject([{kind:'warning',raceId:id}]);expect(detail.results.checkSheet.mustSettleFirst).toEqual([]);expect(detail.results.finalResults.leaderboard[1].flags).toContainEqual(expect.objectContaining({kind:'warning',warningKind:'wrong-section'}));
  const entry=detail.results.finalResults.leaderboard[0];const corrected=await call(lead,`/api/lead/races/${id}/runners/${entry.entryId}/correct-number`,{expectedWristband:1023,wristband:2010,keepWarnings:true});expect(corrected.statusCode).toBe(200);expect(corrected.json().results.checkSheet.worthALook).toHaveLength(2);expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
 });
 test('authoritative final runner publications keep absence aligned through lead removal and Didn\'t run',async()=>{
- const {lead,volunteer,setup}=await start([[1023,1088]]);const detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json();const id=detail.results.finalResults.raceId;
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
  // The order holder says 1088 didn't run: the final's line-up shows them absent, until marked Here again.
  await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023],{didNotRun:[1088]});expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.entries[1].absent).toBe(true);
  await markAbsent(volunteer,[]);expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.entries[1].absent).toBe(false);
@@ -94,7 +100,7 @@ test('authoritative final runner publications keep absence aligned through lead 
  expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.entries.find((entry:any)=>entry.finalEntryId===removed.id).absent).toBe(true);
 });
 test('a stale Here / Absent list is not saved, and a lead\'s corrected number stays through Absent and back to Here',async()=>{
- const {lead,volunteer}=await start([[1023,1088]]);const detail=(await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'})).json(),id=detail.results.finalResults.raceId;
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
  await markAbsent(volunteer,[]);const before={race:await finalRead(volunteer)};
  await call(lead,`/api/lead/races/${id}/runners/${before.race.parts.runners.value[0].id}/correct-number`,{expectedWristband:1023,wristband:1050});
  const stale=await call(volunteer,`/api/races/${id}/absent`,{raceId:id,version:before.race.parts.runners.version,here:[],absent:[]});
@@ -103,4 +109,10 @@ test('a stale Here / Absent list is not saved, and a lead\'s corrected number st
  const here=(await markAbsent(volunteer,[])).json();
  expect(here.race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1050,1088]);
  expect(here.race.final.entries.map((entry:any)=>[entry.wristband,entry.absent])).toEqual([[1050,false],[1088,false]]);
+});
+test('"+ Final" is the only way to make a final: the lead API no longer completes heats',async()=>{
+ const {lead,volunteer}=await start([[1023,1088]]);
+ const refused=await call(lead,'/api/lead/events/R3/complete-stage',{stage:'heats'});
+ expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('Make the final with + Final on Races');
+ expect(await finalRead(volunteer)).toBeUndefined();
 });

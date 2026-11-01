@@ -42,3 +42,31 @@ test('a second tab on the same phone follows a log out from the Relays tab',asyn
   await joinScreen(page);await joinScreen(other);
   await other.close();
 });
+test('Races letting go of its live stream while the phone reads why it was logged out still keeps the listed names',async({page})=>{
+  const name=ownName('Let Go');
+  // A slow phone, made certain: the server ends the live stream just as Log out ends the session, the stream's
+  // reconnect (no token now) is answered 401 at once, and its reason is not read before Races lets go of it.
+  await page.addInitScript(()=>{
+    const original=window.fetch,flags=window as {heldReason?:boolean};
+    window.fetch=async(input,init)=>{
+      const live=String(input).includes('/api/live/'),signedIn=new Headers(init?.headers).has('authorization');
+      if(live && !signedIn && !flags.heldReason) {
+        flags.heldReason=true;
+        const body=new ReadableStream({start:reading=>init?.signal?.addEventListener('abort',()=>reading.error(new DOMException('signal is aborted without reason','AbortError')))});
+        return new Response(body,{status:401,headers:{'content-type':'application/json'}});
+      }
+      const response=await original(input,init);
+      if(!live || !response.ok || !response.body) return response;
+      const reader=response.body.getReader();
+      const body=new ReadableStream({start(stream) {
+        window.addEventListener('msf:session',()=>{try {stream.close();} catch {/* already closed */}void reader.cancel();});
+        void (async()=>{for(;;) {const {done,value}=await reader.read().catch(()=>({done:true,value:undefined}));if(done) break;try {stream.enqueue(value);} catch {break;}}})();
+      }});
+      return new Response(body,{status:response.status,headers:response.headers});
+    };
+  });
+  await page.goto('/');await join(page,name,{job:'Start line'});await races(page);
+  await page.getByRole('button',{name:`${name}: Log out`,exact:true}).click();await pick(page,'Log out');
+  await joinScreen(page);await page.waitForFunction(()=>(window as {heldReason?:boolean}).heldReason);
+  await onlyNamesKept(page);
+});

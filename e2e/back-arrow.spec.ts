@@ -91,9 +91,9 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   expect(await lookProblems(page)).toEqual([]);
   // The job chip opens the job sheet on a lead screen too.
   await press(page.getByRole('banner').getByRole('button',{name:'Your job: Zone lead. Change job',exact:true}));
-  await expect(page.getByRole('radiogroup',{name:'Your job'})).toBeVisible();
+  await expect(page.getByRole('radiogroup',{name:'What\'s your job today?'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.keyboard.press('Escape');await expect(page.getByRole('radiogroup',{name:'Your job'})).toHaveCount(0);
+  await page.keyboard.press('Escape');await expect(page.getByRole('radiogroup',{name:'What\'s your job today?'})).toHaveCount(0);
   await bothGoBack(page,day);
   await bothGoBack(page,()=>onRaces(page));
 });
