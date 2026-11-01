@@ -53,6 +53,25 @@ test('the phone\'s Back closes the job sheet, New race and Add heat on Races, an
   await expect(newRace).toHaveCount(0);
 });
 
+test('a sheet takes focus as it opens, keeps Tab inside it, and gives focus back to what opened it however it closes',async({openPhone})=>{
+  const {page}=await openPhone(ownName('Sheet focus volunteer'));
+  const job=page.getByRole('dialog',{name:'What\'s your job today?'}),chip=jobChip(page),close=job.getByRole('button',{name:'Close',exact:true}).first();
+  const inside=()=>job.evaluate(sheet=>sheet.contains(document.activeElement));
+  for(const how of ['escape','close','back','outside'] as const) {
+    await chip.focus();await page.keyboard.press('Enter');
+    // The sheet itself takes focus, not a field or button in it.
+    await expect(job).toBeVisible();await expect(job).toBeFocused();
+    // Shift+Tab from the sheet goes to its last button, and Tab walks every button back round to its × (Close).
+    await page.keyboard.press('Shift+Tab');expect(await inside()).toBe(true);
+    await page.keyboard.press('Tab');await expect(close).toBeFocused();
+    const count=await job.locator('button:not(:disabled),select,textarea,input,a[href]').count();
+    for(let tab=0;tab<count;tab++) {expect(await inside()).toBe(true);await page.keyboard.press('Tab');}
+    await expect(close).toBeFocused();
+    if(how==='close') await page.keyboard.press('Enter');else await closers[how](page);
+    await expect(job).toHaveCount(0);await expect(chip).toBeFocused();
+  }
+});
+
 test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the screen behind stays',async({openPhone,request})=>{
   const name=ownName('Sheet back heats'),code=await ownCode(),event=`${name} · Girl Cubs`;
   await ownEvent(request,code,name);

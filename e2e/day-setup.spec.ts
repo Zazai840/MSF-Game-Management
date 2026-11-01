@@ -35,7 +35,7 @@ test('Day setup is cards in the spec\'s order: the codes, the Signed in today an
 
   const leadCode=section(page,'Lead code');
   await expect(leadCode.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
-  await expect(leadCode).toContainText('Give this only to zone leads. Typed on Join or in Your job, it makes the phone a zone lead.');
+  await expect(leadCode).toContainText('Give this only to zone leads. Typed on Join or when changing job, it makes the phone a zone lead.');
   await expect(leadCode.getByRole('button')).toHaveText(['Make a new lead code']);
 
   const signedIn=page.getByRole('button',{name:`Signed in today ${phones} ${phones===1?'person':'people'} signed in today`,exact:true});

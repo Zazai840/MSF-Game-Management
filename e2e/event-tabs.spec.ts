@@ -70,7 +70,7 @@ test('the Races tab lists each live race with why it does not count yet, then De
   const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true});
   await expect(heat1).toHaveAccessibleDescription(/^2 runners · saved · checked in \d\d:\d\d$/);
   await expect(page.locator('.rz-listrow',{hasText:'not saved yet'})).toHaveAccessibleDescription(/^1 runner · not saved yet · checked in \d\d:\d\d$/);
-  await expect(page.getByRole('button',{name:'Open deleted Heat 2',exact:true})).toHaveAccessibleDescription('1 runner');
+  await expect(page.getByRole('button',{name:/^Open deleted Heat 2 · deleted\s\d\d:\d\d$/})).toHaveAccessibleDescription('1 runner');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('races-tab.png'),fullPage:true});
   await eventTab(page,'Notes');

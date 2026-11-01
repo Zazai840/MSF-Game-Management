@@ -2,7 +2,7 @@ import {ownName,ownCode,back,eventTab,expect,live,makeFinal,openLeadMenu,openRac
 /** The event's tabs: a Final tab only while the event runs a final. */
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event'}).getByRole('button');
 /** The check-sheet buttons on the event's tab showing. */
-const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Final complete|Results without a final|Reopen \w+)$/});
+const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/});
 /** The Q and medal tags on a leaderboard's rows. */
 const marks=(board:ReturnType<Page['getByRole']>)=>board.getByText(/^(Q|1st|2nd|3rd)$/);
 test('a lead awards medals from heat times: a tie for 3rd settled for qualifying comes back, is settled, and a comment confirms it',async({page,openPhone},info)=>{
@@ -46,13 +46,13 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await lead.screenshot({path:info.outputPath('a3-ready.png')});
   await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
   await expect(lead.getByRole('dialog')).toHaveCount(0);
-  // Done: no Final tab, medal marks instead of Q and no qualifying line, the podium for Input - Running and the audit note.
+  // Done: no Final tab, medal marks instead of Q and no qualifying line, the Day export line and the audit note.
   await expect(tabs(lead)).toHaveText(['Heats','Races','Notes']);
   await expect(lead.getByText('Medal places: 1st, 2nd, 3rd',{exact:true})).toBeVisible();
   const board=lead.getByRole('list',{name:'Official leaderboard'});
   await expect(marks(board)).toHaveText(['1st','2nd','3rd']);
   await expect(board.getByText('Qualifying line')).toHaveCount(0);
-  await expect(lead.getByRole('table',{name:'Input - Running'}).getByRole('row').nth(1)).toHaveText(`${code}${w(1)}${w(11)}${w(2)}`);
+  await expect(lead.getByText(`Day export 1st ${w(1)} · 2nd ${w(11)} · 3rd ${w(2)}`,{exact:true})).toBeVisible();
   await expect(lead.getByRole('button',{name:'Heats complete',exact:true})).toHaveCount(0);
   await expect(lead.getByRole('button',{name:'Results without a final',exact:true})).toHaveCount(0);
   await eventTab(lead,'Notes');
@@ -113,13 +113,13 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await lead.screenshot({path:info.outputPath('a5-reopen-sheet.png')});
   await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
   await expect(lead.getByRole('dialog')).toHaveCount(0);
-  // Heats open again: the Final tab, the qualifying line and Q marks, no medals, no Input - Running, and the audit note.
+  // Heats open again: the Final tab, the qualifying line and Q marks, no medals, no Day export line, and the audit note.
   await expect(tabs(lead)).toHaveText(['Heats','Final','Races','Notes']);
   await expect(lead.getByText('Fastest 6 go to the final',{exact:true})).toBeVisible();
   const board=lead.getByRole('list',{name:'Provisional leaderboard'});
   await expect(marks(board)).toHaveText(Array(6).fill('Q'));
   await expect(board.getByText('Qualifying line',{exact:true})).toBeVisible();
-  await expect(lead.getByRole('table',{name:'Input - Running'})).toHaveCount(0);
+  await expect(lead.getByText(/^Day export/)).toHaveCount(0);
   await expect(stages).toHaveText(['Results without a final']);
   await eventTab(lead,'Notes');
   await expect(lead.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText(`${ownName('Reopen lead')} reopened Results without a final - The final fits after all`);
@@ -129,7 +129,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await openLeadMenu(lead,'Results');await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await expect(stageButtons(lead)).toHaveText(['Reopen heats','Results without a final']);
   await eventTab(lead,'Final');
-  await expect(lead.getByText('Final finishing order not recorded yet.',{exact:true})).toBeVisible();
+  await expect(lead.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
 });
 test('after + Final, a lead chooses Results without a final before the final starts: its line-up is discarded, and Reopen results then + Final builds a fresh final',async({page,openPhone},info)=>{
   const project=info.project.name,at=['iPhone','Android','desktop'].indexOf(project),code=await ownCode(),name=ownName('Late no final');
@@ -142,11 +142,12 @@ test('after + Final, a lead chooses Results without a final before the final sta
   await makeFinal(lead,name,'Girl Cubs');
   await openLeadMenu(lead,'Results');
   await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  // The final is built and nobody has touched it: the option sits under Reopen heats, and Final complete is on the Final tab.
+  // The final is built and nobody has touched it: the option sits under Reopen heats, and Confirm the medals waits on the Final tab until the final has an order.
   const stages=stageButtons(lead);
   await expect(stages).toHaveText(['Reopen heats','Results without a final']);
   await eventTab(lead,'Final');
-  await expect(stages).toHaveText(['Final complete']);
+  await expect(lead.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
+  await expect(stages).toHaveCount(0);
   await eventTab(lead,'Heats');
   await lead.screenshot({path:info.outputPath('a6-final-built.png'),fullPage:true});
   await lead.getByRole('button',{name:'Results without a final',exact:true}).click();
@@ -173,5 +174,5 @@ test('after + Final, a lead chooses Results without a final before the final sta
   await openLeadMenu(lead,'Results');await lead.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await expect(stageButtons(lead)).toHaveText(['Reopen heats','Results without a final']);
   await eventTab(lead,'Final');
-  await expect(lead.getByText('Final finishing order not recorded yet.',{exact:true})).toBeVisible();
+  await expect(lead.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
 });

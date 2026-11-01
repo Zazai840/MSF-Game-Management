@@ -16,7 +16,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await page.screenshot({path:info.outputPath('race-corrected.png'),fullPage:true});
   // Delete goes back to the event's Races tab; Restore stays on the restored race page.
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');await expect(page).toHaveURL(racesTab);
-  await page.getByRole('button',{name:'Open deleted Heat 1',exact:true}).click();const deletedPage=page.url();
+  await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();const deletedPage=page.url();
   await raceAction(page,'Restore Heat 1');await expect(page.getByText('Its results count again.',{exact:true})).toBeVisible();await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));await expectToast(page,'Heat 1 restored · Girl Cubs');await expect(page).toHaveURL(deletedPage);
   // Re-run lands on the new heat, its runners pre-filled; the phone's Back goes where Back from the old race went.
   await raceAction(page,'Re-run race');await page.getByLabel('Comment (optional)',{exact:true}).fill('Recording lost');await press(page.getByRole('contentinfo').getByRole('button',{name:'Re-run Heat 1',exact:true}));await expectToast(page,'Re-run made · Girl Cubs Heat 1');
@@ -25,14 +25,13 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await page.screenshot({path:info.outputPath('race-rerun.png'),fullPage:true});
   await page.goBack();await expect(page).toHaveURL(racesTab);
   // The replaced heat can only be deleted for good: a screen with no choice, back to the Races tab.
-  await page.getByRole('button',{name:'Open deleted Heat 1',exact:true}).click();await raceAction(page,'Delete for good');
+  await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();await raceAction(page,'Delete for good');
   await expect(page.getByText('It is already in Deleted races. Deleting it for good cannot be undone. Notes stay.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Move to Deleted races/})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}));await expectToast(page,'Heat 1 deleted for good · Girl Cubs');await expect(page).toHaveURL(racesTab);
   await expect(page.getByRole('button',{name:/^Open deleted Heat 1/})).toHaveCount(0);await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('permanently deleted');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('called a re-run of Heat 1');
   await deleteCurrentRace(page.request,code);
 });
-// shortcut: the Races tab's Deleted races rows do not show "· deleted 10:42" yet; spec #250 story 37's ticket adds it and turns this back on.
-test.fixme('two deleted Heat 1s are told apart by when each was deleted',async({page},info)=>{
+test('two deleted Heat 1s are told apart by when each was deleted',async({page},info)=>{
   const code=await ownCode(),name=ownName('Two deleted heats'),owner=process.env.E2E_OWNER_TOKEN!,lead={authorization:`Bearer ${owner}`};
   await ownEvent(page.request,code,name);
   const child=await ownWristbands('Girl Cubs',2),deletedAt=new Map<string,string>();
@@ -43,7 +42,8 @@ test.fixme('two deleted Heat 1s are told apart by when each was deleted',async({
   }
   await page.goto('/');await join(page,ownName('Two deleted heats lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
   await eventTab(page,'Races');const rows=page.getByRole('heading',{name:'Deleted races',exact:true}).locator('..').getByRole('button',{name:/^Open deleted/});
-  await expect(rows).toHaveText([...deletedAt.values()].reverse().map(at=>`Open deleted Heat 1 · deleted ${clock(at)}`));
+  const names=[...deletedAt.values()].reverse().map(at=>`Open deleted Heat 1 · deleted ${clock(at)}`);await expect(rows).toHaveCount(names.length);
+  for(const [index,name] of names.entries()) await expect(rows.nth(index)).toHaveAccessibleName(name);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('deleted-races-times.png'),fullPage:true});
 });

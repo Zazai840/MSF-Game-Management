@@ -11,7 +11,7 @@ One independent competition day with its own wristbands, events and results; not
 _Avoid_: Event day, session
 
 **Day export**:
-The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day. Its Day details tab names the day (Year, Region, Day) and who downloaded it when.
+The Excel file of an Olympics day's running results, laid out the way the scoring team uses, and the lasting record of that day. Its Day details tab names the day (Year, Region, Day) and who downloaded it when. Once an event's medals are confirmed, its Final tab (the Heats tab on a timed event or results without a final) shows the Day export line: the 1st, 2nd and 3rd its Input - Running row holds ("1st 2014 · 2nd 2003 · 3rd 2021", on a relay "1st Team 3 · 2nd Team 1 · 3rd Team 2").
 _Avoid_: Backup, archive, dump
 
 **Running Zone**:

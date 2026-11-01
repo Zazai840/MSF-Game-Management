@@ -1,6 +1,6 @@
-import { FinalPanel } from './FinalPanel.js';
+import { Final } from './Final.js';
 import { StageSheet,reopenLabel } from './StageSheet.js';
-import type { Stage,StageCheckSheet,StageItem } from '../../shared/stages.js';
+import { dayExportLine,type InputRunning,type Stage,type StageCheckSheet,type StageItem } from '../../shared/stages.js';
 import { DeletedRaces,RaceRows } from './DeletedRaces.js';
 import { Fragment,useEffect,useState,useRef } from 'react';
 import { api } from '../api.js';
@@ -48,6 +48,8 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
     if(sheet && !sheet.completed) setSelectedStage(sheet);
     setStageToOpen(undefined);
   },[detail]);
+  // An event opened with no tab opens where the work is, and its address takes that tab.
+  useEffect(()=>{if(detail && code && !tab && !raceId && !runner) onOpen({kind:'event',code,tab:openingTab(detail)},{replace:true});},[detail,tab]);
   useEffect(()=>{
     void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
     return()=>{request.current++;clearInterval(timer);};
@@ -72,7 +74,7 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
     {selectedStage && <StageSheet event={detail.event} sheet={selectedStage} discardsFinal={detail.results.finalResults!==null} onSaved={saved} onClose={()=>setSelectedStage(null)} onOpen={openStageItem}/>}</>;
   const body=<><main className="rz-main rz-main--event">
     {error && <Callout message={error}/>}
-    {!detail?!error && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??'heats'} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
+    {!detail?!error && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??openingTab(detail)} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
       onRunner={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onTie={id=>openTie(id)}
       onStage={setSelectedStage} onRace={openRace} saved={saved}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
@@ -80,13 +82,17 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
   return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" wide body={body}/>{sheets}</>;
 }
 const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',races:'Races',notes:'Notes'};
+/** A heats event has a Final tab unless it was decided without a final. */
+const hasFinalTab=(detail:EventResultsRead)=>detail.event.format==='heats' && !detail.results.decidedWithoutFinal;
+/** The tab an event opens on: Final once its final has a finishing order, else Heats. */
+const openingTab=(detail:EventResultsRead):EventTab=>hasFinalTab(detail) && !!detail.results.finalResults?.leaderboard.length?'final':'heats';
 type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie:(id:string)=>void;onStage:(sheet:StageCheckSheet)=>void;onRace:(id:string)=>void;saved:(next:EventResultsRead)=>void};
 /**
  * An event's tabs: Heats (the scoreboard), Final (a heats event not decided without one), Races and Notes. The tab is
  * part of the address; switching replaces it in place, so Back leaves the event.
  */
 function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:EventTab)=>void}) {
-  const {detail}=props,final=detail.event.format==='heats' && !detail.results.decidedWithoutFinal;
+  const {detail}=props,final=hasFinalTab(detail);
   const tabs=eventTabs.filter(item=>item!=='final' || final),shown=tabs.includes(tab)?tab:'heats';
   return <>
     <nav className="rz-tabs" aria-label="Event">{tabs.map(item=><button key={item} type="button" aria-current={item===shown?'page':undefined} onClick={()=>onTab(item)}>{tabNames[item]}</button>)}</nav>
@@ -101,11 +107,21 @@ function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:Even
 /** A check-sheet button: Reopen once its stage is complete, else the stage's own label. */
 const StageButton=({sheet,label=sheet.completed?reopenLabel(sheet.stage):sheet.label,onStage}:{sheet:StageCheckSheet;label?:string;onStage:(sheet:StageCheckSheet)=>void})=>
   <button type="button" className="rz-btn rz-btn--block" onClick={()=>onStage(sheet)}>{label}</button>;
+/**
+ * The medal decision's one place (Final tab, or Heats for a timed event or results without a final): the Day export
+ * line once the medals are confirmed, then Confirm the medals, or its stage's Reopen once confirmed.
+ */
+const Medals=({input,sheet,onStage}:{input:InputRunning|null;sheet:StageCheckSheet|null;onStage:(sheet:StageCheckSheet)=>void})=><>
+  {input && <p className="rz-export-line"><b>Day export</b> {dayExportLine(input)}</p>}
+  {sheet && (sheet.completed?<StageButton sheet={sheet} onStage={onStage}/>
+    :<button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onStage(sheet)}>Confirm the medals</button>)}
+</>;
 /** The scoreboard of every heat's runners, then (until their screens move) the stage buttons under it. */
 function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolean}) {
   const results=detail.results,ranked=results.leaderboard.filter(row=>row.position!==null).length;
   // A lead makes the final with "+ Final" on Races, so open heats offer no stage here: only Reopen heats once complete.
-  const sheet=results.checkSheet?.stage==='final' || results.checkSheet?.stage==='heats'?null:results.checkSheet;
+  // A timed event's medals wait for a ranked runner before Confirm the medals shows.
+  const sheet=results.checkSheet?.stage==='final' || results.checkSheet?.stage==='heats' || !(results.checkSheet?.completed || ranked)?null:results.checkSheet;
   const reopenHeats=results.heatsCheckSheet?.completed?results.heatsCheckSheet:null;
   return <>
     {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
@@ -126,10 +142,9 @@ function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolea
           {final && row.position===Math.min(results.band.lineAfter,ranked) && <li className="rz-qline" aria-label="Qualifying line: places above go through to the final"><span aria-hidden="true">Qualifying line</span></li>}
         </Fragment>;})}</ol>
     </section>}
-    {sheet && <StageButton sheet={sheet} onStage={onStage}/>}
+    {!final && <Medals input={results.inputRunning} sheet={sheet} onStage={onStage}/>}
     {reopenHeats && <StageButton sheet={reopenHeats} onStage={onStage}/>}
     {results.noFinalCheckSheet && <StageButton sheet={results.noFinalCheckSheet} onStage={onStage}/>}
-    {!final && <InputRunning detail={detail}/>}
   </>;
 }
 /** A heats row's detail: its race and place, or why it does not rank. */
@@ -139,19 +154,14 @@ function rowDetail(row:LeaderboardRow) {
   if(row.notCounted) return `${race} · Not counted`;
   return `${race} · ${row.place!==null?`${ordinal(row.place)} in race`:'Did not finish'}`;
 }
-/** shortcut: today's final panel, check-sheet button and Input - Running table on the Final tab; #277 builds the tab in the new look. */
-function FinalTab({detail,onRunner,onStage,onRace,saved}:TabProps) {
-  const results=detail.results,sheet=results.checkSheet?.stage==='final'?results.checkSheet:null;
-  if(!results.finalResults) return <p className="rz-empty">The final's order appears here once its finishing order is saved.</p>;
-  return <div className="rz-final-today">
-    <FinalPanel event={detail.event} relay={detail.event.relay} teams={detail.teams} final={results.finalResults} onSaved={saved} onSelect={onRunner} onRace={()=>onRace(results.finalResults!.raceId)}/>
-    {sheet && <StageButton sheet={sheet} onStage={onStage}/>}
-    <InputRunning detail={detail}/>
-  </div>;
-}
-function InputRunning({detail}:{detail:EventResultsRead}) {
-  const input=detail.results.inputRunning;
-  return input && <section className="input-running-section"><h3>Input - Running</h3><table className="input-running" aria-label="Input - Running"><thead><tr><th>Event code</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody><tr><td>{input.eventCode}</td>{input.teams?input.teams.map((team,index)=><td key={index}>{team?<><strong>Team {team.number}</strong>{team.wristbands.map((wristband,leg)=><span key={leg} className="input-running-leg">{wristband??'-'}</span>)}</>:'-'}</td>):<><td>{input.first??'-'}</td><td>{input.second??'-'}</td><td>{input.third??'-'}</td></>}</tr></tbody></table></section>;
+/** The final (once made), then the Day export line and Confirm the medals (once the final has an order) or Reopen final. */
+function FinalTab({detail,onRunner,onStage,saved}:TabProps) {
+  const results=detail.results,final=results.finalResults;
+  if(!final) return <p className="rz-empty">The final's order appears here once its finishing order is saved.</p>;
+  return <>
+    <Final event={detail.event} teams={detail.teams} final={final} onSaved={saved} onRunner={onRunner}/>
+    <Medals input={results.inputRunning} sheet={results.checkSheet?.stage==='final' && (results.checkSheet.completed || final.leaderboard.length)?results.checkSheet:null} onStage={onStage}/>
+  </>;
 }
 /** A row per live race (its runners, saved or not, checked in at, why it does not count yet), then Deleted races. */
 function RacesTab({detail,onRace}:TabProps) {
@@ -172,7 +182,7 @@ function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|n
     <ul className="rz-legend" aria-label="Key">{keyStates.map(([state,label])=><li key={state}><span className={`rz-legend__swatch rz-legend__swatch--${state}`} aria-hidden="true"/>{label}</li>)}</ul>
     {!list?!error && <p className="rz-empty">Opening…</p>:<>
       {list.groups.map((group,index)=><section key={group.name} aria-labelledby={`results-group-${index}`}><h2 className="rz-section" id={`results-group-${index}`}>{group.name}</h2><ul className="rz-events">{group.events.map(({event,card,latestNoteAt})=><li key={event.id}>
-        <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code,tab:'heats'})}>
+        <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code})}>
           <span className="rz-event__name">{event.code} · {event.section}</span>
           <span className="rz-event__status">{card.state==='done' && <Icon name="check"/>}{card.line}{!event.enabled?' · Switched off':''}</span>
           {latestNoteAt && <span className="rz-event__status">Latest note {clock(latestNoteAt)}</span>}

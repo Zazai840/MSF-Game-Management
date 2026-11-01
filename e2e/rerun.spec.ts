@@ -27,10 +27,9 @@ test('Re-run is a screen that lands on the new heat at its first step, with Back
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('rerun-landed.png'),fullPage:true});
   // The phone's Back skips the replaced race and the re-run screen: it goes where Back from the old race went.
   await page.goBack();await expect(page).toHaveURL(racesTab);
-  // shortcut: the row does not show "· deleted 10:42" yet (#249's deletion time); spec #250 story 37's ticket adds it and this check.
-  await expect(page.getByRole('button',{name:'Open deleted Heat 1',exact:true})).toHaveAccessibleDescription(/^Replaced by a re-run · /);
+  await expect(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/})).toHaveAccessibleDescription(/^Replaced by a re-run · /);
   await page.screenshot({path:info.outputPath('rerun-deleted-list.png'),fullPage:true});
-  await page.getByRole('button',{name:'Open deleted Heat 1',exact:true}).click();
+  await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
   await expect(page.getByRole('status').filter({hasText:/^Replaced by a re-run/})).toHaveText(/^Replaced by a re-run at \d\d:\d\d by .+: False start\. Its results do not count\.$/);
   await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
   await expect(page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}).getByRole('button')).toHaveText(['','Delete for good']);

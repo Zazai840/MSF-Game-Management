@@ -1,33 +1,8 @@
-/* An event's older-look parts until their screens move: the final panel and the older sheets. Tokens from theme.css. */
-/* Leaderboard */
-.leaderboard {padding:0; margin:0; list-style:none;}
-.leaderboard > li {margin:8px 0;}
-.leaderboard-row {
-  display:grid; grid-template-columns:4rem minmax(0,1fr) auto; gap:4px 10px; align-items:baseline; width:100%; min-height:0; padding:12px 14px;
-  text-align:left; background:var(--surface); color:var(--text); border-color:var(--surface); border-radius:var(--radius); font-weight:600; cursor:pointer;
-}
-.leaderboard-row.highlighted {background:var(--tint); border-color:var(--navy);}
-.result-position {display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; color:var(--navy);}
-.result-position strong {font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;}
-.result-mark {display:inline-block; padding:1px 7px; border-radius:999px; background:var(--navy); color:#fff; font-size:var(--text-small); font-weight:800;}
-.result-number,.result-time {font-size:20px; font-weight:800; color:var(--navy); font-variant-numeric:tabular-nums;}
-.result-time {text-align:right;}
+/* An event's older-look parts until their screens move: the older sheets. Tokens from theme.css. */
+.result-number {font-size:20px; font-weight:800; color:var(--navy); font-variant-numeric:tabular-nums;}
 /* A relay team: "Team 3", its four children in leg order on the line under it. */
 .result-legs {display:block; font-size:var(--text-small); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; text-wrap:balance;}
-.leaderboard-row > .result-legs {grid-column:2 / -1;}
 .result-legs-inline {font-weight:600; font-variant-numeric:tabular-nums;}
-.result-detail {grid-column:2 / -1; font-size:var(--text-small); font-weight:600; color:var(--muted);}
-.result-flags {display:block; padding:0; margin:6px 0 0;}
-.result-line {display:flex; align-items:center; gap:10px; margin:10px 0; color:var(--navy); font-size:var(--text-small); font-weight:800;}
-.result-line::before,.result-line::after {content:""; flex:1; border-top:2px solid var(--navy);}
-.result-line::before {flex:0 0 12px;}
-.input-running-section {margin-top:18px;}
-@media(min-width:700px) {.leaderboard-row {grid-template-columns:4rem minmax(0,1fr) 6rem;}.result-number,.result-time {font-size:22px;}}
-/* A row tapped on a touch screen keeps no dark outline; keyboard focus still shows the focus ring from theme.css. */
-@media(hover:hover) {.result-open:hover {border-color:var(--navy);}}
-.result-flags > span {display:block; background:var(--amber-fill); color:var(--amber-text); padding:8px 10px; border-radius:var(--radius-small); margin-top:6px; font-weight:700; overflow-wrap:anywhere;}
-.disqualified .result-number,.disqualified .result-time {text-decoration:line-through;}
-.badge.note-tag {display:inline-block; vertical-align:1px; line-height:inherit; margin-left:8px; padding:1px 8px; border-radius:999px; background:var(--tint); color:var(--navy); font-size:var(--text-badge); font-weight:800;}
 .runner-actions {border-radius:var(--radius-card);box-shadow:0 18px 48px rgba(24,33,59,.35);background:var(--surface);color:inherit;padding:1rem;width:100%;max-width:34rem;max-height:min(85vh,100%);overflow:auto;margin:auto;}
 /* While a phone number entry is open in a sheet, the sheet sits above its bar and, while typing, in what shows above the keyboard. */
 .action-sheet-overlay {position:fixed;inset:0;z-index:100;background:rgba(24,33,59,.6);display:flex;align-items:center;justify-content:center;padding:1rem .5rem calc(1rem + var(--action-bar-height, 0px));}
@@ -36,18 +11,5 @@ html[data-keyboard="open"] .action-sheet-overlay {top:var(--vv-top);bottom:auto;
 .runner-actions textarea {display:block;width:100%;min-height:5rem;font:inherit;margin:.5rem 0;}
 .runner-actions select {font:inherit;width:100%;padding:.7rem;margin:.5rem 0;}
 .runner-actions form {margin:1rem 0;}
-.result-flags .checked-warning {background:var(--idle-fill);color:var(--muted);}
-.not-counted .result-number,.not-counted .result-time {text-decoration:line-through;}
 
 
-/* Final */
-.final-panel {margin-top:18px; padding:16px; background:var(--surface); border-radius:var(--radius-box);}
-.final-panel h3 {margin:0 0 6px;}
-.final-panel h4 {margin:10px 0 4px; color:var(--navy); font-size:var(--text-small); font-weight:800;}
-.final-lineup {list-style:none; padding:0; margin:0 0 8px; line-height:1.7; font-size:var(--text-small);}
-.final-panel > button {margin-top:8px;}
-.final-panel .leaderboard-row {grid-template-columns:3rem 1fr;}
-.final-panel .result-detail {grid-column:2;}
-/* The position and its medal mark stay beside a team's name, its children and its status. */
-.final-panel .result-position {grid-row:span 3;}
-.final-add {display:grid; gap:8px; margin:8px 0;}

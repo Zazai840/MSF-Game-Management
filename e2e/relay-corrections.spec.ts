@@ -87,7 +87,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   const racePage=page.url();
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
   await expectToast(page,'Heat 1 moved to Deleted races · Boy Scouts');
-  await page.getByRole('button',{name:'Open deleted Heat 1',exact:true}).click();await expect(page).toHaveURL(racePage);
+  await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();await expect(page).toHaveURL(racePage);
   // Heat 1 deleted, Team 1 is still to run, and runs again in Heat 2.
   await runHeat(request,token,code,[1],[1450]);
   // The heat Team 1 ran again took the freed number, so Heat 1 comes back as Heat 2, and the toast says so.

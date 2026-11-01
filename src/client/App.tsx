@@ -19,7 +19,7 @@ interface HomeRead { phone:Phone; needsYou?:number }
 let afterBack:(()=>void)|null=null;
 /** Where Open in Results (or Confirm the medals) lands: a tie on its screen, a race's item on its race page, anything else on its event. */
 const resultsView=(target:ResultsTarget):View=>target.tieId?{kind:'tie',code:target.event.code,tieId:target.tieId}
-  :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code,tab:'heats'};
+  :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code};
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
@@ -54,11 +54,11 @@ export function App() {
   /**
    * Moves to another screen at its own address. The history entry carries the name of the screen left, for the back
    * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
-   * event's tab in place, keeping the entry's back label.
+   * event's tab in place, keeping the entry's back label and what Open in Results asked to open there.
    */
   function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
-    setMenu(null);setView(next);setTarget(opening);
     const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code;
+    setMenu(null);setView(next);setTarget(replace && tab?target:opening);
     // `over`: the new screen takes the place of this one and the one it was opened from (a re-run's new race replaces the old race and the re-run screen).
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
     else if(replace || over) history.replaceState(tab?history.state:null,'',path);
