@@ -12,6 +12,8 @@ const seed=(place:string,wristband:number)=>new RegExp(`${place} fastest\\s*${wr
 async function marks(page:Page) {
  return attendance(page).evaluateAll(rows=>rows.map(row=>row.querySelector('button[aria-pressed="true"]')?.textContent??'none'));
 }
+/** The check-sheet buttons on the event's tab showing. */
+const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Final complete|Results without a final|Reopen \w+)$/});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
 /**
  * Heats recorded through the API (the race flow's heats have their own tests), the final made with "+ Final" on Races
@@ -78,7 +80,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  const [heat]=await heatsToFinal(page,code,name,[[[n(41),n(42)],[900,1000]]],ownName('Short final lead'));
  await expect(page.getByRole('list',{name:'Provisional leaderboard'}).getByText('Qualifying line',{exact:true})).toBeVisible();
  // Results offers no Heats complete: "+ Final" on Races is the one way to make the final.
- await expect(page.locator('.stage-actions').getByRole('button')).toHaveText(['Results without a final']);
+ await expect(stageButtons(page)).toHaveText(['Results without a final']);
  await expect(page.getByRole('button',{name:'Heats complete',exact:true})).toHaveCount(0);
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('results-no-heats-complete.png'),fullPage:true});
  // A volunteer is not offered the final: the card says who makes it.
@@ -118,10 +120,10 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await reopen.getByLabel('Comment',{exact:true}).fill('Corrected heat timer');await reopen.getByRole('button',{name:'Reopen',exact:true}).click();
  await expect(reopen).toHaveCount(0);
  // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
- await expect(page.locator('.final-panel')).toHaveCount(0);
- await expect(page.getByText('No deleted races',{exact:true})).toBeVisible();
- await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').first()).toContainText('reopened Heats complete - Corrected heat timer');
- await expect(page.locator('.stage-actions').getByRole('button')).toHaveText(['Results without a final']);
+ await expect(stageButtons(page)).toHaveText(['Results without a final']);
+ await eventTab(page,'Final');await expect(page.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
+ await eventTab(page,'Races');await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
+ await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('reopened Heats complete - Corrected heat timer');
  // Both phones open on the removed final go back to Races, saying so. The card is as for an event with no final: no F
  // chip, "+" right after the last heat, and "+ Final" back as every heat is saved.
  for(const phone of [lena,sam.page]) await expect(phone.getByRole('status').filter({hasText:'A lead removed Boy Cubs Final'})).toBeVisible(live);
@@ -140,7 +142,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  expect((await page.request.post(`/api/races/${race.id}/absent`,{headers,data:{raceId:race.id,version:race.parts.runners.version,here:race.final!.entries.map(entry=>entry.finalEntryId),absent:[]}})).ok()).toBe(true);
  const corrected=race.final!.entries.find(entry=>entry.wristband===n(41))!;
  expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true}})).ok()).toBe(true);
- await page.getByRole('button',{name:'Refresh',exact:true}).click();
+ await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
  await expect(page.locator('.final-lineup li').filter({hasText:String(n(43))})).toContainText(`ran the heats as ${n(41)}`);
 });
 test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{
