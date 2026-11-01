@@ -17,8 +17,8 @@ const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new
 interface HomeRead { phone:Phone; needsYou?:number }
 /** What the next Back (one the app made itself) does in place of opening the screen it lands on. */
 let afterBack:(()=>void)|null=null;
-/** Where Open in Results (or Confirm the medals) lands: a tie on its screen, a race's item on its race page, anything else on its event. */
-const resultsView=(target:ResultsTarget):View=>target.tieId?{kind:'tie',code:target.event.code,tieId:target.tieId}
+/** Where Open in Results lands: a tie on its screen, a race's item on its race page, anything else on its event; a Races card's Confirm the medals on that screen. */
+const resultsView=(target:ResultsTarget):View=>target.stage?{kind:'confirm-the-medals',code:target.event.code}:target.tieId?{kind:'tie',code:target.event.code,tieId:target.tieId}
   :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code};
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));

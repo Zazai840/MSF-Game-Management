@@ -40,7 +40,7 @@ export async function changeStage(client:pg.PoolClient,current:Phone,code:string
   if(!sheet) throw new Refusal(409,stage==='no-final' && detail.results.finalResults?.started?'The final has started - medals come from the final':'This stage is not available');
   if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
   if(reopening && stage==='heats' && detail.results.finalResults?.started) throw new Refusal(409,'The final has started - heats cannot be reopened');
-  if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Must settle first - open the completion check sheet',{mustSettleFirst:sheet.mustSettleFirst.map(item=>item.message)});
+  if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Settle everything under Settle first, then confirm',{mustSettleFirst:sheet.mustSettleFirst.map(item=>item.message)});
   if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
   else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
   if(sheet.stage==='heats' && !reopening) await seedFinal(client,current,detail.event,detail.results.qualifiers);

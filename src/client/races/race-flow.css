@@ -311,6 +311,9 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-lead-row__medal { position: relative; width: var(--size-rank); height: var(--size-rank); display: flex; align-items: center; justify-content: center; color: var(--navy); }
 .rz-lead-row__medal .rz-star { position: absolute; inset: 0; fill: var(--gold); }
 .rz-lead-row__medal span { position: relative; }
+/* Confirm the medals' place: who, over the race and time it was won in (and a team's children); its TIE tag and Fix at the end. */
+.rz-lead-row__who { display: flex; flex-direction: column; min-width: 0; }
+.rz-lead-row__who .rz-lead-row__note { margin-top: 0; }
 /* The Day export line: what the export's Input - Running row holds for this event. */
 .rz-export-line { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .rz-export-line b { margin-right: var(--space-6); color: var(--navy); }
