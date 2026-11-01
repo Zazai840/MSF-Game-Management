@@ -11,6 +11,11 @@ const stagePlace=(position:number,row:LeaderboardRow|undefined):StagePlace=>({po
 export interface StageCheckSheet { stage:Stage; label:string; completed:boolean; mustSettleFirst:StageItem[]; worthALook:StageItem[]; creates:StagePlace[]; reopenWarning?:string }
 /** The event's row for the scoring database; on a relay, `teams` names the 1st, 2nd and 3rd team with their four children. */
 export interface InputRunning { eventCode:string; first:number|null; second:number|null; third:number|null; teams?:Array<ResultTeam|null> }
+/** The Day export line a lead reads on Results, from the same podium as the export's Input - Running row: "1st 2014 · 2nd 2003 · 3rd 2021", on a relay "1st Team 3 · 2nd Team 1 · 3rd Team 2". */
+export const dayExportLine=(input:InputRunning)=>[input.first,input.second,input.third].map((wristband,index)=>{
+  const team=input.teams?.[index];
+  return `${['1st','2nd','3rd'][index]} ${team?`Team ${team.number}`:wristband??'-'}`;
+}).join(' · ');
 /** Completion decisions use the same eligible rows and open ties as the leaderboard. */
 export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],ties:readonly ResultTie[],pending:readonly NotRankedRace[],needsYou:readonly LeadItem[]):StageCheckSheet {
   const active=state.races.filter(race=>!race.deleted && race.kind!=='final');
