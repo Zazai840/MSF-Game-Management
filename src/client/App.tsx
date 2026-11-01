@@ -15,6 +15,8 @@ import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 // A failed load (often an old page after a deploy) reloads the app; until then Opening Lead stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 interface HomeRead { phone:Phone; needsYou?:number }
+/** What the next Back (one the app made itself) does in place of opening the screen it lands on. */
+let afterBack:(()=>void)|null=null;
 /** Where Open in Results (or Confirm the medals) lands: a tie on its screen, a race's item on its race page, anything else on its event. */
 const resultsView=(target:ResultsTarget):View=>target.tieId?{kind:'tie',code:target.event.code,tieId:target.tieId}
   :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code,tab:'heats'};
@@ -54,16 +56,20 @@ export function App() {
    * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
    * event's tab in place, keeping the entry's back label.
    */
-  function go(next:View,{replace=false,opening}:{replace?:boolean;opening?:ResultsTarget}={}) {
+  function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
     setMenu(null);setView(next);setTarget(opening);
     const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code;
-    if(replace) history.replaceState(tab?history.state:null,'',path);
+    // `over`: the new screen takes the place of this one and the one it was opened from (a re-run's new race replaces the old race and the re-run screen).
+    if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
+    else if(replace || over) history.replaceState(tab?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
     else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
     window.scrollTo(0,0);
   }
   useEffect(()=>{
-    const back=()=>{if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname+location.search));};
+    const back=()=>{
+      if(afterBack) {const then=afterBack;afterBack=null;then();return;}
+      if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname+location.search));};
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{
@@ -124,10 +130,15 @@ export function App() {
       return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={toRace}
         onResults={toResults}/>{sheet}</Screen>;
     }
-    // Back goes where the lead came from; with no history, up a level. A non-lead goes back to Races.
-    const back=()=>{if(entryBack()) history.go(onSheetEntry()?-2:-1);else go(isLead?parentOf(view):{kind:'races'},{replace:true});};
+    // Back goes where the lead came from; with no history, up a level. A non-lead goes back to Races. Two levels (after a
+    // delete) goes back past the race too: to its entry first, then on from there as its own Back would.
+    const up=(from:View)=>go(isLead?parentOf(from):{kind:'races'},{replace:true});
+    const back=(levels:1|2=1)=>{
+      if(levels===2) {if(entryBack()) {afterBack=()=>{if(entryBack()) history.back();else up(viewAt(location.pathname+location.search));};history.back();} else up(parentOf(view));return;}
+      if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
+    };
     // A lead screen's body keeps the older look, which has no race-flow tokens, so the job sheet brings its own .rz-screen.
-    return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:back}}>
+    return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:()=>back()}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}

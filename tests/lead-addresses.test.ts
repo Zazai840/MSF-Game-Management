@@ -19,6 +19,11 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races/r-1/runners/e-2/lift-disqualification',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'lift-disqualification'}],
     ['/results/R4/races/r-1/runners/e-2/correct-number',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'correct-number'}],
     ['/results/R4/races/r-1/runners/e-2/choose-result',{kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'choose-result'}],
+    ['/results/R4/races/r-1/re-run',{kind:'race-action',code:'R4',raceId:'r-1',action:'re-run'}],
+    ['/results/R4/races/r-1/delete',{kind:'race-action',code:'R4',raceId:'r-1',action:'delete'}],
+    ['/results/R4/races/r-1/restore',{kind:'race-action',code:'R4',raceId:'r-1',action:'restore'}],
+    ['/races/r-1/re-run',{kind:'race-action',raceId:'r-1',action:'re-run'}],
+    ['/races/r-1/delete',{kind:'race-action',raceId:'r-1',action:'delete'}],
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
@@ -37,6 +42,7 @@ test('an event address without a tab opens Heats, and an address the app does no
   expect(viewAt('/results/R4/medals')).toEqual({kind:'races'});
   expect(viewAt('/results/R4/races/r-1/runners/e-2/promote')).toEqual({kind:'races'});
   expect(viewAt('/nowhere')).toEqual({kind:'races'});
+  expect(viewAt('/races/r-1/promote')).toEqual({kind:'races'});
 });
 
 test('codes and race ids with spaces or slashes survive the address',()=>{
@@ -53,6 +59,9 @@ test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'disqualify'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
   expect(parentOf({kind:'event',code:'R4',tab:'final'})).toEqual({kind:'results'});
   expect(parentOf({kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'})).toEqual({kind:'event',code:'R4',tab:'heats'});
+  // Re-run, Delete and Restore go up to their race: its race page under Results, else the race screen.
+  expect(parentOf({kind:'race-action',code:'R4',raceId:'r-1',action:'delete'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
+  expect(parentOf({kind:'race-action',raceId:'r-1',action:'re-run'})).toEqual({kind:'race',id:'r-1'});
   expect(parentOf({kind:'results'})).toEqual({kind:'races'});
   expect(parentOf({kind:'day'})).toEqual({kind:'races'});
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});

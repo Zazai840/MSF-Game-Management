@@ -6,13 +6,16 @@ export type EventTab=typeof eventTabs[number];
 /** The runner sheet's full screens, each under the race the result belongs to. */
 export const runnerScreens=['disqualify','lift-disqualification','correct-number','choose-result'] as const;
 export type RunnerScreen=typeof runnerScreens[number];
+/** A race's Re-run, Delete and Restore screens, under its race page (with the event's code) or its race screen. */
+export const raceActions=['re-run','delete','restore'] as const;
+export type RaceAction=typeof raceActions[number];
 /**
  * Every screen with its own address (spec #250 "Navigation"). Races and the race screen are the race flow; the rest are
  * the lead's screens. To add a screen: add its kind here, its address in viewAt and addressOf, its natural parent in
  * parentOf, then render it in App with a LeadBar naming it.
  */
 export type View={kind:'races'}|{kind:'race';id:string;step?:Step}|{kind:'results'}|{kind:'event';code:string;tab:EventTab}
-  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'runner';code:string;raceId:string;entryId:string;screen:RunnerScreen}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
+  |{kind:'race-page';code:string;raceId:string}|{kind:'tie';code:string;tieId:string;stage?:'no-final'}|{kind:'runner';code:string;raceId:string;entryId:string;screen:RunnerScreen}|{kind:'race-action';code?:string;raceId:string;action:RaceAction}|{kind:'day'}|{kind:'signed-in-today'}|{kind:'events'}|{kind:'olympics-password'}
   |{kind:'rename-event';code:string}|{kind:'new-event'};
 const part=encodeURIComponent;
 /**
@@ -24,11 +27,13 @@ export function viewAt(address:string):View {
   const [first,...rest]=path.split('/').filter(Boolean).map(decodeURIComponent);
   const [a,b,c,d,e,f]=rest;
   if(first==='races' && rest.length===1) return {kind:'race',id:a!};
+  if(first==='races' && rest.length===2 && raceActions.includes(b as RaceAction)) return {kind:'race-action',raceId:a!,action:b as RaceAction};
   if(first==='results') {
     if(!rest.length) return {kind:'results'};
     if(rest.length===1) return {kind:'event',code:a!,tab:'heats'};
     if(rest.length===2 && eventTabs.includes(b as EventTab)) return {kind:'event',code:a!,tab:b as EventTab};
     if(rest.length===3 && b==='races') return {kind:'race-page',code:a!,raceId:c!};
+    if(rest.length===4 && b==='races' && raceActions.includes(d as RaceAction)) return {kind:'race-action',code:a!,raceId:c!,action:d as RaceAction};
     if(rest.length===3 && b==='ties') return {kind:'tie',code:a!,tieId:c!,...(new URLSearchParams(query).get('stage')==='no-final'?{stage:'no-final'} as const:{})};
     if(rest.length===6 && b==='races' && d==='runners' && runnerScreens.includes(f as RunnerScreen)) return {kind:'runner',code:a!,raceId:c!,entryId:e!,screen:f as RunnerScreen};
   }
@@ -51,6 +56,7 @@ export function addressOf(view:View):string {
     case 'race-page': return `/results/${part(view.code)}/races/${part(view.raceId)}`;
     case 'tie': return `/results/${part(view.code)}/ties/${part(view.tieId)}${view.stage?`?stage=${view.stage}`:''}`;
     case 'runner': return `/results/${part(view.code)}/races/${part(view.raceId)}/runners/${part(view.entryId)}/${view.screen}`;
+    case 'race-action': return `${view.code===undefined?'':`/results/${part(view.code)}`}/races/${part(view.raceId)}/${view.action}`;
     case 'day': return '/day';
     case 'signed-in-today': return '/day/signed-in-today';
     case 'events': return '/day/events';
@@ -64,6 +70,7 @@ export function parentOf(view:View):View {
   switch(view.kind) {
     case 'race-page': return {kind:'event',code:view.code,tab:'races'};
     case 'runner': return {kind:'race-page',code:view.code,raceId:view.raceId};
+    case 'race-action': return view.code===undefined?{kind:'race',id:view.raceId}:{kind:'race-page',code:view.code,raceId:view.raceId};
     case 'event': return {kind:'results'};
     case 'tie': return {kind:'event',code:view.code,tab:'heats'};
     case 'signed-in-today': case 'events': case 'olympics-password': return {kind:'day'};
