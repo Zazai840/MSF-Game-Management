@@ -88,7 +88,8 @@ export function LeadBar({title,code,up,children,body,wide=false}:{title:string;c
   const header=<header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
     <div className="rz-appbar__start">
       <button type="button" className="rz-appbar__back" aria-label={`Back to ${back}`} onClick={frame.onBack}><Icon name="chevron-left" className="rz-icon--bold"/><span>{back}</span></button>
-      <div className="rz-appbar__race"><h1>{title}</h1>{code && <span className="rz-code-tag">{code}</span>}</div>
+      {/* The race bar's title: up to two lines in display type, the code tag after the last word. */}
+      <div className="rz-appbar__heading"><h1>{title}</h1>{code && <> <span className="rz-code-tag">{code}</span></>}</div>
     </div>
     <div className="rz-appbar__end" style={{gap:2}}><RoleChip role={frame.role} onOpen={frame.onRole}/>{children}</div>
   </header>;

@@ -83,8 +83,6 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-app--bar { min-height: 0; --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-16)); }
 @media (min-width: 800px) { .rz-app--bar { --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-24)); } }
 .rz-appbar--lead { padding-left: var(--gutter); }
-/* The lead header's title and its code tag: apart, so the slanted tag never touches the last letter. */
-.rz-appbar--lead .rz-appbar__race { gap: var(--space-8); }
 .rz-appbar__start { flex: 1; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .rz-appbar__start > * { max-width: 100%; }
 .rz-appbar__back { display: inline-flex; align-items: center; gap: var(--space-4); min-height: var(--size-touch); min-width: var(--size-touch); margin: calc(-1 * var(--space-10)) 0 calc(-1 * var(--space-12)) calc(-1 * var(--space-6)); padding: 0 var(--space-6) 0 0; border: 0; background: none; color: var(--gold); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 700; font-size: 16px; line-height: 1; text-transform: uppercase; }
