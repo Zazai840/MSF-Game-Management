@@ -24,6 +24,8 @@ export function LeadBar({title,code,up,children,body,wide=false}:{title:string;c
   </header>;
   return <Screen screen={title} wide={wide}>{header}{body}</Screen>;
 }
-/** A full lead screen while its read is on its way: the lead header over "Opening…", or why the read failed. */
-export const LeadOpening=({title,code,up,error}:{title:string;code?:string;up:string;error:unknown})=>
-  <LeadBar title={title} code={code} up={up} body={<main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">Opening…</p>}</main>}/>;
+/**
+ * A full lead screen's body while its read is on its way: "Opening…", or why the read failed. The screen passes it as
+ * its LeadBar's `body`, so the header stays the same element once the read arrives (no remount, no lost focus).
+ */
+export const OpeningBody=({error}:{error:unknown})=><main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">Opening…</p>}</main>;

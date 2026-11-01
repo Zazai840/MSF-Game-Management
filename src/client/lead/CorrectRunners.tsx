@@ -10,7 +10,7 @@ import { entryCount,legCheck,stillToRun,teamListOf } from '../../shared/teams.js
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { toastLine } from '../../shared/toast-lines.js';
 import { Callout,ErrorCallout,Icon } from '../races/parts.js';
-import { LeadBar,LeadOpening } from './LeadBar.js';
+import { LeadBar,OpeningBody } from './LeadBar.js';
 import { DigitsField,KeepFocus } from '../races/Steps.js';
 import { HeldCallout,TeamNote,TeamRow,type Held } from '../races/TeamSteps.js';
 import { useToast } from '../races/Toast.js';
@@ -32,7 +32,7 @@ export function RaceCorrection({view,onBack,onChanged}:{view:CorrectionView;onBa
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState<unknown>(null),[busy,setBusy]=useState(false);
   useEffect(()=>{api<LeadRaceRead>(`lead/races/${view.raceId}`).then(setRead,setError);},[]);
   const teams=view.action==='correct-teams',title=teams?'Correct teams':'Correct runner list';
-  if(!read) return <LeadOpening title={title} code={view.code} up="Race" error={error}/>;
+  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
   const {race}=read;
   const save:Save=async(command,body)=>{
     setBusy(true);
