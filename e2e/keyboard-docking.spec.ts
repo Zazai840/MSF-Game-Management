@@ -1,4 +1,4 @@
-import {ownName,ownCode,press,ownEvent,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRelays,signInThroughApi,test,writeCheckIn,writeTeam,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownName,ownCode,press,ownEvent,becomeLead,join,openLeadMenu,recordRace,ownRelay,ownWristbands,expect,inViewAboveFooter,openRace,openRelays,signInThroughApi,test,writeCheckIn,writeTeam,type Locator,type Page,type PhoneSession} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -140,4 +140,17 @@ test('a relay\'s teams sheet keeps Cancel and Save on the keyboard while the leg
   await expect.poll(()=>footerBottom(foot)).toBeLessThanOrEqual(open);
   await inViewAboveFooter(page,[foot.getByRole('button',{name:'Cancel',exact:true}),foot.getByRole('button',{name:'Save team 2',exact:true})]);
   await page.screenshot({path:info.outputPath('docked.png')});
+});
+test('a lead\'s Correct number keeps Save number on the keyboard',async({page})=>{
+  const code=await ownCode(),name=ownName('Docked number'),n=await ownWristbands('Girl Cubs',2);
+  await ownEvent(page.request,code,name);
+  await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
+  await page.goto('/');await join(page,ownName('Docked number lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  await press(page.getByRole('button',{name:new RegExp(`^Runner ${n(2)} · `)}));
+  await press(page.getByRole('dialog',{name:`Runner ${n(2)}`,exact:true}).getByRole('button',{name:'Correct number',exact:true}));
+  const box=page.getByLabel('New wristband number',{exact:true});
+  await box.focus();
+  await docksAboveKeyboard(page,box);
+  await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Save number',exact:true})).toBeVisible();
 });
