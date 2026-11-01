@@ -13,7 +13,7 @@ test('a heat replaced by a re-run says which heat replaced it, offers no Restore
   await expect(page.getByRole('button',{name:'Delete permanently',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('rerun-race-page.png'),fullPage:true});
   await back(page,`${name} · Girl Cubs`);
-  await expect(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted \d\d:\d\d$/})).toHaveAccessibleDescription(/^Replaced by a re-run · /);
+  await expect(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/})).toHaveAccessibleDescription(/^Replaced by a re-run · /);
   await page.screenshot({path:info.outputPath('rerun-deleted-list.png'),fullPage:true});
   // The re-run keeps the number: Heat 1 on Races, its runners pre-filled with no "already ran" warnings, its positions and times empty.
   await goHome(page);await openRace(page,name,'Girl Cubs','H1');
