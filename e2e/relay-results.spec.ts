@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -218,23 +218,24 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   // The race page names each team, its four children on the line under it.
   await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('button')).toHaveText([/^1st\s*Team 1\s*14\.00\s*\d+ · \d+ · \d+ · \d+$/,/^2nd\s*Team 2\s*15\.00/,/^3rd\s*Team 3\s*16\.00/]);
   await raceAction(page,'Correct finishing order');
-  const sheet=page.getByRole('dialog'),rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
-  await expect(rows).toHaveText(['1st14.00Team 1No place','2nd15.00Team 2No place','3rd16.00Team 3No place']);
+  const rows=page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
+  await expect(rows).toHaveText(['1stTeam 114.00No place','2ndTeam 215.00No place','3rdTeam 316.00No place']);
   // Times stay by place: Team 2 dragged to 1st takes 1st place's time.
-  await dragTo(page,sheet.getByRole('button',{name:'Drag to move Team 2',exact:true}),rows.first());
-  await expect(rows).toHaveText(['1st14.00Team 2No place','2nd15.00Team 1No place','3rd16.00Team 3No place']);
-  await sheet.getByRole('button',{name:'No place for Team 3',exact:true}).click();
-  await expect(sheet.getByText('Team 3 has no place. What happened?',{exact:true})).toBeVisible();
-  await expect(sheet.getByText('Didn\'t run takes Team 3 off this race: it is still to run again.',{exact:true})).toBeVisible();
+  await dragTo(page,page.getByRole('button',{name:'Move Team 2',exact:true}),rows.first());
+  await expect(rows).toHaveText(['1stTeam 214.00No place','2ndTeam 115.00No place','3rdTeam 316.00No place']);
+  await press(page.getByRole('button',{name:'No place for Team 3',exact:true}));
+  const ask=page.getByRole('dialog',{name:'No place for Team 3',exact:true});
+  await expect(ask.getByText('Team 3 has no place. What happened?',{exact:true})).toBeVisible();
+  await expect(ask.getByText('Didn\'t run takes Team 3 off this race: it is still to run again.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-order-no-place.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Didn\'t run',exact:true}).click();
-  await expect(rows).toHaveText(['1st14.00Team 2No place','2nd15.00Team 1No place']);
-  // Taken off the race, Team 3 has no row left in it.
-  await expect(sheet.getByRole('list',{name:'No place',exact:true})).toHaveCount(0);
+  await press(ask.getByRole('button',{name:'Didn\'t run',exact:true}));
+  await expect(rows).toHaveText(['1stTeam 214.00No place','2ndTeam 115.00No place']);
+  // Taken off the race, Team 3 is listed as not running it.
+  await expect(page.getByRole('list',{name:'No place',exact:true}).getByRole('listitem')).toHaveText(['Team 3Didn\'t run · taken off this race']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-order-corrected.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Done',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved · Boy Scouts Heat 1');
   await back(page,`${name} · Boy Scouts`);
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('corrected the finishing order for Heat 1: Team 2, Team 1; Didn\'t run Team 3');
 });

@@ -38,7 +38,3 @@ html {scroll-padding-bottom:calc(12px + var(--action-bar-height, 0px) + var(--rz
 .row-runner {display:flex; flex-direction:column; gap:2px; min-width:0;}
 .row-runner strong {font-size:22px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;}
 
-/* Wrong-time highlighting (Times screens and the lead's race page): amber fill, amber border, short reason. */
-.time-wrong,button.time-wrong {background:var(--amber-fill); border:2px solid var(--amber-line); color:var(--text);}
-.wrong-time-reason {display:block; font-size:13px; font-weight:800; line-height:1.25; color:var(--amber-text);}
-.wrong-time-icon {flex:none; color:var(--amber-line);}

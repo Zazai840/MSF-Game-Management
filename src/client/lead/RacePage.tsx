@@ -51,7 +51,7 @@ export function RacePage({raceId,code,onSaved,onOpen,actionableRunners=[]}:{race
     </>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer>
     {read && selectedRow && <RunnerSheet key={selectedRow.entryId} event={read.race.event} row={selectedRow} rows={actionableRunners} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)} onOpen={onOpen}/>}
-    {read && actions && <RaceActions read={read} where="page" onOpen={onOpen} onRace={openRace} onClose={()=>setActions(false)} onSaved={async next=>{onSaved(next);await refresh();}}/>}
+    {read && actions && <RaceActions read={read} where="page" onOpen={onOpen} onRace={openRace} onClose={()=>setActions(false)}/>}
   </>;
   return <LeadBar title={race?raceName(race):'Race'} code={race?.event.code??code} up={race?eventTitle(race.event):code} body={body}>{more}</LeadBar>;
 }

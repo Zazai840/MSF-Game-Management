@@ -83,8 +83,6 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-app--bar { min-height: 0; --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-16)); }
 @media (min-width: 800px) { .rz-app--bar { --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-24)); } }
 .rz-appbar--lead { padding-left: var(--gutter); }
-/* The lead header's title and its code tag: apart, so the slanted tag never touches the last letter. */
-.rz-appbar--lead .rz-appbar__race { gap: var(--space-8); }
 .rz-appbar__start { flex: 1; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .rz-appbar__start > * { max-width: 100%; }
 .rz-appbar__back { display: inline-flex; align-items: center; gap: var(--space-4); min-height: var(--size-touch); min-width: var(--size-touch); margin: calc(-1 * var(--space-10)) 0 calc(-1 * var(--space-12)) calc(-1 * var(--space-6)); padding: 0 var(--space-6) 0 0; border: 0; background: none; color: var(--gold); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 700; font-size: 16px; line-height: 1; text-transform: uppercase; }
@@ -189,6 +187,11 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 /* A team left over: "Team 6 · 2064" on a line of its own, its two answers side by side below. */
 .rz-orderrow--team { grid-template-columns: 1fr 1fr; padding: var(--space-8) var(--space-8) var(--space-8) var(--space-14); }
 .rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
+/* Correct finishing order: a placed row with its No place button between the number and the handle. */
+.rz-orderrow--action { grid-template-columns: var(--size-touch) 1fr auto var(--size-touch); column-gap: var(--space-6); }
+/* Correct times: a place's row, or its time box while retyped, with No finisher beside it on the same line. */
+.rz-timefix { display: flex; align-items: center; gap: var(--space-8); }
+.rz-timefix > :first-child { flex: 1; min-width: 0; }
 
 /* A prompt's line above that keeps its end: a long event name gives way ("…Girl Cubs · decides 2nd and 3rd"), the line stays one line. */
 .rz-prompt__meta--fit { display: flex; white-space: nowrap; }

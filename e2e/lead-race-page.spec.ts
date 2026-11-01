@@ -1,8 +1,8 @@
 import { clock } from '../src/shared/clock.js';
 import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,raceAction,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,selected,join,openLeadMenu,test,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
-// The race page's amber (the race flow's), and the older look's amber in today's correction editors (until #279 and #280).
-const amber='rgb(255, 241, 199)',editorAmber='rgb(255, 244, 220)',red='rgb(196, 30, 58)';
+// The race flow's amber, on the race page and in Correct times.
+const amber='rgb(255, 241, 199)',red='rgb(196, 30, 58)';
 const created:string[]=[];
 test.afterEach(async({request})=>{for(const id of created.splice(0)) await request.post(`/api/lead/races/${id}/delete`,{headers:headers(),data:{permanent:true}});});
 /** A timed event with one race of these runners, finished in that order with these times; `keptWarnings` are the wristbands whose warnings the starter kept. */
@@ -42,28 +42,36 @@ test('the race page is in the race-flow look: its meta line, a wrong time in amb
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions.png'),fullPage:false});
   await press(actions.getByRole('button',{name:'Close',exact:true}));await expect(actions).toHaveCount(0);
 
+  const racePage=page.url();
   await raceAction(page,'Correct times');
-  const sheet=page.getByRole('dialog');
-  const wrongRow=sheet.getByRole('button',{name:'2nd place · 11.00 · Faster than 1st place',exact:true});
-  expect(await background(wrongRow)).toBe(editorAmber);
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('times-editor-wrong.png'),fullPage:true});
-  await wrongRow.click();
-  const input=sheet.getByLabel('2nd place time',{exact:true});
+  await expect(page).toHaveURL(`${racePage}/correct-times`);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Correct times',exact:true})).toBeVisible();
+  // Nothing changed yet: the docked Save says why it cannot save, and no box (not even the comment) takes focus.
+  const footer=page.getByRole('contentinfo'),save=footer.getByRole('button',{name:'Save times',exact:true});
+  await expect(footer.getByText('Change a time to save.',{exact:true})).toBeVisible();await expect(save).toHaveAttribute('aria-disabled','true');
+  await expect(page.getByLabel('Comment (optional)',{exact:true})).not.toBeFocused();await expect(page.locator('input:focus,textarea:focus')).toHaveCount(0);
+  const wrongRow=page.getByRole('button',{name:'2nd place · 11.00 · Faster than 1st place',exact:true});
+  expect(await background(wrongRow)).toBe(amber);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('correct-times-wrong.png'),fullPage:true});
+  await press(wrongRow);
+  const input=page.getByLabel('2nd place time',{exact:true});
   await expect(input).toHaveAttribute('inputmode','numeric');await expect(input).toHaveAttribute('enterkeyhint','next');
   await expect(input).toBeFocused();
-  // The same time box as the Timer: the time itself, filling from the right, selected so typing replaces it.
+  // The race flow's one time box: the time itself, filling from the right, selected so typing replaces it.
   await expect(input).toHaveValue('11.00');await expect.poll(()=>selected(page,'2nd place time')).toBe('11.00');
-  await expect(sheet.getByText('Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.',{exact:true})).toBeVisible();
-  await expect(sheet.getByText(/Shows as|Digits only/)).toHaveCount(0);await expect(input).not.toHaveAttribute('placeholder');
+  await expect(page.getByText('Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34.',{exact:true})).toBeVisible();
+  await expect(page.getByText(/Shows as|Digits only/)).toHaveCount(0);await expect(input).not.toHaveAttribute('placeholder');
   await input.pressSequentially('12.2-0');await expect(input).toHaveValue('12.20');
   await input.press('3');await input.press('Backspace');await expect(input).toHaveValue('12.20');
   await expect(input).toMatchAriaSnapshot('- textbox "2nd place time": "12.20"');
-  await page.screenshot({path:info.outputPath('times-editor-typing.png'),fullPage:false});
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('correct-times-typing.png'),fullPage:false});
   await input.press('Enter');
-  await expect(sheet.getByRole('button',{name:'2nd place · 12.20',exact:true})).toBeVisible();
-  await expect(sheet.getByLabel('Accept these out-of-order times',{exact:true})).toHaveCount(0);
-  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
+  await expect(page.getByRole('button',{name:'2nd place · 12.20',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Accept these out-of-order times',exact:true})).toHaveCount(0);
+  await expect(footer.locator('.rz-footer__reason')).toHaveCount(0);
+  // Save lands back on the race page it was opened from, with one toast.
+  await press(save);
+  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
   await expect(second).toContainText('12.20');await expect(second).not.toContainText('Faster');
   expect(await background(second)).not.toBe(amber);
 });
@@ -72,27 +80,29 @@ test('Correct times refuses a time no one can run in the amber callout under the
   // The race's distance comes from its event name.
   const code=await ownCode(),race=await recordedRace(page,code,[2111,2112],[1200,1300],undefined,'60m race page');
   await openRace(page,code,ownName('Refusing lead'),race.number);
-  await raceAction(page,'Correct times');
-  const sheet=page.getByRole('dialog');
-  await sheet.getByRole('button',{name:'2nd place · 13.00',exact:true}).click();
-  const input=sheet.getByLabel('2nd place time',{exact:true});
+  const racePage=page.url();await raceAction(page,'Correct times');
+  await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
+  const input=page.getByLabel('2nd place time',{exact:true});
   await input.pressSequentially('21');await input.press('Enter');
-  const refusal=sheet.getByRole('alert').filter({hasText:'0.21 is too fast for 60m race page. No one runs 60m in under 6.00. For 21 seconds, type 2100.'});
+  const refusal=page.getByRole('alert').filter({hasText:'0.21 is too fast for 60m race page. No one runs 60m in under 6.00. For 21 seconds, type 2100.'});
   await expect(refusal).toBeVisible();
   await expect(input).toBeFocused();await expect(input).toHaveValue('0.21');await expect.poll(()=>selected(page,'2nd place time')).toBe('0.21');
   expect((await refusal.boundingBox())!.y).toBeGreaterThan((await input.boundingBox())!.y);
   // The race flow's amber callout, and only the refusal: 0.21 would be out of order too, but it is no time at all.
   expect(await background(refusal)).toBe('rgb(255, 241, 199)');
-  await expect(sheet.getByText(/Times are out of order/)).toHaveCount(0);
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('times-editor-refused.png'),fullPage:true});
+  await expect(page.getByText(/Times are out of order/)).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('correct-times-refused.png'),fullPage:true});
   // The next digit replaces the refused digits, and the refusal goes.
   await input.pressSequentially('1');await expect(input).toHaveValue('0.01');await expect(refusal).toHaveCount(0);
   await input.pressSequentially('9234');await input.press('Enter');
-  await expect(sheet.getByRole('alert').filter({hasText:'Seconds go up to 59, so 1:92.34 is not a time. Check the timer and type it again.'})).toBeVisible();
+  await expect(page.getByRole('alert').filter({hasText:'Seconds go up to 59, so 1:92.34 is not a time. Check the timer and type it again.'})).toBeVisible();
+  // Save with refused digits in the box saves nothing: the refusal stays.
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
+  await expect(page).toHaveURL(`${racePage}/correct-times`);await expect(page.getByRole('alert').filter({hasText:'Seconds go up to 59'})).toBeVisible();
   await input.pressSequentially('1350');await input.press('Enter');
-  await expect(sheet.getByRole('button',{name:'2nd place · 13.50',exact:true})).toBeVisible();await expect(sheet.getByRole('alert')).toHaveCount(0);
-  await sheet.getByRole('button',{name:'Save times',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
+  await expect(page.getByRole('button',{name:'2nd place · 13.50',exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
+  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
 });
 
 test('a slow time the timer kept shows in amber with its reason on the race page and in Correct times, as on the Timer',async({page},info)=>{
@@ -103,8 +113,8 @@ test('a slow time the timer kept shows in amber with its reason on the race page
   await expect(slow).toContainText('Slow for 60m slow page');expect(await background(slow)).toBe(amber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-slow-time.png'),fullPage:true});
   await raceAction(page,'Correct times');
-  const row=page.getByRole('dialog').getByRole('button',{name:'2nd place · 45.00 · Slow for 60m slow page',exact:true});
-  expect(await background(row)).toBe(editorAmber);
+  const row=page.getByRole('button',{name:'2nd place · 45.00 · Slow for 60m slow page',exact:true});
+  expect(await background(row)).toBe(amber);
 });
 
 test('a single child\'s warnings show beside their number on the Current record, amber while open and grey once checked or settled by a Wrong section or age disqualification',async({page},info)=>{

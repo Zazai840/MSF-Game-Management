@@ -9,8 +9,9 @@ import { ChangePassword,Day } from './Day.js';
 import { Events } from './Events.js';
 import { SignedInToday } from './SignedInToday.js';
 import { Tie } from './Tie.js';
-import { RaceLifecycle,type LifecycleView } from './RaceLifecycle.js';
-import { RaceCorrection,isCorrection } from './CorrectRunners.js';
+import { RaceLifecycle } from './RaceLifecycle.js';
+import { RaceCorrection } from './CorrectRunners.js';
+import { TimesAndOrder } from './TimesAndOrder.js';
 import type { PhonesRead } from '../../shared/phones.js';
 import { clockWithSeconds } from '../../shared/clock.js';
 /** A lead screen: every screen but Races and the race screen. */
@@ -41,8 +42,11 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);
   if(kind==='olympics-password') return <ChangePassword/>;
   if(view.kind==='tie') return <Tie key={addressOf(view)} code={view.code} tieId={view.tieId} stage={view.stage} onBack={()=>onBack()}/>;
-  if(isCorrection(view)) return <RaceCorrection key={addressOf(view)} view={view} onBack={()=>onBack()} onChanged={onChanged}/>;
-  if(view.kind==='race-action') return <RaceLifecycle key={addressOf(view)} view={view as LifecycleView} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
+  if(view.kind==='correction') {
+    const Correction=view.action==='correct-runner-list' || view.action==='correct-teams'?RaceCorrection:TimesAndOrder;
+    return <Correction key={addressOf(view)} view={view} onBack={()=>onBack()} onChanged={onChanged}/>;
+  }
+  if(view.kind==='race-action') return <RaceLifecycle key={addressOf(view)} view={view} onOpen={onOpen} onBack={onBack} onChanged={onChanged}/>;
   if(kind==='signed-in-today') return <SignedInToday onSaved={onChanged}/>;
   if(kind==='day') return <LeadBar title="Day setup" up="Races" body={<>
     <main className="rz-main">{error!==null && <ErrorCallout error={error} action="read"/>}

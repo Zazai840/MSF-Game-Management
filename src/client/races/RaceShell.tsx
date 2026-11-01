@@ -127,5 +127,5 @@ function LeadRaceActions({raceId,onOpen,onClose}:{raceId:string;onOpen:(view:Vie
   useEffect(()=>{void load();},[raceId]);
   // Opening takes a moment; one sheet opens with what it offers, rather than a second sheet replacing a first.
   if(!read) return error?<Sheet title="Race actions" onClose={onClose}><Callout message={error}/></Sheet>:null;
-  return <RaceActions read={read} where="screen" onOpen={onOpen} onClose={onClose} onSaved={load}/>;
+  return <RaceActions read={read} where="screen" onOpen={onOpen} onClose={onClose}/>;
 }

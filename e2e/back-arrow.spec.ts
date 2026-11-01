@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,press,recordRace,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,press,raceAction,recordRace,test,type Page} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -65,6 +65,9 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   await racePage();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('race-page.png')});
+  // A correction goes back to the race page it was opened from.
+  await raceAction(page,'Correct times');await onScreen(page,new RegExp(`/results/${code}/races/[^/]+/correct-times$`),'Correct times','Heat 1');
+  await bothGoBack(page,racePage);
   // A reload stays on the race page, and Back still goes where it went before.
   await page.reload();await racePage();
   await bothGoBack(page,()=>eventPage('races'));
@@ -103,8 +106,9 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const {id:raceId}=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2031],[1500]);
   await page.goto('/');await join(page,ownName('Back up lead'),{job:'Start line'});await becomeLead(page,'e2e-owner-fixture');
-  await page.goto(`/results/${code}/races/${raceId}`);
-  await onScreen(page,`/results/${code}/races/${raceId}`,'Heat 1',event);
+  await page.goto(`/results/${code}/races/${raceId}/correct-finishing-order`);
+  await onScreen(page,`/results/${code}/races/${raceId}/correct-finishing-order`,'Correct finishing order','Heat 1');
+  await press(arrow(page));await onScreen(page,`/results/${code}/races/${raceId}`,'Heat 1',event);
   await press(arrow(page));await onScreen(page,`/results/${code}/races`,event,'Results');
   await press(arrow(page));await onScreen(page,'/results','Results','Races');
   await press(arrow(page));await onRaces(page);

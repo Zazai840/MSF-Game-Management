@@ -17,9 +17,7 @@ import type { View } from '../shell/addresses.js';
 import { Comment } from './Comment.js';
 import { Frame } from './RunnerSheet.js';
 
-type Correction='correct-runner-list'|'correct-teams';
-type CorrectionView=Extract<View,{kind:'race-action'}> & {action:Correction};
-export const isCorrection=(view:View):view is CorrectionView=>view.kind==='race-action' && (view.action==='correct-runner-list' || view.action==='correct-teams');
+type CorrectionView=Extract<View,{kind:'correction'}>;
 /** Sends the one save; a refusal comes back to show, and the screen stays. */
 type Save=(command:'runners'|'teams',body:object)=>Promise<unknown>;
 interface BodyProps { read:LeadRaceRead; save:Save; busy:boolean }
