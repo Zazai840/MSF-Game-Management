@@ -1,4 +1,4 @@
-import {eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page,flowPost} from './fixtures.js';
+import {back,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,type Page,flowPost} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -13,7 +13,13 @@ async function marks(page:Page) {
  return attendance(page).evaluateAll(rows=>rows.map(row=>row.querySelector('button[aria-pressed="true"]')?.textContent??'none'));
 }
 /** The check-sheet buttons on the event's tab showing. */
-const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Final complete|Results without a final|Reopen \w+)$/});
+const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/});
+/** The rows of the Final tab's "Line-up, fastest first", opened. */
+async function lineUp(page:Page) {
+ const rows=page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem');
+ if(!await rows.first().isVisible()) await page.getByText('Line-up, fastest first',{exact:true}).click();
+ return rows;
+}
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
 /**
  * Heats recorded through the API (the race flow's heats have their own tests), the final made with "+ Final" on Races
@@ -29,8 +35,8 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  test.setTimeout(60000);
  const code=await ownCode(),name=ownName('Final here'),n=await ownWristbands('Boy Cubs',8);
  await heatsToFinal(page,code,name,[[[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]],[[n(17),n(18)],[1150,1250]]],ownName('Final lead'),true);
- await eventTab(page,'Final');await expect(page.getByText('Final finishing order not recorded yet.',{exact:true})).toBeVisible();
- await expect(page.getByRole('heading',{level:4,name:'Line-up, fastest first',exact:true})).toBeVisible();
+ await eventTab(page,'Final');await expect(page.getByText("The final's order appears here once its finishing order is saved.",{exact:true})).toBeVisible();
+ await expect(await lineUp(page)).toHaveText([`1st fastest · ${n(11)}`,`2nd fastest · ${n(12)}`,`3rd fastest · ${n(13)}`,`4th fastest · ${n(17)}`,`5th fastest · ${n(14)}`,`6th fastest · ${n(18)}`]);
  const sam=(await openPhone(ownName('Sam final'))).page,priya=(await openPhone(ownName('Priya final'),{job:'finish'})).page;
  await openRace(sam,name,'Boy Cubs','Final');await openRace(priya,name,'Boy Cubs','Final');
  // Heats are complete, so no phone offers another heat, on the race or on its card.
@@ -55,7 +61,12 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(runnerButtons(priya).filter({hasText:String(n(12))})).toHaveCount(0,live);
  await expect(priya.locator('.rz-prompt__meta')).toContainText('5 runners',live);
  // A lead's call-up for the absent seed appears live, not marked yet: the finish line has them once marked Here.
- await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:new RegExp(`Call up next-ranked runner: ${n(15)}`)}).click();await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(`called up ${n(15)}`);await eventTab(page,'Final');
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:new RegExp(`Call up next-ranked runner: ${n(15)}`)}).click();
+ // The call-up saves at once: the toast, then the line-up names it and the seed it replaces stays Absent.
+ await expectToast(page,`${n(15)} called up · Boy Cubs Final`);
+ await expect(await lineUp(page)).toContainText([`2nd fastest · ${n(12)} · Absent · no final place`,`Called up from heat rank 7 · ${n(15)}`]);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-tab-call-up.png'),fullPage:true});
+ await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(`called up ${n(15)}`);await eventTab(page,'Final');
  await expect(here(sam,n(15))).toHaveAttribute('aria-pressed','false',live);
  await expect(attendance(sam).filter({hasText:String(n(15))})).toContainText('Called up');
  await expect(runnerButtons(priya).filter({hasText:String(n(15))})).toHaveCount(0);
@@ -70,7 +81,20 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
  await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
- await page.getByRole('button',{name:'Refresh',exact:true}).click();const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final).toContainText(String(n(15)));await expect(final.locator('.result-time')).toHaveCount(0);await page.getByRole('button',{name:'Final complete',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText(`1st: ${n(15)}`);await sheet.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByRole('table',{name:'Input - Running'})).toContainText(String(n(15)));await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();
+ // The final's order, medal places on gold stars and no times; a row opens the runner sheet.
+ const final=page.getByRole('list',{name:'Final leaderboard'});
+ await expect(final.getByRole('button')).toHaveText([`1${n(15)}`,`2${n(11)}`,`3${n(17)}`,`4th${n(13)}`,`5th${n(18)}`,`6th${n(14)}`]);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-tab-order.png'),fullPage:true});
+ // With an order, the event now opens on Final.
+ await back(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Boy Cubs`)}).click();
+ await expect(page).toHaveURL(new RegExp(`/results/${code}/final$`));await expect(final.getByRole('button')).toHaveCount(6);
+ // No Day export line until the medals are confirmed; then it names what the export's row holds, and Reopen final takes the button's place.
+ await expect(page.getByText(/^Day export/)).toHaveCount(0);
+ await page.getByRole('button',{name:'Confirm the medals',exact:true}).click();let sheet=page.getByRole('dialog',{name:'Final complete',exact:true});await expect(sheet).toContainText(`1st: ${n(15)}`);await sheet.getByRole('button',{name:'Confirm',exact:true}).click();
+ await expect(page.getByText(`Day export 1st ${n(15)} · 2nd ${n(11)} · 3rd ${n(17)}`,{exact:true})).toBeVisible();
+ await expect(stageButtons(page)).toHaveText(['Reopen final']);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-complete.png'),fullPage:true});
  await openRace(priya,name,'Boy Cubs','Final');
  await expect(priya.getByRole('status').filter({hasText:'Boy Cubs final is finished. Ask a lead to change this race.'})).toBeVisible();
  await eventTab(page,'Heats');await page.getByRole('button',{name:'Reopen heats',exact:true}).click();sheet=page.getByRole('dialog',{name:'Reopen heats',exact:true});await expect(sheet).toContainText('Heats cannot be reopened');await sheet.getByLabel('Comment',{exact:true}).fill('Check heat correction');await sheet.getByRole('button',{name:'Reopen',exact:true}).click();await expect(sheet.getByRole('alert')).toHaveText('The final has started - heats cannot be reopened');await sheet.getByRole('button',{name:'Close check sheet',exact:true}).click();await eventTab(page,'Final');await expect(final).toContainText(String(n(15)));
@@ -143,7 +167,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  const corrected=race.final!.entries.find(entry=>entry.wristband===n(41))!;
  expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true}})).ok()).toBe(true);
  await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
- await expect(page.locator('.final-lineup li').filter({hasText:String(n(43))})).toContainText(`ran the heats as ${n(41)}`);
+ await expect((await lineUp(page)).filter({hasText:String(n(43))})).toHaveText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
 });
 test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Plus before final'),n=await ownWristbands('Boy Cubs',2);

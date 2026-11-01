@@ -300,6 +300,15 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-lead-row__place { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 17px; text-transform: uppercase; }
 .rz-lead-row__num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rz-lead-row__end { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); }
+.rz-lead-rows button.rz-lead-row { width: 100%; border: 0; font: inherit; color: var(--navy); cursor: pointer; }
+.rz-lead-row__end:has(.rz-tag) { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-6); }
+/* A medal place on the Final tab: its number on a gold star. */
+.rz-lead-row__medal { position: relative; width: var(--size-rank); height: var(--size-rank); display: flex; align-items: center; justify-content: center; color: var(--navy); }
+.rz-lead-row__medal .rz-star { position: absolute; inset: 0; fill: var(--gold); }
+.rz-lead-row__medal span { position: relative; }
+/* The Day export line: what the export's Input - Running row holds for this event. */
+.rz-export-line { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.rz-export-line b { margin-right: var(--space-6); color: var(--navy); }
 /* A relay team as a lead reads it: "Team 5" over its four children in leg order. */
 .rz-team-legs { display: block; font-size: 14px; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .rz-lead-row__legs { grid-column: 2 / -1; margin-top: calc(-1 * var(--space-8)); }
@@ -333,9 +342,6 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-lb__tie { flex: none; min-width: var(--size-touch); min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; }
 /* shortcut: the Final tab keeps today's older-look final panel and Input - Running table, its old surfaces and text
    mapped onto the design system's approved pairs; drop when #277 builds the Final tab. */
-.rz-final-today { display: flex; flex-direction: column; gap: var(--space-12); --surface: var(--card); --tint: var(--paper); --text: var(--navy); --muted: var(--ink-muted); }
-.rz-final-today .result-mark, .rz-final-today .badge { color: var(--on-navy); }
-.rz-final-today .note-tag { color: var(--navy); }
 .rz-notes { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-notes li { display: flex; gap: var(--space-10); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; line-height: 1.4; font-weight: 600; }
 .rz-notes time { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; }

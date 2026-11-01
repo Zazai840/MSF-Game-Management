@@ -8,6 +8,7 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/',{kind:'races'}],
     ['/races/r-1',{kind:'race',id:'r-1'}],
     ['/results',{kind:'results'}],
+    ['/results/R4',{kind:'event',code:'R4'}],
     ['/results/R4/heats',{kind:'event',code:'R4',tab:'heats'}],
     ['/results/R4/final',{kind:'event',code:'R4',tab:'final'}],
     ['/results/R4/races',{kind:'event',code:'R4',tab:'races'}],
@@ -32,8 +33,7 @@ test('each lead screen has its own address, and opening an address opens that sc
   }
 });
 
-test('an event address without a tab opens Heats, and an address the app does not know opens Races',()=>{
-  expect(viewAt('/results/R4')).toEqual({kind:'event',code:'R4',tab:'heats'});
+test('an address the app does not know opens Races',()=>{
   expect(viewAt('/results/R4/medals')).toEqual({kind:'races'});
   expect(viewAt('/results/R4/races/r-1/runners/e-2/promote')).toEqual({kind:'races'});
   expect(viewAt('/nowhere')).toEqual({kind:'races'});
