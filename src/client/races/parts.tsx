@@ -1,4 +1,4 @@
-import { createContext,useContext,useEffect,useId,useLayoutEffect,useRef,type ReactNode } from 'react';
+import { createContext,useContext,useEffect,useId,useLayoutEffect,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type ReactNode } from 'react';
 import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/AppHeader.js';
@@ -156,18 +156,31 @@ export function StepStrip({race,role,selected,onSelect,notes={},label,relay=fals
     {shown.map(step=><li key={step} className={step===own?'rz-step rz-step--mine':'rz-step'}>{cell(step)}</li>)}
   </ul>;
 }
-/** A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. Focus goes into it. */
+const focusable='button:not(:disabled),select:not(:disabled),textarea:not(:disabled),input:not(:disabled),a[href]';
+/**
+ * A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. The sheet
+ * itself takes focus (no field does), Tab stays inside it, and closing gives focus back to what opened it.
+ */
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
   const id=useId(),sheet=useRef<HTMLDivElement>(null);
+  // Read while rendering, before a box inside can take focus with autoFocus.
+  const [opener]=useState(()=>document.activeElement);
   useSheetEntry(onClose);
   useEffect(()=>{
     // A box inside that took focus as it opened (a leg box's autoFocus) keeps it, so its number pad stays open.
     if(!sheet.current?.contains(document.activeElement)) sheet.current?.focus();
     const key=(event:KeyboardEvent)=>{if(event.key==='Escape') onClose();};
-    addEventListener('keydown',key);return ()=>removeEventListener('keydown',key);
+    addEventListener('keydown',key);
+    return ()=>{removeEventListener('keydown',key);if(opener instanceof HTMLElement && opener.isConnected) opener.focus();};
   },[]);
+  function keepTab(event:ReactKeyboardEvent<HTMLDivElement>) {
+    if(event.key!=='Tab') return;
+    const items=[...event.currentTarget.querySelectorAll<HTMLElement>(focusable)],at=items.indexOf(document.activeElement as HTMLElement);
+    const to=!items.length?event.currentTarget:event.shiftKey?(at<=0?items[items.length-1]:null):(at===-1 || at===items.length-1?items[0]:null);
+    if(to) {event.preventDefault();to.focus();}
+  }
   return <div className="rz-scrim" onClick={event=>{if(event.target===event.currentTarget) onClose();}}>
-    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={sheet}>
+    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={sheet} onKeyDown={keepTab}>
       <div className="rz-sheet__grip" aria-hidden="true"/>
       <div className="rz-sheet__head"><h2 className="rz-sheet__title" id={id}>{title}</h2><button type="button" className="rz-sheet__close" aria-label="Close" onClick={onClose}><Icon name="close"/></button></div>
       {children}
