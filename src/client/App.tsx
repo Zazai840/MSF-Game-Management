@@ -98,7 +98,7 @@ export function App() {
     setRole(held==='lead' && !isLead?null:held??(isLead?'lead':null));
   },[dayId,isLead]);
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
-  // The older look has no race-flow tokens, so the toast brings its own .rz-screen, as the job sheet does.
+  // The toast sits over every screen, so it brings its own screen root (the design system's tokens), as the job sheet does.
   const withToast=(screen:ReactNode)=><ToastContext.Provider value={showToast}>{screen}
     {toast && <div className="rz-screen"><Toast key={toast.id} toast={toast} onOpen={(id,step)=>go({kind:'race',id,step})} onClose={()=>setToast(null)}/></div>}</ToastContext.Provider>;
   return withToast(screen());
@@ -137,7 +137,7 @@ export function App() {
       if(levels===2) {if(entryBack()) {afterBack=()=>{if(entryBack()) history.back();else up(viewAt(location.pathname+location.search));};history.back();} else up(parentOf(view));return;}
       if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
     };
-    // A lead screen's body keeps the older look, which has no race-flow tokens, so the job sheet brings its own .rz-screen.
+    // The job sheet sits beside the lead screen's root, so it brings its own.
     return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:()=>back()}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}

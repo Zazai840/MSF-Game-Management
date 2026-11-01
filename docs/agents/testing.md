@@ -12,7 +12,7 @@ How to run and write this repo's tests so they agree with CI. Commands and scrip
 `npm test -- <files>` makes its own Postgres database for the run and drops it after, so worktrees run at once without clashing. `GLOSSARY.md` and the design system are checked here too:
 
 - `tests/glossary-words.test.ts` fails when a screen shows a word a glossary entry lists under _Avoid_. Use the glossary's term. A word that is plain English there, or on a screen a spec left alone, goes on its allow-list with a one-line reason.
-- `tests/design-system-lengths.test.ts` fails when race-flow CSS (`src/client/races/*.css`) uses a pixel length off its token scale in `docs/running-zone-design-system/tokens.json`. Use a `var(--space-*)`, `--radius-*` or `--size-*` token; a deliberate exception goes on its allow-list with a reason.
+- `tests/design-system-lengths.test.ts` fails when race-flow or lead-screen CSS (`src/client/races/*.css`, `src/client/lead/*.css`) uses a pixel length off its token scale in `docs/running-zone-design-system/tokens.json`. Use a `var(--space-*)`, `--radius-*` or `--size-*` token; a deliberate exception goes on its allow-list with a reason.
 
 ## End-to-end tests
 
@@ -22,5 +22,5 @@ How to run and write this repo's tests so they agree with CI. Commands and scrip
   - names from `ownName('Words')` (adds the project and the `--repeat-each` pass). A join or sign-in that reuses another test's name fails at once, naming both tests.
   - event codes from `ownCode()`, events from `ownEvent`, relays from `ownRelay`, children from `ownWristbands`.
 - **Press with `press(locator)`**: it taps on the phone projects and clicks on desktop. Lint rejects `.tap(` in `e2e/`.
-- **Look checks**: call `expect(await lookProblems(page)).toEqual([])` on each new screen or state. It measures 44px targets, contrast, the design system's approved colour pairs (`docs/running-zone-design-system/accessibility.md`) on race-flow screens, and the older screens' house style. A failure names the element: fix the screen to the design system rather than the check.
+- **Look checks**: call `expect(await lookProblems(page)).toEqual([])` on each new screen or state. It measures 44px targets, contrast and the design system's approved colour pairs (`docs/running-zone-design-system/accessibility.md`), and flags anything shown outside the Running Zone screen root (`.rz-screen`). A failure names the element: fix the screen to the design system rather than the check.
 - **Check a fix holds on repeat**: `npx playwright test e2e/<spec>.ts --repeat-each=2` shows a test owns its data.

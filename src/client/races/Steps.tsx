@@ -8,7 +8,7 @@ import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
 import { phoneStorage } from '../api.js';
-import { NumberBox } from '../flow/NumberEntry.js';
+import { NumberBox } from '../flow/NumberBox.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';

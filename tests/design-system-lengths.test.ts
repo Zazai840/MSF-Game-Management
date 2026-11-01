@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { expect, test } from 'vitest';
-// Every pixel length in the race flow's CSS comes from the Running Zone design system: the tokens.json scale for what
+// Every pixel length in the race flow's and the lead screens' CSS comes from the Running Zone design system: the tokens.json scale for what
 // it sets, or the same rule in the system's own components/bundle.css, which rz.css copies.
 const tokens=JSON.parse(readFileSync('docs/running-zone-design-system/tokens.json','utf8'));
 const px=(values:string[])=>new Set(values.flatMap(value=>[...value.matchAll(/(-?[\d.]+)px/g)].map(([,n])=>Math.abs(Number(n)))));
@@ -47,13 +47,14 @@ const allowed:Array<{file:string;selector:string;property:string;value:number;re
   {file:'src/client/races/race-flow.css',selector:'.rz-prompt--compact .rz-prompt__q',property:'font-size',value:48,reason:'a wide screen\'s compact prompt, between the phone\'s 40px and the full 54px'},
 ];
 const fromBundle=new Set(bundle.map(({selector,property,value})=>`${selector}|${property}|${value}`));
-const files=readdirSync('src/client/races').filter(file=>file.endsWith('.css')).map(file=>`src/client/races/${file}`);
+// The race flow's stylesheets and any a lead screen brings.
+const files=['src/client/races','src/client/lead'].flatMap(folder=>readdirSync(folder).filter(file=>file.endsWith('.css')).map(file=>`${folder}/${file}`));
 
 test('the scales come from tokens.json and the components',()=>{
   expect([...spacing]).toEqual([4,6,8,10,12,14,16,20,24,32]);
   expect([type.has(15),sizes.has(44),sizes.has(18),scaleFor('border-radius')!.has(999)]).toEqual([true,true,true,true]);
 });
-test('every pixel length in the race flow\'s CSS is on its design-system scale',()=>{
+test('every pixel length in the race flow\'s and the lead screens\' CSS is on its design-system scale',()=>{
   const off=files.flatMap(file=>lengths(file).filter(({selector,property,value})=>value!==0&&scaleFor(property)?.has(Math.abs(value))===false
     &&!fromBundle.has(`${selector}|${property}|${value}`)
     &&!allowed.some(allow=>allow.file===file&&allow.selector===selector&&allow.property===property&&allow.value===value))

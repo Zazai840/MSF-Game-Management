@@ -356,6 +356,16 @@ export async function makeFinal(page:Page,name:string,section:string) {
   await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
   await backToRaces(page);
 }
+/** The final made by the owner from the fastest heats, everyone marked Here, placed in this order and saved. */
+export async function saveFinal(request:APIRequestContext,code:string,order:number[]) {
+  const token=process.env.E2E_OWNER_TOKEN!,headers={authorization:`Bearer ${token}`};
+  expect((await request.post('/api/races',{headers,data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
+  const {race}=await flowRace(request,token,code);
+  const here=race.final!.entries.map(entry=>entry.finalEntryId);
+  expect((await request.post(`/api/races/${race.id}/absent`,{headers,data:{raceId:race.id,version:race.parts.runners.version,here,absent:[]}})).ok()).toBe(true);
+  await writeOrder(request,token,code,order);
+  await submitRace(request,token,code);
+}
 /** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
 export async function raceAction(page:Page,action:string) {
   await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
@@ -475,10 +485,9 @@ const approvedColours=(()=>{
   return {pairs,names:Object.fromEntries([...tokens.keys()].reverse().map(name=>[colour(name),name]))};
 })();
 /**
- * Every rule of the look that can be measured on the screen currently shown. The race flow's screens (inside
- * `.rz-screen`) follow the Running Zone design system (docs/running-zone-design-system/accessibility.md): 44px
- * targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS. The older screens (Results, Day setup, a relay's race
- * screen) also keep the v2 house style: no outlines, sentence case, 15px text, 22-26px headings.
+ * Every rule of the look that can be measured on the screen currently shown. Every screen renders inside the Running
+ * Zone screen root (`.rz-screen`) and follows the design system (docs/running-zone-design-system/accessibility.md):
+ * 44px targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS.
  */
 export async function lookProblems(page:Page) {
   await page.evaluate(()=>document.fonts.ready);
@@ -497,15 +506,9 @@ export async function lookProblems(page:Page) {
       const box=(target.matches('input[type=radio],input[type=checkbox]')&&target.closest('label')?target.closest('label')!:target).getBoundingClientRect();
       if(box.height<43.5||box.width<43.5) problems.push(`tap target ${describe(target)} is ${Math.round(box.width)}x${Math.round(box.height)}`);
     }
-    // House style: surfaces are told apart by tone, not outlines; labels in sentence case; one clock; Refresh says only Refresh.
-    const designSystem=(element:Element)=>!!element.closest('.rz-screen');
-    for(const box of document.querySelectorAll('div,li,section,article,nav,ol,ul,details,aside,header,footer,p,small,span')) {
-      if(!visible(box) || designSystem(box)) continue;
-      // An outline that marks a state stays: a wrong time, the row being edited, the row being dragged, a legend swatch.
-      if(box.matches(".time-wrong,.lead-editing,[data-dragging],.results-swatch")) continue;
-      const style=getComputedStyle(box);
-      if(['top','right','bottom','left'].some(side=>parseFloat(style.getPropertyValue(`border-${side}-width`))>0&&style.getPropertyValue(`border-${side}-style`)!=='none')) problems.push(`outlined ${describe(box)}`);
-      if(style.textTransform==='uppercase') problems.push(`uppercase ${describe(box)}`);
+    // Nothing shows outside a screen root: the older look is gone. One clock; Refresh says only Refresh.
+    for(const element of document.body.querySelectorAll(':not(script,style)')) {
+      if(visible(element) && !element.closest('.rz-screen') && !element.querySelector('.rz-screen')) problems.push(`outside the screen root ${describe(element)}`);
     }
     if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
     for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
@@ -562,10 +565,6 @@ export async function lookProblems(page:Page) {
         if(visible(avatar)&&area.left<box.right&&area.right>box.left&&area.top<box.bottom&&area.bottom>box.top) problems.push(`menu covers ${describe(avatar)}`);
       }
     }
-    for(const heading of document.querySelectorAll('h1,h2')) {
-      const size=parseFloat(getComputedStyle(heading).fontSize);
-      if(visible(heading)&&!designSystem(heading)&&(size<22||size>26)) problems.push(`heading ${describe(heading)} is ${size}px`);
-    }
     const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     for(let node=walker.nextNode();node;node=walker.nextNode()) {
       const element=node.parentElement!;
@@ -573,13 +572,12 @@ export async function lookProblems(page:Page) {
       if(!node.textContent!.trim()||!visible(element)||element.closest('[aria-hidden=true],button:disabled:not(.rz-slot),script,style')) continue;
       const style=getComputedStyle(element);
       const size=parseFloat(style.fontSize);
-      if(!designSystem(element)&&element.closest('p,li,label,dd,dt,td,th,button,output,a')&&!element.closest('small,.badge,h1,h2,h3')&&size<15) problems.push(`text ${describe(element)} is ${style.fontSize}`);
       const [a,b]=[luminance(style.color),luminance(background(element))].sort((x,y)=>y-x);
-      const ratio=(a+0.05)/(b+0.05),large=designSystem(element)&&(size>=24||size>=19&&Number(style.fontWeight)>=700);
+      const ratio=(a+0.05)/(b+0.05),large=size>=24||size>=19&&Number(style.fontWeight)>=700;
       if(ratio<(large?3:4.5)) problems.push(`text ${describe(element)} contrast ${ratio.toFixed(2)}`);
-      // The design system's screens use only its approved colour pairs, whatever their contrast.
+      // Only the design system's approved colour pairs, whatever their contrast.
       const pair=`${rgb(style.color).slice(0,3).join(',')} on ${rgb(background(element)).slice(0,3).join(',')}`;
-      if(designSystem(element)&&!approved.pairs.includes(pair)) problems.push(`text ${describe(element)} is an unapproved colour pair ${pair.replace(/[\d,]+/g,colour=>approved.names[colour]??`rgb(${colour})`)}`);
+      if(!approved.pairs.includes(pair)) problems.push(`text ${describe(element)} is an unapproved colour pair ${pair.replace(/[\d,]+/g,colour=>approved.names[colour]??`rgb(${colour})`)}`);
     }
     return problems;
   },approvedColours);

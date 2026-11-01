@@ -17,22 +17,21 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* ---------- Reset: the older look styles bare elements (theme.css, style.css); inside .rz-screen they start plain.
-   Same specificity as those rules and loaded after them, so they lose here, while every rz- class still wins. ---------- */
+/* ---------- Reset: inside .rz-screen the browser's own element styles start plain, so every rz- class still wins. ---------- */
 :where(.rz-screen) button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; line-height: inherit; text-decoration: none; }
-:where(.rz-screen) footer button { text-decoration: none; }
 :where(.rz-screen) h1, :where(.rz-screen) h2, :where(.rz-screen) h3, :where(.rz-screen) p { margin: 0; color: inherit; }
-:where(.rz-screen) main { max-width: none; margin: 0; padding: 0; }
-:where(.rz-screen) footer { margin-top: 0; padding-top: 0; display: block; align-items: normal; font-size: inherit; color: inherit; }
 :where(.rz-screen) label { display: block; }
 :where(.rz-screen) legend { padding: 0; }
 :where(.rz-screen) form { display: flex; flex-direction: column; gap: var(--space-8); }
 :where(.rz-screen) input { min-height: 0; }
+/* A clock's digits keep their width, even where a font shorthand resets the screen's tabular figures. */
+:where(.rz-screen) time { font-variant-numeric: tabular-nums; }
 
 /* ---------- Screen layout ----------
    Phone first: one column with space-20 gutters. Wider screens keep the navy bars edge to edge and centre the content
-   in a column of --content: 720px on a tablet, and on Races (rz-app--wide) 1040px on a laptop, where the cards flow into
-   columns. Every full-width band pads its sides with --gutter, which is space-20 on a phone. */
+   in a column of --content: 720px on a tablet, and on a card grid (rz-app--wide: Races, Results, Events) 1040px on a
+   laptop, where the cards flow into columns. Lists of rows, tabs and forms keep the 720px column, as a race does.
+   Every full-width band pads its sides with --gutter, which is space-20 on a phone. */
 .rz-app { --content: 100%; --gutter: max(var(--space-20), calc((100% - var(--content)) / 2)); min-height: 100dvh; display: flex; flex-direction: column; }
 @media (min-width: 700px) { .rz-app { --content: 720px; } }
 @media (min-width: 1100px) { .rz-app--wide { --content: 1040px; } }
@@ -42,11 +41,11 @@
 .rz-appbar--race .rz-rolechip { gap: var(--space-4); padding: 0 var(--space-8) 0 var(--space-10); }
 .rz-testbuild, .rz-main, .rz-heats-nav, .rz-steps, .rz-footer { padding-left: var(--gutter); padding-right: var(--gutter); }
 .rz-tabs { margin-left: var(--gutter); margin-right: var(--gutter); }
-/* Over today's relay list, which keeps the older look below it. */
-.rz-app--top { min-height: 0; padding-bottom: var(--space-12); }
 .rz-main { flex: 1; display: flex; flex-direction: column; gap: var(--space-12); padding-top: var(--space-6); padding-bottom: var(--space-16); }
 /* The docked footer has left the page's flow: the page keeps room for it, so the last row never hides behind it. */
 html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var(--rz-footer-height, 0px)); }
+/* Scrolling something into view (a focused input, a dragged row) keeps it above a docked footer, not under it. */
+html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-main > * { margin: 0; }
 /* A section heading sits nearer the cards it heads than what is above it. */
 .rz-main > .rz-section { margin-top: var(--space-6); }
@@ -60,7 +59,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-spinner { width: var(--size-rank); height: var(--size-rank); border: 3px solid var(--line); border-top-color: var(--navy); border-radius: 50%; animation: rz-spin 1s linear infinite; }
 @keyframes rz-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rz-spinner { animation-duration: 3s; } }
-/* The Updated-at line sits centred in its footer, as it did when the older look's footer centred it. */
+/* The Updated-at line sits centred in its footer. */
 .rz-footer .rz-refresh { justify-content: center; }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
 .rz-note { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); font-size: 14px; line-height: 1.4; font-weight: 700; }
@@ -76,12 +75,7 @@ html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var
 .rz-appbar__heading .rz-code-tag { vertical-align: 2px; }
 .rz-appbar .rz-backlink { min-width: var(--size-touch); justify-content: center; color: var(--on-navy); padding: 0 var(--space-6); border: 0; background: none; }
 /* The lead header: the back arrow names the screen it goes to in gold above the title. Its 44px target overlaps the
-   bar's padding and the title's line, so the bar stays compact. Until a lead screen's body moves into the design
-   system, the bar alone is the screen root (rz-app--bar) and the body below keeps the older look. */
-/* shortcut: the bar's gutter copies the older-look body's column (48rem, 16px then 24px padding) so the two line up; it
-   takes the wide Races column once the bodies move. */
-.rz-app--bar { min-height: 0; --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-16)); }
-@media (min-width: 800px) { .rz-app--bar { --gutter: calc(max(0px, (100% - 48rem) / 2) + var(--space-24)); } }
+   bar's padding and the title's line, so the bar stays compact. */
 .rz-appbar--lead { padding-left: var(--gutter); }
 .rz-appbar__start { flex: 1; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .rz-appbar__start > * { max-width: 100%; }
@@ -271,7 +265,7 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
 /* The name with its note under it, so a note never pushes Edit and Take off onto a line of their own. */
 .rz-teamcard__title { display: flex; flex-direction: column; min-width: 0; }
-.rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
+.rz-teamcard__name { margin: 0; font-size: 18px; line-height: 1.2; font-weight: 800; color: var(--navy); }
 .rz-teamcard__head .rz-btn { margin-left: auto; }
 .rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--navy); }
 .rz-teamcard__seed { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
@@ -351,7 +345,6 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
 .rz-choices--row .rz-choice { justify-content: center; padding: 0 var(--space-8); }
 /* Start a new day: the red outline marks the one card that clears the day; drawn inside, so its text lines up with the other cards'. */
 .rz-codecard--danger { outline: 2px solid var(--red-ink); outline-offset: -2px; }
-.rz-old { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .rz-runner:active { transform: none; } }
 
 /* ---------- An event: tabs, the Heats scoreboard, Races and Notes (Results) ---------- */
@@ -363,8 +356,6 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
 .rz-board__row { display: flex; align-items: center; gap: var(--space-6); }
 .rz-board__row > .rz-lb { flex: 1; min-width: 0; }
 .rz-lb__tie { flex: none; min-width: var(--size-touch); min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; }
-/* shortcut: the Final tab keeps today's older-look final panel and Input - Running table, its old surfaces and text
-   mapped onto the design system's approved pairs; drop when #277 builds the Final tab. */
 .rz-notes { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-notes li { display: flex; gap: var(--space-10); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; line-height: 1.4; font-weight: 600; }
 .rz-notes time { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -374,6 +365,8 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
   /* Races: cards flow into columns; headings, notes and Done span the row. */
   .rz-main--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-content: start; }
   .rz-main--cards > :not(.rz-racecard) { grid-column: 1 / -1; }
+  /* Events: its cards flow into columns too. */
+  .rz-list--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-12); }
   .rz-disclosure__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
   /* Races' footer: the Updated-at line, then New race at its own width. */
   .rz-footer--home { flex-direction: row; align-items: center; justify-content: space-between; }

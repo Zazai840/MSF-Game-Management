@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,press,raceAction,recordRace,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -43,40 +43,73 @@ test('Races has no back arrow; a race goes back to Races',async({page,request},i
   await link.click();await onRaces(page);
 });
 
-test('each lead screen has its address; the phone\'s Back and the back arrow go to the screen the lead came from, also after a reload',async({page,request},info)=>{
+test('the full Back walk: on every lead screen and sheet the phone\'s Back and the back arrow go to the screen the lead came from, also after a reload',async({openPhone,request},info)=>{
+  const owner=process.env.E2E_OWNER_TOKEN!,w=await ownWristbands('Girl Cubs',4);
+  // A heats event with its final saved, so the medals wait on the lead.
   const code=await ownCode(),name=ownName('Back walk sprint'),event=`${name} · Girl Cubs`;
-  await ownEvent(request,code,name,'Girl Cubs','timed');
-  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2021,2022],[1600,1305]);
-  await page.goto('/');await join(page,ownName('Back walk lead'),{job:'Start line'});await becomeLead(page,'e2e-owner-fixture');
-  const results=()=>onScreen(page,'/results','Results','Races');
-  const eventPage=(tab='heats')=>onScreen(page,`/results/${code}/${tab}`,event,'Results');
-  await openLeadMenu(page,'Results');await results();
+  await ownEvent(request,code,name);
+  const {id:heat1}=await recordRace(request,owner,code,[w(1),w(2)],[1100,1200]);
+  await saveFinal(request,code,[w(2),w(1)]);
+  // A timed event whose two heats' runners tie on 10.00 (an open tie holds a heats event's final).
+  const tieCode=await ownCode(),tieName=ownName('Back walk tie'),tieEvent=`${tieName} · Girl Cubs`;
+  await ownEvent(request,tieCode,tieName,'Girl Cubs','timed');
+  const {id:tieHeat}=await recordRace(request,owner,tieCode,[w(3)],[1000]);
+  await recordRace(request,owner,tieCode,[w(4)],[1000]);
+  const {page}=await openPhone(ownName('Back walk lead'),{lead:true});
+  const races=()=>onRaces(page),results=()=>onScreen(page,'/results','Results','Races');
+  const eventPage=(tab:string,at=code,title=event)=>onScreen(page,`/results/${at}/${tab}`,title,'Results');
+  const tie=(to:string)=>onScreen(page,new RegExp(`/results/${tieCode}/ties/[^/]+$`),'Tie at 10.00',to);
+  // Races' card opens Confirm the medals; Back returns to Races.
+  await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Confirm the medals',exact:true}));
+  await onScreen(page,`/results/${code}/confirm-the-medals`,event,'Races');
+  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);
+  await bothGoBack(page,races);
+  // The race screen's Open in Results opens the tie, and Back returns to the race.
+  await openRace(page,tieName);
+  const race=async()=>{await expect(page).toHaveURL(new RegExp(`/races/${tieHeat}$`));await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();};
+  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
+  await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
+  await tie('Heat 1');
+  await bothGoBack(page,race);
+  await bothGoBack(page,races);
+  // The avatar menu keeps Results, Day setup and Log out.
+  await leadMenuButton(page).click();
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
+  await page.getByRole('menu').getByRole('menuitem',{name:'Results',exact:true}).click();await results();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventPage();
+  // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventPage('final');
   await expect(page.getByRole('banner').getByText(code,{exact:true})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
+  for(const tab of ['Heats','Races','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
   await page.screenshot({path:info.outputPath('event.png')});
-  // Each tab has its own address, and its back arrow still goes to Results.
-  await eventTab(page,'Notes');await eventPage('notes');
-  await eventTab(page,'Races');await eventPage('races');
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
-  const racePage=()=>onScreen(page,new RegExp(`/results/${code}/races/[^/]+$`),'Heat 1',event);
+  await bothGoBack(page,results);
+  // A Heats tab's TIE tag opens the tie, which goes back to the tab; the runner sheet closes on Back and the tab stays.
+  await page.getByRole('button',{name:new RegExp(`^${tieCode} · Girl Cubs`)}).click();await eventPage('heats',tieCode,tieEvent);
+  await press(page.getByRole('button',{name:`TIE at 10.00 for ${w(3)}`,exact:true}));await tie(tieEvent);
+  await bothGoBack(page,()=>eventPage('heats',tieCode,tieEvent));
+  await bothGoBack(page,results);
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Heats');await eventPage('heats');
+  const runner=page.getByRole('dialog',{name:`Runner ${w(2)}`,exact:true});
+  await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
+  await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');
+  // The Races tab: a race page goes back to the tab, a correction to the race page, also after a reload on its address.
+  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  const racePage=()=>onScreen(page,`/results/${code}/races/${heat1}`,'Heat 1',event);
   await racePage();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('race-page.png')});
-  // A correction goes back to the race page it was opened from.
-  await raceAction(page,'Correct times');await onScreen(page,new RegExp(`/results/${code}/races/[^/]+/correct-times$`),'Correct times','Heat 1');
+  await raceAction(page,'Correct times');
+  const correction=()=>onScreen(page,`/results/${code}/races/${heat1}/correct-times`,'Correct times','Heat 1');
+  await correction();
+  await page.reload();await correction();
   await bothGoBack(page,racePage);
-  // A reload stays on the race page, and Back still goes where it went before.
-  await page.reload();await racePage();
   await bothGoBack(page,()=>eventPage('races'));
   await bothGoBack(page,results);
-  await bothGoBack(page,()=>onRaces(page));
-  // The avatar menu keeps Results, Day setup and Log out.
-  await page.getByRole('button',{name:/: Results, Day setup and Log out$/}).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
-  await page.getByRole('menu').getByRole('menuitem',{name:'Day setup',exact:true}).click();
+  await bothGoBack(page,races);
+  // Day setup and its screens.
+  await openLeadMenu(page,'Day setup');
   const day=()=>onScreen(page,'/day','Day setup','Races');
   await day();
   expect(await lookProblems(page)).toEqual([]);
@@ -92,13 +125,14 @@ test('each lead screen has its address; the phone\'s Back and the back arrow go 
   await bothGoBack(page,day);
   await page.getByRole('button',{name:/^Signed in today /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   expect(await lookProblems(page)).toEqual([]);
-  // The job chip opens the job sheet on a lead screen too.
+  // The job chip opens the job sheet on a lead screen too, and Back closes it.
+  const job=page.getByRole('radiogroup',{name:'What\'s your job today?'});
   await press(page.getByRole('banner').getByRole('button',{name:'Your job: Zone lead. Change job',exact:true}));
-  await expect(page.getByRole('radiogroup',{name:'What\'s your job today?'})).toBeVisible();
+  await expect(job).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
-  await page.keyboard.press('Escape');await expect(page.getByRole('radiogroup',{name:'What\'s your job today?'})).toHaveCount(0);
+  await page.goBack();await expect(job).toHaveCount(0);await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   await bothGoBack(page,day);
-  await bothGoBack(page,()=>onRaces(page));
+  await bothGoBack(page,races);
 });
 
 test('a lead screen opened at its address with no history goes up one level: a race page to its event\'s Races tab, then Results, then Races',async({page,request})=>{

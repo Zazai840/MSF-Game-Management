@@ -17,7 +17,6 @@ import { ordinal } from '../../shared/ordinal.js';
 import { raceLabel,runnersText } from '../../shared/races.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { eventTitle } from '../../shared/day.js';
-import './results.css';
 /**
  * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
@@ -61,7 +60,7 @@ export function Results({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:
       onStage={openStage} onRace={openRace} saved={saved}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
   // The runner sheet wraps itself in its own screen root, beside this one.
-  return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" wide body={body}/>{sheets}</>;
+  return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" body={body}/>{sheets}</>;
 }
 const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',races:'Races',notes:'Notes'};
 /** A heats event has a Final tab unless it was decided without a final. */

@@ -211,8 +211,8 @@ Join's answer to "Is this you on a new phone?", asked when the name typed belong
 _Avoid_: Claim profile, transfer
 
 **Signed in**:
-A profile using the app on the current Olympics day, with its role for that day. A lead sees everyone signed in today and can change anyone else's role or sign them out, though nobody can make the owner a volunteer.
-_Avoid_: Joined phone, logged in, online
+A profile using the app on the current Olympics day, with its role for that day. The list of them is Signed in today, a row of Day setup and its own screen, where a lead can change anyone else's role or sign them out, though nobody can make the owner a volunteer.
+_Avoid_: Joined phone, logged in, online, Phones
 
 **Lead code**:
 The secret a person types to make their profile a lead for the current Olympics day: with their full name before signing in, or on its own once signed in. Holding it is trust enough to make a new profile; a name already taken by a profile on another phone gets That's me at Join, as with the Olympics password. Making a new lead code turns every other lead back into a volunteer, except whoever made it and the owner.

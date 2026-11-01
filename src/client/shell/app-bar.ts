@@ -1,4 +1,5 @@
 import { useEffect,useState } from 'react';
+/** The avatar's initials: "Sara K Ahmed" is "SA". */
 export function initials(name:string) {
   const words=name.trim().split(/\s+/).filter(Boolean);
   // A numbered name ("Sam Patel 2", from Lead sign-in) keeps the person's initials.

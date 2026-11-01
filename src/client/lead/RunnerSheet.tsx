@@ -1,6 +1,6 @@
 import { useRef,useState,type ReactNode } from 'react';
 import { api } from '../api.js';
-import { digitsOnly } from '../flow/NumberEntry.js';
+import { digitsOnly } from '../flow/NumberBox.js';
 import { Callout,DockedFooter,ErrorCallout,LeadBar,Sheet } from '../races/parts.js';
 import { Comment } from './Comment.js';
 import { useToast } from '../races/Toast.js';
@@ -49,7 +49,7 @@ function Notes({row}:{row:LeaderboardRow}) {
  * The runner sheet: a tap on a runner (or relay team) on the Heats leaderboard, the Final tab or a race page. Mark
  * checked and Mark addition checked save at once, with no note; Correct number, Choose which result counts,
  * Disqualify and Lift disqualification open their screens under the result's race. `onRace` opens its race page,
- * left out on that race's own page. The sheet brings its own screen root, so it keeps its look over an older-look page.
+ * left out on that race's own page. The sheet brings its own screen root, as it renders beside the screen's.
  */
 export function RunnerSheet({event,row,rows,onSaved,onClose,onOpen,onRace}:{event:Event;row:LeaderboardRow;rows:readonly LeaderboardRow[];
   onSaved:(next:EventResultsRead)=>void;onClose:()=>void;onOpen:(view:View)=>void;onRace?:()=>void}) {

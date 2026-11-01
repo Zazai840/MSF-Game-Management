@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { eventTypeNames,sections,type DayEvent,type DayRead } from '../../shared/day.js';
+import { eventTitle,eventTypeNames,sections,type DayEvent,type DayRead } from '../../shared/day.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
@@ -41,11 +41,12 @@ function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|nul
     const refused=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled});
     if(refused) setFailed({code:event.code,error:refused});
   }
-  return <LeadBar title="Events" up="Day setup" body={<main className="rz-main">
+  // A card grid, as on Races, so it takes Races' wide column on a laptop.
+  return <LeadBar title="Events" up="Day setup" wide body={<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
-    {day && <ul className="rz-list" aria-label="Events">{day.events.map(event=><li key={event.id}>
+    {day && <ul className="rz-list rz-list--cards" aria-label="Events">{day.events.map(event=><li key={event.id}>
       <article className="rz-racecard" aria-label={`${event.code} · ${event.section}`}>
-        <div className="rz-racecard__head"><h2 className="rz-racecard__title">{event.name} · {event.section}</h2><span className="rz-code-tag">{event.code}</span></div>
+        <div className="rz-racecard__head"><h2 className="rz-racecard__title">{eventTitle(event)}</h2><span className="rz-code-tag">{event.code}</span></div>
         <p className="rz-racecard__status">{eventTypeNames[event.type]} · {formats[event.format]}{!event.enabled && ' · Switched off'}</p>
         <div className="rz-racecard__actions">
           <button type="button" className="rz-btn rz-btn--small" aria-label={`Rename ${event.code}`} onClick={()=>onOpen({kind:'rename-event',code:event.code})}>Rename</button>
@@ -55,8 +56,7 @@ function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|nul
       </article>
     </li>)}</ul>}
     <button type="button" className="rz-btn rz-btn--block" onClick={()=>onOpen({kind:'new-event'})}><Icon name="plus"/>Add an event</button>
-    <UpdatedAt time={updated} onRefresh={()=>void onRefresh()}/>
-  </main>}/>;
+  </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void onRefresh()}/></footer></>}/>;
 }
 
 /** Rename: the event's new name, saved by the docked button; Races, Results and the Day export show it. */
