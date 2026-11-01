@@ -429,7 +429,9 @@ export async function startDrag(page:Page,from:Locator) {
     /** Moves so the dragged point sits on the middle of `target` (same column as the start). */
     async over(target:Locator) {const to=(await target.boundingBox())!;await toPoint(x,to.y+to.height/2);},
     async drop() {
-      if(touch) {await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
+      // A person stops over the place before letting go. A finger lifted while still moving is a flick: Chromium on
+      // Linux (CI) then takes the next tap as the one that stops the flick and sends no click for it.
+      if(touch) {await page.waitForTimeout(100);await finger('touchMove');await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
       // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
       await page.waitForTimeout(100);
     },
