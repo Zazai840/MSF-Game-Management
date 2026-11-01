@@ -3,8 +3,6 @@ import { App } from './App.js';
 import { followKeyboard } from './flow/keyboard.js';
 import { startUpdates } from './shell/updates.js';
 import './theme.css';
-import './style.css';
-// After the older look, so the race flow's reset of its bare element rules wins inside .rz-screen.
 import './races/rz.css';
 import './races/race-flow.css';
 const root = document.getElementById('root')!;

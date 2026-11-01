@@ -2,7 +2,7 @@
  * Keeps docked buttons riding just above the phone keyboard. Android Chrome does it on its own with
  * interactive-widget=resizes-content (index.html); iPhone Safari only shrinks the visual viewport. So while a box is
  * being typed in, the visible part of the page goes on <html> as --vv-top and --vv-height, with data-keyboard="open",
- * for `.rz-footer--docked` (the race steps) and `.action-bar` (the older screens) to sit on. Only while typing: iOS can
+ * for `.rz-footer--docked` (docked buttons) and a sheet (`.rz-scrim`) to sit on. Only while typing: iOS can
  * leave stale viewport numbers after the keyboard closes, and then the buttons go back to the foot of the screen.
  */
 const notTyped=new Set(['button','checkbox','color','file','hidden','image','radio','range','reset','submit']);

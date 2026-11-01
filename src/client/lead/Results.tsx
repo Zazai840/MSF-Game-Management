@@ -17,7 +17,6 @@ import { ordinal } from '../../shared/ordinal.js';
 import { raceLabel,runnersText } from '../../shared/races.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { eventTitle } from '../../shared/day.js';
-import './results.css';
 /**
  * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the

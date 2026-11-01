@@ -428,7 +428,7 @@
 .rz-attendance--one li { grid-template-columns: 1fr auto; }
 .rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
-.rz-teamcard__name { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
+.rz-teamcard__name { margin: 0; font-size: 18px; line-height: 1.2; font-weight: 800; color: var(--navy); }
 .rz-teamcard__head .rz-btn { margin-left: auto; }
 .rz-teamcard__note { font-size: 13px; font-weight: 700; color: var(--warn-ink); }
 .rz-teamcard__seed { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
