@@ -36,3 +36,15 @@ test('a refused write drops what waited behind it, and every send waiting hears 
   const again=send('three',1);releases[1]({version:2});
   expect(await again).toEqual({version:2});
 });
+test('a send just after the last answer, before the screen holds that answer\'s version, still goes at the answered version',async()=>{
+  const {sent,releases,write}=heldWrites();
+  const send=latestWins(write,answer=>answer.version,()=>{});
+  const first=send('one',1);releases[0]({version:2});await first;
+  // The screen still shows version 1: a tap this soon would clash with this phone's own write.
+  const second=send('two',1);
+  expect(sent).toEqual([{body:'one',version:1},{body:'two',version:2}]);
+  releases[1]({version:3});await second;
+  // Someone else's newer version, read meanwhile, wins over the last answer.
+  void send('three',7);
+  expect(sent[2]).toEqual({body:'three',version:7});
+});
