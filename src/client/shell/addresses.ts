@@ -9,8 +9,8 @@ export type EventTab=typeof eventTabs[number];
 /** The runner sheet's full screens, each under the race the result belongs to. */
 export const runnerScreens=['disqualify','lift-disqualification','correct-number','choose-result'] as const;
 export type RunnerScreen=typeof runnerScreens[number];
-/** A race's Re-run, Delete and Restore screens, under its race page (with the event's code) or its race screen. */
-export const raceActions=['re-run','delete','restore'] as const;
+/** A race's Re-run, Delete and Restore screens and its corrections, under its race page (with the event's code) or its race screen. */
+export const raceActions=['re-run','delete','restore','correct-runner-list','correct-teams'] as const;
 export type RaceAction=typeof raceActions[number];
 /**
  * Every screen with its own address (spec #250 "Navigation"). Races and the race screen are the race flow; the rest are

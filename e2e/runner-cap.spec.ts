@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction} from './fixtures.js';
+import {eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction,press,expectToast} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
   if(lead) {await becomeLead(page);}
@@ -58,12 +58,13 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
   await openResults(page,code,ownName('Seven lead'));
   await eventTab(page,'Races');await page.getByRole('button',{name:'Open final',exact:true}).click();await raceAction(page,'Correct runner list');
-  const sheet=page.getByRole('dialog');await sheet.getByRole('button',{name:'Add runner',exact:true}).click();await sheet.getByLabel('Wristband for runner 7',{exact:true}).fill('1806');
-  await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeEnabled();
+  const docked=page.getByRole('contentinfo');
+  await page.getByRole('button',{name:'Add runner',exact:true}).click();await page.getByLabel('Wristband for runner 7',{exact:true}).fill('1806');await press(docked.getByRole('button',{name:'Done',exact:true}));
   await page.screenshot({path:info.outputPath('lead-add-seventh.png'),fullPage:true});
-  await sheet.getByRole('button',{name:'Review runner list',exact:true}).click();await expect(sheet.getByRole('heading',{name:'7 runners. Is that right?',exact:true})).toBeVisible();
-  await sheet.getByLabel('New runners did not finish',{exact:true}).check();
-  await sheet.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
+  await press(docked.getByRole('button',{name:'Review runner list',exact:true}));await expect(page.getByRole('heading',{level:2,name:'7 runners. Is that right?',exact:true})).toBeVisible();
+  await press(page.getByRole('button',{name:'New runners did not finish',exact:true}));
+  await page.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved · Boy Cubs Final');
+  const sheet=page.getByRole('dialog');
   await raceAction(page,'Correct finishing order');
   await sheet.getByRole('button',{name:'Give a place to 1806',exact:true}).click();
   const rows=sheet.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');

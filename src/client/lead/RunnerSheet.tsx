@@ -102,15 +102,19 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
   const Body={disqualify:Disqualify,'lift-disqualification':Lift,'correct-number':CorrectNumber,'choose-result':ChooseResult}[view.screen];
   return <LeadBar title={title} code={view.code} up={up} body={<Body {...props}/>}/>;
 }
-/** A full race-flow screen's frame (the runner screens, Re-run, Delete, Restore): the prompt and fields, then the docked button, greyed with `reason` above it until it can go. */
-export function Frame({meta,question,help,children,reason,busy,label,danger=false,refused,onGo}:{meta:string;question:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void}) {
+/**
+ * A full race-flow screen's frame (the runner screens, Re-run, Delete, Restore, the corrections): the prompt and fields,
+ * then the docked button, greyed with `reason` above it until it can go. `footer` takes the button's place while a
+ * number is being typed (a correction's Done).
+ */
+export function Frame({meta,question,help,children,reason,busy,label,danger=false,refused,onGo,footer}:{meta:string;question:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void;footer?:ReactNode}) {
   return <><main className="rz-main rz-main--form">
     <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{meta}</p><h2 className="rz-prompt__q">{question}</h2><p className="rz-prompt__help">{help}</p></div>
     {children}
     {refused!==null && <ErrorCallout error={refused} action="save"/>}
   </main>
-  <DockedFooter>{reason && <p className="rz-footer__reason">{reason}</p>}
-    <button type="button" className={`rz-btn rz-btn--block ${danger?'rz-btn--danger':'rz-btn--primary'}`} aria-disabled={reason || busy?true:undefined} onClick={()=>{if(!reason && !busy) onGo();}}>{label}</button></DockedFooter></>;
+  <DockedFooter>{footer??<>{reason && <p className="rz-footer__reason">{reason}</p>}
+    <button type="button" className={`rz-btn rz-btn--block ${danger?'rz-btn--danger':'rz-btn--primary'}`} aria-disabled={reason || busy?true:undefined} onClick={()=>{if(!reason && !busy) onGo();}}>{label}</button></>}</DockedFooter></>;
 }
 function Disqualify({row,save,busy}:ScreenProps) {
   const who=resultName(row);

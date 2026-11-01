@@ -7,18 +7,19 @@ import { raceName } from '../../shared/race-flow.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { ErrorCallout,LeadBar } from '../races/parts.js';
 import { useToast } from '../races/Toast.js';
-import type { RaceAction,View } from '../shell/addresses.js';
+import type { View } from '../shell/addresses.js';
 import { Comment } from './Comment.js';
 import { Frame } from './RunnerSheet.js';
-type ActionView=Extract<View,{kind:'race-action'}>;
+type Lifecycle='re-run'|'delete'|'restore';
+export type LifecycleView=Extract<View,{kind:'race-action'}> & {action:Lifecycle};
 type Answer=EventResultsRead & {newRaceId?:string;number?:number};
-const titles:Record<RaceAction,string>={'re-run':'Re-run race',delete:'Delete race',restore:'Restore race'};
+const titles:Record<Lifecycle,string>={'re-run':'Re-run race',delete:'Delete race',restore:'Restore race'};
 /**
  * A race's Re-run, Delete or Restore screen, under its race page or its race screen. Re-run lands on the new race at
  * its first step in place of the old race in history (`onOpen` with `over`); Delete goes back to the screen before the
  * race (`onBack(2)`); Restore goes back to the restored race page. Each save shows its toast.
  */
-export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;onOpen:(view:View,options?:{over?:boolean})=>void;onBack:(levels?:1|2)=>void;onChanged?:()=>void}) {
+export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:LifecycleView;onOpen:(view:View,options?:{over?:boolean})=>void;onBack:(levels?:1|2)=>void;onChanged?:()=>void}) {
   const toast=useToast();
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState<unknown>(null);
   // Restore: the live race of the same kind and number, if one took its number, and the number it comes back with.

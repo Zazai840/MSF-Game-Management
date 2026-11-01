@@ -134,3 +134,15 @@ test('a lead\'s Correct number keeps Save number on the keyboard',async({page})=
   await docksAboveKeyboard(page,box);
   await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Save number',exact:true})).toBeVisible();
 });
+test('a lead\'s Correct runner list, opened at its own address, keeps Done on the keyboard while a runner is retyped',async({page})=>{
+  const code=await ownCode(),name=ownName('Docked runner list'),n=await ownWristbands('Girl Cubs',2);
+  await ownEvent(page.request,code,name);
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
+  await page.goto('/');await join(page,ownName('Docked runner list lead'),{job:'Start line'});await becomeLead(page);
+  // A reload at the address opens the screen, its back arrow going up to the race page.
+  await page.goto(`/results/${code}/races/${race.id}/correct-runner-list`);
+  await expect(page.getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
+  await press(page.getByRole('button',{name:`Runner 2 · ${n(2)}`,exact:true}));
+  await docksAboveKeyboard(page,page.getByLabel('Wristband for runner 2',{exact:true}));
+  await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Done',exact:true})).toBeVisible();
+});

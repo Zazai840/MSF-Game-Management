@@ -165,31 +165,58 @@ test('a lead corrects a number on its screen with the phone number pad: digits o
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('saved-versions.png'),fullPage:true});
 });
 
-test('the runner list editor keeps Add runner on screen and types numbers on the phone number pad',async({page},info)=>{
+test('Correct runner list is a screen: tap a runner to retype on the number pad, Add runner, Review runner list then Save runner list, one toast and one Notes line, back on the race page',async({page},info)=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2121,2122,2123,2124,2125,2126],[1300,1310,1320,1330,1340,1350]);
   await openRace(page,code,ownName('Runner list lead'),race.number);
+  const racePage=page.url(),docked=page.getByRole('contentinfo');
   await raceAction(page,'Correct runner list');
-  const sheet=page.getByRole('dialog');
-  await expect(sheet.getByRole('button',{name:'Add runner',exact:true})).toBeInViewport();
+  await expect(page).toHaveURL(`${racePage}/correct-runner-list`);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Correct runner list',exact:true})).toBeVisible();
+  // Nothing to review until a runner changes, and no field takes focus on its own.
+  await expect(docked.getByText('Change, add or remove a runner first.',{exact:true})).toBeVisible();
+  await expect(docked.getByRole('button',{name:'Review runner list',exact:true})).toHaveAttribute('aria-disabled','true');
+  expect(await page.evaluate(()=>document.activeElement?.tagName)).not.toBe('INPUT');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('runner-list-editor.png'),fullPage:false});
   // Retyping a number keeps the child's row (and so their place and time).
-  await sheet.getByRole('button',{name:'Runner 2 · 2122',exact:true}).click();
-  const second=sheet.getByLabel('Wristband for runner 2',{exact:true});
+  await page.getByRole('button',{name:'Runner 2 · 2122',exact:true}).click();
+  const second=page.getByLabel('Wristband for runner 2',{exact:true});
   await expect(second).toHaveAttribute('inputmode','numeric');await expect(second).toBeFocused();
   await second.pressSequentially('21-27');await expect(second).toHaveValue('2127');await second.press('Enter');
-  await expect(sheet.getByRole('button',{name:'Runner 2 · 2127',exact:true})).toBeVisible();
-  await sheet.getByRole('button',{name:'Add runner',exact:true}).click();
-  const seventh=sheet.getByLabel('Wristband for runner 7',{exact:true});await expect(seventh).toBeFocused();
+  await expect(page.getByRole('button',{name:'Runner 2 · 2127',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Add runner',exact:true}).click();
+  const seventh=page.getByLabel('Wristband for runner 7',{exact:true});await expect(seventh).toBeFocused();
   await seventh.fill('2128');
-  await page.screenshot({path:info.outputPath('runner-list-adding.png'),fullPage:false});
-  await sheet.getByRole('button',{name:'Done',exact:true}).click();
-  await expect(sheet.getByRole('button',{name:'Runner 7 · 2128',exact:true})).toBeVisible();
-  await sheet.getByRole('button',{name:'Review runner list',exact:true}).click();
-  await expect(sheet.getByRole('heading',{name:'7 runners. Is that right?',exact:true})).toBeVisible();
-  await sheet.getByLabel('New runners did not finish',{exact:true}).check();
-  await sheet.getByRole('button',{name:'Save runner list',exact:true}).click();await expect(sheet).toHaveCount(0);
-  await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('runner-list-adding.png'),fullPage:false});
+  await press(docked.getByRole('button',{name:'Done',exact:true}));
+  await expect(page.getByRole('button',{name:'Runner 7 · 2128',exact:true})).toBeVisible();
+  await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
+  await expect(page.getByRole('heading',{level:2,name:'7 runners. Is that right?',exact:true})).toBeVisible();
+  await press(page.getByRole('button',{name:'New runners did not finish',exact:true}));
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('runner-list-review.png'),fullPage:true});
+  await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
+  await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
   await expect(page.getByRole('button',{name:'Runner 2127',exact:true})).toHaveText(/^2nd\s*2127\s*13\.10$/);
+  // One save, one Notes line.
+  await page.getByRole('button',{name:'Back to Race page · Girl Cubs',exact:true}).click();await eventTab(page,'Notes');
+  await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').filter({hasText:'corrected the runners'})).toHaveText([/corrected the runners for Heat \d+: 2121, 2127, 2123, 2124, 2125, 2126, 2128$/]);
+});
+
+test('leaving Correct runner list without Save changes nothing, by the phone\'s Back or the back arrow',async({page})=>{
+  const code=await ownCode(),race=await recordedRace(page,code,[2141,2142],[1300,1310]);
+  await openRace(page,code,ownName('Runner list leaver'),race.number);
+  const racePage=page.url(),record=page.getByRole('list',{name:'Current record',exact:true});
+  const versions=await page.getByText(/^Saved versions \(\d+\)$/).textContent();
+  for(const leave of ['phone','arrow'] as const) {
+    await raceAction(page,'Correct runner list');
+    await page.getByRole('button',{name:'Runner 2 · 2142',exact:true}).click();
+    await page.getByLabel('Wristband for runner 2',{exact:true}).fill('2149');await page.keyboard.press('Enter');
+    await page.getByRole('button',{name:'Remove runner 1',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Runner 1 · 2149',exact:true})).toBeVisible();
+    if(leave==='phone') await page.goBack();else await page.getByRole('button',{name:`Back to Heat ${race.number}`,exact:true}).click();
+    await expect(page).toHaveURL(racePage);
+    await expect(record.getByRole('button')).toHaveText([/2141/,/2142/]);
+    await expect(page.getByText(versions!,{exact:true})).toBeVisible();
+  }
 });
 
 test('a race not saved yet says so on its race page with Open Heat 1; Race actions offers only Delete, a screen that moves it to Deleted races and goes back to the event',async({page},info)=>{
