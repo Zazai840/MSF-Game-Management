@@ -392,6 +392,15 @@ export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
  */
 export async function startDrag(page:Page,from:Locator) {
   const touch=!!test.info().project.use.hasTouch;
+  if(process.env.DEBUG_THROTTLE) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate',{rate:Number(process.env.DEBUG_THROTTLE)}); // [DEBUG-c1f3]
+  if(!(page as any).__probe) {(page as any).__probe=1;page.on('console',m=>{if(m.text().startsWith('[DEBUG-c1f3]')) console.log(m.text());});const probe=()=>{ // [DEBUG-c1f3]
+    const t=()=>performance.now().toFixed(1);const rm=document.removeEventListener.bind(document);
+    document.removeEventListener=(type:string,fn:any,opts?:any)=>{if(type==='click') console.log(`[DEBUG-c1f3] blocker removed ${t()}`);return rm(type,fn,opts);};
+    for(const type of ['pointerdown','pointerup','pointercancel','touchstart','touchend']) addEventListener(type,event=>console.log(`[DEBUG-c1f3] ${type} ${t()} ${(event.target as Element).tagName} ${(event.target as Element).getAttribute?.('aria-label')??''}`),true);
+    addEventListener('click',event=>{console.log(`[DEBUG-c1f3] click at window ${t()} ${(event.target as Element).textContent?.slice(0,20)}`);},true);
+    document.addEventListener('DOMContentLoaded',()=>document.body.addEventListener('click',()=>console.log(`[DEBUG-c1f3] click reached body ${t()}`),true));
+    if(document.body) document.body.addEventListener('click',()=>console.log(`[DEBUG-c1f3] click reached body ${t()}`),true);
+  };await page.addInitScript(probe);await page.evaluate(probe);}
   // A person scrolls the handle into sight before putting a finger on it.
   await from.scrollIntoViewIfNeeded();
   const box=(await from.boundingBox())!;
@@ -413,7 +422,7 @@ export async function startDrag(page:Page,from:Locator) {
     async drop() {
       if(touch) {await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
       // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(Number(process.env.DEBUG_WAIT??100)); // [DEBUG-c1f3]
     },
   };
 }
