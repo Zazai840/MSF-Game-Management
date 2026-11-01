@@ -107,22 +107,23 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await makeFinal(page,name,'Girl Cubs');
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Final');
-  await expect(page.locator('.final-lineup li')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${index+1}: Team ${number} · ${legs(number).join(' · ')}`));
-  // The final runs (its race screen is another slice's), then the Final leaderboard and Input - Running name each
-  // medal team's four children.
+  await page.getByText('Line-up, fastest first',{exact:true}).click();
+  await expect(page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${['1st','2nd','3rd','4th','5th','6th'][index]} fastest · Team ${number} · ${legs(number).join(' · ')}`));
+  // The final runs (its race screen is another slice's), then the Final leaderboard names each team's four children,
+  // and the Day export line each medal team.
   await markFinalHere(request,token,code,[3,2,5,1,6,7]);await writeTeamOrder(request,token,code,[3,2,5,1,6,7]);await submitRace(request,token,code);
   await page.getByRole('button',{name:'Refresh',exact:true}).click();
   const winner=page.getByRole('list',{name:'Final leaderboard',exact:true}).getByRole('button',{name:`Team 3 · ${legs(3).join(' · ')} · Final`,exact:true});
-  await expect(winner).toContainText('1st');
+  await expect(winner).toHaveText(`1Team 3${legs(3).join(' · ')}`);
   // A team on the Final tab opens the same runner sheet, with its final place and "Open final".
   await winner.click();
   const winnerSheet=page.getByRole('dialog',{name:'Team 3',exact:true});
   await expect(winnerSheet).toContainText(`${name} · Girl Cubs · Final · 1st in race`);await expect(winnerSheet.getByRole('button',{name:'Open final',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await winnerSheet.getByRole('button',{name:'Close',exact:true}).click();await expect(winnerSheet).toHaveCount(0);
-  await page.getByRole('button',{name:'Final complete',exact:true}).click();
+  await page.getByRole('button',{name:'Confirm the medals',exact:true}).click();
   await page.getByRole('dialog',{name:'Final complete',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
-  await expect(page.getByRole('table',{name:'Input - Running',exact:true}).locator('tbody td')).toHaveText([code,...[3,2,5].map(number=>`Team ${number}${legs(number).join('')}`)]);
+  await expect(page.getByText('Day export 1st Team 3 · 2nd Team 2 · 3rd Team 5',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-final-panel.png'),fullPage:true});
 });

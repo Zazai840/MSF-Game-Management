@@ -17,7 +17,7 @@ const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new
 interface HomeRead { phone:Phone; needsYou?:number }
 /** Where Open in Results (or Confirm the medals) lands: a tie on its screen, a race's item on its race page, anything else on its event. */
 const resultsView=(target:ResultsTarget):View=>target.tieId?{kind:'tie',code:target.event.code,tieId:target.tieId}
-  :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code,tab:'heats'};
+  :target.raceId && !target.entryId?{kind:'race-page',code:target.event.code,raceId:target.raceId}:{kind:'event',code:target.event.code};
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
@@ -52,11 +52,11 @@ export function App() {
   /**
    * Moves to another screen at its own address. The history entry carries the name of the screen left, for the back
    * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
-   * event's tab in place, keeping the entry's back label.
+   * event's tab in place, keeping the entry's back label and what Open in Results asked to open there.
    */
   function go(next:View,{replace=false,opening}:{replace?:boolean;opening?:ResultsTarget}={}) {
-    setMenu(null);setView(next);setTarget(opening);
     const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code;
+    setMenu(null);setView(next);setTarget(replace && tab?target:opening);
     if(replace) history.replaceState(tab?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
     else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
