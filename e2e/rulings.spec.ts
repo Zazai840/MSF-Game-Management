@@ -8,8 +8,12 @@ test('a lead disqualifies and lifts a runner on their screens, sees the ranking 
   await page.getByRole('button',{name:/^R16 · Girl Cubs/}).click();
   const heats=new RegExp('/results/R16/heats$');await expect(page).toHaveURL(heats);
   const runner=page.getByRole('button',{name:`Runner ${numbers[0]} · Heat ${race.number}`,exact:true}),sheet=page.getByRole('dialog',{name:`Runner ${numbers[0]}`,exact:true});
-  // Escape closes the runner sheet; nothing else changes.
-  await press(runner);await expect(sheet).toBeVisible();await page.keyboard.press('Escape');await expect(sheet).toHaveCount(0);await expect(page).toHaveURL(heats);
+  // From the keyboard the sheet takes focus, not a button in it; Shift+Tab wraps to its last button, Tab back to Close.
+  // Escape closes it, focus goes back to the row, and nothing else changes.
+  await runner.focus();await page.keyboard.press('Enter');await expect(sheet).toBeFocused();
+  await page.keyboard.press('Shift+Tab');await expect(sheet.getByRole('button',{name:`Disqualify ${numbers[0]}`,exact:true})).toBeFocused();
+  await page.keyboard.press('Tab');await expect(sheet.getByRole('button',{name:'Close',exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');await expect(sheet).toHaveCount(0);await expect(runner).toBeFocused();await expect(page).toHaveURL(heats);
   // Disqualify is red and last; its screen waits for a reason, and the comment is optional.
   await press(runner);await expect(sheet.getByRole('button').last()).toHaveText(`Disqualify ${numbers[0]}`);
   await press(sheet.getByRole('button',{name:`Disqualify ${numbers[0]}`,exact:true}));
