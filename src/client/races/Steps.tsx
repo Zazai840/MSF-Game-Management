@@ -29,7 +29,8 @@ export function DigitsField({id,label,value,onChange,onEnter,onRelease,held=fals
   onRelease:()=>void;held?:boolean;busy?:boolean;warn?:boolean;hint?:ReactNode;selectKey?:string;time?:boolean}) {
   const input=useRef<HTMLInputElement>(null),wasHeld=useRef(held);
   useLayoutEffect(()=>{if(held) input.current?.blur();else if(wasHeld.current) {input.current?.focus();input.current?.select();}wasHeld.current=held;},[held]);
-  useEffect(()=>{input.current?.focus({preventScroll:true});},[]);
+  // Not while a warning already waits as the box mounts (a race opened afresh with a wrong time): focusing would release it.
+  useEffect(()=>{if(!wasHeld.current) input.current?.focus({preventScroll:true});},[]);
   useLayoutEffect(()=>{if(selectKey!==undefined && !held) {input.current?.focus({preventScroll:true});input.current?.select();}},[selectKey]);
   return <div className={warn?'rz-field rz-field--warn':'rz-field'}>
     <label className="rz-field__label" htmlFor={id}>{label}</label>

@@ -56,6 +56,8 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
   const looking=own!==null && step!==own;
+  // A final has no Times step, so the Timer gets a plain line, not the step's body.
+  const noStep=own!==null && !shown.includes(own);
   const roleFor=(at:Step)=>roleLabels[(Object.keys(roleSteps) as Array<keyof typeof roleSteps>).find(key=>roleSteps[key]===at)!];
   const summary=group.races.find(item=>item.id===race.id)!,index=group.races.indexOf(summary);
   const locked=race.state==='saved' || race.stageComplete===true;
@@ -102,7 +104,13 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
           <div className="rz-callout__actions"><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{flow.clearChanged();setFresh(fresh+1);}}>Show latest</button></div></div>}
         {race.stageComplete?<p className="rz-note" role="status">{raceFinishedLine({kind:race.kind,event})}</p>:race.state==='saved' && !lead && <p className="rz-note" role="status">{raceName(race)} is saved. Ask a lead to change it.</p>}
       </div>}
-      {looking?<main className="rz-main" role="tabpanel" aria-label={`${stepLabels[step]}, read-only`}>
+      {noStep?<main className="rz-main">
+        <div className="rz-readonly" role="status">
+          <p className="rz-readonly__text"><Icon name="eye"/><span>The final has no times: it's decided by finishing order. Pick a heat above, or switch job to help here.</span></p>
+          <div className="rz-readonly__actions"><button type="button" className="rz-btn rz-btn--small" onClick={onRole}>Switch job</button></div>
+        </div>
+      </main>
+      :looking?<main className="rz-main" role="tabpanel" aria-label={`${stepLabels[step]}, read-only`}>
         <div className="rz-readonly" role="status">
           <p className="rz-readonly__text"><Icon name="eye"/><span>Viewing {stepLabels[step]} · read-only. It's the {roleFor(step)}'s step; you're the {roleLabels[role]}.</span></p>
           <div className="rz-readonly__actions"><button type="button" className="rz-btn rz-btn--small rz-btn--primary" onClick={()=>setViewing(null)}>Back to {stepLabels[own!]}</button>

@@ -1,0 +1,16 @@
+{
+  "name": "MSF Running Zone",
+  "short_name": "Running Zone",
+  "description": "Check runners in, record the finishing order and type times at the MSF Olympics Running Zone.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1e2b51",
+  "background_color": "#f0e7d3",
+  "lang": "en",
+  "icons": [
+    {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

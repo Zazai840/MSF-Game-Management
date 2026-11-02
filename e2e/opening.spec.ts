@@ -64,3 +64,20 @@ test('a volunteer at a lead address sees Lead access needed; Back goes to Races,
   await expect(page).toHaveURL(/\/results$/);
   await expect(header.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
 });
+
+test('the app installs to the home screen: a web app manifest with its name, standalone display, the navy theme colour and icons the server serves',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Installing volunteer'));
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href','/manifest.webmanifest');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content','#1e2b51');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href','/icons/apple-touch-icon.png');
+  const response=await request.get('/manifest.webmanifest');
+  expect(response.ok()).toBe(true);expect(response.headers()['content-type']).toContain('application/manifest+json');
+  const manifest=await response.json();
+  expect(manifest).toMatchObject({name:'MSF Running Zone',short_name:'Running Zone',start_url:'/',display:'standalone',theme_color:'#1e2b51',background_color:'#f0e7d3'});
+  expect(manifest.icons.map((icon:{sizes:string})=>icon.sizes)).toEqual(expect.arrayContaining(['192x192','512x512']));
+  for(const icon of manifest.icons as Array<{src:string;type:string}>) {
+    const file=await request.get(icon.src);
+    expect(file.ok(),icon.src).toBe(true);expect(file.headers()['content-type']).toContain(icon.type);
+  }
+  expect((await request.get('/icons/apple-touch-icon.png')).ok()).toBe(true);
+});
