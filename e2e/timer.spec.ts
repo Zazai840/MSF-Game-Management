@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,recordRace,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)',gold='rgb(255, 184, 0)',navy='rgb(30, 43, 81)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -335,4 +335,38 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await press(updated.getByRole('button',{name:'Refresh',exact:true}));
   await reread;
   expect(await lookProblems(lead.page)).toEqual([]);await lead.page.screenshot({path:info.outputPath('lead-times.png'),fullPage:true});
+});
+
+test('a wrong time still waiting for Fix time or Keep is asked about again when the race is opened afresh, as after a reload',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Times reopened');
+  await raceWaitingForTimes(request,code,name);
+  const {page}=await openPhone(ownName('Reopened times'),{job:'timer'});
+  await openRace(page,name);
+  await enterTime(page,'1244');await enterTime(page,'1200');
+  const warning=page.getByRole('alert').filter({hasText:'The 2nd place time is faster than 1st.'});
+  await expect(warning).toBeVisible();
+  await page.reload();
+  // The choice is still there, with the keyboard closed, and No more finishers waits for it.
+  await expect(warning).toBeVisible();
+  await expect(page.getByLabel('Place time',{exact:true})).not.toBeFocused();
+  await expect(page.getByRole('button',{name:'No more finishers',exact:true})).toBeDisabled();
+  await warning.getByRole('button',{name:'Keep',exact:true}).click();
+  await expect(warning).toHaveCount(0);
+  await expect(slot(page,'2nd place: 12.00, Faster than 1st place')).toContainText('Kept');
+  await expect.poll(()=>savedTimes(request,code)).toEqual({places:[1244,1200],outOfOrder:true,keptWrong:[1]});
+});
+
+test('a Timer who opens a final sees that the final has no times, with a way back to Races, instead of a blank screen',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('Final timer'),n=await ownWristbands('Girl Cubs',6);
+  await ownEvent(request,code,name);
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2),n(3),n(4),n(5),n(6)],[900,1000,1100,1200,1300,1400]);
+  expect((await request.post('/api/races',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{eventCode:code,kind:'final'}})).ok()).toBe(true);
+  const {page}=await openPhone(ownName('Final timer phone'),{job:'timer'});
+  const crashes:string[]=[];page.on('pageerror',error=>crashes.push(error.message));
+  await openRace(page,name,'Girl Cubs','Final');
+  await expect(page.getByRole('status')).toContainText("The final has no times: it's decided by finishing order.");
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('timer-final.png'),fullPage:true});
+  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
+  expect(crashes).toEqual([]);
 });
