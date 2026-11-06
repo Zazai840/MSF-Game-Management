@@ -1,4 +1,4 @@
-import {ownCode,ownName,deleteCurrentRace,expect,flowRace,join,openLeadMenu,openRace,ownEvent,test,writeCheckIn,writeOrder,writeTimes,type APIRequestContext} from './fixtures.js';
+import {ownCode,ownName,ownRelay,ownWristbands,deleteCurrentRace,expect,flowPost,flowRace,join,lookProblems,openLeadMenu,openRace,ownEvent,press,test,tickTeam,writeCheckIn,writeOrder,writeTeam,writeTimes,type APIRequestContext} from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const joinHeading='Join the Running Zone';
@@ -25,6 +25,30 @@ test('the volunteer app reopens from its shell cache without caching race reads 
   },headers);
   expect(offlineRead).toBe('unavailable');
   expect(scripts.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(false);
+});
+
+test('a save that never gets an answer says so and frees the buttons, and tapping again saves it',async({openPhone,request})=>{
+  const owner=process.env.E2E_OWNER_TOKEN!,code=await ownCode(),w=await ownWristbands('Girl Cubs',4);
+  await ownRelay(code,ownName('No answer'),'Girl Cubs');
+  await writeTeam(request,owner,code,[w(1),w(2),w(3),w(4)]);
+  const made=await flowPost(request,owner,'/api/races',{eventCode:code,kind:'heat',number:1});
+  await tickTeam(request,owner,code,1);
+  const {page}=await openPhone(ownName('No answer'),{lead:true});
+  await page.clock.install();
+  await page.goto(`/races/${made.race.id}`);
+  const everyone=page.locator('footer.rz-footer').getByRole('button',{name:"That's everyone",exact:true});
+  // The link drops with the save on its way: no answer ever comes, and no error either.
+  await page.route('**/steps/runners/done',()=>{});
+  await press(everyone);
+  await expect(everyone).toBeDisabled();
+  await page.clock.fastForward(20_000);
+  await expect(page.getByText('Could not connect - try again',{exact:true})).toBeVisible();
+  await expect(everyone).toBeEnabled();
+  expect(await lookProblems(page)).toEqual([]);
+  await page.unroute('**/steps/runners/done');
+  await press(everyone);
+  await expect(page.locator('.rz-toast__msg')).toHaveText('Runners saved · Girl Cubs Heat 1');
+  await deleteCurrentRace(request,code);
 });
 
 test('old phones see the browser message before the application opens',async({browser,baseURL})=>{
