@@ -108,9 +108,11 @@ export interface RacesRead { revision:number; groups:RaceGroup[] }
 /**
  * One race in the flow, with its group (for the heat chips) and its steps. A relay's race also carries its relay's teams
  * (Still to run, a team's version for a leg change, the leg checks), every switched-on relay's teams for the checks, and
- * `nextTeam`, the number the next team typed in takes.
+ * `nextTeam`, the number the next team typed in takes. A final with an Absent finalist's seed free carries `callUp`, the
+ * next-ranked heat entry anyone can call up: its heat entry, its name ("2011", "Team 7") and its heat rank.
  */
-export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[]; nextTeam?:number }
+export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[]; nextTeam?:number;
+  callUp?:{entryId:string;who:string;position:number} }
 /** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Finishing order and Times someone is in the race. */
 export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
   const status=race.steps[step];

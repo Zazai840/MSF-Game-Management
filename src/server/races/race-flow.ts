@@ -6,6 +6,7 @@ import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinis
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
+import { openCallUp } from '../../shared/finals.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
@@ -77,7 +78,10 @@ export async function raceFlowRead(db:Database,dayId:string,raceId:string):Promi
   if(!group) throw new Refusal(409,'This event is switched off');
   // A relay's start line shows its teams still to run and checks each typed leg against every switched-on relay's teams.
   const teams=race.event.relay?await relayLists(db,dayId,race.event.id):{};
-  return {revision:await dayRevision(db,dayId),group,race:jobRace(race),steps:group.races.find(item=>item.id===race.id)!.steps,...teams};
+  // A final with a seed free offers its next call-up to every phone: the Runners step shows it to the Start line and the lead.
+  const next=race.kind==='final' && !race.stageComplete?openCallUp((await readEventResults(db,dayId,race.event.code)).results.finalResults):null;
+  return {revision:await dayRevision(db,dayId),group,race:jobRace(race),steps:group.races.find(item=>item.id===race.id)!.steps,...teams,
+    ...(next?{callUp:{entryId:next.entryId,who:resultName(next),position:next.position!}}:{})};
 }
 const dayRevision=async(db:Database,dayId:string)=>Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
 /**
