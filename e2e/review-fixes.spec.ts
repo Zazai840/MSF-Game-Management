@@ -42,7 +42,7 @@ test('after a lead takes a finisher off a saved race, the lead sees the surplus 
   // Finishers and times only disagree after a lead's correction: 2406 turns out not to have run.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;
   expect((await page.request.post(`/api/lead/races/${race.id}/finish-order`,{headers,data:{baseVersion:saved.parts.finish.version,runnersVersion:saved.parts.runners.version,order:runners.slice(0,5),didNotFinish:[],didNotRun:[2406]}})).ok()).toBe(true);
-  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Races');await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await raceAction(page,'Correct times');
+  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Heats');await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await raceAction(page,'Correct times');
   await expect(page.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
   // The leftover place is the docked Save's reason; "No finisher" stays on one line beside each place.
   const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.',footer=page.getByRole('contentinfo'),save=footer.getByRole('button',{name:'Save times',exact:true});

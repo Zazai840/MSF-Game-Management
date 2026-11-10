@@ -13,9 +13,9 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
   const input=phone.getByLabel('Wristband number',{exact:true});
   await input.fill('2401');await input.press('Enter');
   await expect(input).toBeEditable();await input.fill('3045');await input.press('Enter');await phone.getByRole('button',{name:'Keep',exact:true}).click();
-  // The race shows on the Races tab within one poll, not saved yet; the leaderboard waits on Heats.
-  await eventTab(page,'Races');
-  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toHaveAccessibleDescription(/^2 runners · not saved yet · checked in /,{timeout:6500});
+  // The race shows on Heats within one poll, not in Results yet; the scoreboard waits.
+  await eventTab(page,'Heats');
+  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toHaveAccessibleDescription(/^2 runners · not in Results yet · checked in /,{timeout:6500});
   await eventTab(page,'Heats');
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Finish line');

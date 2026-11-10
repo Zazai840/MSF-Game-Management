@@ -82,7 +82,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventPage('final');
   await expect(page.getByRole('banner').getByText(code,{exact:true})).toBeVisible();
-  for(const tab of ['Heats','Races','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
+  for(const tab of ['Heats','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
   await page.screenshot({path:info.outputPath('event.png')});
   await bothGoBack(page,results);
   // A Heats tab's TIE tag opens the tie, which goes back to the tab; the runner sheet closes on Back and the tab stays.
@@ -95,7 +95,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
   await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');
   // The Races tab: a race page goes back to the tab, a correction to the race page, also after a reload on its address.
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
   const racePage=()=>onScreen(page,`/results/${code}/races/${heat1}`,'Heat 1',event);
   await racePage();
   expect(await lookProblems(page)).toEqual([]);
@@ -105,7 +105,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await correction();
   await page.reload();await correction();
   await bothGoBack(page,racePage);
-  await bothGoBack(page,()=>eventPage('races'));
+  await bothGoBack(page,()=>eventPage('heats'));
   await bothGoBack(page,results);
   await bothGoBack(page,races);
   // Day setup and its screens.
@@ -143,7 +143,7 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await page.goto(`/results/${code}/races/${raceId}/correct-finishing-order`);
   await onScreen(page,`/results/${code}/races/${raceId}/correct-finishing-order`,'Correct finishing order','Heat 1');
   await press(arrow(page));await onScreen(page,`/results/${code}/races/${raceId}`,'Heat 1',event);
-  await press(arrow(page));await onScreen(page,`/results/${code}/races`,event,'Results');
+  await press(arrow(page));await onScreen(page,`/results/${code}/heats`,event,'Results');
   await press(arrow(page));await onScreen(page,'/results','Results','Races');
   await press(arrow(page));await onRaces(page);
   await page.goto('/day/signed-in-today');await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
