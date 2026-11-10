@@ -83,6 +83,8 @@ test('a tie between two heats runs end to end: leaderboard TIE tags, the tie scr
   await heat([2731,2735,2736],[1000,1000,1200]);await heat([2733,2734],[1000,1100]);
   try {
     await page.goto('/');await join(page,ownName('Tie heats lead'),{job:'Start line'});await becomeLead(page);
+    // The line beside + Final names every heat with a tied runner.
+    await expect(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:'Heats 1 and 2 have a tie to settle first',exact:true})).toBeVisible();
     await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {

@@ -157,7 +157,7 @@ test('only a lead makes the final, once every heat is saved, seeded with the fas
   await heat(ahmed,'R1',2,[7],[1500],steps);
   const tied=await call(lena,'/api/races',{eventCode:'R1',kind:'final'});
   expect(tied.statusCode).toBe(409);
-  expect(tied.json()).toMatchObject({message:'Heat 1 has a tie to settle first',step:'times'});
+  expect(tied.json()).toMatchObject({message:'Heats 1 and 2 have a tie to settle first',step:'times'});
   expect((await call(lena,'/api/races',{eventCode:'R16',kind:'final'})).json().message).toBe('This event has no final');
 });
 test("the races read gives a lead's final the reason it would be refused, the same one making it gives, naming the race and step",async()=>{
