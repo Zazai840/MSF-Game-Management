@@ -1,5 +1,6 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
@@ -101,9 +102,10 @@ test('lead runner correction preserves replacement identities and time pairing, 
   expect(current.recording.results[1]).toMatchObject({entryId:second.id,wristband:4045,place:2,time:1200});
   expect(current.parts.finish.version).toBe(1);
   const removed=await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:3,finishVersion:1,runners:[{entryId:second.id,wristband:4045}]});expect(removed.statusCode).toBe(200);
-  current=(await leadRead(race.id));expect(current.parts.finish.value).toEqual({order:[second.id],didNotFinish:[]});expect(current.parts.times.value.places).toEqual([1300,1200]);expect(current.recording.countMismatch).toContain('1 finishers, times have 2');
+  // The removed 1st place's time goes with it: the child who was 2nd keeps their own.
+  current=(await leadRead(race.id));expect(current.parts.finish.value).toEqual({order:[second.id],didNotFinish:[]});expect(current.parts.times.value.places).toEqual([1200]);expect(current.recording.countMismatch).toBeNull();
   const added=await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:4,finishVersion:2,runners:[{entryId:second.id,wristband:4045},{wristband:2003}]});expect(added.statusCode).toBe(200);
-  current=(await leadRead(race.id));expect(current.parts.finish.value).toBeNull();expect(current.parts.times.value.places).toEqual([1300,1200]);
+  current=(await leadRead(race.id));expect(current.parts.finish.value).toBeNull();expect(current.parts.times.value.places).toEqual([1200]);
   const newEntry=current.parts.runners.value[1];
   const classified=await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:5,finishVersion:3,runners:[{entryId:second.id,wristband:4045},{entryId:newEntry.id,wristband:2003}],finish:{order:[4045],didNotFinish:[2003]}});expect(classified.statusCode).toBe(200);
   expect((await leadRead(race.id)).parts.finish.value).toEqual({order:[second.id],didNotFinish:[newEntry.id]});
@@ -142,19 +144,58 @@ test('a finishing order correction at a stale version is refused with today\'s w
   expect((await call(volunteer,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:2,order:[2002,2001],didNotFinish:[],didNotRun:[]})).statusCode).toBe(403);
   expect((await read()).auditNotes).toEqual([]);
 });
-test('Did not finish or Didn\'t run leaves times the finishers don\'t agree with until the lead clears the leftover places',async()=>{
+test('Did not finish or Didn\'t run takes the removed place\'s time with it, so the finishers and times still agree and nobody inherits a time',async()=>{
   const {lead,race,read,leadRead}=await start();
   await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:1,places:[1200,1300]});
   const reasons=async()=>(await read()).results.notRankedYet.flatMap((item:any)=>item.reasons);
   expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:1,runnersVersion:2,order:[2001],didNotFinish:[2002],didNotRun:[]})).statusCode).toBe(200);
-  expect(await reasons()).toEqual(["finishers and times don't agree"]);
-  await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:2,places:[1200,null]});
+  expect((await leadRead(race.id)).parts.times.value.places).toEqual([1200]);
   expect(await reasons()).toEqual([]);
+  // 2001 didn't run and 2002 gets a place after all: 2001's time goes with 2001, and 2002's place waits for its own.
   expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{baseVersion:2,runnersVersion:2,order:[2002],didNotFinish:[],didNotRun:[2001]})).statusCode).toBe(200);
   const current=(await leadRead(race.id));expect(current.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([2002]);
   expect(current.parts.finish.value).toEqual({order:[current.parts.runners.value[0].id],didNotFinish:[]});
+  expect(current.parts.times.value.places).toEqual([]);
   expect((await read()).auditNotes[0].message).toBe('Aisha corrected the finishing order for Heat 1: 2002; Didn\'t run 2001');
-  expect(await reasons()).toEqual([]);
+  expect(await reasons()).toEqual(["finishers and times don't agree"]);
+});
+/** A second saved heat of six, each child with their own time, and what the results and the Day export then say of it. */
+async function heatOfSix() {
+  const started=await start(),{lead,volunteer,setup}=started,runners=[2003,2004,2005,2006,2007,2008];
+  const recorded=await setup.record(volunteer,'R10',runners,[1000,1100,1200,1300,1400,1500]),race=await started.leadRead(recorded.id);
+  const post=async(command:string,body:object)=>{const response=await call(lead,`/api/lead/races/${race.id}/${command}`,body);expect(response.statusCode,response.body).toBe(200);};
+  /** Each child's time in the results, whether the race counts, and each child's time (in seconds) in the Day export's All results. */
+  async function said() {
+    const {results}=await started.read(),sheets=await readExcelFile((await call(lead,'/api/day/export',{})).rawPayload);
+    return {times:(await started.leadRead(race.id)).parts.times.value.places as number[],
+      leaderboard:results.leaderboard.filter((row:any)=>row.raceId===race.id).map((row:any)=>[row.wristband,row.time]),
+      counts:!results.notRankedYet.some((item:any)=>item.race.id===race.id),
+      exported:sheets[2].data.filter(row=>row[3]==='Heat 2').map(row=>[row[4],row[7]])};
+  }
+  return {...started,race,post,said,entries:race.parts.runners.value.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}))};
+}
+test('a lead removes the 4th of 6 children with Correct runner list: the 5th and 6th keep their own times, no time is left over, and the race still counts',async()=>{
+  const {race,post,said,entries}=await heatOfSix();
+  await post('runners',{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:entries.filter((entry:any)=>entry.wristband!==2006)});
+  expect(await said()).toEqual({times:[1000,1100,1200,1400,1500],counts:true,
+    leaderboard:[[2003,1000],[2004,1100],[2005,1200],[2007,1400],[2008,1500]],
+    exported:[[2003,10],[2004,11],[2005,12],[2007,14],[2008,15]]});
+});
+test('a lead gives a placed and timed child Did not finish, then another Didn\'t run, with Correct finishing order: every other child keeps their own time and the race still counts',async()=>{
+  const {race,post,said}=await heatOfSix();
+  await post('finish-order',{baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order:[2003,2004,2005,2007,2008],didNotFinish:[2006],didNotRun:[]});
+  expect(await said()).toEqual({times:[1000,1100,1200,1400,1500],counts:true,
+    leaderboard:[[2003,1000],[2004,1100],[2005,1200],[2007,1400],[2008,1500],[2006,null]],
+    exported:[[2003,10],[2004,11],[2005,12],[2006,null],[2007,14],[2008,15]]});
+  await post('finish-order',{baseVersion:race.parts.finish.version+1,runnersVersion:race.parts.runners.version,order:[2003,2005,2007,2008],didNotFinish:[2006],didNotRun:[2004]});
+  expect(await said()).toEqual({times:[1000,1200,1400,1500],counts:true,
+    leaderboard:[[2003,1000],[2005,1200],[2007,1400],[2008,1500],[2006,null]],
+    exported:[[2003,10],[2005,12],[2006,null],[2007,14],[2008,15]]});
+});
+test('a lead drags children to a new order with Correct finishing order: times stay by place',async()=>{
+  const {race,post,said}=await heatOfSix();
+  await post('finish-order',{baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order:[2008,2003,2004,2005,2006,2007],didNotFinish:[],didNotRun:[]});
+  expect(await said()).toMatchObject({times:[1000,1100,1200,1300,1400,1500],counts:true,leaderboard:[[2008,1000],[2003,1100],[2004,1200],[2005,1300],[2006,1400],[2007,1500]]});
 });
 test('one writer per job leaves nothing to choose between: the lead race read has no clash candidates and the clash route is gone',async()=>{
   const {lead,race}=await start();

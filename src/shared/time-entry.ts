@@ -62,3 +62,16 @@ export function timesOutOfOrder(places:readonly(number|null)[]):boolean {
   for(const time of places) {if(time===null) continue;if(previous!==null && time<previous) return true;previous=time;}
   return false;
 }
+/**
+ * A removed place loses its time: times are stored by place, so when an entry leaves a finishing order (`before`, then
+ * `after`, by entry id) and those below move up, the time at its place goes and later times move up with their
+ * entries. A new order alone moves no time. Answers the same times when no place was removed.
+ */
+export function timesWithoutRemovedPlaces<Times extends RaceTimes|null>(times:Times,before:readonly string[],after:readonly string[]):Times {
+  const removed=before.flatMap((id,index)=>after.includes(id)?[]:[index]);
+  if(!times || !removed.length) return times;
+  const places=times.places.filter((_,index)=>!removed.includes(index)),outOfOrder=timesOutOfOrder(places);
+  const keptWrong=times.keptWrong?.filter(index=>!removed.includes(index)).map(index=>index-removed.filter(gone=>gone<index).length);
+  // A lead accepted the times as they were out of order: nothing is left to accept once they are in order.
+  return {places,outOfOrder,...(outOfOrder && times.acceptedByLead?{acceptedByLead:true}:{}),...(keptWrong?{keptWrong}:{})} as Times;
+}

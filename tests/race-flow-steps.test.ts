@@ -71,6 +71,23 @@ test('the order is by entry, and a runner check-in takes off drops out with late
   const stale=await ok(await order(priya,ordered,{order:[idOf(checked,2002),idOf(checked,2001),idOf(checked,2003)]}));
   expect(placed(stale)).toEqual([2001,2003]);
 });
+test('the Start line\'s Remove on a placed and timed child takes that place\'s time, so the children below keep their own; the Timer\'s older column is refused, and the race saves',async()=>{
+  const {sam,priya,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003,2004]));
+  const ordered=await ok(await order(priya,checked,{order:[2001,2002,2003,2004].map(wristband=>idOf(checked,wristband))}));
+  const timed=await ok(await times(jo,ordered,{places:[1000,1100,1300,1200],keptWrong:[3]}));
+  const removed=await ok(await checkIn(sam,timed,[2001,2003,2004]));
+  expect(placed(removed)).toEqual([2001,2003,2004]);
+  expect(removed.race.parts.times.value).toEqual({places:[1000,1300,1200],outOfOrder:true,keptWrong:[2]});
+  // Jo's phone still shows four times: sent as they were, they would give 2003 the removed child's time.
+  const stale=await times(jo,timed,{places:[1000,1100,1300,1200],keptWrong:[3]});
+  expect(stale.statusCode).toBe(409);expect(stale.json().reason).toBe('changed');
+  // A runner with no place leaves every time where it is.
+  const more=await ok(await checkIn(sam,removed,[2001,2003,2004,2005]));
+  expect((await ok(await checkIn(sam,more,[2001,2003,2004]))).race.parts.times).toEqual(removed.race.parts.times);
+  for(const step of ['runners','positions','times']) await call(sam,`/api/races/${checked.race.id}/steps/${step}/done`,{});
+  expect((await ok(await call(sam,`/api/races/${checked.race.id}`))).race.state).toBe('saved');
+});
 test('a fixed check-in number keeps its entry, so its place follows the fix, and the new number is checked again',async()=>{
   const {sam,priya}=await start();
   const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002]));
