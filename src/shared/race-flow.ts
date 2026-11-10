@@ -154,6 +154,11 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
   }
   return null;
 }
+/** What a lead's done button answers on a step already done: that it is, and once every step is done, why the race is not in Results yet. */
+export function alreadyDoneLine({race,steps}:Pick<RaceFlowRead,'race'|'steps'>,step:Step) {
+  const blocker=Object.values(steps).every(status=>status?.state==='done')?stepBlocker(race,race.event.relay):null;
+  return `${stepLabels[step]} is already done.${blocker?` ${raceName(race)} is not in Results yet: ${blocker}.`:''}`;
+}
 /** What a step needs ("Heat 3 needs times") and what it says once done but the race not saved ("Heat 3 checked in"). */
 const stepNeeds:Record<Step,string>={runners:'runners',positions:'the finishing order',times:'times'};
 const stepDone:Record<Step,string>={runners:'checked in',positions:'order saved',times:'timed'};
