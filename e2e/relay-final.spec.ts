@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,type Page} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
@@ -17,7 +17,7 @@ async function openFinalResults(page:Page,code:string) {
   await eventTab(page,'Final');
 }
 
-test('a lead\'s call-up shows live on a relay final\'s start line, and once the final saves itself the Final leaderboard lists each medal team\'s four children',async({openPhone,request},info)=>{
+test('the start line calls up the next-ranked team at a relay final\'s check-in, Here at once, and once the final saves itself the Final leaderboard lists each medal team\'s four children',async({openPhone,request},info)=>{
   const name=ownName('Relay final'),code=await ownCode();
   await ownRelay(code,name,'Girl Scouts');
   const n=await ownWristbands('Girl Scouts',28),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg));
@@ -28,13 +28,20 @@ test('a lead\'s call-up shows live on a relay final\'s start line, and once the 
   const finalId=await makeFinal(request,lead.token,code);
   await sam.page.goto(`/races/${finalId}`);
   await expect(sam.page.getByRole('heading',{level:3})).toHaveText(['1st fastest · Team 1','2nd fastest · Team 2','3rd fastest · Team 3','4th fastest · Team 4','5th fastest · Team 5','6th fastest · Team 6']);
-  // Team 5 isn't here: Absent frees its seed, and the lead calls up the next-ranked team, which appears at once.
-  await card(sam.page,5).getByRole('button',{name:'Team 5: Absent',exact:true}).click();
+  // Team 5 isn't here: Absent frees its seed, and the start line calls up the next-ranked team, Here with no second tap.
+  const callUp=sam.page.getByRole('button',{name:/^Call up next fastest/});
+  await expect(callUp).toHaveCount(0);
+  await press(card(sam.page,5).getByRole('button',{name:'Team 5: Absent',exact:true}));
+  await expect(callUp).toHaveText('Call up next fastest: Team 7 (7th)');
+  expect(await lookProblems(sam.page)).toEqual([]);
+  await press(callUp);
+  await expectToast(sam.page,'Team 7 called up · Girl Scouts Final');
+  await expect(card(sam.page,7).getByRole('heading',{level:3})).toHaveText('Called up · Team 7');
+  await expect(card(sam.page,7).getByRole('button',{name:'Team 7: Here',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(callUp).toHaveCount(0);
+  // The lead's Final tab names the same call-up.
   await openFinalResults(lead.page,code);
-  await lead.page.getByRole('button',{name:'Call up next-ranked team: Team 7 (7th)',exact:true}).click();
-  await expectToast(lead.page,'Team 7 called up · Girl Scouts Final');
   await expect((await lineUp(lead.page)).last()).toHaveText(`Called up from heat rank 7 · Team 7 · ${legs(7).join(' · ')}`);
-  await expect(card(sam.page,7).getByRole('heading',{level:3})).toHaveText('Called up · Team 7',live);
   expect(await lookProblems(sam.page)).toEqual([]);
   await sam.page.screenshot({path:info.outputPath('relay-final-call-up.png'),fullPage:true});
   // Everyone else is here; the finish line places them, and the final saves itself.

@@ -7,13 +7,16 @@ import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../.
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
 import { plainWristbandWarning } from '../../shared/wristband-checks.js';
-import { phoneStorage } from '../api.js';
+import { failureLine } from '../../shared/request-failure.js';
+import { toastLine } from '../../shared/toast-lines.js';
+import { api,phoneStorage } from '../api.js';
 import { NumberBox } from '../flow/NumberBox.js';
 import { SortableList } from '../flow/SortableList.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 import { useWristbandEntry } from './wristband-entry.js';
 import { Callout,DockedFooter,Icon } from './parts.js';
+import { useToast } from './Toast.js';
 import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
 
@@ -133,6 +136,25 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
   </>;
 }
 /**
+ * A final's check-in, while an Absent finalist's seed is free and a ranked heat entry is left: "Call up next fastest:
+ * 2011 (7th)", for the Start line and the lead. It is the lead's call-up ruling from the Final tab, saved at once, and
+ * the entry called up is Here with no second tap.
+ */
+export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
+  const {race,group,callUp}=read,toast=useToast(),[busy,setBusy]=useState(false);
+  if(!callUp) return null;
+  async function send(next:NonNullable<RaceFlowRead['callUp']>) {
+    setBusy(true);flow.setError('');
+    try {
+      await api(`lead/events/${encodeURIComponent(group.event.code)}/call-up`,{expectedHeatEntryId:next.entryId});
+      toast({message:toastLine({kind:'called-up',who:next.who,race:{section:group.event.section,kind:'final',number:0}})});
+      flow.offer(await api<RaceFlowRead>(`races/${race.id}`));
+    } catch(failure) {flow.setError(failureLine(failure,'save'));}
+    finally {setBusy(false);}
+  }
+  return <button type="button" className="rz-btn rz-btn--block" disabled={busy || flow.busy} onClick={()=>void send(callUp)}>{busy?'Saving…':`Call up next fastest: ${callUp.who} (${ordinal(callUp.position)})`}</button>;
+}
+/**
  * A final's start line: every finalist unmarked at first, each row with Here and Absent; tapping a lit mark again
  * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
  */
@@ -160,6 +182,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
         {(['here','absent'] as const).map(mark=><button key={mark} type="button" className={marks[index]===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked || flow.busy}
           aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
+      {!locked && <CallUp read={read} flow={flow}/>}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>

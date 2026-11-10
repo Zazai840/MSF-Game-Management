@@ -60,17 +60,18 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(here(sam,n(12))).toHaveAttribute('aria-pressed','false');
  await expect(runnerButtons(priya).filter({hasText:String(n(12))})).toHaveCount(0,live);
  await expect(priya.locator('.rz-prompt__meta')).toContainText('5 runners',live);
- // A lead's call-up for the absent seed appears live, not marked yet: the finish line has them once marked Here.
+ // The start line is offered the next-ranked runner too; here the lead calls up from the Final tab.
+ await expect(sam.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true})).toBeVisible(live);
+ // A lead's call-up for the absent seed appears live, Here at once: the finish line has them with no second tap.
  await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:new RegExp(`Call up next-ranked runner: ${n(15)}`)}).click();
  // The call-up saves at once: the toast, then the line-up names it and the seed it replaces stays Absent.
  await expectToast(page,`${n(15)} called up · Boy Cubs Final`);
  await expect(await lineUp(page)).toContainText([`2nd fastest · ${n(12)} · Absent · no final place`,`Called up from heat rank 7 · ${n(15)}`]);
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-tab-call-up.png'),fullPage:true});
  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(`called up ${n(15)}`);await eventTab(page,'Final');
- await expect(here(sam,n(15))).toHaveAttribute('aria-pressed','false',live);
+ await expect(here(sam,n(15))).toHaveAttribute('aria-pressed','true',live);
  await expect(attendance(sam).filter({hasText:String(n(15))})).toContainText('Called up');
- await expect(runnerButtons(priya).filter({hasText:String(n(15))})).toHaveCount(0);
- await here(sam,n(15)).click();
+ await expect(sam.getByRole('button',{name:/^Call up next fastest/})).toHaveCount(0);
  await expect(runnerButtons(priya).filter({hasText:String(n(15))})).toHaveCount(1,live);
  expect(await lookProblems(sam)).toEqual([]);await sam.screenshot({path:info.outputPath('final-here-absent.png'),fullPage:true});
  for(const [number,place] of [[n(15),'1st'],[n(11),'2nd'],[n(17),'3rd'],[n(13),'4th'],[n(18),'5th'],[n(14),'6th']] as const) await priya.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
@@ -102,6 +103,47 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await page.goto(`/results/${code}/reopen-heats`);
  await expect(page.getByText('The final has started. Heats cannot be reopened.',{exact:true})).toBeVisible();await expect(page.getByRole('contentinfo').getByRole('button')).toHaveCount(0);
  await back(page,`${name} · Boy Cubs`);await expect(final).toContainText(String(n(15)));
+});
+test('the start line and the lead call up the next fastest at the final\'s check-in: Here at once, offered only while a seed is free and a ranked runner is left; a finalist the finish line adds counts as Here',async({openPhone,request},info)=>{
+ const code=await ownCode(),name=ownName('Call up here'),n=await ownWristbands('Boy Cubs',8);
+ await ownEvent(request,code,name,'Boy Cubs');
+ // 11 to 16 are the six fastest; 17 is 7th and 18 is 8th.
+ for(const [runners,times] of [[[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]],[[n(17),n(18)],[1500,1600]]]) await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
+ const sam=await openPhone(ownName('Sam call up')),priya=await openPhone(ownName('Priya call up'),{job:'finish'}),lead=await openPhone(ownName('Lena call up'),{lead:true});
+ const finalId=(await flowPost(request,lead.token,'/api/races',{eventCode:code,kind:'final'})).race.id;
+ for(const phone of [sam,priya,lead]) await phone.page.goto(`/races/${finalId}`);
+ const callUp=(page:Page)=>page.getByRole('button',{name:/^Call up next fastest/});
+ // Nobody is Absent: there is no seed to fill, so no call-up.
+ await expect(sam.page.getByRole('heading',{level:2,name:'Who is here?'})).toBeVisible();
+ await expect(callUp(sam.page)).toHaveCount(0);
+ await press(mark(sam.page,n(12),'Absent'));
+ await expect(callUp(sam.page)).toHaveText(`Call up next fastest: ${n(17)} (7th)`);
+ expect(await lookProblems(sam.page)).toEqual([]);await sam.page.screenshot({path:info.outputPath('final-check-in-call-up.png'),fullPage:true});
+ // The start line calls up: the runner is in the line-up, Here with no second tap, and the finish line has them.
+ await press(callUp(sam.page));
+ await expectToast(sam.page,`${n(17)} called up · Boy Cubs Final`);
+ await expect(here(sam.page,n(17))).toHaveAttribute('aria-pressed','true');
+ await expect(attendance(sam.page).filter({hasText:String(n(17))})).toContainText('Called up');
+ await expect(callUp(sam.page)).toHaveCount(0);
+ await expect(runnerButtons(priya.page)).toHaveText([String(n(17))],live);
+ // The lead has the same call-up on the final's Race screen.
+ await press(mark(lead.page,n(13),'Absent'));
+ await press(lead.page.getByRole('button',{name:`Call up next fastest: ${n(18)} (8th)`,exact:true}));
+ await expectToast(lead.page,`${n(18)} called up · Boy Cubs Final`);
+ await expect(here(lead.page,n(18))).toHaveAttribute('aria-pressed','true');
+ await expect(here(sam.page,n(18))).toHaveAttribute('aria-pressed','true',live);
+ expect(await lookProblems(lead.page)).toEqual([]);
+ // No ranked runner is left, so another Absent offers nothing: the final runs short.
+ await press(mark(lead.page,n(14),'Absent'));
+ await expect(mark(lead.page,n(14),'Absent')).toHaveAttribute('aria-pressed','true');
+ await expect(callUp(lead.page)).toHaveCount(0);
+ // 11 was never marked at the start line. The finish line adds them: they count as Here, as the finalist they are.
+ await press(priya.page.getByRole('button',{name:'+ Runner not on the list',exact:true}));
+ await priya.page.getByLabel('Wristband number',{exact:true}).fill(String(n(11)));
+ await press(priya.page.getByRole('button',{name:'Add runner',exact:true}));
+ await expect(runnerButtons(priya.page)).toHaveCount(3);
+ await expect(here(sam.page,n(11))).toHaveAttribute('aria-pressed','true',live);
+ await expect(attendance(sam.page)).toHaveCount(8);
 });
 test('only a lead\'s + Final makes the final from the fastest, after a confirm; Reopen heats removes the unrun final and + Final makes it again from the corrected heats',async({page,openPhone},info)=>{
  const code=await ownCode(),name=ownName('Short sprint'),n=await ownWristbands('Boy Cubs',3);

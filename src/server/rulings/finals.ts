@@ -4,8 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import type { Phone } from '../../shared/domain.js';
 import type { DayEvent } from '../../shared/day.js';
 import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
-import { finalTakesChanges,teamInFinal,type FinalEntry } from '../../shared/finals.js';
-import { entryName,type RaceEntry } from '../../shared/races.js';
+import { finalTakesChanges,openCallUp,teamInFinal,type FinalEntry } from '../../shared/finals.js';
+import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { readTeamLists } from '../relays/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
@@ -51,23 +51,27 @@ export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,
 }
 export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
-  action('POST','/api/lead/events/:code/call-up','Lead',async(request,_reply,phone)=>{
+  // Anyone signed in calls up (ADR 0003): the Start line at the final's check-in, or a lead there or on the Final tab.
+  action('POST','/api/lead/events/:code/call-up','Volunteer',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false);
     if(typeof value.expectedHeatEntryId!=='string') throw new Refusal(400,'Choose the suggested next-ranked runner');
     return rulingChange(pool,phone,async(client,current)=>{
-      const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults;
-      if(!final || !finalTakesChanges(final) || !final.vacancy || !final.nextCallUp) throw new Refusal(409,'There is no open place to call up a runner');
-      const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
-      const next=final.nextCallUp;if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
+      const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults,next=openCallUp(final);
+      if(!final || !next) throw new Refusal(409,'There is no open place to call up a runner');
+      const vacancy=final.vacancy!,race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
+      if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
       const id=randomUUID(),called=finalist(await relayTeams(client,current.dayId,detail.event.id),next,id);
-      const entry:FinalEntry={finalEntryId:id,heatRaceId:next.raceId,heatEntryId:next.entryId,heatWristband:next.wristband,heatRank:next.position!,seed:final.vacancy.seed,kind:'call-up',absent:false,runner:called,replacesEntryId:final.vacancy.finalEntryId};
-      // A call-up is not marked yet, like every finalist: it runs once marked Here.
+      const entry:FinalEntry={finalEntryId:id,heatRaceId:next.raceId,heatEntryId:next.entryId,heatWristband:next.wristband,heatRank:next.position!,seed:vacancy.seed,kind:'call-up',absent:false,runner:called,replacesEntryId:vacancy.finalEntryId};
       await client.query('UPDATE race_finals SET entries=$1 WHERE race_id=$2',[JSON.stringify([...final.entries,entry]),race.id]);
+      // A call-up is Here at once, with no second tap: it joins the final's runners, a team with each of its children here.
+      const here:RaceEntry=isTeamEntry(called)?{...called,legs:called.legs.map(leg=>({...leg,here:leg.wristband!==null}))}:called;
+      await publishPart(client,current,race,'runners',[...race.parts.runners.value||[],here]);
       // An absent child is named by the wristband seeded; an absent team by its number, from its copy kept when it left.
-      const absent=final.vacancy.heatWristband??(final.vacancy.runner?entryName(final.vacancy.runner):'');
+      const absent=vacancy.heatWristband??(vacancy.runner?entryName(vacancy.runner):'');
       await writeAuditNote(client,current,detail.event.id,{action:'call-up',comment,message:`${current.name} called up ${resultName(next)} (heat rank ${next.position}) for absent ${absent}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.finalEntryId},{raceId:next.raceId,entryId:next.entryId}]});
-      return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
-    });
+      // Heat ranking and audit notes stay within Lead reads: a volunteer's phone reads the race again.
+      return {status:'saved',...(current.level==='Lead'?await readEventResults(client,current.dayId,detail.event.code):{})};
+    },'Volunteer');
   });
   // Adding a team to a relay's Final: picked from its team list, it joins the line-up with its four children as they
   // stand now, not marked yet, and check-in shows it as Added.

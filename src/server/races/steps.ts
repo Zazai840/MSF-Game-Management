@@ -4,6 +4,7 @@ import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
+import type { FinalField } from '../../shared/finals.js';
 import { digitsForTime,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
@@ -49,6 +50,8 @@ export async function checkIn(client:pg.PoolClient,phone:Phone,target:WriteTarge
   await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners);
   await dropFromOrder(client,target.race,runners);
 }
+/** A final's line-up as entries, a child finalist or a relay team: a seeded child never yet checked in is named by their heat wristband. */
+const finalLineup=(final:FinalField):RaceEntry[]=>[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
 export type AbsentInput=ReturnType<typeof absentInput>;
 export function absentInput(body:unknown) {
   const input=(body||{}) as {raceId?:unknown;version?:unknown;here?:unknown;absent?:unknown};
@@ -62,8 +65,7 @@ export function absentInput(body:unknown) {
 export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,here,absent}:AbsentInput) {
   if(raceId===null || target.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
   const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=race.parts.runners.value||[];
-  // A child finalist or a relay team: a seeded child never yet checked in is named by their heat wristband.
-  const lineup:RaceEntry[]=[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
+  const lineup=finalLineup(final);
   if([...here,...absent].some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
   if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,`Two ${runners.some(isTeamEntry)?'teams marked Here have the same team number':'runners marked Here have the same wristband number'}. Ask a lead to check the final.`);
@@ -103,8 +105,10 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
   const teams=addedTeams.length?(await readTeamLists(client,phone.dayId)).get(target.event.id)!.teams:[];
   const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId));
+  // A finalist the finish line adds, not marked or marked Absent, joins as their own line-up entry: a finalist with a place counts as Here.
+  const finalists=race.final?runnersOf(finalLineup(race.final)):[];
   // A team keeps the warnings kept on it when it was typed in. A final's runners all ran in its heats, so "already ran in this event" does not apply.
-  const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
+  const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>finalists.find(entry=>entry.wristband===wristband)??{id:randomUUID(),wristband,addedAtFinish:true})],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
   const finish=onlyRunners({order:[...order,...atFinish.map(entry=>entry.id)],didNotFinish},runners);
   await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
