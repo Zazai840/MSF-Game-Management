@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -37,10 +37,10 @@ function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={})
 async function finalReason(db:Database,dayId:string,code:string,own:readonly StoredRace[]):Promise<FinalReason|null> {
   const {results}=await readEventResults(db,dayId,code),item=results.heatsCheckSheet?.mustSettleFirst[0];
   if(!item) return null;
-  const raceId=item.raceId??results.ties.find(tie=>tie.id===item.tieId)!.entries[0]!.raceId;
+  const tied=results.ties.find(tie=>tie.id===item.tieId)?.entries??[],raceId=item.raceId??tied[0]!.raceId;
   const race=own.find(race=>race.id===raceId),name=race?raceName(race):'A heat';
   if(item.kind==='ran-twice') return {raceId,...finalHold('ran-twice',resultName(results.leaderboard.find(row=>row.raceId===raceId && row.entryId===item.entryId)!))};
-  if(item.kind==='tie') return {raceId,...finalHold('tie',name)};
+  if(item.kind==='tie') return {raceId,...tieHold(own.filter(race=>tied.some(entry=>entry.raceId===race.id)))};
   return {raceId,...finalHold(results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0],name)};
 }
 /** Each switched-on event (with `switchedOff`, every event) as an event group, its races in order (heats, then the final). */

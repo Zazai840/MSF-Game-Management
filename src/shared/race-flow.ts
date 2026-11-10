@@ -82,12 +82,11 @@ export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; 
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**
- * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs), a tie,
+ * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs)
  * or why the heat is not ranked yet (`name` is the heat's). "Heat 1 has a time to check first".
  */
-export function finalHold(kind:'ran-twice'|'tie'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
+export function finalHold(kind:'ran-twice'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
   if(kind==='ran-twice') return {step:null,line:`${name} ran twice: choose which result counts first`};
-  if(kind==='tie') return {step:'times',line:`${name} has a tie to settle first`};
   if(kind==='times out of order' || kind==="finishers and times don't agree") return {step:'times',line:`${name} has a time to check first`};
   if(kind==='awaiting times') return {step:'times',line:`${name} needs its times first`};
   if(kind==='awaiting finishing order' || kind==='checked in') return {step:'positions',line:`${name} needs its finishing order first`};
@@ -162,6 +161,9 @@ export function heatList(races:readonly Pick<RaceSummary,'kind'|'number'>[]) {
   const heats=races.filter(race=>race.kind!=='final'),named=heats.length?`${heats.length>1?'Heats':'Heat'} ${andList(heats.map(race=>String(race.number)))}`:'';
   return races.some(race=>race.kind==='final')?named?`${named} and the final`:'The final':named;
 }
+/** A tie that holds the final up, naming every heat with a tied runner: "Heats 1 and 2 have a tie to settle first". */
+export const tieHold=(races:readonly Pick<RaceSummary,'kind'|'number'>[]):Omit<FinalReason,'raceId'>=>
+  ({step:'times',line:`${heatList(races)||'A heat'} ${races.length>1?'have':'has'} a tie to settle first`});
 /**
  * A race's state in the viewer's step, and where it comes on a card: what waits for them (0), their step done or, for a
  * lead, the race in progress (1), the race saved (2), then a race still with others (3). `joins` is how a card line
