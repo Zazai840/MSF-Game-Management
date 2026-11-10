@@ -3,7 +3,7 @@ import type pg from 'pg';
 import { actions, Refusal } from './permissions.js';
 import { rulingChange,writeAuditNote } from '../rulings/records.js';
 import { failureBackoff,WrongAccessCode } from './failures.js';
-import { matches, signInRoutes } from './sign-in.js';
+import { matches, matchesAnyCapitals, signInRoutes } from './sign-in.js';
 import { raceChange } from '../races/records.js';
 export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string) {
   // Olympics and owner password attempts share one backoff per IP.
@@ -23,7 +23,7 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
     return leadFailures([`phone:${phone.id}`,`ip:${request.ip}`],reply,()=>rulingChange(pool,phone,async(client,current)=>{
       const day=(await client.query('SELECT lead_code FROM olympics_days WHERE id=$1',[current.dayId])).rows[0];
       const byOwner=matches(code,ownerPassword);
-      if(!byOwner && !matches(code,day.lead_code)) throw new WrongAccessCode('Wrong lead code');
+      if(!byOwner && !matchesAnyCapitals(code,day.lead_code)) throw new WrongAccessCode('Wrong lead code');
       const wasOwner=(await client.query('SELECT owner FROM sign_ins WHERE id=$1',[current.id])).rows[0].owner as boolean;
       const updated=(await client.query(`UPDATE sign_ins SET level='Lead',owner=owner OR $2 WHERE id=$1 RETURNING id,day_id AS "dayId",name,level,profile_id AS "profileId"`,[current.id,byOwner])).rows[0];
       if(byOwner && !wasOwner) await writeAuditNote(client,current,null,{action:'Made lead with owner password',message:`Made ${current.name} a lead with the owner password`,comment:null,touches:[]});
