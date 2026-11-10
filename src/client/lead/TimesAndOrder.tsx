@@ -7,7 +7,7 @@ import { raceName } from '../../shared/race-flow.js';
 import { entryName,entryNumber } from '../../shared/races.js';
 import { raceRecording } from '../../shared/recording.js';
 import { entryCount,entryNoun } from '../../shared/teams.js';
-import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits,timeBoxHint,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits,timeBoxHint,timeRefusal,timesOutOfOrder,timesWithoutRemovedPlaces } from '../../shared/time-entry.js';
 import { toastLine } from '../../shared/toast-lines.js';
 import { SortableList } from '../flow/SortableList.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
@@ -111,18 +111,20 @@ function CorrectTimes({race,save,busy}:{race:Race;save:Save;busy:boolean}) {
 type Order={order:number[];didNotFinish:number[];didNotRun:number[]};
 /**
  * Correct finishing order: dragging a wristband (on a relay, a team) by its handle moves it to another place while times
- * stay by place; No place asks whether it did not finish or did not run, and Give a place puts a did-not-finish back last.
+ * stay by place; No place asks whether it did not finish or did not run (its place's time goes with it, so those below
+ * keep their own), and Give a place puts a did-not-finish back last.
  */
 function CorrectOrder({race,save,busy}:{race:Race;save:Save;busy:boolean}) {
   // Entries go by the number the server takes: a child's wristband, or a team's number shown as "Team 3".
   const entries=race.parts.runners.value||[],relay=!!race.event.relay;
   const numberOf=(id:string)=>{const entry=entries.find(entry=>entry.id===id);return entry?entryNumber(entry):0;};
   const name=(number:number)=>{const entry=entries.find(entry=>entryNumber(entry)===number);return entry?entryName(entry):String(number);};
-  const places=race.kind==='final'?null:race.parts.times.value?.places;
   const [read]=useState(()=>({baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,
     initial:{order:(race.parts.finish.value?.order||[]).map(numberOf),didNotFinish:(race.parts.finish.value?.didNotFinish||[]).map(numberOf),didNotRun:[]} as Order}));
   const [shown,setShown]=useState(read.initial),[asking,setAsking]=useState<number|null>(null);
   const [comment,setComment]=useState(''),[refused,setRefused]=useState<unknown>(null);
+  // The times as Save would leave them: a place taken away here loses its time.
+  const places=race.kind==='final'?null:timesWithoutRemovedPlaces(race.parts.times.value,read.initial.order,shown.order)?.places;
   const changed=JSON.stringify(shown)!==JSON.stringify(read.initial);
   const move=(next:Order)=>{setAsking(null);setShown(next);};
   const without=(list:number[],number:number)=>list.filter(other=>other!==number);

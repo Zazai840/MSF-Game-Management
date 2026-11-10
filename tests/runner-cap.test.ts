@@ -61,18 +61,18 @@ test('a lead times correction refuses more places than the race has runners and 
   expect((await leadRead(race.id!)).parts.times.value.places).toEqual(eightTimes);
 });
 
-test('a lead trims leftover times beyond the runners after a runner is removed',async()=>{
+test('a runner a lead removes takes the time of their place, and Correct times takes no more places than the runners left',async()=>{
   const {volunteer,lead,setup,read:leadRead}=await start();
   const race=await setup.record(volunteer,'R4',eight,eightTimes);
   let read=(await leadRead(race.id!));
   const seven=read.parts.runners.value.slice(0,7).map((runner:any)=>({entryId:runner.id,wristband:runner.wristband}));
   expect((await call(lead,`/api/lead/races/${race.id}/runners`,{baseVersion:read.parts.runners.version,finishVersion:read.parts.finish.version,runners:seven})).statusCode).toBe(200);
-  read=(await leadRead(race.id!));expect(read.parts.times.value.places).toEqual(eightTimes);
+  read=(await leadRead(race.id!));expect(read.parts.times.value.places).toEqual(eightTimes.slice(0,7));
   const leftover=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:eightTimes});
   expect(leftover.statusCode).toBe(409);expect(leftover.json().message).toBe('This race has 7 runners - enter no more places than that');
-  const trimmed=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:eightTimes.slice(0,7)});
-  expect(trimmed.statusCode).toBe(200);
-  expect((await leadRead(race.id!)).parts.times.value.places).toEqual(eightTimes.slice(0,7));
+  const corrected=await call(lead,`/api/lead/races/${race.id}/times`,{baseVersion:read.parts.times.version,places:[...eightTimes.slice(0,6),eightTimes[7]]});
+  expect(corrected.statusCode).toBe(200);
+  expect((await leadRead(race.id!)).parts.times.value.places).toEqual([...eightTimes.slice(0,6),eightTimes[7]]);
 });
 
 /** Heats of 8 and 6: the fastest 6 overall in seed order are 1023,1066,1088,1005,1012,1110; 1135 is 7th. */
