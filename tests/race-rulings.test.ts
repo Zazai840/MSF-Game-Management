@@ -197,6 +197,14 @@ test('a lead drags children to a new order with Correct finishing order: times s
   await post('finish-order',{baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order:[2008,2003,2004,2005,2006,2007],didNotFinish:[],didNotRun:[]});
   expect(await said()).toMatchObject({times:[1000,1100,1200,1300,1400,1500],counts:true,leaderboard:[[2008,1000],[2003,1100],[2004,1200],[2005,1300],[2006,1400],[2007,1500]]});
 });
+test('a new order and No place in one correction: the screen names the place it took away, as the lead saw it, and that place\'s time goes',async()=>{
+  const {lead,race,post,said}=await heatOfSix();
+  // 2008 dragged to 1st, so 2006 is 5th (14.00) when it gets No place.
+  const body={baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order:[2008,2003,2004,2005,2007],didNotFinish:[2006],didNotRun:[]};
+  for(const removedPlaces of [[4,4],[-1],['4'],4]) expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{...body,removedPlaces})).statusCode).toBe(400);
+  await post('finish-order',{...body,removedPlaces:[4]});
+  expect(await said()).toMatchObject({times:[1000,1100,1200,1300,1500],counts:true,leaderboard:[[2008,1000],[2003,1100],[2004,1200],[2005,1300],[2007,1500],[2006,null]]});
+});
 test('one writer per job leaves nothing to choose between: the lead race read has no clash candidates and the clash route is gone',async()=>{
   const {lead,race}=await start();
   const read=(await call(lead,`/api/lead/races/${race.id}`)).json();

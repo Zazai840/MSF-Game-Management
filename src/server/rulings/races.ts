@@ -14,7 +14,7 @@ import { correctPart,leadRace } from '../races/versions.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
-import { timesOutOfOrder,timesWithoutRemovedPlaces } from '../../shared/time-entry.js';
+import { removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { entryName,entryNumber,inProgressLine,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { entryCount } from '../../shared/teams.js';
 import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
@@ -28,11 +28,12 @@ function requireNotRelay(race:{event:{relay:boolean}}) {
 }
 /**
  * A lead's corrected finishing order, and the times with it: a removed place loses its time, so the entries below keep
- * their own (`timesWithoutRemovedPlaces`). An order cleared to be recorded again removes no place.
+ * their own (`timesWithoutPlaces`). The removed places are those of the entries that left the order, unless `removed`
+ * names them. An order cleared to be recorded again removes no place.
  */
-async function correctFinish(client:pg.PoolClient,lead:Phone,race:StoredRace,finish:FinishingOrder|null,runners:RaceEntry[]) {
+async function correctFinish(client:pg.PoolClient,lead:Phone,race:StoredRace,finish:FinishingOrder|null,runners:RaceEntry[],removed?:number[]) {
   await correctPart(client,lead,race,'finish',finish,runners);
-  const stored=race.parts.times.value,times=finish?timesWithoutRemovedPlaces(stored,race.parts.finish.value?.order||[],finish.order):stored;
+  const stored=race.parts.times.value,times=finish?timesWithoutPlaces(stored,removed??removedPlaces(race.parts.finish.value?.order||[],finish.order)):stored;
   if(times!==stored) await correctPart(client,lead,race,'times',times,runners);
 }
 export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
@@ -218,13 +219,17 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
   });
   /**
    * Correct finishing order: wristbands (on a relay, team numbers) move between places while times stay by place; Didn't
-   * run takes the entry off the race, so a relay team is still to run again.
+   * run takes the entry off the race, so a relay team is still to run again. A place taken away loses its time:
+   * `removedPlaces` names those places as the times count them (the screen's, where a drag may come before No place),
+   * or else they are the places the leaving entries had.
    */
   action('POST','/api/lead/races/:id/finish-order','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),unclassified="Choose a place, Did not finish or Didn't run for every runner";
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0 || !Number.isSafeInteger(value.runnersVersion) || Number(value.runnersVersion)<1) throw new Refusal(400,'Open the race before correcting its finishing order');
     const numbers=(list:unknown)=>{if(!Array.isArray(list) || list.some(number=>!Number.isSafeInteger(number))) throw new Refusal(400,unclassified);return list as number[];};
     const order=numbers(value.order),didNotFinish=numbers(value.didNotFinish),didNotRun=numbers(value.didNotRun);
+    const removed=value.removedPlaces as number[]|undefined;
+    if(removed!==undefined && (!Array.isArray(removed) || removed.some(place=>!Number.isSafeInteger(place) || place<0) || new Set(removed).size!==removed.length)) throw new Refusal(400,'Open the race before correcting its finishing order');
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
@@ -235,7 +240,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const entryFor=(number:number)=>previous.find(entry=>entryNumber(entry)===number)!,idFor=(number:number)=>entryFor(number).id;
       const runners=previous.filter(entry=>!didNotRun.includes(entryNumber(entry))),names=(list:number[])=>list.map(number=>entryName(entryFor(number))).join(', ');
       if(didNotRun.length) await correctPart(client,current,race,'runners',runners,runners);
-      await correctFinish(client,current,race,{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},runners);
+      await correctFinish(client,current,race,{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},runners,removed);
       const details=[names(order)||'no places',...(didNotFinish.length?[`Did not finish ${names(didNotFinish)}`]:[]),...(didNotRun.length?[`Didn't run ${names(didNotRun)}`]:[])].join('; ');
       await writeAuditNote(client,current,race.event.id,{action:'correct-finish-order',comment,message:`${current.name} corrected the finishing order for ${raceLabel(race)}: ${details}${comment?` - ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
