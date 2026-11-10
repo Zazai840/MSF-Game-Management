@@ -109,12 +109,13 @@ export function App() {
     if (!home) return <Opening words="Opening the Running Zone…" error={error} onRefresh={()=>void refresh()}/>;
     const name=home.phone.name,toRaces=()=>go({kind:'races'});
     // Every avatar opens this one menu. Log out asks nothing: the phone keeps its listed names.
-    const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
+    const menuLabel=`${name}: ${isLead?'Races, Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
       const box=anchor.getBoundingClientRect();
       setMenu(menu?null:{top:box.bottom+6,right:document.documentElement.clientWidth-box.right});
     };
     const menuList=menu && <div className="rz-menu" role="menu" style={menu}>
-      {isLead && <><button role="menuitem" type="button" onClick={()=>go({kind:'results'})}>Results</button>
+      {isLead && <><button role="menuitem" type="button" onClick={toRaces}>Races</button>
+        <button role="menuitem" type="button" onClick={()=>go({kind:'results'})}>Results</button>
         <button role="menuitem" type="button" onClick={()=>go({kind:'day'})}>Day setup</button></>}
       <button role="menuitem" type="button" disabled={logOut.busy} onClick={()=>void logOut.submit(async()=>{await api('sign-out',{});phoneStorage.signOut();})}>Log out</button>
       {logOut.error && <p role="alert" className="rz-note">{logOut.error}</p>}
@@ -127,7 +128,7 @@ export function App() {
     if(view.kind==='races' || view.kind==='race') {
       const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
       const toRace=(id:string,step?:Step)=>{setGone('');go({kind:'race',id,step});};
-      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
+      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} avatar={avatar} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
         onRace={toRace} onSaved={saved=>{showToast({message:saved.message,saved});pickTab(saved.tab);toRaces();}} onResults={toResults} onOpen={next=>go(next)}/>{sheet}</Screen>;
       return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={toRace}
         onResults={toResults}/>{sheet}</Screen>;
@@ -140,7 +141,7 @@ export function App() {
       if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
     };
     // The job sheet sits beside the lead screen's root, so it brings its own.
-    return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:()=>back()}}>
+    return <LeadFrame.Provider value={{role,avatar,onRole:()=>setRoleSheet(true),onBack:()=>back()}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}

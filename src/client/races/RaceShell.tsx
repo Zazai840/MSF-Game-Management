@@ -1,5 +1,5 @@
 import { eventTitle } from '../../shared/day.js';
-import { useEffect,useRef,useState,type TouchEvent } from 'react';
+import { useEffect,useRef,useState,type ReactNode,type TouchEvent } from 'react';
 import type { DayLeadItem,LeadRaceRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
@@ -31,7 +31,7 @@ function useRaceIssues(raceId:string,on:boolean) {
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
  * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
  */
-export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,onSaved,onResults,onOpen}:{raceId:string;step?:Step;role:Role;onRole:()=>void;onBack:()=>void;
+export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,onRace,onSaved,onResults,onOpen}:{raceId:string;step?:Step;role:Role;avatar:ReactNode;onRole:()=>void;onBack:()=>void;
   onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void;onOpen:(view:View)=>void}) {
   const {snapshot,error,gone,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
@@ -51,7 +51,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   const swipe=useRef<{x:number;y:number}|null>(null);
   // "Back to Heat 2" on a lead screen opened from here (Open in Results).
   useScreenName(snapshot?raceName(snapshot.race):'Race');
-  if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/></RaceBar>
+  if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/>{avatar}</RaceBar>
     <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
@@ -91,6 +91,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
     <RaceBar title={eventTitle(event)} code={event.code} role={role} onBack={onBack}>
       <RoleChip role={role} onOpen={onRole}/>
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions" onClick={()=>setActions(true)}><Icon name="more"/></button>}
+      {avatar}
     </RaceBar>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}

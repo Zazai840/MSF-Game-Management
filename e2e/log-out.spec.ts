@@ -16,17 +16,17 @@ test('a volunteer\'s avatar menu has only Log out, which goes straight to Join k
   await joinScreen(page);await onlyNamesKept(page);
   await expect(page.getByRole('heading',{name:'Your profile'})).toHaveCount(0);
 });
-test('a lead\'s avatar menu reads Results, Day setup, Log out; the lead header has no avatar, and Back leads to it',async({page},info)=>{
+test('a lead\'s avatar menu reads Races, Results, Day setup, Log out, on Races and on the lead header',async({page},info)=>{
   const name=ownName('Sami Out');
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);await becomeLead(page);
   await leadMenuButton(page).click();
-  await expect(menuItems(page)).toHaveText(['Results','Day setup','Log out']);
+  await expect(menuItems(page)).toHaveText(['Races','Results','Day setup','Log out']);
   await pick(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup'})).toBeVisible();
-  await expect(leadMenuButton(page)).toHaveCount(0);await expect(page.getByText(name,{exact:true})).toHaveCount(0);
+  await expect(leadMenuButton(page)).toBeVisible();await expect(page.getByText(name,{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();await races(page);
   await leadMenuButton(page).click();
-  await expect(menuItems(page)).toHaveText(['Results','Day setup','Log out']);
+  await expect(menuItems(page)).toHaveText(['Races','Results','Day setup','Log out']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-menu.png')});
   await pick(page,'Log out');

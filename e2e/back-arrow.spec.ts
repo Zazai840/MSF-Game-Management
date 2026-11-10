@@ -73,9 +73,9 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await tie('Heat 1');
   await bothGoBack(page,race);
   await bothGoBack(page,races);
-  // The avatar menu keeps Results, Day setup and Log out.
+  // The avatar menu: Races, Results, Day setup and Log out.
   await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Races','Results','Day setup','Log out']);
   await page.getByRole('menu').getByRole('menuitem',{name:'Results',exact:true}).click();await results();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});

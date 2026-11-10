@@ -206,7 +206,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - Times: rows joining place, wristband and time, each with a pencil button.
 - **Problems sit on the row they're about.** A kept warning or a count mismatch shows as an inline WarningCallout with actions: "Fix time" and "It's right". "It's right" clears the issue and records who accepted it.
 - **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card's status line names them ("Heat 3: a time looks wrong").
-- **Avatar menu:** the avatar opens a menu with Results and Day setup, the existing screens, then Log out.
+- **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. For a lead it opens a menu with Races, Results and Day setup, then Log out; for a volunteer, Log out only.
 
 ### 9. Relays
 
