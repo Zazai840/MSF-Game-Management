@@ -4,6 +4,7 @@ import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { isTeamEntry,raceLabel,type RaceEntry,type RacePartName,type RaceRead } from '../../shared/races.js';
+import { raceRefusal,type RaceAction } from '../../shared/race-status.js';
 import { stageDoneSql } from '../../shared/stage-lock.js';
 import { newDay, Refusal, signedOut } from '../access/permissions.js';
 import { dayChanged } from '../live/changes.js';
@@ -34,6 +35,11 @@ export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> 
   for(const row of partRows) {const group=parts.get(row.race_id)||[];group.push(row);parts.set(row.race_id,group);}
   const finals=new Map(finalRows.map(row=>[row.race_id,row]));
   return rows.map(row=>storedRace(row,parts.get(row.id)||[],finals.get(row.id)));
+}
+/** Refuses an action a race's state does not allow (`raceRefusal`), in that rule's words. */
+export function requireRace(race:StoredRace,action:RaceAction) {
+  const refusal=raceRefusal(race,action);
+  if(refusal) throw new Refusal(409,refusal);
 }
 export function requireStageOpen(race:Pick<RaceRead,'stageComplete'|'kind'> & {event:Pick<RaceRead['event'],'section'>}) {
   if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));

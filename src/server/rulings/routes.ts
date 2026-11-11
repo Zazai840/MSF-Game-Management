@@ -4,7 +4,7 @@ import { disqualificationReasons,type Disqualification } from '../../shared/ruli
 import { entryName,isTeamEntry,raceLabel } from '../../shared/races.js';
 import { entryNoun } from '../../shared/teams.js';
 import { actions,Refusal } from '../access/permissions.js';
-import { readRace } from '../races/records.js';
+import { readRace,requireRace } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
 import { rulingDetails } from './validation.js';
 import { rulingChange,writeAuditNote } from './records.js';
@@ -19,7 +19,7 @@ export function rulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       return rulingChange(pool,phone,async(client,current)=>{
         const {raceId,entryId}=request.params as {raceId:string;entryId:string};
         const race=await readRace(client,current.dayId,raceId);
-        if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+        requireRace(race,'rule');
         const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
         if(!runner) throw new Refusal(404,'Runner not found in this race');
         const previous=(await client.query('SELECT disqualification FROM runner_rulings WHERE race_id=$1 AND entry_id=$2',[race.id,entryId])).rows[0]?.disqualification;

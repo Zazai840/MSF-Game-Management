@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,roleSteps,stepParts,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RacesRead,type Step } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceName,roleSteps,stepParts,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RacesRead,type Step } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -15,7 +15,8 @@ import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
-import { jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,type Database,type StoredRace } from './records.js';
+import { jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,requireRace,type Database,type StoredRace } from './records.js';
+import { raceRefusal } from '../../shared/race-status.js';
 import { markFinalistAbsent } from './final-field.js';
 import { publishPart } from './versions.js';
 /**
@@ -61,7 +62,8 @@ export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
 /** A race as that phone reads it. A lead's read also names the people in each step's role today (ADR 0007): no volunteer gets those names. */
 export async function raceFlowRead(db:Database,{id:phoneId,dayId}:Pick<Phone,'id'|'dayId'>,raceId:string):Promise<RaceFlowRead> {
   const race=await readRace(db,dayId,raceId);
-  if(race.deleted) throw new Refusal(404,`A lead deleted ${raceName(race)}`);
+  const gone=raceRefusal(race,'open');
+  if(gone) throw new Refusal(404,gone);
   const group=(await readGroups(db,dayId,race.event.id))[0];
   if(!group) throw new Refusal(409,'This event is switched off');
   // A relay's start line shows its teams still to run and checks each typed leg against every switched-on relay's teams.
@@ -87,9 +89,7 @@ const dayRevision=async(db:Database,dayId:string)=>Number((await db.query('SELEC
  */
 async function requireOpen(client:pg.PoolClient,phone:Phone,raceId:string) {
   const race=await readRace(client,phone.dayId,raceId);
-  if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
-  if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
-  if(race.state==='saved') throw new Refusal(409,`${raceName(race)} is saved - ask a lead to change it`);
+  requireRace(race,'step');
   return race;
 }
 /** A write's target, refused when the phone saw an older version of the part: someone changed it since, never overwritten silently. */
@@ -124,7 +124,6 @@ export async function changeTeamEntry(client:pg.PoolClient,phone:Phone,raceId:st
   if(!runners) return;
   await publishPart(client,phone,race,'runners',runners);
   await dropFromOrder(client,race,runners);
-  await saveIfDone(client,phone,raceId);
 }
 /**
  * The race flow's routes, all Volunteer (making a final needs a lead). Each write runs under the day lock, raises the
@@ -134,7 +133,14 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool),raceId=(request:FastifyRequest)=>(request.params as {raceId:string}).raceId;
   const read=(phone:Phone,id:string)=>resultsSnapshot(pool,phone.dayId,db=>raceFlowRead(db,phone,id));
   async function write(phone:Phone,id:string,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<string|void>) {
-    const made=await raceChange(pool,phone,change);
+    const made=await raceChange(pool,phone,async(client,unchanged)=>{
+      let quiet=false;
+      const made=await change(client,()=>{quiet=true;});
+      // Every race-flow write ends here, so no route can forget it: a race whose steps are all done saves itself.
+      const saved=await saveIfDone(client,phone,made||id);
+      if(quiet && !saved) unchanged();
+      return made;
+    });
     return read(phone,made||id);
   }
   action('GET','/api/races','Volunteer',(_request,_reply,phone)=>resultsSnapshot(pool,phone.dayId,db=>racesRead(db,phone.dayId)));
@@ -177,19 +183,19 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   // The step writes, addressed by race, with no hold.
   action('POST','/api/races/:raceId/check-in','Volunteer',(request,_reply,phone)=>{
     const input=checkInInput(request.body),id=raceId(request);
-    return write(phone,id,async client=>{await checkIn(client,phone,await requireCurrent(client,phone,id,'runners',input),input);await saveIfDone(client,phone,id);});
+    return write(phone,id,async client=>{await checkIn(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
   });
   action('POST','/api/races/:raceId/absent','Volunteer',(request,_reply,phone)=>{
     const input=absentInput(request.body),id=raceId(request);
-    return write(phone,id,async client=>{await markAbsent(client,phone,await requireCurrent(client,phone,id,'runners',input),input);await saveIfDone(client,phone,id);});
+    return write(phone,id,async client=>{await markAbsent(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
   });
   action('POST','/api/races/:raceId/order','Volunteer',(request,_reply,phone)=>{
     const input=orderInput(request.body),id=raceId(request);
-    return write(phone,id,async client=>{await writeOrder(client,phone,await requireCurrent(client,phone,id,'finish',input),input);await saveIfDone(client,phone,id);});
+    return write(phone,id,async client=>{await writeOrder(client,phone,await requireCurrent(client,phone,id,'finish',input),input)});
   });
   action('POST','/api/races/:raceId/times','Volunteer',(request,_reply,phone)=>{
     const input=timesInput(request.body),id=raceId(request);
-    return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input);await saveIfDone(client,phone,id);});
+    return write(phone,id,async client=>{await writeTimes(client,phone,await requireCurrent(client,phone,id,'times',input),input)});
   });
   // A relay's Start line taps (ADR 0002): anyone, with no version check, each applied to the race as it stands under
   // the day lock, so taps from several phones at once all land. Each raises the Runners version, so a version-checked
@@ -250,8 +256,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       const blocker=doneBlocker(race,step);
       if(blocker) throw new Refusal(409,blocker);
       const marked=await client.query('UPDATE race_parts SET done_at=clock_timestamp(),done_by=$3 WHERE race_id=$1 AND part=$2 AND done_at IS NULL',[id,part,phone.id]);
-      if(!marked.rowCount) {unchanged();return;}
-      await saveIfDone(client,phone,id);
+      if(!marked.rowCount) unchanged();
     });
   });
   // Undo: reverses this person's own done mark, and the save it made, while nobody has changed the step since.
@@ -260,8 +265,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(!Number.isSafeInteger(version)) throw new Refusal(400,'Choose the step you saved');
     return write(phone,id,async client=>{
       const race=await readRace(client,phone.dayId,id),step=requestedStep(request,race),part=stepParts[step];
-      if(race.deleted) throw new Refusal(409,`A lead deleted ${raceName(race)}`);
-      if(race.stageComplete) throw new Refusal(409,raceFinishedLine(race));
+      requireRace(race,'undo');
       const row=(await client.query('SELECT p.version,p.done_by,p.saved_by,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.saved_by WHERE p.race_id=$1 AND p.part=$2',[id,part])).rows[0];
       const corrected=race.state==='saved' && (await client.query('SELECT 1 FROM race_part_history h JOIN races r ON r.id=h.race_id WHERE h.race_id=$1 AND h.corrected_by IS NOT NULL AND h.saved_at>=r.saved_at',[id])).rowCount;
       if(row.done_by!==phone.id || row.version!==version || corrected) {

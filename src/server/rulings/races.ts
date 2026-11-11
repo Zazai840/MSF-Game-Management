@@ -9,19 +9,15 @@ import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { actions,Refusal } from '../access/permissions.js';
-import { readRace,withReplacement,type StoredRace } from '../races/records.js';
+import { readRace,requireRace,withReplacement,type StoredRace } from '../races/records.js';
 import { correctPart,leadRace } from '../races/versions.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 import { removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
-import { entryName,entryNumber,inProgressLine,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
+import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { entryCount } from '../../shared/teams.js';
 import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
-/** Lead corrections and Re-run change a saved race only: until then, its entries belong to its steps. */
-function requireSaved(race:{kind:'heat'|'final'|'race';number:number;state:string}) {
-  if(race.state!=='saved') throw new Refusal(409,inProgressLine(race));
-}
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
 function requireNotRelay(race:{event:{relay:boolean}}) {
   if(race.event.relay) throw new Refusal(409,'A relay race is corrected by team');
@@ -51,8 +47,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(value.acceptOutOfOrder!==undefined && typeof value.acceptOutOfOrder!=='boolean') throw new Refusal(400,'Choose whether to accept these times');
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      requireSaved(race);
+      requireRace(race,'correct');
       if(race.kind==='final') throw new Refusal(409,'Finals use finishing order only');
       if(value.baseVersion!==race.parts.times.version) throw new Refusal(409,'These times have changed - open the race again');
       const count=race.parts.runners.value?.length||0;
@@ -82,7 +77,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(typeof value.permanent!=='boolean') throw new Refusal(400,'Choose Delete permanently or move to Deleted races');
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(race.deleted && !value.permanent) throw new Refusal(409,'This race is already in Deleted races');
+      requireRace(race,value.permanent?'delete for good':'delete');
       if(value.permanent) await client.query('DELETE FROM races WHERE id=$1',[race.id]);
       else await client.query('UPDATE races SET deleted=true,delete_reason=$1,deleted_at=now() WHERE id=$2',['lead-delete',race.id]);
       await writeAuditNote(client,current,race.event.id,{action:value.permanent?'delete-race-permanently':'delete-race',comment,message:`${current.name} ${value.permanent?'permanently deleted':'moved to Deleted races'} ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
@@ -93,8 +88,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     const {comment}=rulingDetails(request.body,false);
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(!race.deleted) throw new Refusal(409,'This race is already in the event');
-      if(race.deleteReason==='re-run') throw new Refusal(409,'This race was replaced by a re-run and cannot be restored');
+      requireRace(race,'restore');
       if(race.kind==='final' && (await client.query("SELECT 1 FROM event_stages WHERE event_id=$1 AND stage='no-final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
       // A live race has its number now: it comes back with the next one, never touching the live race.
       const taken=(await client.query('SELECT 1 FROM races WHERE event_id=$1 AND kind=$2 AND number=$3 AND NOT deleted',[race.event.id,race.kind,race.number])).rowCount;
@@ -109,9 +103,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     const {comment}=rulingDetails(request.body,false);
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireRace(race,'rule');
       if(!race.parts.runners.value?.length) throw new Refusal(409,'There are no runners to re-run');
-      requireSaved(race);
+      requireRace(race,'re-run');
       // The same children in new entries: a team keeps its four children as they ran, a child their warnings.
       const runners:RaceEntry[]=race.parts.runners.value!.map(entry=>isTeamEntry(entry)?{id:randomUUID(),team:entry.team,legs:entry.legs}:{id:randomUUID(),wristband:entry.wristband,warnings:(entry.warnings||[]).filter(warning=>warning.kind!=='already-ran')});
       await client.query('UPDATE races SET deleted=true,delete_reason=$1,deleted_at=now() WHERE id=$2',['re-run',race.id]);
@@ -140,8 +134,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<1 || !Number.isSafeInteger(value.finishVersion) || Number(value.finishVersion)<0) throw new Refusal(400,'Open the race before correcting its runners');
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      requireSaved(race);
+      requireRace(race,'correct');
       requireNotRelay(race);
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=runnersOf(race.parts.runners.value),otherRaces=await wristbandRaces(client,current.dayId,race.event.id);
@@ -188,8 +181,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     const kept=Array.isArray(value.keptWarnings)?value.keptWarnings:[];
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      requireSaved(race);
+      requireRace(race,'correct');
       if(!race.event.relay) throw new Refusal(409,'Only a relay has teams');
       if(value.baseVersion!==race.parts.runners.version || value.finishVersion!==race.parts.finish.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=(race.parts.runners.value||[]).filter(isTeamEntry),list=(await readTeamLists(client,current.dayId)).get(race.event.id)!.teams;
@@ -233,8 +225,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(removed===null) throw new Refusal(400,unopened);
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
-      requireSaved(race);
+      requireRace(race,'correct');
       if(value.baseVersion!==race.parts.finish.version || value.runnersVersion!==race.parts.runners.version) throw new Refusal(409,'This race has changed - open it again');
       const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
       if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(entry=>entryNumber(entry)===number))) throw new Refusal(400,unclassified);
