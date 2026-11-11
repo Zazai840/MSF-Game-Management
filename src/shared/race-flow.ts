@@ -31,10 +31,20 @@ export const raceName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'
 export const chipName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'F':`H${race.number}`;
 /** "Sam", "Sam and Jo", "Sam, Priya and Jo". */
 export const andList=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`;
-/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
+/** A finishing order place by place, as the times count them: the entry at each place, or null for a place emptied to fill again. */
+export function placesBoard(finish:Pick<FinishingOrder,'order'|'empty'>):Array<string|null> {
+  const placed=[...finish.order];
+  return Array.from({length:placed.length+(finish.empty?.length||0)},(_,place)=>finish.empty?.includes(place)?null:placed.shift()??null);
+}
+/** The finishing order those places make. */
+export function finishOf(board:ReadonlyArray<string|null>,didNotFinish:string[]):FinishingOrder {
+  const empty=board.flatMap((id,place)=>id===null?[place]:[]);
+  return {order:board.filter(id=>id!==null),didNotFinish,...(empty.length?{empty}:{})};
+}
+/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. An empty place stays. */
 export function onlyRunners(finish:FinishingOrder,runners:readonly RaceEntry[]):FinishingOrder {
   const on=(id:string)=>runners.some(runner=>runner.id===id);
-  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
+  return finishOf(placesBoard(finish).filter(id=>id===null || on(id)),finish.didNotFinish.filter(on));
 }
 /**
  * Why a race whose steps are all done does not save itself yet, or null: nobody checked in (on a relay, no team in it;
@@ -47,6 +57,7 @@ export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=fal
   if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
   if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${entryNoun(relay)}s have no place yet`;
+  if(finish?.empty?.length) return `${ordinal(finish.empty[0]+1)} place is empty`;
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
