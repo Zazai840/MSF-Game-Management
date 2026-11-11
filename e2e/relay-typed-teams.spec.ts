@@ -100,8 +100,8 @@ test('four phones run a relay heat whose teams are typed in leg by leg: two star
   await expect(one.locator('.rz-toast')).toContainText('Runners saved · Girl Cubs Heat 1');
 
   // The finish line places team tiles, each its 4th leg's wristband; the timer times each team; the race saves itself.
-  await expect(line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button')).toHaveText([String(w(24)),String(w(16)),'–'],live);
-  for(const name of [w(16),w(24),'no 4th leg'])
+  await expect(line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button')).toHaveText([String(w(24)),String(w(16)),String(w(32))],live);
+  for(const name of [w(16),w(24),w(32)])
     await press(line.getByRole('button',{name:new RegExp(`^${name} came `)}));
   await press(footer(line).getByRole('button',{name:'Save the order',exact:true}));
   await expect(line.locator('.rz-toast')).toContainText('Finishing order saved');

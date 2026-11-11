@@ -47,7 +47,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     // Joining with the new password, today's role comes back: still a lead. Capitals do not matter: a phone
     // keyboard makes the first letter a capital.
     await join(other,lead,{code:`F${changed.slice(1)}`,job:'Start line'});await races(other);
-    await expect(other.getByRole('button',{name:`${lead}: Results, Day setup and Log out`,exact:true})).toBeVisible();
+    await expect(other.getByRole('button',{name:`${lead}: Races, Results, Day setup and Log out`,exact:true})).toBeVisible();
     // The owner gets back in with the owner password and reads the new password off the card.
     await join(page,owner,{code:'e2e-owner-fixture'});await races(page);
     await openLeadMenu(page,'Day setup');

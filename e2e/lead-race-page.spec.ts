@@ -15,7 +15,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${number}`,exact:true}));
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 
@@ -217,7 +217,7 @@ test('a lead removes the 4th of 6 children from a saved race, then gives the 2nd
   await openRace(page,code,ownName('Removed place lead'),race.number);
   const racePage=page.url(),docked=page.getByRole('contentinfo'),record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   await raceAction(page,'Correct runner list');
-  await page.getByRole('button',{name:'Remove runner 4',exact:true}).click();
+  await press(page.getByRole('button',{name:'Remove runner 4',exact:true}));
   await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
   await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
   await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
@@ -312,7 +312,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
   await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}));
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();
   await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveText(new RegExp(`^Deleted at ${clock(deletedAt)} by .+: Wrong section checked in\\. Its results do not count\\.$`));
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('deleted-race-page.png'),fullPage:true});
