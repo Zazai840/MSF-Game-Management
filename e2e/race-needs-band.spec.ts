@@ -1,4 +1,4 @@
-import {expect,flowPost,jobBand,lookProblems,openRace,ownCode,ownEvent,ownName,ownWristbands,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {expect,flowPost,jobBand,lookProblems,openRace,ownCode,ownEvent,ownName,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 
 /** The band says that sentence, edge to edge directly below the job band. */
 async function bandSays(page:Page,sentence:string) {
@@ -11,7 +11,7 @@ async function bandSays(page:Page,sentence:string) {
 }
 
 test('one band on a race tells every role and the lead what the race still needs and who taps it, and that it is in Results once it saves, with no reload',async({openPhone,request},info)=>{
-  const name=ownName('Needs band sprint'),code=await ownCode(),w=await ownWristbands('Girl Cubs',2),first=w(1),second=w(2);
+  const name=ownName('Needs band sprint'),code=await ownCode(),first=2071,second=2072;
   await ownEvent(request,code,name);
   const start=await openPhone(ownName('Needs band start'),{job:'start'}),finish=await openPhone(ownName('Needs band finish'),{job:'finish'});
   const timer=await openPhone(ownName('Needs band timer'),{job:'timer'}),lead=await openPhone(ownName('Needs band lead'),{lead:true});
