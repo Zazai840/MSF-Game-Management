@@ -58,7 +58,7 @@ export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
  */
 export function NeedsBand({race,ask=false}:{race:Parameters<typeof raceNeeds>[0];ask?:boolean}) {
   const saved=race.state==='saved';
-  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race)}{saved && ask && ' Ask a lead to change it.'}</span></p>;
+  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race,ask)}</span></p>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {

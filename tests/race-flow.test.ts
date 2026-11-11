@@ -102,11 +102,11 @@ test('the race read and the races read give every role the reason a race is not 
   /** The reason as each phone reads it: on the race, and on the races list. */
   const reasons=async(token:string)=>[(await ok(token,`/api/races/${id}`)).group.races[0]!.blocker,
     (await ok<RacesRead>(token,'/api/races')).groups.find(group=>group.event.code==='R4')!.races[0]!.blocker];
-  for(const token of [ahmed,tom,lena]) expect(await reasons(token)).toEqual(['Nobody is checked in yet','Nobody is checked in yet']);
+  for(const token of [ahmed,tom,lena]) expect(await reasons(token)).toEqual(Array(2).fill({step:'runners',line:'Nobody is checked in'}));
   const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002}]});
-  expect(checked.group.races[0]!.blocker).toBe('2 runners have no place yet');
+  expect(checked.group.races[0]!.blocker).toEqual({step:'positions',line:'2 runners have no place'});
   const placed=await order(tom,checked,[2001,2002]);
-  expect(placed.group.races[0]!.blocker).toBe('1st place has no time');
+  expect(placed.group.races[0]!.blocker).toEqual({step:'times',line:'1st place has no time'});
   // Every detail is there: only done buttons are missing, so there is no reason.
   let read=await times(ahmed,placed,[1100,1200]);
   expect(await reasons(tom)).toEqual([null,null]);
@@ -122,7 +122,7 @@ test('an event\'s results read lists each live race as the races read does, so a
   const listed=(await ok<RacesRead>(lena,'/api/races')).groups.find(group=>group.event.code==='R4')!.races;
   const read=await ok<EventResultsRead>(lena,'/api/lead/events/R4/results');
   expect(read.summaries).toEqual(listed);
-  expect(read.summaries[0]).toMatchObject({id,blocker:'2 runners have no place yet',steps:{runners:{state:'done',count:2},positions:{state:'not started',count:0,expected:2},times:{state:'not started',count:0,expected:2}}});
+  expect(read.summaries[0]).toMatchObject({id,blocker:{step:'positions',line:'2 runners have no place'},steps:{runners:{state:'done',count:2},positions:{state:'not started',count:0,expected:2},times:{state:'not started',count:0,expected:2}}});
 });
 test('changing or taking off a wristband after That\'s everyone leaves Runners done, and a changed number keeps its entry and its place',async()=>{
   const {ahmed,tom}=await start();

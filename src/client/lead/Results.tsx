@@ -10,7 +10,7 @@ import { medalSheet,needsCheck,placeText,qualifyingLineAt,reopenHeatsSheet,resul
 import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords } from '../races/parts.js';
-import { firstIncompleteStep,inResultsWords,raceNeeds,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
+import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
 import { LeadBar } from './LeadBar.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
@@ -147,11 +147,11 @@ function FinalTab({detail,onRunner,onStage,onSaved,onRace}:TabProps) {
 /**
  * A row per live race. In Results: its runners and when it was checked in, and why it does not count; the tap opens its
  * race page. Not in Results yet: a bar and the step strip's count for each step, then the Race screen band's sentence;
- * the tap opens the race at its first step not complete.
+ * the tap opens the race at the step that sentence is about (`raceNeed`).
  */
 function LiveRaces({races,detail,onRace}:{races:EventResultsRead['results']['races'];detail:EventResultsRead;onRace:(id:string,step?:Step)=>void}) {
   const flow=(id:string)=>detail.summaries.find(race=>race.id===id),relay=detail.event.relay;
-  return races.length>0 && <RaceRows onRace={id=>{const race=flow(id);onRace(id,race && race.state!=='saved'?firstIncompleteStep(race):undefined);}} rows={races.map(({race,runners,saved,reasons})=>{
+  return races.length>0 && <RaceRows onRace={id=>{const race=flow(id);onRace(id,race && raceNeed(race).step||undefined);}} rows={races.map(({race,runners,saved,reasons})=>{
     const summary=saved?undefined:flow(race.id);
     return {id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),inResultsWords(saved),`checked in ${clock(race.checkedInAt)}`,...(summary?[]:reasons.filter(reason=>reason!=='in progress'))].join(' · '),
       more:summary && <><span className="rz-progress">{stepsOf(summary).map(step=>{
@@ -161,7 +161,7 @@ function LiveRaces({races,detail,onRace}:{races:EventResultsRead['results']['rac
         return <Fragment key={step}><span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
           <span className="rz-progress__bar" aria-hidden="true"><span style={{width:`${Math.round(full*100)}%`}}/></span>
           <span className="rz-step__status">{stepWords(step,status,relay)}</span></Fragment>;})}</span>
-        <span className="rz-progress__needs">{raceNeeds(summary)}</span></>};
+        <span className="rz-progress__needs">{raceNeed(summary).line}</span></>};
   })}/>;
 }
 
