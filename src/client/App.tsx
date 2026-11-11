@@ -16,7 +16,8 @@ import { Toast,ToastContext,type ToastShown } from './races/Toast.js';
 import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 // A failed load (often an old page after a deploy) reloads the app; until then Opening Lead stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
-interface HomeRead { phone:Phone; needsYou?:number }
+/** `role`: the role the server last heard from this phone today, or null. */
+interface HomeRead { phone:Phone; needsYou?:number; role:Role|null }
 /** What the next Back (one the app made itself) does in place of opening the screen it lands on. */
 let afterBack:(()=>void)|null=null;
 /** Where Open in Results lands: a tie on its screen, a race's item on its race page, anything else on its event; a Races card's Confirm the medals on that screen. */
@@ -99,6 +100,11 @@ export function App() {
     const held=phoneStorage.role(dayId);
     setRole(held==='lead' && !isLead?null:held??(isLead?'lead':null));
   },[dayId,isLead]);
+  // The phone reports its job on Join and on every switch (ADR 0007), wherever the job was set. Each home read says
+  // which one the server holds, so a report that did not arrive goes again on the next read.
+  useEffect(()=>{
+    if(home && role && home.role!==role && (role!=='lead' || isLead)) void api('role',{role}).catch(()=>{/* the next home read sends it again */});
+  },[home,role,isLead]);
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
   // The toast sits over every screen, so it brings its own screen root (the design system's tokens), as the job sheet does.
   const withToast=(screen:ReactNode)=><ToastContext.Provider value={showToast}>{screen}

@@ -203,7 +203,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       if (!day || !settings) throw new WrongAccessCode(wrongJoinCode);
       const pass = passFor(settings);
       if (matchesAnyCapitals(code, settings.password)) {
-        // The job stays on the phone; a volunteer without one is kept on Join before anything is made.
+        // The phone keeps the job and reports it once signed in (ADR 0007); a volunteer without one is kept on Join before anything is made.
         if (!body.job) throw new Refusal(400, 'Choose your job', {reason:'choose-job'});
         const profile = await joinProfile(client, day.id, name, body.profiles, body.thatsMe);
         return {kind:'volunteer', pass, profile, ...await signIn(client, day.id, profile)};

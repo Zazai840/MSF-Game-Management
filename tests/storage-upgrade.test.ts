@@ -80,6 +80,8 @@ test('starting up turns an older build\'s Scoring team sign-ins into leads, allo
   await old.query('ALTER TABLE sign_ins DROP CONSTRAINT sign_ins_level_check');
   await old.query("ALTER TABLE sign_ins ADD CONSTRAINT sign_ins_level_check CHECK (level IN ('Volunteer','Lead','Scoring team'))");
   await old.query("UPDATE sign_ins SET level='Scoring team'");
+  // It kept no reported role either (spec #290).
+  await old.query('ALTER TABLE sign_ins DROP COLUMN IF EXISTS reported_role');
   await old.end();
   for(let start=0;start<2;start++) {
     app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
@@ -87,6 +89,9 @@ test('starting up turns an older build\'s Scoring team sign-ins into leads, allo
       const me=async(token:string)=>(await app.inject({url:'/api/me',headers:{authorization:`Bearer ${token}`}})).json();
       expect(await me(signedIn.token)).toMatchObject({name:'Aisha',level:'Lead'});
       expect(await me(yusuf.token)).toMatchObject({name:'Yusuf',level:'Lead'});
+      // The reported role's column is added: a phone reports its role and Signed in today shows it.
+      expect((await app.inject({method:'POST',url:'/api/role',payload:{role:'timer'},headers:{authorization:`Bearer ${yusuf.token}`}})).statusCode).toBe(200);
+      expect((await app.inject({url:'/api/day/phones',headers:{authorization:`Bearer ${signedIn.token}`}})).json().phones.find((phone:{name:string})=>phone.name==='Yusuf')).toMatchObject({role:'timer'});
       expect((await app.inject({url:'/api/day/phones',headers:{authorization:`Bearer ${signedIn.token}`}})).json().phones.find((phone:{name:string})=>phone.name==='Aisha')).toMatchObject({level:'Lead',owner:true});
     } finally {await app.close();}
   }

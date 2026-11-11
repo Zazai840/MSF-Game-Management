@@ -40,7 +40,40 @@ test('Signed in today lists rows oldest first with role, owner marker and your o
   const {owner,signInAs}=await start();const volunteer=await signInAs('Ahmed');
   const list=(await call(owner.token,'/api/day/phones')).json();
   expect(list.selfId).toBe(owner.phone.id);
-  expect(list.phones).toEqual([{id:owner.phone.id,name:'Aisha',level:'Lead',owner:true},{id:volunteer.phone.id,name:'Ahmed',level:'Volunteer',owner:false}]);
+  expect(list.phones).toEqual([{id:owner.phone.id,name:'Aisha',level:'Lead',owner:true,role:null},{id:volunteer.phone.id,name:'Ahmed',level:'Volunteer',owner:false,role:null}]);
+});
+test('A phone reports its role: Signed in today shows a lead the last one reported, the phone reads back only its own, and Log out and Remove clear it',async()=>{
+  const {owner,pass,signInAs}=await start();const finish=await signInAs('Ahmed'),timer=await signInAs('Maryam');
+  const roleOf=async(name:string)=>(await call(owner.token,'/api/day/phones')).json().phones.find((phone:any)=>phone.name===name).role;
+  expect(await roleOf('Ahmed')).toBeNull();
+  expect((await call(finish.token,'/api/role',{role:'start'})).statusCode).toBe(200);
+  expect(await roleOf('Ahmed')).toBe('start');
+  // Each switch replaces the last one reported.
+  expect((await call(finish.token,'/api/role',{role:'finish'})).statusCode).toBe(200);
+  expect((await call(timer.token,'/api/role',{role:'timer'})).statusCode).toBe(200);
+  expect((await call(owner.token,'/api/role',{role:'lead'})).statusCode).toBe(200);
+  expect([await roleOf('Ahmed'),await roleOf('Maryam'),await roleOf('Aisha')]).toEqual(['finish','timer','lead']);
+  // A volunteer's requests carry their own role only, and Signed in today is refused.
+  const home=(await call(finish.token,'/api/home')).json();
+  expect(home.role).toBe('finish');expect(JSON.stringify(home)).not.toContain('Maryam');
+  expect((await call(finish.token,'/api/day/phones')).statusCode).toBe(403);
+  // Zone lead is a lead's role, and only the four roles are stored.
+  expect((await call(finish.token,'/api/role',{role:'lead'})).statusCode).toBe(403);
+  expect((await call(finish.token,'/api/role',{role:'scorer'})).statusCode).toBe(400);
+  expect(await roleOf('Ahmed')).toBe('finish');
+  // It is information only (ADR 0007): reporting it is not a change of the day, so a day export stays current.
+  const revision=(await call(owner.token,'/api/day')).json().revision;
+  await call(timer.token,'/api/role',{role:'start'});
+  expect((await call(owner.token,'/api/day')).json().revision).toBe(revision);
+  // A lead made a volunteer is not shown as Zone lead.
+  await call(owner.token,`/api/day/phones/${timer.phone.id}/role`,{role:'Lead'});await call(timer.token,'/api/role',{role:'lead'});
+  await call(owner.token,`/api/day/phones/${timer.phone.id}/role`,{role:'Volunteer'});
+  expect(await roleOf('Maryam')).toBeNull();
+  // Log out and Remove clear it: signing in again shows no role until the phone reports one.
+  await call(timer.token,'/api/role',{role:'timer'});
+  await call(finish.token,'/api/sign-out',{});await call(owner.token,`/api/day/phones/${timer.phone.id}/remove`,{});
+  for(const person of [finish,timer]) expect((await app.inject({method:'POST',url:'/api/sign-in',payload:{pass,profileId:person.profile.id,secret:person.profile.secret}})).statusCode).toBe(200);
+  expect([await roleOf('Ahmed'),await roleOf('Maryam')]).toEqual([null,null]);
 });
 test('Set role moves a row between volunteer and lead for today, each with a day-level audit note naming who did it',async()=>{
   const {owner,signInAs}=await start();const target=await signInAs('Maryam');
