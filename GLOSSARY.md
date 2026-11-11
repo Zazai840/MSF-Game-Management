@@ -105,7 +105,7 @@ The order in which a race's children crossed the line, recorded as wristband num
 _Avoid_: Results, placings, positions list
 
 **Time**:
-How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so a new finishing order re-pairs them. A place removed from the finishing order (its child taken off the race, or given Did not finish or Didn't run) loses its time, and the times below move up with their children, so no child takes another child's time. A relay team has one time, from the start until its 4th leg crosses the line.
+How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so a new finishing order re-pairs them. A place removed from the finishing order (its child taken off the race, given No place, Did not finish or Didn't run, or the place left empty when the Finish line taps "Nobody else crossed the line") loses its time, and the times below move up with their children, so no child takes another child's time. A place the Finish line only empties keeps its time, for the child who takes it next. A relay team has one time, from the start until its 4th leg crosses the line.
 _Avoid_: Result, score, split
 
 **Tie**:
