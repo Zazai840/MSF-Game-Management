@@ -15,7 +15,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Races');await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
+  await eventTab(page,'Heats');await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 
@@ -210,6 +210,31 @@ test('Correct runner list is a screen: tap a runner to retype on the number pad,
   await page.getByRole('button',{name:'Back to Race page · Girl Cubs',exact:true}).click();await eventTab(page,'Notes');
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').filter({hasText:'corrected the runners'})).toHaveText([/corrected the runners for Heat \d+: 2121, 2127, 2123, 2124, 2125, 2126, 2128$/]);
 });
+// The report from the demonstration run: every later child got the time of the child above, and one time was left over.
+test('a lead removes the 4th of 6 children from a saved race, then gives the 2nd Did not finish: every other child keeps their own time and no time is left over',async({page},info)=>{
+  test.setTimeout(60000);
+  const code=await ownCode(),race=await recordedRace(page,code,[2151,2152,2153,2154,2155,2156],[1300,1310,1320,1330,1340,1350],undefined,'Removed place');
+  await openRace(page,code,ownName('Removed place lead'),race.number);
+  const racePage=page.url(),docked=page.getByRole('contentinfo'),record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
+  await raceAction(page,'Correct runner list');
+  await page.getByRole('button',{name:'Remove runner 4',exact:true}).click();
+  await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
+  await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
+  await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expect(record).toHaveText([/^1st\s*2151\s*13\.00$/,/^2nd\s*2152\s*13\.10$/,/^3rd\s*2153\s*13\.20$/,/^4th\s*2155\s*13\.40$/,/^5th\s*2156\s*13\.50$/]);
+  await expect(page.getByText('5 times · 5 finishers',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('removed-place-runner-list.png'),fullPage:true});
+  // Did not finish: the screen shows each child below with their own time before Save, and the race page after.
+  await raceAction(page,'Correct finishing order');
+  await press(page.getByRole('button',{name:'No place for 2152',exact:true}));
+  await press(page.getByRole('dialog',{name:'No place for 2152',exact:true}).getByRole('button',{name:'Did not finish',exact:true}));
+  await expect(page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem')).toHaveText(['1st215113.00No place','2nd215313.20No place','3rd215513.40No place','4th215613.50No place']);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('removed-place-order.png'),fullPage:true});
+  await press(docked.getByRole('button',{name:'Save finishing order',exact:true}));
+  await expectToast(page,`Finishing order saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expect(record).toHaveText([/^1st\s*2151\s*13\.00$/,/^2nd\s*2153\s*13\.20$/,/^3rd\s*2155\s*13\.40$/,/^4th\s*2156\s*13\.50$/,/^–\s*2152\s*Did not finish$/]);
+  await expect(page.getByText('4 times · 4 finishers',{exact:true})).toBeVisible();
+});
 
 test('leaving Correct runner list without Save changes nothing, by the phone\'s Back or the back arrow',async({page})=>{
   const code=await ownCode(),race=await recordedRace(page,code,[2141,2142],[1300,1310]);
@@ -273,7 +298,7 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   await press(remove);
   // Back on the screen before the race, the event's Races tab; the next Back leaves the event.
   await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
-  await expect(page).toHaveURL(new RegExp(`/results/${code}/races$`));
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await page.goBack();await expect(page).toHaveURL(/\/results$/);
 });
 
@@ -287,7 +312,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
   await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Races');await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
+  await eventTab(page,'Heats');await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();
   await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveText(new RegExp(`^Deleted at ${clock(deletedAt)} by .+: Wrong section checked in\\. Its results do not count\\.$`));
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('deleted-race-page.png'),fullPage:true});

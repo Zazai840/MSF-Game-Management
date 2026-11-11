@@ -152,8 +152,8 @@ test('five phones share the test build: three work one race live until it saves 
     await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
     await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · ${relaySection} ${relayHeat}`);
     // The finish line taps each team's tile as its 4th leg crosses; the timer types one time per team, and the last saves the heat.
-    await finisher.getByRole('button',{name:`Team ${teamB}, 4th leg ${legsB[3]}, came 1st`,exact:true}).click();
-    await finisher.getByRole('button',{name:`Team ${teamA}, 4th leg ${legsA[3]}, came 2nd`,exact:true}).click();
+    await finisher.getByRole('button',{name:`${legsB[3]} came 1st`,exact:true}).click();
+    await finisher.getByRole('button',{name:`${legsA[3]} came 2nd`,exact:true}).click();
     await finisher.getByRole('button',{name:'Save the order',exact:true}).click();
     await expect(finisher.locator('.rz-toast')).toContainText('Finishing order saved');
     await expect(timer.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(2,crossPhone);

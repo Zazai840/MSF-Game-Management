@@ -1,6 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
@@ -165,4 +165,11 @@ test('a step names the last person who typed in it, or else up to three people i
 });
 test('an event is named "200m · Boy Cubs" on every screen, its code in a tag beside it',()=>{
   expect(eventTitle({name:'200m',section:'Boy Cubs'})).toBe('200m · Boy Cubs');
+});
+test('a done button on a step already done says so, and once every step is done, why the race is not in Results yet',()=>{
+  const part=<Value>(value:Value)=>({version:1,value});
+  const heat=(places:number[])=>({kind:'heat',number:1,event:{name:'60m',relay:false},parts:{runners:part([{id:'a',wristband:2001},{id:'b',wristband:2002}]),finish:part({order:['a','b'],didNotFinish:[]}),times:part({places})}}) as unknown as RaceFlowRead['race'];
+  const done={runners:status('done'),positions:status('done'),times:status('done')};
+  expect(alreadyDoneLine({race:heat([1100]),steps:done},'runners')).toBe('Runners is already done. Heat 1 is not in Results yet: Place 2 has no time.');
+  expect(alreadyDoneLine({race:heat([1100]),steps:{...done,times:status('in progress')}},'positions')).toBe('Finishing order is already done.');
 });

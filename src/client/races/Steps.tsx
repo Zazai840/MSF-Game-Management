@@ -122,8 +122,8 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {on.error && <Callout message={on.error}/>}
       {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
         actions={<>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button></>}/>}
-      {target && asking && <Callout message={`${target.wristband} is already placed ${ordinal(place+1)} at the finish. Take them off anyway?`}
-        actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button></>}/>}
+      {target && asking && <Callout message={`${target.wristband} has ${ordinal(place+1)} place. Remove?`}
+        actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Remove</button></>}/>}
     </main>
     {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
       <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
@@ -191,12 +191,14 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
 }
 
 type Unplaced='dnf'|'dnr';
-/** The wristband of a team's 4th leg, the child the finish line sees cross, as it reads: "–" with no 4th leg. */
-const fourthLeg=(entry:RaceEntry)=>isTeamEntry(entry)?String(entry.legs[3]?.wristband??'–'):'';
-/** An entry as Check the order names it: a child's wristband, or "Team 3 · 2034" with its 4th leg; nothing for one no longer in the race. */
-const nameOf=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?`${entryName(entry)} · ${fourthLeg(entry)}`:entryName(entry);
-/** An entry on the places board: a child's wristband, or "T3", so the board stays readable. */
-const boardName=(entry:RaceEntry)=>isTeamEntry(entry)?`T${entry.team.number}`:entryName(entry);
+/**
+ * An entry as the finish line shows it: a child's wristband, or a team's 4th leg's wristband, the child seen to cross
+ * ("–" with no 4th leg); nothing for one no longer in the race. No team label: the team number is the lane, and after
+ * the line nobody knows the lane.
+ */
+const lineName=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?String(entry.legs[3]?.wristband??'–'):entryName(entry);
+/** That name in a sentence or as a screen reader says it: "no 4th leg" for "–". */
+const saidName=(entry:RaceEntry|undefined)=>lineName(entry)==='–'?'no 4th leg':lineName(entry);
 /**
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one places it and moves on; tapping a placed slot makes it the place to fill
@@ -279,15 +281,15 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
             {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setMode('place')}>Back</button>}</div></div>
         {flow.error && <Callout message={flow.error}/>}
         {sizeNote}
-        {order.length>0 && <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>nameOf(byId.get(id))} disabled={locked}
+        {order.length>0 && <SortableList label="Finishing order" items={order} itemKey={id=>id} itemName={id=>saidName(byId.get(id))} disabled={locked}
           look={{list:'rz-orderrows',row:'rz-orderrow',handle:'rz-orderrow__handle',icon:<Icon name="drag"/>,handleName:name=>`Move ${name}`}}
           onReorder={next=>void send({order:next})}
-          renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{nameOf(byId.get(id))}</span></>}/>}
+          renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{lineName(byId.get(id))}</span></>}/>}
         <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && canAdd && <button type="button" className="rz-btn rz-btn--small" onClick={openAdd}>{words.add}</button>}</div>
         {asked && unanswered.length>0 && <Callout message={`Say what happened to ${entryCount(unanswered.length,relay)} first.`}/>}
         {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id} id={`left-${runner.id}`}>
-          <div role="group" aria-label={entryName(runner)} className={relay?'rz-orderrow rz-orderrow--unplaced rz-orderrow--team':'rz-orderrow rz-orderrow--unplaced'}>
-            <span className="rz-orderrow__num">{nameOf(runner)}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
+          <div role="group" aria-label={saidName(runner)} className={relay?'rz-orderrow rz-orderrow--unplaced rz-orderrow--team':'rz-orderrow rz-orderrow--unplaced'}>
+            <span className="rz-orderrow__num">{lineName(runner)}</span>{choice(runner,'dnf','Did not finish')}{choice(runner,'dnr',"Didn't run")}
           </div></li>)}</ul>:<p className="rz-empty">{words.hasPlace}</p>}
         {picker}
       </main>
@@ -300,23 +302,22 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     <main className="rz-main">
       <ol className="rz-places" aria-label={`Places: ${order.length} of ${slots} recorded`}>{Array.from({length:slots},(_,index)=>{
         const runner=index===current?undefined:byId.get(order[index]);
-        if(index===current && changing) return <li key={index}><span className="rz-placeslot rz-placeslot--changing" aria-current="step" aria-label={`Changing ${ordinal(index+1)}: ${entryName(changing)}`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{boardName(changing)}</span></span></li>;
+        if(index===current && changing) return <li key={index}><span className="rz-placeslot rz-placeslot--changing" aria-current="step" aria-label={`Changing ${ordinal(index+1)}: ${saidName(changing)}`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{lineName(changing)}</span></span></li>;
         if(index===current && unplaced.length) return <li key={index}><span className="rz-placeslot rz-placeslot--current" aria-current="step" aria-label={`${ordinal(index+1)} place: choosing now`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">?</span></span></li>;
-        if(runner) return <li key={index}><button type="button" className="rz-placeslot rz-placeslot--placed" disabled={locked} aria-label={`${ordinal(index+1)} place: ${entryName(runner)}. Change`} onClick={()=>setRedo(index)}>
-          <span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{boardName(runner)}</span></button></li>;
+        if(runner) return <li key={index}><button type="button" className="rz-placeslot rz-placeslot--placed" disabled={locked} aria-label={`${ordinal(index+1)} place: ${saidName(runner)}. Change`} onClick={()=>setRedo(index)}>
+          <span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">{lineName(runner)}</span></button></li>;
         return <li key={index}><span className="rz-placeslot rz-placeslot--empty" aria-label={`${ordinal(index+1)} place: empty`}><span className="rz-placeslot__ord">{ordinal(index+1)}</span><span className="rz-placeslot__num">–</span></span></li>;
       })}</ol>
       <div className="rz-heading-row"><div className="rz-prompt rz-prompt--compact">
-        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${entryName(changing)}`:`${raceName(race)} · ${entryCount(runners.length,relay)} · ${unplaced.length} to place`}</p>
+        <p className="rz-prompt__meta">{changing?`Changing ${ordinal(current+1)}: ${saidName(changing)}`:`${raceName(race)} · ${entryCount(runners.length,relay)} · ${unplaced.length} to place`}</p>
         <h2 className="rz-prompt__q">{!runners.length?emptyRaceLine(race):!choices.length?words.allPlaced:<>{words.who} came <em>{ordinal(current+1)}?</em></>}</h2>
-      </div>{changing && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setRedo(null)}>Keep {entryName(changing)}</button>}</div>
+      </div>{changing && <button type="button" className="rz-btn rz-btn--small" onClick={()=>setRedo(null)}>Keep {saidName(changing)}</button>}</div>
       {flow.error && <Callout message={flow.error}/>}
       {sizeNote}
       {!runners.length && <p className="rz-empty">{words.appear}</p>}
-      {/* A relay's team tiles, two to a row: "Team 5" over its 4th leg's wristband, the same size, so either can be matched. */}
+      {/* A relay's team tiles, two to a row: each its 4th leg's wristband. */}
       {!locked && choices.length>0 && relay && <ul className="rz-runners rz-runners--teams" aria-label="Teams not yet placed">{choices.map(runner=><li key={runner.id}>
-        <button type="button" className="rz-runner rz-runner--team" aria-label={`${entryName(runner)}, ${fourthLeg(runner)==='–'?'no 4th leg':`4th leg ${fourthLeg(runner)}`}, came ${ordinal(current+1)}`} onClick={()=>place(runner)}>
-          <span>{entryName(runner)}</span><span>{fourthLeg(runner)}</span></button>
+        <button type="button" className="rz-runner rz-runner--team" aria-label={`${saidName(runner)} came ${ordinal(current+1)}`} onClick={()=>place(runner)}>{lineName(runner)}</button>
       </li>)}</ul>}
       {/* A heat of more than 9 gets smaller buttons, so all 12 of a full heat fit above the footer. */}
       {!locked && choices.length>0 && !relay && <ul className={runners.length>9?'rz-runners rz-runners--compact':'rz-runners'} aria-label="Runners not yet placed">{choices.map(runner=><li key={runner.id}>

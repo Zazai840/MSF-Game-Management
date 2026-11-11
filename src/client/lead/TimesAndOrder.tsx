@@ -7,7 +7,7 @@ import { raceName } from '../../shared/race-flow.js';
 import { entryName,entryNumber } from '../../shared/races.js';
 import { raceRecording } from '../../shared/recording.js';
 import { entryCount,entryNoun } from '../../shared/teams.js';
-import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits,timeBoxHint,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,formatTime,formatTimeDigits,parseTimeDigits,timeBoxHint,timeRefusal,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { toastLine } from '../../shared/toast-lines.js';
 import { SortableList } from '../flow/SortableList.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
@@ -108,24 +108,32 @@ function CorrectTimes({race,save,busy}:{race:Race;save:Save;busy:boolean}) {
     <Comment value={comment} onChange={setComment}/>
   </Frame>;
 }
-type Order={order:number[];didNotFinish:number[];didNotRun:number[]};
+/** `removedPlaces` are the places taken away, as the saved times count them: each loses its time. */
+type Order={order:number[];didNotFinish:number[];didNotRun:number[];removedPlaces:number[]};
 /**
  * Correct finishing order: dragging a wristband (on a relay, a team) by its handle moves it to another place while times
- * stay by place; No place asks whether it did not finish or did not run, and Give a place puts a did-not-finish back last.
+ * stay by place; No place asks whether it did not finish or did not run (its place's time goes with it, so those below
+ * keep their own), and Give a place puts a did-not-finish back last.
  */
 function CorrectOrder({race,save,busy}:{race:Race;save:Save;busy:boolean}) {
   // Entries go by the number the server takes: a child's wristband, or a team's number shown as "Team 3".
   const entries=race.parts.runners.value||[],relay=!!race.event.relay;
   const numberOf=(id:string)=>{const entry=entries.find(entry=>entry.id===id);return entry?entryNumber(entry):0;};
   const name=(number:number)=>{const entry=entries.find(entry=>entryNumber(entry)===number);return entry?entryName(entry):String(number);};
-  const places=race.kind==='final'?null:race.parts.times.value?.places;
   const [read]=useState(()=>({baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,
-    initial:{order:(race.parts.finish.value?.order||[]).map(numberOf),didNotFinish:(race.parts.finish.value?.didNotFinish||[]).map(numberOf),didNotRun:[]} as Order}));
+    initial:{order:(race.parts.finish.value?.order||[]).map(numberOf),didNotFinish:(race.parts.finish.value?.didNotFinish||[]).map(numberOf),didNotRun:[],removedPlaces:[]} as Order}));
   const [shown,setShown]=useState(read.initial),[asking,setAsking]=useState<number|null>(null);
   const [comment,setComment]=useState(''),[refused,setRefused]=useState<unknown>(null);
+  // The times as Save would leave them: a place taken away here loses its time.
+  const places=race.kind==='final'?null:timesWithoutPlaces(race.parts.times.value,shown.removedPlaces)?.places;
   const changed=JSON.stringify(shown)!==JSON.stringify(read.initial);
   const move=(next:Order)=>{setAsking(null);setShown(next);};
   const without=(list:number[],number:number)=>list.filter(other=>other!==number);
+  /** No place: the entry leaves the order, and the place it has on this screen (a drag may have moved it) loses its time. */
+  function noPlace(to:'didNotFinish'|'didNotRun') {
+    const held=read.initial.order.map((_,place)=>place).filter(place=>!shown.removedPlaces.includes(place)),place=held[shown.order.indexOf(asking!)];
+    move({...shown,order:without(shown.order,asking!),[to]:[...shown[to],asking!],removedPlaces:place===undefined?shown.removedPlaces:[...shown.removedPlaces,place]});
+  }
   const time=(place:number)=>{const value=places?.[place-1];return value===undefined?null:value===null?'No time':formatTime(value);};
   async function go() {setRefused(null);setRefused(await save('finish-order',{baseVersion:read.baseVersion,runnersVersion:read.runnersVersion,...shown,comment}));}
   return <Frame meta={meta(race)} question={<>Correct the <em>finishing order</em></>} help={`Drag a handle to move a ${entryNoun(relay)}. Times stay by place.`}
@@ -145,8 +153,8 @@ function CorrectOrder({race,save,busy}:{race:Race;save:Save;busy:boolean}) {
       <p className="rz-sheet__text">{name(asking)} has no place. What happened?</p>
       <p className="rz-sheet__text">Didn't run takes {name(asking)} off this race{relay?': it is still to run again':''}.</p>
       <div className="rz-sheet__actions">
-        <button type="button" className="rz-btn rz-btn--block" onClick={()=>move({...shown,order:without(shown.order,asking),didNotFinish:[...shown.didNotFinish,asking]})}>Did not finish</button>
-        <button type="button" className="rz-btn rz-btn--block" onClick={()=>move({...shown,order:without(shown.order,asking),didNotRun:[...shown.didNotRun,asking]})}>Didn't run</button>
+        <button type="button" className="rz-btn rz-btn--block" onClick={()=>noPlace('didNotFinish')}>Did not finish</button>
+        <button type="button" className="rz-btn rz-btn--block" onClick={()=>noPlace('didNotRun')}>Didn't run</button>
       </div>
     </Sheet>}
   </Frame>;

@@ -5,7 +5,7 @@ import type { Phone } from '../../shared/domain.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import type { FinalField } from '../../shared/finals.js';
-import { digitsForTime,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
+import { digitsForTime,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { onlyRunners,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
@@ -187,8 +187,13 @@ function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {
 /**
  * A runner taken off (or marked Absent) drops out of the order, later places moving up. The order's version stays as
  * it is: it counts the order holder's own changes, so an order they send before seeing this is still saved.
+ * A removed place loses its time (`timesWithoutPlaces`). The times' version moves on, so a column the Timer
+ * sends before seeing this is refused: saved, it would give each later place the time of the one above.
  */
 export async function dropFromOrder(client:pg.PoolClient,race:Pick<RaceRead,'id'|'parts'>,runners:readonly RaceEntry[]) {
   const finish=race.parts.finish.value,left=finish && onlyRunners(finish,runners);
-  if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),race.id]);
+  if(!finish || JSON.stringify(left)===JSON.stringify(finish)) return;
+  await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),race.id]);
+  const stored=race.parts.times.value,times=timesWithoutPlaces(stored,removedPlaces(finish.order,left!.order));
+  if(times!==stored) await client.query(`UPDATE race_parts SET value=$1,version=version+1 WHERE race_id=$2 AND part='times'`,[JSON.stringify(times),race.id]);
 }
