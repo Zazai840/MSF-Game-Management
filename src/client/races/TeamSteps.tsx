@@ -1,12 +1,13 @@
 import { useEffect,useRef,useState,type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,changedLine,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
+import { andList,changedLine,doneButtons,placedAsk,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
 import { isTeamEntry } from '../../shared/races.js';
 import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
 import { SortableList } from '../flow/SortableList.js';
 import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
-import { DigitsField,KeepFocus,type StepProps } from './Steps.js';
+import { CallUp,DigitsField,KeepFocus,type StepProps } from './Steps.js';
 import { useWrites } from './writes.js';
 
 /** A final's mark for a finalist: Here, Absent, or not marked yet. */
@@ -98,7 +99,7 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
  * leg by leg, and the 4th leg's Next (or "Save Team 5 with 3") saves the team, every typed child checked in. A team
  * part-typed lives only on this phone; its number is set at save, so if another phone saved that number first it
  * takes the next, and the status line names it. Then Still to run, each team with Add, and the teams in this heat as
- * four leg chips each with a grip, and Take off: tapping a chip opens the box on that leg, its Save checked against
+ * four leg chips each with a grip, and Take off (asking first if the finish line has placed the team): tapping a chip opens the box on that leg, its Save checked against
  * the team's version. Taps count from anyone as the race stands (ADR 0002). That's everyone marks Runners done.
  */
 export function TeamStartLine({read,flow,onDone,locked}:StepProps) {
@@ -109,6 +110,8 @@ export function TeamStartLine({read,flow,onDone,locked}:StepProps) {
   const box=useLegBox(read,flow,teamId=>entries.find(item=>item.team.id===teamId));
   const {saves,typed,setTyped,held,setHeld,fix,said,setSaid,change,problem}=box;
   const [legs,setLegs]=useState<number[]>([]),[kept,setKept]=useState<number[]>([]);
+  // Take off on a team the finish line has placed asks first: its place's time goes with it.
+  const [asking,setAsking]=useState<string|null>(null),placeOf=(entryId:string)=>(race.parts.finish.value?.order||[]).indexOf(entryId);
   /** The team typed so far saved into this heat: the number it got comes back with the race. */
   async function save(typedLegs:number[],keptWarnings:number[]) {
     const wristbands=[0,1,2,3].map(index=>typedLegs[index]??null);
@@ -154,14 +157,20 @@ export function TeamStartLine({read,flow,onDone,locked}:StepProps) {
         <ul className="rz-teamrows" aria-label="Still to run">{toRun.map(team=><TeamRow key={team.id} team={team} onAdd={()=>tap(team.id,'tick')}/>)}</ul>
       </>}
       {!locked && entries.length>0 && <h3 className="rz-section">In this heat</h3>}
-      {entries.map(item=><section key={item.id} className="rz-legrow" aria-label={`Team ${item.team.number}`}>
+      {entries.map(item=><section key={item.id} id={`team-${item.id}`} className="rz-legrow" aria-label={`Team ${item.team.number}`}>
         <div className="rz-legrow__head"><div className="rz-teamcard__title"><h3 className="rz-teamcard__name">Team {item.team.number}</h3><TeamNote legs={item.legs}/></div>
-          {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>tap(item.team.id,'take-off')}>Take off</button>}</div>
+          {!locked && <button type="button" className="rz-btn rz-btn--small" onClick={()=>{
+            if(placeOf(item.id)<0) {tap(item.team.id,'take-off');return;}
+            flushSync(()=>setAsking(item.id)); // the question first, so it is scrolled clear of the footer
+            document.getElementById(`team-${item.id}`)?.scrollIntoView({block:'center'});
+          }}>Take off</button>}</div>
+        {!locked && asking===item.id && placeOf(item.id)>=0 && <Callout message={placedAsk(`Team ${item.team.number}`,placeOf(item.id),'Take off')}
+          actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(null)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{setAsking(null);tap(item.team.id,'take-off');}}>Take off</button></>}/>}
         <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && !change} content={box.chip(item.team.id,item.team.number,!locked)}/>
       </section>)}
     </main>
     {!locked && <DockedFooter>{change?box.changeFooter:<div className="rz-footer__pair">
-      <button type="button" className="rz-btn" disabled={!entries.length || legs.length>0 || flow.busy} onClick={()=>onDone('runners')}>That's everyone</button>
+      <button type="button" className="rz-btn" disabled={!entries.length || legs.length>0 || flow.busy} onClick={()=>onDone('runners')}>{doneButtons.runners}</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held || saves.busy} onClick={()=>void next()}>{legs.length===3?`Save Team ${number}`:'Next'}</KeepFocus>
     </div>}</DockedFooter>}
   </>;
@@ -235,10 +244,11 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
         <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && item.mark!=='absent' && !change}
           content={box.chip(item.team.id,item.team.number,!locked && item.mark!=='absent')}/>
       </section>)}
+      {!locked && !change && <CallUp read={read} flow={flow}/>}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>
-    {!locked && <DockedFooter>{change?box.changeFooter:<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button>}</DockedFooter>}
+    {!locked && <DockedFooter>{change?box.changeFooter:<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>{doneButtons.runners}</button>}</DockedFooter>}
   </>;
 }
 /** "+ Team not on the list" on a relay heat: the teams still to run, each with Add, never a typed wristband. */

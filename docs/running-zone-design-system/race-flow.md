@@ -65,7 +65,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 
 ### 2. Races: Home (artboard `N2-Races`)
 
-**App bar** (compact, navy, star pattern): eyebrow "MSF Olympics" and title "Running Zone" ("Zone" in `--zone`). On the right are the **RoleChip** and the avatar.
+**App bar** (compact, navy, star pattern): eyebrow "MSF Olympics" and title "Running Zone" ("Zone" in `--zone`). On the right is the avatar. Directly below the bar is the **JobBand**.
 
 **EventTabs:** Races · Relays. Races holds races and hurdles events; a hurdles card is told apart by its event name only ("60m Hurdles · Girl Cubs"), with no tag.
 - Remember the last tab per device. Default to Races; a phone that remembered the Hurdles tab of an older build opens on Races, with no message.
@@ -119,7 +119,7 @@ A Sheet over Races:
 
 ### 4. Switch job (artboard `N4-Role`)
 
-A Sheet opened by the RoleChip from any screen:
+A Sheet opened by the JobBand on Races or a race:
 - A radio group of Start line / Finish line / Timer. Tapping one switches immediately and closes the sheet; on a race, the race stays open in the new view.
 - Below, separated, a "Zone lead" row. It asks for the lead code once per day, then switches.
 - Copy: "This changes what you see on every race. Switch back any time."
@@ -129,7 +129,7 @@ A Sheet opened by the RoleChip from any screen:
 One route per race (`/races/:raceId`), the same shell for every role.
 
 **Shell, top to bottom**
-1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the RoleChip. Zone leads also get a "⋯" button for race actions.
+1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the avatar, and the JobBand below the bar, then the NeedsBand: what the race still needs to reach Results, the same sentence for every role ("Not in Results yet. Finish line: tap Save the order.", "In Results."). Zone leads also get a "⋯" button for race actions.
 2. **HeatChips** for this event group. The current race is the gold chip (`aria-current="page"`); the others link to their race in the same role. "+" opens New race on the next heat ("Create heat 3"), as a Races card's "+" does. Swiping left or right on the body also moves between heats.
 3. **StepStrip:** three read-only cells (Runners · Finishing order · Times). Each shows its status in words ("5 checked in", "2 of 8", "Not started"). My step is outlined in navy and starts with "You ·", kept short ("You · not yet", "You · 2 of 8", "You · done"). Each label and status stays on one line, labels top-aligned, at 360px and 390px. For zone leads the strip becomes tabs (see 8).
 4. **The body for my role.** Only my step's controls render; nothing from other steps.
@@ -155,9 +155,8 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 **PlacesBoard**
 - A 4-column grid with **one slot for every runner in the race** (1st … *n*th).
-- Placed slots are navy: gold ordinal plus wristband. Tap one to change it.
-- A slot being changed is outlined with its runner still in it; the meta reads "Changing 1st: 2014", 2014 is among the runner buttons again, and "Keep 2014" puts it back.
-- The current place is gold: "3RD ?", `aria-current="step"`.
+- Placed slots are navy: gold ordinal plus wristband. Tap one to empty it: its runner is among the runner buttons again. Any number of slots can be empty, and each keeps its time.
+- The current place is the lowest empty one, gold: "3RD ?", `aria-current="step"`.
 - Empty slots are dashed: "4TH –".
 - The grid grows with the runner count; 9–12 runners make 3 rows.
 
@@ -176,7 +175,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 #### 6b. Finish line: check the order (artboard `N6b-CheckOrder`)
 - **Prompt:** meta "Heat 4 · drag a handle to move a runner", question "Check the order".
-- **OrderRows** (44px): place, wristband, drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop.
+- **OrderRows** (44px): place, wristband, a small "No place" button ("No place for 2033") and the drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop. No place takes the runner out of the order: the runners below move up, the removed place loses its time, and the runner joins the not placed rows. It works until the race is saved, before and after Save the order.
 - **"2 not placed"** heading, below the order and just above the footer, with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with two pill buttons, Did not finish and Didn't run (`aria-pressed`), neither chosen at the start.
 - **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast. While any unplaced runner is unanswered it saves nothing, shows the amber callout "Say what happened to 2 runners first." above the rows, and scrolls to the first unanswered row.
 - **Back** returns to 6 without losing anything.
@@ -191,12 +190,13 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Time box** (numeric TextField): it shows the time itself, filling from the right as the timer's digits are typed ("13.05"), with the hint "Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34." under it.
 - **Footer trio:** Previous place / No more finishers / Next, each on one line.
 - **A wrong time is held** (Fix time / Keep), its WarningCallout directly above the time box, for a time faster than the place before ("Faster than 2nd place") or slower than 1.5 m/s for the race ("Slow for 200m": "The 3rd place time, 3:10.22, looks slow for 200m."). While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
+- **One time too many.** More times than the race can have (its finishers once Finishing order is done, before that its runners; an emptied place counts) show a WarningCallout above the time box, "3 times for 2 finishers." ("3 times for 2 runners." before the order is done), with one button, "Delete 3rd place time", that deletes the last time. The question reads "One time too many" ("2 times too many") in place of "Every place has a time". A lead working the unsaved race sees the same.
 - **A refused time** (seconds over 59, 0.00, faster than 10 m/s for the race) shows in the amber callout under the box, the digits selected so the next digit replaces them; nothing is saved.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 
 #### 8. Zone lead (artboard `N8-Lead`)
 - **Shell differences**
-  - The RoleChip reads "Zone lead" on a `jumping` fill.
+  - The JobBand reads "Your role is ZONE LEAD" on a `jumping` fill.
   - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
   - These are today's lead actions from screens 24, 27 and 28, moved here.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
@@ -206,7 +206,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - Times: rows joining place, wristband and time, each with a pencil button.
 - **Problems sit on the row they're about.** A kept warning or a count mismatch shows as an inline WarningCallout with actions: "Fix time" and "It's right". "It's right" clears the issue and records who accepted it.
 - **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card's status line names them ("Heat 3: a time looks wrong").
-- **Avatar menu:** the avatar opens a menu with Results and Day setup, the existing screens, then Log out.
+- **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. For a lead it opens a menu with Races, Results and Day setup, then Log out; for a volunteer, Log out only.
 
 ### 9. Relays
 
@@ -241,11 +241,10 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 - That's everyone with a team unmarked asks first: "Team 4 is not marked. Record them absent?" with Record them absent / Go back.
 
 **Finish line**
-- Team tiles (RunnerButton, team tile), two to a row: "Team 5" over its 4th leg's wristband "2054" (or "–"), the same size. `aria-label="Team 5, 4th leg 2054, came 1st"`.
-- The PlacesBoard names a placed team "T5". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
+- Team tiles (RunnerButton, team tile), two to a row: its 4th leg's wristband "2054" (with no 4th leg, its last leg that has a wristband; "–" with no wristband at all), with no team label: the team number is the lane, and after the line nobody knows the lane. `aria-label="2054 came 1st"` ("no wristband came 1st" for "–").
+- The PlacesBoard names a placed team by its 4th leg's wristband, "2054". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
 - Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
-- **Check the order** rows read "Team 6 · 2064". A team left over has its name on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run. While a slot is being changed: "Changing 1st: Team 5" with **Keep Team 5**.
-
+- **Check the order** rows read the 4th leg's wristband, "2064". A team left over has that number on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run.
 **Timer**
 - As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · time each team's 4th leg" (no finished count). A final has no Times.
 
@@ -281,7 +280,8 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 
 | Component | Spec |
 |---|---|
-| **RoleChip** | A pill link on the app bar: `paper` fill (lead: `jumping`), `navy` text, 14px/800, job icon 18px, chevron-down 16px, `size-touch` tall. `aria-label="Your job: Timer. Change job"`. Opens the job sheet, "What's your job today?". |
+| **NeedsBand** | A full-width line directly below the JobBand on a race, for every role: what the race still needs to reach Results. A missing detail first ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." with a `throwing-ink` check once saved. 13px/700 `navy` on `card`, one line at 360px for the done-button sentences. `aria-live="polite"`; not tappable. It replaces the lead's finishers-and-times line on a race not yet saved. |
+| **JobBand** | A full-width button directly below the app bar on Races and on a race: "Your role is FINISH LINE" (the job in `display` capitals from CSS, 22px; "Your role is" 16px/800), job icon and chevron-down 20px, `navy` on the job's colour, `size-touch` tall. Start line `running`, Finish line `challenge`, Timer `gold`, Zone lead `jumping` (the JobCard job colours). `aria-label="Your role is Timer. Change job"`. Opens the job sheet, "What's your job today?". |
 | **EventTabs** | 2-column segmented control (Races, Relays) on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
 | **RaceCard** | `card`, `shadow-card`, `radius-xl`, padding 12/14. Title in `display-card`; code tag; status line in `meta` + `ink-muted`; HeatChips row. |
 | **HeatChips** | An `<ol>` of chips, minimum 52 × 44, `radius-md`, Saira 18px "H1". States are set by the **viewer's step**:<br>• Done: `navy` + tick.<br>• Ready for me: `gold` (on Home).<br>• Current race: `gold` + 2px `navy` ring.<br>• Ready but not current: `card` + 2px `navy` ring + gold dot.<br>• Waiting: `card` + 2px `line`.<br>• Add: 44px dashed `line-strong` with a plus.<br>• Create final: dashed `navy` "+ Final".<br>Every chip's `aria-label` says its state in words ("Heat 3, needs times"). |
@@ -291,7 +291,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | **OrderRow** | 44px row, grid `44px 1fr 44px`: Saira ordinal, wristband 18px/800, a drag handle button. `card` + `shadow-card`; while dragging, `shadow-raised`. An unplaced row is dashed `line-strong`, with a DNF StatusTag. |
 | **Toast** | Fixed above the footer, `navy`, `radius-lg`-ish (14px), `shadow-raised`. Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 6 seconds, paused while focused. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this since. Open the race to edit it." |
 | **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4"), then a small Button Take off at the end. On a heat and on a final its legs are four leg chips side by side (variant A): each 44px tall, `card` with a 2px `line` border and `radius-md`, "1st" 12px/700 `ink-muted` over the wristband ("–" dashed for an empty leg), with a grip under it. On a final the whole card is one `card` with "1st fastest · " before the name and Here / Absent pills in the head; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
-| **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, two lines of equal size (32px), "Team 5" over its 4th leg's wristband "2054". `aria-label="Team 5, 4th leg 2054, came 1st"`. |
+| **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, one line (32px), its 4th leg's wristband "2054" with no team label. `aria-label="2054 came 1st"`. |
 
 Update existing READMEs where the new flow changes them:
 - RunnerTile: superseded by RunnerButton.
@@ -305,7 +305,7 @@ Update existing READMEs where the new flow changes them:
 | Old screen(s) | New home |
 |---|---|
 | 1 Join | Join (adds the job choice) |
-| 2 Home: choose your job | Races (Home); the job lives in the RoleChip |
+| 2 Home: choose your job | Races (Home); the job lives in the JobBand |
 | 3–4, 10, 16 Pick event / section / race | Races list + HeatChips + New race sheet |
 | 5–8 Check-in steps | Race · Start line |
 | 9 Saved confirmation | Toast with Undo on Races |
@@ -332,7 +332,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
    - EventTabs, RaceCard, HeatChips, sections and ordering, the New race sheet, the duplicate-heat guard, the empty states.
    - *Done when:* two phones creating "Girl Cubs heat 5" at once end up with one race.
 3. **Race shell and the role sheet.**
-   - App bar, HeatChips with swipe, StepStrip with live updates, RoleChip, Switch job.
+   - App bar, HeatChips with swipe, StepStrip with live updates, JobBand, Switch job.
    - *Done when:* switching role on a race swaps the body without leaving the race.
 4. **Start line body**, with the existing warnings and the 6-runner soft warning.
 5. **Finish line body and check the order.**

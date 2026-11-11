@@ -23,7 +23,7 @@ type DayView=Extract<LeadView,{kind:'day'|'events'|'rename-event'|'new-event'}>;
 /** Day setup and the Events screens, by name. Signed in today is its own screen. */
 const daySetup:Record<DayView['kind'],string>={day:'Day setup',events:'Events','rename-event':'Rename','new-event':'Add an event'};
 /**
- * The lead's screens, from the avatar menu on Races: Results (an event, a race page) and Day setup (Signed in today,
+ * The lead's screens, from the avatar menu: Results (an event, a race page) and Day setup (Signed in today,
  * Events, Change Olympics password). Each is its own address (`view`); `onOpen` moves to another and `onBack` goes back. The race flow put a
  * race's issues on the race itself, so there is no Dashboard or To check list.
  */

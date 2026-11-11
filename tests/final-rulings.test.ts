@@ -37,13 +37,16 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
  expect((await markAbsent(volunteer,[1066,1088])).statusCode).toBe(200);
  final=await finalRead(volunteer);
  expect((await call(volunteer,`/api/races/${id}/check-in`,{raceId:id,version:final.parts.runners.version,runners:[{wristband:1023}]})).json().message).toBe("Mark the final's runners Here or Absent");
- expect((await call(volunteer,'/api/lead/events/R3/call-up',{expectedHeatEntryId:'none'})).statusCode).toBe(403);
+ // Any signed-in profile can call up (ADR 0003); a suggestion that is not the next-ranked runner is refused.
+ expect((await call(volunteer,'/api/lead/events/R3/call-up',{expectedHeatEntryId:'none'})).statusCode).toBe(409);
  let read=(await call(lead,'/api/lead/events/R3/results')).json();expect(read.results.finalResults.nextCallUp.wristband).toBe(1135);
+ // Only a lead's call-up carries a comment into the audit note.
+ expect((await call(volunteer,'/api/lead/events/R3/call-up',{expectedHeatEntryId:read.results.finalResults.nextCallUp.entryId,comment:'typed by a volunteer'})).statusCode).toBe(403);
+ expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.nextCallUp.wristband).toBe(1135);
  for(const number of [1135,1047]) {const next=read.results.finalResults.nextCallUp;expect(next.wristband).toBe(number);const save=await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:next.entryId});expect(save.statusCode).toBe(200);read=save.json();}
  expect(read.results.finalResults.additionalEntries).toEqual([]);expect(read.results.finalResults.entries.filter((e:any)=>e.absent).map((e:any)=>e.heatWristband)).toEqual([1066,1088]);expect(read.auditNotes.filter((n:any)=>n.action==='call-up')).toHaveLength(2);
- // The called-up runners start unmarked, like every finalist, until marked Here.
- expect((await finalRead(volunteer)).parts.runners.value.map((r:any)=>r.wristband)).toEqual([1023,1005,1012,1110]);
- await markAbsent(volunteer,[1066,1088]);
+ // The called-up runners are Here at once.
+ expect((await finalRead(volunteer)).parts.runners.value.map((r:any)=>r.wristband)).toEqual([1023,1005,1012,1110,1135,1047]);
  final=await finalRead(volunteer);const runners=final.parts.runners.value;const order=[1047,1023,1110,1135,1005,1012];
  await setup.order(volunteer,'R3',order);expect((await setup.submit(volunteer,'R3')).race.state).toBe('saved');
  const first=runners.find((r:any)=>r.wristband===1047);await call(lead,`/api/lead/races/${id}/runners/${first.id}/disqualify`,{reason:'Two false starts'});

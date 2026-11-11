@@ -1,5 +1,5 @@
 import { isRunner } from '../src/shared/races.js';
-import {ownName,ownCode,ownWristbands,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {press,ownName,ownCode,ownWristbands,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 const chips=(page:Page)=>page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footerButton=(page:Page,name:string)=>page.locator('footer.rz-footer').getByRole('button',{name,exact:true});
@@ -194,16 +194,16 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   expect(await order()).toEqual([2062,2001,2003]);
   // Taking off a runner the finish line has placed asks first; Keep keeps them.
   await chip('2001').click();await footerButton(page,'Remove').click();
-  const ask=page.getByRole('alert').filter({hasText:'2001 is already placed 2nd at the finish. Take them off anyway?'});
+  const ask=page.getByRole('alert').filter({hasText:'2001 has 2nd place. Remove?'});
   await expect(ask).toBeVisible();
   await page.screenshot({path:info.outputPath('remove-placed.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
   await ask.getByRole('button',{name:'Keep',exact:true}).click();
   await expect(ask).toHaveCount(0);
   await expect(chips(page)).toHaveText(['2001','2062','2003']);
-  // Take off drops the place.
+  // Remove drops the place.
   await footerButton(page,'Remove').click();
-  await ask.getByRole('button',{name:'Take off',exact:true}).click();
+  await press(ask.getByRole('button',{name:'Remove',exact:true}));
   await expect(chips(page)).toHaveText(['2062','2003']);
   await expect(page.getByRole('status').filter({hasText:'2001 taken off this heat'})).toBeVisible();
   await expect(progress).toContainText('You · done');

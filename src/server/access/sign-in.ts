@@ -7,6 +7,8 @@ import { newLeadCode, newOlympicsPassword } from './codes.js';
 import { seedEvents } from '../day/events.js';
 import { WrongAccessCode, type failureBackoff } from './failures.js';
 export const matches = (a: string, b: string) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
+/** The Olympics password and the lead code ignore capitals, so a phone keyboard's capital first letter still gets in. The owner password uses `matches`. */
+export const matchesAnyCapitals = (typed: string, stored: string) => matches(typed.toLowerCase(), stored.toLowerCase());
 const wrongPassword = 'That is not the Olympics password. Check with a lead and try again.';
 const wrongLeadCode = "That is not today's lead code. Ask a lead for it.";
 const wrongJoinCode = "That password isn't right. Check it with a lead and try again.";
@@ -124,7 +126,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
     return passwordFailures([request.ip], reply, async () => {
       if (matches(password, ownerPassword)) return {kind:'owner', dayRunning:Boolean((await pool.query('SELECT 1 FROM olympics_days WHERE active')).rowCount)};
       const settings = await readSettings(pool);
-      if (settings && matches(password, settings.password)) return {kind:'olympics', pass:passFor(settings)};
+      if (settings && matchesAnyCapitals(password, settings.password)) return {kind:'olympics', pass:passFor(settings)};
       throw new WrongAccessCode(wrongPassword);
     });
   });
@@ -175,7 +177,7 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
     return leadFailures([...phoneKeys, `ip:${request.ip}`], reply, () => signInTransaction(pool, async client => {
       await requirePass(client, body.pass);
       const day = await runningDay(client);
-      if (!matches(code, day.lead_code)) throw new WrongAccessCode(wrongLeadCode);
+      if (!matchesAnyCapitals(code, day.lead_code)) throw new WrongAccessCode(wrongLeadCode);
       const profile = await profileByName(client, name, body.profiles);
       return {profile, ...await signIn(client, day.id, profile, 'Lead')};
     }));
@@ -200,13 +202,13 @@ export function signInRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
       const day = await activeDay(client), settings = await readSettings(client);
       if (!day || !settings) throw new WrongAccessCode(wrongJoinCode);
       const pass = passFor(settings);
-      if (matches(code, settings.password)) {
-        // The job stays on the phone; a volunteer without one is kept on Join before anything is made.
+      if (matchesAnyCapitals(code, settings.password)) {
+        // The phone keeps the job and reports it once signed in (ADR 0007); a volunteer without one is kept on Join before anything is made.
         if (!body.job) throw new Refusal(400, 'Choose your job', {reason:'choose-job'});
         const profile = await joinProfile(client, day.id, name, body.profiles, body.thatsMe);
         return {kind:'volunteer', pass, profile, ...await signIn(client, day.id, profile)};
       }
-      if (matches(code.toUpperCase(), day.lead_code)) {
+      if (matchesAnyCapitals(code, day.lead_code)) {
         const profile = await joinProfile(client, day.id, name, body.profiles, body.thatsMe);
         return {kind:'lead', pass, profile, ...await signIn(client, day.id, profile, 'Lead')};
       }

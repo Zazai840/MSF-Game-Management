@@ -1,6 +1,6 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { ordinal } from '../src/shared/ordinal.js';
-import {confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {press,confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
@@ -43,7 +43,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   for(const team of [1,2,3,4]) await markButton(one,team,'Here').click();
   await markButton(one,5,'Absent').click();
   const tiles=line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
-  await expect(tiles).toHaveText([1,2,3,4].map(team=>`Team ${team}${w(team*10+4)}`),live);
+  await expect(tiles).toHaveText([1,2,3,4].map(team=>String(w(team*10+4))),live);
   await expect(meta(one)).toHaveText('Final · 4 of 6 teams here · 1 not marked');
   await expect(markButton(one,5,'Absent')).toHaveAttribute('aria-pressed','true');
   // Tapping a lit mark again unmarks it.
@@ -65,7 +65,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // The finish line: the four teams Here, and no + Team not on the list on a final.
   await expect(tiles).toHaveCount(4,live);
   await expect(footer(line).getByRole('button',{name:'+ Team not on the list',exact:true})).toHaveCount(0);
-  for(const team of [3,1,4,2]) await line.getByRole('button',{name:new RegExp(`^Team ${team}, 4th leg `)}).click();
+  for(const team of [3,1,4,2]) await press(line.getByRole('button',{name:new RegExp(`^${w(team*10+4)} came `)}));
   await expect(line.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
   await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(line.locator('.rz-toast')).toContainText('Finishing order saved');

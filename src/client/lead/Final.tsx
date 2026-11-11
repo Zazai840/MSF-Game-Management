@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { finalTakesChanges,teamInFinal,type FinalResults } from '../../shared/finals.js';
+import { callUpLabel,finalTakesChanges,openCallUp,teamInFinal,type FinalResults } from '../../shared/finals.js';
 import { needsCheck,resultLabel,resultName,teamLine,teamWristbands,type LeaderboardRow,type ResultEntry } from '../../shared/results-rules.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { api } from '../api.js';
@@ -27,7 +27,7 @@ export function Final({event,teams=[],final,onSaved,onRunner}:{event:DayEvent;te
     catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  const addable=teams.filter(team=>!teamInFinal(final,team.id)),open=finalTakesChanges(final);
+  const addable=teams.filter(team=>!teamInFinal(final,team.id)),open=finalTakesChanges(final),next=openCallUp(final);
   // A line-up entry as it is in the final now, else as it was when last there (an Absent one).
   const finalist=(id:string,copy?:RaceEntry)=>{const runner=final.runners.find(runner=>runner.id===id)??copy;return runner && resultEntry({id:final.raceId},runner);};
   const absent=(entry:{absent:boolean})=>entry.absent?'Absent · no final place':'';
@@ -50,8 +50,8 @@ export function Final({event,teams=[],final,onSaved,onRunner}:{event:DayEvent;te
         })}
         {final.additionalEntries?.map(entry=><span role="listitem" key={entry.runner.id}>{['Added',who(finalist(entry.runner.id,entry.runner)!),absent(entry)].filter(Boolean).join(' · ')}</span>)}
       </div></details>
-    {open && final.vacancy && <>{final.nextCallUp
-      ?<button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void send('call-up',{expectedHeatEntryId:final.nextCallUp!.entryId},{kind:'called-up',who:resultName(final.nextCallUp!),race})}>{busy?'Saving…':`Call up next-ranked ${entryNoun(event.relay)}: ${resultName(final.nextCallUp)} (${ordinal(final.nextCallUp.position!)})`}</button>
+    {open && final.vacancy && <>{next
+      ?<button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void send('call-up',{expectedHeatEntryId:next.entryId},{kind:'called-up',who:resultName(next),race})}>{busy?'Saving…':callUpLabel(resultName(next),next.position!)}</button>
       :<p className="rz-empty">No further ranked heat {entryNoun(event.relay)} to call up.</p>}
       <p className="rz-empty">The final can run short.</p></>}
     {event.relay && open && <button type="button" className="rz-btn rz-btn--block" onClick={()=>{setError(null);setAdding(true);}}>Add a team to the final</button>}

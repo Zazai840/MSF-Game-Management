@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Phone } from '../shared/domain.js';
 import type { ResultsTarget } from '../shared/lead-results.js';
-import type { Role,Step } from '../shared/race-flow.js';
+import { heldRole,holdsRole,type Role,type Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
 import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
-import { Avatar,Callout,HomeBar,RoleChip,Screen } from './races/parts.js';
+import { Avatar,Callout,HomeBar,JobBand,Screen } from './races/parts.js';
 import { failureLine } from '../shared/request-failure.js';
 import { LeadBar,LeadFrame } from './lead/LeadBar.js';
 import { RacesHome } from './races/RacesHome.js';
@@ -16,7 +16,8 @@ import { Toast,ToastContext,type ToastShown } from './races/Toast.js';
 import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 // A failed load (often an old page after a deploy) reloads the app; until then Opening Lead stays.
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
-interface HomeRead { phone:Phone; needsYou?:number }
+/** `role`: the role the server last heard from this phone today, or null. */
+interface HomeRead { phone:Phone; needsYou?:number; role:Role|null }
 /** What the next Back (one the app made itself) does in place of opening the screen it lands on. */
 let afterBack:(()=>void)|null=null;
 /** Where Open in Results lands: a tie on its screen, a race's item on its race page, anything else on its event; a Races card's Confirm the medals on that screen. */
@@ -97,8 +98,13 @@ export function App() {
   useEffect(()=>{
     if(!dayId) return;
     const held=phoneStorage.role(dayId);
-    setRole(held==='lead' && !isLead?null:held??(isLead?'lead':null));
+    setRole(heldRole(held,isLead)??(isLead?'lead':null));
   },[dayId,isLead]);
+  // The phone reports its job on Join and on every switch (ADR 0007), wherever the job was set. Each home read says
+  // which one the server holds, so a report that did not arrive goes again on the next read.
+  useEffect(()=>{
+    if(home && role && home.role!==role && holdsRole(role,isLead)) void api('role',{role}).catch(()=>{/* the next home read sends it again */});
+  },[home,role,isLead]);
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
   // The toast sits over every screen, so it brings its own screen root (the design system's tokens), as the job sheet does.
   const withToast=(screen:ReactNode)=><ToastContext.Provider value={showToast}>{screen}
@@ -109,12 +115,13 @@ export function App() {
     if (!home) return <Opening words="Opening the Running Zone…" error={error} onRefresh={()=>void refresh()}/>;
     const name=home.phone.name,toRaces=()=>go({kind:'races'});
     // Every avatar opens this one menu. Log out asks nothing: the phone keeps its listed names.
-    const menuLabel=`${name}: ${isLead?'Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
+    const menuLabel=`${name}: ${isLead?'Races, Results, Day setup and Log out':'Log out'}`,openMenu=(anchor:HTMLElement)=>{
       const box=anchor.getBoundingClientRect();
       setMenu(menu?null:{top:box.bottom+6,right:document.documentElement.clientWidth-box.right});
     };
     const menuList=menu && <div className="rz-menu" role="menu" style={menu}>
-      {isLead && <><button role="menuitem" type="button" onClick={()=>go({kind:'results'})}>Results</button>
+      {isLead && <><button role="menuitem" type="button" onClick={toRaces}>Races</button>
+        <button role="menuitem" type="button" onClick={()=>go({kind:'results'})}>Results</button>
         <button role="menuitem" type="button" onClick={()=>go({kind:'day'})}>Day setup</button></>}
       <button role="menuitem" type="button" disabled={logOut.busy} onClick={()=>void logOut.submit(async()=>{await api('sign-out',{});phoneStorage.signOut();})}>Log out</button>
       {logOut.error && <p role="alert" className="rz-note">{logOut.error}</p>}
@@ -125,9 +132,9 @@ export function App() {
     const pickTab=(tab:HomeTab)=>{setHomeTab(tab);phoneStorage.rememberHomeTab(tab);};
     const toResults=(opening:ResultsTarget)=>go(resultsView(opening),{opening});
     if(view.kind==='races' || view.kind==='race') {
-      const bar=<HomeBar><RoleChip role={role} onOpen={()=>setRoleSheet(true)}/>{avatar}</HomeBar>;
+      const bar=<><HomeBar>{avatar}</HomeBar><JobBand role={role} onOpen={()=>setRoleSheet(true)}/></>;
       const toRace=(id:string,step?:Step)=>{setGone('');go({kind:'race',id,step});};
-      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
+      if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} avatar={avatar} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
         onRace={toRace} onSaved={saved=>{showToast({message:saved.message,saved});pickTab(saved.tab);toRaces();}} onResults={toResults} onOpen={next=>go(next)}/>{sheet}</Screen>;
       return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={toRace}
         onResults={toResults}/>{sheet}</Screen>;
@@ -140,7 +147,7 @@ export function App() {
       if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
     };
     // The job sheet sits beside the lead screen's root, so it brings its own.
-    return <LeadFrame.Provider value={{role,onRole:()=>setRoleSheet(true),onBack:()=>back()}}>
+    return <LeadFrame.Provider value={{avatar,onBack:()=>back()}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}

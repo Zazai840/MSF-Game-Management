@@ -4,7 +4,7 @@ import { ordinal } from './ordinal.js';
 import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
 import type { NotRankedReason } from './results-rules.js';
 import type { EventState } from './event-state.js';
-import { entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
+import { capitalised,entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
 import { issueLine } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
@@ -23,6 +23,14 @@ export const roles=['start','finish','timer','lead'] as const;
 export type Role=typeof roles[number];
 export const roleLabels:Record<Role,string>={start:'Start line',finish:'Finish line',timer:'Timer',lead:'Zone lead'};
 export const roleSteps:Record<Exclude<Role,'lead'>,Step>={start:'runners',finish:'positions',timer:'times'};
+/** The one rule for who holds a role: Zone lead is a lead's only, so a lead made a volunteer no longer holds it. */
+export const holdsRole=(role:Role,lead:boolean)=>role!=='lead' || lead;
+/** A reported role as it counts now: none once the person no longer holds it. */
+export const heldRole=(role:Role|null,lead:boolean)=>role && holdsRole(role,lead)?role:null;
+/** The role whose step this is, as the screens name it: "Finish line". */
+export const stepRole=(step:Step)=>roleLabels[(Object.keys(roleSteps) as Array<keyof typeof roleSteps>).find(role=>roleSteps[role]===step)!];
+/** Each step's done button. */
+export const doneButtons:Record<Step,string>={runners:"That's everyone",positions:'Save the order',times:'No more finishers'};
 /** A heat usually has 6 runners (6 lanes; the 60m final takes the fastest 6). Only Races-tab events warn past it. */
 export const usualRunnersPerRace=6;
 export const usualSizeApplies=(event:Pick<DayEvent,'type'>)=>event.type==='races';
@@ -31,32 +39,63 @@ export const raceName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'
 export const chipName=(race:Pick<RaceRead,'kind'|'number'>)=>race.kind==='final'?'F':`H${race.number}`;
 /** "Sam", "Sam and Jo", "Sam, Priya and Jo". */
 export const andList=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`;
-/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. */
+/** A finishing order place by place, as the times count them: the entry at each place, or null for a place emptied to fill again. */
+export function placesBoard(finish:Pick<FinishingOrder,'order'|'empty'>):Array<string|null> {
+  const placed=[...finish.order];
+  return Array.from({length:placed.length+(finish.empty?.length||0)},(_,place)=>finish.empty?.includes(place)?null:placed.shift()??null);
+}
+/** The finishing order those places make. */
+export function finishOf(board:ReadonlyArray<string|null>,didNotFinish:string[]):FinishingOrder {
+  const empty=board.flatMap((id,place)=>id===null?[place]:[]);
+  return {order:board.filter(id=>id!==null),didNotFinish,...(empty.length?{empty}:{})};
+}
+/** A finishing order keeping only the race's runners: anyone taken off drops out, and later places move up. An empty place stays. */
 export function onlyRunners(finish:FinishingOrder,runners:readonly RaceEntry[]):FinishingOrder {
   const on=(id:string)=>runners.some(runner=>runner.id===id);
-  return {order:finish.order.filter(on),didNotFinish:finish.didNotFinish.filter(on)};
+  return finishOf(placesBoard(finish).filter(id=>id===null || on(id)),finish.didNotFinish.filter(on));
 }
+/** A place (from 0) emptied and not filled again: "2nd place is empty". */
+const emptyPlaceLine=(place:number)=>`${ordinal(place+1)} place is empty`;
 /**
  * Why a race whose steps are all done does not save itself yet, or null: nobody checked in (on a relay, no team in it;
  * on a final, everyone Absent), a runner or team with no place (nor Did not finish), a placed runner with no time, a
  * time at a place with no runner (left when a runner came off the order), or a wrong time neither kept nor retyped.
- * Kept wristband warnings, and relay teams short of four here, never block it.
+ * Kept wristband warnings, and relay teams short of four here, never block it. It names the step the reason is about,
+ * and its line reads after "Not in Results yet: ".
  */
-export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=false):string|null {
+export interface Blocker { step:Step; line:string }
+export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=false):Blocker|null {
   const runners=race.parts.runners.value||[],finish=race.parts.finish.value;
-  if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
+  if(!runners.length) return {step:'runners',line:race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked':'Nobody is checked in'};
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-  if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${entryNoun(relay)}s have no place yet`;
+  if(unplaced.length) return {step:'positions',line:unplaced.length===1?`${entryName(unplaced[0])} has no place`:`${unplaced.length} ${entryNoun(relay)}s have no place`};
+  if(finish?.empty?.length) return {step:'positions',line:emptyPlaceLine(finish.empty[0])};
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
-  if(untimed>=0) return `Place ${untimed+1} has no time`;
+  if(untimed>=0) return {step:'times',line:`${ordinal(untimed+1)} place has no time`};
   // Finishers and times disagree only after a lead's correction, never on a saved race.
   const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
-  if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
+  if(surplus>=0) return {step:'times',line:`${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`};
   const wrong=wrongTimes(places,race.event.name).find(item=>!times!.keptWrong?.includes(item.index));
-  return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
+  return wrong?{step:'times',line:`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`}:null;
 }
+/** What the Start line is asked before an entry the finish line has placed (place from 0) leaves the race: "36 has 5th place. Remove?" */
+export const placedAsk=(name:string|number,place:number,verb:'Remove'|'Take off')=>`${name} has ${ordinal(place+1)} place. ${verb}?`;
+/**
+ * More times than a race can have, for the Timer: how many too many as the heading says it, and the sentence, "3 times
+ * for 2 finishers." (before Finishing order is done, "3 times for 2 runners."); null when the `timed` places fit. A
+ * race can have a time per finisher once Finishing order is done, before that per runner; an emptied place keeps its
+ * time, so it counts.
+ */
+export function surplusTimes({race,steps}:{race:Pick<RaceRead,'parts'|'event'>;steps:RaceFlowRead['steps']},timed:number):{heading:string;line:string}|null {
+  const finish=race.parts.finish.value,room=Math.max(steps.times?.expected||0,finish?placesBoard(finish).length:0),extra=timed-room;
+  if(extra<=0) return null;
+  const has=steps.positions?.state==='done'?`${room} ${room===1?'finisher':'finishers'}`:entryCount(room,race.event.relay);
+  return {heading:`${extra===1?'One time':`${extra} times`} too many`,line:`${timed} times for ${has}.`};
+}
+/** The Timer's question for the place being timed (from 0): "3rd place time?", "Every place has a time" once full, or that there are too many. */
+export const timerQuestion=(target:number,full:boolean,surplus:ReturnType<typeof surplusTimes>)=>surplus?surplus.heading:full?'Every place has a time':`${ordinal(target+1)} place time?`;
 /** Who last changed a step and when, and who marked it done and when. */
 export interface StepMeta { version:number; by:string|null; at:string|null; doneBy:string|null; doneAt:string|null }
 /**
@@ -77,17 +116,35 @@ export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:Partial<Re
 /** A saved finishing order in words: "10 finished · 1 did not finish". */
 export const finishedCount=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished`;
 export const finishedWords=(status:StepStatus)=>`${finishedCount(status)}${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
-/** A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. */
-export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; steps:Partial<Record<Step,StepStatus>> }
+/**
+ * A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. `blocker` is the
+ * server's reason the race would not save itself with every step done (`stepBlocker`), null when nothing but a done
+ * button is missing or the race is saved.
+ */
+export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; steps:Partial<Record<Step,StepStatus>>; blocker:Blocker|null }
+/**
+ * What a race still needs to reach Results, as one decision: the sentence of the Race screen's band and of a Results
+ * heat row, and the step that sentence is about, where the row opens the race. The missing detail first ("Not in
+ * Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet.
+ * Finish line: tap Save the order."), else the last step, where the race saves. Once saved, "In Results." and no step;
+ * `ask` adds who can change it, for a volunteer. Never "not saved": every tap is saved.
+ */
+export function raceNeed(race:Pick<RaceSummary,'kind'|'state'|'steps'|'blocker'>,ask=false):{line:string;step:Step|null} {
+  const saved=race.state==='saved',words=capitalised(inResultsWords(saved));
+  if(saved) return {line:`${words}.${ask?' Ask a lead to change it.':''}`,step:null};
+  if(race.blocker) return {line:`${words}: ${race.blocker.line}.`,step:race.blocker.step};
+  const missing=stepsOf(race).find(step=>race.steps[step]?.state!=='done');
+  return missing?{line:`${words}. ${stepRole(missing)}: tap ${doneButtons[missing]}.`,step:missing}:{line:`${words}.`,step:stepsOf(race).at(-1)!};
+}
+export const raceNeeds=(...args:Parameters<typeof raceNeed>)=>raceNeed(...args).line;
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**
- * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs), a tie,
+ * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs)
  * or why the heat is not ranked yet (`name` is the heat's). "Heat 1 has a time to check first".
  */
-export function finalHold(kind:'ran-twice'|'tie'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
+export function finalHold(kind:'ran-twice'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
   if(kind==='ran-twice') return {step:null,line:`${name} ran twice: choose which result counts first`};
-  if(kind==='tie') return {step:'times',line:`${name} has a tie to settle first`};
   if(kind==='times out of order' || kind==="finishers and times don't agree") return {step:'times',line:`${name} has a time to check first`};
   if(kind==='awaiting times') return {step:'times',line:`${name} needs its times first`};
   if(kind==='awaiting finishing order' || kind==='checked in') return {step:'positions',line:`${name} needs its finishing order first`};
@@ -109,9 +166,21 @@ export interface RacesRead { revision:number; groups:RaceGroup[] }
 /**
  * One race in the flow, with its group (for the heat chips) and its steps. A relay's race also carries its relay's teams
  * (Still to run, a team's version for a leg change, the leg checks), every switched-on relay's teams for the checks, and
- * `nextTeam`, the number the next team typed in takes.
+ * `nextTeam`, the number the next team typed in takes. A final with an Absent finalist's seed free carries `callUp`, the
+ * next-ranked heat entry anyone can call up: its heat entry, its name ("2011", "Team 7") and its heat rank.
  */
-export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[]; nextTeam?:number }
+export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[]; nextTeam?:number;
+  callUp?:{entryId:string;who:string;position:number};
+  /** Leads only: the names of the people whose reported role is each step's today. */
+  inRole?:Partial<Record<Step,string[]>> }
+/**
+ * Whom a lead asks about a step: the last person who typed in it, or else up to three people in its role today and a
+ * count of the rest ("+2"). A race is made with Runners at version 1 and the other parts at 0, in its maker's name.
+ */
+export function stepPeople(step:Step,status:Pick<StepMeta,'version'|'by'>,inRole:readonly string[]=[]) {
+  if(status.by && status.version>(step==='runners'?1:0)) return status.by;
+  return inRole.slice(0,3).join(', ')+(inRole.length>3?` +${inRole.length-3}`:'');
+}
 /** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Finishing order and Times someone is in the race. */
 export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
   const status=race.steps[step];
@@ -137,7 +206,7 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
 export const emptyRaceLine=(race:{kind:RaceRead['kind'];event:{relay:boolean}})=>race.kind==='final'?(race.event.relay?'No team is marked Here yet':'Nobody is marked Here yet'):race.event.relay?'No team is in this heat yet':'Nobody is checked in yet';
 /**
  * Why a step cannot be marked done yet, or null: Runners needs someone checked in (on a final, someone Here),
- * Finishing order needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
+ * Finishing order needs every runner placed or Did not finish and no place empty, and Times every wrong time kept or retyped (no time at all is
  * a heat nobody finished).
  */
 export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step):string|null {
@@ -145,7 +214,8 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
   if(!runners.length) return emptyRaceLine(race);
   if(step==='positions') {
     const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-    return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;
+    if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;
+    return finish?.empty?.length?emptyPlaceLine(finish.empty[0]):null;
   }
   if(step==='times') {
     const times=race.parts.times.value;
@@ -154,6 +224,12 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
   }
   return null;
 }
+/** Whether a race counts, in the words every screen uses: never "saved", so nobody thinks their taps were lost. */
+export const inResultsWords=(saved:boolean)=>saved?'in Results':'not in Results yet';
+/** What a lead's done button answers on a step already done: that it is, and what the race still needs, in the band's words. */
+export const alreadyDoneLine=(race:Parameters<typeof raceNeeds>[0],step:Step)=>`${alreadyDone(step)} ${raceNeeds(race)}`;
+/** "Runners are already done.", "Finishing order is already done.", "Times are already done.": the verb agrees with the step's name. */
+const alreadyDone=(step:Step)=>`${stepLabels[step]} ${step==='positions'?'is':'are'} already done.`;
 /** What a step needs ("Heat 3 needs times") and what it says once done but the race not saved ("Heat 3 checked in"). */
 const stepNeeds:Record<Step,string>={runners:'runners',positions:'the finishing order',times:'times'};
 const stepDone:Record<Step,string>={runners:'checked in',positions:'order saved',times:'timed'};
@@ -162,6 +238,9 @@ export function heatList(races:readonly Pick<RaceSummary,'kind'|'number'>[]) {
   const heats=races.filter(race=>race.kind!=='final'),named=heats.length?`${heats.length>1?'Heats':'Heat'} ${andList(heats.map(race=>String(race.number)))}`:'';
   return races.some(race=>race.kind==='final')?named?`${named} and the final`:'The final':named;
 }
+/** A tie that holds the final up, naming every heat with a tied runner: "Heats 1 and 2 have a tie to settle first". */
+export const tieHold=(races:readonly Pick<RaceSummary,'kind'|'number'>[]):Omit<FinalReason,'raceId'>=>
+  ({step:'times',line:`${heatList(races)||'A heat'} ${races.length>1?'have':'has'} a tie to settle first`});
 /**
  * A race's state in the viewer's step, and where it comes on a card: what waits for them (0), their step done or, for a
  * lead, the race in progress (1), the race saved (2), then a race still with others (3). `joins` is how a card line

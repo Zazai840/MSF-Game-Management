@@ -1,5 +1,5 @@
 import { useId,useLayoutEffect,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,raceNeeds,roleLabels,roleSteps,stepLabels,stepPeople,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/app-bar.js';
 import { entryCount } from '../../shared/teams.js';
@@ -46,17 +46,25 @@ export function Screen({screen,wide=false,children}:{screen:string;wide?:boolean
     {children}
   </div>;
 }
-/** The pill on the app bar naming your job; it opens Switch job. */
-export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
-  return <button type="button" className={role==='lead'?'rz-rolechip rz-rolechip--lead':'rz-rolechip'} aria-label={`Your job: ${roleLabels[role]}. Change job`} onClick={onOpen}>
-    <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
+/** The job band, full width below the top bar on Races and on a race: "Your role is FINISH LINE" on the job's colour. It opens Switch job. */
+export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
+  return <button type="button" className={`rz-jobband rz-jobband--${role}`} aria-label={`Your role is ${roleLabels[role]}. Change job`} onClick={onOpen}>
+    <Icon name={roleIcons[role]}/><span>Your role is <strong>{roleLabels[role]}</strong></span><Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
+}
+/**
+ * The band below the job band on a race, the same for every role: what the race still needs to reach Results, or that it is in Results. It changes as the race does.
+ * `ask` adds, for a volunteer on a saved race, who can change it: "In Results. Ask a lead to change it."
+ */
+export function NeedsBand({race,ask=false}:{race:Parameters<typeof raceNeeds>[0];ask?:boolean}) {
+  const saved=race.state==='saved';
+  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race,ask)}</span></p>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
   return <button type="button" className="rz-avatar" aria-label={label} onClick={event=>onOpen(event.currentTarget)}>{initials(name)}</button>;
 }
-/** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
+/** Home's app bar: MSF Olympics, Running Zone, then the avatar. */
 export function HomeBar({children}:{children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--home"><Pattern/>
     <div className="rz-appbar__brand"><span className="rz-appbar__eyebrow" style={{fontSize:12}}>MSF Olympics</span><span className="rz-appbar__name">Running <span>Zone</span></span></div>
@@ -65,7 +73,7 @@ export function HomeBar({children}:{children:ReactNode}) {
 }
 /** An event's code, shown only in the Zone lead role (volunteers find their race by name), and never while it is on its way. */
 export const CodeTag=({code,role}:{code:string;role:Role})=>role==='lead' && code?<span className="rz-code-tag">{code}</span>:null;
-/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then the role chip (and for a lead, race actions). */
+/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then (for a lead) race actions and the avatar. */
 export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
@@ -121,15 +129,17 @@ export function stepWords(step:Step,status:StepStatus,relay=false) {
  * The race's three steps, as tabs when `onSelect` is given. A volunteer's own step is outlined and starts "You ·"; any
  * other step opens read-only. The own status is short ("You · not yet", "You · 2 of 8", "You · done") so each cell
  * stays on one line at 360px. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
+ * A lead's steps also name whom to ask (`inRole` comes in a lead's read only): the last person who typed, or the people in that role.
  */
-export function StepStrip({race,role,selected,onSelect,notes={},label,relay=false}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
-  notes?:Partial<Record<Step,string>>;label:string;relay?:boolean}) {
+export function StepStrip({race,role,selected,onSelect,notes={},label,relay=false,inRole}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
+  notes?:Partial<Record<Step,string>>;label:string;relay?:boolean;inRole?:Partial<Record<Step,string[]>>}) {
   const own=role==='lead'?null:roleSteps[role],shown=stepsOf(race);
   const cell=(step:Step)=>{
-    const status=race.steps[step]!,done=status.state==='done',note=notes[step];
+    const status=race.steps[step]!,done=status.state==='done',note=notes[step],people=role==='lead'?stepPeople(step,status,inRole?.[step]):'';
     return <>
       <span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
       <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status,relay)}`:stepWords(step,status,relay)}</span>
+      {people && <span className="rz-step__who">{people}</span>}
     </>;
   };
   if(onSelect) return <div className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} role="tablist" aria-label={label}>

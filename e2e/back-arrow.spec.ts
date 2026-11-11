@@ -8,7 +8,7 @@ async function onRaces(page:Page) {
 }
 /**
  * A lead screen: its address, its title in the lead header, and the back arrow naming in gold the screen it goes to,
- * at the left of the header and 44px to tap. The job chip shows on every lead screen.
+ * at the left of the header and 44px to tap. No lead screen has the job band.
  */
 async function onScreen(page:Page,address:string|RegExp,title:string,to:string) {
   await expect(page).toHaveURL(typeof address==='string'?new RegExp(`${address.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`):address);
@@ -19,7 +19,8 @@ async function onScreen(page:Page,address:string|RegExp,title:string,to:string) 
   const box=(await back.boundingBox())!,title1=(await header.getByRole('heading',{level:1}).boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(44);expect(box.x).toBeLessThan(page.viewportSize()!.width/4);
   expect(box.y+box.height/2).toBeLessThan(title1.y+title1.height/2);
-  await expect(header.getByRole('button',{name:/^Your job: .*\. Change job$/})).toBeVisible();
+  // The job band is on Races and on a race only.
+  await expect(page.getByRole('button',{name:/Change job$/})).toHaveCount(0);
 }
 /** The phone's Back and the back arrow land on the same screen: Back, then forward again, then the arrow. */
 async function bothGoBack(page:Page,check:()=>Promise<void>) {
@@ -73,16 +74,16 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await tie('Heat 1');
   await bothGoBack(page,race);
   await bothGoBack(page,races);
-  // The avatar menu keeps Results, Day setup and Log out.
+  // The avatar menu: Races, Results, Day setup and Log out.
   await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Races','Results','Day setup','Log out']);
   await page.getByRole('menu').getByRole('menuitem',{name:'Results',exact:true}).click();await results();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
   // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventPage('final');
   await expect(page.getByRole('banner').getByText(code,{exact:true})).toBeVisible();
-  for(const tab of ['Heats','Races','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
+  for(const tab of ['Heats','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
   await page.screenshot({path:info.outputPath('event.png')});
   await bothGoBack(page,results);
   // A Heats tab's TIE tag opens the tie, which goes back to the tab; the runner sheet closes on Back and the tab stays.
@@ -95,7 +96,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
   await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');
   // The Races tab: a race page goes back to the tab, a correction to the race page, also after a reload on its address.
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=()=>onScreen(page,`/results/${code}/races/${heat1}`,'Heat 1',event);
   await racePage();
   expect(await lookProblems(page)).toEqual([]);
@@ -105,7 +106,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await correction();
   await page.reload();await correction();
   await bothGoBack(page,racePage);
-  await bothGoBack(page,()=>eventPage('races'));
+  await bothGoBack(page,()=>eventPage('heats'));
   await bothGoBack(page,results);
   await bothGoBack(page,races);
   // Day setup and its screens.
@@ -125,12 +126,6 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await bothGoBack(page,day);
   await page.getByRole('button',{name:/^Signed in today /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   expect(await lookProblems(page)).toEqual([]);
-  // The job chip opens the job sheet on a lead screen too, and Back closes it.
-  const job=page.getByRole('radiogroup',{name:'What\'s your job today?'});
-  await press(page.getByRole('banner').getByRole('button',{name:'Your job: Zone lead. Change job',exact:true}));
-  await expect(job).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
-  await page.goBack();await expect(job).toHaveCount(0);await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   await bothGoBack(page,day);
   await bothGoBack(page,races);
 });
@@ -143,7 +138,7 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await page.goto(`/results/${code}/races/${raceId}/correct-finishing-order`);
   await onScreen(page,`/results/${code}/races/${raceId}/correct-finishing-order`,'Correct finishing order','Heat 1');
   await press(arrow(page));await onScreen(page,`/results/${code}/races/${raceId}`,'Heat 1',event);
-  await press(arrow(page));await onScreen(page,`/results/${code}/races`,event,'Results');
+  await press(arrow(page));await onScreen(page,`/results/${code}/heats`,event,'Results');
   await press(arrow(page));await onScreen(page,'/results','Results','Races');
   await press(arrow(page));await onRaces(page);
   await page.goto('/day/signed-in-today');await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');

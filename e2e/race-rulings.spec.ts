@@ -7,7 +7,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
   await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Races');const racesTab=page.url();await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();const racePage=page.url();await raceAction(page,'Correct times');
+  await eventTab(page,'Heats');const racesTab=page.url();await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));const racePage=page.url();await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A refused save keeps the screen and what was typed, and says why.
@@ -28,7 +28,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await expect(page.getByRole('heading',{level:2,name:'2 runners. Is that right?',exact:true})).toBeVisible();await expect(page.getByText('4045 belongs to Girl Scouts - this race is Girl Cubs · Warning kept',{exact:true})).toBeVisible();expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('lead-runner-review.png'),fullPage:true});
   await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved · Girl Cubs Heat 1');await expect(page.getByRole('button',{name:'Runner 4045',exact:true})).toHaveText(/^2nd\s*4045\s*14\.00/);
   await page.screenshot({path:info.outputPath('race-corrected.png'),fullPage:true});
-  // Delete goes back to the event's Races tab; Restore stays on the restored race page.
+  // Delete goes back to the event's Heats tab; Restore stays on the restored race page.
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');await expect(page).toHaveURL(racesTab);
   await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();const deletedPage=page.url();
   await raceAction(page,'Restore Heat 1');await expect(page.getByText('Its results count again.',{exact:true})).toBeVisible();await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));await expectToast(page,'Heat 1 restored · Girl Cubs');await expect(page).toHaveURL(deletedPage);
@@ -38,7 +38,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await expect(page.getByRole('list',{name:'Wristbands entered'}).getByRole('button')).toHaveText(['2001','4045']);
   await page.screenshot({path:info.outputPath('race-rerun.png'),fullPage:true});
   await page.goBack();await expect(page).toHaveURL(racesTab);
-  // The replaced heat can only be deleted for good: a screen with no choice, back to the Races tab.
+  // The replaced heat can only be deleted for good: a screen with no choice, back to the Heats tab.
   await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();await raceAction(page,'Delete for good');
   await expect(page.getByText('It is already in Deleted races. Deleting it for good cannot be undone. Notes stay.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Move to Deleted races/})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}));await expectToast(page,'Heat 1 deleted for good · Girl Cubs');await expect(page).toHaveURL(racesTab);
@@ -55,7 +55,7 @@ test('two deleted Heat 1s are told apart by when each was deleted',async({page},
     for(const row of await (await page.request.get(`/api/lead/events/${code}/deleted-races`,{headers:lead})).json() as RaceRead[]) deletedAt.set(row.id,row.deletedAt!);
   }
   await page.goto('/');await join(page,ownName('Two deleted heats lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Races');const rows=page.getByRole('heading',{name:'Deleted races',exact:true}).locator('..').getByRole('button',{name:/^Open deleted/});
+  await eventTab(page,'Heats');const rows=page.getByRole('heading',{name:'Deleted races',exact:true}).locator('..').getByRole('button',{name:/^Open deleted/});
   const names=[...deletedAt.values()].reverse().map(at=>`Open deleted Heat 1 · deleted ${clock(at)}`);await expect(rows).toHaveCount(names.length);
   for(const [index,name] of names.entries()) await expect(rows.nth(index)).toHaveAccessibleName(name);
   expect(await lookProblems(page)).toEqual([]);
@@ -66,7 +66,7 @@ test('a lead can correct times again straight after saving, even when the race i
   await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await raceAction(page,'Correct times');
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen Correct times on the version just replaced.
@@ -122,7 +122,7 @@ test('a lead corrects a saved race\'s finishing order on its screen: a drag with
   await expectToast(page,'Finishing order saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
   await expect(record.first()).toHaveText(/^1st\s*2003[\s\S]*12\.00/);
   await back(page,'Order corrections · Girl Cubs');
-  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toHaveAccessibleDescription(/ · finishers and times don't agree$/);
+  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);
   await eventTab(page,'Notes');const notes=page.getByRole('list',{name:'Audit notes'}).getByRole('listitem');
   await expect(notes.filter({hasText:'corrected the finishing order'})).toHaveText([/corrected the finishing order for Heat 1: 2003, 2001; Did not finish 2002 - Checked the video/]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});

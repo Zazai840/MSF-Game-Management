@@ -4,12 +4,15 @@ import { newLeadCode } from './codes.js';
 import { actions, Refusal } from './permissions.js';
 import { levels, type Level, type Phone } from '../../shared/domain.js';
 import { canMakeRole } from '../../shared/phones.js';
+import { heldRole } from '../../shared/race-flow.js';
 import { rulingChange, readAuditNotes, writeAuditNote } from '../rulings/records.js';
 export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('GET','/api/day/phones','Lead',async(_request,_reply,phone)=>({
     selfId:phone.id,
-    phones:(await pool.query('SELECT id,name,level,owner FROM sign_ins WHERE day_id=$1 AND NOT signed_out ORDER BY signed_in_at,id',[phone.dayId])).rows,
+    // The role is the last one the phone reported (ADR 0007), while the person still holds it.
+    phones:(await pool.query(`SELECT id,name,level,owner,reported_role AS role FROM sign_ins WHERE day_id=$1 AND NOT signed_out ORDER BY signed_in_at,id`,[phone.dayId])).rows
+      .map(row=>({...row,role:heldRole(row.role,row.level!=='Volunteer')})),
     auditNotes:(await readAuditNotes(pool,phone.dayId)).filter(note=>note.eventId===null)
   }));
   action('POST','/api/day/lead-code','Lead',async(_request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{
@@ -53,7 +56,7 @@ export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/day/phones/:phoneId/remove','Lead',async(request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{
     const target=await signedInRow(client,current,(request.params as {phoneId:string}).phoneId,'Use Log out to remove yourself');
     // The phone's next request fails with reason signed-out; signing back in starts again as a volunteer, except the owner, who stays a lead.
-    await client.query("UPDATE sign_ins SET signed_out=true, level=CASE WHEN owner THEN level ELSE 'Volunteer' END WHERE id=$1",[target.id]);
+    await client.query("UPDATE sign_ins SET signed_out=true, reported_role=NULL, level=CASE WHEN owner THEN level ELSE 'Volunteer' END WHERE id=$1",[target.id]);
     await writeAuditNote(client,current,null,{action:'Removed',message:`Removed ${target.name}`,comment:null,touches:[]});
     return {status:'saved'};
   }));

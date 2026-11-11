@@ -120,18 +120,22 @@ test('Here / Absent is only for a final\'s seeded teams, call-ups and a lead\'s 
   expect(onHeat.statusCode).toBe(409);
 });
 
-test('a lead\'s call-up for an absent team and a lead\'s added team join the final not marked, and take Here / Absent like any finalist',async()=>{
+test('a call-up for an absent team joins the final Here at once, from anyone; a lead\'s added team joins not marked and takes Here / Absent like any finalist',async()=>{
   const {sam,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  expect(read.callUp).toBeUndefined();
   await mark(sam,read,7,'absent');
   const {finalResults}=(await ok<EventResultsRead>(lead,'/api/lead/events/R22/results')).results;
-  expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:finalResults!.nextCallUp!.entryId})).statusCode).toBe(200);
   read=await ok(sam,`/api/races/${read.race.id}`);
+  // The race read offers the next-ranked team to every phone.
+  expect(read.callUp).toEqual({entryId:finalResults!.nextCallUp!.entryId,who:'Team 4',position:7});
+  expect((await call(sam,'/api/lead/events/R22/call-up',{expectedHeatEntryId:read.callUp!.entryId})).statusCode).toBe(200);
+  read=await ok(sam,`/api/races/${read.race.id}`);
+  expect(read.callUp).toBeUndefined();
   const called=read.race.final!.entries.find(item=>item.calledUp)!;
   expect(called).toMatchObject({team:{number:4},seed:6,absent:false});
-  expect(marks(read).at(-1)).toEqual([4,'unmarked']);
-  await mark(sam,read,4,'here');
-  expect(marks(await ok(sam,`/api/races/${read.race.id}`)).at(-1)).toEqual([4,'here']);
+  expect(marks(read).at(-1)).toEqual([4,'here']);
+  expect(teamsOf(read.race).at(-1)!.legs.every(leg=>leg.here)).toBe(true);
   // A lead adds Team 8, which ran in no heat.
   expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:read.teams!.find(team=>team.number===8)!.id})).statusCode).toBe(200);
   read=await ok(sam,`/api/races/${read.race.id}`);

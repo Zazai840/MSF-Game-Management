@@ -5,6 +5,7 @@ import { createApp } from '../src/server/app.js';
 import { frameData,splitFrames } from '../src/shared/live.js';
 import { isRunner } from '../src/shared/races.js';
 import type { RaceFlowRead,RacesRead,Step } from '../src/shared/race-flow.js';
+import type { EventResultsRead } from '../src/shared/lead-results.js';
 import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
@@ -95,6 +96,34 @@ test('a race saves itself once every step is done, and a step that is not comple
   expect(history.map(row=>[row.part,row.author])).toEqual([['runners','Ahmed'],['finish','Tom Barker'],['times','Ahmed']]);
   expect((await call(tom,`/api/races/${id}/order`,{raceId:id,version:2,order:[],didNotFinish:[],didNotRun:[],added:[]})).json().message).toBe('Heat 1 is saved - ask a lead to change it');
 });
+test('the race read and the races read give every role the reason a race is not in Results yet, and none once it is saved',async()=>{
+  const {ahmed,tom,lena}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  /** The reason as each phone reads it: on the race, and on the races list. */
+  const reasons=async(token:string)=>[(await ok(token,`/api/races/${id}`)).group.races[0]!.blocker,
+    (await ok<RacesRead>(token,'/api/races')).groups.find(group=>group.event.code==='R4')!.races[0]!.blocker];
+  for(const token of [ahmed,tom,lena]) expect(await reasons(token)).toEqual(Array(2).fill({step:'runners',line:'Nobody is checked in'}));
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002}]});
+  expect(checked.group.races[0]!.blocker).toEqual({step:'positions',line:'2 runners have no place'});
+  const placed=await order(tom,checked,[2001,2002]);
+  expect(placed.group.races[0]!.blocker).toEqual({step:'times',line:'1st place has no time'});
+  // Every detail is there: only done buttons are missing, so there is no reason.
+  let read=await times(ahmed,placed,[1100,1200]);
+  expect(await reasons(tom)).toEqual([null,null]);
+  for(const step of steps) read=(await done(ahmed,read,step)).json();
+  expect(read.race.state).toBe('saved');
+  expect(await reasons(lena)).toEqual([null,null]);
+});
+test('an event\'s results read lists each live race as the races read does, so a Results heat row and the Race screen band cannot disagree',async()=>{
+  const {ahmed,lena}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002}]});
+  await done(ahmed,checked,'runners');
+  const listed=(await ok<RacesRead>(lena,'/api/races')).groups.find(group=>group.event.code==='R4')!.races;
+  const read=await ok<EventResultsRead>(lena,'/api/lead/events/R4/results');
+  expect(read.summaries).toEqual(listed);
+  expect(read.summaries[0]).toMatchObject({id,blocker:{step:'positions',line:'2 runners have no place'},steps:{runners:{state:'done',count:2},positions:{state:'not started',count:0,expected:2},times:{state:'not started',count:0,expected:2}}});
+});
 test('changing or taking off a wristband after That\'s everyone leaves Runners done, and a changed number keeps its entry and its place',async()=>{
   const {ahmed,tom}=await start();
   const made=await newHeat(ahmed,'R4',1),id=made.race.id;
@@ -157,7 +186,7 @@ test('only a lead makes the final, once every heat is saved, seeded with the fas
   await heat(ahmed,'R1',2,[7],[1500],steps);
   const tied=await call(lena,'/api/races',{eventCode:'R1',kind:'final'});
   expect(tied.statusCode).toBe(409);
-  expect(tied.json()).toMatchObject({message:'Heat 1 has a tie to settle first',step:'times'});
+  expect(tied.json()).toMatchObject({message:'Heats 1 and 2 have a tie to settle first',step:'times'});
   expect((await call(lena,'/api/races',{eventCode:'R16',kind:'final'})).json().message).toBe('This event has no final');
 });
 test("the races read gives a lead's final the reason it would be refused, the same one making it gives, naming the race and step",async()=>{
@@ -184,25 +213,44 @@ test("the races read gives a lead's final the reason it would be refused, the sa
   expect((await group('R1')).finalReason).toEqual({raceId:twice.race.id,step:null,line:'1 ran twice: choose which result counts first'});
   expect((await call(lena,'/api/races',{eventCode:'R1',kind:'final'})).json()).toMatchObject({message:'1 ran twice: choose which result counts first',step:null});
 });
+/** An open live stream as that phone (the app is listening): each call waits for its next snapshot. */
+async function openStream(token:string,path:string) {
+  const {port}=app.server.address() as AddressInfo;
+  const reader=(await fetch(`http://127.0.0.1:${port}/api/live/${path}`,{headers:{authorization:`Bearer ${token}`}})).body!.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer='';
+  return async function next<T>():Promise<T> {
+    for(;;) {
+      const split=splitFrames(buffer);
+      const data=split.frames.map(frameData).find(item=>item!==null);
+      if(data) {buffer=split.rest;return JSON.parse(data) as T;}
+      const read=await reader.read();
+      if(read.done) throw new Error('The stream ended');
+      buffer+=read.value;
+    }
+  };
+}
+test('a lead\'s race read names the people in each role today, and a volunteer\'s does not',async()=>{
+  const {ahmed,tom,lena}=await start();
+  await app.listen({port:0,host:'127.0.0.1'});
+  const made=await newHeat(lena,'R4',1),url=`/api/races/${made.race.id}`;
+  await ok(lena,'/api/role',{role:'lead'});await ok(ahmed,'/api/role',{role:'finish'});await ok(tom,'/api/role',{role:'finish'});
+  // Two people in one role are both named; a lead is in no step.
+  expect((await ok(lena,url)).inRole).toEqual({positions:['Ahmed','Tom Barker']});
+  expect(await ok(ahmed,url)).not.toHaveProperty('inRole');
+  // A lead's write answers with the names too, so they stay on the screen.
+  expect((await ok(lena,`${url}/check-in`,{raceId:made.race.id,version:1,runners:[{wristband:2001}]})).inRole).toEqual({positions:['Ahmed','Tom Barker']});
+  // A switch of job reaches a lead's open race at once, though it is no change of the day.
+  const live=await openStream(lena,`races/${made.race.id}`),first=await live<RaceFlowRead>();
+  await ok(tom,'/api/role',{role:'timer'});
+  expect(await live<RaceFlowRead>()).toMatchObject({revision:first.revision,inRole:{positions:['Ahmed'],times:['Tom Barker']}});
+  await ok(ahmed,'/api/sign-out',{});
+  expect((await ok(lena,url)).inRole).toEqual({times:['Tom Barker']});
+});
 test('the races list and a race come live: a write from another phone reaches an open stream',async()=>{
   const {ahmed,tom}=await start();
   await app.listen({port:0,host:'127.0.0.1'});
-  const made=await newHeat(ahmed,'R4',1),{port}=app.server.address() as AddressInfo;
-  async function open(path:string) {
-    const reader=(await fetch(`http://127.0.0.1:${port}/api/live/${path}`,{headers:{authorization:`Bearer ${ahmed}`}})).body!.pipeThrough(new TextDecoderStream()).getReader();
-    let buffer='';
-    return async function next<T>():Promise<T> {
-      for(;;) {
-        const split=splitFrames(buffer);
-        const data=split.frames.map(frameData).find(item=>item!==null);
-        if(data) {buffer=split.rest;return JSON.parse(data) as T;}
-        const read=await reader.read();
-        if(read.done) throw new Error('The stream ended');
-        buffer+=read.value;
-      }
-    };
-  }
-  const race=await open(`races/${made.race.id}`),list=await open('races');
+  const made=await newHeat(ahmed,'R4',1);
+  const race=await openStream(ahmed,`races/${made.race.id}`),list=await openStream(ahmed,'races');
   expect((await race<RaceFlowRead>()).steps.runners!.count).toBe(0);
   expect((await list<RacesRead>()).groups.find(group=>group.event.code==='R4')!.races).toHaveLength(1);
   await ok(tom,`/api/races/${made.race.id}/check-in`,{raceId:made.race.id,version:1,runners:[{wristband:2001}]});

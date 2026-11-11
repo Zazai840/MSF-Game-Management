@@ -22,9 +22,9 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   const volunteer=await openPhone(ownName('Correct teams volunteer'));
   for(let team=1;team<=3;team++) await writeTeam(request,volunteer.token,code,legs(team),{keptWarnings:legs(team)});
   await runHeat(request,volunteer.token,code,[2,1],[1500,1600]);
-  const {page}=await openPhone(ownName('Correct teams lead'),{lead:true});
+  const {page,token:lead}=await openPhone(ownName('Correct teams lead'),{lead:true});
   await openRelayResults(page,code);
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url(),docked=page.getByRole('contentinfo'),record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   const teamCard=(number:number)=>page.getByRole('region',{name:`Team ${number}`,exact:true});
   const legsOf=(numbers:number[])=>numbers.map((number,index)=>`${['1st','2nd','3rd','4th'][index]}${number}`);
@@ -61,7 +61,11 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   // One save for every change: one toast and one Notes line, back on the race page.
   await press(docked.getByRole('button',{name:'Save teams',exact:true}));
   await expectToast(page,'Teams saved · Boy Scouts Heat 1');await expect(page).toHaveURL(racePage);
-  await expect(record).toHaveText([/Team 2/,/Team 3/]);
+  // Team 1's time went with Team 1: Team 3 has its place, and no time until a lead types its own.
+  await expect(record).toHaveText([/^1st\s*Team 2\s*15\.00/,/^2nd\s*Team 3\s*No time/]);
+  const leadRace=`/api/lead/races/${racePage.split('/').at(-1)}`,headers={authorization:`Bearer ${lead}`};
+  const timesVersion=(await (await request.get(leadRace,{headers})).json()).race.parts.times.version;
+  expect((await request.post(`${leadRace}/times`,{headers,data:{baseVersion:timesVersion,places:[1500,1650]}})).ok()).toBe(true);
   // Heat 1 is Team 2's latest race, so the team takes the fix too: the typo won't come back at the Final. Team 1,
   // taken off, is still to run.
   const team=async(number:number)=>{
@@ -100,7 +104,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await runHeat(request,token,code,[1,2],[1500,1600]);
   const {page}=await openPhone(ownName('Relay ran twice lead'),{lead:true});
   await openRelayResults(page,code);
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url();
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
   await expectToast(page,'Heat 1 moved to Deleted races · Boy Scouts');

@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownWristbands,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,selected,signInThroughApi,startDrag,test,writeCheckIn,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,deleteCurrentRace,dragTo,expect,flowRace,live,lookProblems,openRace,ownEvent,press,selected,signInThroughApi,startDrag,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 import { isRunner } from '../src/shared/races.js';
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
 const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
@@ -53,7 +53,7 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await expect(places(finish.page)).toHaveAccessibleName('Places: 1 of 5 recorded');
   await finish.page.getByRole('button',{name:'3045 came 2nd',exact:true}).click();
   await finish.page.getByRole('button',{name:'2012 came 3rd',exact:true}).click();
-  // A placed slot can be tapped to fill it again: the runner it held goes back to the buttons.
+  // A placed slot can be tapped to empty it: the runner it held goes back to the buttons, and another takes the place.
   await finish.page.getByRole('button',{name:'3rd place: 2012. Change',exact:true}).click();
   await expect(finish.page.getByRole('heading',{level:2,name:'Who came 3rd?'})).toBeVisible();
   await finish.page.getByRole('button',{name:'2013 came 3rd',exact:true}).click();
@@ -61,14 +61,14 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await expect(runnerButtons(finish.page)).toHaveText(['2012','2014']);
   await finish.page.getByRole('button',{name:'Nobody else crossed the line',exact:true}).click();
   await expect(finish.page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
-  await expect(orderRows(finish.page)).toHaveText(['1st2011','2nd3045','3rd2013']);
+  await expect(orderRows(finish.page)).toHaveText(['1st2011No place','2nd3045No place','3rd2013No place']);
   // Each runner left is asked: Did not finish or Didn't run.
   await expect(finish.page.getByRole('list',{name:'Not placed'}).getByRole('group')).toHaveText(["2012Did not finishDidn't run","2014Did not finishDidn't run"]);
   await notPlaced(finish.page,2012).getByRole('button',{name:'Did not finish',exact:true}).click();
   await notPlaced(finish.page,2014).getByRole('button',{name:"Didn't run",exact:true}).click();
   // Dragging the handle moves the wristband.
   await dragTo(finish.page,handle(finish.page,3045),orderRows(finish.page).first());
-  await expect(orderRows(finish.page)).toHaveText(['1st3045','2nd2011','3rd2013']);
+  await expect(orderRows(finish.page)).toHaveText(['1st3045No place','2nd2011No place','3rd2013No place']);
   expect(await lookProblems(finish.page)).toEqual([]);await finish.page.screenshot({path:info.outputPath('check-the-order.png'),fullPage:true});
   await finish.page.getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(finish.page.getByRole('navigation',{name:'Event type'})).toBeVisible();
@@ -82,39 +82,86 @@ test('two phones: the start line checks in, the finish line places them live, wi
   await deleteCurrentRace(request,code);
 });
 
-test('a slip on a placed slot never loses its runner: it reads Changing, the runner is back among the buttons, and Keep puts it back',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=ownName('Slip sprint');
-  const wristband=await ownWristbands('Girl Cubs',3),[first,second,third]=[wristband(0),wristband(1),wristband(2)];
+test('placed children are taken out on the placing screen, several in one visit: each is a button again, the lowest empty place is asked next, an emptied place keeps its time and a closed one loses it',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('Empty sprint');
+  const wristband=await ownWristbands('Girl Cubs',5),[a,b,c,d,e]=[0,1,2,3,4].map(wristband);
   await ownEvent(request,code,name);
-  const {page,token}=await openPhone(ownName('Slip finish'),{job:'finish'});
-  await writeCheckIn(request,await signInThroughApi(request,ownName('Slip start')),code,[first,second,third]);
+  const {page,token}=await openPhone(ownName('Empty finish'),{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Empty start')),code,[a,b,c,d,e]);
+  await writeOrder(request,token,code,[a,b,c,d]);
+  await writeTimes(request,token,code,[1000,1100,1200,1300]);
   await openRace(page,name);
-  await page.getByRole('button',{name:`${first} came 1st`,exact:true}).click();
-  await expect.poll(async()=>(await flowRace(request,token,code)).race.parts.finish.value?.order.length).toBe(1);
-  // The slip: the slot stays outlined with its runner, the screen says what is changing, and the runner is a button again.
-  await page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true}).click();
-  await expect(page.getByText(`Changing 1st: ${first}`,{exact:true})).toBeVisible();
-  const changing=places(page).getByLabel(`Changing 1st: ${first}`,{exact:true});
-  await expect(changing).toHaveText(`1st${first}`);await expect(changing).toHaveAttribute('aria-current','step');
-  await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
-  await expect(runnerButtons(page)).toHaveText([String(first),String(second),String(third)]);
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('finish-line-changing.png'),fullPage:true});
-  // Keep puts it back with nothing sent.
-  let sent=0;page.on('request',sending=>{if(sending.url().endsWith('/order') && sending.method()==='POST') sent++;});
-  await page.getByRole('button',{name:`Keep ${first}`,exact:true}).click();
-  await expect(page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true})).toBeVisible();
+  const slot=(place:string,number:number)=>page.getByRole('button',{name:`${place} place: ${number}. Change`,exact:true});
+  const parts=async()=>(await flowRace(request,token,code)).race.parts;
+  // Two placed children are taken out, one after the other: both are buttons again, in check-in order.
+  await press(slot('2nd',b));await press(slot('4th',d));
+  await expect(runnerButtons(page)).toHaveText([b,d,e].map(String));
+  await expect(places(page)).toHaveAccessibleName('Places: 2 of 5 recorded');
+  await expect(places(page).getByLabel('2nd place: choosing now',{exact:true})).toHaveAttribute('aria-current','step');
+  await expect(places(page).getByLabel('4th place: empty',{exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{level:2,name:'Who came 2nd?'})).toBeVisible();
-  await expect(runnerButtons(page)).toHaveText([String(second),String(third)]);
-  await expect(page.getByRole('button',{name:`Keep ${first}`,exact:true})).toHaveCount(0);
-  expect(sent).toBe(0);
-  // Choosing another runner for the slot puts them there and the first back among the runners to place.
-  await page.getByRole('button',{name:`1st place: ${first}. Change`,exact:true}).click();
-  await page.getByRole('button',{name:`${second} came 1st`,exact:true}).click();
-  await expect(page.getByRole('button',{name:`1st place: ${second}. Change`,exact:true})).toBeVisible();
-  await expect(page.getByRole('heading',{level:2,name:'Who came 2nd?'})).toBeVisible();
-  await expect(runnerButtons(page)).toHaveText([String(first),String(third)]);
-  await expect(page.getByText(`Changing 1st: ${first}`,{exact:true})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('finish-line-emptied.png'),fullPage:true});
+  // It is saved as it is tapped, so it is still so after a reload, and every time is where it was.
+  await expect.poll(async()=>(await parts()).finish.value?.empty).toEqual([1,3]);
+  expect((await parts()).times.value!.places).toEqual([1000,1100,1200,1300]);
+  await page.reload();
+  await expect(runnerButtons(page)).toHaveText([b,d,e].map(String));
+  // A slip is put right by tapping the child again: the lowest empty place is theirs once more.
+  await press(page.getByRole('button',{name:`${b} came 2nd`,exact:true}));
+  await expect(slot('2nd',b)).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Who came 4th?'})).toBeVisible();
+  // Another child takes 2nd, and the time of 2nd with it.
+  await press(slot('2nd',b));
+  await press(page.getByRole('button',{name:`${e} came 2nd`,exact:true}));
+  await expect(page.getByRole('heading',{level:2,name:'Who came 4th?'})).toBeVisible();
+  // Nobody else crossed the line closes the empty 4th place: its time goes, the others stay.
+  await press(page.getByRole('button',{name:'Nobody else crossed the line',exact:true}));
+  await expect(orderRows(page)).toHaveText([`1st${a}`,`2nd${e}`,`3rd${c}`].map(row=>`${row}No place`));
+  await expect(page.getByRole('heading',{level:3,name:'2 not placed'})).toBeVisible();
+  await expect.poll(async()=>(await parts()).times.value!.places).toEqual([1000,1100,1200]);
+  expect((await parts()).finish.value!.empty).toBeUndefined();
+  // No control here disqualifies: that is a lead's ruling.
+  await expect(page.getByRole('button',{name:/disqualif/i})).toHaveCount(0);
   await deleteCurrentRace(request,code);
+});
+
+test('No place on Check the order takes out several children, still works after Save the order, and a heat where two placed children did not finish then saves',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('No place sprint');
+  const wristband=await ownWristbands('Girl Cubs',4),[a,b,c,d]=[0,1,2,3].map(wristband);
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(ownName('No place finish'),{job:'finish'});
+  // As in the demonstration run: all four were given places, but only two crossed the line, so the Timer has two times.
+  await writeCheckIn(request,await signInThroughApi(request,ownName('No place start')),code,[a,b,c,d]);
+  await writeOrder(request,token,code,[a,b,c,d]);
+  await writeTimes(request,token,code,[1000,1100]);
+  const stuck=await submitRace(request,token,code);
+  expect(stuck.race.state).toBe('in progress');
+  await openRace(page,name);
+  await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
+  await expect(page.getByRole('button',{name:/disqualif/i})).toHaveCount(0);
+  // After Save the order, each placed child still has No place.
+  const noPlace=(number:number)=>page.getByRole('button',{name:`No place for ${number}`,exact:true});
+  await press(noPlace(b));
+  await expect(orderRows(page)).toHaveText([`1st${a}`,`2nd${c}`,`3rd${d}`].map(row=>`${row}No place`));
+  await press(noPlace(d));
+  await expect(orderRows(page)).toHaveText([`1st${a}`,`2nd${c}`].map(row=>`${row}No place`));
+  await expect(page.getByRole('heading',{level:3,name:'2 not placed'})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('check-the-order-no-place.png'),fullPage:true});
+  // 2nd place was removed with its time; the time of 1st stays.
+  const read=()=>page.request.get(`/api/races/${stuck.race.id}`,{headers:{authorization:`Bearer ${token}`}}).then(response=>response.json());
+  await expect.poll(async()=>(await read()).race.parts.times.value.places).toEqual([1000]);
+  // Save the order refuses until both have an answer.
+  const save=page.getByRole('button',{name:'Save the order',exact:true});
+  await press(save);
+  await expect(page.getByRole('alert')).toHaveText('Say what happened to 2 runners first.');
+  await press(notPlaced(page,b).getByRole('button',{name:'Did not finish',exact:true}));
+  await press(save);
+  await expect(page.getByRole('alert')).toHaveText('Say what happened to 1 runner first.');
+  await press(notPlaced(page,d).getByRole('button',{name:'Did not finish',exact:true}));
+  // The Timer types the time of the new 2nd place, and Save the order saves the race.
+  await writeTimes(request,token,code,[1000,1150]);
+  await press(save);
+  await expect.poll(async()=>(await read()).race.state).toBe('saved');
 });
 
 test('the last runner placed goes straight to Check the order, where the handle and the arrow keys move rows and the order sent is exactly that',async({openPhone,request},info)=>{
@@ -127,12 +174,12 @@ test('the last runner placed goes straight to Check the order, where the handle 
   await openRace(page,name);
   for(const [number,place] of [[a,'1st'],[b,'2nd'],[c,'3rd'],[d,'4th']] as const) await page.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
-  await expect(orderRows(page)).toHaveText([`1st${a}`,`2nd${b}`,`3rd${c}`,`4th${d}`]);
+  await expect(orderRows(page)).toHaveText([`1st${a}No place`,`2nd${b}No place`,`3rd${c}No place`,`4th${d}No place`]);
   await expect(page.getByRole('list',{name:'Not placed'})).toHaveCount(0);
   await expect(page.getByText('Everyone has a place.',{exact:true})).toBeVisible();
   // Dragging anywhere but the handle never moves a runner.
   await dragTo(page,orderRows(page).first().getByText(String(a),{exact:true}),orderRows(page).last());
-  await expect(orderRows(page)).toHaveText([`1st${a}`,`2nd${b}`,`3rd${c}`,`4th${d}`]);
+  await expect(orderRows(page)).toHaveText([`1st${a}No place`,`2nd${b}No place`,`3rd${c}No place`,`4th${d}No place`]);
   // While dragging, the row lifts and the places update live.
   const drag=await startDrag(page,handle(page,d));
   await drag.over(orderRows(page).first());
@@ -144,16 +191,16 @@ test('the last runner placed goes straight to Check the order, where the handle 
   const id=(wristband:number)=>race.parts.runners.value!.filter(isRunner).find(runner=>runner.wristband===wristband)!.id;
   const saving=page.waitForRequest(request=>request.url().endsWith(`/api/races/${race.id}/order`) && request.method()==='POST');
   await drag.drop();
-  await expect(orderRows(page)).toHaveText([`1st${d}`,`2nd${a}`,`3rd${b}`,`4th${c}`]);
+  await expect(orderRows(page)).toHaveText([`1st${d}No place`,`2nd${a}No place`,`3rd${b}No place`,`4th${c}No place`]);
   expect((await saving).postDataJSON()).toMatchObject({order:[d,a,b,c].map(id),didNotFinish:[],didNotRun:[],added:[]});
   // The arrow keys on a handle move its row one place at once.
   const moved=page.waitForResponse(response=>response.url().endsWith(`/api/races/${race.id}/order`) && response.request().method()==='POST');
   await handle(page,c).focus();await page.keyboard.press('ArrowUp');
-  await expect(orderRows(page)).toHaveText([`1st${d}`,`2nd${a}`,`3rd${c}`,`4th${b}`]);
+  await expect(orderRows(page)).toHaveText([`1st${d}No place`,`2nd${a}No place`,`3rd${c}No place`,`4th${b}No place`]);
   // The order is saved as it changes: the race opened again shows it, straight on Check the order.
   await moved;await page.reload();
   await expect(page.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
-  await expect(orderRows(page)).toHaveText([`1st${d}`,`2nd${a}`,`3rd${c}`,`4th${b}`]);
+  await expect(orderRows(page)).toHaveText([`1st${d}No place`,`2nd${a}No place`,`3rd${c}No place`,`4th${b}No place`]);
   await deleteCurrentRace(request,code);
 });
 
@@ -257,5 +304,32 @@ test('quick taps on a slow link: taps made while a write is on its way show at o
   expect(sent[0].order).toHaveLength(1);expect(sent[1].order).toHaveLength(3);
   expect(sent[1].version).toBe(sent[0].version+1);
   await expect(page.getByRole('heading',{level:2,name:'Who came 4th?'})).toBeVisible();
+  await deleteCurrentRace(request,code);
+});
+
+test('after Back from Check the order, a last place that was changed or taken away stays so',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Back sprint');
+  const wristband=await ownWristbands('Girl Cubs',4),[a,b,c,d]=[0,1,2,3].map(wristband);
+  await ownEvent(request,code,name);
+  const {page,token}=await openPhone(ownName('Back finish'),{job:'finish'});
+  await writeCheckIn(request,await signInThroughApi(request,ownName('Back start')),code,[a,b,c,d]);
+  await openRace(page,name);
+  for(const [number,place] of [[a,'1st'],[b,'2nd'],[c,'3rd']] as const) await press(page.getByRole('button',{name:`${number} came ${place}`,exact:true}));
+  const noneElse=page.getByRole('button',{name:'Nobody else crossed the line',exact:true}),goBack=page.getByRole('button',{name:'Back',exact:true});
+  await press(noneElse);
+  await expect(orderRows(page)).toHaveText([`1st${a}No place`,`2nd${b}No place`,`3rd${c}No place`]);
+  // The last place goes to another child: back on Check the order it is still theirs.
+  await press(goBack);
+  await press(page.getByRole('button',{name:`3rd place: ${c}. Change`,exact:true}));
+  await press(page.getByRole('button',{name:`${d} came 3rd`,exact:true}));
+  await press(noneElse);
+  await expect(orderRows(page)).toHaveText([`1st${a}No place`,`2nd${b}No place`,`3rd${d}No place`]);
+  // The last place is taken away: the child who had it does not come back.
+  await press(goBack);
+  await press(page.getByRole('button',{name:`3rd place: ${d}. Change`,exact:true}));
+  await press(noneElse);
+  await expect(orderRows(page)).toHaveText([`1st${a}No place`,`2nd${b}No place`]);
+  await expect(page.getByRole('heading',{level:3,name:'2 not placed'})).toBeVisible();
+  await expect.poll(async()=>(await flowRace(request,token,code)).race.parts.finish.value?.order.length).toBe(2);
   await deleteCurrentRace(request,code);
 });

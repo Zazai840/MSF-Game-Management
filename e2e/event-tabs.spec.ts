@@ -15,7 +15,7 @@ test('an event opens on Heats: the scoreboard states only the rule, stars and Qs
   await recordRace(page.request,await signInThroughApi(page.request,ownName('Heats tab timer')),code,[scout,girls(1),girls(2),girls(3)],[1200,1300,1400],[scout]);
   await openEvent(page,code,'Heats tab lead');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
-  await expect(tabs(page)).toHaveText(['Heats','Final','Races','Notes']);
+  await expect(tabs(page)).toHaveText(['Heats','Final','Notes']);
   await expect(tab(page,'Heats')).toHaveAttribute('aria-current','page');
   await expect(page.getByText('Fastest 6 go to the final',{exact:true})).toBeVisible();
   await expect(page.getByText(/highlighted/)).toHaveCount(0);
@@ -32,15 +32,12 @@ test('an event opens on Heats: the scoreboard states only the rule, stars and Qs
   expect(await lookProblems(page)).toEqual([]);
 });
 
-test('a timed event has tabs Heats, Races and Notes, states the medal places, and each empty tab says what will appear',async({page},info)=>{
+test('a timed event has tabs Heats and Notes, states the medal places, and each empty tab says what will appear',async({page},info)=>{
   const code=await ownCode(),name=ownName('Timed tabs'),girls=await ownWristbands('Girl Cubs',2);
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await openEvent(page,code,'Timed tabs lead');
-  await expect(tabs(page)).toHaveText(['Heats','Races','Notes']);
+  await expect(tabs(page)).toHaveText(['Heats','Notes']);
   await expect(page.getByText('Runners appear here once a heat is saved.',{exact:true})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
-  await eventTab(page,'Races');
-  await expect(page.getByText('Races appear here once one is checked in.',{exact:true})).toBeVisible();
   await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await eventTab(page,'Notes');
@@ -55,37 +52,45 @@ test('a timed event has tabs Heats, Races and Notes, states the medal places, an
   await page.screenshot({path:info.outputPath('timed-heats-tab.png'),fullPage:true});
 });
 
-test('the Races tab lists each live race with why it does not count yet, then Deleted races, and Back from a race returns to the tab',async({page},info)=>{
-  const code=await ownCode(),name=ownName('Races tab'),girls=await ownWristbands('Girl Cubs',4);
+test('Heats lists each heat with its runners and whether it is in Results, then the scoreboard, then Deleted races; Back from a race returns to Heats and the old Races address opens Heats',async({page},info)=>{
+  const code=await ownCode(),name=ownName('Heat rows'),girls=await ownWristbands('Girl Cubs',4);
   await ownEvent(page.request,code,name);
-  const timer=await signInThroughApi(page.request,ownName('Races tab timer'));
+  const timer=await signInThroughApi(page.request,ownName('Heat rows timer'));
   await recordRace(page.request,timer,code,[girls(1),girls(2)],[1200,1300]);
   const {race}=await writeCheckIn(page.request,timer,code,[girls(3)]);
   expect((await page.request.post(`/api/lead/races/${race.id}/delete`,{headers:owner,data:{permanent:false}})).ok()).toBe(true);
   await writeCheckIn(page.request,timer,code,[girls(4)]);
-  await openEvent(page,code,'Races tab lead');
+  await openEvent(page,code,'Heat rows lead');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await expect(page.getByText('Not ranked yet')).toHaveCount(0);
-  await eventTab(page,'Races');
-  await expect(page).toHaveURL(new RegExp(`/results/${code}/races$`));
-  const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true});
-  await expect(heat1).toHaveAccessibleDescription(/^2 runners · saved · checked in \d\d:\d\d$/);
-  await expect(page.locator('.rz-listrow',{hasText:'not saved yet'})).toHaveAccessibleDescription(/^1 runner · not saved yet · checked in \d\d:\d\d$/);
-  await expect(page.getByRole('button',{name:/^Open deleted Heat 2 · deleted\s\d\d:\d\d$/})).toHaveAccessibleDescription('1 runner');
+  const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true}),unsaved=page.locator('.rz-listrow',{hasText:'not in Results yet'});
+  const deleted=page.getByRole('button',{name:/^Open deleted Heat 2 · deleted\s\d\d:\d\d$/});
+  await expect(heat1).toHaveAccessibleDescription(/^2 runners · in Results · checked in \d\d:\d\d$/);
+  await expect(unsaved).toHaveAccessibleDescription(/^1 runner · not in Results yet · checked in \d\d:\d\d Runners 1 so far Finishing order Not started Times Not started Not in Results yet: \d+ has no place\.$/);
+  await expect(deleted).toHaveAccessibleDescription('1 runner');
+  // Top to bottom: the heat rows, the scoreboard, Deleted races.
+  const tops=await Promise.all([heat1,unsaved,page.getByRole('region',{name:'Heats',exact:true}),page.getByRole('heading',{name:'Deleted races',exact:true}),deleted].map(async part=>(await part.boundingBox())!.y));
+  expect(tops).toEqual([...tops].sort((a,b)=>a-b));
   expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('races-tab.png'),fullPage:true});
+  await page.screenshot({path:info.outputPath('heats-tab-rows.png'),fullPage:true});
   await eventTab(page,'Notes');
   await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(/^\d\d:\d\d.*moved to Deleted races Heat 2$/);
   expect(await lookProblems(page)).toEqual([]);
-  // Switching tabs replaced the address in place; a race opened from Races comes back to Races.
-  await eventTab(page,'Races');
+  // Switching tabs replaced the address in place; a race opened from Heats comes back to Heats.
+  await eventTab(page,'Heats');
   await press(heat1);
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/`));
   await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`/results/${code}/races$`));
-  await expect(tab(page,'Races')).toHaveAttribute('aria-current','page');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+  await expect(tab(page,'Heats')).toHaveAttribute('aria-current','page');
   await expect(page.getByRole('button',{name:'Back to Results',exact:true})).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/results$/);
-  // The race not saved yet would sit on every phone's Races: it goes.
+  // A link kept to the old Races tab opens Heats.
+  await page.goto(`/results/${code}/races`);
+  await expect(tab(page,'Heats')).toHaveAttribute('aria-current','page');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+  await expect(heat1).toBeVisible();
+  // The race not in Results yet would sit on every phone's Races: it goes.
   await deleteCurrentRace(page.request,code);
 });

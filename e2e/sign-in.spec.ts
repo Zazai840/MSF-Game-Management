@@ -7,7 +7,7 @@ async function expectDocked(page:Page,button:Locator) {
   expect(box.height).toBeGreaterThanOrEqual(50);
 }
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
-const jobChip=(page:Page,job:string)=>page.getByRole('button',{name:`Your job: ${job}. Change job`,exact:true});
+const jobChip=(page:Page,job:string)=>page.getByRole('button',{name:`Your role is ${job}. Change job`,exact:true});
 test('a new phone joins with its name, the password and its job, stays signed in, and taps its name to sign in again',async({page},info)=>{
   await page.addInitScript(()=>{Object.defineProperty(navigator.storage,'persist',{value:()=>{localStorage.setItem('e2e:persist','asked');return Promise.resolve(false);}});});
   const downloaded:string[]=[];
@@ -128,7 +128,7 @@ test('the lead code joins as Zone lead on its own, and a name held on another ph
     await question(other).getByRole('button',{name:"That's me",exact:true}).click();
     await races(other);
     await expect(jobChip(other,'Zone lead')).toBeVisible();
-    await expect(other.getByRole('button',{name:`${name}: Results, Day setup and Log out`,exact:true})).toBeVisible();
+    await expect(other.getByRole('button',{name:`${name}: Races, Results, Day setup and Log out`,exact:true})).toBeVisible();
     expect(await lookProblems(other)).toEqual([]);
     await other.screenshot({path:info.outputPath('lead-thats-me.png')});
   } finally {await second.close();}

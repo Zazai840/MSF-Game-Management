@@ -1,10 +1,16 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { cardState,changedLine,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,stepBlocker,surplusTimes,timerQuestion,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
-const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
+const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps,blocker:null});
 const group=(code:string,races:RaceSummary[],finalAvailable=false,medalsDecided=false)=>({event:{code},races,finalAvailable,medalsDecided}) as unknown as RaceGroup;
+test('a tie that holds the final up names every heat in the tie',()=>{
+  const heat=(number:number)=>({kind:'heat' as const,number});
+  expect(tieHold([heat(1)])).toEqual({step:'times',line:'Heat 1 has a tie to settle first'});
+  expect(tieHold([heat(1),heat(2)])).toEqual({step:'times',line:'Heats 1 and 2 have a tie to settle first'});
+  expect(tieHold([heat(1),heat(2),heat(4)])).toEqual({step:'times',line:'Heats 1, 2 and 4 have a tie to settle first'});
+});
 test('every run is named a heat, and an event has one final',()=>{
   expect(raceName({kind:'race',number:2})).toBe('Heat 2');
   expect(raceName({kind:'final',number:1})).toBe('Final');
@@ -146,6 +152,93 @@ test('a lead\'s card words and colour are one function on Races and Results: no 
   expect([idle,relay,running,decided].map(item=>leadCardLine(item,[]))).toEqual(['No races yet','No races yet','Heat 2 in progress · Heat 1 saved','Medals decided']);
   expect([idle,relay,running,decided].map(cardState)).toEqual(['not-started','not-started','running','done']);
 });
+test('a step names the last person who typed in it, or else up to three people in its role and a count of the rest',()=>{
+  const typed=(version:number,by:string|null)=>({...status('in progress'),version,by});
+  expect(stepPeople('positions',typed(2,'Finish Fatima'),['Finish Omar'])).toBe('Finish Fatima');
+  // A race is made with its parts at version 0 (Runners at 1) in its maker's name: nobody has typed in them yet.
+  expect(stepPeople('positions',typed(0,'Lead Lena'),['Finish Omar','Finish Fatima'])).toBe('Finish Omar, Finish Fatima');
+  expect(stepPeople('runners',typed(1,'Lead Lena'),['Start Sam'])).toBe('Start Sam');
+  expect(stepPeople('runners',typed(2,'Lead Lena'),['Start Sam'])).toBe('Lead Lena');
+  expect(stepPeople('times',typed(0,null),['A','B','C','D','E'])).toBe('A, B, C +2');
+  expect(stepPeople('times',typed(0,null),['A','B','C'])).toBe('A, B, C');
+  expect(stepPeople('times',typed(0,null))).toBe('');
+});
 test('an event is named "200m · Boy Cubs" on every screen, its code in a tag beside it',()=>{
   expect(eventTitle({name:'200m',section:'Boy Cubs'})).toBe('200m · Boy Cubs');
+});
+const part=<Value>(value:Value)=>({version:1,value});
+const runnersAB=[{id:'a',wristband:2001},{id:'b',wristband:2002}];
+/** A race's parts as the save rule reads them: its runners, its finishing order and its times by place. */
+const parts=(runners:unknown[],finish:{order:string[];didNotFinish?:string[];empty?:number[]}|null,places:Array<number|null>|null,kind='heat',relay=false,keptWrong:number[]=[])=>
+  ({kind,number:1,event:{name:'60m',relay},parts:{runners:part(runners),finish:part(finish && {didNotFinish:[],...finish}),times:part(places && {places,keptWrong})}}) as unknown as RaceFlowRead['race'];
+const allDone={runners:status('done'),positions:status('done'),times:status('done')};
+/** The band's sentence for a race with those parts, the reason as the server sends it. */
+const needs=(read:RaceFlowRead['race'],steps:RaceSummary['steps']=allDone)=>raceNeeds({kind:read.kind,state:'in progress',steps,blocker:stepBlocker(read,read.event.relay)});
+test('the band names the detail a race still needs, for every reason the save rule has',()=>{
+  expect(needs(parts([],null,null))).toBe('Not in Results yet: Nobody is checked in.');
+  expect(needs(parts([],null,null,'heat',true))).toBe('Not in Results yet: No team is ticked.');
+  expect(needs(parts([],null,null,'final'))).toBe('Not in Results yet: Everyone is marked Absent.');
+  expect(needs(parts([],null,null,'final',true))).toBe('Not in Results yet: Every team is marked Absent.');
+  expect(needs(parts(runnersAB,{order:['a']},[1100]))).toBe('Not in Results yet: 2002 has no place.');
+  expect(needs(parts(runnersAB,null,null))).toBe('Not in Results yet: 2 runners have no place.');
+  expect(needs(parts([{id:'a',team:{id:'t',number:3},legs:[]}],null,null,'heat',true))).toBe('Not in Results yet: Team 3 has no place.');
+  expect(needs(parts(runnersAB,{order:['a','b'],empty:[1]},[1100,1200,1300]))).toBe('Not in Results yet: 2nd place is empty.');
+  expect(needs(parts(runnersAB,{order:['a','b']},[1100]))).toBe('Not in Results yet: 2nd place has no time.');
+  expect(needs(parts(runnersAB,{order:['a'],didNotFinish:['b']},[1100,1200]))).toBe('Not in Results yet: 2nd place has a time but no wristband.');
+  expect(needs(parts(runnersAB,{order:['a','b']},[1100,150]))).toBe("Not in Results yet: 2nd place's time needs Fix time or Keep.");
+  // A wrong time that was kept blocks nothing.
+  expect(needs(parts(runnersAB,{order:['a','b']},[1100,150],'heat',false,[1]),{...allDone,times:status('in progress')})).toBe('Not in Results yet. Timer: tap No more finishers.');
+});
+test('with no detail missing, the band names the first done button not tapped yet and its role; a saved race is in Results',()=>{
+  const complete=parts(runnersAB,{order:['a','b']},[1100,1200]),todo=status('in progress');
+  expect(needs(complete,{runners:todo,positions:todo,times:todo})).toBe("Not in Results yet. Start line: tap That's everyone.");
+  expect(needs(complete,{...allDone,positions:todo})).toBe('Not in Results yet. Finish line: tap Save the order.');
+  expect(needs(complete,{...allDone,times:todo})).toBe('Not in Results yet. Timer: tap No more finishers.');
+  // A final has no Times step.
+  expect(needs(parts(runnersAB,{order:['a','b']},null,'final'),{runners:status('done'),positions:todo})).toBe('Not in Results yet. Finish line: tap Save the order.');
+  expect(raceNeeds({kind:'heat',state:'saved',steps:allDone,blocker:null})).toBe('In Results.');
+  // A volunteer on a race in Results is told who can change it.
+  expect(raceNeeds({kind:'heat',state:'saved',steps:allDone,blocker:null},true)).toBe('In Results. Ask a lead to change it.');
+  expect(needs(complete,{...allDone,times:todo})).toBe(raceNeed({kind:'heat',state:'in progress',steps:{...allDone,times:todo},blocker:null},true).line);
+});
+test('a done button on a step already done says so, and what the race still needs, in the band\'s words',()=>{
+  const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps'])=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,false)});
+  expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100]),allDone),'runners')).toBe('Runners are already done. Not in Results yet: 2nd place has no time.');
+  expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100,1200]),{...allDone,times:status('in progress')}),'positions')).toBe('Finishing order is already done. Not in Results yet. Timer: tap No more finishers.');
+});
+test('a Results heat row opens the race at the step its sentence is about: the missing detail\'s step, else the first done button not tapped',()=>{
+  const todo=status('in progress'),at=(read:RaceFlowRead['race'],steps:RaceSummary['steps'])=>raceNeed({kind:read.kind,state:'in progress',steps,blocker:stepBlocker(read,read.event.relay)});
+  const complete=parts(runnersAB,{order:['a','b']},[1100,1200]);
+  expect(at(complete,{runners:todo,positions:todo,times:todo}).step).toBe('runners');
+  expect(at(complete,{...allDone,positions:todo}).step).toBe('positions');
+  expect(at(complete,{...allDone,times:todo}).step).toBe('times');
+  // Fully placed, 2nd place untimed and That's everyone not tapped: the sentence is about the time, so the row opens Times.
+  expect(at(parts(runnersAB,{order:['a','b']},[1100]),{runners:todo,positions:todo,times:todo})).toEqual({line:'Not in Results yet: 2nd place has no time.',step:'times'});
+  expect(at(parts(runnersAB,{order:['a']},[1100]),{runners:todo,positions:todo,times:todo}).step).toBe('positions');
+  expect(at(parts(runnersAB,{order:['a','b'],empty:[1]},[1100,1200,1300]),allDone).step).toBe('positions');
+  expect(at(parts([],null,null),{runners:todo,positions:todo,times:todo}).step).toBe('runners');
+  expect(at(parts(runnersAB,{order:['a'],didNotFinish:['b']},[1100,1200]),allDone).step).toBe('times');
+  // Nothing missing: the last step, where the race saves. A final has no Times step. A saved race opens at no step.
+  expect(at(complete,allDone).step).toBe('times');
+  expect(at(parts(runnersAB,{order:['a','b']},null,'final'),{runners:status('done'),positions:status('done')}).step).toBe('positions');
+  expect(raceNeed({kind:'heat',state:'saved',steps:allDone,blocker:null}).step).toBeNull();
+});
+test('Zone lead is a lead\'s role only: a lead made a volunteer no longer holds it, and every other role is held by anyone',()=>{
+  expect(heldRole('lead',true)).toBe('lead');expect(heldRole('lead',false)).toBeNull();
+  expect(heldRole('finish',false)).toBe('finish');expect(heldRole('timer',true)).toBe('timer');expect(heldRole(null,true)).toBeNull();
+});
+test('more times than a race can have: the Timer is told how many for how many, under a heading that says so',()=>{
+  const read=(finish:{order:string[];empty?:number[]}|null,positions:StepStatus['state'],expected:number,relay=false)=>({race:{event:{relay},parts:{finish:part(finish && {didNotFinish:[],...finish})}},
+    steps:{positions:status(positions),times:{...status('in progress'),expected}}}) as unknown as RaceFlowRead;
+  // Finishing order done: the race can have a time per finisher.
+  expect(surplusTimes(read({order:['a','b']},'done',2),3)).toEqual({heading:'One time too many',line:'3 times for 2 finishers.'});
+  expect(surplusTimes(read({order:['a']},'done',1),3)).toEqual({heading:'2 times too many',line:'3 times for 1 finisher.'});
+  // Before that, a time per runner or team.
+  expect(surplusTimes(read(null,'not started',2),3)!.line).toBe('3 times for 2 runners.');
+  expect(surplusTimes(read(null,'not started',1,true),2)!.line).toBe('2 times for 1 team.');
+  // An emptied place keeps its time, so it is a place the race can have.
+  expect(surplusTimes(read({order:['a','b'],empty:[1]},'done',2),3)).toBeNull();
+  expect(surplusTimes(read({order:['a','b']},'done',2),2)).toBeNull();
+  expect(timerQuestion(2,false,null)).toBe('3rd place time?');expect(timerQuestion(2,true,null)).toBe('Every place has a time');
+  expect(timerQuestion(3,true,surplusTimes(read({order:['a','b']},'done',2),3))).toBe('One time too many');
 });

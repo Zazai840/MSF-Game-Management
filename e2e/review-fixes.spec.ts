@@ -2,17 +2,17 @@ import {eventTab,ownName,ownEvent,ownCode,deleteCurrentRace,openLeadMenu,openRac
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await join(page,name,{job:'Start line'});
 }
-/** Six runners placed and timed (the times by `timer`), then the last taken off as Didn't run: six times for five finishers. */
+/** Six runners, five placed and six times typed (by `timer`), then the last Did not finish without ever having a place: six times for five finishers. */
 async function surplusRace(request:APIRequestContext,code:string,name:string,timer:string) {
   const runners=[2401,2402,2403,2404,2405,2406];
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const token=process.env.E2E_OWNER_TOKEN!;
-  await writeCheckIn(request,token,code,runners);await writeOrder(request,token,code,runners);
+  await writeCheckIn(request,token,code,runners);await writeOrder(request,token,code,runners.slice(0,5));
   await writeTimes(request,timer,code,[1200,1300,1400,1500,1600,1700]);
-  await writeOrder(request,token,code,runners.slice(0,5),{didNotRun:[2406]});
+  await writeOrder(request,token,code,runners.slice(0,5),{didNotFinish:[2406]});
 }
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
-test('a surplus time at a place with no wristband leaves the race waiting, done, for a lead, who sees why on its Times tab',async({openPhone,request},info)=>{
+test('a surplus time at a place with no wristband leaves the race waiting, done, for a lead, who sees why in the band',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Review surplus');
   const {page,token}=await openPhone(ownName('Surplus timer'),{job:'timer'});
   await surplusRace(request,code,name,token);
@@ -30,27 +30,28 @@ test('a surplus time at a place with no wristband leaves the race waiting, done,
   await expect(lead.getByRole('article',{name:`${name} · Girl Cubs`}).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs a lead');
   await openRace(lead,name);
   await lead.getByRole('tab',{name:/^Times/}).click();
-  await expect(lead.getByRole('status').filter({hasText:mismatch})).toBeVisible();
+  // The band says why the race is not in Results; the finishers-and-times line is gone from an unsaved race.
+  await expect(lead.getByText('Not in Results yet: 6th place has a time but no wristband.',{exact:true})).toBeVisible();
+  await expect(lead.getByText(mismatch,{exact:true})).toHaveCount(0);
   await lead.screenshot({path:info.outputPath('surplus-times-lead-tab.png'),fullPage:true});
   expect(await lookProblems(lead)).toEqual([]);
   await deleteCurrentRace(request,code);
 });
-test('after a lead takes a finisher off a saved race, the lead sees the surplus time and the mismatch before correcting the last place',async({page},info)=>{
+test('after a lead types a time for a place no child holds, the lead sees the surplus time and the mismatch before correcting the last place',async({page},info)=>{
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},runners=[2401,2402,2403,2404,2405,2406];
   await ownEvent(page.request,code,'Review surplus','Girl Cubs','timed');
-  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,[1200,1300,1400,1500,1600,1700]);
-  // Finishers and times only disagree after a lead's correction: 2406 turns out not to have run.
+  const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,[1200,1300,1400,1500,1600]);
+  // Finishers and times only disagree after a lead's correction: 2406 did not finish, and a 6th time is typed.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;
-  expect((await page.request.post(`/api/lead/races/${race.id}/finish-order`,{headers,data:{baseVersion:saved.parts.finish.version,runnersVersion:saved.parts.runners.version,order:runners.slice(0,5),didNotFinish:[],didNotRun:[2406]}})).ok()).toBe(true);
-  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Races');await page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}).click();await raceAction(page,'Correct times');
+  expect((await page.request.post(`/api/lead/races/${race.id}/times`,{headers,data:{baseVersion:saved.parts.times.version,places:[1200,1300,1400,1500,1600,1700]}})).ok()).toBe(true);
+  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));await raceAction(page,'Correct times');
   await expect(page.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
-  // The leftover place is the docked Save's reason; "No finisher" stays on one line beside each place.
-  const leftover='This race has 5 runners. Choose No finisher for every place after 5th to save.',footer=page.getByRole('contentinfo'),save=footer.getByRole('button',{name:'Save times',exact:true});
-  await expect(footer.getByText(leftover,{exact:true})).toBeVisible();await expect(save).toHaveAttribute('aria-disabled','true');
+  // "No finisher" stays on one line beside each place.
+  const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   const sixth=page.getByRole('button',{name:'No finisher for 6th place',exact:true});expect((await sixth.boundingBox())!.height).toBeLessThan(50);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
-  await press(sixth);await expect(sixth).toHaveAttribute('aria-pressed','true');await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);await expect(page.getByText(leftover,{exact:true})).toHaveCount(0);
-  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await press(save);expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600]);await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
-  const corrected=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600]);
+  await press(sixth);await expect(sixth).toHaveAttribute('aria-pressed','true');await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);
+  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await press(save);expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600,null]);await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
+  const corrected=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600,null]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

@@ -57,7 +57,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await expect(phone.locator('.rz-toast')).toContainText('Finishing order saved · Boy Cubs Final');
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
   await openResults(page,code,ownName('Seven lead'));
-  await eventTab(page,'Races');await page.getByRole('button',{name:'Open final',exact:true}).click();await raceAction(page,'Correct runner list');
+  await eventTab(page,'Final');await press(page.getByRole('button',{name:'Open final',exact:true}));await raceAction(page,'Correct runner list');
   const docked=page.getByRole('contentinfo');
   await page.getByRole('button',{name:'Add runner',exact:true}).click();await page.getByLabel('Wristband for runner 7',{exact:true}).fill('1806');await press(docked.getByRole('button',{name:'Done',exact:true}));
   await page.screenshot({path:info.outputPath('lead-add-seventh.png'),fullPage:true});

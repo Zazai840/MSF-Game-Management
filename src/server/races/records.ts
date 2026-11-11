@@ -1,9 +1,9 @@
 import type { FinalField } from '../../shared/finals.js';
-import { raceFinishedLine } from '../../shared/race-flow.js';
+import { raceFinishedLine,stepBlocker,stepStatus,stepsOf,type RaceSummary,type StepMeta } from '../../shared/race-flow.js';
 import { raceRecording } from '../../shared/recording.js';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
-import { isTeamEntry,raceLabel,type RaceEntry,type RaceRead } from '../../shared/races.js';
+import { isTeamEntry,raceLabel,type RaceEntry,type RacePartName,type RaceRead } from '../../shared/races.js';
 import { stageDoneSql } from '../../shared/stage-lock.js';
 import { newDay, Refusal, signedOut } from '../access/permissions.js';
 import { dayChanged } from '../live/changes.js';
@@ -80,4 +80,18 @@ export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.P
     try {await client.query('ROLLBACK');} catch { /* Preserve the original transaction error. */ }
     throw error;
   } finally {client.release(failure);}
+}
+/** Who last changed each part of each race of the day and who marked it done, by race id and part. */
+export async function readStepMeta(db:Database,dayId:string) {
+  const rows=(await db.query(`SELECT p.race_id,p.part,p.version,p.saved_at,s.name AS saved_name,p.done_at,d.name AS done_name
+    FROM race_parts p JOIN races r ON r.id=p.race_id LEFT JOIN sign_ins s ON s.id=p.saved_by LEFT JOIN sign_ins d ON d.id=p.done_by
+    WHERE r.day_id=$1 AND NOT r.deleted`,[dayId])).rows;
+  const meta=new Map<string,Partial<Record<RacePartName,StepMeta>>>();
+  for(const row of rows) meta.set(row.race_id,{...meta.get(row.race_id),[row.part]:{version:row.version,by:row.saved_name??null,at:row.saved_at?.toISOString()??null,doneBy:row.done_name??null,doneAt:row.done_at?.toISOString()??null}});
+  return meta;
+}
+/** A race as Home and a Results heat row list it: its steps' statuses and why it would not save itself. */
+export function raceSummary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
+  const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
+  return {id:race.id,kind:race.kind,number:race.number,state:race.state,steps:statuses,blocker:race.state==='saved'?null:stepBlocker(race,race.event.relay)};
 }

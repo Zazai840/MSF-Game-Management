@@ -9,11 +9,12 @@ import { RunnerScreens,RunnerSheet } from './RunnerSheet.js';
 import { medalSheet,needsCheck,placeText,qualifyingLineAt,reopenHeatsSheet,resultLabel,resultName,ruleLine,teamWristbands,type LeaderboardRow } from '../../shared/results-rules.js';
 import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { ErrorCallout,Icon,Star } from '../races/parts.js';
+import { ErrorCallout,Icon,Star,stepWords } from '../races/parts.js';
+import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
 import { LeadBar } from './LeadBar.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
-import { eventTabs,type EventTab,type View } from '../shell/addresses.js';
+import { addressOf,eventTabs,type EventTab,type View } from '../shell/addresses.js';
 type RunnerView=Extract<View,{kind:'runner'}>;
 import { ordinal } from '../../shared/ordinal.js';
 import { openRaceLabel,raceLabel,runnersText } from '../../shared/races.js';
@@ -38,9 +39,13 @@ function ResultsGrid({onOpen}:{onOpen:(view:View)=>void}) {
 function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:ResultsProps & {code:string}) {
   const {read:detail,updated,error,refresh,offer}=usePolledRead<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`);
   const [selected,setSelected]=useState<{raceId:string;entryId:string}|null>(target?.raceId && target.entryId?{raceId:target.raceId,entryId:target.entryId}:null);
-  // An event opened with no tab opens where the work is, and its address takes that tab.
-  useEffect(()=>{if(detail && !tab && !raceId && !runner) onOpen({kind:'event',code,tab:openingTab(detail)},{replace:true});},[detail,tab]);
-  const openRace=(id:string)=>onOpen({kind:'race-page',code,raceId:id});
+  // An event opened with no tab opens where the work is, and its address takes that tab; so does an address that is not the tab's own (the old Races tab's).
+  useEffect(()=>{
+    if(!detail || raceId || runner) return;
+    const view={kind:'event',code,tab:tab??openingTab(detail)} as const;
+    if(!tab || location.pathname!==addressOf(view)) onOpen(view,{replace:true});
+  },[detail,tab]);
+  const openRace=(id:string,step?:Step)=>onOpen(step?{kind:'race',id,step}:{kind:'race-page',code,raceId:id});
   const openTie=(tieId:string)=>onOpen({kind:'tie',code,tieId});
   const selectedRow=detail?.results.actionableRunners.find(row=>row.raceId===selected?.raceId && row.entryId===selected?.entryId);
   /** A save answered with the event's results: show them, close the runner sheet, and tell the app. */
@@ -58,14 +63,14 @@ function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:Re
   // The runner sheet wraps itself in its own screen root, beside this one.
   return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" body={body}/>{sheets}</>;
 }
-const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',races:'Races',notes:'Notes'};
+const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',notes:'Notes'};
 /** A heats event has a Final tab unless it was decided without a final. */
 const hasFinalTab=(detail:EventResultsRead)=>detail.event.format==='heats' && !detail.results.decidedWithoutFinal;
 /** The tab an event opens on: Final once its final has a finishing order, else Heats. */
 const openingTab=(detail:EventResultsRead):EventTab=>hasFinalTab(detail) && !!detail.results.finalResults?.leaderboard.length?'final':'heats';
-type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie:(id:string)=>void;onStage:(sheet:StageCheckSheet)=>void;onRace:(id:string)=>void;onSaved:(next:EventResultsRead)=>void};
+type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie:(id:string)=>void;onStage:(sheet:StageCheckSheet)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(next:EventResultsRead)=>void};
 /**
- * An event's tabs: Heats (the scoreboard), Final (a heats event not decided without one), Races and Notes. The tab is
+ * An event's tabs: Heats (its heats, the scoreboard, deleted races), Final (a heats event not decided without one) and Notes. The tab is
  * part of the address; switching replaces it in place, so Back leaves the event.
  */
 function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:EventTab)=>void}) {
@@ -76,7 +81,6 @@ function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:Even
     {!detail.event.enabled && <p className="rz-note">Switched off</p>}
     {shown==='heats' && <HeatsTab {...props} final={final}/>}
     {shown==='final' && <FinalTab {...props}/>}
-    {shown==='races' && <RacesTab {...props}/>}
     {shown==='notes' && (detail.auditNotes.length?<ol className="rz-notes" aria-label="Audit notes">{[...detail.auditNotes].reverse().map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol>
       :<p className="rz-empty">Notes appear here when a lead changes this event's results.</p>)}
   </>;
@@ -93,10 +97,11 @@ const Medals=({input,sheet,onStage}:{input:InputRunning|null;sheet:StageCheckShe
   {sheet && (sheet.completed?<StageButton sheet={sheet} onStage={onStage}/>
     :<button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onStage(sheet)}>Confirm the medals</button>)}
 </>;
-/** The scoreboard of every heat's runners, then the medal decision (no Final tab), Reopen heats and Results without a final under it. */
-function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolean}) {
+/** A row per heat, the scoreboard of every heat's runners, the medal decision (no Final tab), Reopen heats and Results without a final, then Deleted races. */
+function HeatsTab({detail,final,onRunner,onTie,onStage,onRace}:TabProps & {final:boolean}) {
   const results=detail.results,reopenHeats=reopenHeatsSheet(results),line=qualifyingLineAt(results);
   return <>
+    <LiveRaces races={results.races.filter(({race})=>race.kind!=='final')} detail={detail} onRace={onRace}/>
     {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
       <div className="rz-stripes" aria-hidden="true"><span/><span/><span/></div>
       <div className="rz-board-head"><p className="rz-board-note">{ruleLine(results.band)}</p></div>
@@ -118,6 +123,8 @@ function HeatsTab({detail,final,onRunner,onTie,onStage}:TabProps & {final:boolea
     {!final && <Medals input={results.inputRunning} sheet={medalSheet(results)} onStage={onStage}/>}
     {reopenHeats && <StageButton sheet={reopenHeats} onStage={onStage}/>}
     {results.noFinalCheckSheet && <StageButton sheet={results.noFinalCheckSheet} onStage={onStage}/>}
+    <h2 className="rz-section">Deleted races</h2>
+    <DeletedRaces eventCode={detail.event.code} onOpen={onRace}/>
   </>;
 }
 /** A heats row's detail: its race and place, or why it does not rank. */
@@ -127,24 +134,35 @@ function rowDetail(row:LeaderboardRow) {
   if(row.notCounted) return `${race} · Not counted`;
   return `${race} · ${placeText(row)}`;
 }
-/** The final (once made), then the Day export line and Confirm the medals (once the final has an order) or Reopen final. */
-function FinalTab({detail,onRunner,onStage,onSaved}:TabProps) {
-  const results=detail.results,final=results.finalResults;
-  if(!final) return <p className="rz-empty">The final's order appears here once its finishing order is saved.</p>;
+/** The final's own row, the final (once made), then the Day export line and Confirm the medals (once the final has an order) or Reopen final. */
+function FinalTab({detail,onRunner,onStage,onSaved,onRace}:TabProps) {
+  const results=detail.results,final=results.finalResults,row=<LiveRaces races={results.races.filter(({race})=>race.kind==='final')} detail={detail} onRace={onRace}/>;
+  if(!final) return <>{row}<p className="rz-empty">The final's order appears here once its finishing order is saved.</p></>;
   return <>
+    {row}
     <Final event={detail.event} teams={detail.teams} final={final} onSaved={onSaved} onRunner={onRunner}/>
     <Medals input={results.inputRunning} sheet={medalSheet(results)} onStage={onStage}/>
   </>;
 }
-/** A row per live race (its runners, saved or not, checked in at, why it does not count yet), then Deleted races. */
-function RacesTab({detail,onRace}:TabProps) {
-  const races=detail.results.races;
-  return <>
-    {races.length?<RaceRows rows={races.map(({race,runners,saved,reasons})=>({id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),saved?'saved':'not saved yet',`checked in ${clock(race.checkedInAt)}`,...reasons.filter(reason=>reason!=='in progress')].join(' · ')}))} onRace={onRace}/>
-      :<p className="rz-empty">Races appear here once one is checked in.</p>}
-    <h2 className="rz-section">Deleted races</h2>
-    <DeletedRaces eventCode={detail.event.code} onOpen={onRace}/>
-  </>;
+/**
+ * A row per live race. In Results: its runners and when it was checked in, and why it does not count; the tap opens its
+ * race page. Not in Results yet: a bar and the step strip's count for each step, then the Race screen band's sentence;
+ * the tap opens the race at the step that sentence is about (`raceNeed`).
+ */
+function LiveRaces({races,detail,onRace}:{races:EventResultsRead['results']['races'];detail:EventResultsRead;onRace:(id:string,step?:Step)=>void}) {
+  const summaryOf=(id:string)=>detail.summaries.find(race=>race.id===id),relay=detail.event.relay;
+  return races.length>0 && <RaceRows onRace={id=>{const race=summaryOf(id);onRace(id,race && raceNeed(race).step||undefined);}} rows={races.map(({race,runners,saved,reasons})=>{
+    const summary=saved?undefined:summaryOf(race.id);
+    return {id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),inResultsWords(saved),`checked in ${clock(race.checkedInAt)}`,...(summary?[]:reasons.filter(reason=>reason!=='in progress'))].join(' · '),
+      more:summary && <><span className="rz-progress">{stepsOf(summary).map(step=>{
+        const status=summary.steps[step]!,done=status.state==='done';
+        // Runners has no count to reach: its bar fills when That's everyone is tapped.
+        const full=status.expected?Math.min(1,status.count/status.expected):done && status.expected===null?1:0;
+        return <Fragment key={step}><span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
+          <span className="rz-progress__bar" aria-hidden="true"><span style={{width:`${Math.round(full*100)}%`}}/></span>
+          <span className="rz-step__status">{stepWords(step,status,relay)}</span></Fragment>;})}</span>
+        <span className="rz-progress__needs">{raceNeed(summary).line}</span></>};
+  })}/>;
 }
 
 const keyStates=[['done','Done'],['running','Running'],['idle','Not started']] as const;

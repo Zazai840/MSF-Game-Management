@@ -71,6 +71,63 @@ test('the order is by entry, and a runner check-in takes off drops out with late
   const stale=await ok(await order(priya,ordered,{order:[idOf(checked,2002),idOf(checked,2001),idOf(checked,2003)]}));
   expect(placed(stale)).toEqual([2001,2003]);
 });
+test('the Start line\'s Remove on a placed and timed child takes that place\'s time, so the children below keep their own; the Timer\'s older column is refused, and the race saves',async()=>{
+  const {sam,priya,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003,2004]));
+  const ordered=await ok(await order(priya,checked,{order:[2001,2002,2003,2004].map(wristband=>idOf(checked,wristband))}));
+  const timed=await ok(await times(jo,ordered,{places:[1000,1100,1300,1200],keptWrong:[3]}));
+  const removed=await ok(await checkIn(sam,timed,[2001,2003,2004]));
+  expect(placed(removed)).toEqual([2001,2003,2004]);
+  expect(removed.race.parts.times.value).toEqual({places:[1000,1300,1200],outOfOrder:true,keptWrong:[2]});
+  // Jo's phone still shows four times: sent as they were, they would give 2003 the removed child's time.
+  const stale=await times(jo,timed,{places:[1000,1100,1300,1200],keptWrong:[3]});
+  expect(stale.statusCode).toBe(409);expect(stale.json().reason).toBe('changed');
+  // A runner with no place leaves every time where it is.
+  const more=await ok(await checkIn(sam,removed,[2001,2003,2004,2005]));
+  expect((await ok(await checkIn(sam,more,[2001,2003,2004]))).race.parts.times).toEqual(removed.race.parts.times);
+  for(const step of ['runners','positions','times']) await call(sam,`/api/races/${checked.race.id}/steps/${step}/done`,{});
+  expect((await ok(await call(sam,`/api/races/${checked.race.id}`))).race.state).toBe('saved');
+});
+test('the Finish line empties places and keeps their times; closing the gaps takes those places\' times, the children below keep their own, and the race saves',async()=>{
+  const {sam,priya,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003,2004,2005]));
+  const id=(wristband:number)=>idOf(checked,wristband);
+  const ordered=await ok(await order(priya,checked,{order:[2001,2002,2003,2004,2005].map(id)}));
+  const timed=await ok(await times(jo,ordered,{places:[1000,1100,1200,1300,1400]}));
+  // 2nd and 5th are emptied: the order has gaps, and every time stays where it is.
+  const emptied=await ok(await order(priya,timed,{order:[2001,2003,2004].map(id),empty:[1,4]}));
+  expect(emptied.race.parts.finish.value).toEqual({order:[2001,2003,2004].map(id),didNotFinish:[],empty:[1,4]});
+  expect(emptied.race.parts.times.value!.places).toEqual([1000,1100,1200,1300,1400]);
+  // Another child takes 2nd, and its time with it.
+  const filled=await ok(await order(priya,emptied,{order:[2001,2005,2003,2004].map(id),empty:[4]}));
+  expect(filled.race.parts.times.value!.places).toEqual([1000,1100,1200,1300,1400]);
+  // Nobody else crossed the line: the empty 5th place goes, and its time. Then No place for 2003, 3rd.
+  const closed=await ok(await order(priya,filled,{order:[2001,2005,2003,2004].map(id)}));
+  expect(closed.race.parts.times.value!.places).toEqual([1000,1100,1200,1300]);
+  const taken=await ok(await order(priya,closed,{order:[2001,2005,2004].map(id)}));
+  expect(taken.race.parts.finish.value).toEqual({order:[2001,2005,2004].map(id),didNotFinish:[]});
+  expect(taken.race.parts.times.value!.places).toEqual([1000,1100,1300]);
+  // The Timer's older column is refused, as after the Start line's Remove.
+  expect((await times(jo,timed,{places:[1000,1100,1200,1300,1400]})).json().reason).toBe('changed');
+  // The two with no place Did not finish, and the race saves.
+  await ok(await order(priya,taken,{order:[2001,2005,2004].map(id),didNotFinish:[2002,2003].map(id)}));
+  for(const step of ['runners','positions','times']) await ok(await call(sam,`/api/races/${checked.race.id}/steps/${step}/done`,{}));
+  expect((await ok(await call(sam,`/api/races/${checked.race.id}`))).race.state).toBe('saved');
+});
+test('the Start line\'s Remove on a race with an empty place takes the removed child\'s own place and time, and the empty place stays',async()=>{
+  const {sam,priya,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003,2004]));
+  const id=(wristband:number)=>idOf(checked,wristband);
+  const timed=await ok(await times(jo,await ok(await order(priya,checked,{order:[2001,2002,2003,2004].map(id)})),{places:[1000,1100,1200,1300]}));
+  const emptied=await ok(await order(priya,timed,{order:[2001,2003,2004].map(id),empty:[1]}));
+  const removed=await ok(await checkIn(sam,emptied,[2001,2002,2004]));
+  expect(removed.race.parts.finish.value).toEqual({order:[2001,2004].map(id),didNotFinish:[],empty:[1]});
+  expect(removed.race.parts.times.value!.places).toEqual([1000,1100,1300]);
+  // With the emptied child off the race too, every runner has a place, but a race with an empty place never saves.
+  await ok(await checkIn(sam,removed,[2001,2004]));
+  for(const step of ['runners','positions','times']) await call(sam,`/api/races/${checked.race.id}/steps/${step}/done`,{});
+  expect((await ok(await call(sam,`/api/races/${checked.race.id}`))).race.state).toBe('in progress');
+});
 test('a fixed check-in number keeps its entry, so its place follows the fix, and the new number is checked again',async()=>{
   const {sam,priya}=await start();
   const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002]));
@@ -217,17 +274,34 @@ test('two finalists Here on one wristband number are refused in words a voluntee
   expect(refused.statusCode).toBe(409);
   expect(refused.json().message).toBe('Two runners marked Here have the same wristband number. Ask a lead to check the final.');
 });
-test('a lead\'s call-up for an absent runner shows on the final, unmarked like every finalist',async()=>{
-  const {people,sam,read}=await final();
+test('the final\'s race read offers the next call-up while a seed is free; any signed-in profile calls it up, and the entry is Here at once',async()=>{
+  const {sam,read}=await final();
+  // No finalist is Absent yet: nothing to call up.
+  expect((await read()).callUp).toBeUndefined();
   const away=await ok(await attend(sam,await read(),[2001,2003,2004,2005,2006],[2002]));
-  const lead=(await people.lead('Lena')).token;
-  const results=(await call(lead,'/api/lead/events/R4/results')).json();
-  expect(results.results.finalResults.nextCallUp.wristband).toBe(2007);
-  expect((await call(lead,'/api/lead/events/R4/call-up',{expectedHeatEntryId:results.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
+  expect(away.callUp).toMatchObject({who:'2007',position:7});
+  // A volunteer gets no lead read back.
+  const saved=await call(sam,'/api/lead/events/R4/call-up',{expectedHeatEntryId:away.callUp!.entryId});
+  expect(saved.statusCode).toBe(200);
+  expect(saved.json()).toEqual({status:'saved'});
   const called=await read();
   expect(called.revision).toBeGreaterThan(away.revision);
-  expect(marks(called).slice(-2)).toEqual([[2006,'here'],[2007,'unmarked']]);
-  expect(wristbands(await ok(await attend(sam,called,[2001,2003,2004,2005,2006,2007],[2002])))).toEqual([2001,2003,2004,2005,2006,2007]);
+  expect(marks(called).slice(-2)).toEqual([[2006,'here'],[2007,'here']]);
+  expect(called.race.final!.entries.at(-1)).toMatchObject({wristband:2007,calledUp:true,absent:false});
+  // The seed is taken: no further call-up, and the same one twice is refused.
+  expect(called.callUp).toBeUndefined();
+  expect((await call(sam,'/api/lead/events/R4/call-up',{expectedHeatEntryId:away.callUp!.entryId})).statusCode).toBe(409);
+});
+test('a finalist the finish line adds counts as Here: their own line-up entry joins the final, not a second runner',async()=>{
+  const {sam,priya,read}=await final();
+  // 2003 was never marked at the start line, and 2002 was marked Absent by mistake.
+  const checked=await ok(await attend(sam,await read(),[2001,2004,2005,2006],[2002]));
+  const seeded=(wristband:number)=>checked.race.final!.entries.find(entry=>entry.wristband===wristband)!.finalEntryId;
+  const added=await ok(await order(priya,checked,{added:[2003,2002]}));
+  expect(added.race.final!.entries).toHaveLength(6);
+  expect(marks(added)).toEqual([[2001,'here'],[2002,'here'],[2003,'here'],[2004,'here'],[2005,'here'],[2006,'here']]);
+  expect([idOf(added,2003),idOf(added,2002)]).toEqual([seeded(2003),seeded(2002)]);
+  expect(added.race.parts.runners.value!.filter(isRunner).some(runner=>runner.addedAtFinish)).toBe(false);
 });
 test('a database an older build left, with its "Is everyone here?" confirm column, boots and still seeds the final',async()=>{
   const old=await openDatabase(process.env.TEST_DATABASE_URL!,true);
@@ -242,12 +316,11 @@ const done=(token:string,raceId:string,step:string)=>call(token,`/api/races/${ra
 test('a race whose steps are all done but disagree waits, and saves itself once a step write makes them agree',async()=>{
   const {sam,priya,jo}=await start();
   const setup=raceSetup(app),checked=await setup.checkIn(sam,'R4',[2001,2002,2003]);
-  await setup.order(priya,'R4',[2001,2002,2003]);await setup.times(jo,'R4',[1295,1312,1340]);
-  // 2003 turns out not to have run: three times for two finishers.
-  await setup.order(priya,'R4',[2001,2002],{didNotRun:[2003]});
+  // Three finishers and two times.
+  await setup.order(priya,'R4',[2001,2002,2003]);await setup.times(jo,'R4',[1295,1312]);
   for(const step of ['runners','positions','times']) await done(sam,checked.id,step);
   expect((await ok(await call(sam,`/api/races/${checked.id}`))).race.state).toBe('in progress');
-  expect((await setup.times(jo,'R4',[1295,1312])).state).toBe('saved');
+  expect((await setup.times(jo,'R4',[1295,1312,1340])).state).toBe('saved');
 });
 test('only saved races count for results, ranking, To check and the export, and a final has run only once saved',async()=>{
   const {owner,people,sam,priya,jo}=await start();
@@ -288,4 +361,47 @@ test('a race with every runner Did not finish needs no times, and Absent runners
   const results=(await call((await people.lead('Alex')).token,'/api/lead/events/R4/results')).json().results.finalResults;
   expect(results.runners.map((runner:{wristband:number})=>runner.wristband)).toEqual([2003]);
   expect(results.leaderboard.map((row:{wristband:number})=>row.wristband)).toEqual([2003]);
+});
+// Ticket #300, what the server allows on a race stuck with one time too many: only a shorter times column, which no screen sends.
+test('a time typed for a child who never got a place blocks the save; a lead cannot correct the unsaved race, and a times column without it saves the race',async()=>{
+  const {owner,sam}=await start(),done=(read:RaceFlowRead,step:string)=>call(sam,`/api/races/${read.race.id}/steps/${step}/done`,{});
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
+  // The Timer types a time for all three before the order; then 2003 is Did not finish without ever having a place.
+  const timed=await ok(await times(sam,checked,{places:[1200,1300,1400]}));
+  let read=await ok(await order(sam,timed,{order:[idOf(timed,2001),idOf(timed,2002)],didNotFinish:[idOf(timed,2003)]}));
+  for(const step of ['runners','positions','times']) read=await ok(await done(read,step));
+  expect(read.race.state).toBe('in progress');
+  expect(read.race.parts.times.value!.places).toEqual([1200,1300,1400]);
+  const correction=await call(owner,`/api/lead/races/${read.race.id}/times`,{baseVersion:read.race.parts.times.version,places:[1200,1300,null]});
+  expect(correction.statusCode,correction.body).toBe(409);
+  const dropped=await ok(await times(sam,read,{places:[1200,1300]}));
+  expect(dropped.race.state).toBe('saved');
+});
+test('the server works out the removed places itself: a place a phone names is ignored, an order with fewer places takes the times of the places that left, and one that closes only some empty places is refused',async()=>{
+  const {sam,priya,jo}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
+  const id=(wristband:number)=>idOf(checked,wristband);
+  const ordered=await ok(await order(priya,checked,{order:[2001,2002].map(id)}));
+  // Times typed ahead of the 3rd place: the stored order has two places, so naming a 3rd removes nothing.
+  const timed=await ok(await times(jo,ordered,{places:[1000,1100,1200]}));
+  const beyond=await ok(await order(priya,timed,{order:[2001,2002].map(id),removedPlaces:[2]}));
+  expect(beyond.race.parts.times.value!.places).toEqual([1000,1100,1200]);
+  const full=await ok(await order(priya,beyond,{order:[2001,2002,2003].map(id)}));
+  // 2002 leaves the order with no removed place named: its time goes, and 2003 keeps its own.
+  const left=await ok(await order(priya,full,{order:[2001,2003].map(id),didNotFinish:[id(2002)]}));
+  expect(left.race.parts.times.value!.places).toEqual([1000,1200]);
+  // Two empty places, and an order that closes one of them: nothing says which time goes.
+  const emptied=await ok(await order(priya,left,{order:[],didNotFinish:[id(2002)],empty:[0,1]}));
+  const some=await order(priya,emptied,{order:[],didNotFinish:[id(2002)],empty:[0]});
+  expect(some.statusCode).toBe(409);expect(some.json().message).toBe('This race has changed - open it again');
+  expect((await ok(await call(sam,`/api/races/${checked.race.id}`))).race.parts.times.value!.places).toEqual([1000,1200]);
+});
+test('Save the order is refused while a place is empty',async()=>{
+  const {sam,priya}=await start();
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
+  const id=(wristband:number)=>idOf(checked,wristband);
+  await ok(await order(priya,checked,{order:[2001,2003].map(id),didNotFinish:[id(2002)],empty:[1]}));
+  await ok(await call(sam,`/api/races/${checked.race.id}/steps/runners/done`,{}));
+  const done=await call(priya,`/api/races/${checked.race.id}/steps/positions/done`,{});
+  expect(done.statusCode).toBe(409);expect(done.json().message).toBe('2nd place is empty');
 });

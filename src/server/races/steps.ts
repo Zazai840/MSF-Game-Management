@@ -4,10 +4,11 @@ import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
-import { digitsForTime,timeRefusal,timesOutOfOrder } from '../../shared/time-entry.js';
+import type { FinalField } from '../../shared/finals.js';
+import { digitsForTime,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
-import { onlyRunners,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
+import { finishOf,onlyRunners,placesBoard,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
 import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
 import { readRace } from './records.js';
@@ -49,6 +50,8 @@ export async function checkIn(client:pg.PoolClient,phone:Phone,target:WriteTarge
   await publishPart(client,phone,await readRace(client,phone.dayId,id),'runners',runners);
   await dropFromOrder(client,target.race,runners);
 }
+/** A final's line-up as entries, a child finalist or a relay team: a seeded child never yet checked in is named by their heat wristband. */
+const finalLineup=(final:FinalField):RaceEntry[]=>[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
 export type AbsentInput=ReturnType<typeof absentInput>;
 export function absentInput(body:unknown) {
   const input=(body||{}) as {raceId?:unknown;version?:unknown;here?:unknown;absent?:unknown};
@@ -62,8 +65,7 @@ export function absentInput(body:unknown) {
 export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,here,absent}:AbsentInput) {
   if(raceId===null || target.race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
   const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=race.parts.runners.value||[];
-  // A child finalist or a relay team: a seeded child never yet checked in is named by their heat wristband.
-  const lineup:RaceEntry[]=[...final.entries.flatMap(entry=>entry.runner?[entry.runner]:entry.heatWristband===null?[]:[{id:entry.finalEntryId,wristband:entry.heatWristband}]),...(final.additionalEntries||[]).map(entry=>entry.runner)];
+  const lineup=finalLineup(final);
   if([...here,...absent].some(id=>!lineup.some(runner=>runner.id===id))) throw new Refusal(400,'Choose a runner from this final');
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
   if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,`Two ${runners.some(isTeamEntry)?'teams marked Here have the same team number':'runners marked Here have the same wristband number'}. Ask a lead to check the final.`);
@@ -72,9 +74,12 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   await dropFromOrder(client,target.race,runners);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
-/** An order body: the whole finishing order by entry, Did not finish, Didn't run, and runners (or on a relay teams) added at the finish. */
+/**
+ * An order body: the whole finishing order by entry, Did not finish, Didn't run, and runners (or on a relay teams) added
+ * at the finish. `empty` are the places (from 0) emptied to fill again.
+ */
 export function orderInput(body:unknown) {
-  const input=(body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown;addedTeams?:unknown};
+  const input=(body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown;addedTeams?:unknown;empty?:unknown};
   const {raceId,version}=seenRace(input,'Open the race before saving its finishing order');
   const unclassified="Choose a place, Did not finish or Didn't run for each runner";
   const entryIds=(value:unknown)=>{
@@ -88,10 +93,24 @@ export function orderInput(body:unknown) {
   if(addedRefusal) throw new Refusal(400,addedRefusal);
   const addedTeams=input.addedTeams??[];
   if(!Array.isArray(addedTeams) || addedTeams.some(id=>typeof id!=='string') || new Set(addedTeams).size!==addedTeams.length) throw new Refusal(400,'Choose each team once');
-  return {raceId,version,order,didNotFinish,didNotRun,added,kept:keptWarningNumbers(input,added),addedTeams:addedTeams as string[]};
+  const empty=placeList(input.empty??[]);
+  if(!empty || empty.some(place=>place>=order.length+empty.length)) throw new Refusal(400,unclassified);
+  return {raceId,version,order,didNotFinish,didNotRun,added,kept:keptWarningNumbers(input,added),addedTeams:addedTeams as string[],empty};
 }
-/** The Finishing order step's write. Runners the Runners step has since taken off are dropped, later places moving up. */
-export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,order,didNotFinish,didNotRun,added,kept,addedTeams}:OrderInput) {
+/** A list of places (from 0), each named once, or null when the value is not one. */
+export const placeList=(value:unknown)=>Array.isArray(value) && value.every(place=>Number.isSafeInteger(place) && place>=0) && new Set(value).size===value.length?value as number[]:null;
+/** A removed place loses its time (`timesWithoutPlaces`); the times' version moves on, so a column sent before this is refused. */
+async function dropTimes(client:pg.PoolClient,race:Pick<RaceRead,'id'|'parts'>,removed:readonly number[]) {
+  const stored=race.parts.times.value,times=timesWithoutPlaces(stored,removed);
+  if(times!==stored) await client.query(`UPDATE race_parts SET value=$1,version=version+1 WHERE race_id=$2 AND part='times'`,[JSON.stringify(times),race.id]);
+}
+/**
+ * The Finishing order step's write. Runners the Runners step has since taken off are dropped, later places moving up.
+ * A place only emptied keeps its time, also once it is filled again; a removed place loses it (`dropTimes`). The
+ * removed places are never the phone's to name: an order with fewer places than the stored one removes the places of
+ * the entries, and the empty places, it no longer has. One still shorter than that is refused.
+ */
+export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,order,didNotFinish,didNotRun,added,kept,addedTeams,empty}:OrderInput) {
   if(raceId===null) throw new Refusal(409,'Check runners in before the order');
   // Teams are never made at the finish: a new team is typed into the heat at the start line first.
   if(target.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
@@ -103,11 +122,17 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
   const teams=addedTeams.length?(await readTeamLists(client,phone.dayId)).get(target.event.id)!.teams:[];
   const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId));
+  // A finalist the finish line adds, not marked or marked Absent, joins as their own line-up entry: a finalist with a place counts as Here.
+  const finalists=race.final?runnersOf(finalLineup(race.final)):[];
   // A team keeps the warnings kept on it when it was typed in. A final's runners all ran in its heats, so "already ran in this event" does not apply.
-  const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
+  const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>finalists.find(entry=>entry.wristband===wristband)??{id:randomUUID(),wristband,addedAtFinish:true})],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
-  const finish=onlyRunners({order:[...order,...atFinish.map(entry=>entry.id)],didNotFinish},runners);
+  const finish=onlyRunners(finishOf([...placesBoard({order,empty}),...atFinish.map(entry=>entry.id)],didNotFinish),runners);
+  const before=placesBoard(target.race.parts.finish.value||{order:[]}),board=placesBoard(finish);
+  const removed=board.length<before.length?removedPlaces(before,board):[];
+  if(board.length<before.length-removed.length) throw new Refusal(409,'This race has changed - open it again');
   await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
+  await dropTimes(client,target.race,removed);
 }
 /**
  * Refuses a time no one can run (0.00, faster than 10 m/s for the event's distance) with the phone's words, for the
@@ -183,8 +208,12 @@ function seenRace(body:{raceId?:unknown;version?:unknown},message:string) {
 /**
  * A runner taken off (or marked Absent) drops out of the order, later places moving up. The order's version stays as
  * it is: it counts the order holder's own changes, so an order they send before seeing this is still saved.
+ * A removed place loses its time (`dropTimes`): a column the Timer sends before seeing this is refused, since saved
+ * it would give each later place the time of the one above.
  */
 export async function dropFromOrder(client:pg.PoolClient,race:Pick<RaceRead,'id'|'parts'>,runners:readonly RaceEntry[]) {
   const finish=race.parts.finish.value,left=finish && onlyRunners(finish,runners);
-  if(finish && JSON.stringify(left)!==JSON.stringify(finish)) await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),race.id]);
+  if(!finish || JSON.stringify(left)===JSON.stringify(finish)) return;
+  await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),race.id]);
+  await dropTimes(client,race,removedPlaces(placesBoard(finish),placesBoard(left!)));
 }

@@ -255,6 +255,13 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-listrow__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rz-listrow__label { font-size: 16px; line-height: 1.2; font-weight: 800; }
 .rz-listrow__meta { font-size: 13px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
+.rz-listrow__main--wide { flex: 1; }
+.rz-listrow__more { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-4); }
+/* A race's steps, each a line: its name, a bar as full as its count, the count. */
+.rz-progress { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-4) var(--space-8); }
+.rz-progress__bar { height: var(--space-6); border-radius: var(--radius-pill); background: var(--line); overflow: hidden; }
+.rz-progress__bar > span { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--navy); }
+.rz-progress__needs { font-size: 13px; line-height: 1.3; font-weight: 700; }
 .rz-listrow--resume { box-shadow: inset 0 0 0 2px var(--navy); }
 .rz-listrow--warn { background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-line); }
 .rz-code-tag { display: inline-block; flex: none; white-space: nowrap; transform: skewX(var(--skew-tag)); padding: 1px var(--space-8); background: var(--zone); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 14px; line-height: 1.3; text-transform: uppercase; }

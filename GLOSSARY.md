@@ -65,11 +65,11 @@ A zone lead's call, on an event with heats, to award its medals to the 3 fastest
 _Avoid_: Skip final, cancel final, no final, heat-time medals
 
 **Absent finalist**:
-A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final. A relay team is Absent as a whole.
+A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and the Start line or a lead can call up a replacement. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final; a finalist the finish line adds counts as Here. A relay team is Absent as a whole.
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
-A lead bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist. Without a call-up the final runs short.
+Bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist. Anyone signed in can do it: the Start line or a lead at the final's check-in ("Call up next fastest: 2011 (7th)"), or a lead on the Final tab. The entry called up is Here at once. Only the next-ranked entry can be called up; without a call-up the final runs short.
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
@@ -93,11 +93,11 @@ A relay team that no race of its relay holds, apart from deleted races: a team t
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
-A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number.
+A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number. In Results, an event's tabs are Heats, Final (only where the event has one) and Notes: Heats has a row for each heat, then the scoreboard, then the deleted races; the final's own row is on the Final tab.
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
-A race whose results count: every step is done and nothing blocks it, so it saved itself. Only saved races reach results, To check and the day export, and only a lead can change one.
+A race whose results count: every step is done and nothing blocks it, so it saved itself. The screens say it is "In Results", and "Not in Results yet" until then, never "not saved": every tap is saved. Only saved races reach results, To check and the day export, and only a lead can change one.
 _Avoid_: Finished race, complete race, closed race
 
 **Finishing order**:
@@ -105,7 +105,7 @@ The order in which a race's children crossed the line, recorded as wristband num
 _Avoid_: Results, placings, positions list
 
 **Time**:
-How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so correcting either list re-pairs them. A relay team has one time, from the start until its 4th leg crosses the line.
+How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so a new finishing order re-pairs them. A place removed from the finishing order (its child taken off the race, given No place, Did not finish or Didn't run, or the place left empty when the Finish line taps "Nobody else crossed the line") loses its time, and the times below move up with their children, so no child takes another child's time. A place the Finish line only empties keeps its time, for the child who takes it next. A race not yet saved can still hold one time too many (a time typed for a child who then did not finish without ever having a place): the Timer's screen says "3 times for 2 finishers." and "Delete 3rd place time" deletes the last time, so the race can save. A relay team has one time, from the start until its 4th leg crosses the line.
 _Avoid_: Result, score, split
 
 **Tie**:
@@ -175,7 +175,7 @@ Anyone who typed today's lead code (or the owner password), trusted with everyth
 _Avoid_: Admin, organiser, superuser
 
 **Avatar menu**:
-What every avatar opens: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+What the avatar opens, at the top right of Races, the Race screen and every lead screen: Log out for everyone, with Races, Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
 
 **Log out**:
@@ -235,12 +235,20 @@ One race of the race flow (/races/:raceId): its event's heat chips, its steps, a
 _Avoid_: Race page (the lead's), job screen
 
 **Step**:
-One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband.
+One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband. On a lead's Race screen each step names the last person who typed in it, or else up to three of the people who have its role today and a count of the rest ("+2"). On the Race screen one band below the job band tells every role what the race still needs to reach Results and which role taps it ("Not in Results yet: 6th place has no time.", "Not in Results yet. Finish line: tap Save the order."), and says "In Results." once the race is saved.
 _Avoid_: Job, stage (an event's), Positions
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job).
+The step a person does on every race, chosen on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the job band (the full-width band below the top bar on Races and the Race screen, "Your role is FINISH LINE", one colour per role); Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job). The phone reports it to the server on Join and on every switch, so Signed in today shows a lead each person's role; it is the last one reported, cleared on Log out and on a new Olympics day, and it limits nothing (ADR 0007).
 _Avoid_: station, position
+
+**Job band**:
+The full-width band below the top bar on Races and the Race screen that names the person's role, "Your role is FINISH LINE", in one colour per role. Tapping it changes the role. It replaced the role chip at the top right.
+_Avoid_: Role chip, job chip
+
+**Needs band**:
+The line below the job band on the Race screen, the same for every role, that says what the race still needs to reach Results: a missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once the race is saved. A heat row in Results says the same sentence and opens the race at the step it is about.
+_Avoid_: Status bar, save banner
 
 **Undo**:
 The toast's way to reverse your own save of a step, only while nobody else has changed that step since. It reopens the race at that step, and un-saves a race the save had saved.
