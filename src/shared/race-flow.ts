@@ -110,6 +110,11 @@ export function raceNeeds(race:Pick<RaceSummary,'kind'|'state'|'steps'|'blocker'
   const missing=stepsOf(race).find(step=>race.steps[step]?.state!=='done');
   return missing?`Not in Results yet. ${stepRole(missing)}: tap ${doneButtons[missing]}.`:'Not in Results yet.';
 }
+/** The step a Results heat row opens a race at: the first not marked done or short of its count, else the last, where the race saves. */
+export function firstIncompleteStep(race:Pick<RaceSummary,'kind'|'steps'>):Step {
+  const shown=stepsOf(race);
+  return shown.find(step=>{const status=race.steps[step];return status?.state!=='done' || (status.expected!==null && status.count<status.expected);})??shown.at(-1)!;
+}
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**

@@ -3,6 +3,7 @@ import type { EventState } from './event-state.js';
 import type { RelayTeam,TeamList } from './teams.js';
 import type { FinalField } from './finals.js';
 import type { RaceRead,RacePartName } from './races.js';
+import type { RaceSummary } from './race-flow.js';
 import type { AuditNote } from './rulings.js';
 import type { Stage } from './stages.js';
 import type { RaceReference,LeadItem,EventResults } from './results-rules.js';
@@ -13,8 +14,11 @@ export interface EventSummary { needsYou:number; event:DayEvent; status:EventRes
 export interface ResultsRead { needsYou:DayLeadItem[]; groups:Array<{name:string;events:EventSummary[]}> }
 /** Results' event grid: each event with its card, coloured and worded as its Races card (`cardState`, `leadCardLine`). */
 export interface ResultsGridRead extends ResultsRead { groups:Array<{name:string;events:Array<EventSummary & {card:{state:EventState;line:string}}>}> }
-/** A relay's also carries its team list, which a lead picks a team to add to its Final from. */
-export interface EventResultsRead { event:DayEvent; results:EventResults; auditNotes:AuditNote[]; teams?:RelayTeam[] }
+/**
+ * `summaries` is each live race of the event as the races read lists it (its steps and blocker), for the heat rows.
+ * A relay's also carries its team list, which a lead picks a team to add to its Final from.
+ */
+export interface EventResultsRead { event:DayEvent; results:EventResults; summaries:RaceSummary[]; auditNotes:AuditNote[]; teams?:RelayTeam[] }
 /**
  * One row of a race's history: a part as it stood when the race was saved (by the job's holder then) or after a lead
  * correction (by that lead). Rows an older build kept have no time or author.

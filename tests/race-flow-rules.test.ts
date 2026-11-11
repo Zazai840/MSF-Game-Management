@@ -1,6 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { alreadyDoneLine,raceNeeds,stepBlocker,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,firstIncompleteStep,raceNeeds,stepBlocker,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps,blocker:null});
@@ -202,4 +202,16 @@ test('a done button on a step already done says so, and what the race still need
   const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps'])=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,false)});
   expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100]),allDone),'runners')).toBe('Runners is already done. Not in Results yet: 2nd place has no time.');
   expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100,1200]),{...allDone,times:status('in progress')}),'positions')).toBe('Finishing order is already done. Not in Results yet. Timer: tap No more finishers.');
+});
+test('a Results heat row opens the race at its first step that is not complete: not marked done, or short of its count',()=>{
+  const todo=status('in progress'),at=(steps:RaceSummary['steps'],kind:RaceSummary['kind']='heat')=>firstIncompleteStep({kind,steps});
+  expect(at({runners:todo,positions:todo,times:todo})).toBe('runners');
+  expect(at({...allDone,positions:todo})).toBe('positions');
+  expect(at({...allDone,times:todo})).toBe('times');
+  // Every done button tapped, a time missing: the step short of its count.
+  expect(at({...allDone,times:{...status('done',1),expected:2}})).toBe('times');
+  expect(at({...allDone,positions:{...status('done',1),expected:2}})).toBe('positions');
+  // Nothing short: the last step, where the race saves. A final has no Times step.
+  expect(at(allDone)).toBe('times');
+  expect(at({runners:status('done'),positions:status('done')},'final')).toBe('positions');
 });

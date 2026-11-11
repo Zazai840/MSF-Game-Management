@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,enterTime,openLeadMenu,openRace,switchJob,becomeLead,expect,join,ownEvent,recordRace,signInThroughApi,test} from './fixtures.js';
+import {becomeLead,deleteCurrentRace,enterTime,eventTab,expect,flowPost,join,lookProblems,openLeadMenu,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder} from './fixtures.js';
 test('a lead sees a race worked in the race flow appear within one Results poll',async({page,openPhone},info)=>{
   const code=await ownCode(),name=ownName('Results phone');
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
@@ -41,4 +41,32 @@ test('a timed event marks its medal places 1st, 2nd and 3rd beside the wristband
   for(const [index,mark] of ['1st','2nd','3rd'].entries()) await expect(rows.nth(index)).toContainText(`${2601+index}${mark}Heat 1`);
   await expect(rows.nth(3)).toContainText('2604Heat 1');
   await page.screenshot({path:info.outputPath('medal-marks.png'),fullPage:true});
+});
+
+test('a heat not in Results shows three bars with counts and the Race screen band\'s sentence, and a tap opens it at its first step not complete; a heat in Results shows no bars',async({page},info)=>{
+  const code=await ownCode(),name=ownName('Heat progress'),girls=await ownWristbands('Girl Cubs',4);
+  await ownEvent(page.request,code,name);
+  const phone=await signInThroughApi(page.request,ownName('Heat progress phone'));
+  await recordRace(page.request,phone,code,[girls(1),girls(2)],[1200,1300]);
+  // Heat 2: two runners, That's everyone tapped, one of them placed.
+  const {race}=await writeCheckIn(page.request,phone,code,[girls(3),girls(4)]);
+  await flowPost(page.request,phone,`/api/races/${race.id}/steps/runners/done`,{});
+  await writeOrder(page.request,phone,code,[girls(3)]);
+  await page.goto('/');await join(page,ownName('Heat progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true}),heat2=page.getByRole('button',{name:'Open Heat 2',exact:true});
+  const sentence=`Not in Results yet: ${girls(4)} has no place.`;
+  await expect(heat1).toHaveAccessibleDescription(/^2 runners · in Results · checked in \d\d:\d\d$/);
+  await expect(heat1.locator('.rz-progress')).toHaveCount(0);
+  await expect(heat2).toHaveAccessibleDescription(new RegExp(`^2 runners · not in Results yet · checked in \\d\\d:\\d\\d Runners 2 checked in Finishing order 1 of 2 Times Not started ${sentence.replace(/\./g,'\\.')}$`));
+  // Each bar is as full as its count: Runners done, Finishing order half, Times empty.
+  expect(await heat2.locator('.rz-progress__bar > span').evaluateAll(fills=>fills.map(fill=>(fill as HTMLElement).style.width))).toEqual(['100%','50%','0%']);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('heat-progress-rows.png'),fullPage:true});
+  // The tap opens the race where the work is, and its band says the row's sentence.
+  await press(heat2);
+  await expect(page.getByRole('tablist',{name:'Heat 2 steps'}).getByRole('tab',{selected:true})).toContainText('Finishing order');
+  await expect(page.locator('.rz-needsband')).toHaveText(sentence);
+  // The race not in Results yet would sit on every phone's Races: it goes.
+  await deleteCurrentRace(page.request,code);
 });

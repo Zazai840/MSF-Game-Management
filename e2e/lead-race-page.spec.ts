@@ -260,7 +260,10 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);
-  await openRace(page,code,ownName('In progress lead'),race.number);
+  // Its Results row opens the race screen (results.spec.ts); the race page is at its own address.
+  await page.goto('/');await join(page,ownName('In progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await eventTab(page,'Heats');await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url();
   const notSaved=page.getByRole('status').filter({hasText:'Heat 1 is not saved yet. Open it to finish its steps.'});
   await expect(notSaved).toBeVisible();
@@ -296,10 +299,9 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   await press(page.getByRole('button',{name:/^Move to Deleted races/}));
   await page.getByLabel('Comment (optional)',{exact:true}).fill('Opened by mistake');
   await press(remove);
-  // Back on the screen before the race, the event's Races tab; the next Back leaves the event.
+  // Back on the event's Heats tab. (Back from there is event-tabs.spec.ts's: this race page was opened by its address.)
   await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
-  await page.goBack();await expect(page).toHaveURL(/\/results$/);
 });
 
 test('a deleted race says when and by whom, Restore brings it back on its race page, and a heat whose number is taken comes back with the next one, named in the toast',async({page},info)=>{
