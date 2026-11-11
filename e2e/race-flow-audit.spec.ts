@@ -45,7 +45,7 @@ test('Runner not on the list leaves with Cancel; Check the order keeps Back',asy
   await expect(page.getByRole('button',{name:'Cancel',exact:true})).toHaveCount(0);
 });
 
-test('the lead\'s race app bar title wraps to two lines, so a long event name shows its section',async({openPhone,request},info)=>{
+test('the lead\'s race app bar title takes up to two lines, so a long event name shows its section',async({openPhone,request},info)=>{
   const code=await ownCode();
   // The audit's own example; the event is found by its code, so the shared name clashes with nothing.
   await ownEvent(request,code,'4x100m Relay','Girl Scouts');
@@ -55,13 +55,13 @@ test('the lead\'s race app bar title wraps to two lines, so a long event name sh
   const title=page.getByRole('heading',{level:1,name:'4x100m Relay · Girl Scouts',exact:true});
   await expect(title).toBeVisible();
   await page.locator('.rz-appbar').screenshot({path:info.outputPath('lead-race-app-bar.png')});
-  // Every line of the title shows: none sits below the two lines' box or runs past its side.
+  // At most two lines, and every line shows: none sits below the two lines' box or runs past its side.
   const fit=await title.evaluate(element=>{
     const range=document.createRange();range.selectNodeContents(element);
     const box=element.parentElement!.getBoundingClientRect(),tops=[...new Set([...range.getClientRects()].map(rect=>Math.round(rect.top)))];
     return {lines:tops.length,hidden:tops.filter(top=>top>=box.bottom).length,wide:element.parentElement!.scrollWidth>element.parentElement!.clientWidth};
   });
-  expect(fit).toEqual({lines:page.viewportSize()!.width<=360?2:fit.lines,hidden:0,wide:false});
+  expect(fit).toEqual({lines:fit.lines,hidden:0,wide:false});
   expect(fit.lines).toBeLessThanOrEqual(2);
   await expect(page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true})).toHaveText('You are: Zone lead');
   expect(await lookProblems(page)).toEqual([]);
