@@ -93,7 +93,7 @@ A relay team that no race of its relay holds, apart from deleted races: a team t
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
-A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number.
+A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number. In Results, an event's tabs are Heats, Final (only where the event has one) and Notes: Heats has a row for each heat, then the scoreboard, then the deleted races; the final's own row is on the Final tab.
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
@@ -105,7 +105,7 @@ The order in which a race's children crossed the line, recorded as wristband num
 _Avoid_: Results, placings, positions list
 
 **Time**:
-How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so a new finishing order re-pairs them. A place removed from the finishing order (its child taken off the race, or given Did not finish or Didn't run) loses its time, and the times below move up with their children, so no child takes another child's time. A relay team has one time, from the start until its 4th leg crosses the line.
+How long a place in a race took, to a hundredth of a second, read from the photo finish in place order. A child's time is the time of the place the finishing order gives them, so a new finishing order re-pairs them. A place removed from the finishing order (its child taken off the race, given No place, Did not finish or Didn't run, or the place left empty when the Finish line taps "Nobody else crossed the line") loses its time, and the times below move up with their children, so no child takes another child's time. A place the Finish line only empties keeps its time, for the child who takes it next. A relay team has one time, from the start until its 4th leg crosses the line.
 _Avoid_: Result, score, split
 
 **Tie**:

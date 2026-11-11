@@ -75,5 +75,5 @@ export function timesWithoutPlaces<Times extends RaceTimes|null>(times:Times,rem
   // A lead accepted the times as they were out of order: nothing is left to accept once they are in order.
   return {places,outOfOrder,...(outOfOrder && times.acceptedByLead?{acceptedByLead:true}:{}),...(keptWrong?{keptWrong}:{})} as Times;
 }
-/** The places (from 0) of the entries that left a finishing order: in `before` and not in `after`, by entry id. */
-export const removedPlaces=(before:readonly string[],after:readonly string[])=>before.flatMap((id,index)=>after.includes(id)?[]:[index]);
+/** The places (from 0) of the entries that left a finishing order: in `before` and not in `after`, by entry id. A place emptied to fill again (null) never leaves. */
+export const removedPlaces=(before:ReadonlyArray<string|null>,after:ReadonlyArray<string|null>)=>before.flatMap((id,index)=>after.includes(id)?[]:[index]);

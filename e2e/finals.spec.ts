@@ -155,7 +155,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
  await expect(stageButtons(page)).toHaveText(['Results without a final']);
  await eventTab(page,'Final');await expect(page.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
- await eventTab(page,'Races');await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
+ await eventTab(page,'Heats');await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('reopened Heats complete - Corrected heat timer');
  // Both phones open on the removed final go back to Races, saying so. The card is as for an event with no final: no F
  // chip, "+" right after the last heat, and "+ Final" back as every heat is saved.
