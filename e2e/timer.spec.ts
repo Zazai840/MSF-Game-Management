@@ -345,6 +345,8 @@ test('a wrong time still waiting for Fix time or Keep is asked about again when 
   await enterTime(page,'1244');await enterTime(page,'1200');
   const warning=page.getByRole('alert').filter({hasText:'The 2nd place time is faster than 1st.'});
   await expect(warning).toBeVisible();
+  // The reload must not overtake the write of the 2nd time, which would end it unsaved.
+  await expect.poll(async()=>(await savedTimes(request,code))?.places).toEqual([1244,1200]);
   await page.reload();
   // The choice is still there, with the keyboard closed, and No more finishers waits for it.
   await expect(warning).toBeVisible();

@@ -122,7 +122,7 @@ test('a lead corrects a saved race\'s finishing order on its screen: a drag with
   await expectToast(page,'Finishing order saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
   await expect(record.first()).toHaveText(/^1st\s*2003[\s\S]*12\.00/);
   await back(page,'Order corrections · Girl Cubs');
-  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toHaveAccessibleDescription(/ · finishers and times don't agree$/);
+  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);
   await eventTab(page,'Notes');const notes=page.getByRole('list',{name:'Audit notes'}).getByRole('listitem');
   await expect(notes.filter({hasText:'corrected the finishing order'})).toHaveText([/corrected the finishing order for Heat 1: 2003, 2001; Did not finish 2002 - Checked the video/]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
