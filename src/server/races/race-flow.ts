@@ -17,7 +17,7 @@ import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,requireRace,type Database,type StoredRace } from './records.js';
 import { raceRefusal } from '../../shared/race-status.js';
-import { markFinalistAbsent } from './final-field.js';
+import { markAbsentFinalists } from './final-field.js';
 import { publishPart } from './versions.js';
 /**
  * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
@@ -244,7 +244,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
         return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
       });
       // Set after the runner list, which marks a team leaving it Absent: neither leaves it unmarked.
-      if(finalist && (moved || finalist.absent!==(mark==='absent'))) await markFinalistAbsent(client,id,finalist.id,mark==='absent');
+      if(finalist && (moved || finalist.absent!==(mark==='absent'))) {const marked=finalist.id;await markAbsentFinalists(client,id,(other,stored)=>other===marked?mark==='absent':stored);}
       else if(!moved) unchanged();
     });
   });

@@ -5,7 +5,7 @@ import type { FinalEntry,FinalAddition } from '../../shared/finals.js';
 /**
  * Attendance follows the published runner list: those in it are Here, and one leaving it (Didn't run, a lead taking
  * them off, a relay team's Absent) is Absent. One never in it keeps its mark, so a finalist not yet checked in stays
- * unmarked; the final's check-in sets the marks itself (`markFinalAbsent`). A finalist's Here marker is never cleared.
+ * unmarked; the final's check-in sets the marks itself (`markAbsentFinalists`). A finalist's Here marker is never cleared.
  * `race` is as it was before this publication.
  */
 export async function publishFinalRunners(client:pg.PoolClient,race:Pick<RaceRead,'id'|'kind'|'parts'>,runners:readonly RaceEntry[]) {
@@ -22,18 +22,15 @@ export async function publishFinalRunners(client:pg.PoolClient,race:Pick<RaceRea
   const entries=original.map(entry=>({...entry,...(present.has(entry.finalEntryId)?{runner:present.get(entry.finalEntryId)}:{}),absent:absent(entry.finalEntryId,entry.absent),...here(present.get(entry.finalEntryId))}));
   await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),race.id]);
 }
-/** A child's final check-in: exactly these finalists are marked Absent (after the runner list, those Here, is published). */
-export async function markFinalAbsent(client:pg.PoolClient,raceId:string,absent:readonly string[]) {
+/**
+ * The one write of the Absent marks, made after the runner list (those Here) is published: `absent` answers for each
+ * finalist, given its id and the mark stored. A child's final check-in names exactly the Absent ones; a relay final's
+ * tap answers for its one team and leaves the rest as stored.
+ */
+export async function markAbsentFinalists(client:pg.PoolClient,raceId:string,absent:(id:string,stored:boolean)=>boolean) {
   const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];
-  const entries=(row.entries as FinalEntry[]).map(entry=>({...entry,absent:absent.includes(entry.finalEntryId)}));
-  const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>({...entry,absent:absent.includes(entry.runner.id)}));
-  await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),raceId]);
-}
-/** A relay final's Here / Absent tap: this one finalist's Absent mark (after the runner list is published). */
-export async function markFinalistAbsent(client:pg.PoolClient,raceId:string,id:string,absent:boolean) {
-  const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];
-  const entries=(row.entries as FinalEntry[]).map(entry=>entry.finalEntryId===id?{...entry,absent}:entry);
-  const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>entry.runner.id===id?{...entry,absent}:entry);
+  const entries=(row.entries as FinalEntry[]).map(entry=>({...entry,absent:absent(entry.finalEntryId,entry.absent)}));
+  const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>({...entry,absent:absent(entry.runner.id,entry.absent)}));
   await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),raceId]);
 }
 /** A relay final's team changed at check-in while not in the race: its kept copy takes the new legs. False when the team is not a finalist. */

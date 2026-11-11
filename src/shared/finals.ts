@@ -11,6 +11,13 @@ export interface FinalPresence { generation:string; hasRun:boolean;heatsComplete
 export interface FinalResults extends FinalField { raceId:string; runners:readonly RaceEntry[]; leaderboard:LeaderboardRow[]; nextCallUp:LeaderboardRow|null; vacancy:FinalEntry|null;
   /** Attendance has been published (an individual Here or Absent, or a relay child Here), or a finishing order recorded. */
   started:boolean }
+/**
+ * A finalist's mark at the final's check-in: Here once in the race (its runner list), else Absent, else not marked
+ * yet. The one rule the start line's rows, the check sheet and the server read.
+ */
+export type FinalMark='here'|'absent'|null;
+export const finalMark=(finalist:{finalEntryId:string;absent:boolean},runners:ReadonlyArray<{id:string}>):FinalMark=>
+  runners.some(runner=>runner.id===finalist.finalEntryId)?'here':finalist.absent?'absent':null;
 export function finalRows(state:EventState,race:ResultsRace):LeaderboardRow[] {
   if(!raceCounts(race)) return [];
   const finish:FinishingOrder=race.finish!;

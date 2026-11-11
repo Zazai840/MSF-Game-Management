@@ -14,7 +14,7 @@ import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
 import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
-import { markFinalAbsent } from './final-field.js';
+import { markAbsentFinalists } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** What a step write acts on: the event and the race as it stands. */
 export interface WriteTarget { event:DayEvent; race:RaceRead }
@@ -71,7 +71,7 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
   if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,`Two ${runners.some(isTeamEntry)?'teams marked Here have the same team number':'runners marked Here have the same wristband number'}. Ask a lead to check the final.`);
   await publishPart(client,phone,race,'runners',runners);
-  await markFinalAbsent(client,race.id,absent);
+  await markAbsentFinalists(client,race.id,id=>absent.includes(id));
   await dropFromOrder(client,target.race,runners);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
