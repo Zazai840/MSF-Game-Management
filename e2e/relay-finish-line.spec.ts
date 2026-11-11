@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,enterTime,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
+import {press,ownName,enterTime,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const tiles=(page:Page)=>page.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
 const places=(page:Page)=>page.getByRole('list',{name:/^Places: /});
@@ -50,15 +50,15 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   expect(a!.y).toBe(b!.y);if(phone) expect(c!.y).toBeGreaterThan(a!.y);else expect(c!.y).toBe(a!.y);expect(a!.width).toBeGreaterThan(140);
   expect(await lookProblems(line)).toEqual([]);
   await line.screenshot({path:info.outputPath('relay-finish-line.png'),fullPage:true});
-  await line.getByRole('button',{name:`${w(24)} came 1st`,exact:true}).click();
+  await press(line.getByRole('button',{name:`${w(24)} came 1st`,exact:true}));
   // The places board names a placed team by its 4th leg's wristband; a tap on it empties the place and the team is a tile again.
   await expect(places(line).getByRole('button',{name:`1st place: ${w(24)}. Change`,exact:true})).toHaveText(`1st${w(24)}`);
-  await places(line).getByRole('button',{name:`1st place: ${w(24)}. Change`,exact:true}).click();
+  await press(places(line).getByRole('button',{name:`1st place: ${w(24)}. Change`,exact:true}));
   await expect(line.getByRole('heading',{level:2,name:'Which team came 1st?'})).toBeVisible();
   await expect(tiles(line)).toHaveCount(3);
   expect(await lookProblems(line)).toEqual([]);
   await line.screenshot({path:info.outputPath('relay-finish-line-emptied.png'),fullPage:true});
-  await line.getByRole('button',{name:`${w(24)} came 1st`,exact:true}).click();
+  await press(line.getByRole('button',{name:`${w(24)} came 1st`,exact:true}));
   await expect(line.getByRole('heading',{level:2,name:'Which team came 2nd?'})).toBeVisible();
 
   // + Team not on the list picks from the teams still to run, with no typing; the team takes the next place.
@@ -85,8 +85,8 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await expect(line.getByRole('list',{name:'Not placed'}).getByRole('group')).toHaveText([`${w(14)}Did not finishDidn't run`,"–Did not finishDidn't run"]);
   await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(line.getByRole('alert')).toContainText('Say what happened to 2 teams first.');
-  await notPlaced(line,String(w(14))).getByRole('button',{name:'Did not finish',exact:true}).click();
-  await notPlaced(line,'no 4th leg').getByRole('button',{name:"Didn't run",exact:true}).click();
+  await press(notPlaced(line,String(w(14))).getByRole('button',{name:'Did not finish',exact:true}));
+  await press(notPlaced(line,'no 4th leg').getByRole('button',{name:"Didn't run",exact:true}));
   expect(await lookProblems(line)).toEqual([]);
   // Each part of a Not placed row stays on one line, even on a 360px phone.
   for(const team of [String(w(14)),'no 4th leg']) for(const part of [notPlaced(line,team).locator('.rz-orderrow__num'),...['Did not finish',"Didn't run"].map(label=>notPlaced(line,team).getByRole('button',{name:label,exact:true}))])

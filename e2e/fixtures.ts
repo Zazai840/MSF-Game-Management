@@ -385,12 +385,12 @@ export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',e
 export const jobBand=(page:Page,job='.*')=>page.getByRole('button',{name:new RegExp(`^You are: ${job}\\. Change job$`)});
 /** Switches today's job from the job band on Races or a race, as a volunteer does. */
 export async function switchJob(page:Page,job:JobName) {
-  await page.getByRole('button',{name:/^You are: .*\. Change job$/}).click();
+  await press(page.getByRole('button',{name:/^You are: .*\. Change job$/}));
   await page.getByRole('radiogroup',{name:'What\'s your job today?'}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
 }
 /** From the job band: Zone lead, then the lead code (or the owner password). */
 export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
-  await page.getByRole('button',{name:/^You are: .*\. Change job$/}).click();
+  await press(page.getByRole('button',{name:/^You are: .*\. Change job$/}));
   await page.getByRole('radio',{name:/^Zone lead/}).click();
   await page.getByLabel('Lead code',{exact:true}).fill(code);
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();

@@ -24,14 +24,14 @@ test('a lead\'s avatar menu is on every lead screen and the Race screen: Races, 
   };
   await pick('Results','races');await title(page,'Results');
   // Results, its event and the lead's race page.
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await title(page,event);
+  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));await title(page,event);
   await pick('Results','event');await title(page,'Results');
   await page.goto(`/results/${code}/races/${race.id}`);await title(page,`Heat ${race.number}`);
   await pick('Day setup','race-page');await title(page,'Day setup');
   // Day setup, Signed in today and Events.
-  await page.getByRole('button',{name:/^Signed in today /}).click();await title(page,'Signed in today');
+  await press(page.getByRole('button',{name:/^Signed in today /}));await title(page,'Signed in today');
   await pick('Day setup','signed-in-today');await title(page,'Day setup');
-  await page.getByRole('button',{name:/^Events /}).click();await title(page,'Events');
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');
   await pick('Races','events');await races(page);
   // The Race screen: the menu leaves the race for Results, and the back arrow still returns to the race.
   await openRace(page,name);

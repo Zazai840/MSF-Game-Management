@@ -46,7 +46,7 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-checked-rows.png'),fullPage:true});
   // The race page's Current record shows the same checked warnings beside each team, grey and worded as on the leaderboard.
-  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const record=page.getByRole('list',{name:'Current record',exact:true});
   for(const line of [`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]) await expect(record.getByText(line,{exact:true})).toBeVisible();
   // Checked, so no row is amber.
@@ -85,7 +85,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-leaderboard.png'),fullPage:true});
   // The race page lists Heat 1's teams in place of runners, Team 4 with its kept warning.
-  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const list=page.getByRole('list',{name:'Current record',exact:true}),record=list.getByRole('button');
   await expect(record).toHaveText([/^1st\s*Team 2/,/^2nd\s*Team 1/,/^3rd\s*Team 3/,/^4th\s*Team 4/]);
   await expect(record.nth(0)).toContainText(legs(2).join(' · '));await expect(record.nth(0)).toContainText('14.00');
@@ -214,7 +214,7 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   const {page}=await openPhone(ownName('Relay order fix lead'),{lead:true});
   await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
-  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   // The race page names each team, its four children on the line under it.
   await expect(page.getByRole('list',{name:'Current record',exact:true}).getByRole('button')).toHaveText([/^1st\s*Team 1\s*14\.00\s*\d+ · \d+ · \d+ · \d+$/,/^2nd\s*Team 2\s*15\.00/,/^3rd\s*Team 3\s*16\.00/]);
   await raceAction(page,'Correct finishing order');

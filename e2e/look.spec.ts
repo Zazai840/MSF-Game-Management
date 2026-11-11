@@ -64,7 +64,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('timer.png'),fullPage:true});
   // The job sheet, with a faked lead code refusal: the error style without adding to the server's wrong-code backoff.
-  await page.getByRole('button',{name:/^You are: .*\. Change job$/}).click();
+  await press(page.getByRole('button',{name:/^You are: .*\. Change job$/}));
   await page.getByRole('radio',{name:/^Zone lead/}).click();
   await page.route('**/api/become-lead',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Wrong lead code - ask a zone lead'})}),{times:1});
   await page.getByLabel('Lead code',{exact:true}).fill('wrong-fixture');
