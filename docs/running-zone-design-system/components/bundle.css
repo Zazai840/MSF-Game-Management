@@ -329,11 +329,17 @@
 .rz-disclosure__body { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-4) 0 var(--space-8) var(--space-20); font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
 
 /* ==================== Race flow components (race-flow.md "New components") ==================== */
-/* ---------- RoleChip ---------- */
-.rz-rolechip { min-height: var(--size-touch); display: inline-flex; align-items: center; gap: var(--space-6); padding: 0 var(--space-10) 0 var(--space-12); border: 0; border-radius: var(--radius-pill); background: var(--paper); color: var(--navy); font-family: var(--font-body); font-size: 14px; font-weight: 800; white-space: nowrap; }
-.rz-rolechip .rz-icon { width: 18px; height: 18px; stroke-width: 2.4; }
-.rz-rolechip .rz-icon--chevron { width: 16px; height: 16px; stroke-width: 2.6; }
-.rz-rolechip--lead { background: var(--jumping); }
+/* ---------- JobBand ---------- */
+/* Full width below the top bar, on the job's colour (the role sheet's job colours), navy on each. */
+.rz-jobband { flex: none; width: 100%; min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--gutter); border: 0; background: var(--c); color: var(--navy); font-family: var(--font-body); font-size: 16px; font-weight: 800; text-align: left; white-space: nowrap; }
+.rz-jobband strong { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; text-transform: uppercase; }
+.rz-jobband .rz-icon { width: 20px; height: 20px; stroke-width: 2.4; }
+.rz-jobband .rz-icon--chevron { margin-left: auto; stroke-width: 2.6; }
+.rz-jobband:focus-visible { outline-offset: -3px; }
+.rz-jobband--start { --c: var(--running); }
+.rz-jobband--finish { --c: var(--challenge); }
+.rz-jobband--timer { --c: var(--gold); }
+.rz-jobband--lead { --c: var(--jumping); }
 
 /* ---------- EventTabs ---------- */
 .rz-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }

@@ -239,7 +239,7 @@ One part of a race as the race flow works it: Runners (check-in), Finishing orde
 _Avoid_: Job, stage (an event's), Positions
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job).
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the job band (the full-width band below the top bar on Races and the Race screen, "You are: FINISH LINE", one colour per role); Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job).
 _Avoid_: station, position
 
 **Undo**:

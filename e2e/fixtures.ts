@@ -381,18 +381,20 @@ export async function confirmTheMedals(page:Page) {
 }
 /** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
 export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
-/** Switches today's job from the job chip on Races or a race, as a volunteer does. */
+/** The job band below the top bar on Races and on a race ("You are: Finish line"); a tap opens the job sheet. */
+export const jobBand=(page:Page,job='.*')=>page.getByRole('button',{name:new RegExp(`^You are: ${job}\\. Change job$`)});
+/** Switches today's job from the job band on Races or a race, as a volunteer does. */
 export async function switchJob(page:Page,job:JobName) {
-  await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
+  await page.getByRole('button',{name:/^You are: .*\. Change job$/}).click();
   await page.getByRole('radiogroup',{name:'What\'s your job today?'}).getByRole('radio',{name:new RegExp(`^${job}`)}).click();
 }
-/** From the job chip: Zone lead, then the lead code (or the owner password). */
+/** From the job band: Zone lead, then the lead code (or the owner password). */
 export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
-  await page.getByRole('button',{name:/^Your job: .*\. Change job$/}).click();
+  await page.getByRole('button',{name:/^You are: .*\. Change job$/}).click();
   await page.getByRole('radio',{name:/^Zone lead/}).click();
   await page.getByLabel('Lead code',{exact:true}).fill(code);
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'You are: Zone lead. Change job'})).toBeVisible();
 }
 /** A lead's avatar, which opens the avatar menu (Races, Results, Day setup, Log out). */
 export function leadMenuButton(page:Page) {

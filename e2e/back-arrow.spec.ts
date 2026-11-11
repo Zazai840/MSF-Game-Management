@@ -8,7 +8,7 @@ async function onRaces(page:Page) {
 }
 /**
  * A lead screen: its address, its title in the lead header, and the back arrow naming in gold the screen it goes to,
- * at the left of the header and 44px to tap. The job chip shows on every lead screen.
+ * at the left of the header and 44px to tap. No lead screen has the job band.
  */
 async function onScreen(page:Page,address:string|RegExp,title:string,to:string) {
   await expect(page).toHaveURL(typeof address==='string'?new RegExp(`${address.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`):address);
@@ -19,7 +19,8 @@ async function onScreen(page:Page,address:string|RegExp,title:string,to:string) 
   const box=(await back.boundingBox())!,title1=(await header.getByRole('heading',{level:1}).boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(44);expect(box.x).toBeLessThan(page.viewportSize()!.width/4);
   expect(box.y+box.height/2).toBeLessThan(title1.y+title1.height/2);
-  await expect(header.getByRole('button',{name:/^Your job: .*\. Change job$/})).toBeVisible();
+  // The job band is on Races and on a race only.
+  await expect(page.getByRole('button',{name:/Change job$/})).toHaveCount(0);
 }
 /** The phone's Back and the back arrow land on the same screen: Back, then forward again, then the arrow. */
 async function bothGoBack(page:Page,check:()=>Promise<void>) {
@@ -125,12 +126,6 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await bothGoBack(page,day);
   await page.getByRole('button',{name:/^Signed in today /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   expect(await lookProblems(page)).toEqual([]);
-  // The job chip opens the job sheet on a lead screen too, and Back closes it.
-  const job=page.getByRole('radiogroup',{name:'What\'s your job today?'});
-  await press(page.getByRole('banner').getByRole('button',{name:'Your job: Zone lead. Change job',exact:true}));
-  await expect(job).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);
-  await page.goBack();await expect(job).toHaveCount(0);await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   await bothGoBack(page,day);
   await bothGoBack(page,races);
 });

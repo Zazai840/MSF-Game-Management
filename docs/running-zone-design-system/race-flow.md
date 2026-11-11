@@ -65,7 +65,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 
 ### 2. Races: Home (artboard `N2-Races`)
 
-**App bar** (compact, navy, star pattern): eyebrow "MSF Olympics" and title "Running Zone" ("Zone" in `--zone`). On the right are the **RoleChip** and the avatar.
+**App bar** (compact, navy, star pattern): eyebrow "MSF Olympics" and title "Running Zone" ("Zone" in `--zone`). On the right is the avatar. Directly below the bar is the **JobBand**.
 
 **EventTabs:** Races · Relays. Races holds races and hurdles events; a hurdles card is told apart by its event name only ("60m Hurdles · Girl Cubs"), with no tag.
 - Remember the last tab per device. Default to Races; a phone that remembered the Hurdles tab of an older build opens on Races, with no message.
@@ -119,7 +119,7 @@ A Sheet over Races:
 
 ### 4. Switch job (artboard `N4-Role`)
 
-A Sheet opened by the RoleChip from any screen:
+A Sheet opened by the JobBand on Races or a race:
 - A radio group of Start line / Finish line / Timer. Tapping one switches immediately and closes the sheet; on a race, the race stays open in the new view.
 - Below, separated, a "Zone lead" row. It asks for the lead code once per day, then switches.
 - Copy: "This changes what you see on every race. Switch back any time."
@@ -129,7 +129,7 @@ A Sheet opened by the RoleChip from any screen:
 One route per race (`/races/:raceId`), the same shell for every role.
 
 **Shell, top to bottom**
-1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the RoleChip. Zone leads also get a "⋯" button for race actions.
+1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the avatar, and the JobBand below the bar. Zone leads also get a "⋯" button for race actions.
 2. **HeatChips** for this event group. The current race is the gold chip (`aria-current="page"`); the others link to their race in the same role. "+" opens New race on the next heat ("Create heat 3"), as a Races card's "+" does. Swiping left or right on the body also moves between heats.
 3. **StepStrip:** three read-only cells (Runners · Finishing order · Times). Each shows its status in words ("5 checked in", "2 of 8", "Not started"). My step is outlined in navy and starts with "You ·", kept short ("You · not yet", "You · 2 of 8", "You · done"). Each label and status stays on one line, labels top-aligned, at 360px and 390px. For zone leads the strip becomes tabs (see 8).
 4. **The body for my role.** Only my step's controls render; nothing from other steps.
@@ -196,7 +196,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 #### 8. Zone lead (artboard `N8-Lead`)
 - **Shell differences**
-  - The RoleChip reads "Zone lead" on a `jumping` fill.
+  - The JobBand reads "You are: ZONE LEAD" on a `jumping` fill.
   - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
   - These are today's lead actions from screens 24, 27 and 28, moved here.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
@@ -281,7 +281,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 
 | Component | Spec |
 |---|---|
-| **RoleChip** | A pill link on the app bar: `paper` fill (lead: `jumping`), `navy` text, 14px/800, job icon 18px, chevron-down 16px, `size-touch` tall. `aria-label="Your job: Timer. Change job"`. Opens the job sheet, "What's your job today?". |
+| **JobBand** | A full-width button directly below the app bar on Races and on a race: "You are: FINISH LINE" (the job in `display` capitals from CSS, 22px; "You are:" 16px/800), job icon and chevron-down 20px, `navy` on the job's colour, `size-touch` tall. Start line `running`, Finish line `challenge`, Timer `gold`, Zone lead `jumping` (the JobCard job colours). `aria-label="You are: Timer. Change job"`. Opens the job sheet, "What's your job today?". |
 | **EventTabs** | 2-column segmented control (Races, Relays) on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
 | **RaceCard** | `card`, `shadow-card`, `radius-xl`, padding 12/14. Title in `display-card`; code tag; status line in `meta` + `ink-muted`; HeatChips row. |
 | **HeatChips** | An `<ol>` of chips, minimum 52 × 44, `radius-md`, Saira 18px "H1". States are set by the **viewer's step**:<br>• Done: `navy` + tick.<br>• Ready for me: `gold` (on Home).<br>• Current race: `gold` + 2px `navy` ring.<br>• Ready but not current: `card` + 2px `navy` ring + gold dot.<br>• Waiting: `card` + 2px `line`.<br>• Add: 44px dashed `line-strong` with a plus.<br>• Create final: dashed `navy` "+ Final".<br>Every chip's `aria-label` says its state in words ("Heat 3, needs times"). |
@@ -305,7 +305,7 @@ Update existing READMEs where the new flow changes them:
 | Old screen(s) | New home |
 |---|---|
 | 1 Join | Join (adds the job choice) |
-| 2 Home: choose your job | Races (Home); the job lives in the RoleChip |
+| 2 Home: choose your job | Races (Home); the job lives in the JobBand |
 | 3–4, 10, 16 Pick event / section / race | Races list + HeatChips + New race sheet |
 | 5–8 Check-in steps | Race · Start line |
 | 9 Saved confirmation | Toast with Undo on Races |
@@ -332,7 +332,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
    - EventTabs, RaceCard, HeatChips, sections and ordering, the New race sheet, the duplicate-heat guard, the empty states.
    - *Done when:* two phones creating "Girl Cubs heat 5" at once end up with one race.
 3. **Race shell and the role sheet.**
-   - App bar, HeatChips with swipe, StepStrip with live updates, RoleChip, Switch job.
+   - App bar, HeatChips with swipe, StepStrip with live updates, JobBand, Switch job.
    - *Done when:* switching role on a race swaps the body without leaving the race.
 4. **Start line body**, with the existing warnings and the 6-runner soft warning.
 5. **Finish line body and check the order.**

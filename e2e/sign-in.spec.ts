@@ -7,7 +7,7 @@ async function expectDocked(page:Page,button:Locator) {
   expect(box.height).toBeGreaterThanOrEqual(50);
 }
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
-const jobChip=(page:Page,job:string)=>page.getByRole('button',{name:`Your job: ${job}. Change job`,exact:true});
+const jobChip=(page:Page,job:string)=>page.getByRole('button',{name:`You are: ${job}. Change job`,exact:true});
 test('a new phone joins with its name, the password and its job, stays signed in, and taps its name to sign in again',async({page},info)=>{
   await page.addInitScript(()=>{Object.defineProperty(navigator.storage,'persist',{value:()=>{localStorage.setItem('e2e:persist','asked');return Promise.resolve(false);}});});
   const downloaded:string[]=[];

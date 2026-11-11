@@ -16,7 +16,7 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await recordRace(request,owner(),code,[2001,2002],[1600,1305]);
   await recordRace(request,owner(),calmCode,[2011],[1400]);
   const {page}=await openPhone(ownName('Lead issues'),{lead:true});
-  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
   await expect(actionRequired(page).filter({hasText:name})).toHaveCount(1);
   // A lead's first section is Action required; Ready for you is a volunteer's.

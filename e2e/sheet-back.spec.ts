@@ -5,7 +5,7 @@ async function onRaces(page:Page) {
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 }
-const jobChip=(page:Page)=>page.getByRole('button',{name:/^Your job: .*\. Change job$/}).first();
+const jobChip=(page:Page)=>page.getByRole('button',{name:/^You are: .*\. Change job$/}).first();
 /** Every way a sheet closes: the phone's Back, the close button, Escape, a tap on the screen above it. */
 const closers={
   back:(page:Page)=>page.goBack(),

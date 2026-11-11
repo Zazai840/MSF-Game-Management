@@ -5,7 +5,7 @@ import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLab
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RaceActions } from '../lead/RaceActions.js';
-import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,RaceBar,RoleChip,Sheet,StepStrip } from './parts.js';
+import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,RaceBar,Sheet,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
@@ -53,7 +53,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   const swipe=useRef<{x:number;y:number}|null>(null);
   // "Back to Heat 2" on a lead screen opened from here (Open in Results).
   useScreenName(snapshot?raceName(snapshot.race):'Race');
-  if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}><RoleChip role={role} onOpen={onRole}/>{avatar}</RaceBar>
+  if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}>{avatar}</RaceBar><JobBand role={role} onOpen={onRole}/>
     <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
@@ -94,10 +94,10 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
     <RaceBar title={eventTitle(event)} code={event.code} role={role} onBack={onBack}>
-      <RoleChip role={role} onOpen={onRole}/>
       {lead && <button type="button" className="rz-iconbtn" aria-label="Race actions" onClick={()=>setActions(true)}><Icon name="more"/></button>}
       {avatar}
     </RaceBar>
+    <JobBand role={role} onOpen={onRole}/>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
