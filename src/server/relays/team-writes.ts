@@ -33,7 +33,7 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool),params=(request:FastifyRequest)=>request.params as {eventId:string;teamId:string};
   async function write(phone:Phone,eventId:string,raceId:string,change:(client:pg.PoolClient,relay:TeamsWriteRead)=>Promise<void>) {
     await raceChange(pool,phone,async client=>change(client,await teamsWriteRead(client,phone.dayId,{id:eventId})));
-    return resultsSnapshot(pool,phone.dayId,db=>raceFlowRead(db,phone.dayId,raceId));
+    return resultsSnapshot(pool,phone.dayId,db=>raceFlowRead(db,phone,raceId));
   }
   // A team typed into a heat (`joinRaceId`): the only way a team is made. It takes the next number the relay has never
   // used (the day lock serialises two at once, so they never clash) and joins the heat in the same write, as Add does.

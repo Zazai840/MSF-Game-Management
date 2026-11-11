@@ -29,12 +29,13 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     const send=(snapshot:T)=>write(`data: ${JSON.stringify({...snapshot,build:settings.buildId})}\n\n`);
     send(sent);
     // shortcut: every race's stream reads its own snapshot per change (the races list's share one); share those too if Postgres load shows it.
+    // A snapshot that differs at the same revision is sent too: a reported role is no change of the day (ADR 0007).
     let reading=false,again=false;
     async function changed() {
       if(reading) {again=true;return;}
       reading=true;
       try {
-        do {again=false;const next=await read();if(next.revision>sent.revision) {sent=next;send(next);}} while(again && !ended());
+        do {again=false;const next=await read();if(next.revision>sent.revision || (next.revision===sent.revision && JSON.stringify(next)!==JSON.stringify(sent))) {sent=next;send(next);}} while(again && !ended());
       } catch(error) {
         // The phone reconnects and is told why (a new day, a removed event).
         if(!(error instanceof Refusal)) app.log.error(error);
@@ -72,7 +73,7 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     // A sign-out wakes the streams, so a signed-out phone's stream ends and its reconnect is told why.
     return stream(reply,phone.dayId,()=>resultsSnapshot(pool,phone.dayId,async db=>{
       if(!(await db.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();
-      return raceFlowRead(db,phone.dayId,raceId);
+      return raceFlowRead(db,phone,raceId);
     }));
   });
 }

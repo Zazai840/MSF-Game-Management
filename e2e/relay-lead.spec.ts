@@ -52,7 +52,7 @@ test('a lead\'s step tabs on a relay name each team with its four children, sett
   await expect(short).toHaveCount(0);
   await kept.getByRole('button',{name:"It's right",exact:true}).click();
   await expect(kept).toHaveCount(0);
-  await expect(tabs.getByRole('tab',{name:/^Runners/})).toHaveText(/^Runners.*2 teams$/);
+  await expect(tabs.getByRole('tab',{name:/^Runners/})).toHaveText(/^Runners.*2 teams/);
 
   // Finishing order and Times: each row's team over its four children.
   await tabs.getByRole('tab',{name:/^Finishing order/}).click();

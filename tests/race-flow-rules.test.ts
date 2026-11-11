@@ -1,6 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
@@ -151,6 +151,17 @@ test('a lead\'s card words and colour are one function on Races and Results: no 
   const decided={...group('R5',[race('h1',saved,'saved')],false,true),event:{code:'R5',format:'timed'}} as RaceGroup;
   expect([idle,relay,running,decided].map(item=>leadCardLine(item,[]))).toEqual(['No races yet','No races yet','Heat 2 in progress · Heat 1 saved','Medals decided']);
   expect([idle,relay,running,decided].map(cardState)).toEqual(['not-started','not-started','running','done']);
+});
+test('a step names the last person who typed in it, or else up to three people in its role and a count of the rest',()=>{
+  const typed=(version:number,by:string|null)=>({...status('in progress'),version,by});
+  expect(stepPeople('positions',typed(2,'Finish Fatima'),['Finish Omar'])).toBe('Finish Fatima');
+  // A race is made with its parts at version 0 (Runners at 1) in its maker's name: nobody has typed in them yet.
+  expect(stepPeople('positions',typed(0,'Lead Lena'),['Finish Omar','Finish Fatima'])).toBe('Finish Omar, Finish Fatima');
+  expect(stepPeople('runners',typed(1,'Lead Lena'),['Start Sam'])).toBe('Start Sam');
+  expect(stepPeople('runners',typed(2,'Lead Lena'),['Start Sam'])).toBe('Lead Lena');
+  expect(stepPeople('times',typed(0,null),['A','B','C','D','E'])).toBe('A, B, C +2');
+  expect(stepPeople('times',typed(0,null),['A','B','C'])).toBe('A, B, C');
+  expect(stepPeople('times',typed(0,null))).toBe('');
 });
 test('an event is named "200m · Boy Cubs" on every screen, its code in a tag beside it',()=>{
   expect(eventTitle({name:'200m',section:'Boy Cubs'})).toBe('200m · Boy Cubs');

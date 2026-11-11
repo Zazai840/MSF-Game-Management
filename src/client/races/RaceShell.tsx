@@ -95,7 +95,7 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
-    <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes} relay={event.relay}/>
+    <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes} relay={event.relay} inRole={snapshot.inRole}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
       {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}

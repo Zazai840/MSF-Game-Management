@@ -246,8 +246,8 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  const card=lena.getByRole('article',{name:`${name} · Boy Cubs`});
  const plusFinal=card.getByRole('button',{name:'Create the final from the fastest 6',exact:true});
  await expect(plusFinal).toHaveAttribute('aria-disabled','true');
- // Tapping the greyed chip anyway opens nothing.
- await plusFinal.click({force:true});
+ // Tapping the greyed chip anyway opens nothing. The click goes to the chip itself: a forced tap at its place can land on New race, fixed over a long Races list.
+ await plusFinal.dispatchEvent('click');
  await expect(lena.getByRole('dialog')).toHaveCount(0);
  const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
  await expect(reason).toBeVisible();

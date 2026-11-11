@@ -6,6 +6,7 @@ import { rulingChange,writeAuditNote } from '../rulings/records.js';
 import { failureBackoff,WrongAccessCode } from './failures.js';
 import { matches, matchesAnyCapitals, signInRoutes } from './sign-in.js';
 import { raceChange } from '../races/records.js';
+import { dayChanged } from '../live/changes.js';
 export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword: string) {
   // Olympics and owner password attempts share one backoff per IP.
   const passwordFailures=failureBackoff(),leadFailures=failureBackoff();
@@ -25,6 +26,8 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
     if (!roles.includes(role as Role)) throw new Refusal(400, 'Choose your job');
     if (role === 'lead') requireLevel(phone, 'Lead');
     await pool.query('UPDATE sign_ins SET reported_role=$1 WHERE id=$2 AND NOT signed_out', [role, phone.id]);
+    // Wakes the live streams without a revision: a lead's open Race screen names the people in each role.
+    dayChanged(phone.dayId);
     return {role};
   });
   action('POST', '/api/become-lead', 'Volunteer', async (request, reply, phone) => {
