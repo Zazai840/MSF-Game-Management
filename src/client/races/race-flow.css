@@ -123,9 +123,9 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-heat-reason .rz-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.6; color: var(--navy); }
 
 /* ---------- StepStrip ---------- */
-.rz-steps { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-6); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
+.rz-steps { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-4); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
 .rz-steps--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.rz-step { min-height: 48px; padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
+.rz-step { min-height: 48px; padding: var(--space-6); display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
 .rz-step__label { display: flex; align-items: center; gap: var(--space-4); font-size: 13px; line-height: 1.2; font-weight: 800; }
 .rz-step__label .rz-icon { width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink); }
 .rz-step__status { display: flex; align-items: center; gap: var(--space-4); font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
@@ -162,7 +162,7 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-runner:active { transform: translateY(4px); box-shadow: var(--shadow-card); }
 .rz-runners--compact { gap: var(--space-8) var(--space-10); }
 .rz-runners--compact .rz-runner { height: 48px; border-radius: 24px 24px var(--radius-md) var(--radius-md); font-size: 28px; }
-/* A relay's team tiles: two to a row, "Team 5" over "2054" at the same size. */
+/* A relay's team tiles: two to a row, each its 4th leg's wristband, "2054". */
 .rz-runners--teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rz-runner--team { height: auto; min-height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-10) var(--space-8); font-size: 32px; }
 
@@ -178,7 +178,7 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-orderrow__handle { width: var(--size-touch); height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--navy); touch-action: none; }
 .rz-orderrow--unplaced { grid-template-columns: 1fr auto auto; gap: var(--space-6); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-14); border: 1.5px dashed var(--line-strong); background: none; box-shadow: none; color: var(--navy); }
 .rz-orderrow--unplaced .rz-btn--pill { padding: 0 var(--space-12); }
-/* A team left over: "Team 6 · 2064" on a line of its own, its two answers side by side below. */
+/* A team left over: its 4th leg's wristband, "2064", on a line of its own, its two answers side by side below. */
 .rz-orderrow--team { grid-template-columns: 1fr 1fr; padding: var(--space-8) var(--space-8) var(--space-8) var(--space-14); }
 .rz-orderrow--team .rz-orderrow__num { grid-column: 1 / -1; }
 /* Correct finishing order: a placed row with its No place button between the number and the handle. */

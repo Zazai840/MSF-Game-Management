@@ -241,10 +241,10 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 - That's everyone with a team unmarked asks first: "Team 4 is not marked. Record them absent?" with Record them absent / Go back.
 
 **Finish line**
-- Team tiles (RunnerButton, team tile), two to a row: "Team 5" over its 4th leg's wristband "2054" (or "–"), the same size. `aria-label="Team 5, 4th leg 2054, came 1st"`.
-- The PlacesBoard names a placed team "T5". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
+- Team tiles (RunnerButton, team tile), two to a row: its 4th leg's wristband "2054" (or "–"), with no team label: the team number is the lane, and after the line nobody knows the lane. `aria-label="2054 came 1st"` ("no 4th leg came 1st" for "–").
+- The PlacesBoard names a placed team by its 4th leg's wristband, "2054". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
 - Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
-- **Check the order** rows read "Team 6 · 2064". A team left over has its name on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run. While a slot is being changed: "Changing 1st: Team 5" with **Keep Team 5**.
+- **Check the order** rows read the 4th leg's wristband, "2064". A team left over has that number on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run. While a slot is being changed: "Changing 1st: 2054" with **Keep 2054**.
 
 **Timer**
 - As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · time each team's 4th leg" (no finished count). A final has no Times.
@@ -291,7 +291,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | **OrderRow** | 44px row, grid `44px 1fr 44px`: Saira ordinal, wristband 18px/800, a drag handle button. `card` + `shadow-card`; while dragging, `shadow-raised`. An unplaced row is dashed `line-strong`, with a DNF StatusTag. |
 | **Toast** | Fixed above the footer, `navy`, `radius-lg`-ish (14px), `shadow-raised`. Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 6 seconds, paused while focused. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this since. Open the race to edit it." |
 | **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4"), then a small Button Take off at the end. On a heat and on a final its legs are four leg chips side by side (variant A): each 44px tall, `card` with a 2px `line` border and `radius-md`, "1st" 12px/700 `ink-muted` over the wristband ("–" dashed for an empty leg), with a grip under it. On a final the whole card is one `card` with "1st fastest · " before the name and Here / Absent pills in the head; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
-| **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, two lines of equal size (32px), "Team 5" over its 4th leg's wristband "2054". `aria-label="Team 5, 4th leg 2054, came 1st"`. |
+| **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, one line (32px), its 4th leg's wristband "2054" with no team label. `aria-label="2054 came 1st"`. |
 
 Update existing READMEs where the new flow changes them:
 - RunnerTile: superseded by RunnerButton.

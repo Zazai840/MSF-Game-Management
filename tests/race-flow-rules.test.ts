@@ -1,10 +1,16 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { cardState,changedLine,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
 const group=(code:string,races:RaceSummary[],finalAvailable=false,medalsDecided=false)=>({event:{code},races,finalAvailable,medalsDecided}) as unknown as RaceGroup;
+test('a tie that holds the final up names every heat in the tie',()=>{
+  const heat=(number:number)=>({kind:'heat' as const,number});
+  expect(tieHold([heat(1)])).toEqual({step:'times',line:'Heat 1 has a tie to settle first'});
+  expect(tieHold([heat(1),heat(2)])).toEqual({step:'times',line:'Heats 1 and 2 have a tie to settle first'});
+  expect(tieHold([heat(1),heat(2),heat(4)])).toEqual({step:'times',line:'Heats 1, 2 and 4 have a tie to settle first'});
+});
 test('every run is named a heat, and an event has one final',()=>{
   expect(raceName({kind:'race',number:2})).toBe('Heat 2');
   expect(raceName({kind:'final',number:1})).toBe('Final');
@@ -148,4 +154,11 @@ test('a lead\'s card words and colour are one function on Races and Results: no 
 });
 test('an event is named "200m · Boy Cubs" on every screen, its code in a tag beside it',()=>{
   expect(eventTitle({name:'200m',section:'Boy Cubs'})).toBe('200m · Boy Cubs');
+});
+test('a done button on a step already done says so, and once every step is done, why the race is not in Results yet',()=>{
+  const part=<Value>(value:Value)=>({version:1,value});
+  const heat=(places:number[])=>({kind:'heat',number:1,event:{name:'60m',relay:false},parts:{runners:part([{id:'a',wristband:2001},{id:'b',wristband:2002}]),finish:part({order:['a','b'],didNotFinish:[]}),times:part({places})}}) as unknown as RaceFlowRead['race'];
+  const done={runners:status('done'),positions:status('done'),times:status('done')};
+  expect(alreadyDoneLine({race:heat([1100]),steps:done},'runners')).toBe('Runners is already done. Heat 1 is not in Results yet: Place 2 has no time.');
+  expect(alreadyDoneLine({race:heat([1100]),steps:{...done,times:status('in progress')}},'positions')).toBe('Finishing order is already done.');
 });

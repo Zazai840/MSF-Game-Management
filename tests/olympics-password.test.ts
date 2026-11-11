@@ -80,3 +80,39 @@ test('the changed password survives Start new day', async () => {
   expect((await call(again.token, '/api/day/start-new', {confirmation:'NEW DAY'})).statusCode).toBe(200);
   expect((await call(again.token, '/api/day')).json().olympicsPassword).toBe('sunny-days');
 });
+
+test('the Olympics password and the lead code ignore capitals; the stored password and the owner password stay exact', async () => {
+  const {owner, day} = await start();
+  const post = (url: string, payload: object, remoteAddress: string, token?: string) => app.inject({method:'POST', url, payload, remoteAddress, headers:token ? {authorization:`Bearer ${token}`} : {}});
+  expect((await call(owner.token, '/api/day/olympics-password', {password:'Sunny-Days'})).statusCode).toBe(200);
+  // Join and the password check take the Olympics password in any capitals.
+  for (const [index, code] of ['sunny-days', 'Sunny-days', 'SUNNY-DAYS'].entries()) {
+    const joined = await post('/api/join', {code, job:'start', name:`Capitals Volunteer ${index}`, profiles:[]}, '10.1.0.1');
+    expect(joined.statusCode).toBe(200);
+    expect(joined.json()).toMatchObject({kind:'volunteer', phone:{level:'Volunteer'}});
+    expect((await post('/api/password', {password:code}, '10.1.0.1')).json()).toMatchObject({kind:'olympics'});
+  }
+  // A wrong password is still refused with the present wording, and backs off after five.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const wrong = await post('/api/join', {code:'sunny-dayz', job:'start', name:'Capitals Wrong', profiles:[]}, '10.1.0.2');
+    expect(wrong.statusCode).toBe(403);
+    expect(wrong.json().message).toBe("That password isn't right. Check it with a lead and try again.");
+  }
+  expect((await post('/api/join', {code:'sunny-dayz', job:'start', name:'Capitals Wrong', profiles:[]}, '10.1.0.2')).statusCode).toBe(429);
+  // The owner password is exact on Join, on owner sign-in, on the password check and when a profile becomes a lead.
+  const again = (await post('/api/join', {code:'password-owner-fixture', name:'Aisha', profiles:[owner.profile]}, '10.1.0.3')).json();
+  expect(again).toMatchObject({kind:'owner'});
+  expect((await post('/api/join', {code:'Password-owner-fixture', name:'Capitals Owner', profiles:[]}, '10.1.0.3')).statusCode).toBe(403);
+  expect((await post('/api/owner-sign-in', {password:'PASSWORD-OWNER-FIXTURE', name:'Capitals Owner', profiles:[]}, '10.1.0.3')).statusCode).toBe(403);
+  expect((await post('/api/password', {password:'Password-owner-fixture'}, '10.1.0.3')).statusCode).toBe(403);
+  // Day setup shows the Olympics password as the lead typed it.
+  expect((await call(again.token, '/api/day')).json().olympicsPassword).toBe('Sunny-Days');
+  // The lead code ignores capitals on Join, on Lead sign-in and when a signed-in profile becomes a lead.
+  const leadCode = (day.leadCode as string).toLowerCase();
+  expect(leadCode).not.toBe(day.leadCode);
+  expect((await post('/api/join', {code:leadCode, name:'Capitals Lead', profiles:[]}, '10.1.0.4')).json()).toMatchObject({kind:'lead', phone:{level:'Lead'}});
+  expect((await post('/api/lead-sign-in', {pass:again.pass, code:leadCode, name:'Capitals Second Lead', profiles:[]}, '10.1.0.4')).json()).toMatchObject({phone:{level:'Lead'}});
+  const later = (await post('/api/profiles', {pass:again.pass, name:'Capitals Later Lead'}, '10.1.0.4')).json();
+  expect((await post('/api/become-lead', {code:'PASSWORD-OWNER-FIXTURE'}, '10.1.0.5', later.token)).statusCode).toBe(403);
+  expect((await post('/api/become-lead', {code:leadCode}, '10.1.0.4', later.token)).json()).toMatchObject({name:'Capitals Later Lead', level:'Lead'});
+});
