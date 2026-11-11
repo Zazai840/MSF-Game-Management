@@ -70,6 +70,8 @@ export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=fal
   const wrong=wrongTimes(places,race.event.name).find(item=>!times!.keptWrong?.includes(item.index));
   return wrong?`${ordinal(wrong.index+1)} place's time needs Fix time or Keep`:null;
 }
+/** What the Start line is asked before an entry the finish line has placed (place from 0) leaves the race: "36 has 5th place. Remove?" */
+export const placedAsk=(name:string|number,place:number,verb:'Remove'|'Take off')=>`${name} has ${ordinal(place+1)} place. ${verb}?`;
 /** Who last changed a step and when, and who marked it done and when. */
 export interface StepMeta { version:number; by:string|null; at:string|null; doneBy:string|null; doneAt:string|null }
 /**
