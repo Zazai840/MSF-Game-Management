@@ -119,8 +119,8 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {on.error && <Callout message={on.error}/>}
       {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
         actions={<>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button></>}/>}
-      {target && asking && <Callout message={`${target.wristband} is already placed ${ordinal(place+1)} at the finish. Take them off anyway?`}
-        actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Take off</button></>}/>}
+      {target && asking && <Callout message={`${target.wristband} has ${ordinal(place+1)} place. Remove?`}
+        actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Remove</button></>}/>}
     </main>
     {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
       <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>

@@ -110,7 +110,7 @@ export async function back(page:Page,to:string) {
   throw new Error(`No way back to ${to}`);
 }
 /** On an event in Results: taps one of its tabs and waits for it to show. */
-export async function eventTab(page:Page,name:'Heats'|'Final'|'Races'|'Notes') {
+export async function eventTab(page:Page,name:'Heats'|'Final'|'Notes') {
   const tab=page.getByRole('navigation',{name:'Event'}).getByRole('button',{name,exact:true});
   await press(tab);await expect(tab).toHaveAttribute('aria-current','page');
 }

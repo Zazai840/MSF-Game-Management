@@ -1,5 +1,5 @@
 import { expect,test } from 'vitest';
-import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timeLimits,timeRefusal,timesOutOfOrder,typedTimeDigits } from '../src/shared/time-entry.js';
+import { digitsForTime,parseTimeDigits,formatTime,formatTimeDigits,timeLimits,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPlaces,typedTimeDigits } from '../src/shared/time-entry.js';
 test.each([
   ['1',1,'0.01'],['12',12,'0.12'],['123',123,'1.23'],['1234',1234,'12.34'],['13240',9240,'1:32.40'],['120000',72000,'12:00.00'],['0000',0,'0.00'],['9999',9999,'99.99']
 ])('digits %s fill from the right without a range refusal', (digits,hundredths,display)=>{
@@ -28,6 +28,18 @@ test('later places may equal earlier times, but may not be faster even across No
   expect(timesOutOfOrder([1234,1234,1320,null])).toBe(false);
   expect(timesOutOfOrder([1234,1200,null])).toBe(true);
   expect(timesOutOfOrder([null,null])).toBe(false);
+});
+test('a removed place loses its time and later times move up; a new order alone leaves times by place',()=>{
+  const times={places:[1200,1300,1100,1500,null],outOfOrder:true,acceptedByLead:true,keptWrong:[2,3]};
+  // The 2nd of four leaves the order: the 3rd and 4th keep their own times, and their kept marks move up with them.
+  expect(timesWithoutPlaces(times,[1])).toEqual({places:[1200,1100,1500,null],outOfOrder:true,acceptedByLead:true,keptWrong:[1,2]});
+  // The out-of-order time itself leaves: nothing is left for a lead to have accepted.
+  expect(timesWithoutPlaces(times,[2])).toEqual({places:[1200,1300,1500,null],outOfOrder:false,keptWrong:[2]});
+  expect(timesWithoutPlaces(times,[0,3])!.places).toEqual([1300,1100,null]);
+  // No place removed, a place past the times, or no times: nothing moves.
+  expect(timesWithoutPlaces(times,[])).toBe(times);expect(timesWithoutPlaces(times,[5])).toBe(times);expect(timesWithoutPlaces(null,[0])).toBeNull();
+  // The places of the entries that left an order; a new order, or an entry added at the end, removes none.
+  expect(removedPlaces(['a','b','c','d'],['d','a','b'])).toEqual([2]);expect(removedPlaces(['a','b','c'],['c','a','b','e'])).toEqual([]);expect(removedPlaces([],['a'])).toEqual([]);
 });
 test.each([
   ['60m',600,4000],['60m Hurdles',600,4000],['200m',2000,13333],['4x50m Relay',2000,13333],['400m',4000,26667],['4x100m Relay',4000,26667]
