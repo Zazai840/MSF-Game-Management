@@ -76,7 +76,7 @@ async function inRole(db:Database,phoneId:string,dayId:string):Promise<Pick<Race
   // The level as it is now: a stream opened as a lead outlives a change of level.
   if(!(await db.query("SELECT 1 FROM sign_ins WHERE id=$1 AND level='Lead' AND NOT signed_out",[phoneId])).rowCount) return {};
   const names:NonNullable<RaceFlowRead['inRole']>={};
-  for(const row of (await db.query("SELECT name,reported_role FROM sign_ins WHERE day_id=$1 AND NOT signed_out AND reported_role IN ('start','finish','timer') ORDER BY name",[dayId])).rows)
+  for(const row of (await db.query('SELECT name,reported_role FROM sign_ins WHERE day_id=$1 AND NOT signed_out AND reported_role=ANY($2) ORDER BY name',[dayId,Object.keys(roleSteps)])).rows)
     (names[roleSteps[row.reported_role as keyof typeof roleSteps]]??=[]).push(row.name);
   return {inRole:names};
 }

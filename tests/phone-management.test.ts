@@ -69,6 +69,8 @@ test('A phone reports its role: Signed in today shows a lead the last one report
   await call(owner.token,`/api/day/phones/${timer.phone.id}/role`,{role:'Lead'});await call(timer.token,'/api/role',{role:'lead'});
   await call(owner.token,`/api/day/phones/${timer.phone.id}/role`,{role:'Volunteer'});
   expect(await roleOf('Maryam')).toBeNull();
+  // Their own phone is told the same, so it reports its next job.
+  expect((await call(timer.token,'/api/home')).json().role).toBeNull();
   // Log out and Remove clear it: signing in again shows no role until the phone reports one.
   await call(timer.token,'/api/role',{role:'timer'});
   await call(finish.token,'/api/sign-out',{});await call(owner.token,`/api/day/phones/${timer.phone.id}/remove`,{});

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Phone } from '../shared/domain.js';
 import type { ResultsTarget } from '../shared/lead-results.js';
-import type { Role,Step } from '../shared/race-flow.js';
+import { heldRole,holdsRole,type Role,type Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
 import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
@@ -98,12 +98,12 @@ export function App() {
   useEffect(()=>{
     if(!dayId) return;
     const held=phoneStorage.role(dayId);
-    setRole(held==='lead' && !isLead?null:held??(isLead?'lead':null));
+    setRole(heldRole(held,isLead)??(isLead?'lead':null));
   },[dayId,isLead]);
   // The phone reports its job on Join and on every switch (ADR 0007), wherever the job was set. Each home read says
   // which one the server holds, so a report that did not arrive goes again on the next read.
   useEffect(()=>{
-    if(home && role && home.role!==role && (role!=='lead' || isLead)) void api('role',{role}).catch(()=>{/* the next home read sends it again */});
+    if(home && role && home.role!==role && holdsRole(role,isLead)) void api('role',{role}).catch(()=>{/* the next home read sends it again */});
   },[home,role,isLead]);
   function choose(next:Role) {if(dayId) phoneStorage.rememberRole(dayId,next);setRole(next);setRoleSheet(false);}
   // The toast sits over every screen, so it brings its own screen root (the design system's tokens), as the job sheet does.

@@ -4,13 +4,15 @@ import { newLeadCode } from './codes.js';
 import { actions, Refusal } from './permissions.js';
 import { levels, type Level, type Phone } from '../../shared/domain.js';
 import { canMakeRole } from '../../shared/phones.js';
+import { heldRole } from '../../shared/race-flow.js';
 import { rulingChange, readAuditNotes, writeAuditNote } from '../rulings/records.js';
 export function phoneManagementRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
   action('GET','/api/day/phones','Lead',async(_request,_reply,phone)=>({
     selfId:phone.id,
-    // The role is the last one the phone reported (ADR 0007); a lead made a volunteer is no longer Zone lead.
-    phones:(await pool.query(`SELECT id,name,level,owner,CASE WHEN level='Volunteer' AND reported_role='lead' THEN NULL ELSE reported_role END AS role FROM sign_ins WHERE day_id=$1 AND NOT signed_out ORDER BY signed_in_at,id`,[phone.dayId])).rows,
+    // The role is the last one the phone reported (ADR 0007), while the person still holds it.
+    phones:(await pool.query(`SELECT id,name,level,owner,reported_role AS role FROM sign_ins WHERE day_id=$1 AND NOT signed_out ORDER BY signed_in_at,id`,[phone.dayId])).rows
+      .map(row=>({...row,role:heldRole(row.role,row.level!=='Volunteer')})),
     auditNotes:(await readAuditNotes(pool,phone.dayId)).filter(note=>note.eventId===null)
   }));
   action('POST','/api/day/lead-code','Lead',async(_request,_reply,phone)=>rulingChange(pool,phone,async(client,current)=>{

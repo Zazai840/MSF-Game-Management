@@ -23,6 +23,10 @@ export const roles=['start','finish','timer','lead'] as const;
 export type Role=typeof roles[number];
 export const roleLabels:Record<Role,string>={start:'Start line',finish:'Finish line',timer:'Timer',lead:'Zone lead'};
 export const roleSteps:Record<Exclude<Role,'lead'>,Step>={start:'runners',finish:'positions',timer:'times'};
+/** The one rule for who holds a role: Zone lead is a lead's only, so a lead made a volunteer no longer holds it. */
+export const holdsRole=(role:Role,lead:boolean)=>role!=='lead' || lead;
+/** A reported role as it counts now: none once the person no longer holds it. */
+export const heldRole=(role:Role|null,lead:boolean)=>role && holdsRole(role,lead)?role:null;
 /** The role whose step this is, as the screens name it: "Finish line". */
 export const stepRole=(step:Step)=>roleLabels[(Object.keys(roleSteps) as Array<keyof typeof roleSteps>).find(role=>roleSteps[role]===step)!];
 /** Each step's done button. */

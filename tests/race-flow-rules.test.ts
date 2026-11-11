@@ -1,6 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { alreadyDoneLine,raceNeed,raceNeeds,stepBlocker,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,stepBlocker,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps,blocker:null});
@@ -222,4 +222,8 @@ test('a Results heat row opens the race at the step its sentence is about: the m
   expect(at(complete,allDone).step).toBe('times');
   expect(at(parts(runnersAB,{order:['a','b']},null,'final'),{runners:status('done'),positions:status('done')}).step).toBe('positions');
   expect(raceNeed({kind:'heat',state:'saved',steps:allDone,blocker:null}).step).toBeNull();
+});
+test('Zone lead is a lead\'s role only: a lead made a volunteer no longer holds it, and every other role is held by anyone',()=>{
+  expect(heldRole('lead',true)).toBe('lead');expect(heldRole('lead',false)).toBeNull();
+  expect(heldRole('finish',false)).toBe('finish');expect(heldRole('timer',true)).toBe('timer');expect(heldRole(null,true)).toBeNull();
 });
