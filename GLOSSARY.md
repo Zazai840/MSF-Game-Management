@@ -175,7 +175,7 @@ Anyone who typed today's lead code (or the owner password), trusted with everyth
 _Avoid_: Admin, organiser, superuser
 
 **Avatar menu**:
-What every avatar opens: Log out for everyone, with Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+What the avatar opens, at the top right of Races, the Race screen and every lead screen: Log out for everyone, with Races, Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
 
 **Log out**:
@@ -239,7 +239,7 @@ One part of a race as the race flow works it: Runners (check-in), Finishing orde
 _Avoid_: Job, stage (an event's), Positions
 
 **Role**:
-The step a person does on every race, chosen on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the role chip; Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job). The phone reports it to the server on Join and on every switch, so Signed in today shows a lead each person's role; it is the last one reported, cleared on Log out and on a new Olympics day, and it limits nothing (ADR 0007).
+The step a person does on every race, chosen on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the job band (the full-width band below the top bar on Races and the Race screen, "You are: FINISH LINE", one colour per role); Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job). The phone reports it to the server on Join and on every switch, so Signed in today shows a lead each person's role; it is the last one reported, cleared on Log out and on a new Olympics day, and it limits nothing (ADR 0007).
 _Avoid_: station, position
 
 **Undo**:

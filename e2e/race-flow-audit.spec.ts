@@ -63,15 +63,15 @@ test('the lead\'s race app bar title wraps to two lines, so a long event name sh
   });
   expect(fit).toEqual({lines:page.viewportSize()!.width<=360?2:fit.lines,hidden:0,wide:false});
   expect(fit.lines).toBeLessThanOrEqual(2);
-  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toHaveText('Zone lead');
+  await expect(page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true})).toHaveText('You are: Zone lead');
   expect(await lookProblems(page)).toEqual([]);
   expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers:{authorization:`Bearer ${owner()}`},data:{permanent:true}})).ok()).toBe(true);
 });
 
-test('the job sheet asks "What\'s your job today?", and a lead\'s chip says Zone lead',async({openPhone})=>{
+test('the job sheet asks "What\'s your job today?", and a lead\'s job band says Zone lead',async({openPhone})=>{
   const {page}=await openPhone(ownName('Job sheet lead'),{lead:true});
-  const chip=page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true});
-  await expect(chip).toHaveText('Zone lead');
+  const chip=page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true});
+  await expect(chip).toHaveText('You are: Zone lead');
   await press(chip);
   const sheet=page.getByRole('dialog',{name:'What\'s your job today?',exact:true});
   await expect(sheet.getByRole('radiogroup',{name:'What\'s your job today?',exact:true})).toBeVisible();

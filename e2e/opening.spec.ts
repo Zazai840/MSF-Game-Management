@@ -62,7 +62,6 @@ test('a volunteer at a lead address sees Lead access needed; Back goes to Races,
   await press(footer.getByRole('button',{name:'Become lead',exact:true}));
   await expect(header.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   await expect(page).toHaveURL(/\/results$/);
-  await expect(header.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
 });
 
 test('the app installs to the home screen: a web app manifest with its name, standalone display, the navy theme colour and icons the server serves',async({openPhone,request})=>{

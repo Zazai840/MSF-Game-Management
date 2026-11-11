@@ -19,7 +19,7 @@ export function JobChoice({role,onChoose,label}:{role:Role|null;onChoose:(role:R
   </div>;
 }
 /**
- * Switch job, from the role chip on any screen: tapping a job switches at once and closes the sheet (a race stays
+ * Switch job, from the job band on Races or a race: tapping a job switches at once and closes the sheet (a race stays
  * open, in the new view). Zone lead asks for the lead code once per day, then switches.
  */
 export function RoleSheet({role,lead,onChoose,onLead,onClose}:{role:Role;lead:boolean;onChoose:(role:Role)=>void;onLead:()=>Promise<void>;onClose:()=>void}) {

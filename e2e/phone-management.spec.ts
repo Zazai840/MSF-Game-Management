@@ -71,7 +71,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual(['msf:profiles']);
   // Joining again, the profile is still on the phone and signs back in as a volunteer.
   await join(other,name,{job:'Start line'});
-  await expect(other.getByRole('button',{name:'Your job: Start line. Change job',exact:true})).toBeVisible();await expect(leadMenuButton(other)).toHaveCount(0);
+  await expect(other.getByRole('button',{name:'You are: Start line. Change job',exact:true})).toBeVisible();await expect(leadMenuButton(other)).toHaveCount(0);
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   await context.close();
 });

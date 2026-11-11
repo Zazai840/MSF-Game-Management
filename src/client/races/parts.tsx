@@ -46,17 +46,17 @@ export function Screen({screen,wide=false,children}:{screen:string;wide?:boolean
     {children}
   </div>;
 }
-/** The pill on the app bar naming your job; it opens Switch job. */
-export function RoleChip({role,onOpen}:{role:Role;onOpen:()=>void}) {
-  return <button type="button" className={role==='lead'?'rz-rolechip rz-rolechip--lead':'rz-rolechip'} aria-label={`Your job: ${roleLabels[role]}. Change job`} onClick={onOpen}>
-    <Icon name={roleIcons[role]}/>{roleLabels[role]}<Icon name="chevron-down" className="rz-icon--chevron"/>
+/** The job band, full width below the top bar on Races and on a race: "You are: FINISH LINE" on the job's colour. It opens Switch job. */
+export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
+  return <button type="button" className={`rz-jobband rz-jobband--${role}`} aria-label={`You are: ${roleLabels[role]}. Change job`} onClick={onOpen}>
+    <Icon name={roleIcons[role]}/><span>You are: <strong>{roleLabels[role]}</strong></span><Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
   return <button type="button" className="rz-avatar" aria-label={label} onClick={event=>onOpen(event.currentTarget)}>{initials(name)}</button>;
 }
-/** Home's app bar: MSF Olympics, Running Zone, then the role chip and avatar. */
+/** Home's app bar: MSF Olympics, Running Zone, then the avatar. */
 export function HomeBar({children}:{children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--home"><Pattern/>
     <div className="rz-appbar__brand"><span className="rz-appbar__eyebrow" style={{fontSize:12}}>MSF Olympics</span><span className="rz-appbar__name">Running <span>Zone</span></span></div>
@@ -65,7 +65,7 @@ export function HomeBar({children}:{children:ReactNode}) {
 }
 /** An event's code, shown only in the Zone lead role (volunteers find their race by name), and never while it is on its way. */
 export const CodeTag=({code,role}:{code:string;role:Role})=>role==='lead' && code?<span className="rz-code-tag">{code}</span>:null;
-/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then the role chip (and for a lead, race actions). */
+/** A race's app bar: back to Races, the event group (with its code in the Zone lead role), then (for a lead) race actions and the avatar. */
 export function RaceBar({title,code,role,onBack,children}:{title:string;code:string;role:Role;onBack:()=>void;children:ReactNode}) {
   return <header className="rz-appbar rz-appbar--compact rz-appbar--race"><Pattern/>
     <div className="rz-appbar__race"><button type="button" className="rz-backlink" aria-label="Back to Races" onClick={onBack}><Icon name="chevron-left" className="rz-icon--bold"/></button>
