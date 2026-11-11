@@ -387,10 +387,13 @@ test('a race with one time too many: the Timer deletes the time of the place no 
   await expect(slot(page,'3rd place: 14.00')).toBeVisible();
   const why=page.getByRole('alert').filter({hasText:'3 times for 2 finishers.'}),remove=why.getByRole('button',{name:'Delete 3rd place time',exact:true});
   await expect(remove).toBeVisible();
+  // The heading does not say every place has a time while one is too many.
+  await expect(page.getByRole('heading',{level:2,name:'One time too many',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Every place has a time'})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('one-time-too-many.png'),fullPage:true});
   // A lead who works the unsaved race sees the same.
   const lead=(await openPhone(ownName('One time too many lead'),{lead:true})).page;
-  await openRace(lead,name);await lead.getByRole('tab',{name:/^Times/}).click();
+  await openRace(lead,name);await press(lead.getByRole('tab',{name:/^Times/}));
   await expect(lead.getByRole('button',{name:'Delete 3rd place time',exact:true})).toBeVisible();
   expect(await lookProblems(lead)).toEqual([]);
   await press(remove);

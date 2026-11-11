@@ -1,6 +1,6 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { alreadyDoneLine,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,surplusTimes,timerQuestion,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps});
@@ -161,4 +161,20 @@ test('a done button on a step already done says so, and once every step is done,
   const done={runners:status('done'),positions:status('done'),times:status('done')};
   expect(alreadyDoneLine({race:heat([1100]),steps:done},'runners')).toBe('Runners are already done. Heat 1 is not in Results yet: Place 2 has no time.');
   expect(alreadyDoneLine({race:heat([1100]),steps:{...done,times:status('in progress')}},'positions')).toBe('Finishing order is already done.');
+});
+test('more times than a race can have: the Timer is told how many for how many, under a heading that says so',()=>{
+  const part=<Value>(value:Value)=>({version:1,value});
+  const read=(finish:{order:string[];empty?:number[]}|null,positions:StepStatus['state'],expected:number,relay=false)=>({race:{event:{relay},parts:{finish:part(finish && {didNotFinish:[],...finish})}},
+    steps:{positions:status(positions),times:{...status('in progress'),expected}}}) as unknown as RaceFlowRead;
+  // Finishing order done: the race can have a time per finisher.
+  expect(surplusTimes(read({order:['a','b']},'done',2),3)).toEqual({heading:'One time too many',line:'3 times for 2 finishers.'});
+  expect(surplusTimes(read({order:['a']},'done',1),3)).toEqual({heading:'2 times too many',line:'3 times for 1 finisher.'});
+  // Before that, a time per runner or team.
+  expect(surplusTimes(read(null,'not started',2),3)!.line).toBe('3 times for 2 runners.');
+  expect(surplusTimes(read(null,'not started',1,true),2)!.line).toBe('2 times for 1 team.');
+  // An emptied place keeps its time, so it is a place the race can have.
+  expect(surplusTimes(read({order:['a','b'],empty:[1]},'done',2),3)).toBeNull();
+  expect(surplusTimes(read({order:['a','b']},'done',2),2)).toBeNull();
+  expect(timerQuestion(2,false,null)).toBe('3rd place time?');expect(timerQuestion(2,true,null)).toBe('Every place has a time');
+  expect(timerQuestion(3,true,surplusTimes(read({order:['a','b']},'done',2),3))).toBe('One time too many');
 });
