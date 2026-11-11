@@ -24,7 +24,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await runHeat(request,volunteer.token,code,[2,1],[1500,1600]);
   const {page,token:lead}=await openPhone(ownName('Correct teams lead'),{lead:true});
   await openRelayResults(page,code);
-  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url(),docked=page.getByRole('contentinfo'),record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   const teamCard=(number:number)=>page.getByRole('region',{name:`Team ${number}`,exact:true});
   const legsOf=(numbers:number[])=>numbers.map((number,index)=>`${['1st','2nd','3rd','4th'][index]}${number}`);
@@ -104,7 +104,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await runHeat(request,token,code,[1,2],[1500,1600]);
   const {page}=await openPhone(ownName('Relay ran twice lead'),{lead:true});
   await openRelayResults(page,code);
-  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url();
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
   await expectToast(page,'Heat 1 moved to Deleted races · Boy Scouts');

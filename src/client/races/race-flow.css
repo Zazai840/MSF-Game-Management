@@ -37,13 +37,18 @@
 @media (min-width: 1100px) { .rz-app--wide { --content: 1040px; } }
 .rz-appbar--home { padding: 10px max(var(--space-14), calc(var(--gutter) - 6px)) 10px var(--gutter); }
 .rz-appbar--race { padding: 8px max(var(--space-6), calc(var(--gutter) - 14px)); gap: var(--space-6); }
-/* A lead's bar holds the code tag, "Zone lead" and "⋯": the chip is a little tighter, so the title keeps two lines' room at 360px. */
-.rz-appbar--race .rz-rolechip { gap: var(--space-4); padding: 0 var(--space-8) 0 var(--space-10); }
+/* The Race screen's bar is as low as its 44px buttons allow, to leave the height for the job band and the needs band. */
+.rz-appbar--race:not(.rz-appbar--lead) { min-height: var(--size-button); padding-top: var(--space-4); padding-bottom: var(--space-4); }
 .rz-testbuild, .rz-main, .rz-heats-nav, .rz-steps, .rz-footer { padding-left: var(--gutter); padding-right: var(--gutter); }
 .rz-tabs { margin-left: var(--gutter); margin-right: var(--gutter); }
 .rz-main { flex: 1; display: flex; flex-direction: column; gap: var(--space-12); padding-top: var(--space-6); padding-bottom: var(--space-16); }
 /* The docked footer has left the page's flow: the page keeps room for it, so the last row never hides behind it. */
 html[data-keyboard="open"] .rz-main { padding-bottom: calc(var(--space-16) + var(--rz-footer-height, 0px)); }
+/* A heat of more than 9 (the compact runner buttons or time slots): closer rows and a smaller question, so every runner
+   and the time box stay above the footer of a 360x800 phone. */
+.rz-main:has(.rz-runners--compact, .rz-slots--compact) { gap: var(--space-6); }
+.rz-main:has(.rz-runners--compact, .rz-slots--compact) .rz-prompt__q { font-size: 30px; }
+.rz-main .rz-slots--compact { row-gap: var(--space-4); }
 /* Scrolling something into view (a focused input, a dragged row) keeps it above a docked footer, not under it. */
 html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-main > * { margin: 0; }
@@ -87,11 +92,17 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-testbuild { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); padding-top: var(--space-6); padding-bottom: var(--space-6); background: var(--warn-soft); font-size: 13px; line-height: 1.3; font-weight: 700; }
 .rz-testbuild a { display: inline-flex; align-items: center; min-height: var(--size-touch); color: var(--navy); }
 
-/* ---------- RoleChip ---------- */
-.rz-rolechip { min-height: var(--size-touch); display: inline-flex; align-items: center; gap: var(--space-6); padding: 0 var(--space-10) 0 var(--space-12); border: 0; border-radius: var(--radius-pill); background: var(--paper); color: var(--navy); font-family: var(--font-body); font-size: 14px; font-weight: 800; white-space: nowrap; }
-.rz-rolechip .rz-icon { width: 18px; height: 18px; stroke-width: 2.4; }
-.rz-rolechip .rz-icon--chevron { width: 16px; height: 16px; stroke-width: 2.6; }
-.rz-rolechip--lead { background: var(--jumping); }
+/* ---------- JobBand ---------- */
+/* Full width below the top bar, on the job's colour (the role sheet's job colours), navy on each. */
+.rz-jobband { flex: none; width: 100%; min-height: var(--size-touch); display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--gutter); border: 0; background: var(--c); color: var(--navy); font-family: var(--font-body); font-size: 16px; font-weight: 800; text-align: left; white-space: nowrap; }
+.rz-jobband strong { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; text-transform: uppercase; }
+.rz-jobband .rz-icon { width: 20px; height: 20px; stroke-width: 2.4; }
+.rz-jobband .rz-icon--chevron { margin-left: auto; stroke-width: 2.6; }
+.rz-jobband:focus-visible { outline-offset: -3px; }
+.rz-jobband--start { --c: var(--running); }
+.rz-jobband--finish { --c: var(--challenge); }
+.rz-jobband--timer { --c: var(--gold); }
+.rz-jobband--lead { --c: var(--jumping); }
 
 /* ---------- EventTabs ---------- */
 .rz-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
@@ -108,7 +119,7 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 
 /* ---------- HeatChips: states follow the viewer's step ---------- */
 .rz-heats { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
-.rz-heats-nav { padding-top: var(--space-12); }
+.rz-heats-nav { padding-top: var(--space-6); }
 .rz-heat { position: relative; min-width: 52px; height: var(--size-touch); padding: 0 var(--space-8); display: flex; align-items: center; justify-content: center; gap: 2px; border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: inset 0 0 0 2px var(--line); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
 .rz-heat .rz-icon { width: 16px; height: 16px; stroke-width: 3; }
 .rz-heat--done { background: var(--navy); box-shadow: none; color: var(--on-navy); }
@@ -123,9 +134,9 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-heat-reason .rz-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.6; color: var(--navy); }
 
 /* ---------- StepStrip ---------- */
-.rz-steps { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-4); margin: 0; padding-top: var(--space-12); padding-bottom: 0; list-style: none; }
+.rz-steps { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-4); margin: 0; padding-top: var(--space-6); padding-bottom: 0; list-style: none; }
 .rz-steps--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.rz-step { min-height: 48px; padding: var(--space-6); display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
+.rz-step { min-height: var(--size-touch); padding: var(--space-6); display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; border: 0; border-radius: var(--radius-md); background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--navy); text-align: left; font-family: var(--font-body); }
 .rz-step__label { display: flex; align-items: center; gap: var(--space-4); font-size: 13px; line-height: 1.2; font-weight: 800; }
 .rz-step__label .rz-icon { width: 14px; height: 14px; stroke-width: 3; color: var(--throwing-ink); }
 .rz-step__status { display: flex; align-items: center; gap: var(--space-4); font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--ink-muted); }
@@ -159,7 +170,7 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-runners { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-12) var(--space-10); margin: 0; padding: 0 0 var(--space-4); list-style: none; }
 .rz-runner { width: 100%; height: 72px; border: 0; border-radius: 36px 36px var(--radius-md) var(--radius-md); background: var(--card); box-shadow: var(--shadow-tile); color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 900; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
 .rz-runner:active { transform: translateY(4px); box-shadow: var(--shadow-card); }
-.rz-runners--compact { gap: var(--space-8) var(--space-10); }
+.rz-runners--compact { gap: var(--space-6) var(--space-10); }
 .rz-runners--compact .rz-runner { height: 48px; border-radius: 24px 24px var(--radius-md) var(--radius-md); font-size: 28px; }
 /* A relay's team tiles: two to a row, each its 4th leg's wristband, "2054". */
 .rz-runners--teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }

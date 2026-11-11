@@ -1,5 +1,5 @@
 import { isRunner } from '../src/shared/races.js';
-import {ownName,ownCode,ownWristbands,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {press,ownName,ownCode,ownWristbands,deleteCurrentRace,expect,flowRace,lookProblems,nextBeside,openRace,ownEvent,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 const chips=(page:Page)=>page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footerButton=(page:Page,name:string)=>page.locator('footer.rz-footer').getByRole('button',{name,exact:true});
@@ -203,7 +203,7 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   await expect(chips(page)).toHaveText(['2001','2062','2003']);
   // Remove drops the place.
   await footerButton(page,'Remove').click();
-  await ask.getByRole('button',{name:'Remove',exact:true}).click();
+  await press(ask.getByRole('button',{name:'Remove',exact:true}));
   await expect(chips(page)).toHaveText(['2062','2003']);
   await expect(page.getByRole('status').filter({hasText:'2001 taken off this heat'})).toBeVisible();
   await expect(progress).toContainText('You · done');

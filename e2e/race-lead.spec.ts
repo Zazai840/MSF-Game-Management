@@ -16,7 +16,7 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await recordRace(request,owner(),code,[2001,2002],[1600,1305]);
   await recordRace(request,owner(),calmCode,[2011],[1400]);
   const {page}=await openPhone(ownName('Lead issues'),{lead:true});
-  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true})).toBeVisible();
   await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
   await expect(actionRequired(page).filter({hasText:name})).toHaveCount(1);
   // A lead's first section is Action required; Ready for you is a volunteer's.
@@ -27,9 +27,9 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
-  // The avatar's menu: Results, Day setup and Log out.
+  // The avatar's menu: Races, Results, Day setup and Log out.
   await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Results','Day setup','Log out']);
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Races','Results','Day setup','Log out']);
   await page.screenshot({path:info.outputPath('lead-menu.png')});
   await page.getByRole('menuitem',{name:'Results',exact:true}).click();
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();

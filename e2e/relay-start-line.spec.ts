@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,test,writeTeam,type Page} from './fixtures.js';
+import {ownName,deleteCurrentRace,expect,live,lookProblems,ownCode,ownRelay,ownWristbands,press,test,tickTeam,writeTeam,writeTeamOrder,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 /** A team's card in this heat, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
@@ -59,4 +59,35 @@ test('two start-line phones check a relay heat in at once: Add and Take off land
   await expect(one.locator('.rz-toast')).toContainText('Runners saved · Girl Cubs Heat 1');
   const read=await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${priya.token}`}})).json() as RaceFlowRead;
   expect(read.steps.runners!.state).toBe('done');
+});
+test('Take off on a team the finish line has placed asks first: Keep keeps the team, Take off takes it off',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('Relay take off');
+  await ownRelay(code,name,'Girl Cubs');
+  const w=await ownWristbands('Girl Cubs',8);
+  const sam=await openPhone(ownName('Sam Patel take off')),page=sam.page;
+  await writeTeam(request,sam.token,code,[w(1),w(2),w(3),w(4)]);
+  await writeTeam(request,sam.token,code,[w(5),w(6),w(7),w(8)]);
+  const made=await request.post('/api/races',{headers:{authorization:`Bearer ${sam.token}`},data:{eventCode:code,kind:'heat',number:1}});
+  expect(made.ok(),await made.text()).toBe(true);
+  for(const team of [1,2]) await tickTeam(request,sam.token,code,team);
+  await writeTeamOrder(request,sam.token,code,[1]);
+  await page.goto(`/races/${((await made.json()) as RaceFlowRead).race.id}`);
+  const ask=page.getByRole('alert').filter({hasText:'Team 1 has 1st place. Take off?'});
+  await press(card(page,1).getByRole('button',{name:'Take off',exact:true}));
+  await expect(ask).toBeVisible();
+  // The question and its buttons are clear of the docked footer.
+  const footer=(await page.locator('footer.rz-footer').boundingBox())!,question=(await ask.boundingBox())!;
+  expect(question.y).toBeGreaterThanOrEqual(0);expect(question.y+question.height).toBeLessThanOrEqual(footer.y);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('take-off-placed.png')});
+  await press(ask.getByRole('button',{name:'Keep',exact:true}));
+  await expect(ask).toHaveCount(0);await expect(card(page,1)).toBeVisible();
+  await press(card(page,1).getByRole('button',{name:'Take off',exact:true}));
+  await press(ask.getByRole('button',{name:'Take off',exact:true}));
+  await expect(card(page,1)).toHaveCount(0);
+  await expect(stillToRun(page).getByRole('listitem')).toHaveCount(1);
+  // A team with no place goes at once.
+  await press(card(page,2).getByRole('button',{name:'Take off',exact:true}));
+  await expect(card(page,2)).toHaveCount(0);
+  await deleteCurrentRace(request,code);
 });

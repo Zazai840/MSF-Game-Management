@@ -2,7 +2,7 @@ import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react'
 import { flushSync } from 'react-dom';
 import { seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,emptyRaceLine,finishedWords,finishOf,onlyRunners,placesBoard,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
+import { andList,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
@@ -119,7 +119,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {on.error && <Callout message={on.error}/>}
       {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
         actions={<>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button></>}/>}
-      {target && asking && <Callout message={`${target.wristband} has ${ordinal(place+1)} place. Remove?`}
+      {target && asking && <Callout message={placedAsk(target.wristband,place,'Remove')}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Remove</button></>}/>}
     </main>
     {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
@@ -170,25 +170,25 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
 type Unplaced='dnf'|'dnr';
 /**
  * An entry as the finish line shows it: a child's wristband, or a team's 4th leg's wristband, the child seen to cross
- * ("–" with no 4th leg); nothing for one no longer in the race. No team label: the team number is the lane, and after
+ * (with no 4th leg, its last leg that has a wristband, so two short teams are told apart; "–" with no wristband at
+ * all); nothing for one no longer in the race. No team label: the team number is the lane, and after
  * the line nobody knows the lane.
  */
-const lineName=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?String(entry.legs[3]?.wristband??'–'):entryName(entry);
-/** That name in a sentence or as a screen reader says it: "no 4th leg" for "–". */
-const saidName=(entry:RaceEntry|undefined)=>lineName(entry)==='–'?'no 4th leg':lineName(entry);
+const lineName=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?String([...entry.legs].reverse().find(leg=>leg.wristband!==null)?.wristband??'–'):entryName(entry);
+/** That name in a sentence or as a screen reader says it: "no wristband" for "–". */
+const saidName=(entry:RaceEntry|undefined)=>lineName(entry)==='–'?'no wristband':lineName(entry);
 /**
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one gives it the lowest empty place; tapping a placed slot empties it, saved at
  * once, and its runner is a button again. Any number of places can be empty; an empty place keeps its time. When the
  * last runner is placed, or on "Nobody else crossed the line", Check the order: drag to move, arrow keys too, No place
  * takes a runner out, and each runner left is Did not finish or Didn't run. "Nobody else crossed the line" and No place
- * close the gaps: the places below move up and each removed place loses its time. Such a write names the places it
- * removes as the stored order counts them, so it is made only when no write is on its way. Save the order marks
- * Finishing order done.
+ * close the gaps: the places below move up and each removed place loses its time (the server works out which from
+ * the order it has). Save the order marks Finishing order done.
  */
 export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,event=group.event,relay=event.relay,words=entryWords(relay);
-  const writes=useStepWrites<{order:string[];didNotFinish:string[];didNotRun:string[];added:number[];keptWarnings:number[];addedTeams:string[];empty:number[];removedPlaces:number[]}>(flow.write,'order','finish',race.id,race.parts.finish.version);
+  const writes=useStepWrites<{order:string[];didNotFinish:string[];didNotRun:string[];added:number[];keptWarnings:number[];addedTeams:string[];empty:number[]}>(flow.write,'order','finish',race.id,race.parts.finish.version);
   const runners=race.parts.runners.value||[],byId=new Map(runners.map(runner=>[runner.id,runner]));
   const stored=race.parts.finish.value,shown=writes.pending||stored||{order:[],didNotFinish:[]};
   const finish=onlyRunners(shown,runners),{order,didNotFinish}=finish,board=placesBoard(finish),gaps=finish.empty||[];
@@ -199,8 +199,8 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const size=useSizeWarning(`${race.id}:finish`),applies=usualSizeApplies(event) || race.kind==='final';
   // The next place asked for is the lowest empty one.
   const current=gaps.length?gaps[0]:board.length;
-  const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[];empty?:number[];removedPlaces?:number[]},added:number[]=[],kept:number[]=[],addedTeams:string[]=[])=>
-    writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept,addedTeams,empty:next.empty??[],removedPlaces:next.removedPlaces??[]});
+  const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[];empty?:number[]},added:number[]=[],kept:number[]=[],addedTeams:string[]=[])=>
+    writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept,addedTeams,empty:next.empty??[]});
   const sendBoard=(next:ReadonlyArray<string|null>)=>send(finishOf(next,didNotFinish));
   // A relay final's teams are its seeds, call-ups and a lead's additions, so it has no "+ Team not on the list".
   const canAdd=!relay || race.kind!=='final';
@@ -221,7 +221,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const place=(runner:RaceEntry)=>void sendBoard(Object.assign([...board],{[current]:runner.id}));
   // Nobody else crossed the line: the empty places close, and lose their times.
   function noneElse() {
-    if(gaps.length) void send({order,removedPlaces:gaps});
+    if(gaps.length) void send({order});
     setMode('check');
   }
   const slots=Math.max(runners.length,board.length);
@@ -269,7 +269,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
           onReorder={next=>void send({order:next})}
           renderItem={(id,place)=><><span className="rz-orderrow__place">{ordinal(place)}</span><span className="rz-orderrow__num">{lineName(byId.get(id))}</span>
             {!locked && <button type="button" className="rz-btn rz-btn--small" disabled={writes.sending} aria-label={`No place for ${saidName(byId.get(id))}`}
-              onClick={()=>void send({order:order.filter(other=>other!==id),removedPlaces:[order.indexOf(id)]})}>No place</button>}</>}/>}
+              onClick={()=>void send({order:order.filter(other=>other!==id)})}>No place</button>}</>}/>}
         <div className="rz-heading-row"><h3 className="rz-section">{left.length?`${left.length} not placed`:'Not placed'}</h3>{!locked && canAdd && <button type="button" className="rz-btn rz-btn--small" onClick={openAdd}>{words.add}</button>}</div>
         {asked && unanswered.length>0 && <Callout message={`Say what happened to ${entryCount(unanswered.length,relay)} first.`}/>}
         {left.length?<ul className="rz-orderrows" aria-label="Not placed">{left.map(runner=><li key={runner.id} id={`left-${runner.id}`}>

@@ -15,7 +15,7 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await openLeadMenu(page,'Day setup');
   // The Events row names only how many events there are: there is no list to confirm.
   await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
-  await page.getByRole('button',{name:/^Events /}).click();
+  await press(page.getByRole('button',{name:/^Events \d+ events$/}));
   await expect(page).toHaveURL(/\/day\/events$/);
   await expect(heading(page,'Events')).toBeVisible();
   await expect(page.getByText(/confirm/i)).toHaveCount(0);

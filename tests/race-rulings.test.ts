@@ -202,6 +202,8 @@ test('a new order and No place in one correction: the screen names the place it 
   // 2008 dragged to 1st, so 2006 is 5th (14.00) when it gets No place.
   const body={baseVersion:race.parts.finish.version,runnersVersion:race.parts.runners.version,order:[2008,2003,2004,2005,2007],didNotFinish:[2006],didNotRun:[]};
   for(const removedPlaces of [[4,4],[-1],['4'],4]) expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{...body,removedPlaces})).statusCode).toBe(400);
+  // Every entry that leaves the order takes a place, and each place named is one the saved order has.
+  for(const removedPlaces of [[],[6]]) expect((await call(lead,`/api/lead/races/${race.id}/finish-order`,{...body,removedPlaces})).statusCode).toBe(400);
   await post('finish-order',{...body,removedPlaces:[4]});
   expect(await said()).toMatchObject({times:[1000,1100,1200,1300,1500],counts:true,leaderboard:[[2008,1000],[2003,1100],[2004,1200],[2005,1300],[2007,1500],[2006,null]]});
 });

@@ -18,6 +18,7 @@ type RunnerView=Extract<View,{kind:'runner'}>;
 import { ordinal } from '../../shared/ordinal.js';
 import { openRaceLabel,raceLabel,runnersText } from '../../shared/races.js';
 import { clock } from '../../shared/clock.js';
+import { inResultsWords } from '../../shared/race-flow.js';
 import { eventTitle } from '../../shared/day.js';
 type ResultsProps={code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void};
 /**
@@ -145,7 +146,7 @@ function FinalTab({detail,onRunner,onStage,onSaved,onRace}:TabProps) {
 }
 /** A row per live race: its runners, whether it is in Results, checked in at, and why it does not count yet. */
 const LiveRaces=({races,onRace}:{races:EventResultsRead['results']['races'];onRace:(id:string)=>void})=>races.length>0 &&
-  <RaceRows rows={races.map(({race,runners,saved,reasons})=>({id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),saved?'in Results':'not in Results yet',`checked in ${clock(race.checkedInAt)}`,...reasons.filter(reason=>reason!=='in progress')].join(' · ')}))} onRace={onRace}/>;
+  <RaceRows rows={races.map(({race,runners,saved,reasons})=>({id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),inResultsWords(saved),`checked in ${clock(race.checkedInAt)}`,...reasons.filter(reason=>reason!=='in progress')].join(' · ')}))} onRace={onRace}/>;
 
 const keyStates=[['done','Done'],['running','Running'],['idle','Not started']] as const;
 /** Results: the key, then each distance's events as a grid of cards worded and coloured as their Races cards. */
