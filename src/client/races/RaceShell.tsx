@@ -1,7 +1,7 @@
 import { eventTitle } from '../../shared/day.js';
 import { useEffect,useRef,useState,type TouchEvent } from 'react';
 import type { DayLeadItem,LeadRaceRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
+import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RaceActions } from '../lead/RaceActions.js';
@@ -46,6 +46,8 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   // "+" asks first, in New race's sheet: the heat it offers, as a Races card's "+" does.
   const [adding,setAdding]=useState<NewRaceChoice|null>(null);
   const [failure,setFailure]=useState('');
+  // What a lead's done button answered on a step already done, shown while that step is open.
+  const [answered,setAnswered]=useState<{step:Step;line:string}|null>(null);
   // "Show latest" starts the step's body afresh from what the server has.
   const [fresh,setFresh]=useState(0);
   const swipe=useRef<{x:number;y:number}|null>(null);
@@ -64,8 +66,11 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
   async function markDone(done:Step) {
     // Read before the write: a lead correcting a step already done stays on the race.
     const already=snapshot!.steps[done]?.state==='done';
+    setAnswered(null);
     const answer=await flow.write(`steps/${done}/done`,{});
-    if(typeof answer!=='object' || (lead && already)) return;
+    if(typeof answer!=='object') return;
+    // The mark changed nothing, so the button says so: a lead never taps a done button that does nothing.
+    if(lead && already) {if(answer.race.state!=='saved') setAnswered({step:done,line:alreadyDoneLine(answer,done)});return;}
     onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:homeTabOf(event)});
   }
   async function create(kind:'heat'|'final',number=group.nextHeat) {
@@ -97,8 +102,9 @@ export function RaceShell({raceId,step:opened,role,onRole,onBack,onGone,onRace,o
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes} relay={event.relay}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
-      {(error || failure || flow.changed || locked) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
+      {(error || failure || flow.changed || locked || answered?.step===step) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}
+        {answered?.step===step && !locked && <Callout status message={answered.line}/>}
         {failure && !adding && <Callout message={failure}/>}
         {flow.changed && <div className="rz-callout rz-callout--status" role="status"><p className="rz-callout__msg"><Icon name="warning"/><span>{changedLine(flow.changed.by)}.</span></p>
           <div className="rz-callout__actions"><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{flow.clearChanged();setFresh(fresh+1);}}>Show latest</button></div></div>}
