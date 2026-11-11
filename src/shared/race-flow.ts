@@ -23,6 +23,10 @@ export const roles=['start','finish','timer','lead'] as const;
 export type Role=typeof roles[number];
 export const roleLabels:Record<Role,string>={start:'Start line',finish:'Finish line',timer:'Timer',lead:'Zone lead'};
 export const roleSteps:Record<Exclude<Role,'lead'>,Step>={start:'runners',finish:'positions',timer:'times'};
+/** The role whose step this is, as the screens name it: "Finish line". */
+export const stepRole=(step:Step)=>roleLabels[(Object.keys(roleSteps) as Array<keyof typeof roleSteps>).find(role=>roleSteps[role]===step)!];
+/** Each step's done button. */
+export const doneButtons:Record<Step,string>={runners:"That's everyone",positions:'Save the order',times:'No more finishers'};
 /** A heat usually has 6 runners (6 lanes; the 60m final takes the fastest 6). Only Races-tab events warn past it. */
 export const usualRunnersPerRace=6;
 export const usualSizeApplies=(event:Pick<DayEvent,'type'>)=>event.type==='races';
@@ -61,7 +65,7 @@ export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=fal
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
-  if(untimed>=0) return `Place ${untimed+1} has no time`;
+  if(untimed>=0) return `${ordinal(untimed+1)} place has no time`;
   // Finishers and times disagree only after a lead's correction, never on a saved race.
   const surplus=places.findIndex((time,index)=>index>=finish!.order.length && time!=null);
   if(surplus>=0) return `${ordinal(surplus+1)} place has a time but no ${entryWord(relay)}`;
@@ -88,8 +92,24 @@ export function stepStatus(race:Pick<RaceRead,'parts'>,step:Step,meta:Partial<Re
 /** A saved finishing order in words: "10 finished · 1 did not finish". */
 export const finishedCount=(status:StepStatus)=>`${status.count-(status.didNotFinish||0)} finished`;
 export const finishedWords=(status:StepStatus)=>`${finishedCount(status)}${status.didNotFinish?` · ${status.didNotFinish} did not finish`:''}`;
-/** A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. */
-export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; steps:Partial<Record<Step,StepStatus>> }
+/**
+ * A race as Home lists it: its name, state, when it was made and last changed, and each of its steps. `blocker` is the
+ * server's reason the race would not save itself with every step done (`stepBlocker`), null when nothing but a done
+ * button is missing or the race is saved.
+ */
+export interface RaceSummary { id:string; kind:RaceRead['kind']; number:number; state:RaceState; steps:Partial<Record<Step,StepStatus>>; blocker:string|null }
+/**
+ * What a race still needs to reach Results, the one sentence of the Race screen's band and of a Results heat row: the
+ * missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role
+ * ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once saved. Never "not saved": every tap is saved.
+ */
+export function raceNeeds(race:Pick<RaceSummary,'kind'|'state'|'steps'|'blocker'>) {
+  if(race.state==='saved') return 'In Results.';
+  // The band already says "yet".
+  if(race.blocker) return `Not in Results yet: ${race.blocker.replace(/ yet$/,'')}.`;
+  const missing=stepsOf(race).find(step=>race.steps[step]?.state!=='done');
+  return missing?`Not in Results yet. ${stepRole(missing)}: tap ${doneButtons[missing]}.`:'Not in Results yet.';
+}
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**
@@ -176,11 +196,8 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
   }
   return null;
 }
-/** What a lead's done button answers on a step already done: that it is, and once every step is done, why the race is not in Results yet. */
-export function alreadyDoneLine({race,steps}:Pick<RaceFlowRead,'race'|'steps'>,step:Step) {
-  const blocker=Object.values(steps).every(status=>status?.state==='done')?stepBlocker(race,race.event.relay):null;
-  return `${stepLabels[step]} is already done.${blocker?` ${raceName(race)} is not in Results yet: ${blocker}.`:''}`;
-}
+/** What a lead's done button answers on a step already done: that it is, and what the race still needs, in the band's words. */
+export const alreadyDoneLine=(race:Parameters<typeof raceNeeds>[0],step:Step)=>`${stepLabels[step]} is already done. ${raceNeeds(race)}`;
 /** What a step needs ("Heat 3 needs times") and what it says once done but the race not saved ("Heat 3 checked in"). */
 const stepNeeds:Record<Step,string>={runners:'runners',positions:'the finishing order',times:'times'};
 const stepDone:Record<Step,string>={runners:'checked in',positions:'order saved',times:'timed'};

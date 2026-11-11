@@ -95,6 +95,24 @@ test('a race saves itself once every step is done, and a step that is not comple
   expect(history.map(row=>[row.part,row.author])).toEqual([['runners','Ahmed'],['finish','Tom Barker'],['times','Ahmed']]);
   expect((await call(tom,`/api/races/${id}/order`,{raceId:id,version:2,order:[],didNotFinish:[],didNotRun:[],added:[]})).json().message).toBe('Heat 1 is saved - ask a lead to change it');
 });
+test('the race read and the races read give every role the reason a race is not in Results yet, and none once it is saved',async()=>{
+  const {ahmed,tom,lena}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  /** The reason as each phone reads it: on the race, and on the races list. */
+  const reasons=async(token:string)=>[(await ok(token,`/api/races/${id}`)).group.races[0]!.blocker,
+    (await ok<RacesRead>(token,'/api/races')).groups.find(group=>group.event.code==='R4')!.races[0]!.blocker];
+  for(const token of [ahmed,tom,lena]) expect(await reasons(token)).toEqual(['Nobody is checked in yet','Nobody is checked in yet']);
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002}]});
+  expect(checked.group.races[0]!.blocker).toBe('2 runners have no place yet');
+  const placed=await order(tom,checked,[2001,2002]);
+  expect(placed.group.races[0]!.blocker).toBe('1st place has no time');
+  // Every detail is there: only done buttons are missing, so there is no reason.
+  let read=await times(ahmed,placed,[1100,1200]);
+  expect(await reasons(tom)).toEqual([null,null]);
+  for(const step of steps) read=(await done(ahmed,read,step)).json();
+  expect(read.race.state).toBe('saved');
+  expect(await reasons(lena)).toEqual([null,null]);
+});
 test('changing or taking off a wristband after That\'s everyone leaves Runners done, and a changed number keeps its entry and its place',async()=>{
   const {ahmed,tom}=await start();
   const made=await newHeat(ahmed,'R4',1),id=made.race.id;

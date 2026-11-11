@@ -123,7 +123,7 @@ test('a lead tapping each done button on an unsaved heat whose steps are already
   const entry=race.parts.runners.value!.find(runner=>'wristband' in runner && runner.wristband===2038)!;
   expect((await request.post(`/api/lead/races/${race.id}/runners/${entry.id}/disqualify`,{headers:{authorization:`Bearer ${lead.token}`},data:{reason:'Out of lane',comment:''}})).ok()).toBe(true);
   await openAt(page,race.id,'races');
-  const tabs=page.getByRole('tablist',{name:'Heat 1 steps'}),answer=(step:string)=>page.getByText(`${step} is already done. Heat 1 is not in Results yet: Place 7 has no time.`,{exact:true});
+  const tabs=page.getByRole('tablist',{name:'Heat 1 steps'}),answer=(step:string)=>page.getByText(`${step} is already done. Not in Results yet: 7th place has no time.`,{exact:true});
   await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   await expect(answer('Runners')).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);

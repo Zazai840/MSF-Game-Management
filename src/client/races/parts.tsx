@@ -1,5 +1,5 @@
 import { useId,useLayoutEffect,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepPeople,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,raceNeeds,roleLabels,roleSteps,stepLabels,stepPeople,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/app-bar.js';
 import { entryCount } from '../../shared/teams.js';
@@ -51,6 +51,11 @@ export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
   return <button type="button" className={`rz-jobband rz-jobband--${role}`} aria-label={`You are: ${roleLabels[role]}. Change job`} onClick={onOpen}>
     <Icon name={roleIcons[role]}/><span>You are: <strong>{roleLabels[role]}</strong></span><Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
+}
+/** The band below the job band on a race, the same for every role: what the race still needs to reach Results, or that it is in Results. It changes as the race does. */
+export function NeedsBand({race}:{race:Parameters<typeof raceNeeds>[0]}) {
+  const saved=race.state==='saved';
+  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race)}</span></p>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {

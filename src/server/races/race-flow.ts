@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,roleSteps,stepParts,stepStatus,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,roleSteps,stepBlocker,stepParts,stepStatus,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -29,7 +29,7 @@ async function readStepMeta(db:Database,dayId:string) {
 }
 function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
   const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
-  return {id:race.id,kind:race.kind,number:race.number,state:race.state,steps:statuses};
+  return {id:race.id,kind:race.kind,number:race.number,state:race.state,steps:statuses,blocker:race.state==='saved'?null:stepBlocker(race,race.event.relay)};
 }
 /**
  * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads

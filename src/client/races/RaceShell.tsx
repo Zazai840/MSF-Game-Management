@@ -1,11 +1,11 @@
 import { eventTitle } from '../../shared/day.js';
 import { useEffect,useRef,useState,type ReactNode,type TouchEvent } from 'react';
 import type { DayLeadItem,LeadRaceRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
+import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepRole,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RaceActions } from '../lead/RaceActions.js';
-import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,RaceBar,Sheet,StepStrip } from './parts.js';
+import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,NeedsBand,RaceBar,Sheet,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
@@ -60,7 +60,6 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   const looking=own!==null && step!==own;
   // A final has no Times step, so the Timer gets a plain line, not the step's body.
   const noStep=own!==null && !shown.includes(own);
-  const roleFor=(at:Step)=>roleLabels[(Object.keys(roleSteps) as Array<keyof typeof roleSteps>).find(key=>roleSteps[key]===at)!];
   const summary=group.races.find(item=>item.id===race.id)!,index=group.races.indexOf(summary);
   const locked=race.state==='saved' || race.stageComplete===true;
   async function markDone(done:Step) {
@@ -70,7 +69,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
     const answer=await flow.write(`steps/${done}/done`,{});
     if(typeof answer!=='object') return;
     // The mark changed nothing, so the button says so: a lead never taps a done button that does nothing.
-    if(lead && already) {if(answer.race.state!=='saved') setAnswered({step:done,line:alreadyDoneLine(answer,done)});return;}
+    if(lead && already) {if(answer.race.state!=='saved') setAnswered({step:done,line:alreadyDoneLine(answer.group.races.find(item=>item.id===race.id)!,done)});return;}
     onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:homeTabOf(event)});
   }
   async function create(kind:'heat'|'final',number=group.nextHeat) {
@@ -98,6 +97,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
       {avatar}
     </RaceBar>
     <JobBand role={role} onOpen={onRole}/>
+    <NeedsBand race={summary}/>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
@@ -119,7 +119,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
       </main>
       :looking?<main className="rz-main" role="tabpanel" aria-label={`${stepLabels[step]}, read-only`}>
         <div className="rz-readonly" role="status">
-          <p className="rz-readonly__text"><Icon name="eye"/><span>Viewing {stepLabels[step]} · read-only. It's the {roleFor(step)}'s step; you're the {roleLabels[role]}.</span></p>
+          <p className="rz-readonly__text"><Icon name="eye"/><span>Viewing {stepLabels[step]} · read-only. It's the {stepRole(step)}'s step; you're the {roleLabels[role]}.</span></p>
           <div className="rz-readonly__actions"><button type="button" className="rz-btn rz-btn--small rz-btn--primary" onClick={()=>setViewing(null)}>Back to {stepLabels[own!]}</button>
             <button type="button" className="rz-btn rz-btn--small" onClick={onRole}>Switch job</button></div>
         </div>

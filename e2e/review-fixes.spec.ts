@@ -12,7 +12,7 @@ async function surplusRace(request:APIRequestContext,code:string,name:string,tim
   await writeOrder(request,token,code,runners.slice(0,5),{didNotRun:[2406]});
 }
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
-test('a surplus time at a place with no wristband leaves the race waiting, done, for a lead, who sees why on its Times tab',async({openPhone,request},info)=>{
+test('a surplus time at a place with no wristband leaves the race waiting, done, for a lead, who sees why in the band',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Review surplus');
   const {page,token}=await openPhone(ownName('Surplus timer'),{job:'timer'});
   await surplusRace(request,code,name,token);
@@ -30,7 +30,9 @@ test('a surplus time at a place with no wristband leaves the race waiting, done,
   await expect(lead.getByRole('article',{name:`${name} · Girl Cubs`}).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, needs a lead');
   await openRace(lead,name);
   await lead.getByRole('tab',{name:/^Times/}).click();
-  await expect(lead.getByRole('status').filter({hasText:mismatch})).toBeVisible();
+  // The band says why the race is not in Results; the finishers-and-times line is gone from an unsaved race.
+  await expect(lead.getByText('Not in Results yet: 6th place has a time but no wristband.',{exact:true})).toBeVisible();
+  await expect(lead.getByText(mismatch,{exact:true})).toHaveCount(0);
   await lead.screenshot({path:info.outputPath('surplus-times-lead-tab.png'),fullPage:true});
   expect(await lookProblems(lead)).toEqual([]);
   await deleteCurrentRace(request,code);

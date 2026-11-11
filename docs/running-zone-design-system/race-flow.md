@@ -129,7 +129,7 @@ A Sheet opened by the JobBand on Races or a race:
 One route per race (`/races/:raceId`), the same shell for every role.
 
 **Shell, top to bottom**
-1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the avatar, and the JobBand below the bar. Zone leads also get a "⋯" button for race actions.
+1. **Compact app bar:** back to Races; the h1 "60m · Girl Cubs" with its code tag after the last word, wrapping onto a second line rather than cutting off (so "4x100m Relay · Girl Scouts" shows its section at 360px); the avatar, and the JobBand below the bar, then the NeedsBand: what the race still needs to reach Results, the same sentence for every role ("Not in Results yet. Finish line: tap Save the order.", "In Results."). Zone leads also get a "⋯" button for race actions.
 2. **HeatChips** for this event group. The current race is the gold chip (`aria-current="page"`); the others link to their race in the same role. "+" opens New race on the next heat ("Create heat 3"), as a Races card's "+" does. Swiping left or right on the body also moves between heats.
 3. **StepStrip:** three read-only cells (Runners · Finishing order · Times). Each shows its status in words ("5 checked in", "2 of 8", "Not started"). My step is outlined in navy and starts with "You ·", kept short ("You · not yet", "You · 2 of 8", "You · done"). Each label and status stays on one line, labels top-aligned, at 360px and 390px. For zone leads the strip becomes tabs (see 8).
 4. **The body for my role.** Only my step's controls render; nothing from other steps.
@@ -279,6 +279,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 
 | Component | Spec |
 |---|---|
+| **NeedsBand** | A full-width line directly below the JobBand on a race, for every role: what the race still needs to reach Results. A missing detail first ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." with a `throwing-ink` check once saved. 13px/700 `navy` on `card`, one line at 360px for the done-button sentences. `aria-live="polite"`; not tappable. It replaces the lead's finishers-and-times line on a race not yet saved. |
 | **JobBand** | A full-width button directly below the app bar on Races and on a race: "You are: FINISH LINE" (the job in `display` capitals from CSS, 22px; "You are:" 16px/800), job icon and chevron-down 20px, `navy` on the job's colour, `size-touch` tall. Start line `running`, Finish line `challenge`, Timer `gold`, Zone lead `jumping` (the JobCard job colours). `aria-label="You are: Timer. Change job"`. Opens the job sheet, "What's your job today?". |
 | **EventTabs** | 2-column segmented control (Races, Relays) on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
 | **RaceCard** | `card`, `shadow-card`, `radius-xl`, padding 12/14. Title in `display-card`; code tag; status line in `meta` + `ink-muted`; HeatChips row. |
