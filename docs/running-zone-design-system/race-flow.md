@@ -190,6 +190,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Time box** (numeric TextField): it shows the time itself, filling from the right as the timer's digits are typed ("13.05"), with the hint "Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34." under it.
 - **Footer trio:** Previous place / No more finishers / Next, each on one line.
 - **A wrong time is held** (Fix time / Keep), its WarningCallout directly above the time box, for a time faster than the place before ("Faster than 2nd place") or slower than 1.5 m/s for the race ("Slow for 200m": "The 3rd place time, 3:10.22, looks slow for 200m."). While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
+- **One time too many.** More times than the race can have (its finishers once Finishing order is done, before that its runners; an emptied place counts) show a WarningCallout above the time box, "3 times for 2 finishers." ("3 times for 2 runners." before the order is done), with one button, "Delete 3rd place time", that deletes the last time. The question reads "One time too many" ("2 times too many") in place of "Every place has a time". A lead working the unsaved race sees the same.
 - **A refused time** (seconds over 59, 0.00, faster than 10 m/s for the race) shows in the amber callout under the box, the digits selected so the next digit replaces them; nothing is saved.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 

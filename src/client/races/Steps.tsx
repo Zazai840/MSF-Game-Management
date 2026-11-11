@@ -2,7 +2,7 @@ import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react'
 import { flushSync } from 'react-dom';
 import { callUpLabel,seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,doneButtons,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
+import { andList,doneButtons,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,surplusTimes,timerQuestion,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
@@ -345,7 +345,8 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
  * to retype it. The time box fills from the right as the timer's digits are typed. A time faster than an earlier place, or slow for the race, waits for Fix time or
  * Keep, its warning just above the time box and its reason in the footer. A time no one can run is refused in the amber
  * callout under the box, its digits selected so the next digit replaces them. The last place's time, or No more
- * finishers, marks Times done. Times never wait for the finish line.
+ * finishers, marks Times done. Times never wait for the finish line. More times than the race can have (its finishers
+ * once the order is saved, before that its runners) get a callout that says so, with a button that deletes the last time.
  */
 export function Timer({read,flow,onDone,locked}:StepProps) {
   const {race}=read,status=read.steps.times!,order=read.steps.positions!,words=entryWords(read.group.event.relay);
@@ -360,6 +361,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
   const held=retype===null && !!unkept,target=held?unkept!.index:retype??places.length,full=target>=slots;
   const digits=held?digitsForTime(places[target]):typed;
   const fix=()=>{setRetype(unkept!.index);setTyped(digits);};
+  const surplus=!locked && !held && retype===null?surplusTimes(read,places.length):null;
   async function next() {
     const time=parseTimeDigits(typed);
     if(time===null || full) return;
@@ -375,7 +377,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact">
         <p className="rz-prompt__meta">{raceName(race)} · {words.timerMeta??(order.state==='done'?finishedWords(order):runnersText(race.parts.runners.value?.length||0))}</p>
-        <h2 className="rz-prompt__q">{full?'Every place has a time':`${ordinal(target+1)} place time?`}</h2>
+        <h2 className="rz-prompt__q">{timerQuestion(target,full,surplus)}</h2>
       </div>
       {flow.error && <Callout message={flow.error}/>}
       {/* A heat of more than 9 gets the compact grid, 4 across, so a warning and the time box (without its hint, which the warning
@@ -393,6 +395,8 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
       {held && <Callout message={`${unkept!.banner} Fix it, or keep it if the timer really shows that.`}
         actions={<><button type="button" className="rz-btn" onClick={()=>void writes.send({places,keptWrong:[...keptWrong,unkept!.index]})}>Keep</button>
           <button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix time</button></>}/>}
+      {surplus && <Callout message={surplus.line}
+        actions={<button type="button" className="rz-btn" disabled={writes.sending} onClick={()=>void writes.send({places:places.slice(0,-1),keptWrong:keptWrong.filter(index=>index<places.length-1)})}>Delete {ordinal(places.length)} place time</button>}/>}
       {!locked && !full && slots>0 && <DigitsField id="place-time" label="Place time" value={digits} held={held} onRelease={fix} warn={held || !!refusal.message} onChange={setTyped} onEnter={()=>void next()}
         selectKey={`${target}:${retype===null?'next':'retype'}:${refusal.count}`} hint={held || refusal.message?undefined:timeBoxHint} time/>}
       {refusal.message && <Callout message={refusal.message}/>}

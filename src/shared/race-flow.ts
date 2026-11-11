@@ -82,6 +82,20 @@ export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=fal
 }
 /** What the Start line is asked before an entry the finish line has placed (place from 0) leaves the race: "36 has 5th place. Remove?" */
 export const placedAsk=(name:string|number,place:number,verb:'Remove'|'Take off')=>`${name} has ${ordinal(place+1)} place. ${verb}?`;
+/**
+ * More times than a race can have, for the Timer: how many too many as the heading says it, and the sentence, "3 times
+ * for 2 finishers." (before Finishing order is done, "3 times for 2 runners."); null when the `timed` places fit. A
+ * race can have a time per finisher once Finishing order is done, before that per runner; an emptied place keeps its
+ * time, so it counts.
+ */
+export function surplusTimes({race,steps}:{race:Pick<RaceRead,'parts'|'event'>;steps:RaceFlowRead['steps']},timed:number):{heading:string;line:string}|null {
+  const finish=race.parts.finish.value,room=Math.max(steps.times?.expected||0,finish?placesBoard(finish).length:0),extra=timed-room;
+  if(extra<=0) return null;
+  const has=steps.positions?.state==='done'?`${room} ${room===1?'finisher':'finishers'}`:entryCount(room,race.event.relay);
+  return {heading:`${extra===1?'One time':`${extra} times`} too many`,line:`${timed} times for ${has}.`};
+}
+/** The Timer's question for the place being timed (from 0): "3rd place time?", "Every place has a time" once full, or that there are too many. */
+export const timerQuestion=(target:number,full:boolean,surplus:ReturnType<typeof surplusTimes>)=>surplus?surplus.heading:full?'Every place has a time':`${ordinal(target+1)} place time?`;
 /** Who last changed a step and when, and who marked it done and when. */
 export interface StepMeta { version:number; by:string|null; at:string|null; doneBy:string|null; doneAt:string|null }
 /**

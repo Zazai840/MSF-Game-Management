@@ -362,6 +362,21 @@ test('a race with every runner Did not finish needs no times, and Absent runners
   expect(results.runners.map((runner:{wristband:number})=>runner.wristband)).toEqual([2003]);
   expect(results.leaderboard.map((row:{wristband:number})=>row.wristband)).toEqual([2003]);
 });
+// Ticket #300, what the server allows on a race stuck with one time too many: only a shorter times column, which no screen sends.
+test('a time typed for a child who never got a place blocks the save; a lead cannot correct the unsaved race, and a times column without it saves the race',async()=>{
+  const {owner,sam}=await start(),done=(read:RaceFlowRead,step:string)=>call(sam,`/api/races/${read.race.id}/steps/${step}/done`,{});
+  const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
+  // The Timer types a time for all three before the order; then 2003 is Did not finish without ever having a place.
+  const timed=await ok(await times(sam,checked,{places:[1200,1300,1400]}));
+  let read=await ok(await order(sam,timed,{order:[idOf(timed,2001),idOf(timed,2002)],didNotFinish:[idOf(timed,2003)]}));
+  for(const step of ['runners','positions','times']) read=await ok(await done(read,step));
+  expect(read.race.state).toBe('in progress');
+  expect(read.race.parts.times.value!.places).toEqual([1200,1300,1400]);
+  const correction=await call(owner,`/api/lead/races/${read.race.id}/times`,{baseVersion:read.race.parts.times.version,places:[1200,1300,null]});
+  expect(correction.statusCode,correction.body).toBe(409);
+  const dropped=await ok(await times(sam,read,{places:[1200,1300]}));
+  expect(dropped.race.state).toBe('saved');
+});
 test('the server works out the removed places itself: a place a phone names is ignored, an order with fewer places takes the times of the places that left, and one that closes only some empty places is refused',async()=>{
   const {sam,priya,jo}=await start();
   const checked=await ok(await checkIn(sam,await heat(sam),[2001,2002,2003]));
