@@ -63,7 +63,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // The start line is offered the next-ranked runner too; here the lead calls up from the Final tab.
  await expect(sam.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true})).toBeVisible(live);
  // A lead's call-up for the absent seed appears live, Here at once: the finish line has them with no second tap.
- await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:new RegExp(`Call up next-ranked runner: ${n(15)}`)}).click();
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true}).click();
  // The call-up saves at once: the toast, then the line-up names it and the seed it replaces stays Absent.
  await expectToast(page,`${n(15)} called up · Boy Cubs Final`);
  await expect(await lineUp(page)).toContainText([`2nd fastest · ${n(12)} · Absent · no final place`,`Called up from heat rank 7 · ${n(15)}`]);

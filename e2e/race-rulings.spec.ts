@@ -7,7 +7,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
   await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');const racesTab=page.url();await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();const racePage=page.url();await raceAction(page,'Correct times');
+  await eventTab(page,'Heats');const racesTab=page.url();await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));const racePage=page.url();await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A refused save keeps the screen and what was typed, and says why.
@@ -66,7 +66,7 @@ test('a lead can correct times again straight after saving, even when the race i
   await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();await raceAction(page,'Correct times');
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen Correct times on the version just replaced.

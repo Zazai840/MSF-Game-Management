@@ -39,6 +39,8 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
 export const finalTakesChanges=(final:Pick<FinalField,'heatsComplete'|'hasRun'>)=>final.heatsComplete && !final.hasRun;
 /** The next-ranked heat entry a final can call up now, or null: it takes changes, an Absent finalist's seed is free, and a ranked entry is left. */
 export const openCallUp=(final:FinalResults|null)=>final && finalTakesChanges(final) && final.vacancy?final.nextCallUp:null;
+/** The call-up button's words, at the final's check-in and on the Final tab: "Call up next fastest: 2011 (7th)". */
+export const callUpLabel=(who:string,position:number)=>`Call up next fastest: ${who} (${ordinal(position)})`;
 /** Whether a relay team is in the final's line-up, Absent ones included: such a team is not added again. */
 export const teamInFinal=(final:{runners:readonly RaceEntry[];entries:ReadonlyArray<{runner?:RaceEntry}>;additionalEntries?:ReadonlyArray<{runner:RaceEntry}>},teamId:string)=>
   [...final.runners,...final.entries.flatMap(entry=>entry.runner?[entry.runner]:[]),...(final.additionalEntries||[]).map(entry=>entry.runner)].some(entry=>isTeamEntry(entry) && entry.team.id===teamId);

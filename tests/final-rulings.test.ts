@@ -40,6 +40,9 @@ test('heat-to-final attendance, audited next ranked callups, order-only podium a
  // Any signed-in profile can call up (ADR 0003); a suggestion that is not the next-ranked runner is refused.
  expect((await call(volunteer,'/api/lead/events/R3/call-up',{expectedHeatEntryId:'none'})).statusCode).toBe(409);
  let read=(await call(lead,'/api/lead/events/R3/results')).json();expect(read.results.finalResults.nextCallUp.wristband).toBe(1135);
+ // Only a lead's call-up carries a comment into the audit note.
+ expect((await call(volunteer,'/api/lead/events/R3/call-up',{expectedHeatEntryId:read.results.finalResults.nextCallUp.entryId,comment:'typed by a volunteer'})).statusCode).toBe(403);
+ expect((await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.nextCallUp.wristband).toBe(1135);
  for(const number of [1135,1047]) {const next=read.results.finalResults.nextCallUp;expect(next.wristband).toBe(number);const save=await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:next.entryId});expect(save.statusCode).toBe(200);read=save.json();}
  expect(read.results.finalResults.additionalEntries).toEqual([]);expect(read.results.finalResults.entries.filter((e:any)=>e.absent).map((e:any)=>e.heatWristband)).toEqual([1066,1088]);expect(read.auditNotes.filter((n:any)=>n.action==='call-up')).toHaveLength(2);
  // The called-up runners are Here at once.

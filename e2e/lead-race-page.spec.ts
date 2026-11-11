@@ -15,7 +15,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');await page.getByRole('button',{name:`Open Heat ${number}`,exact:true}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${number}`,exact:true}));
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 
@@ -217,7 +217,7 @@ test('a lead removes the 4th of 6 children from a saved race, then gives the 2nd
   await openRace(page,code,ownName('Removed place lead'),race.number);
   const racePage=page.url(),docked=page.getByRole('contentinfo'),record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   await raceAction(page,'Correct runner list');
-  await page.getByRole('button',{name:'Remove runner 4',exact:true}).click();
+  await press(page.getByRole('button',{name:'Remove runner 4',exact:true}));
   await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
   await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
   await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
@@ -260,7 +260,10 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   await writeCheckIn(page.request,token,code,[2131,2132]);
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);
-  await openRace(page,code,ownName('In progress lead'),race.number);
+  // Its Results row opens the race screen (results.spec.ts); the race page is at its own address.
+  await page.goto('/');await join(page,ownName('In progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await eventTab(page,'Heats');await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url();
   const notSaved=page.getByRole('status').filter({hasText:'Heat 1 is not saved yet. Open it to finish its steps.'});
   await expect(notSaved).toBeVisible();
@@ -296,10 +299,9 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   await press(page.getByRole('button',{name:/^Move to Deleted races/}));
   await page.getByLabel('Comment (optional)',{exact:true}).fill('Opened by mistake');
   await press(remove);
-  // Back on the screen before the race, the event's Races tab; the next Back leaves the event.
+  // Back on the event's Heats tab. (Back from there is event-tabs.spec.ts's: this race page was opened by its address.)
   await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
-  await page.goBack();await expect(page).toHaveURL(/\/results$/);
 });
 
 test('a deleted race says when and by whom, Restore brings it back on its race page, and a heat whose number is taken comes back with the next one, named in the toast',async({page},info)=>{
@@ -312,7 +314,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
   await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
+  await eventTab(page,'Heats');await press(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}));
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();
   await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveText(new RegExp(`^Deleted at ${clock(deletedAt)} by .+: Wrong section checked in\\. Its results do not count\\.$`));
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('deleted-race-page.png'),fullPage:true});

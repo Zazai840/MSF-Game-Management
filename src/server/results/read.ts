@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
 import { readAuditNotes,readRulings } from '../rulings/records.js';
 import type { Database,StoredRace } from '../races/records.js';
-import { listRaces } from '../races/records.js';
+import { listRaces,readStepMeta,raceSummary } from '../races/records.js';
 import type { EventState,ResultsRace } from '../../shared/results-rules.js';
 import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
@@ -44,7 +44,9 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   const tieSettlements=(await readTieSettlements(db,dayId)).filter(settlement=>settlement.eventId===event.id);
   const stages=(await readCompletedStages(db,dayId)).filter(stage=>stage.eventId===event.id).map(stage=>stage.stage);
   const lists=event.relay?await readTeamLists(db,dayId):new Map<string,TeamListRead>();
-  return {event,auditNotes,results:eventResults(eventState(event,await listRaces(db,dayId),await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),switchedOn(lists))),
+  const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId);
+  return {event,auditNotes,results:eventResults(eventState(event,races,await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),switchedOn(lists))),
+    summaries:races.filter(race=>race.event.id===event.id).map(race=>raceSummary(race,meta.get(race.id))),
     ...(event.relay?{teams:lists.get(event.id)!.teams}:{})};
 }
 const switchedOnRelays=async(db:Database,dayId:string)=>switchedOn(await readTeamLists(db,dayId));

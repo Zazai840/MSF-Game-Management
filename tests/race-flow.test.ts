@@ -5,6 +5,7 @@ import { createApp } from '../src/server/app.js';
 import { frameData,splitFrames } from '../src/shared/live.js';
 import { isRunner } from '../src/shared/races.js';
 import type { RaceFlowRead,RacesRead,Step } from '../src/shared/race-flow.js';
+import type { EventResultsRead } from '../src/shared/lead-results.js';
 import { signInOwner } from './support/sign-in.js';
 let app:FastifyInstance;
 const call=(token:string,url:string,body?:unknown)=>app.inject({method:body===undefined?'GET':'POST',url,headers:{authorization:`Bearer ${token}`,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{payload:JSON.stringify(body)})});
@@ -94,6 +95,34 @@ test('a race saves itself once every step is done, and a step that is not comple
   const history=(await ok<{history:Array<{part:string;author:string}>}>(owner,`/api/lead/races/${id}`)).history;
   expect(history.map(row=>[row.part,row.author])).toEqual([['runners','Ahmed'],['finish','Tom Barker'],['times','Ahmed']]);
   expect((await call(tom,`/api/races/${id}/order`,{raceId:id,version:2,order:[],didNotFinish:[],didNotRun:[],added:[]})).json().message).toBe('Heat 1 is saved - ask a lead to change it');
+});
+test('the race read and the races read give every role the reason a race is not in Results yet, and none once it is saved',async()=>{
+  const {ahmed,tom,lena}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  /** The reason as each phone reads it: on the race, and on the races list. */
+  const reasons=async(token:string)=>[(await ok(token,`/api/races/${id}`)).group.races[0]!.blocker,
+    (await ok<RacesRead>(token,'/api/races')).groups.find(group=>group.event.code==='R4')!.races[0]!.blocker];
+  for(const token of [ahmed,tom,lena]) expect(await reasons(token)).toEqual(Array(2).fill({step:'runners',line:'Nobody is checked in'}));
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002}]});
+  expect(checked.group.races[0]!.blocker).toEqual({step:'positions',line:'2 runners have no place'});
+  const placed=await order(tom,checked,[2001,2002]);
+  expect(placed.group.races[0]!.blocker).toEqual({step:'times',line:'1st place has no time'});
+  // Every detail is there: only done buttons are missing, so there is no reason.
+  let read=await times(ahmed,placed,[1100,1200]);
+  expect(await reasons(tom)).toEqual([null,null]);
+  for(const step of steps) read=(await done(ahmed,read,step)).json();
+  expect(read.race.state).toBe('saved');
+  expect(await reasons(lena)).toEqual([null,null]);
+});
+test('an event\'s results read lists each live race as the races read does, so a Results heat row and the Race screen band cannot disagree',async()=>{
+  const {ahmed,lena}=await start();
+  const made=await newHeat(ahmed,'R4',1),id=made.race.id;
+  const checked=await ok(ahmed,`/api/races/${id}/check-in`,{raceId:id,version:1,runners:[{wristband:2001},{wristband:2002}]});
+  await done(ahmed,checked,'runners');
+  const listed=(await ok<RacesRead>(lena,'/api/races')).groups.find(group=>group.event.code==='R4')!.races;
+  const read=await ok<EventResultsRead>(lena,'/api/lead/events/R4/results');
+  expect(read.summaries).toEqual(listed);
+  expect(read.summaries[0]).toMatchObject({id,blocker:{step:'positions',line:'2 runners have no place'},steps:{runners:{state:'done',count:2},positions:{state:'not started',count:0,expected:2},times:{state:'not started',count:0,expected:2}}});
 });
 test('changing or taking off a wristband after That\'s everyone leaves Runners done, and a changed number keeps its entry and its place',async()=>{
   const {ahmed,tom}=await start();

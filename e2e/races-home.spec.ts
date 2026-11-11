@@ -282,11 +282,11 @@ test('switching job on a race keeps the race open in the new view, and another j
   await page.screenshot({path:info.outputPath('read-only.png'),fullPage:true});
   await readOnly.getByRole('button',{name:'Back to Runners',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'Runner 3: wristband number?'})).toBeVisible();
-  // Switch job from the chip: the race stays open, in the finish line's view, and Races follows.
+  // Switch job from the job band: the race stays open, in the finish line's view, and Races follows.
   await switchJob(page,'Finish line');
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Your job: Finish line. Change job',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'You are: Finish line. Change job',exact:true})).toBeVisible();
   // The step strip keeps one line per cell: an own step not started is "You · not yet".
   await expect(page.getByRole('tablist',{name:'Heat 1 progress'}).getByRole('tab')).toHaveText(['Runners2 so far','Finishing orderYou · not yet','TimesNot started']);
   expect(await lookProblems(page)).toEqual([]);
@@ -300,7 +300,7 @@ test('a saved race opens read-only for a volunteer, saying to ask a lead',async(
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   const {page}=await openPhone(ownName('Saved'));
   await openRace(page,name);
-  await expect(page.getByRole('status').filter({hasText:'Heat 1 is saved. Ask a lead to change it.'})).toBeVisible();
+  await expect(page.locator('.rz-needsband')).toHaveText('In Results. Ask a lead to change it.');
   await expect(page.getByLabel('Wristband number',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:"That's everyone",exact:true})).toHaveCount(0);
   // It asks for nothing: the runners are listed, with nothing to remove.

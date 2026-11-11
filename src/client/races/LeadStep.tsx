@@ -49,9 +49,10 @@ export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:Step
     actions={acceptable(item)?<><button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>
       <button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button></>
       :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;
+  // A race not in Results yet says what it still needs in the band; a saved race whose finishers and times disagree says so here.
   const mismatch=step!=='runners' && race.recording.countMismatch;
   if(race.state!=='saved') return <>
-    {(callouts || mismatch) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>{callouts}{mismatch && <Callout status message={mismatch}/>}</div>}
+    {callouts && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>{callouts}</div>}
     {step==='runners'?<StartLine {...props}/>:step==='positions'?<FinishLine {...props}/>:<Timer {...props}/>}
   </>;
   return <>

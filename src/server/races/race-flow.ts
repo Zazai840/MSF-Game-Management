@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,roleSteps,stepParts,stepStatus,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,roleSteps,stepParts,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RacesRead,type Step } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -15,22 +15,9 @@ import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
-import { jobRace,listRaces,raceChange,readRace,type Database,type StoredRace } from './records.js';
+import { jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,type Database,type StoredRace } from './records.js';
 import { markFinalistAbsent } from './final-field.js';
 import { publishPart } from './versions.js';
-/** Who last changed each part of each race of the day and who marked it done, by race id and part. */
-async function readStepMeta(db:Database,dayId:string) {
-  const rows=(await db.query(`SELECT p.race_id,p.part,p.version,p.saved_at,s.name AS saved_name,p.done_at,d.name AS done_name
-    FROM race_parts p JOIN races r ON r.id=p.race_id LEFT JOIN sign_ins s ON s.id=p.saved_by LEFT JOIN sign_ins d ON d.id=p.done_by
-    WHERE r.day_id=$1 AND NOT r.deleted`,[dayId])).rows;
-  const meta=new Map<string,Partial<Record<RacePartName,StepMeta>>>();
-  for(const row of rows) meta.set(row.race_id,{...meta.get(row.race_id),[row.part]:{version:row.version,by:row.saved_name??null,at:row.saved_at?.toISOString()??null,doneBy:row.done_name??null,doneAt:row.done_at?.toISOString()??null}});
-  return meta;
-}
-function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
-  const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
-  return {id:race.id,kind:race.kind,number:race.number,state:race.state,steps:statuses};
-}
 /**
  * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
  * it: "Heat 1 has a time to check first". Which result counts for a child who ran twice is chosen in Results: no step.
@@ -53,7 +40,7 @@ export async function readGroups(db:Database,dayId:string,only?:string,switchedO
   // One event at a time: a final's reason reads through the same client, which runs one query at a time.
   for(const event of events) {
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
-    const summaries=own.map(race=>summary(race,meta.get(race.id)));
+    const summaries=own.map(race=>raceSummary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
     const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
       && !stageDone(event.id,'heats',stages);
@@ -89,7 +76,7 @@ async function inRole(db:Database,phoneId:string,dayId:string):Promise<Pick<Race
   // The level as it is now: a stream opened as a lead outlives a change of level.
   if(!(await db.query("SELECT 1 FROM sign_ins WHERE id=$1 AND level='Lead' AND NOT signed_out",[phoneId])).rowCount) return {};
   const names:NonNullable<RaceFlowRead['inRole']>={};
-  for(const row of (await db.query("SELECT name,reported_role FROM sign_ins WHERE day_id=$1 AND NOT signed_out AND reported_role IN ('start','finish','timer') ORDER BY name",[dayId])).rows)
+  for(const row of (await db.query('SELECT name,reported_role FROM sign_ins WHERE day_id=$1 AND NOT signed_out AND reported_role=ANY($2) ORDER BY name',[dayId,Object.keys(roleSteps)])).rows)
     (names[roleSteps[row.reported_role as keyof typeof roleSteps]]??=[]).push(row.name);
   return {inRole:names};
 }

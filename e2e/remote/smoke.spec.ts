@@ -1,6 +1,6 @@
 import { test,expect,type Browser,type Page } from '@playwright/test';
 import readExcelFile from 'read-excel-file/node';
-import {back,enterTime,join,openLeadMenu,openRace,openRelays,writeCheckIn,type JobName} from '../fixtures.js';
+import {press,back,enterTime,join,openLeadMenu,openRace,openRelays,writeCheckIn,type JobName} from '../fixtures.js';
 import type { RaceFlowRead,RacesRead } from '../../src/shared/race-flow.js';
 import { isTeamEntry } from '../../src/shared/races.js';
 
@@ -152,8 +152,8 @@ test('five phones share the test build: three work one race live until it saves 
     await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
     await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · ${relaySection} ${relayHeat}`);
     // The finish line taps each team's tile as its 4th leg crosses; the timer types one time per team, and the last saves the heat.
-    await finisher.getByRole('button',{name:`${legsB[3]} came 1st`,exact:true}).click();
-    await finisher.getByRole('button',{name:`${legsA[3]} came 2nd`,exact:true}).click();
+    await press(finisher.getByRole('button',{name:`${legsB[3]} came 1st`,exact:true}));
+    await press(finisher.getByRole('button',{name:`${legsA[3]} came 2nd`,exact:true}));
     await finisher.getByRole('button',{name:'Save the order',exact:true}).click();
     await expect(finisher.locator('.rz-toast')).toContainText('Finishing order saved');
     await expect(timer.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(2,crossPhone);

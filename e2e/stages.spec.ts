@@ -36,7 +36,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   // The volunteer's Heat 2 is gone; they open the saved Heat 1.
   await expect(job.getByText('A lead deleted Heat 2',{exact:true})).toBeVisible(live);
   await backToRaces(job);await openRace(job,name);
-  await expect(job.getByRole('status').filter({hasText:'Heat 1 is saved. Ask a lead to change it.'})).toBeVisible();
+  await expect(job.locator('.rz-needsband')).toHaveText('In Results. Ask a lead to change it.');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('confirm-the-medals.png'),fullPage:true});await confirmTheMedals(page);
   // Back on the event's Heats tab it was opened from, with the toast.

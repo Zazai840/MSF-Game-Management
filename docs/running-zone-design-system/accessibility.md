@@ -55,11 +55,11 @@ The target is WCAG 2.2 AA. Outdoor phone use pushes the rest further: bigger tar
 | `gold` | `navy` | 7.97:1 | Place ordinals, back link on dark, focus ring on dark |
 | `gold` | `scoreboard` | 9.04:1 | Qualifier times, focus ring on scoreboard |
 | `gold` | `scoreboard-row` | 7.29:1 | Qualifier times in rows |
-| `navy` | `gold` | 7.97:1 | Current place and slot, TIE tag, gold badge |
-| `navy` | `running` | 4.81:1 | Running fills (rank star, active tab, R4 tag) |
-| `navy` | `jumping` | 5.10:1 | Jumping fills |
+| `navy` | `gold` | 7.97:1 | Current place and slot, TIE tag, gold badge, Timer job band |
+| `navy` | `running` | 4.81:1 | Running fills (rank star, active tab, R4 tag), Start line job band |
+| `navy` | `jumping` | 5.10:1 | Jumping fills, Zone lead job band |
 | `navy` | `throwing` | 6.22:1 | Throwing fills |
-| `navy` | `challenge` | 5.17:1 | Challenge fills, Finishing-order job star |
+| `navy` | `challenge` | 5.17:1 | Challenge fills, Finishing-order job star, Finish line job band |
 | `running` | `navy` | 4.81:1 | Zone word in the hero, zone tab outline |
 | `running` | `scoreboard` | 5.45:1 | Zone word in the scoreboard title |
 | `jumping` | `navy` | 5.10:1 | Jumping on dark |

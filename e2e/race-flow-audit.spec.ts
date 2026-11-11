@@ -45,7 +45,7 @@ test('Runner not on the list leaves with Cancel; Check the order keeps Back',asy
   await expect(page.getByRole('button',{name:'Cancel',exact:true})).toHaveCount(0);
 });
 
-test('the lead\'s race app bar title wraps to two lines, so a long event name shows its section',async({openPhone,request},info)=>{
+test('the lead\'s race app bar title takes up to two lines, so a long event name shows its section',async({openPhone,request},info)=>{
   const code=await ownCode();
   // The audit's own example; the event is found by its code, so the shared name clashes with nothing.
   await ownEvent(request,code,'4x100m Relay','Girl Scouts');
@@ -55,23 +55,23 @@ test('the lead\'s race app bar title wraps to two lines, so a long event name sh
   const title=page.getByRole('heading',{level:1,name:'4x100m Relay · Girl Scouts',exact:true});
   await expect(title).toBeVisible();
   await page.locator('.rz-appbar').screenshot({path:info.outputPath('lead-race-app-bar.png')});
-  // Every line of the title shows: none sits below the two lines' box or runs past its side.
+  // At most two lines, and every line shows: none sits below the two lines' box or runs past its side.
   const fit=await title.evaluate(element=>{
     const range=document.createRange();range.selectNodeContents(element);
     const box=element.parentElement!.getBoundingClientRect(),tops=[...new Set([...range.getClientRects()].map(rect=>Math.round(rect.top)))];
     return {lines:tops.length,hidden:tops.filter(top=>top>=box.bottom).length,wide:element.parentElement!.scrollWidth>element.parentElement!.clientWidth};
   });
-  expect(fit).toEqual({lines:page.viewportSize()!.width<=360?2:fit.lines,hidden:0,wide:false});
+  expect(fit).toEqual({lines:fit.lines,hidden:0,wide:false});
   expect(fit.lines).toBeLessThanOrEqual(2);
-  await expect(page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true})).toHaveText('Zone lead');
+  await expect(page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true})).toHaveText('You are: Zone lead');
   expect(await lookProblems(page)).toEqual([]);
   expect((await request.post(`/api/lead/races/${race.id}/delete`,{headers:{authorization:`Bearer ${owner()}`},data:{permanent:true}})).ok()).toBe(true);
 });
 
-test('the job sheet asks "What\'s your job today?", and a lead\'s chip says Zone lead',async({openPhone})=>{
+test('the job sheet asks "What\'s your job today?", and a lead\'s job band says Zone lead',async({openPhone})=>{
   const {page}=await openPhone(ownName('Job sheet lead'),{lead:true});
-  const chip=page.getByRole('button',{name:'Your job: Zone lead. Change job',exact:true});
-  await expect(chip).toHaveText('Zone lead');
+  const chip=page.getByRole('button',{name:'You are: Zone lead. Change job',exact:true});
+  await expect(chip).toHaveText('You are: Zone lead');
   await press(chip);
   const sheet=page.getByRole('dialog',{name:'What\'s your job today?',exact:true});
   await expect(sheet.getByRole('radiogroup',{name:'What\'s your job today?',exact:true})).toBeVisible();

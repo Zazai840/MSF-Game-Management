@@ -66,7 +66,7 @@ test('Heats lists each heat with its runners and whether it is in Results, then 
   const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true}),unsaved=page.locator('.rz-listrow',{hasText:'not in Results yet'});
   const deleted=page.getByRole('button',{name:/^Open deleted Heat 2 · deleted\s\d\d:\d\d$/});
   await expect(heat1).toHaveAccessibleDescription(/^2 runners · in Results · checked in \d\d:\d\d$/);
-  await expect(unsaved).toHaveAccessibleDescription(/^1 runner · not in Results yet · checked in \d\d:\d\d$/);
+  await expect(unsaved).toHaveAccessibleDescription(/^1 runner · not in Results yet · checked in \d\d:\d\d Runners 1 so far Finishing order Not started Times Not started Not in Results yet: \d+ has no place\.$/);
   await expect(deleted).toHaveAccessibleDescription('1 runner');
   // Top to bottom: the heat rows, the scoreboard, Deleted races.
   const tops=await Promise.all([heat1,unsaved,page.getByRole('region',{name:'Heats',exact:true}),page.getByRole('heading',{name:'Deleted races',exact:true}),deleted].map(async part=>(await part.boundingBox())!.y));

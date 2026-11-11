@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import { actions, Refusal, requireLevel } from './permissions.js';
-import { roles, type Role } from '../../shared/race-flow.js';
+import { holdsRole, roles, type Role } from '../../shared/race-flow.js';
 import { rulingChange,writeAuditNote } from '../rulings/records.js';
 import { failureBackoff,WrongAccessCode } from './failures.js';
 import { matches, matchesAnyCapitals, signInRoutes } from './sign-in.js';
@@ -24,7 +24,7 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
   action('POST', '/api/role', 'Volunteer', async (request, _reply, phone) => {
     const role = (request.body as {role?: unknown} | null)?.role;
     if (!roles.includes(role as Role)) throw new Refusal(400, 'Choose your job');
-    if (role === 'lead') requireLevel(phone, 'Lead');
+    if (!holdsRole(role as Role, phone.level !== 'Volunteer')) requireLevel(phone, 'Lead');
     await pool.query('UPDATE sign_ins SET reported_role=$1 WHERE id=$2 AND NOT signed_out', [role, phone.id]);
     // Wakes the live streams without a revision: a lead's open Race screen names the people in each role.
     dayChanged(phone.dayId);
