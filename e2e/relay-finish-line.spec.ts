@@ -51,12 +51,14 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   expect(await lookProblems(line)).toEqual([]);
   await line.screenshot({path:info.outputPath('relay-finish-line.png'),fullPage:true});
   await line.getByRole('button',{name:`${w(24)} came 1st`,exact:true}).click();
-  // The places board names a placed team by its 4th leg's wristband; a slip on it reads Changing, with Keep.
+  // The places board names a placed team by its 4th leg's wristband; a tap on it empties the place and the team is a tile again.
   await expect(places(line).getByRole('button',{name:`1st place: ${w(24)}. Change`,exact:true})).toHaveText(`1st${w(24)}`);
   await places(line).getByRole('button',{name:`1st place: ${w(24)}. Change`,exact:true}).click();
-  await expect(line.getByText(`Changing 1st: ${w(24)}`,{exact:true})).toBeVisible();
-  await line.screenshot({path:info.outputPath('relay-finish-line-changing.png'),fullPage:true});
-  await line.getByRole('button',{name:`Keep ${w(24)}`,exact:true}).click();
+  await expect(line.getByRole('heading',{level:2,name:'Which team came 1st?'})).toBeVisible();
+  await expect(tiles(line)).toHaveCount(3);
+  expect(await lookProblems(line)).toEqual([]);
+  await line.screenshot({path:info.outputPath('relay-finish-line-emptied.png'),fullPage:true});
+  await line.getByRole('button',{name:`${w(24)} came 1st`,exact:true}).click();
   await expect(line.getByRole('heading',{level:2,name:'Which team came 2nd?'})).toBeVisible();
 
   // + Team not on the list picks from the teams still to run, with no typing; the team takes the next place.
@@ -77,7 +79,8 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   // Check the order: rows read the 4th leg's wristband, with no team label; each team left needs Did not finish or Didn't run.
   await footer(line).getByRole('button',{name:'No other team crossed the line',exact:true}).click();
   await expect(line.getByRole('heading',{level:2,name:'Check the order'})).toBeVisible();
-  await expect(orderRows(line)).toHaveText([`1st${w(24)}`,`2nd${w(44)}`]);
+  await expect(orderRows(line)).toHaveText([`1st${w(24)}No place`,`2nd${w(44)}No place`]);
+  await expect(line.getByRole('button',{name:`No place for ${w(24)}`,exact:true})).toBeVisible();
   await expect(line.getByRole('button',{name:`Move ${w(24)}`,exact:true})).toBeVisible();
   await expect(line.getByRole('list',{name:'Not placed'}).getByRole('group')).toHaveText([`${w(14)}Did not finishDidn't run`,"–Did not finishDidn't run"]);
   await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();

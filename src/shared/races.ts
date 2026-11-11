@@ -25,7 +25,11 @@ export const runnersOf=(entries:readonly RaceEntry[]|null|undefined)=>(entries||
 export const entryName=(entry:RaceEntry)=>isTeamEntry(entry)?`Team ${entry.team.number}`:String(entry.wristband);
 /** The number a finishing order correction names an entry by: a child's wristband, or on a relay the team's number. */
 export const entryNumber=(entry:RaceEntry)=>isTeamEntry(entry)?entry.team.number:entry.wristband;
-export interface FinishingOrder { order:string[]; didNotFinish:string[] }
+/**
+ * `empty` are the places (from 0, counted with the placed ones) the finish line emptied to fill again; their times
+ * stay. Only a race not yet saved has any: `order` is the entries placed, in order, without them.
+ */
+export interface FinishingOrder { order:string[]; didNotFinish:string[]; empty?:number[] }
 export interface RaceRecording { countMismatch:string|null; readyForRanking:boolean; results:Array<{entryId:string;wristband:number|null;place:number|null;time:number|null}> }
 export interface RacePart<T> { version:number; value:T|null }
 export const raceParts=['runners','finish','times'] as const;
