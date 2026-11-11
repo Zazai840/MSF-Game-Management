@@ -203,7 +203,7 @@ test('with no detail missing, the band names the first done button not tapped ye
 });
 test('a done button on a step already done says so, and what the race still needs, in the band\'s words',()=>{
   const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps'])=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,false)});
-  expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100]),allDone),'runners')).toBe('Runners is already done. Not in Results yet: 2nd place has no time.');
+  expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100]),allDone),'runners')).toBe('Runners are already done. Not in Results yet: 2nd place has no time.');
   expect(alreadyDoneLine(summary(parts(runnersAB,{order:['a','b']},[1100,1200]),{...allDone,times:status('in progress')}),'positions')).toBe('Finishing order is already done. Not in Results yet. Timer: tap No more finishers.');
 });
 test('a Results heat row opens the race at the step its sentence is about: the missing detail\'s step, else the first done button not tapped',()=>{

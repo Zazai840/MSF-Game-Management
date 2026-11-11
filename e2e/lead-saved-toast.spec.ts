@@ -123,18 +123,18 @@ test('a lead tapping each done button on an unsaved heat whose steps are already
   const entry=race.parts.runners.value!.find(runner=>'wristband' in runner && runner.wristband===2038)!;
   expect((await request.post(`/api/lead/races/${race.id}/runners/${entry.id}/disqualify`,{headers:{authorization:`Bearer ${lead.token}`},data:{reason:'Out of lane',comment:''}})).ok()).toBe(true);
   await openAt(page,race.id,'races');
-  const tabs=page.getByRole('tablist',{name:'Heat 1 steps'}),answer=(step:string)=>page.getByText(`${step} is already done. Not in Results yet: 7th place has no time.`,{exact:true});
+  const tabs=page.getByRole('tablist',{name:'Heat 1 steps'}),answer=(step:string)=>page.getByText(`${step} already done. Not in Results yet: 7th place has no time.`,{exact:true});
   await press(page.getByRole('button',{name:"That's everyone",exact:true}));
-  await expect(answer('Runners')).toBeVisible();
+  await expect(answer('Runners are')).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-done-answer.png')});
   await press(tabs.getByRole('tab',{name:/^Finishing order/}));
-  await expect(answer('Runners')).toHaveCount(0);
+  await expect(answer('Runners are')).toHaveCount(0);
   await press(page.getByRole('button',{name:'Save the order',exact:true}));
-  await expect(answer('Finishing order')).toBeVisible();
+  await expect(answer('Finishing order is')).toBeVisible();
   await press(tabs.getByRole('tab',{name:/^Times/}));
   await press(page.getByRole('button',{name:'No more finishers',exact:true}));
-  await expect(answer('Times')).toBeVisible();
+  await expect(answer('Times are')).toBeVisible();
   // Still on the race: nothing was saved, so no toast and no trip to Races.
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await expect(toast(page)).toHaveCount(0);
