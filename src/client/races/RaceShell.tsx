@@ -97,19 +97,19 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
       {avatar}
     </RaceBar>
     <JobBand role={role} onOpen={onRole}/>
-    <NeedsBand race={summary}/>
+    <NeedsBand race={summary} ask={!lead && !race.stageComplete}/>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>
     <StepStrip race={summary} role={role} label={`${raceName(race)} ${lead?'steps':'progress'}`} selected={step} onSelect={lead?setTab:at=>setViewing(at===own?null:at)} notes={notes} relay={event.relay} inRole={snapshot.inRole}/>
     <div style={{display:'contents'}} onTouchStart={touch=>{const at=touch.touches[0];swipe.current=at?{x:at.clientX,y:at.clientY}:null;}} onTouchEnd={swiped}>
-      {(error || failure || flow.changed || locked || answered?.step===step) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
+      {(error || failure || flow.changed || race.stageComplete || answered?.step===step) && <div className="rz-main" style={{flex:'none',paddingBottom:0}}>
         {error && <p className="rz-note" role="status">{error}</p>}
         {answered?.step===step && !locked && <Callout status message={answered.line}/>}
         {failure && !adding && <Callout message={failure}/>}
         {flow.changed && <div className="rz-callout rz-callout--status" role="status"><p className="rz-callout__msg"><Icon name="warning"/><span>{changedLine(flow.changed.by)}.</span></p>
           <div className="rz-callout__actions"><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{flow.clearChanged();setFresh(fresh+1);}}>Show latest</button></div></div>}
-        {race.stageComplete?<p className="rz-note" role="status">{raceFinishedLine({kind:race.kind,event})}</p>:race.state==='saved' && !lead && <p className="rz-note" role="status">{raceName(race)} is saved. Ask a lead to change it.</p>}
+        {race.stageComplete && <p className="rz-note" role="status">{raceFinishedLine({kind:race.kind,event})}</p>}
       </div>}
       {noStep?<main className="rz-main">
         <div className="rz-readonly" role="status">

@@ -39,7 +39,8 @@ test('one band on a race tells every role and the lead what the race still needs
   for(const page of pages) await expect(page.getByText(/not saved/i)).toHaveCount(0);
   // The last done button saves the race: the band changes on every phone.
   await flowPost(request,finish.token,`/api/races/${race.id}/steps/positions/done`,{});
-  await everyone('In Results.');
+  // A volunteer cannot change a race in Results, so their band says who can.
+  for(const page of pages) await bandSays(page,page===lead.page?'In Results.':'In Results. Ask a lead to change it.');
   for(const page of pages) expect(await lookProblems(page)).toEqual([]);
   await timer.page.screenshot({path:info.outputPath('needs-band-in-results.png')});
   // How much of the screen the band takes, for the report.

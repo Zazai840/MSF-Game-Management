@@ -300,7 +300,7 @@ test('a saved race opens read-only for a volunteer, saying to ask a lead',async(
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   const {page}=await openPhone(ownName('Saved'));
   await openRace(page,name);
-  await expect(page.getByRole('status').filter({hasText:'Heat 1 is saved. Ask a lead to change it.'})).toBeVisible();
+  await expect(page.locator('.rz-needsband')).toHaveText('In Results. Ask a lead to change it.');
   await expect(page.getByLabel('Wristband number',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:"That's everyone",exact:true})).toHaveCount(0);
   // It asks for nothing: the runners are listed, with nothing to remove.

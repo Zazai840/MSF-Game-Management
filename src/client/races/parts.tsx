@@ -52,10 +52,13 @@ export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
     <Icon name={roleIcons[role]}/><span>You are: <strong>{roleLabels[role]}</strong></span><Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
-/** The band below the job band on a race, the same for every role: what the race still needs to reach Results, or that it is in Results. It changes as the race does. */
-export function NeedsBand({race}:{race:Parameters<typeof raceNeeds>[0]}) {
+/**
+ * The band below the job band on a race, the same for every role: what the race still needs to reach Results, or that it is in Results. It changes as the race does.
+ * `ask` adds, for a volunteer on a saved race, who can change it: "In Results. Ask a lead to change it."
+ */
+export function NeedsBand({race,ask=false}:{race:Parameters<typeof raceNeeds>[0];ask?:boolean}) {
   const saved=race.state==='saved';
-  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race)}</span></p>;
+  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race)}{saved && ask && ' Ask a lead to change it.'}</span></p>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
