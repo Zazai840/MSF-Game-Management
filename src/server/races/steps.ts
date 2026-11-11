@@ -7,7 +7,7 @@ import type { RelayTeam } from '../../shared/teams.js';
 import { digitsForTime,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
-import { onlyRunners,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
+import { finishOf,onlyRunners,placesBoard,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
 import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
 import { readRace } from './records.js';
@@ -72,9 +72,13 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   await dropFromOrder(client,target.race,runners);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
-/** An order body: the whole finishing order by entry, Did not finish, Didn't run, and runners (or on a relay teams) added at the finish. */
+/**
+ * An order body: the whole finishing order by entry, Did not finish, Didn't run, and runners (or on a relay teams) added
+ * at the finish. `empty` are the places (from 0) emptied to fill again; `removedPlaces` the places of the stored order
+ * (from 0, empty ones counted) that this order closes, which lose their times.
+ */
 export function orderInput(body:unknown) {
-  const input=(body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown;addedTeams?:unknown};
+  const input=(body||{}) as {raceId?:unknown;version?:unknown;order?:unknown;didNotFinish?:unknown;didNotRun?:unknown;added?:unknown;addedTeams?:unknown;empty?:unknown;removedPlaces?:unknown};
   const {raceId,version}=seenRace(input,'Open the race before saving its finishing order');
   const unclassified="Choose a place, Did not finish or Didn't run for each runner";
   const entryIds=(value:unknown)=>{
@@ -88,10 +92,21 @@ export function orderInput(body:unknown) {
   if(addedRefusal) throw new Refusal(400,addedRefusal);
   const addedTeams=input.addedTeams??[];
   if(!Array.isArray(addedTeams) || addedTeams.some(id=>typeof id!=='string') || new Set(addedTeams).size!==addedTeams.length) throw new Refusal(400,'Choose each team once');
-  return {raceId,version,order,didNotFinish,didNotRun,added,kept:keptWarningNumbers(input,added),addedTeams:addedTeams as string[]};
+  const places=(value:unknown)=>{
+    if(!Array.isArray(value) || value.some(place=>!Number.isSafeInteger(place) || place<0) || new Set(value).size!==value.length) throw new Refusal(400,unclassified);
+    return value as number[];
+  };
+  const empty=places(input.empty??[]),removed=places(input.removedPlaces??[]);
+  if(empty.some(place=>place>=order.length+empty.length)) throw new Refusal(400,unclassified);
+  return {raceId,version,order,didNotFinish,didNotRun,added,kept:keptWarningNumbers(input,added),addedTeams:addedTeams as string[],empty,removed};
 }
-/** The Finishing order step's write. Runners the Runners step has since taken off are dropped, later places moving up. */
-export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,order,didNotFinish,didNotRun,added,kept,addedTeams}:OrderInput) {
+/**
+ * The Finishing order step's write. Runners the Runners step has since taken off are dropped, later places moving up.
+ * A place only emptied keeps its time; a removed place loses it (`timesWithoutPlaces`), the times' version moving on
+ * as in `dropFromOrder`. The removed places are the phone's to name (an order alone cannot tell a place closed from
+ * one emptied and filled), so they are refused unless closing them in the stored order gives exactly this order.
+ */
+export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,order,didNotFinish,didNotRun,added,kept,addedTeams,empty,removed}:OrderInput) {
   if(raceId===null) throw new Refusal(409,'Check runners in before the order');
   // Teams are never made at the finish: a new team is typed into the heat at the start line first.
   if(target.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
@@ -106,8 +121,12 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   // A team keeps the warnings kept on it when it was typed in. A final's runners all ran in its heats, so "already ran in this event" does not apply.
   const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
-  const finish=onlyRunners({order:[...order,...atFinish.map(entry=>entry.id)],didNotFinish},runners);
+  const stored=target.race.parts.finish.value,board=placesBoard({order,empty});
+  if(removed.length && JSON.stringify(placesBoard(stored||{order:[]}).filter((_,place)=>!removed.includes(place)))!==JSON.stringify(board)) throw new Refusal(409,'This race has changed - open it again');
+  const finish=onlyRunners(finishOf([...board,...atFinish.map(entry=>entry.id)],didNotFinish),runners);
   await publishPart(client,phone,race,'finish',finish.order.length || finish.didNotFinish.length?finish:null);
+  const timed=target.race.parts.times.value,times=timesWithoutPlaces(timed,removed);
+  if(times!==timed) await client.query(`UPDATE race_parts SET value=$1,version=version+1 WHERE race_id=$2 AND part='times'`,[JSON.stringify(times),race.id]);
 }
 /**
  * Refuses a time no one can run (0.00, faster than 10 m/s for the event's distance) with the phone's words, for the
@@ -190,6 +209,6 @@ export async function dropFromOrder(client:pg.PoolClient,race:Pick<RaceRead,'id'
   const finish=race.parts.finish.value,left=finish && onlyRunners(finish,runners);
   if(!finish || JSON.stringify(left)===JSON.stringify(finish)) return;
   await client.query(`UPDATE race_parts SET value=$1 WHERE race_id=$2 AND part='finish'`,[JSON.stringify(left),race.id]);
-  const stored=race.parts.times.value,times=timesWithoutPlaces(stored,removedPlaces(finish.order,left!.order));
+  const stored=race.parts.times.value,times=timesWithoutPlaces(stored,removedPlaces(placesBoard(finish),placesBoard(left!)));
   if(times!==stored) await client.query(`UPDATE race_parts SET value=$1,version=version+1 WHERE race_id=$2 AND part='times'`,[JSON.stringify(times),race.id]);
 }

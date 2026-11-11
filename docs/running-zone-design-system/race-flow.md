@@ -155,9 +155,8 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 **PlacesBoard**
 - A 4-column grid with **one slot for every runner in the race** (1st … *n*th).
-- Placed slots are navy: gold ordinal plus wristband. Tap one to change it.
-- A slot being changed is outlined with its runner still in it; the meta reads "Changing 1st: 2014", 2014 is among the runner buttons again, and "Keep 2014" puts it back.
-- The current place is gold: "3RD ?", `aria-current="step"`.
+- Placed slots are navy: gold ordinal plus wristband. Tap one to empty it: its runner is among the runner buttons again. Any number of slots can be empty, and each keeps its time.
+- The current place is the lowest empty one, gold: "3RD ?", `aria-current="step"`.
 - Empty slots are dashed: "4TH –".
 - The grid grows with the runner count; 9–12 runners make 3 rows.
 
@@ -176,7 +175,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 #### 6b. Finish line: check the order (artboard `N6b-CheckOrder`)
 - **Prompt:** meta "Heat 4 · drag a handle to move a runner", question "Check the order".
-- **OrderRows** (44px): place, wristband, drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop.
+- **OrderRows** (44px): place, wristband, a small "No place" button ("No place for 2033") and the drag handle labelled "Move 2033". Arrow keys also move the focused row. Places renumber on drop. No place takes the runner out of the order: the runners below move up, the removed place loses its time, and the runner joins the not placed rows. It works until the race is saved, before and after Save the order.
 - **"2 not placed"** heading, below the order and just above the footer, with a small "+ Runner not on the list" button. Each unplaced runner is a dashed row with two pill buttons, Did not finish and Didn't run (`aria-pressed`), neither chosen at the start.
 - **Footer:** display-primary "Save the order". It marks Finishing order done, returns to Races and shows the toast. While any unplaced runner is unanswered it saves nothing, shows the amber callout "Say what happened to 2 runners first." above the rows, and scrolls to the first unanswered row.
 - **Back** returns to 6 without losing anything.
@@ -244,8 +243,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 - Team tiles (RunnerButton, team tile), two to a row: its 4th leg's wristband "2054" (or "–"), with no team label: the team number is the lane, and after the line nobody knows the lane. `aria-label="2054 came 1st"` ("no 4th leg came 1st" for "–").
 - The PlacesBoard names a placed team by its 4th leg's wristband, "2054". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
 - Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
-- **Check the order** rows read the 4th leg's wristband, "2064". A team left over has that number on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run. While a slot is being changed: "Changing 1st: 2054" with **Keep 2054**.
-
+- **Check the order** rows read the 4th leg's wristband, "2064". A team left over has that number on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run.
 **Timer**
 - As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · time each team's 4th leg" (no finished count). A final has no Times.
 
