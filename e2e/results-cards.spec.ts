@@ -54,7 +54,7 @@ test('Results is the event grid: a key, events by distance, each card in its Rac
     await expect(page.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
     await expect(page.locator('main')).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
-    await eventTab(page,'Races');
+    await eventTab(page,'Heats');
     await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
     await expect(page.getByRole('button',{name:`Back to ${name} · Boy Cubs`,exact:true})).toBeVisible();
     await back(page,`${name} · Boy Cubs`);
