@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { CompletedStage } from '../../shared/stage-lock.js';
 import type { Phone } from '../../shared/domain.js';
 import type { Stage } from '../../shared/stages.js';
+import { nextPhase,stagesOf,type EventPhase } from '../../shared/event-phase.js';
 import { actions,Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
 import { readEventResults } from '../results/read.js';
@@ -11,7 +12,8 @@ import { reopenHeatsSheet } from '../../shared/results-rules.js';
 import { rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
 export async function readCompletedStages(db:Database,dayId:string):Promise<CompletedStage[]> {
-  return (await db.query('SELECT s.event_id AS "eventId",e.code AS "eventCode",s.stage FROM event_stages s JOIN events e ON e.id=s.event_id WHERE e.day_id=$1',[dayId])).rows;
+  const events=(await db.query('SELECT id,code,format,phase FROM events WHERE day_id=$1',[dayId])).rows;
+  return events.flatMap(event=>stagesOf(event.phase,event.format).map(stage=>({eventId:event.id,eventCode:event.code,stage})));
 }
 export function stageRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool);
@@ -42,14 +44,15 @@ export async function changeStage(client:pg.PoolClient,current:Phone,code:string
   if(sheet.completed===!reopening) throw new Refusal(409,reopening?'This stage is already open':'This stage is already complete');
   if(reopening && stage==='heats' && !reopenHeatsSheet(detail.results)) throw new Refusal(409,'The final has started - heats cannot be reopened');
   if(!reopening && sheet.mustSettleFirst.length) throw new Refusal(409,'Settle everything under Settle first, then confirm',{mustSettleFirst:sheet.mustSettleFirst.map(item=>item.message)});
-  if(reopening) await client.query('DELETE FROM event_stages WHERE event_id=$1 AND stage=$2',[detail.event.id,sheet.stage]);
-  else await client.query('INSERT INTO event_stages(event_id,stage) VALUES($1,$2)',[detail.event.id,sheet.stage]);
+  const {phase}=(await client.query('SELECT phase FROM events WHERE id=$1',[detail.event.id])).rows[0] as {phase:EventPhase};
+  const next=nextPhase(phase,detail.event.format,sheet.stage,reopening);
+  if(!next) throw new Refusal(409,'This stage is not available');
+  await client.query('UPDATE events SET phase=$2 WHERE id=$1',[detail.event.id,next]);
   if(sheet.stage==='heats' && !reopening) await seedFinal(client,current,detail.event,detail.results.qualifiers);
   // Decided without a final, or its heats reopened, the event has no final left to work. An unrun final goes with its
   // line-up, call-ups and added runners, not into Deleted races, so "+ Final" makes "Final" again once every heat is saved.
   if(!reopening && sheet.stage==='no-final' || reopening && sheet.stage==='heats') {
     if(detail.results.finalResults) await client.query('DELETE FROM races WHERE id=$1',[detail.results.finalResults.raceId]);
-    await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage IN ('heats','final')",[detail.event.id]);
   }
   const touches=[...detail.results.leaderboard,...(detail.results.finalResults?.leaderboard||[])].map(row=>({raceId:row.raceId})).filter((touch,index,all)=>all.findIndex(other=>other.raceId===touch.raceId)===index);
   await writeAuditNote(client,current,detail.event.id,{action:command,message:`${current.name} ${reopening?'reopened':'marked'} ${sheet.label}${comment?` - ${comment}`:''}`,comment,touches});

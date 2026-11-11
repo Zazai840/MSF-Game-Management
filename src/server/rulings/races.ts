@@ -89,7 +89,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       requireRace(race,'restore');
-      if(race.kind==='final' && (await client.query("SELECT 1 FROM event_stages WHERE event_id=$1 AND stage='no-final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
+      if(race.kind==='final' && (await client.query("SELECT 1 FROM events WHERE id=$1 AND phase='no final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
       // A live race has its number now: it comes back with the next one, never touching the live race.
       const taken=(await client.query('SELECT 1 FROM races WHERE event_id=$1 AND kind=$2 AND number=$3 AND NOT deleted',[race.event.id,race.kind,race.number])).rowCount;
       const number=taken?await nextNumber(client,race.event.id,race.kind):race.number;
@@ -116,7 +116,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const entries=race.final.entries.map(entry=>({...entry,finalEntryId:ids.get(entry.finalEntryId)!,...(entry.runner?{runner:{...entry.runner,id:ids.get(entry.finalEntryId)!}}:{}),...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
         const additionalEntries=(race.final.additionalEntries||[]).map(entry=>({...entry,runner:{...entry.runner,id:runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.runner.id)]?.id||randomUUID()}}));
         await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,generation) VALUES($1,$2,$3,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
-        await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[race.event.id]);
+        // A re-run final is to be run again: medals it decided are open again.
+        await client.query("UPDATE events SET phase='final' WHERE id=$1 AND phase='medals'",[race.event.id]);
       }
       await writeAuditNote(client,current,race.event.id,{action:'re-run',comment,message:`${current.name} called a re-run of ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id},{raceId:id}]});
       return {status:'saved',newRaceId:id,...await readEventResults(client,current.dayId,race.event.code)};
