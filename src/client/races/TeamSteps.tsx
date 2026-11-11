@@ -6,7 +6,7 @@ import { isTeamEntry } from '../../shared/races.js';
 import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
 import { SortableList } from '../flow/SortableList.js';
 import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
-import { DigitsField,KeepFocus,type StepProps } from './Steps.js';
+import { CallUp,DigitsField,KeepFocus,type StepProps } from './Steps.js';
 import { useWrites } from './writes.js';
 
 /** A final's mark for a finalist: Here, Absent, or not marked yet. */
@@ -235,6 +235,7 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
         <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && item.mark!=='absent' && !change}
           content={box.chip(item.team.id,item.team.number,!locked && item.mark!=='absent')}/>
       </section>)}
+      {!locked && !change && <CallUp read={read} flow={flow}/>}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>

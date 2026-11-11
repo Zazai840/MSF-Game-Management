@@ -65,11 +65,11 @@ A zone lead's call, on an event with heats, to award its medals to the 3 fastest
 _Avoid_: Skip final, cancel final, no final, heat-time medals
 
 **Absent finalist**:
-A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and a lead can call up a replacement. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final. A relay team is Absent as a whole.
+A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and the Start line or a lead can call up a replacement. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final; a finalist the finish line adds counts as Here. A relay team is Absent as a whole.
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
-A lead bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist. Without a call-up the final runs short.
+Bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist. Anyone signed in can do it: the Start line or a lead at the final's check-in ("Call up next fastest: 2011 (7th)"), or a lead on the Final tab. The entry called up is Here at once. Only the next-ranked entry can be called up; without a call-up the final runs short.
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:

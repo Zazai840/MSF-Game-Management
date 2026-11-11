@@ -217,17 +217,34 @@ test('two finalists Here on one wristband number are refused in words a voluntee
   expect(refused.statusCode).toBe(409);
   expect(refused.json().message).toBe('Two runners marked Here have the same wristband number. Ask a lead to check the final.');
 });
-test('a lead\'s call-up for an absent runner shows on the final, unmarked like every finalist',async()=>{
-  const {people,sam,read}=await final();
+test('the final\'s race read offers the next call-up while a seed is free; any signed-in profile calls it up, and the entry is Here at once',async()=>{
+  const {sam,read}=await final();
+  // No finalist is Absent yet: nothing to call up.
+  expect((await read()).callUp).toBeUndefined();
   const away=await ok(await attend(sam,await read(),[2001,2003,2004,2005,2006],[2002]));
-  const lead=(await people.lead('Lena')).token;
-  const results=(await call(lead,'/api/lead/events/R4/results')).json();
-  expect(results.results.finalResults.nextCallUp.wristband).toBe(2007);
-  expect((await call(lead,'/api/lead/events/R4/call-up',{expectedHeatEntryId:results.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
+  expect(away.callUp).toMatchObject({who:'2007',position:7});
+  // A volunteer gets no lead read back.
+  const saved=await call(sam,'/api/lead/events/R4/call-up',{expectedHeatEntryId:away.callUp!.entryId});
+  expect(saved.statusCode).toBe(200);
+  expect(saved.json()).toEqual({status:'saved'});
   const called=await read();
   expect(called.revision).toBeGreaterThan(away.revision);
-  expect(marks(called).slice(-2)).toEqual([[2006,'here'],[2007,'unmarked']]);
-  expect(wristbands(await ok(await attend(sam,called,[2001,2003,2004,2005,2006,2007],[2002])))).toEqual([2001,2003,2004,2005,2006,2007]);
+  expect(marks(called).slice(-2)).toEqual([[2006,'here'],[2007,'here']]);
+  expect(called.race.final!.entries.at(-1)).toMatchObject({wristband:2007,calledUp:true,absent:false});
+  // The seed is taken: no further call-up, and the same one twice is refused.
+  expect(called.callUp).toBeUndefined();
+  expect((await call(sam,'/api/lead/events/R4/call-up',{expectedHeatEntryId:away.callUp!.entryId})).statusCode).toBe(409);
+});
+test('a finalist the finish line adds counts as Here: their own line-up entry joins the final, not a second runner',async()=>{
+  const {sam,priya,read}=await final();
+  // 2003 was never marked at the start line, and 2002 was marked Absent by mistake.
+  const checked=await ok(await attend(sam,await read(),[2001,2004,2005,2006],[2002]));
+  const seeded=(wristband:number)=>checked.race.final!.entries.find(entry=>entry.wristband===wristband)!.finalEntryId;
+  const added=await ok(await order(priya,checked,{added:[2003,2002]}));
+  expect(added.race.final!.entries).toHaveLength(6);
+  expect(marks(added)).toEqual([[2001,'here'],[2002,'here'],[2003,'here'],[2004,'here'],[2005,'here'],[2006,'here']]);
+  expect([idOf(added,2003),idOf(added,2002)]).toEqual([seeded(2003),seeded(2002)]);
+  expect(added.race.parts.runners.value!.filter(isRunner).some(runner=>runner.addedAtFinish)).toBe(false);
 });
 test('a database an older build left, with its "Is everyone here?" confirm column, boots and still seeds the final',async()=>{
   const old=await openDatabase(process.env.TEST_DATABASE_URL!,true);
