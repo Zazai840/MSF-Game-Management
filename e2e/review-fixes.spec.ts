@@ -2,14 +2,14 @@ import {eventTab,ownName,ownEvent,ownCode,deleteCurrentRace,openLeadMenu,openRac
 async function signInAs(page:Page,name:string) {
   await page.goto('/');await join(page,name,{job:'Start line'});
 }
-/** Six runners placed and timed (the times by `timer`), then the last taken off as Didn't run: six times for five finishers. */
+/** Six runners, five placed and six times typed (by `timer`), then the last Did not finish without ever having a place: six times for five finishers. */
 async function surplusRace(request:APIRequestContext,code:string,name:string,timer:string) {
   const runners=[2401,2402,2403,2404,2405,2406];
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const token=process.env.E2E_OWNER_TOKEN!;
-  await writeCheckIn(request,token,code,runners);await writeOrder(request,token,code,runners);
+  await writeCheckIn(request,token,code,runners);await writeOrder(request,token,code,runners.slice(0,5));
   await writeTimes(request,timer,code,[1200,1300,1400,1500,1600,1700]);
-  await writeOrder(request,token,code,runners.slice(0,5),{didNotRun:[2406]});
+  await writeOrder(request,token,code,runners.slice(0,5),{didNotFinish:[2406]});
 }
 const mismatch='Finish order has 5 finishers, times have 6 - check the recording';
 test('a surplus time at a place with no wristband leaves the race waiting, done, for a lead, who sees why on its Times tab',async({openPhone,request},info)=>{
