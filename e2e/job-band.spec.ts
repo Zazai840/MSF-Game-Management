@@ -3,7 +3,7 @@ import {becomeLead,expect,jobBand,lookProblems,openRace,ownCode,ownEvent,ownName
 /** The band says the job in words, spans the screen directly below the top bar, and the bar holds no job control. */
 async function bandShows(page:Page,job:string) {
   const band=jobBand(page,job),bar=page.getByRole('banner');
-  await expect(band).toHaveText(`You are: ${job}`);
+  await expect(band).toHaveText(`Your role is ${job}`);
   await expect(bar.getByRole('button',{name:/Change job$/})).toHaveCount(0);
   const box=(await band.boundingBox())!,above=(await bar.boundingBox())!;
   expect(Math.round(box.x)).toBe(0);
@@ -13,7 +13,7 @@ async function bandShows(page:Page,job:string) {
   return band.evaluate(element=>getComputedStyle(element).backgroundColor);
 }
 
-test('a full-width job band below the top bar says "You are: Finish line" on Races and on a race, one colour per job, and a tap changes job',async({openPhone,request},info)=>{
+test('a full-width job band below the top bar says "Your role is Finish line" on Races and on a race, one colour per job, and a tap changes job',async({openPhone,request},info)=>{
   const name=ownName('Job band sprint'),code=await ownCode();
   await ownEvent(request,code,name);
   expect((await request.post('/api/races',{headers:{authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`},data:{eventCode:code,kind:'heat',number:1}})).ok()).toBe(true);
