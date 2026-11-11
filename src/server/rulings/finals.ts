@@ -8,7 +8,7 @@ import { finalTakesChanges,openCallUp,teamInFinal,type FinalEntry } from '../../
 import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { readTeamLists } from '../relays/teams.js';
-import { actions,Refusal } from '../access/permissions.js';
+import { actions,Refusal,requireLevel } from '../access/permissions.js';
 import { readRace,requireStageOpen,listRaces } from '../races/records.js';
 import { publishPart } from '../races/versions.js';
 import { nextNumber,originalRunners } from '../races/create.js';
@@ -56,6 +56,8 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
     const {value,comment}=rulingDetails(request.body,false);
     if(typeof value.expectedHeatEntryId!=='string') throw new Refusal(400,'Choose the suggested next-ranked runner');
     return rulingChange(pool,phone,async(client,current)=>{
+      // The Start line's call-up has no comment box: free text reaches the audit note from a lead only.
+      if(comment) requireLevel(current,'Lead');
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults,next=openCallUp(final);
       if(!final || !next) throw new Refusal(409,'There is no open place to call up a runner');
       const vacancy=final.vacancy!,race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
