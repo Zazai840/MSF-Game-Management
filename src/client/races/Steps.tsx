@@ -1,8 +1,8 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { seedLabel } from '../../shared/finals.js';
+import { callUpLabel,seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
+import { andList,doneButtons,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
 import { entryCount,entryNoun,entryWords } from '../../shared/teams.js';
 import { digitsForTime,parseTimeDigits,formatTime,timeBoxHint } from '../../shared/time-entry.js';
@@ -114,8 +114,8 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
         return <li key={item.id||item.wristband}><button type="button" className={look} aria-pressed={item===target} aria-label={`${item.wristband}, ${kept?'kept for a lead to check. ':''}Change`}
           onMouseDown={event=>event.preventDefault()} onClick={()=>item===target?cancel():start(item)}>{item.wristband} <Icon name="pencil"/></button></li>;
       })}</ul>}
-      {size.showing && !target && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap That's everyone, or add more if this heat really has more.`}
-        actions={<><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>That's everyone</button></>}/>}
+      {size.showing && !target && <Callout status message={`That's ${usualRunnersPerRace} runners, the usual number for a heat. Tap ${doneButtons.runners}, or add more if this heat really has more.`}
+        actions={<><button type="button" className="rz-btn" onClick={size.dismiss}>Add another runner</button><button type="button" className="rz-btn rz-btn--primary" onClick={()=>{size.dismiss();onDone('runners');}}>{doneButtons.runners}</button></>}/>}
       {!locked && <DigitsField id="wristband" label={target?`New number for ${target.wristband}`:'Wristband number'} value={on.current} held={on.held} onRelease={on.fix} busy={on.checking || writes.sending} warn={on.held}
         onChange={digits=>{if(target) change.type(digits);else {entry.type(digits);size.dismiss();setSaid('');}}} onEnter={target?save:()=>void entry.next()} selectKey={target?String(target.id??target.wristband):undefined}
         hint={target?'Type the right number and tap Save, or Remove to take this runner off.':count>0?'Tap a number above to change it.':undefined}/>}
@@ -130,7 +130,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       <button type="button" className="rz-btn rz-btn--remove" onClick={remove}>Remove</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!change.current || change.held || change.checking} onClick={save}>{change.checking?'Checking…':'Save'}</KeepFocus>
     </div>:<div className="rz-footer__pair">
-      <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>That's everyone</button>
+      <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>{doneButtons.runners}</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>{entry.checking?'Checking…':'Next'}</KeepFocus>
     </div>}</DockedFooter>}
   </>;
@@ -147,12 +147,13 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
     setBusy(true);flow.setError('');
     try {
       await api(`lead/events/${encodeURIComponent(group.event.code)}/call-up`,{expectedHeatEntryId:next.entryId});
+      // A final has no number: the toast names it "Final".
       toast({message:toastLine({kind:'called-up',who:next.who,race:{section:group.event.section,kind:'final',number:0}})});
       flow.offer(await api<RaceFlowRead>(`races/${race.id}`));
     } catch(failure) {flow.setError(failureLine(failure,'save'));}
     finally {setBusy(false);}
   }
-  return <button type="button" className="rz-btn rz-btn--block" disabled={busy || flow.busy} onClick={()=>void send(callUp)}>{busy?'Saving…':`Call up next fastest: ${callUp.who} (${ordinal(callUp.position)})`}</button>;
+  return <button type="button" className="rz-btn rz-btn--block" disabled={busy || flow.busy} onClick={()=>void send(callUp)}>{busy?'Saving…':callUpLabel(callUp.who,callUp.position)}</button>;
 }
 /**
  * A final's start line: every finalist unmarked at first, each row with Here and Absent; tapping a lit mark again
@@ -186,7 +187,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>
-    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button></DockedFooter>}
+    {!locked && <DockedFooter><button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>{doneButtons.runners}</button></DockedFooter>}
   </>;
 }
 
@@ -301,7 +302,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
         {picker}
       </main>
       {!locked && <DockedFooter>
-        <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>Save the order</button>
+        <button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={writes.sending || (!order.length && !left.length)} onClick={()=>void save()}>{doneButtons.positions}</button>
       </DockedFooter>}
     </>;
   }
@@ -397,7 +398,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
     </main>
     {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
       <KeepFocus className="rz-btn" disabled={target===0} onClick={()=>{const back=target-1;if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Previous place</KeepFocus>
-      <button type="button" className="rz-btn" disabled={!places.length || held || writes.sending} onClick={()=>onDone('times')}>No more finishers</button>
+      <button type="button" className="rz-btn" disabled={!places.length || held || writes.sending} onClick={()=>onDone('times')}>{doneButtons.times}</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || held || full} onClick={()=>void next()}>Next</KeepFocus>
     </div></DockedFooter>}
   </>;

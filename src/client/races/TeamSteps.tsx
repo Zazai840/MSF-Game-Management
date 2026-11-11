@@ -2,7 +2,7 @@ import { useEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
-import { andList,changedLine,placedAsk,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
+import { andList,changedLine,doneButtons,placedAsk,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
 import { isTeamEntry } from '../../shared/races.js';
 import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
 import { SortableList } from '../flow/SortableList.js';
@@ -170,7 +170,7 @@ export function TeamStartLine({read,flow,onDone,locked}:StepProps) {
       </section>)}
     </main>
     {!locked && <DockedFooter>{change?box.changeFooter:<div className="rz-footer__pair">
-      <button type="button" className="rz-btn" disabled={!entries.length || legs.length>0 || flow.busy} onClick={()=>onDone('runners')}>That's everyone</button>
+      <button type="button" className="rz-btn" disabled={!entries.length || legs.length>0 || flow.busy} onClick={()=>onDone('runners')}>{doneButtons.runners}</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held || saves.busy} onClick={()=>void next()}>{legs.length===3?`Save Team ${number}`:'Next'}</KeepFocus>
     </div>}</DockedFooter>}
   </>;
@@ -248,7 +248,7 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>
-    {!locked && <DockedFooter>{change?box.changeFooter:<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>That's everyone</button>}</DockedFooter>}
+    {!locked && <DockedFooter>{change?box.changeFooter:<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>{doneButtons.runners}</button>}</DockedFooter>}
   </>;
 }
 /** "+ Team not on the list" on a relay heat: the teams still to run, each with Add, never a typed wristband. */
