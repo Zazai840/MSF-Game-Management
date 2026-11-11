@@ -1,5 +1,5 @@
 import { createRace,nextNumber } from '../races/create.js';
-import { refuseImpossibleTimes } from '../races/steps.js';
+import { placeList,refuseImpossibleTimes } from '../races/steps.js';
 import type { Runner,FinishingOrder,RaceEntry,TeamEntry } from '../../shared/races.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -221,15 +221,16 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
    * Correct finishing order: wristbands (on a relay, team numbers) move between places while times stay by place; Didn't
    * run takes the entry off the race, so a relay team is still to run again. A place taken away loses its time:
    * `removedPlaces` names those places as the times count them (the screen's, where a drag may come before No place),
-   * or else they are the places the leaving entries had.
+   * or else they are the places the leaving entries had. More places than entries leaving is the screen's No place and
+   * then Give a place on one entry.
    */
   action('POST','/api/lead/races/:id/finish-order','Lead',async(request,_reply,phone)=>{
     const {value,comment}=rulingDetails(request.body,false),unclassified="Choose a place, Did not finish or Didn't run for every runner";
     if(!Number.isSafeInteger(value.baseVersion) || Number(value.baseVersion)<0 || !Number.isSafeInteger(value.runnersVersion) || Number(value.runnersVersion)<1) throw new Refusal(400,'Open the race before correcting its finishing order');
     const numbers=(list:unknown)=>{if(!Array.isArray(list) || list.some(number=>!Number.isSafeInteger(number))) throw new Refusal(400,unclassified);return list as number[];};
     const order=numbers(value.order),didNotFinish=numbers(value.didNotFinish),didNotRun=numbers(value.didNotRun);
-    const removed=value.removedPlaces as number[]|undefined;
-    if(removed!==undefined && (!Array.isArray(removed) || removed.some(place=>!Number.isSafeInteger(place) || place<0) || new Set(removed).size!==removed.length)) throw new Refusal(400,'Open the race before correcting its finishing order');
+    const unopened='Open the race before correcting its finishing order',removed=value.removedPlaces===undefined?undefined:placeList(value.removedPlaces);
+    if(removed===null) throw new Refusal(400,unopened);
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
@@ -238,6 +239,9 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const previous=race.parts.runners.value||[],classified=[...order,...didNotFinish,...didNotRun];
       if(classified.length!==previous.length || new Set(classified).size!==classified.length || classified.some(number=>!previous.some(entry=>entryNumber(entry)===number))) throw new Refusal(400,unclassified);
       const entryFor=(number:number)=>previous.find(entry=>entryNumber(entry)===number)!,idFor=(number:number)=>entryFor(number).id;
+      // The places named are never trusted: each is a place of the saved order, and every entry that leaves it takes one.
+      const saved=race.parts.finish.value?.order||[],leaving=removedPlaces(saved,order.map(idFor)).length;
+      if(removed && (removed.length<leaving || removed.some(place=>place>=saved.length))) throw new Refusal(400,unopened);
       const runners=previous.filter(entry=>!didNotRun.includes(entryNumber(entry))),names=(list:number[])=>list.map(number=>entryName(entryFor(number))).join(', ');
       if(didNotRun.length) await correctPart(client,current,race,'runners',runners,runners);
       await correctFinish(client,current,race,{order:order.map(idFor),didNotFinish:didNotFinish.map(idFor)},runners,removed);

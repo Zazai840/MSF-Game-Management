@@ -242,6 +242,10 @@ _Avoid_: Job, stage (an event's), Positions
 The step a person does on every race, chosen on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the job band (the full-width band below the top bar on Races and the Race screen, "You are: FINISH LINE", one colour per role); Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job). The phone reports it to the server on Join and on every switch, so Signed in today shows a lead each person's role; it is the last one reported, cleared on Log out and on a new Olympics day, and it limits nothing (ADR 0007).
 _Avoid_: station, position
 
+**Job band**:
+The full-width band below the top bar on Races and the Race screen that names the person's role, "You are: FINISH LINE", in one colour per role. Tapping it changes the role. It replaced the role chip at the top right.
+_Avoid_: Role chip, job chip
+
 **Undo**:
 The toast's way to reverse your own save of a step, only while nobody else has changed that step since. It reopens the race at that step, and un-saves a race the save had saved.
 _Avoid_: Revert, roll back

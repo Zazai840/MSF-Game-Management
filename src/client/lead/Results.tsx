@@ -10,7 +10,7 @@ import { medalSheet,needsCheck,placeText,qualifyingLineAt,reopenHeatsSheet,resul
 import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords } from '../races/parts.js';
-import { firstIncompleteStep,raceNeeds,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
+import { firstIncompleteStep,inResultsWords,raceNeeds,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
 import { LeadBar } from './LeadBar.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
@@ -153,7 +153,7 @@ function LiveRaces({races,detail,onRace}:{races:EventResultsRead['results']['rac
   const flow=(id:string)=>detail.summaries.find(race=>race.id===id),relay=detail.event.relay;
   return races.length>0 && <RaceRows onRace={id=>{const race=flow(id);onRace(id,race && race.state!=='saved'?firstIncompleteStep(race):undefined);}} rows={races.map(({race,runners,saved,reasons})=>{
     const summary=saved?undefined:flow(race.id);
-    return {id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),saved?'in Results':'not in Results yet',`checked in ${clock(race.checkedInAt)}`,...(summary?[]:reasons.filter(reason=>reason!=='in progress'))].join(' · '),
+    return {id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),inResultsWords(saved),`checked in ${clock(race.checkedInAt)}`,...(summary?[]:reasons.filter(reason=>reason!=='in progress'))].join(' · '),
       more:summary && <><span className="rz-progress">{stepsOf(summary).map(step=>{
         const status=summary.steps[step]!,done=status.state==='done';
         // Runners has no count to reach: its bar fills when That's everyone is tapped.
