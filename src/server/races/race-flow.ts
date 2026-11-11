@@ -15,7 +15,7 @@ import { changeStage,readCompletedStages } from '../rulings/stages.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
-import { jobRace,listRaces,raceChange,readRace,readStepMeta,summary,type Database,type StoredRace } from './records.js';
+import { jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,type Database,type StoredRace } from './records.js';
 import { markFinalistAbsent } from './final-field.js';
 import { publishPart } from './versions.js';
 /**
@@ -40,7 +40,7 @@ export async function readGroups(db:Database,dayId:string,only?:string,switchedO
   // One event at a time: a final's reason reads through the same client, which runs one query at a time.
   for(const event of events) {
     const own=races.filter(race=>race.event.id===event.id).sort((a,b)=>Number(a.kind==='final')-Number(b.kind==='final') || a.number-b.number);
-    const summaries=own.map(race=>summary(race,meta.get(race.id)));
+    const summaries=own.map(race=>raceSummary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
     const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
       && !stageDone(event.id,'heats',stages);

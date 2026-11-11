@@ -91,7 +91,7 @@ export async function readStepMeta(db:Database,dayId:string) {
   return meta;
 }
 /** A race as Home and a Results heat row list it: its steps' statuses and why it would not save itself. */
-export function summary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
+export function raceSummary(race:StoredRace,meta:Partial<Record<RacePartName,StepMeta>>={}):RaceSummary {
   const statuses=Object.fromEntries(stepsOf(race).map(step=>[step,stepStatus(race,step,meta)]));
   return {id:race.id,kind:race.kind,number:race.number,state:race.state,steps:statuses,blocker:race.state==='saved'?null:stepBlocker(race,race.event.relay)};
 }

@@ -150,9 +150,9 @@ function FinalTab({detail,onRunner,onStage,onSaved,onRace}:TabProps) {
  * the tap opens the race at the step that sentence is about (`raceNeed`).
  */
 function LiveRaces({races,detail,onRace}:{races:EventResultsRead['results']['races'];detail:EventResultsRead;onRace:(id:string,step?:Step)=>void}) {
-  const flow=(id:string)=>detail.summaries.find(race=>race.id===id),relay=detail.event.relay;
-  return races.length>0 && <RaceRows onRace={id=>{const race=flow(id);onRace(id,race && raceNeed(race).step||undefined);}} rows={races.map(({race,runners,saved,reasons})=>{
-    const summary=saved?undefined:flow(race.id);
+  const summaryOf=(id:string)=>detail.summaries.find(race=>race.id===id),relay=detail.event.relay;
+  return races.length>0 && <RaceRows onRace={id=>{const race=summaryOf(id);onRace(id,race && raceNeed(race).step||undefined);}} rows={races.map(({race,runners,saved,reasons})=>{
+    const summary=saved?undefined:summaryOf(race.id);
     return {id:race.id,label:openRaceLabel(race),meta:[runnersText(runners),inResultsWords(saved),`checked in ${clock(race.checkedInAt)}`,...(summary?[]:reasons.filter(reason=>reason!=='in progress'))].join(' · '),
       more:summary && <><span className="rz-progress">{stepsOf(summary).map(step=>{
         const status=summary.steps[step]!,done=status.state==='done';

@@ -97,7 +97,7 @@ A race removed from an event's results but kept so it can be restored, for examp
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
-A race whose results count: every step is done and nothing blocks it, so it saved itself. Only saved races reach results, To check and the day export, and only a lead can change one.
+A race whose results count: every step is done and nothing blocks it, so it saved itself. The screens say it is "In Results", and "Not in Results yet" until then, never "not saved": every tap is saved. Only saved races reach results, To check and the day export, and only a lead can change one.
 _Avoid_: Finished race, complete race, closed race
 
 **Finishing order**:
@@ -245,6 +245,10 @@ _Avoid_: station, position
 **Job band**:
 The full-width band below the top bar on Races and the Race screen that names the person's role, "You are: FINISH LINE", in one colour per role. Tapping it changes the role. It replaced the role chip at the top right.
 _Avoid_: Role chip, job chip
+
+**Needs band**:
+The line below the job band on the Race screen, the same for every role, that says what the race still needs to reach Results: a missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once the race is saved. A heat row in Results says the same sentence and opens the race at the step it is about.
+_Avoid_: Status bar, save banner
 
 **Undo**:
 The toast's way to reverse your own save of a step, only while nobody else has changed that step since. It reopens the race at that step, and un-saves a race the save had saved.
