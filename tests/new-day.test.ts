@@ -12,8 +12,12 @@ test('Start new day keeps the presser and profiles, sends other phones back with
   const people = await signInOwner(app, 'new-day-owner', 'Aisha Khan');
   const {owner, day:before, pass} = people;
   const volunteer = await people.volunteer('Sam Patel'), lead = await people.lead('Yusuf Ali');
+  await post('/api/role', {role:'lead'}, owner.token);
+  expect((await get('/api/home', owner.token)).json().role).toBe('lead');
   await post('/api/day/export', {}, owner.token);
   expect((await post('/api/day/start-new', {confirmation:'NEW DAY'}, owner.token)).statusCode).toBe(200);
+  // The presser's reported role belonged to the old day.
+  expect((await get('/api/home', owner.token)).json().role).toBeNull();
 
   for (const {token} of [volunteer, lead]) {
     const refused = await get('/api/home', token);

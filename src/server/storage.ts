@@ -40,6 +40,8 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     UPDATE sign_ins SET level='Lead' WHERE level='Scoring team';
     ALTER TABLE sign_ins DROP CONSTRAINT IF EXISTS sign_ins_level_check;
     ALTER TABLE sign_ins ADD CONSTRAINT sign_ins_level_check CHECK (level IN ('Volunteer','Lead'));
+    -- The role the phone last reported (ADR 0007): information for leads, never a hold. Null until it reports one.
+    ALTER TABLE sign_ins ADD COLUMN IF NOT EXISTS reported_role text CHECK (reported_role IN ('start','finish','timer','lead'));
     -- That's me: Join moves a profile to a new phone at once (ADR 0006), written as an approved row with the new secret;
     -- the old phone's session token is kept so its next request is told the profile moved. Older builds also left waiting rows.
     CREATE TABLE IF NOT EXISTS profile_requests (

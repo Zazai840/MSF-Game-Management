@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type pg from 'pg';
-import { actions, Refusal } from './permissions.js';
+import { actions, Refusal, requireLevel } from './permissions.js';
+import { roles, type Role } from '../../shared/race-flow.js';
 import { rulingChange,writeAuditNote } from '../rulings/records.js';
 import { failureBackoff,WrongAccessCode } from './failures.js';
 import { matches, matchesAnyCapitals, signInRoutes } from './sign-in.js';
@@ -14,9 +15,18 @@ export function accessRoutes(app: FastifyInstance, pool: pg.Pool, ownerPassword:
   // Signing yourself out is not a decision, so it writes no audit note. Tapping the name again signs in as a volunteer.
   // Like every change of the day, it raises the revision and wakes the live streams.
   action('POST', '/api/sign-out', 'Volunteer', (_request, _reply, phone) => raceChange(pool, phone, async client => {
-    await client.query("UPDATE sign_ins SET signed_out=true, level='Volunteer' WHERE id=$1", [phone.id]);
+    await client.query("UPDATE sign_ins SET signed_out=true, level='Volunteer', reported_role=NULL WHERE id=$1", [phone.id]);
     return {status:'signed-out'};
   }));
+  // The phone reports its role on Join and on every switch (ADR 0007). It is information for leads, not a change of
+  // the day: it limits nothing and raises no revision, so a day export stays current.
+  action('POST', '/api/role', 'Volunteer', async (request, _reply, phone) => {
+    const role = (request.body as {role?: unknown} | null)?.role;
+    if (!roles.includes(role as Role)) throw new Refusal(400, 'Choose your job');
+    if (role === 'lead') requireLevel(phone, 'Lead');
+    await pool.query('UPDATE sign_ins SET reported_role=$1 WHERE id=$2 AND NOT signed_out', [role, phone.id]);
+    return {role};
+  });
   action('POST', '/api/become-lead', 'Volunteer', async (request, reply, phone) => {
     const code = (request.body as {code?: unknown} | null)?.code;
     if (typeof code !== 'string') throw new Refusal(400, 'Enter the lead code');

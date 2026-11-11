@@ -1,6 +1,7 @@
 import { useEffect,useState } from 'react';
 import { canMakeRole, type PhonesRead,type SignedInRow } from '../../shared/phones.js';
 import type { Level } from '../../shared/domain.js';
+import { roleLabels } from '../../shared/race-flow.js';
 import { api,StaleRequest } from '../api.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
@@ -12,7 +13,8 @@ import { UpdatedAt } from '../races/UpdatedAt.js';
 const makeRole:Record<Level,string>={Lead:'Make lead',Volunteer:'Make volunteer'};
 const roles=Object.keys(makeRole) as Level[];
 /**
- * Signed in today: a card per person signed in on today's Olympics day, oldest first, with a lead's way to set a role
+ * Signed in today: a card per person signed in on today's Olympics day, oldest first, with the job their phone last
+ * reported (ADR 0007) and a lead's way to set a role
  * (saved at once) or remove someone (asked first in a sheet). The phone and access audit notes sit in Notes at the foot.
  */
 export function SignedInToday({onSaved}:{onSaved:()=>void}) {
@@ -42,7 +44,7 @@ export function SignedInToday({onSaved}:{onSaved:()=>void}) {
       {readError!==null && <ErrorCallout error={readError} action="read"/>}
       {!data && readError===null && <p className="rz-empty">Opening…</p>}
       {data?.phones.map(phone=><article key={phone.id} className="rz-codecard" aria-label={phone.name}>
-        <h3 className="rz-person__name">{phone.name}{phone.id===data.selfId?' (you)':''}</h3><p className="rz-codecard__text">{phone.level}{phone.owner?' · Owner':''}</p>
+        <h3 className="rz-person__name">{phone.name}{phone.id===data.selfId?' (you)':''}</h3><p className="rz-codecard__text">{phone.level}{phone.owner?' · Owner':''}{phone.role?` · ${roleLabels[phone.role]}`:''}</p>
         {phone.id!==data.selfId && <div className="rz-person__actions">
           {/* Skipping the role it already has, and Make volunteer for the owner. */}
           {roles.filter(role=>role!==phone.level && canMakeRole(phone,role)).map(role=>

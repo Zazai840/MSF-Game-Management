@@ -32,7 +32,7 @@ test('with no day running only the owner password works, and owner sign-in start
   expect(signedIn.pass).toEqual(expect.any(String));
   const me = (await app.inject({url:'/api/me', headers:auth(signedIn.token)})).json();
   expect(me).toEqual({id:expect.any(String), dayId:expect.any(String), name:'Aisha Khan', level:'Lead', profileId:signedIn.profile.id});
-  expect((await app.inject({url:'/api/day/phones', headers:auth(signedIn.token)})).json().phones).toEqual([{id:me.id, name:'Aisha Khan', level:'Lead', owner:true}]);
+  expect((await app.inject({url:'/api/day/phones', headers:auth(signedIn.token)})).json().phones).toEqual([{id:me.id, name:'Aisha Khan', level:'Lead', owner:true, role:null}]);
   const day = (await app.inject({url:'/api/day', headers:auth(signedIn.token)})).json();
   expect(day.leadCode).toMatch(/^[A-Z0-9]{6}$/);
   expect(day.olympicsPassword.length).toBeGreaterThanOrEqual(6);
