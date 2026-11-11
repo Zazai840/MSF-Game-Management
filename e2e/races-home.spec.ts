@@ -286,7 +286,7 @@ test('switching job on a race keeps the race open in the new view, and another j
   await switchJob(page,'Finish line');
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`})).toBeVisible();
   await expect(page.getByRole('heading',{level:2,name:'Who came 1st?'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'You are: Finish line. Change job',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Your role is Finish line. Change job',exact:true})).toBeVisible();
   // The step strip keeps one line per cell: an own step not started is "You · not yet".
   await expect(page.getByRole('tablist',{name:'Heat 1 progress'}).getByRole('tab')).toHaveText(['Runners2 so far','Finishing orderYou · not yet','TimesNot started']);
   expect(await lookProblems(page)).toEqual([]);

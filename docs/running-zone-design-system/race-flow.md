@@ -196,7 +196,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 
 #### 8. Zone lead (artboard `N8-Lead`)
 - **Shell differences**
-  - The JobBand reads "You are: ZONE LEAD" on a `jumping` fill.
+  - The JobBand reads "Your role is ZONE LEAD" on a `jumping` fill.
   - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
   - These are today's lead actions from screens 24, 27 and 28, moved here.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
@@ -281,7 +281,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | Component | Spec |
 |---|---|
 | **NeedsBand** | A full-width line directly below the JobBand on a race, for every role: what the race still needs to reach Results. A missing detail first ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." with a `throwing-ink` check once saved. 13px/700 `navy` on `card`, one line at 360px for the done-button sentences. `aria-live="polite"`; not tappable. It replaces the lead's finishers-and-times line on a race not yet saved. |
-| **JobBand** | A full-width button directly below the app bar on Races and on a race: "You are: FINISH LINE" (the job in `display` capitals from CSS, 22px; "You are:" 16px/800), job icon and chevron-down 20px, `navy` on the job's colour, `size-touch` tall. Start line `running`, Finish line `challenge`, Timer `gold`, Zone lead `jumping` (the JobCard job colours). `aria-label="You are: Timer. Change job"`. Opens the job sheet, "What's your job today?". |
+| **JobBand** | A full-width button directly below the app bar on Races and on a race: "Your role is FINISH LINE" (the job in `display` capitals from CSS, 22px; "Your role is" 16px/800), job icon and chevron-down 20px, `navy` on the job's colour, `size-touch` tall. Start line `running`, Finish line `challenge`, Timer `gold`, Zone lead `jumping` (the JobCard job colours). `aria-label="Your role is Timer. Change job"`. Opens the job sheet, "What's your job today?". |
 | **EventTabs** | 2-column segmented control (Races, Relays) on `card` with `shadow-card` and `radius-tab`, 4px inset. Each tab is a link 44px tall, `radius-md`-ish (10px), Saira italic caps 18px. The current tab is a `navy` fill with `on-navy` text and `aria-current="page"`. |
 | **RaceCard** | `card`, `shadow-card`, `radius-xl`, padding 12/14. Title in `display-card`; code tag; status line in `meta` + `ink-muted`; HeatChips row. |
 | **HeatChips** | An `<ol>` of chips, minimum 52 × 44, `radius-md`, Saira 18px "H1". States are set by the **viewer's step**:<br>• Done: `navy` + tick.<br>• Ready for me: `gold` (on Home).<br>• Current race: `gold` + 2px `navy` ring.<br>• Ready but not current: `card` + 2px `navy` ring + gold dot.<br>• Waiting: `card` + 2px `line`.<br>• Add: 44px dashed `line-strong` with a plus.<br>• Create final: dashed `navy` "+ Final".<br>Every chip's `aria-label` says its state in words ("Heat 3, needs times"). |
