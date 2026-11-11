@@ -109,6 +109,6 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+/delete$`));
   await press(page.getByRole('button',{name:/^Delete for good/}));
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}));
-  await eventPage('races');
+  await eventPage();
   await page.goBack();await expect(page).toHaveURL(/\/results$/);
 });
