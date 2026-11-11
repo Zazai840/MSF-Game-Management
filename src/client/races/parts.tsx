@@ -1,5 +1,5 @@
 import { useId,useLayoutEffect,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,roleLabels,roleSteps,stepLabels,stepPeople,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/app-bar.js';
 import { entryCount } from '../../shared/teams.js';
@@ -121,15 +121,17 @@ export function stepWords(step:Step,status:StepStatus,relay=false) {
  * The race's three steps, as tabs when `onSelect` is given. A volunteer's own step is outlined and starts "You ·"; any
  * other step opens read-only. The own status is short ("You · not yet", "You · 2 of 8", "You · done") so each cell
  * stays on one line at 360px. A lead's selected tab is navy. `notes` puts a short warning on a step ("1 to check").
+ * A lead's steps also name whom to ask (`inRole` comes in a lead's read only): the last person who typed, or the people in that role.
  */
-export function StepStrip({race,role,selected,onSelect,notes={},label,relay=false}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
-  notes?:Partial<Record<Step,string>>;label:string;relay?:boolean}) {
+export function StepStrip({race,role,selected,onSelect,notes={},label,relay=false,inRole}:{race:Pick<RaceSummary,'kind'|'steps'>;role:Role;selected?:Step;onSelect?:(step:Step)=>void;
+  notes?:Partial<Record<Step,string>>;label:string;relay?:boolean;inRole?:Partial<Record<Step,string[]>>}) {
   const own=role==='lead'?null:roleSteps[role],shown=stepsOf(race);
   const cell=(step:Step)=>{
-    const status=race.steps[step]!,done=status.state==='done',note=notes[step];
+    const status=race.steps[step]!,done=status.state==='done',note=notes[step],people=role==='lead'?stepPeople(step,status,inRole?.[step]):'';
     return <>
       <span className="rz-step__label">{stepLabels[step]}{done && <Icon name="check"/>}</span>
       <span className="rz-step__status">{note?<><Icon name="warning"/>{note}</>:step===own?`You · ${status.state==='not started'?'not yet':done?'done':stepWords(step,status,relay)}`:stepWords(step,status,relay)}</span>
+      {people && <span className="rz-step__who">{people}</span>}
     </>;
   };
   if(onSelect) return <div className={shown.length===2?'rz-steps rz-steps--two':'rz-steps'} role="tablist" aria-label={label}>

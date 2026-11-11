@@ -235,7 +235,7 @@ One race of the race flow (/races/:raceId): its event's heat chips, its steps, a
 _Avoid_: Race page (the lead's), job screen
 
 **Step**:
-One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband.
+One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband. On a lead's Race screen each step names the last person who typed in it, or else up to three of the people who have its role today and a count of the rest ("+2").
 _Avoid_: Job, stage (an event's), Positions
 
 **Role**:

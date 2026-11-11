@@ -53,7 +53,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await expect(status(page,name)).toContainText('Heat 1: ');
   await openRace(page,name);
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
-  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check$/,/^Finishing order.*1 to check$/,/^Times.*1 to check$/]);
+  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check/,/^Finishing order.*1 to check/,/^Times.*1 to check/]);
   // The warning icon on a tab not open is navy on paper, an approved colour pair (accessibility.md).
   await expect(tabs.getByRole('tab',{name:/^Times/}).locator('.rz-step__status .rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
   // Runners: the kept number, with Fix and It's right.

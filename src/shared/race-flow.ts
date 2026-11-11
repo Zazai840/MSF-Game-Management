@@ -112,7 +112,17 @@ export interface RacesRead { revision:number; groups:RaceGroup[] }
  * next-ranked heat entry anyone can call up: its heat entry, its name ("2011", "Team 7") and its heat rank.
  */
 export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[]; nextTeam?:number;
-  callUp?:{entryId:string;who:string;position:number} }
+  callUp?:{entryId:string;who:string;position:number};
+  /** Leads only: the names of the people whose reported role is each step's today. */
+  inRole?:Partial<Record<Step,string[]>> }
+/**
+ * Whom a lead asks about a step: the last person who typed in it, or else up to three people in its role today and a
+ * count of the rest ("+2"). A race is made with Runners at version 1 and the other parts at 0, in its maker's name.
+ */
+export function stepPeople(step:Step,status:Pick<StepMeta,'version'|'by'>,inRole:readonly string[]=[]) {
+  if(status.by && status.version>(step==='runners'?1:0)) return status.by;
+  return inRole.slice(0,3).join(', ')+(inRole.length>3?` +${inRole.length-3}`:'');
+}
 /** Whether a step on this race can be worked on now: the race is not saved, the step not done, and for Finishing order and Times someone is in the race. */
 export function workable(race:Pick<RaceSummary,'state'|'steps'>,step:Step) {
   const status=race.steps[step];

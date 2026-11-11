@@ -184,25 +184,44 @@ test("the races read gives a lead's final the reason it would be refused, the sa
   expect((await group('R1')).finalReason).toEqual({raceId:twice.race.id,step:null,line:'1 ran twice: choose which result counts first'});
   expect((await call(lena,'/api/races',{eventCode:'R1',kind:'final'})).json()).toMatchObject({message:'1 ran twice: choose which result counts first',step:null});
 });
+/** An open live stream as that phone (the app is listening): each call waits for its next snapshot. */
+async function openStream(token:string,path:string) {
+  const {port}=app.server.address() as AddressInfo;
+  const reader=(await fetch(`http://127.0.0.1:${port}/api/live/${path}`,{headers:{authorization:`Bearer ${token}`}})).body!.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer='';
+  return async function next<T>():Promise<T> {
+    for(;;) {
+      const split=splitFrames(buffer);
+      const data=split.frames.map(frameData).find(item=>item!==null);
+      if(data) {buffer=split.rest;return JSON.parse(data) as T;}
+      const read=await reader.read();
+      if(read.done) throw new Error('The stream ended');
+      buffer+=read.value;
+    }
+  };
+}
+test('a lead\'s race read names the people in each role today, and a volunteer\'s does not',async()=>{
+  const {ahmed,tom,lena}=await start();
+  await app.listen({port:0,host:'127.0.0.1'});
+  const made=await newHeat(lena,'R4',1),url=`/api/races/${made.race.id}`;
+  await ok(lena,'/api/role',{role:'lead'});await ok(ahmed,'/api/role',{role:'finish'});await ok(tom,'/api/role',{role:'finish'});
+  // Two people in one role are both named; a lead is in no step.
+  expect((await ok(lena,url)).inRole).toEqual({positions:['Ahmed','Tom Barker']});
+  expect(await ok(ahmed,url)).not.toHaveProperty('inRole');
+  // A lead's write answers with the names too, so they stay on the screen.
+  expect((await ok(lena,`${url}/check-in`,{raceId:made.race.id,version:1,runners:[{wristband:2001}]})).inRole).toEqual({positions:['Ahmed','Tom Barker']});
+  // A switch of job reaches a lead's open race at once, though it is no change of the day.
+  const live=await openStream(lena,`races/${made.race.id}`),first=await live<RaceFlowRead>();
+  await ok(tom,'/api/role',{role:'timer'});
+  expect(await live<RaceFlowRead>()).toMatchObject({revision:first.revision,inRole:{positions:['Ahmed'],times:['Tom Barker']}});
+  await ok(ahmed,'/api/sign-out',{});
+  expect((await ok(lena,url)).inRole).toEqual({times:['Tom Barker']});
+});
 test('the races list and a race come live: a write from another phone reaches an open stream',async()=>{
   const {ahmed,tom}=await start();
   await app.listen({port:0,host:'127.0.0.1'});
-  const made=await newHeat(ahmed,'R4',1),{port}=app.server.address() as AddressInfo;
-  async function open(path:string) {
-    const reader=(await fetch(`http://127.0.0.1:${port}/api/live/${path}`,{headers:{authorization:`Bearer ${ahmed}`}})).body!.pipeThrough(new TextDecoderStream()).getReader();
-    let buffer='';
-    return async function next<T>():Promise<T> {
-      for(;;) {
-        const split=splitFrames(buffer);
-        const data=split.frames.map(frameData).find(item=>item!==null);
-        if(data) {buffer=split.rest;return JSON.parse(data) as T;}
-        const read=await reader.read();
-        if(read.done) throw new Error('The stream ended');
-        buffer+=read.value;
-      }
-    };
-  }
-  const race=await open(`races/${made.race.id}`),list=await open('races');
+  const made=await newHeat(ahmed,'R4',1);
+  const race=await openStream(ahmed,`races/${made.race.id}`),list=await openStream(ahmed,'races');
   expect((await race<RaceFlowRead>()).steps.runners!.count).toBe(0);
   expect((await list<RacesRead>()).groups.find(group=>group.event.code==='R4')!.races).toHaveLength(1);
   await ok(tom,`/api/races/${made.race.id}/check-in`,{raceId:made.race.id,version:1,runners:[{wristband:2001}]});

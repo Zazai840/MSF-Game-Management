@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
-import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,stepParts,stepStatus,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
+import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceFinishedLine,raceName,roleSteps,stepParts,stepStatus,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RaceSummary,type RacesRead,type Step,type StepMeta } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
@@ -71,7 +71,8 @@ export async function readGroups(db:Database,dayId:string,only?:string,switchedO
 export async function racesRead(db:Database,dayId:string):Promise<RacesRead> {
   return {revision:await dayRevision(db,dayId),groups:await readGroups(db,dayId)};
 }
-export async function raceFlowRead(db:Database,dayId:string,raceId:string):Promise<RaceFlowRead> {
+/** A race as that phone reads it. A lead's read also names the people in each step's role today (ADR 0007): no volunteer gets those names. */
+export async function raceFlowRead(db:Database,{id:phoneId,dayId}:Pick<Phone,'id'|'dayId'>,raceId:string):Promise<RaceFlowRead> {
   const race=await readRace(db,dayId,raceId);
   if(race.deleted) throw new Refusal(404,`A lead deleted ${raceName(race)}`);
   const group=(await readGroups(db,dayId,race.event.id))[0];
@@ -81,7 +82,16 @@ export async function raceFlowRead(db:Database,dayId:string,raceId:string):Promi
   // A final with a seed free offers its next call-up to every phone: the Runners step shows it to the Start line and the lead.
   const next=race.kind==='final' && !race.stageComplete?openCallUp((await readEventResults(db,dayId,race.event.code)).results.finalResults):null;
   return {revision:await dayRevision(db,dayId),group,race:jobRace(race),steps:group.races.find(item=>item.id===race.id)!.steps,...teams,
-    ...(next?{callUp:{entryId:next.entryId,who:resultName(next),position:next.position!}}:{})};
+    ...(next?{callUp:{entryId:next.entryId,who:resultName(next),position:next.position!}}:{}),...await inRole(db,phoneId,dayId)};
+}
+/** For a lead, the names of the signed-in people whose reported role is each step's, in name order; for anyone else, nothing. */
+async function inRole(db:Database,phoneId:string,dayId:string):Promise<Pick<RaceFlowRead,'inRole'>> {
+  // The level as it is now: a stream opened as a lead outlives a change of level.
+  if(!(await db.query("SELECT 1 FROM sign_ins WHERE id=$1 AND level='Lead' AND NOT signed_out",[phoneId])).rowCount) return {};
+  const names:NonNullable<RaceFlowRead['inRole']>={};
+  for(const row of (await db.query("SELECT name,reported_role FROM sign_ins WHERE day_id=$1 AND NOT signed_out AND reported_role IN ('start','finish','timer') ORDER BY name",[dayId])).rows)
+    (names[roleSteps[row.reported_role as keyof typeof roleSteps]]??=[]).push(row.name);
+  return {inRole:names};
 }
 const dayRevision=async(db:Database,dayId:string)=>Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0].revision);
 /**
@@ -135,7 +145,7 @@ export async function changeTeamEntry(client:pg.PoolClient,phone:Phone,raceId:st
  */
 export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool),raceId=(request:FastifyRequest)=>(request.params as {raceId:string}).raceId;
-  const read=(phone:Phone,id:string)=>resultsSnapshot(pool,phone.dayId,db=>raceFlowRead(db,phone.dayId,id));
+  const read=(phone:Phone,id:string)=>resultsSnapshot(pool,phone.dayId,db=>raceFlowRead(db,phone,id));
   async function write(phone:Phone,id:string,change:(client:pg.PoolClient,unchanged:()=>void)=>Promise<string|void>) {
     const made=await raceChange(pool,phone,change);
     return read(phone,made||id);
