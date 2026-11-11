@@ -64,3 +64,18 @@ test('Results is the event grid: a key, events by distance, each card in its Rac
     await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
   } finally {await cleanUp(page,races);}
 });
+
+test('a running card whose line wraps keeps its state dot round',async({page})=>{
+  const code=await ownCode(),name=ownName('Dot'),token=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(page.request,code,name,'Boy Scouts');
+  const races=[await recordRace(page.request,token,code,[3051,3052],[1200,1300]),(await writeCheckIn(page.request,token,code,[3053,3054])).race as {id:string}];
+  try {
+    await page.addInitScript(owner=>localStorage.setItem('msf:token',owner),token);
+    await page.goto('/results');
+    const line=page.getByRole('button',{name:new RegExp(`^${code} · `)}).locator('.rz-event__status').first();
+    await expect(line).toContainText('Heat 2');
+    const {dot,lines}=await line.evaluate(element=>{const dot=getComputedStyle(element,'::before');return {dot:[dot.width,dot.height],lines:Math.round(element.getBoundingClientRect().height/parseFloat(getComputedStyle(element).lineHeight))};});
+    expect(lines,'the line wraps on a phone').toBeGreaterThan(test.info().project.name==='desktop'?0:1);
+    expect(dot).toEqual(['8px','8px']);
+  } finally {await cleanUp(page,races);}
+});
