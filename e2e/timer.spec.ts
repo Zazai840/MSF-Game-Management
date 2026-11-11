@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,recordRace,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeTimes,type APIRequestContext,type Locator,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)',gold='rgb(255, 184, 0)',navy='rgb(30, 43, 81)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -371,4 +371,26 @@ test('a Timer who opens a final sees that the final has no times, with a way bac
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   expect(crashes).toEqual([]);
+});
+
+// Ticket #300, from the demonstration run. The control's words ("Delete 3rd place time") wait for the owner's decision.
+test('a race with one time too many: the Timer deletes the time of the place no child has, and the race is saved',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('One time too many'),n=await ownWristbands('Girl Cubs',3),owner=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const {page,token}=await openPhone(ownName('One time too many timer'),{job:'timer'});
+  // The Timer typed a time for each of the three children; then the third is Did not finish without ever having a place.
+  await writeCheckIn(request,owner,code,[n(1),n(2),n(3)]);await writeTimes(request,token,code,[1200,1300,1400]);
+  await writeOrder(request,owner,code,[n(1),n(2)],{didNotFinish:[n(3)]});
+  const stuck=await submitRace(request,owner,code);
+  expect(stuck.race.state,'three times for two finishers: the race does not save').toBe('in progress');
+  await openRace(page,name);
+  await expect(slot(page,'3rd place: 14.00')).toBeVisible();
+  await page.screenshot({path:info.outputPath('one-time-too-many-stuck.png'),fullPage:true});
+  const remove=page.getByRole('button',{name:'Delete 3rd place time',exact:true});
+  await expect(remove).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('one-time-too-many.png'),fullPage:true});
+  await press(remove);
+  const race=async()=>(await (await request.get(`/api/races/${stuck.race.id}`,{headers:{authorization:`Bearer ${token}`}})).json()).race;
+  await expect.poll(async()=>(await race()).state).toBe('saved');
+  expect((await race()).parts.times.value.places).toEqual([1200,1300]);
 });
