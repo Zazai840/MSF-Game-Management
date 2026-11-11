@@ -4,7 +4,7 @@ import type { Step } from '../../shared/race-flow.js';
  * An event's tabs, part of its address so Back from a race page returns to the tab it was opened from. An event opened
  * with no tab (`/results/R4`) shows the tab where the work is and replaces its address with that tab's.
  */
-export const eventTabs=['heats','final','races','notes'] as const;
+export const eventTabs=['heats','final','notes'] as const;
 export type EventTab=typeof eventTabs[number];
 /** The runner sheet's full screens, each under the race the result belongs to. */
 export const runnerScreens=['disqualify','lift-disqualification','correct-number','choose-result'] as const;
@@ -42,6 +42,8 @@ export function viewAt(address:string):View {
     if(!rest.length) return {kind:'results'};
     if(rest.length===1) return {kind:'event',code:a!};
     if(rest.length===2 && eventTabs.includes(b as EventTab)) return {kind:'event',code:a!,tab:b as EventTab};
+    // The Races tab is gone: its heats are on Heats, and an address kept to it opens Heats.
+    if(rest.length===2 && b==='races') return {kind:'event',code:a!,tab:'heats'};
     if(rest.length===2 && b==='confirm-the-medals') return {kind:'confirm-the-medals',code:a!};
     if(rest.length===2 && stageScreens.includes(b as StageScreen)) return {kind:'stage',code:a!,screen:b as StageScreen};
     if(rest.length===3 && b==='races') return {kind:'race-page',code:a!,raceId:c!};
@@ -83,7 +85,7 @@ export function addressOf(view:View):string {
 /** Where the back arrow goes on a screen reached with no history (a reload of a typed address): one level up. */
 export function parentOf(view:View):View {
   switch(view.kind) {
-    case 'race-page': return {kind:'event',code:view.code,tab:'races'};
+    case 'race-page': return {kind:'event',code:view.code,tab:'heats'};
     case 'runner': return {kind:'race-page',code:view.code,raceId:view.raceId};
     case 'race-action': case 'correction': return view.code===undefined?{kind:'race',id:view.raceId}:{kind:'race-page',code:view.code,raceId:view.raceId};
     case 'event': return {kind:'results'};

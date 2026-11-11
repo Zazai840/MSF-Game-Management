@@ -92,7 +92,7 @@ export function medalSheet(results:Pick<EventResults,'checkSheet'|'leaderboard'|
 }
 /** Reopen heats: offered once the heats are complete, until the final starts. The server refuses it after. */
 export const reopenHeatsSheet=(results:Pick<EventResults,'heatsCheckSheet'|'finalResults'>)=>results.heatsCheckSheet?.completed && !results.finalResults?.started?results.heatsCheckSheet:null;
-/** A live race on an event's Races tab: its runners, whether it is saved, and why it does not count yet. */
+/** A live race's row on an event's Heats tab (the final's on its Final tab): its runners, whether it is saved, and why it does not count yet. */
 export interface EventRace { race:RaceReference; runners:number; saved:boolean; reasons:NotRankedReason[] }
 export interface EventResults {
   allResults:ResultRecord[]; finalRecords:FinalRecord[]; leaderboard:LeaderboardRow[]; actionableRunners:LeaderboardRow[]; qualifiers:LeaderboardRow[]; medalPlaces:LeaderboardRow[];

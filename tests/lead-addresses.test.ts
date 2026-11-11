@@ -9,7 +9,6 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4',{kind:'event',code:'R4'}],
     ['/results/R4/heats',{kind:'event',code:'R4',tab:'heats'}],
     ['/results/R4/final',{kind:'event',code:'R4',tab:'final'}],
-    ['/results/R4/races',{kind:'event',code:'R4',tab:'races'}],
     ['/results/R4/notes',{kind:'event',code:'R4',tab:'notes'}],
     ['/results/R4/races/r-1',{kind:'race-page',code:'R4',raceId:'r-1'}],
     ['/results/R4/ties/t-1',{kind:'tie',code:'R4',tieId:'t-1'}],
@@ -50,6 +49,10 @@ test('each lead screen has its own address, and opening an address opens that sc
   }
 });
 
+test('the old Races tab address opens Heats',()=>{
+  expect(viewAt('/results/R4/races')).toEqual({kind:'event',code:'R4',tab:'heats'});
+});
+
 test('an address the app does not know opens Races',()=>{
   expect(viewAt('/results/R4/medals')).toEqual({kind:'races'});
   expect(viewAt('/results/R4/races/r-1/runners/e-2/promote')).toEqual({kind:'races'});
@@ -67,7 +70,7 @@ test('codes and race ids with spaces or slashes survive the address',()=>{
 });
 
 test('a screen reached with no history goes up one level',()=>{
-  expect(parentOf({kind:'race-page',code:'R4',raceId:'r-1'})).toEqual({kind:'event',code:'R4',tab:'races'});
+  expect(parentOf({kind:'race-page',code:'R4',raceId:'r-1'})).toEqual({kind:'event',code:'R4',tab:'heats'});
   expect(parentOf({kind:'runner',code:'R4',raceId:'r-1',entryId:'e-2',screen:'disqualify'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
   expect(parentOf({kind:'event',code:'R4',tab:'final'})).toEqual({kind:'results'});
   expect(parentOf({kind:'tie',code:'R4',tieId:'t-1',stage:'no-final'})).toEqual({kind:'event',code:'R4',tab:'heats'});
