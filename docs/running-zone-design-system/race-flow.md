@@ -240,7 +240,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 - That's everyone with a team unmarked asks first: "Team 4 is not marked. Record them absent?" with Record them absent / Go back.
 
 **Finish line**
-- Team tiles (RunnerButton, team tile), two to a row: its 4th leg's wristband "2054" (or "–"), with no team label: the team number is the lane, and after the line nobody knows the lane. `aria-label="2054 came 1st"` ("no 4th leg came 1st" for "–").
+- Team tiles (RunnerButton, team tile), two to a row: its 4th leg's wristband "2054" (with no 4th leg, its last leg that has a wristband; "–" with no wristband at all), with no team label: the team number is the lane, and after the line nobody knows the lane. `aria-label="2054 came 1st"` ("no wristband came 1st" for "–").
 - The PlacesBoard names a placed team by its 4th leg's wristband, "2054". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
 - Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
 - **Check the order** rows read the 4th leg's wristband, "2064". A team left over has that number on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run.

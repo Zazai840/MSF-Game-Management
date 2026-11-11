@@ -170,12 +170,13 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
 type Unplaced='dnf'|'dnr';
 /**
  * An entry as the finish line shows it: a child's wristband, or a team's 4th leg's wristband, the child seen to cross
- * ("–" with no 4th leg); nothing for one no longer in the race. No team label: the team number is the lane, and after
+ * (with no 4th leg, its last leg that has a wristband, so two short teams are told apart; "–" with no wristband at
+ * all); nothing for one no longer in the race. No team label: the team number is the lane, and after
  * the line nobody knows the lane.
  */
-const lineName=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?String(entry.legs[3]?.wristband??'–'):entryName(entry);
-/** That name in a sentence or as a screen reader says it: "no 4th leg" for "–". */
-const saidName=(entry:RaceEntry|undefined)=>lineName(entry)==='–'?'no 4th leg':lineName(entry);
+const lineName=(entry:RaceEntry|undefined)=>!entry?'':isTeamEntry(entry)?String([...entry.legs].reverse().find(leg=>leg.wristband!==null)?.wristband??'–'):entryName(entry);
+/** That name in a sentence or as a screen reader says it: "no wristband" for "–". */
+const saidName=(entry:RaceEntry|undefined)=>lineName(entry)==='–'?'no wristband':lineName(entry);
 /**
  * Finish line: the PlacesBoard (one slot per runner, the current place gold) over a button per runner not yet
  * placed, in check-in order. Tapping one gives it the lowest empty place; tapping a placed slot empties it, saved at

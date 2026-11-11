@@ -171,10 +171,12 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
 }
 /** Whether a race counts, in the words every screen uses: never "saved", so nobody thinks their taps were lost. */
 export const inResultsWords=(saved:boolean)=>saved?'in Results':'not in Results yet';
+/** "Runners are already done.", "Finishing order is already done.", "Times are already done.": the verb agrees with the step's name. */
+const alreadyDone=(step:Step)=>`${stepLabels[step]} ${step==='positions'?'is':'are'} already done.`;
 /** What a lead's done button answers on a step already done: that it is, and once every step is done, why the race is not in Results yet. */
 export function alreadyDoneLine({race,steps}:Pick<RaceFlowRead,'race'|'steps'>,step:Step) {
   const blocker=Object.values(steps).every(status=>status?.state==='done')?stepBlocker(race,race.event.relay):null;
-  return `${stepLabels[step]} is already done.${blocker?` ${raceName(race)} is ${inResultsWords(false)}: ${blocker}.`:''}`;
+  return `${alreadyDone(step)}${blocker?` ${raceName(race)} is ${inResultsWords(false)}: ${blocker}.`:''}`;
 }
 /** What a step needs ("Heat 3 needs times") and what it says once done but the race not saved ("Heat 3 checked in"). */
 const stepNeeds:Record<Step,string>={runners:'runners',positions:'the finishing order',times:'times'};

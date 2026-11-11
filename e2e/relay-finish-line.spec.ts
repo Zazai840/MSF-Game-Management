@@ -37,14 +37,14 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await footer(one).getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(one.locator('.rz-toast')).toContainText('Runners saved');
 
-  // The finish line: team tiles two to a row on a phone (wider screens add columns, race-flow.css), each its 4th leg's wristband with no team label, "–" with no 4th leg.
+  // The finish line: team tiles two to a row on a phone (wider screens add columns, race-flow.css), each its 4th leg's wristband with no team label; a team with no 4th leg shows its last leg that has a wristband.
   await expect(tiles(line)).toHaveCount(3,live);
   await expect(meta(line)).toHaveText('Heat 1 · 3 teams · 3 to place');
   await expect(line.getByRole('heading',{level:2,name:'Which team came 1st?'})).toBeVisible();
-  await expect(tiles(line)).toHaveText([String(w(14)),String(w(24)),'–']);
+  await expect(tiles(line)).toHaveText([String(w(14)),String(w(24)),String(w(33))]);
   await expect(line.locator('.rz-main')).not.toContainText('Team ');
   await expect(line.getByRole('button',{name:`${w(14)} came 1st`,exact:true})).toBeVisible();
-  await expect(line.getByRole('button',{name:'no 4th leg came 1st',exact:true})).toBeVisible();
+  await expect(line.getByRole('button',{name:`${w(33)} came 1st`,exact:true})).toBeVisible();
   const [a,b,c]=await Promise.all([0,1,2].map(index=>tiles(line).nth(index).boundingBox()));
   const phone=line.viewportSize()!.width<700;
   expect(a!.y).toBe(b!.y);if(phone) expect(c!.y).toBeGreaterThan(a!.y);else expect(c!.y).toBe(a!.y);expect(a!.width).toBeGreaterThan(140);
@@ -82,14 +82,14 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await expect(orderRows(line)).toHaveText([`1st${w(24)}No place`,`2nd${w(44)}No place`]);
   await expect(line.getByRole('button',{name:`No place for ${w(24)}`,exact:true})).toBeVisible();
   await expect(line.getByRole('button',{name:`Move ${w(24)}`,exact:true})).toBeVisible();
-  await expect(line.getByRole('list',{name:'Not placed'}).getByRole('group')).toHaveText([`${w(14)}Did not finishDidn't run`,"–Did not finishDidn't run"]);
+  await expect(line.getByRole('list',{name:'Not placed'}).getByRole('group')).toHaveText([`${w(14)}Did not finishDidn't run`,`${w(33)}Did not finishDidn't run`]);
   await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(line.getByRole('alert')).toContainText('Say what happened to 2 teams first.');
   await press(notPlaced(line,String(w(14))).getByRole('button',{name:'Did not finish',exact:true}));
-  await press(notPlaced(line,'no 4th leg').getByRole('button',{name:"Didn't run",exact:true}));
+  await press(notPlaced(line,String(w(33))).getByRole('button',{name:"Didn't run",exact:true}));
   expect(await lookProblems(line)).toEqual([]);
   // Each part of a Not placed row stays on one line, even on a 360px phone.
-  for(const team of [String(w(14)),'no 4th leg']) for(const part of [notPlaced(line,team).locator('.rz-orderrow__num'),...['Did not finish',"Didn't run"].map(label=>notPlaced(line,team).getByRole('button',{name:label,exact:true}))])
+  for(const team of [String(w(14)),String(w(33))]) for(const part of [notPlaced(line,team).locator('.rz-orderrow__num'),...['Did not finish',"Didn't run"].map(label=>notPlaced(line,team).getByRole('button',{name:label,exact:true}))])
     expect(await part.evaluate(lines)).toBe(1);
   await line.screenshot({path:info.outputPath('relay-check-the-order.png'),fullPage:true});
   await footer(line).getByRole('button',{name:'Save the order',exact:true}).click();

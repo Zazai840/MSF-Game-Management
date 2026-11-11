@@ -159,6 +159,6 @@ test('a done button on a step already done says so, and once every step is done,
   const part=<Value>(value:Value)=>({version:1,value});
   const heat=(places:number[])=>({kind:'heat',number:1,event:{name:'60m',relay:false},parts:{runners:part([{id:'a',wristband:2001},{id:'b',wristband:2002}]),finish:part({order:['a','b'],didNotFinish:[]}),times:part({places})}}) as unknown as RaceFlowRead['race'];
   const done={runners:status('done'),positions:status('done'),times:status('done')};
-  expect(alreadyDoneLine({race:heat([1100]),steps:done},'runners')).toBe('Runners is already done. Heat 1 is not in Results yet: Place 2 has no time.');
+  expect(alreadyDoneLine({race:heat([1100]),steps:done},'runners')).toBe('Runners are already done. Heat 1 is not in Results yet: Place 2 has no time.');
   expect(alreadyDoneLine({race:heat([1100]),steps:{...done,times:status('in progress')}},'positions')).toBe('Finishing order is already done.');
 });
