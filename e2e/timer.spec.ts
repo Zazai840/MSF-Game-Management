@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,recordRace,selected,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Locator,type Page} from './fixtures.js';
+import {ownName,ownCode,ownWristbands,writeOrder,deleteCurrentRace,enterTime,expect,flowRace,inViewAboveFooter,live,lookProblems,openRace,ownEvent,press,recordRace,selected,signInThroughApi,submitRace,test,writeCheckIn,writeTimes,type APIRequestContext,type Locator,type Page} from './fixtures.js';
 // The design system's warn-soft.
 const amber='rgb(255, 241, 199)',gold='rgb(255, 184, 0)',navy='rgb(30, 43, 81)';
 const slot=(page:Page,label:string)=>page.getByRole('button',{name:label,exact:true});
@@ -371,4 +371,47 @@ test('a Timer who opens a final sees that the final has no times, with a way bac
   await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   expect(crashes).toEqual([]);
+});
+
+// Ticket #300, from the demonstration run.
+test('a race with one time too many: the Timer deletes the time of the place no child has, and the race is saved',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('One time too many'),n=await ownWristbands('Girl Cubs',3),owner=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const {page,token}=await openPhone(ownName('One time too many timer'),{job:'timer'});
+  // The Timer typed a time for each of the three children; then the third is Did not finish without ever having a place.
+  await writeCheckIn(request,owner,code,[n(1),n(2),n(3)]);await writeTimes(request,token,code,[1200,1300,1400]);
+  await writeOrder(request,owner,code,[n(1),n(2)],{didNotFinish:[n(3)]});
+  const stuck=await submitRace(request,owner,code);
+  expect(stuck.race.state,'three times for two finishers: the race does not save').toBe('in progress');
+  await openRace(page,name);
+  await expect(slot(page,'3rd place: 14.00')).toBeVisible();
+  const why=page.getByRole('alert').filter({hasText:'3 times for 2 finishers.'}),remove=why.getByRole('button',{name:'Delete 3rd place time',exact:true});
+  await expect(remove).toBeVisible();
+  // The heading does not say every place has a time while one is too many.
+  await expect(page.getByRole('heading',{level:2,name:'One time too many',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{level:2,name:'Every place has a time'})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('one-time-too-many.png'),fullPage:true});
+  // A lead who works the unsaved race sees the same.
+  const lead=(await openPhone(ownName('One time too many lead'),{lead:true})).page;
+  await openRace(lead,name);await press(lead.getByRole('tab',{name:/^Times/}));
+  await expect(lead.getByRole('button',{name:'Delete 3rd place time',exact:true})).toBeVisible();
+  expect(await lookProblems(lead)).toEqual([]);
+  await press(remove);
+  const race=async()=>(await (await request.get(`/api/races/${stuck.race.id}`,{headers:{authorization:`Bearer ${token}`}})).json()).race;
+  await expect.poll(async()=>(await race()).state).toBe('saved');
+  expect((await race()).parts.times.value.places).toEqual([1200,1300]);
+});
+test('the Start line removes a child with no place after every child has a time: the Timer deletes the time left over',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Time left over'),n=await ownWristbands('Girl Cubs',3),owner=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const {page,token}=await openPhone(ownName('Time left over timer'),{job:'timer'});
+  await writeCheckIn(request,owner,code,[n(1),n(2),n(3)]);await writeTimes(request,token,code,[1200,1300,1400]);
+  await writeCheckIn(request,owner,code,[n(1),n(2)]);
+  await openRace(page,name);
+  const why=page.getByRole('alert').filter({hasText:'3 times for 2 runners.'});
+  await press(why.getByRole('button',{name:'Delete 3rd place time',exact:true}));
+  await expect(why).toHaveCount(0);
+  await expect(page.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(2);
+  await expect.poll(async()=>(await savedTimes(request,code))?.places).toEqual([1200,1300]);
+  await deleteCurrentRace(request,code);
 });
