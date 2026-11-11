@@ -46,10 +46,10 @@ export function Screen({screen,wide=false,children}:{screen:string;wide?:boolean
     {children}
   </div>;
 }
-/** The job band, full width below the top bar on Races and on a race: "You are: FINISH LINE" on the job's colour. It opens Switch job. */
+/** The job band, full width below the top bar on Races and on a race: "Your role is FINISH LINE" on the job's colour. It opens Switch job. */
 export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
-  return <button type="button" className={`rz-jobband rz-jobband--${role}`} aria-label={`You are: ${roleLabels[role]}. Change job`} onClick={onOpen}>
-    <Icon name={roleIcons[role]}/><span>You are: <strong>{roleLabels[role]}</strong></span><Icon name="chevron-down" className="rz-icon--chevron"/>
+  return <button type="button" className={`rz-jobband rz-jobband--${role}`} aria-label={`Your role is ${roleLabels[role]}. Change job`} onClick={onOpen}>
+    <Icon name={roleIcons[role]}/><span>Your role is <strong>{roleLabels[role]}</strong></span><Icon name="chevron-down" className="rz-icon--chevron"/>
   </button>;
 }
 /** The avatar: your initials. It opens the avatar menu, which its label names. */

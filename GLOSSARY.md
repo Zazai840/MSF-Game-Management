@@ -239,11 +239,11 @@ One part of a race as the race flow works it: Runners (check-in), Finishing orde
 _Avoid_: Job, stage (an event's), Positions
 
 **Role**:
-The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the job band (the full-width band below the top bar on Races and the Race screen, "You are: FINISH LINE", one colour per role); Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job).
+The step a person does on every race, kept on their phone for the day: Start line (Runners), Finish line (Finishing order), Timer (Times), or Zone lead, who sees every step. Chosen on Join (or, when signing in by a name under Welcome back, on the job cards that follow) and switched from the job band (the full-width band below the top bar on Races and the Race screen, "Your role is FINISH LINE", one colour per role); Zone lead needs the lead code once per day. The screens call it a job on purpose ("What's your job today?", Switch job).
 _Avoid_: station, position
 
 **Job band**:
-The full-width band below the top bar on Races and the Race screen that names the person's role, "You are: FINISH LINE", in one colour per role. Tapping it changes the role. It replaced the role chip at the top right.
+The full-width band below the top bar on Races and the Race screen that names the person's role, "Your role is FINISH LINE", in one colour per role. Tapping it changes the role. It replaced the role chip at the top right.
 _Avoid_: Role chip, job chip
 
 **Undo**:
