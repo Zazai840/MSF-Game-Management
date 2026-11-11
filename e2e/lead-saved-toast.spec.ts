@@ -30,7 +30,7 @@ test('a lead marking That\'s everyone and the last place\'s time on a heat lands
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   await onTab(page,'Races');
-  await savedToast(page,'Runners saved · Girl Cubs Heat 2');
+  await savedToast(page,'Runners saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-toast-runners.png')});
   // The last place's time marks Times done: back on Races with the toast.
@@ -40,7 +40,7 @@ test('a lead marking That\'s everyone and the last place\'s time on a heat lands
   await press(tabs.getByRole('tab',{name:/^Times/}));
   await enterTime(page,'1400');
   await onTab(page,'Races');
-  await savedToast(page,'Times saved · Girl Cubs Heat 2');
+  await savedToast(page,'Times saved');
   // Undo reverses only this save and reopens the race at Times.
   await press(toast(page).getByRole('button',{name:'Undo',exact:true}));
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
@@ -51,7 +51,25 @@ test('a lead marking That\'s everyone and the last place\'s time on a heat lands
   await deleteCurrentRace(request,code);
 });
 
-test('a lead saving a final\'s finishing order lands on Races with "Finishing order saved · Girl Cubs Final"',async({openPhone,request})=>{
+test('after someone else changes the saved step, the toast reads "[name] changed this" with Open race in place of Undo',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Lead toast changed');
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  const {race}=await writeCheckIn(request,owner(),code,[2001,2002]);
+  await writeTimes(request,owner(),code,[1250]);
+  const {page}=await openPhone(ownName('Lead toast changed'),{lead:true});
+  await openAt(page,race.id,'races');
+  await press(page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}));
+  await enterTime(page,'1400');
+  await savedToast(page,'Times saved');
+  // Another phone retypes a time: Undo would wipe out its work.
+  await writeTimes(request,owner(),code,[1250,1450]);
+  await expect(toast(page).locator('.rz-toast__msg')).toHaveText(/^.+ changed this$/);
+  await expect(toast(page).getByRole('button')).toHaveText('Open race');
+  expect(await lookProblems(page)).toEqual([]);
+  await deleteCurrentRace(request,code);
+});
+
+test('a lead saving a final\'s finishing order lands on Races with "Finishing order saved"',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Lead toast final');
   await ownEvent(request,code,name,'Girl Cubs','heats');
   await recordRace(request,owner(),code,[2011,2012],[1200,1300]);
@@ -62,14 +80,14 @@ test('a lead saving a final\'s finishing order lands on Races with "Finishing or
   await expect(page.getByRole('button',{name:'2012: Here',exact:true})).toHaveAttribute('aria-pressed','true');
   await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   await onTab(page,'Races');
-  await savedToast(page,'Runners saved · Girl Cubs Final');
+  await savedToast(page,'Runners saved');
   await openAt(page,final.race.id,'relays');
   await press(page.getByRole('tablist',{name:'Final steps'}).getByRole('tab',{name:/^Finishing order/}));
   await press(page.getByRole('button',{name:'2012 came 1st',exact:true}));
   await press(page.getByRole('button',{name:'2011 came 2nd',exact:true}));
   await press(page.getByRole('button',{name:'Save the order',exact:true}));
   await onTab(page,'Races');
-  await savedToast(page,'Finishing order saved · Girl Cubs Final');
+  await savedToast(page,'Finishing order saved');
 });
 
 test('a lead marking That\'s everyone on a relay heat lands on Relays with the toast, though the phone remembered Races',async({openPhone,request},info)=>{
@@ -82,7 +100,7 @@ test('a lead marking That\'s everyone on a relay heat lands on Relays with the t
   await openAt(page,made.race.id,'races');
   await press(page.locator('footer.rz-footer').getByRole('button',{name:"That's everyone",exact:true}));
   await onTab(page,'Relays');
-  await savedToast(page,'Runners saved · Girl Cubs Heat 1');
+  await savedToast(page,'Runners saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-toast-relay.png')});
   await deleteCurrentRace(request,code);

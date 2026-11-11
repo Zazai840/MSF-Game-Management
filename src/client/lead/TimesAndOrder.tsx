@@ -39,7 +39,7 @@ export function TimesAndOrder({view,onBack,onChanged}:{view:CorrectionView;onBac
     setBusy(true);
     try {
       await api(`lead/races/${race.id}/${command}`,body);
-      toast({message:toastLine({kind:'corrected',part:command==='times'?'times':'order',race:{section:race.event.section,kind:race.kind,number:race.number}})});
+      toast({message:toastLine({kind:'corrected',part:command==='times'?'times':'order'})});
       onChanged?.();onBack();return null;
     } catch(error) {setBusy(false);return error;}
   };

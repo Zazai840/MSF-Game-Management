@@ -35,7 +35,7 @@ test('lead checks an eligibility warning at once from the runner sheet, corrects
   let failed=true;await page.route('**/api/lead/races/*/runners/*/correct-number',async route=>{if(failed){failed=false;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'Heat 1 was changed by Sam Ali'})});}else await route.continue();});
   await press(held.getByRole('button',{name:'Keep',exact:true}));await expect(page.getByRole('alert').filter({hasText:'Not saved'})).toHaveText('Not saved - try again. Heat 1 was changed by Sam Ali');
   await expect(input).toHaveValue('4045');await press(save);await press(held.getByRole('button',{name:'Keep',exact:true}));
-  await expectToast(page,`Number saved · 4045 in Heat ${first.number}`);await expect(page).toHaveURL(heats);
+  await expectToast(page,`Number saved · 4045`);await expect(page).toHaveURL(heats);
   const corrected=page.getByRole('button',{name:`Runner 4045 · Heat ${first.number}`,exact:true});await expect(corrected).toContainText('12.00');await expect(corrected).toContainText('Check');
   // Choose which result counts: one choice per result, the tapped one picked to start with.
   const repeated=page.getByRole('button',{name:`Runner ${number} · Heat ${second.number}`,exact:true});await press(repeated);
@@ -46,7 +46,7 @@ test('lead checks an eligibility warning at once from the runner sheet, corrects
   await expect(choice(second.number)).toHaveAttribute('aria-pressed','true');await expect(choice(first.number)).toHaveAttribute('aria-pressed','false');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('choose-result.png'),fullPage:true});
   await press(page.getByRole('button',{name:'Save counted result',exact:true}));
-  await expectToast(page,`Result counts · ${number} Heat ${second.number}`);await expect(page).toHaveURL(heats);
+  await expectToast(page,`Result counts · ${number}`);await expect(page).toHaveURL(heats);
   await expect(page.getByRole('button',{name:`Runner ${number} · Heat ${first.number}`,exact:true})).toContainText('Not counted');await expect(repeated).not.toContainText('Check');await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText(`counted ${number} from Heat ${second.number}`);
   await page.screenshot({path:info.outputPath('runner-rulings.png'),fullPage:true});
 });

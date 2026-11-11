@@ -23,7 +23,7 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
   await phone.getByRole('button',{name:'Save the order',exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Timer');
   await enterTime(phone,1234);await enterTime(phone,1334);
-  await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(phone.locator('.rz-toast')).toContainText('Times saved');
   const row=page.getByRole('listitem').filter({has:page.getByText('2401',{exact:true})});
   await expect(row).toContainText('12.34',{timeout:6500});await expect(row).toContainText('Q');
   // The kept warning shows as a Check tag on its row.

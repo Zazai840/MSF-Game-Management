@@ -65,7 +65,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // A lead's call-up for the absent seed appears live, Here at once: the finish line has them with no second tap.
  await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true}).click();
  // The call-up saves at once: the toast, then the line-up names it and the seed it replaces stays Absent.
- await expectToast(page,`${n(15)} called up · Boy Cubs Final`);
+ await expectToast(page,`${n(15)} called up`);
  await expect(await lineUp(page)).toContainText([`2nd fastest · ${n(12)} · Absent · no final place`,`Called up from heat rank 7 · ${n(15)}`]);
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-tab-call-up.png'),fullPage:true});
  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(`called up ${n(15)}`);await eventTab(page,'Final');
@@ -80,7 +80,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // Both steps done: the final saves itself, with no times.
  await priya.getByRole('button',{name:'Save the order',exact:true}).click();
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
- await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
+ await expect(sam.locator('.rz-toast')).toContainText('Runners saved');
  await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
  // The final's order, medal places on gold stars and no times; a row opens the runner sheet.
@@ -121,7 +121,7 @@ test('the start line and the lead call up the next fastest at the final\'s check
  expect(await lookProblems(sam.page)).toEqual([]);await sam.page.screenshot({path:info.outputPath('final-check-in-call-up.png'),fullPage:true});
  // The start line calls up: the runner is in the line-up, Here with no second tap, and the finish line has them.
  await press(callUp(sam.page));
- await expectToast(sam.page,`${n(17)} called up · Boy Cubs Final`);
+ await expectToast(sam.page,`${n(17)} called up`);
  await expect(here(sam.page,n(17))).toHaveAttribute('aria-pressed','true');
  await expect(attendance(sam.page).filter({hasText:String(n(17))})).toContainText('Called up');
  await expect(callUp(sam.page)).toHaveCount(0);
@@ -129,7 +129,7 @@ test('the start line and the lead call up the next fastest at the final\'s check
  // The lead has the same call-up on the final's Race screen.
  await press(mark(lead.page,n(13),'Absent'));
  await press(lead.page.getByRole('button',{name:`Call up next fastest: ${n(18)} (8th)`,exact:true}));
- await expectToast(lead.page,`${n(18)} called up · Boy Cubs Final`);
+ await expectToast(lead.page,`${n(18)} called up`);
  await expect(here(lead.page,n(18))).toHaveAttribute('aria-pressed','true');
  await expect(here(sam.page,n(18))).toHaveAttribute('aria-pressed','true',live);
  expect(await lookProblems(lead.page)).toEqual([]);
@@ -193,7 +193,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await page.getByLabel('Comment',{exact:true}).fill('Corrected heat timer');
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('reopen-heats.png'),fullPage:true});
  await press(reopen);
- await expectToast(page,`Heats reopened · ${name} Boy Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+ await expectToast(page,`Heats reopened`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
  // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
  await expect(stageButtons(page)).toHaveText(['Results without a final']);
  await eventTab(page,'Final');await expect(page.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
@@ -322,7 +322,7 @@ test('a final\'s check-in starts with nobody marked; That\'s everyone asks befor
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await ask.getByRole('button',{name:'Record them absent',exact:true}).click();
  await expect.poll(()=>marks(jo),live).toEqual(['Here','Here','Absent','Absent']);
- await expect(sam.locator('.rz-toast')).toContainText('Runners saved · Boy Cubs Final');
+ await expect(sam.locator('.rz-toast')).toContainText('Runners saved');
  // The finish line places only those Here.
  await expect(runnerButtons(priya)).toHaveText([new RegExp(String(n(51))),new RegExp(String(n(52)))],live);
  expect(await lookProblems(jo)).toEqual([]);await jo.screenshot({path:info.outputPath('final-attendance.png'),fullPage:true});

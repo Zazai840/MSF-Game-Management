@@ -79,14 +79,14 @@ test('five phones share the test build: three work one race live until it saves 
   await expect(finisher.getByRole('list',{name:'Runners not yet placed'}).getByRole('button')).toHaveText([String(first),String(second),String(third)],crossPhone);
   await expect(timer.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(3,crossPhone);
   await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · Girl Cubs ${heat}`);
+  await expect(starter.locator('.rz-toast')).toContainText(`Runners saved`);
   for(const [number,place] of [[second,'1st'],[third,'2nd'],[first,'3rd']] as const) await finisher.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
   await expect(timer.getByRole('tab',{name:/^Finishing order/})).toContainText('3 of 3',crossPhone);
   await finisher.getByRole('button',{name:'Save the order',exact:true}).click();
   for(const digits of ['1210','1250']) await enterTime(timer,digits);
   await expect(finisher.getByRole('article',{name:`${name} · Girl Cubs`})).toBeVisible();
   await enterTime(timer,'1320');
-  await expect(timer.locator('.rz-toast')).toContainText(`Times saved · Girl Cubs ${heat}`);
+  await expect(timer.locator('.rz-toast')).toContainText(`Times saved`);
   await expect.poll(async()=>((await (await owner.request.get('/api/races',{headers:ownerHeaders})).json()) as RacesRead).groups.find(item=>item.event.code==='R4')!.races.find(race=>race.number===group!.nextHeat && race.kind!=='final')?.state,crossPhone).toBe('saved');
 
   // 70 live writes from the start line (a busy hour's envelope) on the next race, each one accepted, while the finish line watches it live.
@@ -150,7 +150,7 @@ test('five phones share the test build: three work one race live until it saves 
     const numberOf=(team:readonly number[])=>saved.race.parts.runners.value!.filter(isTeamEntry).find(entry=>entry.legs[0].wristband===team[0])!.team.number;
     const [teamA,teamB]=[numberOf(legsA),numberOf(legsB)];
     await starter.getByRole('button',{name:"That's everyone",exact:true}).click();
-    await expect(starter.locator('.rz-toast')).toContainText(`Runners saved · ${relaySection} ${relayHeat}`);
+    await expect(starter.locator('.rz-toast')).toContainText(`Runners saved`);
     // The finish line taps each team's tile as its 4th leg crosses; the timer types one time per team, and the last saves the heat.
     await press(finisher.getByRole('button',{name:`${legsB[3]} came 1st`,exact:true}));
     await press(finisher.getByRole('button',{name:`${legsA[3]} came 2nd`,exact:true}));
@@ -158,7 +158,7 @@ test('five phones share the test build: three work one race live until it saves 
     await expect(finisher.locator('.rz-toast')).toContainText('Finishing order saved');
     await expect(timer.getByRole('list',{name:'Place times'}).getByRole('listitem')).toHaveCount(2,crossPhone);
     for(const digits of ['1520','1610']) await enterTime(timer,digits);
-    await expect(timer.locator('.rz-toast')).toContainText(`Times saved · ${relaySection} ${relayHeat}`);
+    await expect(timer.locator('.rz-toast')).toContainText(`Times saved`);
     await expect.poll(async()=>(await relayGroup(owner))!.races.find(race=>race.id===relayRace)?.state,crossPhone).toBe('saved');
 
     // The owner downloads the day export: the relay heat is in All results, one row per child with its team and leg (by place here).
