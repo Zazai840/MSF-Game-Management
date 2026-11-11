@@ -46,6 +46,8 @@ export function onlyRunners(finish:FinishingOrder,runners:readonly RaceEntry[]):
   const on=(id:string)=>runners.some(runner=>runner.id===id);
   return finishOf(placesBoard(finish).filter(id=>id===null || on(id)),finish.didNotFinish.filter(on));
 }
+/** A place (from 0) emptied and not filled again: "2nd place is empty". */
+const emptyPlaceLine=(place:number)=>`${ordinal(place+1)} place is empty`;
 /**
  * Why a race whose steps are all done does not save itself yet, or null: nobody checked in (on a relay, no team in it;
  * on a final, everyone Absent), a runner or team with no place (nor Did not finish), a placed runner with no time, a
@@ -57,7 +59,7 @@ export function stepBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,relay=fal
   if(!runners.length) return race.kind==='final'?(relay?'Every team is marked Absent':'Everyone is marked Absent'):relay?'No team is ticked yet':'Nobody is checked in yet';
   const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
   if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${unplaced.length} ${entryNoun(relay)}s have no place yet`;
-  if(finish?.empty?.length) return `${ordinal(finish.empty[0]+1)} place is empty`;
+  if(finish?.empty?.length) return emptyPlaceLine(finish.empty[0]);
   if(race.kind==='final') return null;
   const times=race.parts.times.value,places=times?.places||[];
   const untimed=finish!.order.findIndex((_,index)=>places[index]==null);
@@ -147,7 +149,7 @@ export function raceSections(groups:readonly RaceGroup[],role:Exclude<Role,'lead
 export const emptyRaceLine=(race:{kind:RaceRead['kind'];event:{relay:boolean}})=>race.kind==='final'?(race.event.relay?'No team is marked Here yet':'Nobody is marked Here yet'):race.event.relay?'No team is in this heat yet':'Nobody is checked in yet';
 /**
  * Why a step cannot be marked done yet, or null: Runners needs someone checked in (on a final, someone Here),
- * Finishing order needs every runner placed or Did not finish, and Times every wrong time kept or retyped (no time at all is
+ * Finishing order needs every runner placed or Did not finish and no place empty, and Times every wrong time kept or retyped (no time at all is
  * a heat nobody finished).
  */
 export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step):string|null {
@@ -155,7 +157,8 @@ export function doneBlocker(race:Pick<RaceRead,'kind'|'parts'|'event'>,step:Step
   if(!runners.length) return emptyRaceLine(race);
   if(step==='positions') {
     const unplaced=runners.filter(runner=>!finish?.order.includes(runner.id) && !finish?.didNotFinish.includes(runner.id));
-    return !unplaced.length?null:unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;
+    if(unplaced.length) return unplaced.length===1?`${entryName(unplaced[0])} has no place yet`:`${entryCount(unplaced.length,relay)} have no place yet`;
+    return finish?.empty?.length?emptyPlaceLine(finish.empty[0]):null;
   }
   if(step==='times') {
     const times=race.parts.times.value;
