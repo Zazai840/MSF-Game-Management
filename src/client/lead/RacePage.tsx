@@ -19,7 +19,7 @@ import { usePolledRead } from '../live.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { flagText,warningFlags } from '../../shared/runner-rulings.js';
-import { Callout,ErrorCallout,Icon } from '../races/parts.js';
+import { Callout,ErrorCallout,Icon,Opening } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 const plural=(count:number,word:string)=>`${count} ${word}${count===1?'':'s'}`;
@@ -37,7 +37,7 @@ export function RacePage({raceId,code,items,onSaved,onOpen,actionableRunners=[]}
   const race=read?.race,openRace=()=>onOpen({kind:'race',id:raceId});
   const body=<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
-    {!race?error===null && <p className="rz-empty">Opening…</p>:<>
+    {!race?error===null && <Opening/>:<>
       <RaceProblems items={items} rows={actionableRunners} race={race} onOpen={onOpen} onAccepted={next=>{onSaved(next);void refresh();}}/>
       <p className="rz-page-meta">{eventTitle(race.event)} · checked in {clock(race.checkedInAt)} · {race.deleted?'deleted':race.state==='saved'?'saved':'not saved yet'}</p>
       {race.deleted && <Callout status message={deletedLine(read)}/>}

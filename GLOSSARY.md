@@ -254,7 +254,7 @@ The full-width band below the top bar on Races and the Race screen that names th
 _Avoid_: Role chip, job chip
 
 **Needs band**:
-The line below the job band on the Race screen, the same for every role, that says what the race still needs to reach Results: a missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once the race is saved. A heat row in Results says the same sentence and opens the race at the step it is about.
+The line below the job band on the Race screen that says what the race still needs to reach Results: a missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once the race is saved. A heat row in Results says the same sentence and opens the race at the step it is about. A volunteer's band starts with whose turn it is instead of "Not in Results yet", so nobody reads another role's missing work as their own mistake: "Your turn · 2 runners have no place" (with a gold dot) for the role whose step it is, "Waiting for Finish line · 2 runners have no place" for the others; a lead's band is the plain sentence.
 _Avoid_: Status bar, save banner
 
 **Undo**:

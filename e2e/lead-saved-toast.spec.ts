@@ -17,9 +17,11 @@ async function openAt(page:Page,raceId:string,tab:'races'|'relays') {
 async function savedToast(page:Page,words:string) {
   await expect(toast(page).locator('.rz-toast__msg')).toHaveText(words);
   await expect(toast(page)).toHaveText(`${words}Undo`);
-  // The toast sits clear of Races' footer (Updated at, New race), which a lead's bar lifts.
-  const box=(await toast(page).boundingBox())!,footer=(await page.locator('footer.rz-footer').boundingBox())!;
-  expect(box.y+box.height).toBeLessThanOrEqual(footer.y+0.5);
+  // The toast sits just above Races' New race button, which a lead's bar lifts; it may cover the "Updated at" line.
+  await expect(async()=>{
+    const box=(await toast(page).boundingBox())!,button=(await page.locator('footer.rz-footer').getByRole('button',{name:/New (race|relay)/}).boundingBox())!;
+    expect(box.y+box.height).toBeLessThanOrEqual(button.y+0.5);expect(box.y+box.height).toBeGreaterThan(button.y-16);
+  }).toPass({timeout:3000});
 }
 
 test('a lead marking That\'s everyone and the last place\'s time on a heat lands on Races with the toast, and Undo reopens the race at that step',async({openPhone,request},info)=>{

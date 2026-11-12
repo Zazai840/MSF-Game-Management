@@ -5,7 +5,7 @@ import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLab
 import { api,homeTabOf,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RaceActions } from '../lead/RaceActions.js';
-import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,NeedsBand,RaceBar,Sheet,StepStrip } from './parts.js';
+import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,NeedsBand,RaceBar,Sheet,StepStrip,Opening } from './parts.js';
 import { StepRecord } from './StepRecord.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
@@ -49,7 +49,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   // "Back to Heat 2" on a lead screen opened from here (Open in Results).
   useScreenName(snapshot?raceName(snapshot.race):'Race');
   if(!snapshot || page) return <><RaceBar title="Race" code="" role={role} onBack={onBack}>{avatar}</RaceBar><JobBand role={role} onOpen={onRole}/>
-    <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
+    <main className="rz-main">{error?<Callout message={error}/>:<Opening/>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
   const looking=own!==null && step!==own;
@@ -91,7 +91,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
       {avatar}
     </RaceBar>
     <JobBand role={role} onOpen={onRole}/>
-    <NeedsBand race={summary} ask={!lead && !race.stageComplete}/>
+    <NeedsBand race={summary} role={role} ask={!lead && !race.stageComplete}/>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}
       finalReason={lead && group.finalReason?<FinalReasonButton group={group} onRace={(id,at)=>id===race.id?setTab(at):onRace(id,at)} onResults={onResults}/>:undefined}/></nav>

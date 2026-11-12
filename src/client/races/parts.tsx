@@ -1,5 +1,5 @@
-import { useId,useLayoutEffect,useRef,type ReactNode } from 'react';
-import { chipLabel,chipName,chipState,finalConfirm,finishedCount,raceNeeds,roleLabels,roleSteps,stepLabels,stepPeople,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
+import { useEffect,useId,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
+import { chipLabel,chipName,chipState,finalConfirm,finishedCount,raceNeedsFor,roleLabels,roleSteps,stepLabels,stepPeople,stepsOf,type RaceGroup,type RaceSummary,type Role,type Step,type StepStatus } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { initials,reportLink,useTestBuild } from '../shell/app-bar.js';
 import { entryCount } from '../../shared/teams.js';
@@ -56,12 +56,13 @@ export function JobBand({role,onOpen}:{role:Role;onOpen:()=>void}) {
   </button>;
 }
 /**
- * The band below the job band on a race, the same for every role: what the race still needs to reach Results, or that it is in Results. It changes as the race does.
+ * The band below the job band on a race: what the race still needs to reach Results, or that it is in Results. A volunteer's starts with whose turn it is
+ * ("Your turn", with a gold dot, or "Waiting for Finish line"); a lead's is the plain sentence. It changes as the race does.
  * `ask` adds, for a volunteer on a saved race, who can change it: "In Results. Ask a lead to change it."
  */
-export function NeedsBand({race,ask=false}:{race:Parameters<typeof raceNeeds>[0];ask?:boolean}) {
-  const saved=race.state==='saved';
-  return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race,ask)}</span></p>;
+export function NeedsBand({race,role,ask=false}:{race:Parameters<typeof raceNeedsFor>[0];role:Role;ask?:boolean}) {
+  const saved=race.state==='saved',line=raceNeedsFor(race,role,ask),mine=line.startsWith('Your turn');
+  return <p className={saved?'rz-needsband rz-needsband--saved':mine?'rz-needsband rz-needsband--mine':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{line}</span></p>;
 }
 /** The avatar: your initials. It opens the avatar menu (Log out), which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
@@ -154,17 +155,37 @@ export function StepStrip({race,role,selected,onSelect,notes={},label,relay=fals
     {shown.map(step=><li key={step} className={step===own?'rz-step rz-step--mine':'rz-step'}>{cell(step)}</li>)}
   </ul>;
 }
+/** How long a sheet or the toast takes to leave: shorter than its way in (race-flow.css, "Motion"). */
+export const wayOut=150;
+export const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+/**
+ * Something that leaves the screen with a short way out: `start` marks it `leaving` (the CSS moves it out) and calls
+ * `onGone` once it is out; with reduced motion, at once. A second `start` on the way out does nothing.
+ */
+export function useWayOut(onGone:()=>void) {
+  const [leaving,setLeaving]=useState(false),gone=useRef(onGone),timer=useRef(0);
+  useEffect(()=>{gone.current=onGone;});
+  useEffect(()=>()=>clearTimeout(timer.current),[]);
+  const [start]=useState(()=>()=>{
+    if(timer.current) return;
+    if(reducedMotion()) {gone.current();return;}
+    setLeaving(true);
+    // Still here after onGone (the close was refused): it comes back.
+    timer.current=window.setTimeout(()=>{timer.current=0;gone.current();setLeaving(false);},wayOut);
+  });
+  return {leaving,start};
+}
 /**
  * A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. The sheet
  * itself takes focus (no field does), Tab stays inside it, and closing gives focus back to what opened it.
  */
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
-  const id=useId(),focus=useSheetFocus(onClose);
-  useSheetEntry(onClose);
-  return <div className="rz-scrim" onClick={event=>{if(event.target===event.currentTarget) onClose();}}>
+  const id=useId(),close=useWayOut(onClose),focus=useSheetFocus(close.start);
+  useSheetEntry(close.start);
+  return <div className="rz-scrim" data-closing={close.leaving?'':undefined} onClick={event=>{if(event.target===event.currentTarget) close.start();}}>
     <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={focus.ref} onKeyDown={focus.onKeyDown}>
       <div className="rz-sheet__grip" aria-hidden="true"/>
-      <div className="rz-sheet__head"><h2 className="rz-sheet__title" id={id}>{title}</h2><button type="button" className="rz-sheet__close" aria-label="Close" onClick={onClose}><Icon name="close"/></button></div>
+      <div className="rz-sheet__head"><h2 className="rz-sheet__title" id={id}>{title}</h2><button type="button" className="rz-sheet__close" aria-label="Close" onClick={close.start}><Icon name="close"/></button></div>
       {children}
     </div>
   </div>;
@@ -202,5 +223,7 @@ export function DockedFooter({children}:{children:ReactNode}) {
   },[]);
   return <footer ref={footer} className="rz-footer rz-footer--sticky rz-footer--docked">{children}</footer>;
 }
+/** A screen's first read on its way: a spinner over "Opening…", in the middle of the space left, the same on every screen. */
+export const Opening=({words='Opening…'}:{words?:string})=><p className="rz-opening__line" role="status"><span className="rz-spinner" aria-hidden="true"/>{words}</p>;
 /** The amber error callout with its warning icon, for a request that failed. */
 export const ErrorCallout=({error,action}:{error:unknown;action:'read'|'save'})=><Callout message={failureLine(error,action)}/>;

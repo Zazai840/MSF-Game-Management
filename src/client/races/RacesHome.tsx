@@ -1,12 +1,11 @@
 import { eventTitle } from '../../shared/day.js';
 import { useEffect,useState } from 'react';
-import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
 import { cardProblems,finalMade,groupStatus,leadCardLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { useLive } from '../live.js';
-import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
+import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon,Opening } from './parts.js';
 import { UpdatedAt } from './UpdatedAt.js';
 import { useScreenName } from '../shell/addresses.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
@@ -39,9 +38,8 @@ function useLeadItems(on:boolean) {
  */
 export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;onTab:(tab:HomeTab)=>void;role:Role;gone:string;
   onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
-  const {snapshot,error,offer}=useLive<RacesRead>('live/races');
-  const [arrived,setArrived]=useState('');
-  useEffect(()=>{if(snapshot) setArrived(clockWithSeconds(new Date()));},[snapshot]);
+  // Races seen before opens at once with what it showed last; the stream then brings it up to date.
+  const {snapshot,arrived,error,offer}=useLive<RacesRead>('live/races',{remember:true});
   const [creating,setCreating]=useState<NewRaceChoice|null>(null);
   // The event code whose final a lead is asked to confirm; the sheet reads its group live.
   const [confirming,setConfirming]=useState<string|null>(null);
@@ -78,7 +76,7 @@ export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;on
     <EventTabs tab={tab} onTab={onTab}/>
     <main className="rz-main rz-main--cards">
       {gone && <Callout status message={gone}/>}
-      {!snapshot?error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>:error && <p className="rz-note" role="status">{error}</p>}
+      {!snapshot?error?<Callout message={error}/>:<Opening/>:error && <p className="rz-note" role="status">{error}</p>}
       {snapshot && !groups.some(group=>group.races.length) && <p className="rz-empty">{tab==='relays'?'No relays yet. Tap New relay when a relay lines up.':'No races yet. Tap New race when a race lines up.'}</p>}
       {sections.ready.length>0 && <><h2 className="rz-section">{role==='lead'?'Action required':'Ready for you'}</h2>{sections.ready.map(card)}</>}
       {sections.inProgress.length>0 && <><h2 className="rz-section">In progress</h2>{sections.inProgress.map(card)}</>}

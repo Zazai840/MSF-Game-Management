@@ -516,6 +516,9 @@ const approvedColours=(()=>{
  * 44px targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS.
  */
 export async function lookProblems(page:Page) {
+  // A control just tapped is still pressed for a moment, then grows back from its pressed size (140 ms): measure once that has ended.
+  await page.waitForFunction(()=>!document.querySelector('.rz-screen :active'));
+  await page.evaluate(()=>Promise.all(document.getAnimations().filter(animation=>!(animation.effect?.getTiming().iterations===Infinity)).map(animation=>animation.finished.catch(()=>{}))));
   await page.evaluate(()=>document.fonts.ready);
   return page.evaluate(approved=>{
     const problems:string[]=[];

@@ -18,20 +18,28 @@ test('one band on a race tells every role and the lead what the race still needs
   const {race}=await writeCheckIn(request,start.token,code,[first,second]);
   const pages=[start.page,finish.page,timer.page,lead.page];
   for(const page of pages) await openRace(page,name);
-  /** Every phone shows the sentence, the race open all along. */
-  const everyone=async(sentence:string)=>{for(const page of pages) await bandSays(page,sentence);};
+  /**
+   * Every phone shows what the race needs, the race open all along: the role whose step it is reads "Your turn", the
+   * other volunteers "Waiting for" that role, and the lead the plain sentence.
+   */
+  const everyone=async(turn:'Start line'|'Finish line'|'Timer',mine:string,others:string,plain:string)=>{
+    for(const [page,job] of [[start.page,'Start line'],[finish.page,'Finish line'],[timer.page,'Timer']] as const) await bandSays(page,job===turn?`Your turn · ${mine}`:`Waiting for ${turn} · ${others}`);
+    await bandSays(lead.page,plain);
+  };
   // A missing detail comes first: nobody has a place, then a place has no time.
-  await everyone('Not in Results yet: 2 runners have no place.');
+  await everyone('Finish line','2 runners have no place','2 runners have no place','Not in Results yet: 2 runners have no place.');
+  // Only the role whose turn it is gets the gold dot.
+  await expect(finish.page.locator('.rz-needsband--mine')).toHaveCount(1);await expect(start.page.locator('.rz-needsband--mine')).toHaveCount(0);
   for(const page of pages) expect(await lookProblems(page)).toEqual([]);
   await timer.page.screenshot({path:info.outputPath('needs-band-detail.png')});
   await writeOrder(request,finish.token,code,[first,second]);
-  await everyone('Not in Results yet: 1st place has no time.');
+  await everyone('Timer','1st place has no time','1st place has no time','Not in Results yet: 1st place has no time.');
   // Nothing but done buttons missing: the band names the first one and its role.
   await writeTimes(request,timer.token,code,[1100,1200]);
-  await everyone("Not in Results yet. Start line: tap That's everyone.");
+  await everyone('Start line',"tap That's everyone","That's everyone","Not in Results yet. Start line: tap That's everyone.");
   await flowPost(request,start.token,`/api/races/${race.id}/steps/runners/done`,{});
   await flowPost(request,timer.token,`/api/races/${race.id}/steps/times/done`,{});
-  await everyone('Not in Results yet. Finish line: tap Save the order.');
+  await everyone('Finish line','tap Save the order','Save the order','Not in Results yet. Finish line: tap Save the order.');
   await lead.page.screenshot({path:info.outputPath('needs-band-button-lead.png')});
   // The everyday sentence stays on one line, at 360px too: the band takes as little of the screen as it can.
   for(const page of pages) expect((await page.locator('.rz-needsband').boundingBox())!.height).toBeLessThan(32);

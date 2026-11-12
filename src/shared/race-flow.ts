@@ -137,6 +137,18 @@ export function raceNeed(race:Pick<RaceSummary,'kind'|'state'|'steps'|'blocker'>
   return missing?{line:`${words}. ${stepRole(missing)}: tap ${doneButtons[missing]}.`,step:missing}:{line:`${words}.`,step:stepsOf(race).at(-1)!};
 }
 export const raceNeeds=(...args:Parameters<typeof raceNeed>)=>raceNeed(...args).line;
+/**
+ * The band's sentence on a volunteer's Race screen: the same need, starting with whose turn it is, so nobody reads
+ * another role's missing work as their own mistake ("Your turn · 2 runners have no place", "Waiting for Finish line ·
+ * 2 runners have no place"). A lead's band, a saved race and a race with nothing missing keep `raceNeeds`' sentence.
+ */
+export function raceNeedsFor(race:Parameters<typeof raceNeed>[0],role:Role,ask=false) {
+  const need=raceNeed(race,ask);
+  if(role==='lead' || need.step===null || (!race.blocker && race.steps[need.step]?.state==='done')) return need.line;
+  const mine=roleSteps[role]===need.step;
+  const detail=race.blocker?race.blocker.line:mine?`tap ${doneButtons[need.step]}`:doneButtons[need.step];
+  return `${mine?'Your turn':`Waiting for ${stepRole(need.step)}`} · ${detail}`;
+}
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**

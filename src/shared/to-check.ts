@@ -61,6 +61,25 @@ export function toCheckWording(item:DayLeadItem):ToCheckWording {
   const event=`${item.event.code} · ${item.event.name} ${item.event.section}`;
   return {race:item.race?`${event} · ${raceLabel(item.race)}`:event,...wording(item)};
 }
+/** What a problem's explanation ends with when it tells the lead what to do: a shared callout says the fact only, its button the rest. */
+const instructions=[' Correct it or mark it checked.',' Check they ran in this race.',' Check it ran in this race.',' Choose which result counts.'];
+const factOnly=(explanation:string)=>{const end=instructions.find(instruction=>explanation.endsWith(instruction));return end?explanation.slice(0,-end.length):explanation;};
+/**
+ * An event's open items as the callouts on its screen, in the items' order: the problems that open the same race share
+ * one callout with a heading ("Heat 1 · 3 things to check") and one line of fact each, so three wrong wristbands in a
+ * heat are one callout with one button; problems of several kinds each start with what they are ("A team ran short.").
+ * A race's lone problem and every tie keep their own, with no heading.
+ */
+export function raceCallouts(items:readonly DayLeadItem[]):Array<{items:DayLeadItem[];title?:string;lines?:string[]}> {
+  const groups=new Map<string,DayLeadItem[]>();
+  for(const item of items) {const key=item.kind==='tie' || !item.race?`item:${item.id}`:`race:${item.race.id}`;groups.set(key,[...groups.get(key)||[],item]);}
+  return [...groups.values()].map(group=>group.length===1?{items:group}
+    :{items:group,title:`${raceName(group[0].race!)} · ${group.length} things to check`,lines:group.map(item=>{
+      // Problems of one kind say the fact only; of several kinds, each says what it is first.
+      const words=wording(item),fact=factOnly(words.explanation);
+      return new Set(group.map(other=>other.kind)).size>1?`${words.title}. ${fact}`:fact;
+    })});
+}
 /** The To check heading, counting what is waiting. */
 export const toCheckHeading=(count:number)=>count===0?'Nothing to check':count===1?'1 thing needs a zone lead':`${count} things need a zone lead`;
 const counted=(count:number,one:string,many=`${one}s`)=>`${count} ${count===1?one:many}`;

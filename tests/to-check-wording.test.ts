@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest';
-import { acceptable,eventItems,issueLine,placesCorrection,problemButtons,problemFix,raceItems,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
+import { acceptable,eventItems,issueLine,placesCorrection,problemButtons,problemFix,raceCallouts,raceItems,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
 import type { EventResults } from '../src/shared/results-rules.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
 const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true,type:'races' as const,relay:false};
@@ -25,6 +25,20 @@ describe('To check wording',()=>{
   });
   it('keeps the original message when the facts are missing',()=>{
     expect(toCheckWording(item({kind:'warning',message:'3045: odd'})).explanation).toBe('3045: odd');
+  });
+  it('gives an event one callout per race: the problems of one race share it, a lone problem and a tie keep their own',()=>{
+    const heat=(number:number)=>({...race,id:`r${number}`,number});
+    const wrong=(id:string,wristband:number,kind:NonNullable<DayLeadItem['warningKinds']>[number])=>item({id,kind:'warning',message:'w',race:heat(1),raceId:'r1',wristband,warningKinds:[kind]});
+    const tie=item({id:'t',kind:'tie',message:'Tie',race:undefined,raceId:undefined,tieId:'t',tie:{time:2000,names:['2004','2005'],raceIds:['r1','r2']}});
+    const late=item({id:'l',kind:'added-at-finish',message:'a',race:heat(1),raceId:'r1',wristband:1002});
+    const alone=item({id:'a',kind:'times-out-of-order',message:'Times out of order',race:heat(2),raceId:'r2'});
+    // One kind of problem: the facts only.
+    expect(raceCallouts([wrong('w1',5141,'unknown-number'),wrong('w2',3141,'wrong-section')])[0].lines).toEqual(['5141 is not a wristband number. Wristbands are 1 to 4999.','3141 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999.']);
+    expect(raceCallouts([wrong('w1',5141,'unknown-number'),tie,wrong('w2',3141,'wrong-section'),alone,late])).toEqual([
+      {items:[expect.objectContaining({id:'w1'}),expect.objectContaining({id:'w2'}),expect.objectContaining({id:'l'})],title:'Heat 1 · 3 things to check',
+        lines:['A wristband number needs checking. 5141 is not a wristband number. Wristbands are 1 to 4999.','A wristband number needs checking. 3141 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999.','A runner was added at the finish. 1002 crossed the line but was not checked in at the start.']},
+      {items:[expect.objectContaining({id:'t'})]},
+      {items:[expect.objectContaining({id:'a'})]}]);
   });
   it('heads the list with how many things need a lead',()=>{
     expect(toCheckHeading(0)).toBe('Nothing to check');

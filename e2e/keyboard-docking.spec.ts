@@ -51,14 +51,14 @@ test('the start line\'s That\'s everyone and Next ride on the keyboard, and a ta
   await expect(box).toBeFocused();
   await expect(page.getByRole('list',{name:'Wristbands entered'})).toHaveCount(0);
 });
-test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard, and Cancel or Remove lets it close',async({openPhone,request})=>{
+test('changing a typed wristband, Cancel and Save ride on the keyboard, and Cancel or Remove lets it close',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Docked change');
   await ownEvent(request,code,name);
   const {page,token}=await withKeyboard(await openPhone(ownName('Docked change')));
   await writeCheckIn(request,token,code,[2015]);
   await openRace(page,name);
   await page.getByRole('button',{name:'2015, Change',exact:true}).click();
-  await expect(page.locator('footer.rz-footer').getByRole('button')).toHaveText(['Cancel','Remove','Save']);
+  await expect(page.locator('footer.rz-footer').getByRole('button')).toHaveText(['Cancel','Save']);
   await docksAboveKeyboard(page,page.getByLabel('New number for 2015',{exact:true}));
   // Cancel and Remove end the typing, so a press on either takes focus from the box and the keyboard can close.
   const typing=()=>page.evaluate(()=>document.activeElement?.tagName==='INPUT');
@@ -67,7 +67,7 @@ test('changing a typed wristband, Cancel, Remove and Save ride on the keyboard, 
   expect(await typing()).toBe(false);
   await page.getByRole('button',{name:'2015, Change',exact:true}).click();
   await page.getByLabel('New number for 2015',{exact:true}).focus();
-  await press(footer.getByRole('button',{name:'Remove',exact:true}));
+  await press(page.getByRole('main').getByRole('button',{name:'Remove 2015',exact:true}));
   await expect(page.getByRole('button',{name:'2015, Change',exact:true})).toHaveCount(0);
   expect(await typing()).toBe(false);
 });

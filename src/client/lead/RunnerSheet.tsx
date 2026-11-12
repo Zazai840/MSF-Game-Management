@@ -1,7 +1,7 @@
 import { useRef,useState,type ReactNode } from 'react';
 import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberBox.js';
-import { Callout,DockedFooter,ErrorCallout,Sheet } from '../races/parts.js';
+import { Callout,DockedFooter,ErrorCallout,Sheet,Opening } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
 import { Comment } from './Comment.js';
 import { useToast } from '../races/Toast.js';
@@ -96,7 +96,7 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
   }
   const title=titles[view.screen],up=row?raceName(row.race):'Race';
   if(!detail || !row) return <LeadHeader title={title} code={view.code} up={up} body={<main className="rz-main">
-    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<p className="rz-empty">Opening…</p>}</main>}/>;
+    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<Opening/>}</main>}/>;
   const props:ScreenProps={event:detail.event,row,rows:detail.results.actionableRunners,save,busy};
   const Body={disqualify:Disqualify,'lift-disqualification':Lift,'correct-number':CorrectNumber,'choose-result':ChooseResult}[view.screen];
   return <LeadHeader title={title} code={view.code} up={up} body={<Body {...props}/>}/>;

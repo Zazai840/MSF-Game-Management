@@ -60,7 +60,9 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-main--form { padding-top: var(--space-16); }
 /* While the app opens: a spinner over its line, in the middle of the screen. */
 .rz-opening { justify-content: center; }
-.rz-opening__line { display: flex; flex-direction: column; align-items: center; gap: var(--space-12); text-align: center; }
+.rz-opening__line { display: flex; flex-direction: column; align-items: center; gap: var(--space-12); margin: 0; text-align: center; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
+/* The same line while one screen's first read is on its way: in the middle of the space the screen has left. */
+.rz-main > .rz-opening__line { margin: auto 0; padding: var(--space-32) 0; }
 .rz-spinner { width: var(--size-rank); height: var(--size-rank); border: 3px solid var(--line); border-top-color: var(--navy); border-radius: 50%; animation: rz-spin 1s linear infinite; }
 @keyframes rz-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rz-spinner { animation-duration: 3s; } }
@@ -109,6 +111,8 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 /* ---------- NeedsBand ---------- */
 .rz-needsband { flex: none; display: flex; align-items: center; gap: var(--space-6); margin: 0; padding: var(--space-4) var(--gutter); background: var(--card); color: var(--navy); font-size: 13px; line-height: 1.3; font-weight: 700; }
 .rz-needsband .rz-icon { flex: none; width: 16px; height: 16px; stroke-width: 3; color: var(--throwing-ink); }
+/* "Your turn": a gold dot before the words, so the role whose step it is sees it without reading. */
+.rz-needsband--mine::before { content: ""; flex: none; width: var(--space-8); height: var(--space-8); border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 1.5px var(--navy); }
 
 /* ---------- EventTabs ---------- */
 .rz-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
@@ -123,7 +127,6 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-leads-bar button[aria-current="page"] { background-color: var(--on-navy); color: var(--navy); }
 .rz-leads-bar button[aria-current="page"]:focus-visible { outline-color: var(--navy); }
 .rz-app:has(> .rz-leads-bar) .rz-footer--sticky { bottom: calc(var(--size-action) + env(safe-area-inset-bottom, 0px)); }
-body:has(.rz-footer--home ~ .rz-leads-bar) .rz-toast { margin-bottom: var(--size-action); }
 
 /* ---------- RaceCard ---------- */
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
@@ -223,8 +226,8 @@ body:has(.rz-footer--home ~ .rz-leads-bar) .rz-toast { margin-bottom: var(--size
 .rz-field--text .rz-field__input--comment { height: auto; min-height: calc(var(--size-action) * 2); padding: var(--space-10) var(--space-16); resize: vertical; font-size: 16px; line-height: 1.4; }
 
 /* ---------- Toast ---------- */
-/* Above the lead's Race actions over the race (z-index 20), so a correction there shows its toast. */
-.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 21; display: flex; min-height: var(--size-touch); align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
+/* Above the lead's Race actions over the race (z-index 20), so a correction there shows its toast. Toast.tsx lifts it clear of a sheet, a docked button or the lead's bar. */
+.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(var(--space-24) + env(safe-area-inset-bottom, 0px)); z-index: 21; display: flex; min-height: var(--size-touch); align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
 .rz-toast__msg { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.3; font-weight: 700; }
 /* A lead save's toast has no button: its line keeps the same space on the right as on the left. */
 .rz-toast__msg:only-child { padding-right: var(--space-8); }
@@ -233,7 +236,7 @@ body:has(.rz-footer--home ~ .rz-leads-bar) .rz-toast { margin-bottom: var(--size
 
 /* ---------- Sheet bits: choice buttons and radio cards ---------- */
 .rz-scrim { z-index: 10; }
-.rz-sheet { max-height: 90dvh; overflow-y: auto; }
+.rz-sheet { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
 /* While the phone is typing (flow/keyboard.ts), a sheet sits on the keyboard, its foot's actions in reach. */
 html[data-keyboard="open"] .rz-scrim { top: var(--vv-top); bottom: auto; height: var(--vv-height); }
 html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(--space-24)); }
@@ -407,5 +410,68 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
   .rz-choices--grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .rz-prompt--compact .rz-prompt__q { font-size: 48px; }
   .rz-field { max-width: 520px; }
-  .rz-toast { bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/*
+ * Motion (docs/running-zone-design-system/README.md, "Motion"). Every control shrinks a little while pressed, so a tap
+ * outdoors shows it was heard; the runner tiles keep their 4px drop. `scale` leaves a control's own transform alone.
+ */
+.rz-screen { --ease-out: cubic-bezier(.23, 1, .32, 1); --ease-drawer: cubic-bezier(.32, .72, 0, 1); }
+@media (prefers-reduced-motion: no-preference) {
+  .rz-screen :is(button, summary, a[href], .rz-jobcard):not(.rz-tile, .rz-runner, [aria-roledescription="drag handle"], :disabled, [aria-disabled="true"]) { transition: scale 140ms var(--ease-out); }
+  .rz-screen :is(button, summary, a[href], .rz-jobcard):not(.rz-tile, .rz-runner, [aria-roledescription="drag handle"], :disabled, [aria-disabled="true"]):active { scale: .97; }
+}
+/*
+ * A sheet slides up from the foot of the screen (a centred one on a wide screen grows a little) and the toast rises;
+ * both leave faster than they came (parts.tsx, wayOut). Screens and tabs change at once: people change them all day.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .rz-scrim { transition: background-color 200ms ease-out; }
+  .rz-sheet { transition: translate 220ms var(--ease-drawer), scale 200ms var(--ease-out), opacity 200ms ease-out; }
+  .rz-toast { transition: opacity 200ms var(--ease-out), translate 200ms var(--ease-out); }
+  @starting-style {
+    .rz-scrim { background-color: transparent; }
+    .rz-sheet { translate: 0 100%; }
+    .rz-toast { opacity: 0; translate: 0 8px; }
+  }
+  .rz-scrim[data-closing] { background-color: transparent; transition-duration: 150ms; }
+  .rz-scrim[data-closing] > .rz-sheet { translate: 0 100%; transition: translate 150ms var(--ease-out), scale 150ms var(--ease-out), opacity 150ms ease-out; }
+  .rz-toast[data-leaving] { opacity: 0; transition: opacity 150ms ease-out; }
+  @media (min-width: 700px) {
+    @starting-style { .rz-sheet { translate: none; scale: .96; opacity: 0; } }
+    .rz-scrim[data-closing] > .rz-sheet { translate: none; scale: .96; opacity: 0; }
+  }
+}
+/*
+ * Results on a phone: one event per line in the Races card's type, so a name stays on one line and its status is
+ * readable. A laptop keeps the grid of small cards.
+ */
+@media (max-width: 699px) {
+  .rz-events { grid-template-columns: minmax(0, 1fr); }
+  .rz-event { gap: var(--space-6); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); }
+  .rz-event__name { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; }
+  .rz-event__status { font-size: 14px; }
+}
+/*
+ * Pull down to refresh (UpdatedAt.tsx): a navy pill that comes down from the top edge with the finger. Out of sight
+ * until a pull; back up quickly when the finger lets go, or held just below the edge while it refreshes.
+ */
+html.rz-pulls { overscroll-behavior-y: contain; }
+.rz-pull { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: 30; display: flex; align-items: center; gap: var(--space-8); margin: 0; padding: var(--space-8) var(--space-16); border-radius: var(--radius-pill); background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); font-size: 14px; line-height: 1.3; font-weight: 700; white-space: nowrap; pointer-events: none; translate: 0 -100%; transform: translate(-50%, 0); }
+.rz-pull .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); transition: rotate 150ms var(--ease-out); }
+.rz-pull[data-state="ready"] .rz-icon { rotate: 180deg; }
+.rz-pull .rz-spinner { width: 18px; height: 18px; border-width: 2px; border-color: var(--scoreboard-line-strong); border-top-color: var(--gold); animation-duration: .6s; }
+.rz-pull[data-state="idle"] { visibility: hidden; opacity: 0; transition: transform 200ms var(--ease-out), opacity 150ms ease-out, visibility 0s 200ms; }
+.rz-pull[data-state="refreshing"] { translate: 0 var(--space-12); transition: transform 200ms var(--ease-out), translate 200ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .rz-pull:not([data-state="idle"]) { translate: 0 var(--space-12); }
+  .rz-pull, .rz-pull .rz-icon { transition: none !important; }
+}
+/* Remove on a wristband being changed: small, under the number box. */
+.rz-remove { align-self: flex-start; }
+/* Under the lead's bar the bar itself keeps clear of the home bar. */
+.rz-app:has(> .rz-leads-bar) .rz-footer { padding-bottom: var(--space-24); }
+@media (prefers-reduced-motion: reduce) {
+  /* A row being dragged (flow/SortableList.tsx) jumps to its place instead of sliding. */
+  .rz-screen li:has(> [aria-roledescription="drag handle"]) { transition: none !important; }
 }

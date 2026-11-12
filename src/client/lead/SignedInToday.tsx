@@ -6,7 +6,7 @@ import { api,StaleRequest } from '../api.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { useToast } from '../races/Toast.js';
-import { ErrorCallout,Icon,Sheet } from '../races/parts.js';
+import { ErrorCallout,Icon,Sheet,Opening } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 /** The role buttons a person's sheet offers, in screen order. */
@@ -47,7 +47,7 @@ export function SignedInToday({onSaved}:{onSaved:()=>void}) {
     <main className="rz-main">
       <p className="rz-empty">Role changes last for today only.</p>
       {readError!==null && <ErrorCallout error={readError} action="read"/>}
-      {!data && readError===null && <p className="rz-empty">Opening…</p>}
+      {!data && readError===null && <Opening/>}
       {!!data?.phones.length && <ul className="rz-list">{data.phones.map(phone=>{
         const main=<span className="rz-listrow__main"><span className="rz-listrow__label">{phone.name}{phone.id===data.selfId?' (you)':''}</span>
           <span className="rz-listrow__meta">{phone.level}{phone.owner?' · Owner':''}{phone.role?` · ${roleLabels[phone.role]}`:''}</span></span>;

@@ -11,7 +11,7 @@ import { useToast } from '../races/Toast.js';
 import { eventTitle } from '../../shared/day.js';
 import { andList } from '../../shared/race-flow.js';
 import { raceLabel } from '../../shared/races.js';
-import { DockedFooter,ErrorCallout,Icon } from '../races/parts.js';
+import { DockedFooter,ErrorCallout,Icon,Opening } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
 const outcomes:ReadonlyArray<[TieOutcome,string]>=[['no-run-off','No run-off needed'],['run-off','Run-off held'],['decided','Decided without a run-off']];
 /**
@@ -30,7 +30,7 @@ export function Tie({code,tieId,stage,onBack}:{code:string;tieId:string;stage?:'
   const up=detail?eventTitle(detail.event):code;
   if(detail && tie) return <TieForm detail={detail} tie={tie} stage={stage} up={up} onBack={onBack}/>;
   return <LeadHeader title="Tie" code={code} up={up} body={<main className="rz-main rz-main--form">
-    {error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">{detail?'This tie is settled, or its times have changed.':'Opening…'}</p>}
+    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<p className="rz-empty">This tie is settled, or its times have changed.</p>:<Opening/>}
   </main>}/>;
 }
 function TieForm({detail,tie,stage,up,onBack}:{detail:EventResultsRead;tie:ResultTie;stage?:'no-final';up:string;onBack:()=>void}) {

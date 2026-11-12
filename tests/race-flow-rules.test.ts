@@ -1,7 +1,7 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
-import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,stepBlocker,surplusTimes,timerQuestion,cardProblems,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,raceNeedsFor,stepBlocker,surplusTimes,timerQuestion,cardProblems,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps,blocker:null});
@@ -216,6 +216,23 @@ test('with no detail missing, the band names the first done button not tapped ye
   // A volunteer on a race in Results is told who can change it.
   expect(raceNeeds({kind:'heat',state:'saved',steps:allDone,blocker:null},true)).toBe('In Results. Ask a lead to change it.');
   expect(needs(complete,{...allDone,times:todo})).toBe(raceNeed({kind:'heat',state:'in progress',steps:{...allDone,times:todo},blocker:null},true).line);
+});
+test('a volunteer\'s band starts with whose turn it is; a lead\'s band and a saved race keep the plain sentence',()=>{
+  const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps']=allDone)=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,read.event.relay)});
+  const unplaced=summary(parts(runnersAB,null,null));
+  expect(raceNeedsFor(unplaced,'finish')).toBe('Your turn · 2 runners have no place');
+  expect(raceNeedsFor(unplaced,'start')).toBe('Waiting for Finish line · 2 runners have no place');
+  expect(raceNeedsFor(unplaced,'timer')).toBe('Waiting for Finish line · 2 runners have no place');
+  expect(raceNeedsFor(unplaced,'lead')).toBe('Not in Results yet: 2 runners have no place.');
+  expect(raceNeedsFor(summary(parts([],null,null)),'start')).toBe('Your turn · Nobody is checked in');
+  // Nothing but a done button missing.
+  const button=summary(parts(runnersAB,{order:['a','b']},[1100,1200]),{...allDone,positions:status('in progress')});
+  expect(raceNeedsFor(button,'finish')).toBe('Your turn · tap Save the order');
+  expect(raceNeedsFor(button,'timer')).toBe('Waiting for Finish line · Save the order');
+  expect(raceNeedsFor(button,'lead')).toBe('Not in Results yet. Finish line: tap Save the order.');
+  expect(raceNeedsFor({kind:'heat',state:'saved',steps:allDone,blocker:null},'timer',true)).toBe('In Results. Ask a lead to change it.');
+  // Every step done and nothing missing: the race is saving itself, and nobody has a turn.
+  expect(raceNeedsFor(summary(parts(runnersAB,{order:['a','b']},[1100,1200])),'start')).toBe('Not in Results yet.');
 });
 test('a done button on a step already done says so, and what the race still needs, in the band\'s words',()=>{
   const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps'])=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,false)});
