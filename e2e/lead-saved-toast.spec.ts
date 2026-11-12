@@ -144,3 +144,71 @@ test('a lead tapping each done button on an unsaved heat whose steps are already
   for(const phone of [page,timer.page]) await expect(phone.locator('.rz-step__label:has(.rz-icon)')).toHaveText(['Runners','Finishing order','Times']);
   await deleteCurrentRace(request,code);
 });
+
+/**
+ * The toast's measured shape, whatever its words: its height, whether it is centred, how many rows its line takes,
+ * whether its ends are fully round, and whether any of it is cut or off the screen.
+ */
+const shape=(page:Page)=>toast(page).evaluate(element=>{
+  const box=element.getBoundingClientRect(),message=element.querySelector('.rz-toast__msg')!,screen=document.documentElement.clientWidth;
+  const words=document.createRange();words.selectNodeContents(message.lastChild!);
+  const lines=[...words.getClientRects()].filter(rect=>rect.width>0),inside=(rect:DOMRect)=>rect.left>=box.left&&rect.right<=box.right&&rect.top>=box.top&&rect.bottom<=box.bottom;
+  const main=document.querySelector('.rz-main')!,pad=getComputedStyle(main);
+  return {height:box.height,width:box.width,offCentre:Math.abs(box.left+box.width/2-screen/2),
+    content:main.clientWidth-parseFloat(pad.paddingLeft)-parseFloat(pad.paddingRight),
+    rows:new Set(lines.map(rect=>Math.round(rect.bottom))).size,
+    roundEnds:parseFloat(getComputedStyle(element).borderTopLeftRadius)>=box.height/2,
+    cut:element.scrollWidth>element.clientWidth||element.scrollHeight>element.clientHeight||!lines.every(inside)||box.left<0||box.right>screen||box.top<0,
+    aboveDocked:box.bottom<=document.querySelector('footer.rz-footer')!.getBoundingClientRect().top};
+});
+
+test('a plain toast is a 36px pill as wide as its words, centred, with fully round ends',async({openPhone,request},info)=>{
+  const code=await ownCode();
+  await ownEvent(request,code,ownName('Pill plain'),'Girl Cubs','timed');
+  const {page}=await openPhone(ownName('Pill plain lead'),{lead:true});
+  await page.goto('/day/events');
+  await press(page.getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  await expect(toast(page)).toBeVisible();
+  await expect(toast(page).getByRole('button')).toHaveCount(0);
+  const pill=await shape(page);
+  expect(pill).toMatchObject({height:36,rows:1,roundEnds:true,cut:false});
+  expect(pill.width).toBeLessThan(pill.content);
+  expect(pill.offCentre).toBeLessThanOrEqual(0.5);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('toast-pill-plain.png')});
+});
+
+test('a toast with Undo is a 44px pill above the docked button on narrow and wide screens, and a line too long for one row wraps to two in a rounded box with no words cut',async({openPhone,request},info)=>{
+  const code=await ownCode();
+  await ownEvent(request,code,ownName('Pill undo'),'Girl Cubs','heats');
+  const {race}=await writeCheckIn(request,owner(),code,[2041,2042]);
+  const {page}=await openPhone(ownName('Pill undo lead'),{lead:true});
+  // Wide first: the saved line fits on one row whatever its words.
+  await page.setViewportSize({width:1280,height:800});
+  await openAt(page,race.id,'races');
+  await press(page.getByRole('button',{name:"That's everyone",exact:true}));
+  const undo=toast(page).getByRole('button',{name:'Undo',exact:true});
+  // The toast waits while its button has focus, so there is time to measure it.
+  await undo.focus();
+  const wide=await shape(page);
+  expect(wide).toMatchObject({height:44,rows:1,roundEnds:true,cut:false,aboveDocked:true});
+  expect(wide.width).toBeLessThan(wide.content);
+  expect(wide.offCentre).toBeLessThanOrEqual(0.5);
+  expect((await undo.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('toast-pill-undo-wide.png')});
+  // A narrow phone, and an Undo that fails: its line does not fit on one row beside the button.
+  await page.setViewportSize({width:320,height:700});
+  await page.route('**/steps/*/undone',route=>route.abort());
+  const failed=page.waitForEvent('requestfailed');
+  await press(undo);
+  await failed;
+  await expect.poll(async()=>(await shape(page)).rows).toBe(2);
+  const narrow=await shape(page);
+  expect(narrow).toMatchObject({rows:2,roundEnds:false,cut:false,aboveDocked:true});
+  expect(narrow.offCentre).toBeLessThanOrEqual(0.5);
+  expect((await undo.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('toast-box-two-rows.png')});
+  await deleteCurrentRace(request,code);
+});
