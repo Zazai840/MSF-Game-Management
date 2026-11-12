@@ -40,6 +40,9 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
     ['/day/olympics-password',{kind:'olympics-password'}],
+    ['/day/this-day',{kind:'this-day'}],
+    ['/day/export',{kind:'day-export'}],
+    ['/day/start-a-new-day',{kind:'start-a-new-day'}],
     ['/day/events/R6/rename',{kind:'rename-event',code:'R6'}],
     ['/day/events/new',{kind:'new-event'}]
   ];
@@ -88,6 +91,7 @@ test('a screen reached with no history goes up one level',()=>{
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});
   expect(parentOf({kind:'events'})).toEqual({kind:'day'});
   expect(parentOf({kind:'olympics-password'})).toEqual({kind:'day'});
+  for(const kind of ['this-day','day-export','start-a-new-day'] as const) expect(parentOf({kind})).toEqual({kind:'day'});
   expect(parentOf({kind:'rename-event',code:'R6'})).toEqual({kind:'events'});
   expect(parentOf({kind:'new-event'})).toEqual({kind:'events'});
 });
