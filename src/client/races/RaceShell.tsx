@@ -5,9 +5,8 @@ import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLab
 import { api,homeTabOf,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RaceActions } from '../lead/RaceActions.js';
-import { useRaceIssues } from '../lead/RaceProblems.js';
 import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,NeedsBand,RaceBar,Sheet,StepStrip } from './parts.js';
-import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
+import { StepRecord } from './StepRecord.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import { useFlowWrite } from './writes.js';
@@ -19,15 +18,17 @@ export interface SavedStep { raceId:string; step:Step; version:number; message:s
 /**
  * The race screen, one route per race (/races/:raceId), the same shell for every role: the app bar, the event group's
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the
- * steps as tabs, each editable, with problems on the row they are about, and "⋯" for the race actions.
+ * steps as tabs, each editable, and "⋯" for the race actions. A saved race is a lead's race page, not this screen:
+ * `onPage` opens it in this screen's place, on opening and when the race saves itself while the lead has it open.
  */
-export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,onRace,onSaved,onResults,onOpen}:{raceId:string;step?:Step;role:Role;avatar:ReactNode;onRole:()=>void;onBack:()=>void;
-  onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void;onOpen:(view:View)=>void}) {
+export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,onRace,onSaved,onResults,onOpen,onPage}:{raceId:string;step?:Step;role:Role;avatar:ReactNode;onRole:()=>void;onBack:()=>void;
+  onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void;onOpen:(view:View)=>void;onPage:(code:string)=>void}) {
   const {snapshot,error,gone,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
   useEffect(()=>{if(gone) onGone(snapshot?`A lead removed ${snapshot.group.event.section} ${raceName(snapshot.race)}`:'That race is gone');},[gone]);
   const flow=useFlowWrite(raceId,offer);
-  const lead=role==='lead',issues=useRaceIssues(raceId,lead);
+  const lead=role==='lead',page=lead && snapshot?.race.state==='saved';
+  useEffect(()=>{if(page) onPage(snapshot!.group.event.code);},[page]);
   const [tab,setTab]=useState<Step>(opened??'runners');
   // Another role's step, opened read-only from the step strip.
   const [viewing,setViewing]=useState<Step|null>(null);
@@ -43,7 +44,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   const swipe=useRef<{x:number;y:number}|null>(null);
   // "Back to Heat 2" on a lead screen opened from here (Open in Results).
   useScreenName(snapshot?raceName(snapshot.race):'Race');
-  if(!snapshot) return <><RaceBar title="Race" code="" role={role} onBack={onBack}>{avatar}</RaceBar><JobBand role={role} onOpen={onRole}/>
+  if(!snapshot || page) return <><RaceBar title="Race" code="" role={role} onBack={onBack}>{avatar}</RaceBar><JobBand role={role} onOpen={onRole}/>
     <main className="rz-main">{error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>}</main></>;
   const {race,group}=snapshot,event=group.event,shown=stepsOf(race),own=lead?null:roleSteps[role];
   const step=lead?(shown.includes(tab)?tab:'runners'):viewing && shown.includes(viewing)?viewing:own!;
@@ -77,8 +78,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   }
   const notes:Partial<Record<Step,string>>={};
   if(lead) {
-    for(const item of issues.items) {const at=issueStep(item);notes[at]=`${issues.items.filter(other=>issueStep(other)===at).length} to check`;}
-    if(!notes.runners && usualSizeApplies(event) && (race.parts.runners.value?.length||0)>usualRunnersPerRace) notes.runners='More than usual';
+    if(usualSizeApplies(event) && (race.parts.runners.value?.length||0)>usualRunnersPerRace) notes.runners='More than usual';
   }
   const props={read:snapshot,flow,onDone:(done:Step)=>void markDone(done),locked};
   return <>
@@ -115,15 +115,14 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
         </div>
         <StepRecord read={snapshot} step={step}/>
       </main>
-      :lead?<LeadStep key={`${race.id}:${step}:${fresh}`} step={step} {...props} issues={issues.items} onIssue={()=>void issues.refresh()} onResults={onResults} onActions={()=>setActions(true)}/>
-        :step==='runners'?<StartLine key={`${race.id}:${fresh}`} {...props}/>:step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
+      :step==='runners'?<StartLine key={`${race.id}:${fresh}`} {...props}/>:step==='positions'?<FinishLine key={`${race.id}:${fresh}`} {...props}/>:<Timer key={`${race.id}:${fresh}`} {...props}/>}
     </div>
     {adding && <NewRaceSheet groups={[group]} relays={event.relay} role={role} choice={adding} onRace={onRace} onResults={onResults} failure={failure}
       onClose={()=>{setAdding(null);setFailure('');}} onCreate={choice=>{
         if(choice.kind==='final' && !finalMade(group)) {setAdding(null);setConfirmingFinal(true);} else void create(choice.kind,choice.number);
       }}/>}
     {confirmingFinal && <FinalSheet group={group} onClose={()=>setConfirmingFinal(false)} onMake={()=>{setConfirmingFinal(false);void create('final');}}/>}
-    {actions && <LeadRaceActions raceId={race.id} onOpen={onOpen} onClose={()=>{setActions(false);void issues.refresh();}}/>}
+    {actions && <LeadRaceActions raceId={race.id} onOpen={onOpen} onClose={()=>setActions(false)}/>}
   </>;
 }
 /** Race actions over the race screen: the lead's read of the race (its corrections need it), then the sheet. */

@@ -183,7 +183,7 @@ Ending the session on this phone, at once with no confirmation. The phone keeps 
 _Avoid_: Sign out
 
 **To check**:
-The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. A saved race's problems also show at the top of its page in Results, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one. A saved race's problems show at the top of its race page, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
 **Action required**:
@@ -227,12 +227,15 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: a relay is listed once it has a heat, and its teams are typed into its heats. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
+Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: a relay is listed once it has a heat, and its teams are typed into its heats. For a lead, the heat chip of a saved race opens its race page; every other chip opens the Race screen. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:
-One race of the race flow (/races/:raceId): its event's heat chips, its steps, and only the body for your role. A lead sees every step as tabs.
-_Avoid_: Race page (the lead's), job screen
+One race of the race flow (/races/:raceId): its event's heat chips, its steps, and only the body for your role. A lead sees every step as tabs, on a race not in Results yet only: a lead's saved race is its race page.
+_Avoid_: Job screen
+
+**Race page**:
+A lead's one page for a race in Results (/results/:code/races/:raceId): its To check problems on top, the current record with places, wristbands and times together, Saved versions (who saved each step), and one button for the corrections. It has no steps and no heat chips. For a lead a saved race always opens as its race page: from a heat chip on Races or on another heat's Race screen, from a toast, and from its Race screen address. The race page takes the Race screen's place, so Back returns to where the lead came from. The Race screen a lead has open changes to it when the race saves itself; Undo on the saved toast brings the Race screen back at that step. A deleted race opens as its race page too. A volunteer never sees it.
 
 **Step**:
 One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband. On a lead's Race screen each step names the last person who typed in it, or else up to three of the people who have its role today and a count of the rest ("+2"). On the Race screen one band below the job band tells every role what the race still needs to reach Results and which role taps it ("Not in Results yet: 6th place has no time.", "Not in Results yet. Finish line: tap Save the order."), and says "In Results." once the race is saved.

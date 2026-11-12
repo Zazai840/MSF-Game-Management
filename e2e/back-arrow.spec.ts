@@ -66,11 +66,11 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await bothGoBack(page,races);
-  // The race screen's Open in Results opens the tie, and Back returns to the race.
+  // A saved heat's chip opens its race page in the Race screen's place, so its Back is Races; Decide the tie opens the tie, and Back returns to the race page.
   await openRace(page,tieName);
-  const race=async()=>{await expect(page).toHaveURL(new RegExp(`/races/${tieHeat}$`));await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();};
-  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
-  await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
+  const race=()=>onScreen(page,`/results/${tieCode}/races/${tieHeat}`,'Heat 1','Races');
+  await race();
+  await press(page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Decide the tie',exact:true}));
   await tie('Heat 1');
   await bothGoBack(page,race);
   await bothGoBack(page,races);

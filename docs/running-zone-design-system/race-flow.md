@@ -195,16 +195,12 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 
 #### 8. Zone lead (artboard `N8-Lead`)
+- **A race not in Results yet only.** For a lead a saved race is its race page (screen 28), which takes this screen's place: from a heat chip, a toast or the Race screen's address, and when the race saves itself while the lead has it open. The record, its pencils and the problems with "It's right" are on the race page.
 - **Shell differences**
   - The JobBand reads "Your role is ZONE LEAD" on a `jumping` fill.
-  - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
-  - These are today's lead actions from screens 24, 27 and 28, moved here.
-- **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
-- **Each tab shows that step's data, editable:**
-  - Runners: the chip list.
-  - Finishing order: OrderRows.
-  - Times: rows joining place, wristband and time, each with a pencil button.
-- **Problems sit on the row they're about.** A kept warning or a count mismatch shows as an inline WarningCallout with actions: "Fix time" and "It's right". "It's right" clears the issue and records who accepted it.
+  - "⋯" opens a Sheet of race actions: Delete race. The corrections and Re-run are on the saved race's race page.
+- **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times (`role="tablist"`). The selected tab is navy.
+- **Each tab is that step's own body,** as the role that owns it works it.
 - **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card's status line names them ("Heat 3: a time looks wrong").
 - **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. For a lead it opens a menu with Races, Results and Day setup, then Log out; for a volunteer, Log out only.
 
