@@ -6,10 +6,9 @@ import { raceName,stepLabels,type RaceFlowRead,type Step } from '../../shared/ra
 import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import { entryCount,legsText } from '../../shared/teams.js';
 import { formatTime } from '../../shared/time-entry.js';
-import { itemTeams,toCheckWording } from '../../shared/to-check.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { api } from '../api.js';
-import { failureLine } from '../../shared/request-failure.js';
+import { RaceProblems,acceptable } from '../lead/RaceProblems.js';
 import { Callout,Icon } from './parts.js';
 import { UpdatedAt } from './UpdatedAt.js';
 import { FinishLine,StartLine,Timer,type StepProps } from './Steps.js';
@@ -27,28 +26,13 @@ export function issueStep(item:DayLeadItem):Step {
  */
 export function LeadStep({step,issues,onIssue,onResults,onActions,...props}:StepProps & {step:Step;issues:readonly DayLeadItem[];onIssue:()=>void;onResults:(item:DayLeadItem)=>void;onActions:()=>void}) {
   const {read}=props,{race}=read,own=issues.filter(item=>issueStep(item)===step);
-  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[updated,setUpdated]=useState(()=>clockWithSeconds(new Date()));
+  const [updated,setUpdated]=useState(()=>clockWithSeconds(new Date()));
   useEffect(()=>setUpdated(clockWithSeconds(new Date())),[read]);
-  async function accept(item:DayLeadItem) {
-    setBusy(item.id);setError('');
-    try {
-      if(item.kind==='times-out-of-order') {
-        const count=race.parts.runners.value?.length||0,places=[...(race.parts.times.value?.places||[])];
-        while(places.length<count) places.push(null);
-        await api(`lead/races/${race.id}/times`,{baseVersion:race.parts.times.version,places,acceptOutOfOrder:true});
-      } else await api(`lead/races/${item.raceId}/runners/${item.entryId}/${item.kind==='added-at-finish'?'mark-added-checked':'mark-warning-checked'}`,{});
-      onIssue();
-    } catch(failure) {setError(failureLine(failure,'save'));}
-    finally {setBusy('');}
-  }
   /** Refresh: the race and its To check read again now, as the live stream would bring them. */
   function refresh() {void api<RaceFlowRead>(`races/${race.id}`).then(props.flow.offer).catch(()=>{});onIssue();}
-  const acceptable=(item:DayLeadItem)=>item.kind==='warning' || item.kind==='two-relays' || item.kind==='ran-short' || item.kind==='added-at-finish' || item.kind==='times-out-of-order';
-  const callouts=own.length>0 && <>{error && <Callout message={error}/>}{own.map(item=>{const words=toCheckWording(item);
-    return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
-    actions={acceptable(item)?<><button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>
-      <button type="button" className="rz-btn rz-btn--primary" onClick={onActions}>{item.kind==='times-out-of-order'?'Fix time':'Fix'}</button></>
-      :<button type="button" className="rz-btn rz-btn--primary" onClick={()=>onResults(item)}>Open in Results</button>}/>;})}</>;
+  // The race page's problems, with this screen's ways to settle one: the race actions, or Results.
+  const callouts=own.length>0 && <RaceProblems items={own} race={race} onAccepted={onIssue}
+    fix={item=>acceptable(item)?{label:item.kind==='times-out-of-order'?'Fix time':'Fix',open:onActions}:{label:'Open in Results',open:()=>onResults(item)}}/>;
   // A race not in Results yet says what it still needs in the band; a saved race whose finishers and times disagree says so here.
   const mismatch=step!=='runners' && race.recording.countMismatch;
   if(race.state!=='saved') return <>

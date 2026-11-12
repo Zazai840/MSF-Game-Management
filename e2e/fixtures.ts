@@ -366,9 +366,12 @@ export async function saveFinal(request:APIRequestContext,code:string,order:numb
   await writeOrder(request,token,code,order);
   await submitRace(request,token,code);
 }
-/** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
+/**
+ * Opens the race's actions sheet and taps one of its buttons ("Correct times", "Delete Heat 1"): by the race page's
+ * button with words ("Correct or delete Heat 1"), or by "⋯" on the race screen.
+ */
 export async function raceAction(page:Page,action:string) {
-  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await press(page.getByRole('main').getByRole('button',{name:/^(Correct or delete|Restore or delete|Delete) (Heat \d+|Final)$/}).or(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true})));
   await press(page.getByRole('dialog',{name:/ · actions$/}).getByRole('button',{name:action,exact:true}));
 }
 /** The Confirm the medals screen's medal places, one row per place ("1st 2041 Heat 2 · 10.00 Fix"). */

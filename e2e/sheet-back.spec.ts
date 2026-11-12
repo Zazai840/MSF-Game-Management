@@ -101,7 +101,7 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=async()=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 1',exact:true})).toBeVisible();};
   await racePage();
-  const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}),more=page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true});
+  const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}),more=page.getByRole('main').getByRole('button',{name:'Correct or delete Heat 1',exact:true});
   await opensAndCloses(page,()=>press(more),actions,'back',racePage);
   await opensAndCloses(page,()=>press(more),actions,'outside',racePage);
   expect(await lookProblems(page)).toEqual([]);
