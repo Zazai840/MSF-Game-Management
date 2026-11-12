@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,type Page,flowPost,resultsCard} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,type Page,flowPost,resultsCard} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -13,7 +13,10 @@ async function marks(page:Page) {
  return attendance(page).evaluateAll(rows=>rows.map(row=>row.querySelector('button[aria-pressed="true"]')?.textContent??'none'));
 }
 /** The check-sheet buttons on the event's tab showing. */
-const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/});
+/** Opens the Heats tab's closed More, which holds Reopen heats and Results without a final. */
+const openMore=(page:Page)=>press(page.locator('details:not([open]) > summary',{hasText:/^More$/}));
+// Hidden ones too: Reopen heats and Results without a final are under the closed More.
+const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/,includeHidden:true});
 /** The rows of the Final tab's "Line-up, fastest first", opened. */
 async function lineUp(page:Page) {
  const rows=page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem');
@@ -184,7 +187,8 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await expect(attendance(sam.page)).toHaveText([seed('1st',n(41)),seed('2nd',n(42))]);
  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
- // Reopen heats, a plain button under the Heats leaderboard, opens its own screen with #249's warning and a required comment.
+ // Reopen heats, a plain button under the Heats tab's closed More, opens its own screen with #249's warning and a required comment.
+ await expect(page.getByRole('button',{name:'Reopen heats',exact:true})).toBeHidden();await openMore(page);
  await press(page.getByRole('button',{name:'Reopen heats',exact:true}));
  await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-heats$`));
  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Reopen heats',exact:true})).toBeVisible();
@@ -199,7 +203,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
  await expect(stageButtons(page)).toHaveText(['Results without a final']);
  await eventTab(page,'Final');await expect(page.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
- await eventTab(page,'Heats');await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
+ await eventTab(page,'Heats');await expect(page.getByRole('heading',{name:'Deleted races',exact:true})).toHaveCount(0);
  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('reopened Heats complete - Corrected heat timer');
  // Both phones open on the removed final go back to Races, saying so. The card is as for an event with no final: no F
  // chip, "+" right after the last heat, and "+ Final" back as every heat is saved.
@@ -239,7 +243,7 @@ test('with a final back while heats can still be added, "+" sits right after the
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('plus-before-final.png'),fullPage:true});
  await deleteCurrentRace(request,code);
 });
-test('a lead\'s + Final is greyed with why the final cannot be made yet, the reason opens that heat\'s Times tab, and accepting the time frees it',async({openPhone,request},info)=>{
+test('a lead\'s + Final is greyed with why the final cannot be made yet, the reason opens that heat\'s race page, and accepting the time frees it',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Final reason'),n=await ownWristbands('Boy Cubs',2);
  await ownEvent(request,code,name,'Boy Cubs');
  // Heat 1 is saved with a wrong time kept: 2nd place faster than 1st.
@@ -255,7 +259,7 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  await expect(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toBeVisible();
  await expect(card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toHaveCount(0);
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
- // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's Times tab too.
+ // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's race page too.
  await lena.getByRole('button',{name:'New race',exact:true}).click();
  const sheet=lena.getByRole('dialog',{name:'New race'});
  await sheet.getByRole('button',{name,exact:true}).click();await sheet.getByRole('button',{name:`Boy Cubs ${code}`,exact:true}).click();
@@ -267,20 +271,22 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  await expect(reason.locator('.rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
  await reason.click();
  const opened=async()=>{
-  await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
-  await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
+  await expect(lena.getByRole('banner').getByRole('heading',{level:1,name:'Heat 1',exact:true})).toBeVisible();
+  await expect(lena.getByRole('alert').filter({hasText:'A time looks wrong'})).toBeVisible();
  };
  await opened();
- const onRace=lena.getByRole('navigation',{name:'Heats'});
- await expect(onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveAttribute('aria-disabled','true');
- await expect(onRace.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toBeVisible();
+ // The card's problem button opens the same race page.
+ await backToRaces(lena);
+ await press(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true}));
+ await opened();
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-race.png'),fullPage:true});
- // The lead accepts the time: "+ Final" is tappable again, and opens the confirm.
+ // The lead accepts the time on the race page: back on Races "+ Final" is tappable again, and opens the confirm.
  await lena.getByRole('button',{name:"It's right",exact:true}).click();
- await expect(onRace.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toHaveCount(0,live);
- const freed=onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true});
- await expect(freed).not.toHaveAttribute('aria-disabled','true');
- await freed.click();
+ await expect(lena.getByRole('alert').filter({hasText:'A time looks wrong'})).toHaveCount(0);
+ await backToRaces(lena);
+ await expect(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toHaveCount(0,live);
+ await expect(plusFinal).not.toHaveAttribute('aria-disabled','true');
+ await plusFinal.click();
  await expect(lena.getByRole('dialog',{name:'Have all Boy Cubs heats run?',exact:true})).toBeVisible();
 });
 test('a final\'s check-in starts with nobody marked; That\'s everyone asks before recording the unmarked absent, the finish line has only those Here, and a second phone sees the same marks',async({openPhone,request},info)=>{

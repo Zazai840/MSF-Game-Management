@@ -7,7 +7,7 @@ test('a lead reads a kept wristband warning in the child\'s Notes on the runner 
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2301,6000],[1100,1200],[6000]);
   await page.goto('/');await join(page,lead,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await resultsCard(page,code).click();
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));
   const racePage=new RegExp(`/results/${code}/races/${race.id}$`);await expect(page).toHaveURL(racePage);
   // The warning shows on the child's row of the race page's Current record, the row amber while it is open.
   const child=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem').filter({hasText:'6000'});
