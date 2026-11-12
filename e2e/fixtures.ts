@@ -470,10 +470,10 @@ export async function expectToast(page:Page,line:string|RegExp) {
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
-/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer (or the keyboard). */
+/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer or the lead's bar, whichever is higher (or the keyboard). */
 export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
-    footer:document.querySelector('footer.rz-footer')?.getBoundingClientRect().top??Infinity}));
+    footer:Math.min(...['footer.rz-footer','.rz-leadnav'].map(foot=>document.querySelector(foot)?.getBoundingClientRect().top??Infinity))}));
   expect(scrolled).toBe(0);
   for(const target of targets) {
     const box=(await target.boundingBox())!;

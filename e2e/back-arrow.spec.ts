@@ -133,6 +133,11 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await page.getByRole('button',{name:/^Signed in today /}).click();await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   expect(await lookProblems(page)).toEqual([]);
   await bothGoBack(page,day);
+  for(const [row,address,name] of [[/^This day /,'/day/this-day','This day'],[/^Day export /,'/day/export','Day export'],[/^Start a new day$/,'/day/start-a-new-day','Start a new day']] as const) {
+    await page.getByRole('button',{name:row}).click();await onScreen(page,address,name,'Day setup');
+    expect(await lookProblems(page)).toEqual([]);
+    await bothGoBack(page,day);
+  }
   await page.goBack();await races();
 });
 
@@ -152,7 +157,12 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await toRaces(page);await onRaces(page);
   await page.goto('/day/olympics-password');await onScreen(page,'/day/olympics-password','Change Olympics password','Day setup');
   await press(arrow(page));await onTop(page,'/day','Day setup');
-  await toRaces(page);await onRaces(page);  // Rename and Add an event go up to Events.
+  await toRaces(page);await onRaces(page);
+  for(const [address,name] of [['/day/this-day','This day'],['/day/export','Day export'],['/day/start-a-new-day','Start a new day']] as const) {
+    await page.goto(address);await onScreen(page,address,name,'Day setup');
+    await press(arrow(page));await onTop(page,'/day','Day setup');
+  }
+  // Rename and Add an event go up to Events.
   await page.goto('/day/events/new');await onScreen(page,'/day/events/new','Add an event','Events');
   await press(arrow(page));await onScreen(page,'/day/events','Events','Day setup');
   await page.goto('/day/events/R4/rename');await onScreen(page,'/day/events/R4/rename','Rename R4','Events');

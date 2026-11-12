@@ -363,6 +363,12 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
 /* Day setup's cards: a long password wraps rather than running off the card; a form, a warning or a block button spans it. */
 .rz-codecard__value { max-width: 100%; overflow-wrap: anywhere; }
 .rz-codecard > .rz-callout, .rz-codecard__form { align-self: stretch; }
+/* Day setup's two codes side by side in one card, each under its label and the two codes on one line: the password
+   takes the width it needs, and both are in the screen heading's size so that two fit across a 360px phone. */
+.rz-codecard__codes { align-self: stretch; display: grid; grid-template-columns: fit-content(60%) minmax(0, 1fr); gap: var(--space-16); }
+.rz-codecard__code { display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-8); }
+.rz-codecard__code > * { margin: 0; }
+.rz-codecard__code .rz-codecard__value { font-size: 28px; }
 /* This day: each field's choices share its row equally, their words centred; the row spans the card. */
 .rz-codecard fieldset { align-self: stretch; }
 .rz-choices--row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
