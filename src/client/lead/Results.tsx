@@ -12,7 +12,7 @@ import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords } from '../races/parts.js';
 import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
-import { LeadBar } from './LeadBar.js';
+import { LeadBar,LeadTabs } from './LeadBar.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
 import { addressOf,eventTabs,type EventTab,type View } from '../shell/addresses.js';
@@ -34,7 +34,7 @@ export function Results({code,...props}:ResultsProps) {
 /** Results: the list of the day's events, read every 5 s. */
 function ResultsGrid({onOpen}:{onOpen:(view:View)=>void}) {
   const {read:list,updated,error,refresh}=usePolledRead<ResultsGridRead>('lead/results');
-  return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
+  return <LeadBar title="Results" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
 }
 /** An event's screens (its tabs, a race page, a runner screen), on the event's results read every 5 s. */
 function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:ResultsProps & {code:string}) {
@@ -191,5 +191,5 @@ function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|n
       {sections.map(([title,items],index)=>items.length>0 && <section key={title} aria-labelledby={`results-section-${index}`}><h2 className="rz-section" id={`results-section-${index}`}>{title}</h2>{cards(items)}</section>)}
       {idle.length>0 && <details className="rz-disclosure"><summary>Not started ({idle.length})</summary>{cards(idle)}</details>}</>}
   </main>
-  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer></>;
+  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer><LeadTabs current="Results" onOpen={onOpen}/></>;
 }

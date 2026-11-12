@@ -202,7 +202,8 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times (`role="tablist"`). The selected tab is navy.
 - **Each tab is that step's own body,** as the role that owns it works it.
 - **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card shows them as large buttons in the shape of Confirm the medals, in place of its status line: "Decide the tie" opens the tie (the event in Results when there is more than one), "Check Heat 3 · 1 time" that race's page. Two buttons at most, then a line ("1 more") that opens the event in Results. The reason beside a greyed "+ Final" is not shown when one of these buttons says it.
-- **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. For a lead it opens a menu with Races, Results and Day setup, then Log out; for a volunteer, Log out only.
+- **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. It opens a menu with Log out only, for a lead as for a volunteer.
+- **The lead's bar:** on a lead's phone, Races, Results and Day setup end with a bar of three tabs (Races, Results, Day setup), below New race on Races. See "The lead's bar" in [screens.md](screens.md).
 
 ### 9. Relays
 
@@ -311,9 +312,9 @@ Update existing READMEs where the new flow changes them:
 | 20–21 Become a zone lead / lead home | The Zone lead row in the role sheet; Races as lead |
 | 22–23 Dashboard / To check | Removed: issues show on race cards and in the lead's race tabs |
 | 24, 27, 28 Settle tie, runner actions, race detail | The "⋯" race actions sheet and the lead tabs |
-| 25–26 Results, leaderboard | Unchanged; reached from the avatar menu |
+| 25–26 Results, leaderboard | Unchanged; reached from the lead's bar |
 | 29 Heats complete | Removed: a lead makes the final with "+ Final" on the card, after a confirm |
-| 30–32 Day setup | Unchanged; reached from the avatar menu |
+| 30–32 Day setup | Unchanged; reached from the lead's bar |
 | Relay race screen (holds, Take over, Submit Race), the Teams screen and the teams sheet | Relays tab in the race flow, with each team typed into its heat (see "9. Relays") |
 
 ## Build order
