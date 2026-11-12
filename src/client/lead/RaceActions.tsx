@@ -6,7 +6,8 @@ import type { RaceAction,RaceCorrection,View } from '../shell/addresses.js';
 /** A race not saved yet, in Race actions and on its race page: where its steps are finished. */
 export const notSavedLine=(race:LeadRaceRead['race'],where:'page'|'screen')=>`${raceName(race)} is not saved yet. ${where==='page'?'Open it to finish its steps.':'Finish its steps on this screen first.'}`;
 /**
- * Race actions, the one sheet "⋯" opens on a race page (`where="page"`) and on the race screen: the corrections, Re-run,
+ * Race actions, the one sheet a race page's button with words opens ("Correct or delete Heat 1", `where="page"`) and
+ * "⋯" opens on the race screen: the corrections, Re-run,
  * then a red Delete set apart; on a deleted race Restore and a red Delete for good; on a race not saved yet, where its
  * steps are finished and Delete. Each action opens its own screen, under the race page or the race screen.
  */

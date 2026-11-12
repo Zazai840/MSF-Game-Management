@@ -31,7 +31,8 @@ test('Re-run is a screen that lands on the new heat at its first step, with Back
   await page.screenshot({path:info.outputPath('rerun-deleted-list.png'),fullPage:true});
   await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();
   await expect(page.getByRole('status').filter({hasText:/^Replaced by a re-run/})).toHaveText(/^Replaced by a re-run at \d\d:\d\d by .+: False start\. Its results do not count\.$/);
-  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  // A race replaced by a re-run cannot be restored, so its button names only Delete.
+  await press(page.getByRole('main').getByRole('button',{name:'Delete Heat 1',exact:true}));
   await expect(page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}).getByRole('button')).toHaveText(['','Delete for good']);
   await page.screenshot({path:info.outputPath('rerun-race-page.png'),fullPage:true});
   await page.keyboard.press('Escape');
