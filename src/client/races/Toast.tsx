@@ -33,9 +33,11 @@ function ToastBox({held=false,restartOn,onClose,children}:{held?:boolean;restart
     if(focused || held) return;
     // With reduced motion there is no fade to wait for (race-flow.css), so the toast goes at the full time.
     const still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const timer=window.setTimeout(still?onClose:()=>setLeaving(true),showFor-(still?0:fadeOutFor));
+    const fade=still?undefined:window.setTimeout(()=>setLeaving(true),showFor-fadeOutFor);
+    // The fade's end removes the toast (onTransitionEnd). A fade that never reports its end must not leave an unseen toast in the page, so this closes it just after.
+    const close=window.setTimeout(onClose,still?showFor:showFor+fadeOutFor);
     // Focus, a hold or a new count brings back a toast that had started to leave.
-    return ()=>{clearTimeout(timer);setLeaving(false);};
+    return ()=>{clearTimeout(fade);clearTimeout(close);setLeaving(false);};
   },[focused,held,restartOn]);
   // CSS cannot tell that a line has wrapped: one row is never taller than the 44px touch size, two rows always are.
   useLayoutEffect(()=>{

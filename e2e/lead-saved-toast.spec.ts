@@ -307,6 +307,15 @@ test('with reduced motion the toast shows and goes with no animation, after abou
   for(const frame of seen.frames) expect(frame).toEqual({...first,at:expect.any(Number)});
 });
 
+test('a toast whose fade never runs still goes after about 3 seconds',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast no fade lead'),{lead:true}),code=await onEvents(page,request,'Toast no fade');
+  // No transition runs, so the fade never reports its end: the toast must not stay in the page, unseen.
+  await page.addStyleTag({content:'.rz-toast--out { transition: none !important; }'});
+  await watchToast(page);
+  await press(page.getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  aboutThreeSeconds((await watched(page)).shownFor);
+});
+
 test('a new toast takes the place of the one showing, and has its own 3 seconds',async({openPhone,request})=>{
   const {page}=await openPhone(ownName('Toast next lead'),{lead:true}),code=await onEvents(page,request,'Toast next');
   await watchToast(page);
