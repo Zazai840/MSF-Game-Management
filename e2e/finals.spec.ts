@@ -57,6 +57,8 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // Nobody is marked yet, so the finish line has nobody to place; each one marked Here joins it live.
  await expect(runnerButtons(priya)).toHaveCount(0);
  for(const number of [n(11),n(12),n(13),n(17),n(14),n(18)]) await here(sam,number).click();
+ // The taps save one at a time, in order: the finish line's two seconds start once the last is saved.
+ await expect(here(sam,n(18))).toHaveAttribute('aria-pressed','true');
  await expect(runnerButtons(priya)).toHaveCount(6,live);
  await mark(sam,n(12),'Absent').click();
  await expect(mark(sam,n(12),'Absent')).toHaveAttribute('aria-pressed','true');

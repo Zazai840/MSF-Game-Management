@@ -42,6 +42,8 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // Taps land at once on the finish line: those Here are its tiles, and the Absent or unmarked are not.
   for(const team of [1,2,3,4]) await markButton(one,team,'Here').click();
   await markButton(one,5,'Absent').click();
+  // The taps save one at a time, in order: the finish line's two seconds start once the last is saved.
+  await expect(markButton(one,5,'Absent')).toHaveAttribute('aria-pressed','true');
   const tiles=line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
   await expect(tiles).toHaveText([1,2,3,4].map(team=>String(w(team*10+4))),live);
   await expect(meta(one)).toHaveText('Final · 4 of 6 teams here · 1 not marked');
