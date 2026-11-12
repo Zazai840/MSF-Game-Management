@@ -1,5 +1,5 @@
 import type { Level } from './domain.js';
-import { raceName } from './race-flow.js';
+import { raceName,stepLabels,type Step } from './race-flow.js';
 import type { Stage } from './stages.js';
 /** A race as a toast names it: Heat N or Final ("Heat 1"). */
 interface ToastRace { kind:'heat'|'final'|'race'; number:number }
@@ -19,7 +19,8 @@ export type ToastSave=
   |{kind:'removed';name:string}
   |{kind:'switched';code:string;on:boolean}
   |{kind:'renamed'|'event-added';code:string};
-const parts={times:'Times',order:'Finishing order',runners:'Runner list',teams:'Teams'};
+// A correction names a step's part as the step itself is named; the runner list and the teams have their own words.
+const parts={times:stepLabels.times,order:stepLabels.positions,runners:'Runner list',teams:'Teams'};
 const reopened:Record<Stage,string>={final:'Final',heats:'Heats',event:'Event','no-final':'Results'};
 /** The one line the toast shows after a lead save (the owner's short lines in spec #309). */
 export function toastLine(save:ToastSave):string {
@@ -50,3 +51,7 @@ export function toastLine(save:ToastSave):string {
     case 'downloaded': return 'Downloaded';
   }
 }
+/** The toast's line after a race step is marked done ("Times saved"), shown with Undo. */
+export const stepSavedLine=(step:Step)=>`${stepLabels[step]} saved`;
+/** The toast's warning when someone else changed the saved step since: "Tom Barker changed this", or "Someone ..." when nobody is named. */
+export const changedSinceLine=(by:string|null)=>`${by??'Someone'} changed this`;

@@ -1,5 +1,5 @@
 import { expect,test } from 'vitest';
-import { toastLine } from '../src/shared/toast-lines.js';
+import { changedSinceLine,stepSavedLine,toastLine } from '../src/shared/toast-lines.js';
 // The short lines the owner agreed for spec #309 (11 Nov 2026), one per kind of lead save.
 const heat1={kind:'heat',number:1} as const,heat4={...heat1,number:4};
 test('a correction names what it saved',()=>{
@@ -47,4 +47,13 @@ test('Day setup saves name what changed',()=>{
   expect(toastLine({kind:'switched',code:'R6',on:true})).toBe('R6 switched on');
   expect(toastLine({kind:'event-added',code:'R9'})).toBe('Event added · R9');
   expect(toastLine({kind:'downloaded'})).toBe('Downloaded');
+});
+test('a step marked done says which step was saved',()=>{
+  expect(stepSavedLine('runners')).toBe('Runners saved');
+  expect(stepSavedLine('positions')).toBe('Finishing order saved');
+  expect(stepSavedLine('times')).toBe('Times saved');
+});
+test('the warning names who changed the step since, or Someone when the name is unknown',()=>{
+  expect(changedSinceLine('Tom Barker')).toBe('Tom Barker changed this');
+  expect(changedSinceLine(null)).toBe('Someone changed this');
 });

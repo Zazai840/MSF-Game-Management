@@ -3,12 +3,13 @@ import type { RacesRead,Step } from '../../shared/race-flow.js';
 import { ApiFailure,api } from '../api.js';
 import { useLive } from '../live.js';
 import { failureLine } from '../../shared/request-failure.js';
+import { changedSinceLine } from '../../shared/toast-lines.js';
 import { Icon } from './parts.js';
 import type { SavedStep } from './RaceShell.js';
-/** How long the toast stays, unless it has focus. */
+/** How long the toast stays, its fade-out included, unless it has focus or is held. */
 const showFor=3000;
-/** How long before it goes the toast starts to leave: its 150ms fade-out (race-flow.css) and two frames for that to start, so it is never taken away part faded. */
-const leaveFor=184;
+/** The length of the fade-out in race-flow.css (.rz-toast--out), used only to start it in time: the toast is removed when the fade itself ends. */
+const fadeOutFor=150;
 /** What the toast shows: one line naming what was saved (see toastLine), and only for a race step, the saved step that makes Undo work. */
 export interface ToastShown { message:string; saved?:SavedStep }
 /** Shows the app's one toast from any screen; a new toast takes the place of the one showing. */
@@ -22,22 +23,28 @@ export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:st
   return toast.saved?<StepToast saved={toast.saved} onOpen={onOpen} onClose={onClose}/>
     :<ToastBox onClose={onClose}><span className="rz-toast__msg"><Icon name="check"/>{toast.message}</span></ToastBox>;
 }
-/** The toast's pill, a rounded box once its line wraps to a second row: it fades in, and fades out to close after 3 seconds, the count starting again when `restartOn` changes, and waits while focused. */
-function ToastBox({restartOn,onClose,children}:{restartOn?:unknown;onClose:()=>void;children:ReactNode}) {
+/**
+ * The toast's pill, a rounded box once its line wraps to a second row: it fades in, and fades out to close after
+ * 3 seconds. The count waits while the toast is focused or `held`, and starts again after that and when `restartOn` changes.
+ */
+function ToastBox({held=false,restartOn,onClose,children}:{held?:boolean;restartOn?:unknown;onClose:()=>void;children:ReactNode}) {
   const [focused,setFocused]=useState(false),[wrapped,setWrapped]=useState(false),[leaving,setLeaving]=useState(false),box=useRef<HTMLDivElement>(null);
   useEffect(()=>{
-    if(focused) return;
-    const leave=window.setTimeout(()=>setLeaving(true),showFor-leaveFor),timer=window.setTimeout(onClose,showFor);
-    // Focus, or a new count, brings back a toast that had started to leave.
-    return ()=>{clearTimeout(leave);clearTimeout(timer);setLeaving(false);};
-  },[focused,restartOn]);
+    if(focused || held) return;
+    // With reduced motion there is no fade to wait for (race-flow.css), so the toast goes at the full time.
+    const still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer=window.setTimeout(still?onClose:()=>setLeaving(true),showFor-(still?0:fadeOutFor));
+    // Focus, a hold or a new count brings back a toast that had started to leave.
+    return ()=>{clearTimeout(timer);setLeaving(false);};
+  },[focused,held,restartOn]);
   // CSS cannot tell that a line has wrapped: one row is never taller than the 44px touch size, two rows always are.
   useLayoutEffect(()=>{
     const element=box.current!,observer=new ResizeObserver(()=>setWrapped(element.offsetHeight>44));
     observer.observe(element);
     return ()=>observer.disconnect();
   },[]);
-  return <div ref={box} className={`rz-toast${wrapped?' rz-toast--box':''}${leaving?' rz-toast--out':''}`} role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
+  return <div ref={box} className={`rz-toast${wrapped?' rz-toast--box':''}${leaving?' rz-toast--out':''}`} role="status"
+    onTransitionEnd={event=>{if(leaving && event.target===event.currentTarget) onClose();}} onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
 }
 /**
  * After a step is saved: "Times saved" with Undo, which reverses only this person's own save and
@@ -46,20 +53,21 @@ function ToastBox({restartOn,onClose,children}:{restartOn?:unknown;onClose:()=>v
  */
 function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string,step:Step)=>void;onClose:()=>void}) {
   const {snapshot}=useLive<RacesRead>('live/races');
-  const [changedBy,setChangedBy]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [refusedFor,setRefusedFor]=useState<{by:string|null}|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const status=snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)?.steps[saved.step];
-  // Someone changed the step after this save: its version moved on.
-  const changed=changedBy ?? (status && status.version!==saved.version?status.by??'Someone':null);
+  // Someone changed the step after this save: its version moved on, or the server refused the Undo for it. `by` is null when nobody is named.
+  const changed=refusedFor ?? (status && status.version!==saved.version?{by:status.by??null}:null);
   async function undo() {
     setBusy(true);setError('');
     try {await api(`races/${saved.raceId}/steps/${saved.step}/undone`,{version:saved.version});onClose();onOpen(saved.raceId,saved.step);}
     catch(failure) {
       const body=failure instanceof ApiFailure?failure.body as {reason?:string;by?:string|null}:{};
-      if(body.reason==='changed-since') setChangedBy(body.by??'Someone');else setError(failureLine(failure,'save'));
+      if(body.reason==='changed-since') setRefusedFor({by:body.by??null});else setError(failureLine(failure,'save'));
     } finally {setBusy(false);}
   }
-  return <ToastBox restartOn={changed} onClose={onClose}>
-    <span className="rz-toast__msg"><Icon name={error?'warning':'check'}/>{error||(changed?`${changed} changed this`:saved.message)}</span>
+  // Held while the Undo is on its way: its answer, a failure line included, then gets the full 3 seconds.
+  return <ToastBox held={busy} restartOn={Boolean(changed)} onClose={onClose}>
+    <span className="rz-toast__msg"><Icon name={error?'warning':'check'}/>{error||(changed?changedSinceLine(changed.by):saved.message)}</span>
     {changed?<button type="button" onClick={()=>{onClose();onOpen(saved.raceId,saved.step);}}>Open race</button>:<button type="button" disabled={busy} onClick={()=>void undo()}>Undo</button>}
   </ToastBox>;
 }

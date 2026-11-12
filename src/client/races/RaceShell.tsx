@@ -11,6 +11,7 @@ import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import { useFlowWrite } from './writes.js';
 import { failureLine } from '../../shared/request-failure.js';
+import { stepSavedLine } from '../../shared/toast-lines.js';
 import { useScreenName,type View } from '../shell/addresses.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, its words, and the Races-home tab holding its event. */
@@ -70,7 +71,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
     if(typeof answer!=='object') return;
     // The mark changed nothing, so the button says so: a lead never taps a done button that does nothing.
     if(lead && already) {if(answer.race.state!=='saved') setAnswered({step:done,line:alreadyDoneLine(answer.group.races.find(item=>item.id===race.id)!,done)});return;}
-    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved`,tab:homeTabOf(event)});
+    onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:stepSavedLine(done),tab:homeTabOf(event)});
   }
   async function create(kind:'heat'|'final',number=group.nextHeat) {
     setFailure('');
