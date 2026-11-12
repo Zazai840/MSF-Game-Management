@@ -44,7 +44,7 @@ test('after a lead types a time for a place no child holds, the lead sees the su
   // Finishers and times only disagree after a lead's correction: 2406 did not finish, and a 6th time is typed.
   const saved=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;
   expect((await page.request.post(`/api/lead/races/${race.id}/times`,{headers,data:{baseVersion:saved.parts.times.version,places:[1200,1300,1400,1500,1600,1700]}})).ok()).toBe(true);
-  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await press(resultsCard(page,code));await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));await raceAction(page,'Correct times');
+  await signInAs(page,ownName('Surplus correcting lead'));await becomeLead(page);await openLeadMenu(page,'Results');await press(resultsCard(page,code));await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));await raceAction(page,'Correct times');
   await expect(page.getByRole('button',{name:/^6th place · 17\.00/})).toBeVisible();await expect(page.getByText(mismatch,{exact:true})).toBeVisible();
   // "No finisher" stays on one line beside each place.
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});

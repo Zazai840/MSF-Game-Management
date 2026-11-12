@@ -22,11 +22,13 @@ export interface ProblemFix { label:string; open:()=>void }
 /**
  * A race's open To check items as callouts, in the To check wording, a relay's teams with their four children. A kind
  * that can be accepted has "It's right": it clears the problem, records who accepted it, and hands `onAccepted` the
- * event's results as saved. Every problem has the button `fix` gives it.
+ * event's results as saved. Every problem has the button `fix` gives it. With no `race` (an event's problems, of
+ * several races) each problem has that one button only.
  */
-export function RaceProblems({items,race,fix,onAccepted}:{items:readonly DayLeadItem[];race:Pick<RaceRead,'id'|'parts'>;fix:(item:DayLeadItem)=>ProblemFix;onAccepted:(next:EventResultsRead)=>void}) {
+export function RaceProblems({items,race,fix,onAccepted}:{items:readonly DayLeadItem[];race?:Pick<RaceRead,'id'|'parts'>;fix:(item:DayLeadItem)=>ProblemFix;onAccepted?:(next:EventResultsRead)=>void}) {
   const [busy,setBusy]=useState(''),[error,setError]=useState('');
   async function accept(item:DayLeadItem) {
+    if(!race || !onAccepted) return;
     setBusy(item.id);setError('');
     try {
       if(item.kind==='times-out-of-order') {
@@ -38,7 +40,7 @@ export function RaceProblems({items,race,fix,onAccepted}:{items:readonly DayLead
     finally {setBusy('');}
   }
   return <>{error && <Callout message={error}/>}{items.map(item=>{const words=toCheckWording(item),{label,open}=fix(item);
-    return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
-      actions={<>{acceptable(item) && <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>}
+    return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race?.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
+      actions={<>{race && acceptable(item) && <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>}
         <button type="button" className="rz-btn rz-btn--primary" onClick={open}>{label}</button></>}/>;})}</>;
 }
