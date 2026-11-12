@@ -65,7 +65,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
     body=<Frame meta={`${eventTitle(race.event)}${race.deletedAt?` · deleted ${clock(race.deletedAt)}`:''}`} question={question('Restore')}
       help={`Its results count again.${comesBackAs===null?'':` ${name} is taken now, so it comes back as ${raceName({kind:race.kind,number:comesBackAs})}.`}`}
       reason={null} busy={busy} label={`Restore ${name}`} refused={refused}
-      onGo={()=>void save({},answer=>({kind:'restored',race:{kind:race.kind,number:answer.number??race.number}}),()=>onBack())}>{null}</Frame>;
+      onGo={()=>void save({},answer=>({kind:'restored',race:{...race,number:answer.number??race.number}}),()=>onBack())}>{null}</Frame>;
   }
   return <LeadBar title={title} code={race.event.code} up={name} body={body}/>;
 }

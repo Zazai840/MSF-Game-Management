@@ -257,6 +257,20 @@ const watched=(page:Page)=>page.evaluate(()=>(window as unknown as {toastWatch:P
 const frameAt=(seen:Watched,at:number)=>seen.frames.reduce((near,frame)=>Math.abs(frame.at-at)<Math.abs(near.at-at)?frame:near);
 /** About 3 seconds: a timer on a busy machine runs late, never early. */
 const aboutThreeSeconds=(time:number)=>{expect(time).toBeGreaterThan(2700);expect(time).toBeLessThan(3700);};
+/** How long the toast stays, counted on the page from the frame its line first holds `line` (so a slow test step does not count); -1 if it goes without that line. Start it while the toast shows, before the press that brings the line. With `blur`, focus leaves the page's focused element in that same frame. */
+const staysFrom=(page:Page,line:string,blur=false)=>page.evaluate(({line,blur})=>new Promise<number>(resolve=>{
+  let from=0;
+  const frame=()=>{
+    const element=document.querySelector('.rz-toast'),now=performance.now();
+    if(!element) return resolve(from?now-from:-1);
+    if(!from && element.textContent.includes(line)) {
+      from=now;
+      if(blur) (document.activeElement as HTMLElement|null)?.blur();
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}),{line,blur});
 /** A lead on Day setup's events with an event of their own to switch off and on: each press saves and shows a plain toast. */
 async function onEvents(page:Page,request:APIRequestContext,words:string) {
   const code=await ownCode();
@@ -298,6 +312,7 @@ test('a new toast takes the place of the one showing, and has its own 3 seconds'
   await watchToast(page);
   await press(page.getByRole('button',{name:`Switch off ${code}`,exact:true}));
   await expect(toast(page)).toHaveText(/switched off/);
+  // Part of the way through the first toast's 3 seconds.
   await page.waitForTimeout(1500);
   await press(page.getByRole('button',{name:`Switch on ${code}`,exact:true}));
   await expect(toast(page)).toHaveText(/switched on/);
@@ -315,13 +330,11 @@ test('a toast with Undo stays while its button has focus, and goes about 3 secon
   await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   const undo=toast(page).getByRole('button',{name:'Undo',exact:true});
   await undo.focus();
+  // The wait is the check: well past 3 seconds, the focused toast is still there and solid.
   await page.waitForTimeout(4000);
   await expect(undo).toBeVisible();
   await expect(toast(page)).toHaveCSS('opacity','1');
-  await undo.blur();
-  const left=Date.now();
-  await expect(toast(page)).toHaveCount(0,{timeout:6000});
-  aboutThreeSeconds(Date.now()-left);
+  aboutThreeSeconds(await staysFrom(page,'Runners saved',true));
   await deleteCurrentRace(request,code);
 });
 
@@ -334,13 +347,67 @@ test('the 3 seconds start again when the toast changes to the "changed since" wa
   await watchToast(page);
   await press(page.getByRole('button',{name:"That's everyone",exact:true}));
   await expect(toast(page).getByRole('button',{name:'Undo',exact:true})).toBeVisible();
+  const warning=staysFrom(page,'changed this');
+  // Part of the way through the toast's 3 seconds, someone else changes the runners after this phone's save.
   await page.waitForTimeout(1500);
-  // Someone else changes the runners after this phone's save.
   await writeCheckIn(request,owner(),code,[2061,2062,2063]);
   await expect(toast(page).getByRole('button',{name:'Open race',exact:true})).toBeVisible();
-  const changed=Date.now();
-  await expect(toast(page)).toHaveCount(0,{timeout:6000});
-  aboutThreeSeconds(Date.now()-changed);
+  aboutThreeSeconds(await warning);
   expect((await watched(page)).shownFor).toBeGreaterThan(4200);
+  await deleteCurrentRace(request,code);
+});
+
+/** A lead back on Races just after marking a heat's runners done: the toast reads "Runners saved" with Undo. */
+async function savedWithUndo(page:Page,request:APIRequestContext,words:string) {
+  const code=await ownCode();
+  await ownEvent(request,code,ownName(words),'Girl Cubs','heats');
+  const {race}=await writeCheckIn(request,owner(),code,[2071,2072]);
+  await openAt(page,race.id,'races');
+  await watchToast(page);
+  await press(page.getByRole('button',{name:"That's everyone",exact:true}));
+  await savedToast(page,'Runners saved');
+  return code;
+}
+
+test('a toast with Undo that never gets focus has gone after about 3 seconds',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast undo time lead'),{lead:true});
+  const code=await savedWithUndo(page,request,'Toast undo time');
+  aboutThreeSeconds((await watched(page)).shownFor);
+  await deleteCurrentRace(request,code);
+});
+
+test('a toast stays while its Undo is on its way, and a failed Undo shows its failure line for about 3 seconds',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast slow undo lead'),{lead:true});
+  const code=await savedWithUndo(page,request,'Toast slow undo');
+  // The Undo takes longer than the toast's 3 seconds, and then fails.
+  await page.route('**/steps/*/undone',async route=>{await new Promise(done=>setTimeout(done,3500));await route.abort();});
+  const failure=staysFrom(page,'Could not connect - try again');
+  await press(toast(page).getByRole('button',{name:'Undo',exact:true}));
+  // Only the Undo on its way holds the toast: the press leaves no focus on it.
+  await page.evaluate(()=>(document.activeElement as HTMLElement|null)?.blur());
+  aboutThreeSeconds(await failure);
+  expect((await watched(page)).shownFor).toBeGreaterThan(3500+2700);
+  await deleteCurrentRace(request,code);
+});
+
+test('a toast that gets focus while it fades out is solid again at once, with no second entrance',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast refocus lead'),{lead:true});
+  const code=await savedWithUndo(page,request,'Toast refocus');
+  // On the page, frame by frame: once the toast is in and solid, wait for the fade-out to start, give the button focus, then watch a second of frames.
+  const after=await toast(page).evaluate(element=>new Promise<{place:number;frames:Array<{opacity:number;bottom:number}>}>(resolve=>{
+    const frames:Array<{opacity:number;bottom:number}>=[];
+    let place=0,focused=0;
+    const frame=()=>{
+      const opacity=Number(getComputedStyle(element).opacity),bottom=element.getBoundingClientRect().bottom,now=performance.now();
+      if(focused) frames.push({opacity,bottom});
+      else if(opacity===1) place=bottom;
+      else if(place) {element.querySelector('button')!.focus();focused=now;}
+      if(focused && now-focused>1000) return resolve({place,frames});
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }));
+  expect(after.frames.length).toBeGreaterThan(5);
+  for(const frame of after.frames) expect(frame).toEqual({opacity:1,bottom:after.place});
   await deleteCurrentRace(request,code);
 });

@@ -222,12 +222,13 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-toast__msg:only-child { padding-right: var(--space-8); }
 .rz-toast__msg .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); }
 .rz-toast button { min-height: var(--size-touch); padding: 0 var(--space-10); border: 0; background: none; color: var(--gold); font-size: 15px; font-weight: 800; white-space: nowrap; }
-/* It fades and rises in, and fades out as it leaves (Toast.tsx adds rz-toast--out for its last moments). The rise is a transform, so the pill stays centred. */
-.rz-toast { animation: rz-toast-in 150ms ease-out both; }
-.rz-toast--out { animation: rz-toast-out 150ms ease-in forwards; }
+/* It fades and rises in. The rise is a transform, so the pill stays centred. */
+.rz-toast { animation: rz-toast-in 150ms ease-out; }
 @keyframes rz-toast-in { from { opacity: 0; transform: translateY(var(--space-8)); } }
-@keyframes rz-toast-out { to { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .rz-toast, .rz-toast--out { animation: none; } }
+/* It fades out as it leaves: Toast.tsx adds rz-toast--out for its last moments and removes the toast when this fade ends. A transition, so a toast brought back (focus, a new line) is solid at once and does not rise in again. */
+.rz-toast--out { opacity: 0; transition: opacity 150ms ease-in; }
+/* Toast.tsx does not add rz-toast--out under reduced motion. */
+@media (prefers-reduced-motion: reduce) { .rz-toast { animation: none; } }
 
 /* ---------- Sheet bits: choice buttons and radio cards ---------- */
 .rz-scrim { z-index: 10; }
