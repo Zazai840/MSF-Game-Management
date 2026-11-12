@@ -201,7 +201,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - "⋯" opens a Sheet of race actions: Delete race. The corrections and Re-run are on the saved race's race page.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times (`role="tablist"`). The selected tab is navy.
 - **Each tab is that step's own body,** as the role that owns it works it.
-- **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card shows them as large buttons in the shape of Confirm the medals, in place of its status line: "Decide the tie" opens the tie (the event in Results when there is more than one), "Check Heat 3 · 1 time" that race's page. Two buttons at most, then a line ("1 more") that opens the event in Results. The reason beside a greyed "+ Final" is not shown when one of these buttons says it.
+- **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card shows them as large buttons in the shape of Confirm the medals, in place of its status line: "Decide the tie" opens the tie (the event in Results when there is more than one), "Check Heat 3 · 1 time" that race's page. A race has one button: with more than one kind of problem it counts them, "Check Heat 3 · 2 problems". Two buttons at most, then a line ("1 more") that opens the event in Results. The reason beside a greyed "+ Final" is not shown when one of these buttons says it.
 - **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. It opens a menu with Log out only, for a lead as for a volunteer.
 - **The lead's bar:** on a lead's phone, Races, Results and Day setup end with a bar of three tabs (Races, Results, Day setup), below New race on Races. See "The lead's bar" in [screens.md](screens.md).
 
@@ -337,7 +337,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
    - *Done when:* a 12-runner heat can be fully placed and saved on a 390 × 844 screen with no horizontal scroll.
 6. **Timer body**, moved onto the shell. Behaviour unchanged.
 7. **Zone lead.**
-   - Tabs, editable steps, inline issues with "It's right", the "⋯" actions, the avatar menu, Action required for leads.
+   - Tabs, editable steps, the "⋯" actions, the avatar menu, Action required for leads. A saved race's problems are on its race page, each with "It's right" where it can be accepted.
    - Remove the Dashboard and To-check screens.
 8. **Finals:** "+ Final" on the card and in the sheet, the fastest 6 pre-filled, the tie block.
 9. **Toast with Undo**, and removal of the Saved screen.

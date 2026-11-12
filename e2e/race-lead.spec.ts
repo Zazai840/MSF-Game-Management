@@ -41,7 +41,7 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
 });
 
-test('a lead\'s card counts issues by race and kind, the race page marks the wrong time amber, and its button offers the corrections',async({openPhone,request},info)=>{
+test('a lead\'s card counts a race\'s problems on one button, the race page marks the wrong time amber, and its button offers the corrections',async({openPhone,request},info)=>{
   const name=ownName('Lead counts'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // Two kept wrong-section numbers, a runner who did not finish checked in first, and a kept wrong time in 3rd place.
@@ -50,8 +50,8 @@ test('a lead\'s card counts issues by race and kind, the race page marks the wro
   await writeTimes(request,owner(),code,[1300,1400,1350,1500],[2]);
   await submitRace(request,owner(),code);
   const {page}=await openPhone(ownName('Lead counts'),{lead:true});
-  // Groups come newest first; both of these date from the same saved race, so either may lead.
-  await expect(card(page,name).getByRole('button',{name:/^Check /})).toHaveText([/^Check Heat 1 · (2 wristbands|1 time)$/,/^Check Heat 1 · (2 wristbands|1 time)$/]);
+  // Two wristbands and a time: more than one kind on Heat 1, so its one button counts the problems.
+  await expect(card(page,name).getByRole('button',{name:/^Check /})).toHaveText(['Check Heat 1 · 3 problems']);
   // The chip opens the race page: the wrong time's row is amber, and its button opens the corrections.
   await openRace(page,name);
   const record=page.getByRole('list',{name:'Current record',exact:true});

@@ -4,7 +4,7 @@ import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { Callout,DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { LeadHeader } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import type { View } from '../shell/addresses.js';
 
@@ -45,7 +45,7 @@ function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|nul
     const failure=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled});
     if(failure) setRefused(failure);else setOpenId(null);
   }
-  return <LeadBar title="Events" up="Day setup" body={<><main className="rz-main">
+  return <LeadHeader title="Events" up="Day setup" body={<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
     {day && <ul className="rz-list" aria-label="Events">{day.events.map(event=><li key={event.id}>
       <button type="button" className="rz-listrow" onClick={()=>{setRefused(null);setOpenId(event.id);}}>
@@ -78,7 +78,7 @@ function Rename({code,day,error,onBack,onSaved}:{code:string;day:DayRead|null;er
     const failure=await save(`day/events/${encodeURIComponent(code)}/rename`,{name},{kind:'renamed',code,name:name.trim()});
     if(failure) setRefused(failure);else onBack();
   }
-  return <LeadBar title={`Rename ${code}`} up="Events" body={<><main className="rz-main rz-main--form">
+  return <LeadHeader title={`Rename ${code}`} up="Events" body={<><main className="rz-main rz-main--form">
     {error!==null && <ErrorCallout error={error} action="read"/>}
     {day && !event && <Callout status message={`There is no event ${code} today.`}/>}
     {event && <>
@@ -121,7 +121,7 @@ function AddEvent({onBack,onSaved}:{onBack:()=>void;onSaved:()=>Promise<void>}) 
     <fieldset><legend className="rz-field__label">{label}</legend><div className={grid?'rz-choices rz-choices--grid':'rz-choices'}>
       {options.map(([option,text])=><button key={option} type="button" className="rz-choice" aria-pressed={option===value} onClick={()=>onChoose(option)}>{text}</button>)}
     </div></fieldset>;
-  return <LeadBar title="Add an event" up="Events" body={<><main className="rz-main rz-main--form">
+  return <LeadHeader title="Add an event" up="Events" body={<><main className="rz-main rz-main--form">
     <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="new-event-code">Event code</label>
       <input className="rz-field__input" id="new-event-code" value={details.code} maxLength={12} autoComplete="off" autoCapitalize="characters" onChange={change=>set('code')(change.target.value)}/></div>
     <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor="new-event-name">Event name</label>

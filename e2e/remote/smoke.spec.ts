@@ -163,7 +163,7 @@ test('five phones share the test build: three work one race live until it saves 
 
     // The owner downloads the day export: the relay heat is in All results, one row per child with its team and leg (by place here).
     const download=owner.waitForEvent('download');
-    await owner.getByRole('button',{name:/^Day export /}).click();
+    await press(owner.getByRole('button',{name:/^Day export /}));
     await owner.getByRole('button',{name:'Download day export',exact:true}).click();
     expect((await download).suggestedFilename()).toMatch(/^msf-running-.*\.xlsx$/);
     const exportPath=info.outputPath('day-export.xlsx');

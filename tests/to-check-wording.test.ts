@@ -1,5 +1,6 @@
 import { describe,expect,it } from 'vitest';
-import { issueLine,problemButtons,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
+import { acceptable,eventItems,issueLine,placesCorrection,problemButtons,problemFix,raceItems,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
+import type { EventResults } from '../src/shared/results-rules.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
 const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true,type:'races' as const,relay:false};
 const race={id:'r',kind:'heat' as const,number:2,checkedInAt:'2026-10-14T10:00:00Z'};
@@ -58,10 +59,11 @@ describe("A lead's card problem buttons",()=>{
       'Check Heat 1 · 1 child','Check Heat 2 · 1 team','Check Heat 3 · 1 team','Check Heat 4 · 1 team','Check Heat 5 · 1 wristband','Check Heat 6 · 1 time']);
     expect(problemButtons([on(1,{kind:'two-relays',event:relay,team:5}),on(1,{kind:'two-relays',event:relay,team:6})])).toEqual([{label:'Check Heat 1 · 2 children',target:{event:relay,raceId:'r1'}}]);
   });
-  it('groups by race and kind, in the order of the status line',()=>{
+  it('is one button per race, in the order of the items: a race with more than one kind counts its problems',()=>{
     const final={id:'f',kind:'final' as const,number:1,checkedInAt:'2026-10-14T11:00:00Z'};
     expect(problemButtons([on(2,{kind:'warning'}),on(1,{kind:'warning'}),on(2,{kind:'warning'}),on(2,{kind:'times-out-of-order'}),on(9,{kind:'times-out-of-order',race:final,raceId:'f'})]).map(button=>button.label))
-      .toEqual(['Check Heat 2 · 2 wristbands','Check Heat 1 · 1 wristband','Check Heat 2 · 1 time','Check Final · 1 time']);
+      .toEqual(['Check Heat 2 · 3 problems','Check Heat 1 · 1 wristband','Check Final · 1 time']);
+    expect(problemButtons([on(1,{kind:'added-at-finish',wristband:2001}),on(1,{kind:'ran-twice',wristband:2002})])).toEqual([{label:'Check Heat 1 · 2 problems',target:{event,raceId:'r1'}}]);
   });
   it('says Decide the tie: one tie opens the tie, more than one the event in Results',()=>{
     expect(problemButtons([tie('t1')])).toEqual([{label:'Decide the tie',target:{event,tieId:'t1'}}]);
@@ -69,4 +71,42 @@ describe("A lead's card problem buttons",()=>{
     expect(problemButtons([tie('t1',relay)])).toEqual([{label:'Decide the tie',target:{event:relay,tieId:'t1'}}]);
   });
   it('is empty with nothing to check',()=>{expect(problemButtons([])).toEqual([]);});
+});
+describe("A problem's button",()=>{
+  const relay={...event,relay:true,type:'relays' as const},final={id:'f',kind:'final' as const,number:1,checkedInAt:'2026-10-14T11:00:00Z'};
+  const tie=item({kind:'tie',message:'t',race:undefined,raceId:undefined,tieId:'t1'});
+  it('on the race page opens the correction that fits the problem',()=>{
+    expect(problemFix(tie,{kind:'heat',relay:false})).toEqual({label:'Decide the tie',opens:'tie'});
+    expect(problemFix(item({kind:'ran-twice',message:'m'}),{kind:'heat',relay:false})).toEqual({label:'Fix',opens:'choose-result'});
+    expect(problemFix(item({kind:'times-out-of-order',message:'m'}),{kind:'heat',relay:false})).toEqual({label:'Fix time',opens:'correct-times'});
+    expect(problemFix(item({kind:'times-out-of-order',message:'m'}),{kind:'final',relay:false})).toEqual({label:'Fix time',opens:'correct-finishing-order'});
+    for(const kind of ['warning','added-at-finish'] as const) expect(problemFix(item({kind,message:'m'}),{kind:'heat',relay:false})).toEqual({label:'Fix',opens:'correct-runner-list'});
+    for(const kind of ['warning','two-relays','ran-short','added-at-finish'] as const) expect(problemFix(item({kind,message:'m',event:relay}),{kind:'heat',relay:true})).toEqual({label:'Fix',opens:'correct-teams'});
+  });
+  it('on the event opens the tie, or the race page of the problem',()=>{
+    expect(problemFix(tie)).toEqual({label:'Decide the tie',opens:'tie'});
+    expect(problemFix(item({kind:'warning',message:'m'}))).toEqual({label:'Check Heat 2',opens:'race-page'});
+    expect(problemFix(item({kind:'times-out-of-order',message:'m',race:final}))).toEqual({label:'Check Final',opens:'race-page'});
+  });
+  it("a place is fixed in a final's finishing order, else in its race's times",()=>{
+    expect([placesCorrection(true),placesCorrection(false)]).toEqual(['correct-finishing-order','correct-times']);
+  });
+  it("It's right accepts every kind but a second run and a tie",()=>{
+    const kinds=['warning','two-relays','ran-short','added-at-finish','times-out-of-order','ran-twice','tie'] as const;
+    expect(kinds.filter(kind=>acceptable({kind}))).toEqual(['warning','two-relays','ran-short','added-at-finish','times-out-of-order']);
+  });
+});
+describe("An event's To check items",()=>{
+  const bare=(id:string,fields:Partial<DayLeadItem>&Pick<DayLeadItem,'kind'>)=>({id,at:'2026-10-14T10:05:00Z',message:'m',...fields});
+  const other={...race,id:'r2',number:3};
+  const needsYou=[bare('a',{kind:'warning',raceId:'r'}),bare('b',{kind:'times-out-of-order',raceId:'r2'}),bare('c',{kind:'tie',tieId:'t',tie:{time:2000,names:['2004','2005'],raceIds:['r','r9']}})];
+  const results={needsYou,races:[{race,runners:2,saved:true,reasons:[]},{race:other,runners:2,saved:true,reasons:[]}]} as Pick<EventResults,'needsYou'|'races'>;
+  it('carry their event and race, in the order of the event read',()=>{
+    expect(eventItems({event,results})).toEqual([{...needsYou[0],event,race},{...needsYou[1],event,race:other},{...needsYou[2],event}]);
+  });
+  it("a race's are its own and each tie it is in",()=>{
+    const items=eventItems({event,results});
+    expect(raceItems(items,'r').map(item=>item.id)).toEqual(['a','c']);
+    expect(raceItems(items,'r2').map(item=>item.id)).toEqual(['b']);
+  });
 });

@@ -11,7 +11,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   await createRace(2701,1000);await createRace(2702,1000);
   await page.goto('/');await join(page,ownName('Tie lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
   // The TIE tag opens the tie as its own screen at its own address.
   await press(page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}));
   await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
@@ -91,7 +91,7 @@ test('a tie between two heats runs end to end: leaderboard TIE tags, the tie scr
     await press(racesCard.getByRole('button',{name:'Decide the tie',exact:true}));
     await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
     await back(page,'Races');
-    await openLeadMenu(page,'Results');await resultsCard(page,code).click();
+    await openLeadMenu(page,'Results');await press(resultsCard(page,code));
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {
       await expect(board.getByRole('button',{name:`TIE at 10.00 for ${wristband}`,exact:true})).toBeVisible();

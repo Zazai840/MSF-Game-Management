@@ -1,18 +1,11 @@
 import { useId,useState,type FormEvent } from 'react';
-import { dayNumbers, regions, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
+import { dayNumbers, exportBehind, exportStatus, regions, thisDayChosen, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { LeadHeader } from './LeadHeader.js';
 import type { View } from '../shell/addresses.js';
 import { toastLine } from '../../shared/toast-lines.js';
-import { clock } from '../../shared/clock.js';
-
-/** When the day export was last downloaded, and whether anything changed after it. */
-export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>) {
-  if(!day.exportedAt) return 'Not downloaded yet.';
-  return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
-}
 
 /** A code a lead reads out, one of the two side by side in Day setup's card. */
 function Code({label,code}:{label:string;code:string}) {
@@ -131,14 +124,14 @@ export function NewDay() {
  */
 export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(view:View)=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const [asking,setAsking]=useState(false);
-  const events=day.events.length,labelled=day.region!==null && day.dayNumber!==null;
+  const events=day.events.length,labelled=thisDayChosen(day);
   const rows:Array<{label:string;meta?:string|null;warn?:boolean;view?:View}>=[
     {label:'This day',meta:labelled?`${day.year} · ${day.region} · Day ${day.dayNumber}`:'Choose the region and day',warn:!labelled,view:{kind:'this-day'}},
     {label:'Events',meta:`${events} ${events===1?'event':'events'}`,view:{kind:'events'}},
     {label:'Signed in today',meta:phones===null?null:`${phones} ${phones===1?'person':'people'} signed in today`,view:{kind:'signed-in-today'}},
     {label:'Change Olympics password',view:{kind:'olympics-password'}},
     {label:'Make a new lead code'},
-    {label:'Day export',meta:exportStatus(day),warn:day.exportedAt!==null && day.exportedRevision!==day.revision,view:{kind:'day-export'}},
+    {label:'Day export',meta:exportStatus(day),warn:exportBehind(day),view:{kind:'day-export'}},
     {label:'Start a new day',view:{kind:'start-a-new-day'}}
   ];
   return <>
@@ -169,7 +162,7 @@ export function ChangePassword() {
     try {await api('day/olympics-password',{password});phoneStorage.signOut();}
     catch(error) {setError(error);setBusy(false);}
   }
-  return <LeadBar title="Change Olympics password" up="Day setup" body={<>
+  return <LeadHeader title="Change Olympics password" up="Day setup" body={<>
     <main className="rz-main rz-main--form">
       <div className="rz-prompt rz-prompt--compact"><h2 className="rz-prompt__q">New <em>Olympics password?</em></h2>
         <p className="rz-prompt__help">Every phone, including yours, goes back to Join.</p></div>

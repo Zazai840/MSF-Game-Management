@@ -13,7 +13,7 @@ async function lineUp(page:Page) {
 }
 async function openFinalResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
   await eventTab(page,'Final');
 }
 

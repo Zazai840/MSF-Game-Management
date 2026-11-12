@@ -5,7 +5,7 @@ test('a lead disqualifies and lifts a runner on their screens, sees the ranking 
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,'R16',numbers,[3100,3200,3300,3400]);
   await page.goto('/');await join(page,ownName('Aisha'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,'R16').click();
+  await press(resultsCard(page,'R16'));
   const heats=new RegExp('/results/R16/heats$');await expect(page).toHaveURL(heats);
   const runner=page.getByRole('button',{name:`Runner ${numbers[0]} · Heat ${race.number}`,exact:true}),sheet=page.getByRole('dialog',{name:`Runner ${numbers[0]}`,exact:true});
   // From the keyboard the sheet takes focus, not a button in it; Shift+Tab wraps to its last button, Tab back to Close.

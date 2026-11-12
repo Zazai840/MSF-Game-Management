@@ -14,7 +14,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
   await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:`Open Heat ${number}`,exact:true}));
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
@@ -267,7 +267,7 @@ test('a race not saved yet says so on its race page with Open Heat 1; its "Delet
   created.push(race.id!);
   // Its Results row opens the race screen (results.spec.ts); the race page is at its own address.
   await page.goto('/');await join(page,ownName('In progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
   await eventTab(page,'Heats');await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url();
   const notSaved=page.getByRole('status').filter({hasText:'Heat 1 is not saved yet. Open it to finish its steps.'});
@@ -319,7 +319,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   const second=await recordRace(page.request,token,code,[2163,2164],[1250,1350]);created.push(second.id);expect(second.number).toBe(1);
   const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
   await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
   await eventTab(page,'Heats');await press(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}));
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();
   await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveText(new RegExp(`^Deleted at ${clock(deletedAt)} by .+: Wrong section checked in\\. Its results do not count\\.$`));
@@ -426,7 +426,7 @@ test('a child who ran twice has Fix on the race page, which opens the screen to 
   await expect(page).toHaveURL(new RegExp(`/results/${tied}/races/${first.id}$`));
 });
 
-test('on a relay\'s race page a team that ran short and a kept number name the team with its four children, and Fix opens Correct teams',async({openPhone,request},info)=>{
+test('on a relay\'s race page and on its event a team that ran short and a kept number name the team with its four children, and Fix opens Correct teams',async({openPhone,request},info)=>{
   test.setTimeout(60000);
   const code=await ownCode();
   await ownRelay(code,ownName('Page relay'),'Girl Cubs');
@@ -438,6 +438,13 @@ test('on a relay\'s race page a team that ran short and a kept number name the t
   for(const team of [1,2]) await tickTeam(request,token,code,team);
   await writeTeamOrder(request,token,code,[2,1]);await writeTimes(request,token,code,[1400,1500]);
   const {race}=await submitRace(request,token,code);created.push(race.id);
+  // On the event each problem names its team as on the race page, with the one button to that race's page.
+  await page.goto(`/results/${code}/heats`);
+  const onEvent=page.getByRole('main').getByRole('alert');
+  await expect(onEvent.filter({hasText:'A team ran short'})).toContainText(`A team ran short. Team 2 ran with 3 of 4 children marked here.Team 2 · ${w(21)} · ${w(22)} · ${w(23)} · –`);
+  await expect(onEvent.filter({hasText:'A wristband number needs checking'})).toContainText(`Team 1 · ${cub(1)} · ${w(12)} · ${w(13)} · ${w(14)}`);
+  await expect(onEvent.filter({hasText:'A team ran short'}).getByRole('button')).toHaveText(['Check Heat 1']);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('event-relay-problems.png'),fullPage:true});
   await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url(),short=page.getByRole('alert').filter({hasText:'A team ran short'}),kept=page.getByRole('alert').filter({hasText:'A wristband number needs checking'});
   await expect(short).toContainText(`A team ran short. Team 2 ran with 3 of 4 children marked here.Team 2 · ${w(21)} · ${w(22)} · ${w(23)} · –`);

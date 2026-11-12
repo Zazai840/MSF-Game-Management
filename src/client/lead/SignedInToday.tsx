@@ -7,7 +7,7 @@ import { clock,clockWithSeconds } from '../../shared/clock.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { useToast } from '../races/Toast.js';
 import { ErrorCallout,Icon,Sheet } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { LeadHeader } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 /** The role buttons a person's sheet offers, in screen order. */
 const makeRole:Record<Level,string>={Lead:'Make lead',Volunteer:'Make volunteer'};
@@ -43,7 +43,7 @@ export function SignedInToday({onSaved}:{onSaved:()=>void}) {
   const close=()=>{setOpenId(null);setRemoving(null);setRefused(null);};
   // Read from the newest list, so the sheet never offers a role the person already has and closes when they are gone.
   const open=data?.phones.find(phone=>phone.id===openId);
-  return <LeadBar title="Signed in today" up="Day setup" body={<>
+  return <LeadHeader title="Signed in today" up="Day setup" body={<>
     <main className="rz-main">
       <p className="rz-empty">Role changes last for today only.</p>
       {readError!==null && <ErrorCallout error={readError} action="read"/>}

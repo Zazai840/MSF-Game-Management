@@ -65,7 +65,7 @@ test('This day is its own screen: each choice saves on tap with its toast, and i
   const year=new Date().getUTCFullYear();
   await asOwner(page);
   await openRow(page,'Day export','/day/export');
-  const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
+  const downloaded=page.waitForEvent('download');await press(page.getByRole('button',{name:'Download day export',exact:true}));await downloaded;
   await expect(section(page,'Day export')).toContainText(/includes every change so far\./);
   await toDaySetup(page);
   await openRow(page,'This day','/day/this-day');
