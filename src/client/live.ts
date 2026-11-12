@@ -4,10 +4,9 @@ import { api,ApiFailure,apiResponse,StaleRequest } from './api.js';
 import { clockWithSeconds } from '../shared/clock.js';
 import { failureLine } from '../shared/request-failure.js';
 import { onThisBuild } from './shell/updates.js';
+import { linkLine,linkNext,linkStart,type LinkEvent } from './live-link.js';
 /** Silence this long means the link is dead. Spread over 30-45 s so phones that lost signal together don't all reconnect at once. */
 const silence=()=>30_000+Math.random()*15_000;
-/** The wait before reconnecting after a failure or silence: 1 s, doubling up to 30 s. */
-const backoff=(failures:number)=>Math.min(30_000,1000*2**(failures-1));
 
 /**
  * Reads a live stream (`live/...`, read with fetch so the bearer token goes with it) and holds its newest snapshot,
@@ -22,51 +21,56 @@ export function useLive<T extends {revision:number}>(path:string) {
   const held=useRef<T|null>(null);
   useEffect(()=>{
     held.current=null;
-    let controller:AbortController|null=null,retry=0,failures=0,stopped=false;
-    const hidden=()=>document.visibilityState==='hidden';
+    // The link's state and every decision about it are `linkNext`'s; this effect only opens, reads and drops streams.
+    let link=linkStart(document.visibilityState==='hidden');
+    let controller:AbortController|null=null,retry=0,stopped=false;
+    function send(event:LinkEvent) {
+      if(stopped) return;
+      const next=linkNext(link,event);
+      link=next.link;setError(linkLine(link));
+      if(next.drop) {controller?.abort();controller=null;}
+      if(next.drop || next.reconnect!==null) clearTimeout(retry);
+      if(next.reconnect!==null) retry=window.setTimeout(()=>{send({type:'retry'});void connect();},next.reconnect);
+    }
     async function connect() {
-      clearTimeout(retry);
-      if(stopped || controller || hidden()) return;
+      if(stopped || controller || link.state!=='connecting') return;
       const mine=controller=new AbortController();
-      let watchdog=0,planned=false;
+      // Only the stream still held speaks for the link: one dropped (the page hidden, the signal changed) says nothing.
+      const say=(event:LinkEvent)=>{if(controller===mine) {controller=null;send(event);}};
+      let watchdog=0;
       const arm=()=>{clearTimeout(watchdog);watchdog=window.setTimeout(()=>mine.abort(),silence());};
       try {
         arm();
         const reader=(await apiResponse(path,undefined,mine.signal)).body!.pipeThrough(new TextDecoderStream()).getReader();
         // Connected again: the note goes even if nothing changed meanwhile.
-        setError('');
+        if(controller===mine) send({type:'opened'});
         let rest='';
         for(;;) {
           const {value,done}=await reader.read();
-          if(done) {planned=true;break;}
+          if(done) {say({type:'ended'});return;}
           arm();
           const split=splitFrames(rest+value);rest=split.rest;
           for(const data of split.frames.map(frameData)) {
             if(data===null) continue;
             const next=JSON.parse(data) as T&{build?:string};
             if(!onThisBuild(next.build)) return;
-            if(newerSnapshot(held.current,next)) {held.current=next;failures=0;setSnapshot(next);}
+            if(newerSnapshot(held.current,next)) {held.current=next;if(controller===mine) send({type:'fresh'});setSnapshot(next);}
           }
         }
       } catch(failure) {
         // A 401 has already sent the phone to sign in, and a changed session ends this screen; other refusals say why and stop.
         if(failure instanceof StaleRequest) return;
-        if(failure instanceof ApiFailure && failure.status<500) {if(failure.status!==401) setError(failureLine(failure,'read'));setGone(!!failure.body.gone);return;}
-        // A phone holding a snapshot keeps showing it, with a calm note that it is reconnecting.
-        if(!mine.signal.aborted) setError(held.current?'Connection lost - trying again':'Could not connect - trying again');
+        if(failure instanceof ApiFailure && failure.status<500) {say({type:'refused',line:failure.status===401?null:failureLine(failure,'read')});setGone(!!failure.body.gone);return;}
+        // The watchdog's own abort is silence; anything else is a lost link.
+        say(mine.signal.aborted?{type:'silent'}:{type:'lost',held:held.current!==null});
       } finally {
         clearTimeout(watchdog);
         if(controller===mine) controller=null;
       }
-      if(stopped || controller || hidden()) return;
-      retry=window.setTimeout(()=>void connect(),planned?0:backoff(++failures));
     }
-    const visibility=()=>{
-      if(!hidden()) {void connect();return;}
-      clearTimeout(retry);controller?.abort();controller=null;
-    };
+    const visibility=()=>send({type:document.visibilityState==='hidden'?'hidden':'shown'});
     // The signal going or coming back leaves the open stream likely dead (it can stay silent until the watchdog): start again at once.
-    const restart=()=>{clearTimeout(retry);controller?.abort();controller=null;void connect();};
+    const restart=()=>send({type:'restart'});
     document.addEventListener('visibilitychange',visibility);addEventListener('offline',restart);addEventListener('online',restart);
     void connect();
     return ()=>{

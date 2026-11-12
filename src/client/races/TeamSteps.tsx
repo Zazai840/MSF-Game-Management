@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { seedLabel } from '../../shared/finals.js';
+import { finalMark,seedLabel,type FinalMark } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,changedLine,doneButtons,placedAsk,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
 import { isTeamEntry } from '../../shared/races.js';
@@ -11,7 +11,7 @@ import { CallUp,DigitsField,KeepFocus,type StepProps } from './Steps.js';
 import { useWrites } from './writes.js';
 
 /** A final's mark for a finalist: Here, Absent, or not marked yet. */
-export type Mark='here'|'absent'|null;
+export type Mark=FinalMark;
 /** Under a team's name, when it runs short: "Runs short · 3 of 4". */
 export function TeamNote({legs}:{legs:ReadonlyArray<{wristband:number|null}>}) {
   const line=runsShortLine({legs});
@@ -215,7 +215,7 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
   // As on a children's final, a team in the race is Here; one out of it is Absent or not marked yet.
   const cards=final.entries.map(entry=>{
     const current=inRace.find(other=>other.id===entry.finalEntryId);
-    const mark:Mark=current?'here':entry.absent?'absent':null;
+    const mark=finalMark(entry,inRace);
     return {entry,team:entry.team!,legs:current?.legs??entry.legs??[],mark};
   });
   const box=useLegBox(read,flow,teamId=>cards.find(item=>item.team.id===teamId)),{change,held}=box;

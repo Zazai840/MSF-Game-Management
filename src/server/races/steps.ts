@@ -9,11 +9,12 @@ import { digitsForTime,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPla
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { finishOf,onlyRunners,placesBoard,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
+import { raceStatus } from '../../shared/race-status.js';
 import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
 import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
-import { markFinalAbsent } from './final-field.js';
+import { markAbsentFinalists } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 /** What a step write acts on: the event and the race as it stands. */
 export interface WriteTarget { event:DayEvent; race:RaceRead }
@@ -70,7 +71,7 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   const runners=lineup.filter(runner=>here.includes(runner.id)).map(runner=>previous.find(current=>current.id===runner.id)||runner);
   if(new Set(runners.map(entryName)).size!==runners.length) throw new Refusal(409,`Two ${runners.some(isTeamEntry)?'teams marked Here have the same team number':'runners marked Here have the same wristband number'}. Ask a lead to check the final.`);
   await publishPart(client,phone,race,'runners',runners);
-  await markFinalAbsent(client,race.id,absent);
+  await markAbsentFinalists(client,race.id,id=>absent.includes(id));
   await dropFromOrder(client,target.race,runners);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
@@ -184,11 +185,13 @@ function addedAtFinish(teams:readonly RelayTeam[],teamId:string):TeamEntry {
  */
 export async function saveIfDone(client:pg.PoolClient,phone:Phone,raceId:string) {
   const race=await readRace(client,phone.dayId,raceId);
-  if(race.state!=='in progress' || race.deleted) return;
+  if(raceStatus(race)!=='in progress') return false;
   const done=(await client.query('SELECT p.part,s.name FROM race_parts p LEFT JOIN sign_ins s ON s.id=p.done_by WHERE p.race_id=$1 AND p.done_at IS NOT NULL',[raceId])).rows as Array<{part:RacePartName;name:string|null}>;
   if(stepsOf(race).every(step=>done.some(row=>row.part===stepParts[step])) && !stepBlocker(race,race.event.relay)) {
     await saveRace(client,phone,race,step=>done.find(row=>row.part===stepParts[step])?.name??null);
+    return true;
   }
+  return false;
 }
 /** Saves a race: its saved mark (who saved it, and when), and a history row per part naming who marked its step done. */
 async function saveRace(client:pg.PoolClient,phone:Phone,race:Pick<RaceRead,'id'|'parts'>,doneBy:(step:Step)=>string|null) {

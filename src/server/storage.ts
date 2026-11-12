@@ -152,10 +152,17 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
       message text NOT NULL, comment text, touches jsonb NOT NULL
     );
     CREATE INDEX IF NOT EXISTS event_audit_order ON audit_notes(event_id,sequence_number DESC);
-    CREATE TABLE IF NOT EXISTS event_stages (
-      event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE, stage text NOT NULL,
-      PRIMARY KEY(event_id,stage)
-    );
+    -- An event's phase (shared/event-phase.ts). Older builds kept a row per complete stage in event_stages: each
+    -- event takes its phase from those rows once, and the rows stay aside under another name.
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS phase text NOT NULL DEFAULT 'racing' CHECK (phase IN ('racing','final','medals','no final'));
+    DO $$ BEGIN IF to_regclass('event_stages') IS NOT NULL THEN
+      UPDATE events e SET phase=CASE
+        WHEN EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage='no-final') THEN 'no final'
+        WHEN EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage IN ('event','final')) THEN 'medals'
+        WHEN EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage='heats') THEN 'final'
+        ELSE 'racing' END;
+      ALTER TABLE event_stages RENAME TO event_stages_before_phase;
+    END IF; END $$;
     -- No part of the race flow has holds (ADR 0003), nor Submit presses: older builds kept them for relays here.
     DROP TABLE IF EXISTS job_holds;
     DROP TABLE IF EXISTS submit_presses;

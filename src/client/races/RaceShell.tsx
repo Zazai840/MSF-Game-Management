@@ -10,6 +10,7 @@ import { StepRecord } from './StepRecord.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import { useFlowWrite } from './writes.js';
+import { raceRefusal } from '../../shared/race-status.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { useScreenName,type View } from '../shell/addresses.js';
 
@@ -55,7 +56,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   // A final has no Times step, so the Timer gets a plain line, not the step's body.
   const noStep=own!==null && !shown.includes(own);
   const summary=group.races.find(item=>item.id===race.id)!,index=group.races.indexOf(summary);
-  const locked=race.state==='saved' || race.stageComplete===true;
+  const locked=raceRefusal(race,'step')!==null;
   async function markDone(done:Step) {
     // Read before the write: a lead correcting a step already done stays on the race.
     const already=snapshot!.steps[done]?.state==='done';
