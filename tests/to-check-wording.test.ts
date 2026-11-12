@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest';
-import { issueLine,problemButtons,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
+import { issueLine,problemButtons,raceCallouts,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
 const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true,type:'races' as const,relay:false};
 const race={id:'r',kind:'heat' as const,number:2,checkedInAt:'2026-10-14T10:00:00Z'};
@@ -24,6 +24,18 @@ describe('To check wording',()=>{
   });
   it('keeps the original message when the facts are missing',()=>{
     expect(toCheckWording(item({kind:'warning',message:'3045: odd'})).explanation).toBe('3045: odd');
+  });
+  it('gives an event one callout per race: the problems of one race share it, a lone problem and a tie keep their own',()=>{
+    const heat=(number:number)=>({...race,id:`r${number}`,number});
+    const wrong=(id:string,wristband:number,kind:NonNullable<DayLeadItem['warningKinds']>[number])=>item({id,kind:'warning',message:'w',race:heat(1),raceId:'r1',wristband,warningKinds:[kind]});
+    const tie=item({id:'t',kind:'tie',message:'Tie',race:undefined,raceId:undefined,tieId:'t',tie:{time:2000,names:['2004','2005'],raceIds:['r1','r2']}});
+    const late=item({id:'l',kind:'added-at-finish',message:'a',race:heat(1),raceId:'r1',wristband:1002});
+    const alone=item({id:'a',kind:'times-out-of-order',message:'Times out of order',race:heat(2),raceId:'r2'});
+    expect(raceCallouts([wrong('w1',5141,'unknown-number'),tie,wrong('w2',3141,'wrong-section'),alone,late])).toEqual([
+      {items:[expect.objectContaining({id:'w1'}),expect.objectContaining({id:'w2'}),expect.objectContaining({id:'l'})],title:'Heat 1 · 3 things to check',
+        lines:['5141 is not a wristband number. Wristbands are 1 to 4999.','3141 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999.','1002 crossed the line but was not checked in at the start.']},
+      {items:[expect.objectContaining({id:'t'})]},
+      {items:[expect.objectContaining({id:'a'})]}]);
   });
   it('heads the list with how many things need a lead',()=>{
     expect(toCheckHeading(0)).toBe('Nothing to check');

@@ -441,6 +441,16 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
     .rz-scrim[data-closing] > .rz-sheet { translate: none; scale: .96; opacity: 0; }
   }
 }
+/*
+ * Results on a phone: one event per line in the Races card's type, so a name stays on one line and its status is
+ * readable. A laptop keeps the grid of small cards.
+ */
+@media (max-width: 699px) {
+  .rz-events { grid-template-columns: minmax(0, 1fr); }
+  .rz-event { gap: var(--space-6); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); }
+  .rz-event__name { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; }
+  .rz-event__status { font-size: 14px; }
+}
 /* Remove on a wristband being changed: small, under the number box. */
 .rz-remove { align-self: flex-start; }
 /* Under the lead's bar the bar itself keeps clear of the home bar. */

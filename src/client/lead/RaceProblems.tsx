@@ -2,7 +2,7 @@ import { useEffect,useState } from 'react';
 import type { DayLeadItem,EventResultsRead,ResultsRead } from '../../shared/lead-results.js';
 import type { RaceRead } from '../../shared/races.js';
 import { failureLine } from '../../shared/request-failure.js';
-import { itemTeams,toCheckWording } from '../../shared/to-check.js';
+import { itemTeams,raceCallouts,toCheckWording } from '../../shared/to-check.js';
 import { api,StaleRequest } from '../api.js';
 import { Callout } from '../races/parts.js';
 /** This race's open To check items (its own, and each tie it is in), read every 5 s while a lead has it open. */
@@ -39,8 +39,14 @@ export function RaceProblems({items,race,fix,onAccepted}:{items:readonly DayLead
     } catch(failure) {setError(failureLine(failure,'save'));}
     finally {setBusy('');}
   }
-  return <>{error && <Callout message={error}/>}{items.map(item=>{const words=toCheckWording(item),{label,open}=fix(item);
+  const callout=(item:DayLeadItem)=>{const words=toCheckWording(item),{label,open}=fix(item);
     return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,race?.parts.runners.value||[]).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}
       actions={<>{race && acceptable(item) && <button type="button" className="rz-btn" disabled={busy===item.id} onClick={()=>void accept(item)}>It's right</button>}
-        <button type="button" className="rz-btn rz-btn--primary" onClick={open}>{label}</button></>}/>;})}</>;
+        <button type="button" className="rz-btn rz-btn--primary" onClick={open}>{label}</button></>}/>;};
+  // An event's problems (no `race`): those that open the same race share one callout and its one button.
+  return <>{error && <Callout message={error}/>}{race?items.map(callout):raceCallouts(items).map(group=>{
+    if(!group.title) return callout(group.items[0]);
+    const {label,open}=fix(group.items[0]);
+    return <Callout key={group.items[0].id} message={<><span><strong>{group.title}.</strong></span>{group.lines!.map((line,index)=><span key={group.items[index].id} className="rz-callout__team">{line}</span>)}</>}
+      actions={<button type="button" className="rz-btn rz-btn--primary" onClick={open}>{label}</button>}/>;})}</>;
 }
