@@ -87,3 +87,35 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   await context.close();
 });
+
+test('a refused role change or Remove says Not saved in the sheet, which stays open',async({page,openPhone},info)=>{
+  const name=ownName('Refused person');
+  await openPhone(name);
+  await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
+  await page.goto('/day/signed-in-today');
+  const row=page.getByRole('listitem').filter({hasText:name}).getByRole('button');
+  const sheet=page.getByRole('dialog',{name,exact:true}),makeLead=sheet.getByRole('button',{name:'Make lead',exact:true});
+  await page.route('**/api/day/phones/*/role',route=>route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'The list changed'})}));
+  await press(row);await press(makeLead);
+  await expect(sheet.getByRole('alert')).toHaveText('Not saved - try again. The list changed');
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('role-not-saved.png')});
+  // A sheet opened again starts without the refusal.
+  await press(sheet.getByLabel('Close',{exact:true}));await press(row);
+  await expect(makeLead).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  // A refused Remove says so in the sheet that asked.
+  await page.route('**/api/day/phones/*/remove',route=>route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'The list changed'})}));
+  await press(sheet.getByRole('button',{name:'Remove',exact:true}));
+  const ask=page.getByRole('dialog',{name:`Remove ${name}?`,exact:true});
+  await press(ask.getByRole('button',{name:`Remove ${name}`,exact:true}));
+  await expect(ask.getByRole('alert')).toHaveText('Not saved - try again. The list changed');
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('remove-not-saved.png')});
+  await press(ask.getByRole('button',{name:`Keep ${name}`,exact:true}));
+  await press(row);await expect(makeLead).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  // The next save that gets through closes the sheet.
+  await page.unroute('**/api/day/phones/*/role');
+  await press(makeLead);
+  await expectToast(page,`${name} is a lead now · today only`);
+  await expect(sheet).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(0);
+});

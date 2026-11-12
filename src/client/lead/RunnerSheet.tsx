@@ -104,11 +104,11 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
 /**
  * A full race-flow screen's frame (the runner screens, Re-run, Delete, Restore, the corrections): the prompt and fields,
  * then the docked button, greyed with `reason` above it until it can go. `footer` takes the button's place while a
- * number is being typed (a correction's Done). `event` names the event before `meta`, cut short so the line stays one line.
+ * number is being typed (a correction's Done). A screen whose bar already says the `question` leaves it out. `event` names the event before `meta`, cut short so the line stays one line.
  */
-export function Frame({event,meta,question,help,children,reason,busy,label,danger=false,refused,onGo,footer}:{event?:string;meta:string;question:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void;footer?:ReactNode}) {
+export function Frame({event,meta,question,help,children,reason,busy,label,danger=false,refused,onGo,footer}:{event?:string;meta:string;question?:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void;footer?:ReactNode}) {
   return <><main className="rz-main rz-main--form">
-    <div className="rz-prompt rz-prompt--compact">{event?<p className="rz-prompt__meta rz-prompt__meta--fit"><span>{event}</span><span>{'\u00a0· '}{meta}</span></p>:<p className="rz-prompt__meta">{meta}</p>}<h2 className="rz-prompt__q">{question}</h2><p className="rz-prompt__help">{help}</p></div>
+    <div className="rz-prompt rz-prompt--compact">{event?<p className="rz-prompt__meta rz-prompt__meta--fit"><span>{event}</span><span>{'\u00a0· '}{meta}</span></p>:<p className="rz-prompt__meta">{meta}</p>}{question && <h2 className="rz-prompt__q">{question}</h2>}<p className="rz-prompt__help">{help}</p></div>
     {children}
     {refused!==null && <ErrorCallout error={refused} action="save"/>}
   </main>

@@ -303,6 +303,8 @@ export const leadFinalLine=(group:FinalGroup)=>heatsRunning(group) && savedHeats
 /** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
 const finishedLine=(section:string,final:boolean,ask:string)=>`${section} ${final?'final is':'heats are'} finished. Ask a lead to ${ask}.`;
 export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>finishedLine(group.event.section,false,'add another heat');
+/** New relay in place of its choices, on a day with no relay switched on. Volunteers read it too. */
+export const noRelaysLine='This day has no relays. A zone lead can switch them on in Day setup, Events.';
 /** A race whose stage is complete, on its screen and in the refusal of its writes: "Girl Cubs heats are finished. Ask a lead to change this race." */
 export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>finishedLine(race.event.section,race.kind==='final','change this race');
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */

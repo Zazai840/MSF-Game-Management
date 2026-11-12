@@ -71,7 +71,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   // Races' card opens Confirm the medals; Back returns to Races.
   await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Confirm the medals',exact:true}));
   await onScreen(page,`/results/${code}/confirm-the-medals`,'Confirm the medals','Races');
-  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Confirm the medals',exact:true})).toHaveCount(1);
   expect(await lookProblems(page)).toEqual([]);
   await bothGoBack(page,races);
   // A saved heat's chip opens its race page in the Race screen's place, so its Back is Races; Decide the tie opens the tie, and Back returns to the race page.

@@ -30,8 +30,8 @@ export function LeadHeader({title,code,up,body,wide=false}:{title:string;code?:s
  */
 export const OpeningBody=({error}:{error:unknown})=><main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">Opening…</p>}</main>;
 const leadsBarTabs:Array<[name:string,icon:IconName,view:View]>=[['Races','hurdle',{kind:'races'}],['Results','trophy',{kind:'results'}],['Day setup','sliders',{kind:'day'}]];
-/** The Lead's bar (glossary), `LeadsBar`; the header above is `LeadHeader`. Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. */
+/** The Lead's bar (glossary), `LeadsBar`; the header above is `LeadHeader`. Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. It is the header's navy surface with its pattern. */
 export function LeadsBar({current,onOpen}:{current:string;onOpen:(view:View)=>void}) {
-  return <nav className="rz-leads-bar" aria-label="Lead screens">{leadsBarTabs.map(([name,icon,view])=>
+  return <nav className="rz-leads-bar rz-on-dark" aria-label="Lead screens"><Pattern/>{leadsBarTabs.map(([name,icon,view])=>
     <button key={name} type="button" aria-current={name===current?'page':undefined} onClick={()=>onOpen(view)}><Icon name={icon}/>{name}</button>)}</nav>;
 }
