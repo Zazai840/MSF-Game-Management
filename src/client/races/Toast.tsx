@@ -40,7 +40,7 @@ function ToastBox({restartOn,onClose,children}:{restartOn?:unknown;onClose:()=>v
   return <div ref={box} className={`rz-toast${wrapped?' rz-toast--box':''}${leaving?' rz-toast--out':''}`} role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
 }
 /**
- * After a step is saved: "Times saved · Girl Cubs Heat 2" with Undo, which reverses only this person's own save and
+ * After a step is saved: "Times saved" with Undo, which reverses only this person's own save and
  * reopens the race at that step. If someone else has changed the same step since, Undo would wipe out their work, so
  * it offers Open race instead. It watches the races list (one shared read for every phone) to see that change.
  */
@@ -59,7 +59,7 @@ function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string
     } finally {setBusy(false);}
   }
   return <ToastBox restartOn={changed} onClose={onClose}>
-    <span className="rz-toast__msg"><Icon name={error?'warning':'check'}/>{error||(changed?`${changed} changed this since. Open the race to edit it.`:saved.message)}</span>
+    <span className="rz-toast__msg"><Icon name={error?'warning':'check'}/>{error||(changed?`${changed} changed this`:saved.message)}</span>
     {changed?<button type="button" onClick={()=>{onClose();onOpen(saved.raceId,saved.step);}}>Open race</button>:<button type="button" disabled={busy} onClick={()=>void undo()}>Undo</button>}
   </ToastBox>;
 }

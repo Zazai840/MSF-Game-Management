@@ -197,7 +197,7 @@ test('a lead settles a tie between two teams on the tie screen: a run-off puts T
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-tie-screen.png'),fullPage:true});
   await page.getByRole('button',{name:'Save tie',exact:true}).click();
-  await expectToast(page,/^Tie saved · /);
+  await expectToast(page,'Tie saved');
   const rows=page.getByRole('list',{name:'Provisional leaderboard',exact:true}).locator(':scope > li');
   await expect(rows.nth(5)).toContainText('Team 7');await expect(rows.nth(6)).toHaveText('Qualifying line');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('recorded a run-off at 17.00: Team 7 then Team 4');
@@ -235,7 +235,7 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   await expect(page.getByRole('list',{name:'No place',exact:true}).getByRole('listitem')).toHaveText(['Team 3Didn\'t run · taken off this race']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-order-corrected.png'),fullPage:true});
-  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved · Boy Scouts Heat 1');
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved');
   await back(page,`${name} · Boy Scouts`);
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('corrected the finishing order for Heat 1: Team 2, Team 1; Didn\'t run Team 3');
 });

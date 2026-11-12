@@ -20,7 +20,7 @@ test('Re-run is a screen that lands on the new heat at its first step, with Back
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('rerun-screen.png'),fullPage:true});
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Re-run Heat 1',exact:true}));
   // The new Heat 1 at its first step, its chip there at once (the audit once saw it missing for a moment).
-  await expectToast(page,'Re-run made · Girl Cubs Heat 1');
+  await expectToast(page,'Re-run made');
   await expect(page).toHaveURL(/\/races\/[^/]+$/);expect(page.url()).not.toContain(old.id);
   await expect(currentChip(page)).toHaveText('H1',live);
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Runners/})).toHaveAttribute('aria-selected','true');
@@ -64,7 +64,7 @@ test('Re-run from the race screen\'s "⋯" does not wait for a heat in progress,
   await expect(page).toHaveURL(new RegExp(`/races/${old.id}/re-run$`));
   await expect(page.getByRole('banner').getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Re-run Heat 1',exact:true}));
-  await expectToast(page,'Re-run made · Girl Cubs Heat 1');
+  await expectToast(page,'Re-run made');
   // Heat 2 is in progress, and the re-run is Heat 1 again, beside it.
   await expect(currentChip(page)).toHaveText('H1',live);
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Runners/})).toContainText('2 so far');

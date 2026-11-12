@@ -127,7 +127,7 @@ test('the day export says when it was last downloaded and whether changes came a
   await asOwner(page);
   const dayExport=section(page,'Day export');
   const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();
-  await expectToast(page,`Downloaded · ${(await downloaded).suggestedFilename()}`);
+  await expectToast(page,'Downloaded');await downloaded;
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
   const code=await ownCode();
   await ownEvent(page.request,code,'Day setup sprint','Girl Cubs','timed');

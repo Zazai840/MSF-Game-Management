@@ -97,7 +97,7 @@ test('four phones run a relay heat whose teams are typed in leg by leg: two star
   await expect(card(two,3)).toBeVisible(live);
   await expect(stillToRun(two)).toHaveCount(0,live);
   await press(footer(one).getByRole('button',{name:"That's everyone",exact:true}));
-  await expect(one.locator('.rz-toast')).toContainText('Runners saved · Girl Cubs Heat 1');
+  await expect(one.locator('.rz-toast')).toContainText('Runners saved');
 
   // The finish line places team tiles, each its 4th leg's wristband; the timer times each team; the race saves itself.
   await expect(line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button')).toHaveText([String(w(24)),String(w(16)),String(w(32))],live);
@@ -106,7 +106,7 @@ test('four phones run a relay heat whose teams are typed in leg by leg: two star
   await press(footer(line).getByRole('button',{name:'Save the order',exact:true}));
   await expect(line.locator('.rz-toast')).toContainText('Finishing order saved');
   for(const digits of ['1412','1530','1611']) await enterTime(clock,digits);
-  await expect(clock.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(clock.locator('.rz-toast')).toContainText('Times saved');
   const saved:RaceFlowRead=await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${sam.token}`}})).json();
   expect(saved.race.state).toBe('saved');
 });
