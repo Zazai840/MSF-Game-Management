@@ -79,7 +79,7 @@ export function App() {
     const removed = () => {request.current++;setSignedIn(false);setHome(null);go({kind:'races'});setError(undefined);};
     const session=(event:Event)=>{
       const newDay=(event as CustomEvent<{newDay:boolean}>).detail.newDay;
-      request.current++;setSignedIn(Boolean(phoneStorage.token()));setHome(null);go(newDay?{kind:'day'}:{kind:'races'});setError(undefined);
+      request.current++;setSignedIn(Boolean(phoneStorage.token()));setHome(null);go(newDay?{kind:'day'}:{kind:'races'},{replace:newDay});setError(undefined);
       if(phoneStorage.token()) void refresh();
     };
     window.addEventListener('msf:removed',removed);

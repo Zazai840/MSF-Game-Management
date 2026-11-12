@@ -164,10 +164,10 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 
 **30 Day setup**
 - `display-screen` "Day setup".
-- CodeCard "Day code" (6509) with the text "Volunteers type this to join today." and a small Button "Make a new day code".
-- CodeCard "Lead code" (KG6C42) with "Give this only to zone leads. It opens the Dashboard." and a small Button "Make a new lead code".
-- ListRows "Phones" (meta "4 people joined today") and "Events" (meta "20 events").
-- `rz-section` "Day export".
+- One CodeCard with "Olympics password" and "Lead code" side by side (each code in `display-screen` size, so two fit across a 360px phone) and one line: "The Olympics password is for every volunteer. The lead code is only for zone leads." No button in the card.
+- Seven ListRows in the order of the day, all on one phone screen: "This day" (meta "2026 · South · Day 1", or "Choose the region and day" in the `--warn` style until region and day are both set), "Events" (meta "26 events"), "Signed in today" (meta "4 people signed in today"), "Change Olympics password", "Make a new lead code" (asks in a Sheet), "Day export" (meta its status sentence, in the `--warn` style when changes came after the last download), "Start a new day".
+- This day (`/day/this-day`), Day export (`/day/export`) and Start a new day (`/day/start-a-new-day`) are their own screens with a back arrow to Day setup, each holding one card: the Year, Region and Day choices saved on tap; the download with its status; the red-outlined card with "Type NEW DAY to confirm".
+- "Updated at" with Refresh.
 
 **31 Day setup: events**
 - `display-screen` "Events".

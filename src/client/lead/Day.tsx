@@ -1,4 +1,4 @@
-import { useId,useState,type FormEvent,type ReactNode } from 'react';
+import { useId,useState,type FormEvent } from 'react';
 import { dayNumbers, regions, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
@@ -14,14 +14,12 @@ export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'r
   return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
 }
 
-/** A code a lead reads out, with the button that changes it. */
-function CodeCard({label,code,text,children}:{label:string;code:string;text:string;children:ReactNode}) {
+/** A code a lead reads out, one of the two side by side in Day setup's card. */
+function Code({label,code}:{label:string;code:string}) {
   const id=useId();
-  return <section className="rz-codecard" aria-labelledby={id}>
+  return <section className="rz-codecard__code" aria-labelledby={id}>
     <h2 className="rz-codecard__label" id={id}>{label}</h2>
     <p className="rz-codecard__value">{code}</p>
-    <p className="rz-codecard__text">{text}</p>
-    {children}
   </section>;
 }
 
@@ -29,7 +27,7 @@ function CodeCard({label,code,text,children}:{label:string;code:string;text:stri
  * This day labels the day for the scoring team: Year, Region and Day, each a row of choices saved on tap with its
  * toast. Any lead can change it at any time; Region and Day start empty, and the day export waits for both.
  */
-function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+export function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const toast=useToast();
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<unknown>(null);
@@ -58,37 +56,32 @@ function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>Promise<
   </section>;
 }
 
-/** Make a new lead code, asked first in a sheet: the red yes on the right, a plain Keep naming the code that stays. */
-function LeadCode({code,onChanged,onSaved}:{code:string;onChanged:()=>Promise<void>;onSaved:()=>void}) {
+/** Make a new lead code, asked first in a sheet from its row: the red yes on the right, a plain Keep naming the code that stays. */
+function NewLeadCode({code,onClose,onChanged,onSaved}:{code:string;onClose:()=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const toast=useToast();
-  const [asking,setAsking]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<unknown>(null);
-  const close=()=>{setAsking(false);setError(null);};
   async function make() {
     if(busy) return;
     setBusy(true);setError(null);
     try {
       const {leadCode}=await api<{leadCode:string}>('day/lead-code',{});
-      setAsking(false);toast({message:toastLine({kind:'lead-code',code:leadCode})});onSaved();await onChanged();
+      onClose();toast({message:toastLine({kind:'lead-code',code:leadCode})});onSaved();await onChanged();
     } catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  return <CodeCard label="Lead code" code={code} text="Give this only to zone leads. Typed on Join or when changing job, it makes the phone a zone lead.">
-    <button type="button" className="rz-btn rz-btn--small" onClick={()=>setAsking(true)}>Make a new lead code</button>
-    {asking && <Sheet title="Make a new lead code?" onClose={close}>
-      <p className="rz-sheet__text">Every other lead loses lead access until they type the new code.</p>
-      {error!==null && <ErrorCallout error={error} action="save"/>}
-      <div className="rz-sheet__pair">
-        <button type="button" className="rz-btn" onClick={close}>Keep {code}</button>
-        <button type="button" className="rz-btn rz-btn--danger" aria-disabled={busy || undefined} onClick={()=>void make()}>Make a new lead code</button>
-      </div>
-    </Sheet>}
-  </CodeCard>;
+  return <Sheet title="Make a new lead code?" onClose={onClose}>
+    <p className="rz-sheet__text">Every other lead loses lead access until they type the new code.</p>
+    {error!==null && <ErrorCallout error={error} action="save"/>}
+    <div className="rz-sheet__pair">
+      <button type="button" className="rz-btn" onClick={onClose}>Keep {code}</button>
+      <button type="button" className="rz-btn rz-btn--danger" aria-disabled={busy || undefined} onClick={()=>void make()}>Make a new lead code</button>
+    </div>
+  </Sheet>;
 }
 
 /** The day export: when it was last downloaded, and the download with its toast naming the file. */
-function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
+export function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
   const toast=useToast();
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<unknown>(null);
@@ -113,7 +106,7 @@ function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
 }
 
 /** Start a new day, in its red-outlined card: typed NEW DAY first; the server still refuses it until the latest changes are in a day export. */
-function NewDay() {
+export function NewDay() {
   const [typed,setTyped]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<unknown>(null);
@@ -137,26 +130,30 @@ function NewDay() {
 }
 
 /**
- * Day setup's cards, in the spec's order: This day, the Olympics password, the lead code, rows
- * opening Signed in today and Events, the day export and Start a new day.
+ * Day setup on one screen: both codes in one card, then seven rows in the order of the day. Each row opens its own
+ * screen, but Make a new lead code, which asks in its sheet. A row in the warning style waits for the lead.
  */
 export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(view:View)=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
-  const events=day.events.length;
-  const rows:Array<{label:string;meta:string|null;view:View}>=[
+  const [asking,setAsking]=useState(false);
+  const events=day.events.length,labelled=day.region!==null && day.dayNumber!==null;
+  const rows:Array<{label:string;meta?:string|null;warn?:boolean;view?:View}>=[
+    {label:'This day',meta:labelled?`${day.year} · ${day.region} · Day ${day.dayNumber}`:'Choose the region and day',warn:!labelled,view:{kind:'this-day'}},
+    {label:'Events',meta:`${events} ${events===1?'event':'events'}`,view:{kind:'events'}},
     {label:'Signed in today',meta:phones===null?null:`${phones} ${phones===1?'person':'people'} signed in today`,view:{kind:'signed-in-today'}},
-    {label:'Events',meta:`${events} ${events===1?'event':'events'}`,view:{kind:'events'}}
+    {label:'Change Olympics password',view:{kind:'olympics-password'}},
+    {label:'Make a new lead code'},
+    {label:'Day export',meta:exportStatus(day),warn:day.exportedAt!==null && day.exportedRevision!==day.revision,view:{kind:'day-export'}},
+    {label:'Start a new day',view:{kind:'start-a-new-day'}}
   ];
   return <>
-    <ThisDay day={day} onChanged={onChanged} onSaved={onSaved}/>
-    <CodeCard label="Olympics password" code={day.olympicsPassword} text="Volunteers type this once on their phone. It stays the same when a new day starts.">
-      <button type="button" className="rz-btn rz-btn--small" onClick={()=>onOpen({kind:'olympics-password'})}>Change Olympics password</button>
-    </CodeCard>
-    <LeadCode code={day.leadCode} onChanged={onChanged} onSaved={onSaved}/>
-    <ul className="rz-list">{rows.map(row=><li key={row.label}><button type="button" className="rz-listrow" onClick={()=>onOpen(row.view)}>
-      <span className="rz-listrow__main"><span className="rz-listrow__label">{row.label}</span>{row.meta && <span className="rz-listrow__meta">{row.meta}</span>}</span>
+    <div className="rz-codecard">
+      <div className="rz-codecard__codes"><Code label="Olympics password" code={day.olympicsPassword}/><Code label="Lead code" code={day.leadCode}/></div>
+      <p className="rz-codecard__text">The Olympics password is for every volunteer. The lead code is only for zone leads.</p>
+    </div>
+    <ul className="rz-list">{rows.map(({label,meta,warn,view})=><li key={label}><button type="button" className={`rz-listrow${warn?' rz-listrow--warn':''}`} onClick={()=>view?onOpen(view):setAsking(true)}>
+      <span className="rz-listrow__main"><span className="rz-listrow__label">{label}</span>{meta && <span className="rz-listrow__meta">{meta}</span>}</span>
       <Icon name="chevron-right" className="rz-icon--bold"/></button></li>)}</ul>
-    <DayExport day={day} onChanged={onChanged}/>
-    <NewDay/>
+    {asking && <NewLeadCode code={day.leadCode} onClose={()=>setAsking(false)} onChanged={onChanged} onSaved={onSaved}/>}
   </>;
 }
 
