@@ -12,7 +12,8 @@ async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>)
     await expect(tab(page,name).locator('svg')).toHaveCount(1);
   }
   await expect(bar(page)).toBeInViewport({ratio:1});
-  await above.scrollIntoViewIfNeeded();
+  // The bar stays at the bottom while the screen scrolls under it: at the end of the screen, `above` is clear of it.
+  await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
   const box=(await bar(page).boundingBox())!,over=(await above.boundingBox())!;
   expect(over.y+over.height,current).toBeLessThanOrEqual(box.y+0.5);
   expect(await lookProblems(page),current).toEqual([]);
