@@ -50,5 +50,12 @@ test('the boot script turns the stage rows an older build left into each event\'
   await db.query("UPDATE events SET phase='racing' WHERE id=$1",[heats[1]]);
   app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});await app.close();
   expect(await phases()).toEqual({...expected,[heats[1]]:'racing'});
+  // An older build runs again after the upgrade (a roll back): it makes its stage table anew and writes to it. The
+  // next boot of this build takes those rows too, and leaves the events the older build did not touch alone.
+  await db.query('CREATE TABLE event_stages (event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE, stage text NOT NULL, PRIMARY KEY(event_id,stage))');
+  await db.query("INSERT INTO event_stages(event_id,stage) VALUES($1,'heats')",[heats[3]]);
+  app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});await app.close();
+  expect(await phases()).toEqual({...expected,[heats[1]]:'racing',[heats[3]]:'final'});
+  expect(await tables()).toEqual(['event_stages_before_phase']);
   await db.end();
 });
