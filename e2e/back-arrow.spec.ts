@@ -22,6 +22,14 @@ async function onScreen(page:Page,address:string|RegExp,title:string,to:string) 
   // The job band is on Races and on a race only.
   await expect(page.getByRole('button',{name:/Change job$/})).toHaveCount(0);
 }
+/** Results and Day setup: the address, the title and no back arrow. The lead's bar is the way to Races, and the phone's Back still works. */
+async function onTop(page:Page,address:string,title:string) {
+  await expect(page).toHaveURL(new RegExp(`${address}$`));
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
+  await expect(arrow(page)).toHaveCount(0);
+  await expect(leadMenuButton(page).getByRole('button',{name:title,exact:true})).toHaveAttribute('aria-current','page');
+}
+const toRaces=(page:Page)=>press(leadMenuButton(page).getByRole('button',{name:'Races',exact:true}));
 /** The phone's Back and the back arrow land on the same screen: Back, then forward again, then the arrow. */
 async function bothGoBack(page:Page,check:()=>Promise<void>) {
   const here=page.url();
@@ -57,7 +65,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   const {id:tieHeat}=await recordRace(request,owner,tieCode,[w(3)],[1000]);
   await recordRace(request,owner,tieCode,[w(4)],[1000]);
   const {page}=await openPhone(ownName('Back walk lead'),{lead:true});
-  const races=()=>onRaces(page),results=()=>onScreen(page,'/results','Results','Races');
+  const races=()=>onRaces(page),results=()=>onTop(page,'/results','Results');
   const eventPage=(tab:string,at=code,title=event)=>onScreen(page,`/results/${at}/${tab}`,title,'Results');
   const tie=(to:string)=>onScreen(page,new RegExp(`/results/${tieCode}/ties/[^/]+$`),'Tie at 10.00',to);
   // Races' card opens Confirm the medals; Back returns to Races.
@@ -74,10 +82,8 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await tie('Heat 1');
   await bothGoBack(page,race);
   await bothGoBack(page,races);
-  // The avatar menu: Races, Results, Day setup and Log out.
-  await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Races','Results','Day setup','Log out']);
-  await page.getByRole('menu').getByRole('menuitem',{name:'Results',exact:true}).click();await results();
+  // The lead's bar opens Results, which has no back arrow.
+  await openLeadMenu(page,'Results');await results();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
   // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
@@ -108,10 +114,10 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await bothGoBack(page,racePage);
   await bothGoBack(page,()=>eventPage('heats'));
   await bothGoBack(page,results);
-  await bothGoBack(page,races);
+  await page.goBack();await races();
   // Day setup and its screens.
   await openLeadMenu(page,'Day setup');
-  const day=()=>onScreen(page,'/day','Day setup','Races');
+  const day=()=>onTop(page,'/day','Day setup');
   await day();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Events /}).click();
@@ -132,10 +138,10 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
     expect(await lookProblems(page)).toEqual([]);
     await bothGoBack(page,day);
   }
-  await bothGoBack(page,races);
+  await page.goBack();await races();
 });
 
-test('a lead screen opened at its address with no history goes up one level: a race page to its event\'s Races tab, then Results, then Races',async({page,request})=>{
+test('a lead screen opened at its address with no history goes up one level: a race page to its event\'s Races tab, then Results, where the lead\'s bar goes to Races',async({page,request})=>{
   const code=await ownCode(),name=ownName('Back up sprint'),event=`${name} · Girl Cubs`;
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const {id:raceId}=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2031],[1500]);
@@ -144,20 +150,20 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await onScreen(page,`/results/${code}/races/${raceId}/correct-finishing-order`,'Correct finishing order','Heat 1');
   await press(arrow(page));await onScreen(page,`/results/${code}/races/${raceId}`,'Heat 1',event);
   await press(arrow(page));await onScreen(page,`/results/${code}/heats`,event,'Results');
-  await press(arrow(page));await onScreen(page,'/results','Results','Races');
-  await press(arrow(page));await onRaces(page);
+  await press(arrow(page));await onTop(page,'/results','Results');
+  await toRaces(page);await onRaces(page);
   // A medal screen's bar names the action, and with no history its back arrow names the event.
   await page.goto(`/results/${code}/confirm-the-medals`);await onScreen(page,`/results/${code}/confirm-the-medals`,'Confirm the medals',event);
   await press(arrow(page));await onScreen(page,`/results/${code}/heats`,event,'Results');
   await page.goto('/day/signed-in-today');await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
-  await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
-  await press(arrow(page));await onRaces(page);
+  await press(arrow(page));await onTop(page,'/day','Day setup');
+  await toRaces(page);await onRaces(page);
   await page.goto('/day/olympics-password');await onScreen(page,'/day/olympics-password','Change Olympics password','Day setup');
-  await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
-  await press(arrow(page));await onRaces(page);
+  await press(arrow(page));await onTop(page,'/day','Day setup');
+  await toRaces(page);await onRaces(page);
   for(const [address,name] of [['/day/this-day','This day'],['/day/export','Day export'],['/day/start-a-new-day','Start a new day']] as const) {
     await page.goto(address);await onScreen(page,address,name,'Day setup');
-    await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
+    await press(arrow(page));await onTop(page,'/day','Day setup');
   }
   // Rename and Add an event go up to Events.
   await page.goto('/day/events/new');await onScreen(page,'/day/events/new','Add an event','Events');

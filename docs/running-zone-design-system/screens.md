@@ -1,6 +1,6 @@
 # Screen recipes
 
-> **Built as the race flow.** The volunteer and lead flows below (screens 2–24, 27–29) are replaced by [race-flow.md](race-flow.md): Races (Home), New race, Switch job and the race screen per role. Results, Day setup and Join keep the screens here, except that Join adds the job choice and Results and Day setup open from the lead menu.
+> **Built as the race flow.** The volunteer and lead flows below (screens 2–24, 27–29) are replaced by [race-flow.md](race-flow.md): Races (Home), New race, Switch job and the race screen per role. Results, Day setup and Join keep the screens here, except that Join adds the job choice and Results and Day setup open from the lead's bar (see "The lead's bar" below).
 
 > **Superseded in part.** [race-flow.md](race-flow.md) replaces the volunteer and zone-lead flows below (screens 2–24 and 27–28). Join, Results and Day setup still apply, except where race-flow.md changes them.
 
@@ -10,6 +10,12 @@ Every screen:
 - Starts `<div class="rz-screen rz-zone-running">`.
 - Has a compact **AppBar** with a back link to the parent screen and the avatar. Home (2) and Home as a zone lead (21) use the hero AppBar instead.
 - Ends with an **ActionFooter** whose first line is "Updated at 11:41:17 AM" plus a small **Refresh** button, named for what it refreshes ("Refresh Start line", "Refresh Finish order", "Refresh Times", "Refresh Results").
+
+**The lead's bar.** On a lead's phone, Races, Results (25) and Day setup (30) end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`).
+- `<nav class="rz-leadnav" aria-label="Lead screens">`, one button per tab: the icon above the word, `crumb` type, `size-action` high, `navy` on `card`. The current screen's tab has `aria-current="page"` and is `on-navy` on `navy`.
+- It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast there sits one bar higher.
+- Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has no bar. A phone that is not a lead's never shows the bar.
+- The layout is the same at every width.
 
 Volunteer task screens use the back link only. Zone-lead screens (22–32) also show a **Breadcrumb** under the AppBar. With more than four levels, it starts with "…".
 

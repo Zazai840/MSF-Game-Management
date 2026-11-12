@@ -80,7 +80,7 @@ test('Results puts Action required first, then Running and Done, each card in it
     await expect(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
     await back(page,'Results');
     await expect(section('Action required')).toBeVisible();
-    await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
+    await expect(page.getByRole('banner').getByRole('button',{name:/^Back to /})).toHaveCount(0);
   } finally {await cleanUp(page,races);}
 });
 

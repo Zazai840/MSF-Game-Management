@@ -97,15 +97,17 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
 /**
  * Taps the back arrow in the header, one screen at a time, until it has gone back to the named screen
  * (the arrow's label says "Back to <to>"), for example back(page,'Results'). Wait for the screen to settle first.
+ * Results and Day setup have no back arrow: from there the lead's bar goes to Races.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadMenuButton(page).getByRole('button',{name:'Races',exact:true});
   for(let tries=0;tries<6;tries++) {
-    await expect(arrow).toBeVisible();
-    const label=(await arrow.getAttribute('aria-label'))!;
+    await expect(arrow.or(races)).toBeVisible();
+    if(!await arrow.isVisible()) {if(to==='Races') return press(races);break;}
+    const label=(await arrow.getAttribute('aria-label'))!,here=page.url();
     await arrow.click();
     if(label===`Back to ${to}`) return;
-    await expect(arrow).not.toHaveAttribute('aria-label',label);
+    await expect(page).not.toHaveURL(here);
   }
   throw new Error(`No way back to ${to}`);
 }
@@ -410,14 +412,20 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job'})).toBeVisible();
 }
-/** A lead's avatar, which opens the avatar menu (Races, Results, Day setup, Log out). */
+/** The lead's bar (Races, Results, Day setup), at the foot of those three screens on a lead's phone only: there, it shows that the phone is a lead's. */
 export function leadMenuButton(page:Page) {
-  return page.getByRole('button',{name:/: Races, Results, Day setup and Log out$/});
+  return page.getByRole('navigation',{name:'Lead screens',exact:true});
 }
-/** From any screen as a lead: the avatar menu, then Results or Day setup. */
+/** From any screen as a lead: back along the back arrow to a screen with the lead's bar, then its Results or Day setup tab. */
 export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
-  await leadMenuButton(page).click();
-  await page.getByRole('menu').getByRole('menuitem',{name:section,exact:true}).click();
+  const tab=leadMenuButton(page).getByRole('button',{name:section,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+  for(let tries=0;tries<6;tries++) {
+    await expect(tab.or(arrow)).toBeVisible();
+    if(await tab.isVisible()) return press(tab);
+    const here=page.url();
+    await press(arrow);await expect(page).not.toHaveURL(here);
+  }
+  throw new Error(`No way back to the lead's bar`);
 }
 /**
  * Starts dragging from `from` the way a person would: a real finger on the phone projects
@@ -476,10 +484,10 @@ export async function expectToast(page:Page,line:string|RegExp) {
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
-/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer (or the keyboard). */
+/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer or the lead's bar, whichever is higher (or the keyboard). */
 export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
-    footer:document.querySelector('footer.rz-footer')?.getBoundingClientRect().top??Infinity}));
+    footer:Math.min(...['footer.rz-footer','.rz-leadnav'].map(foot=>document.querySelector(foot)?.getBoundingClientRect().top??Infinity))}));
   expect(scrolled).toBe(0);
   for(const target of targets) {
     const box=(await target.boundingBox())!;

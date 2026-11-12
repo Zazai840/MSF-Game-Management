@@ -34,6 +34,8 @@ test('Day setup is one card with both codes and seven rows in the order of the d
   const day=await(await page.request.get('/api/day',{headers:headers()})).json();
   await asOwner(page);
   await expect(page).toHaveURL(/\/day$/);
+  // Day setup has no back arrow: the lead's bar goes to Races and Results.
+  await expect(page.getByRole('banner').getByRole('button',{name:/^Back to /})).toHaveCount(0);
 
   // Both codes in one card, side by side, with one line that says which is for whom.
   const password=section(page,'Olympics password'),leadCode=section(page,'Lead code');
