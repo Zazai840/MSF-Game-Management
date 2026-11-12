@@ -1,6 +1,7 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,stepBlocker,surplusTimes,timerQuestion,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import type { DayLeadItem } from '../src/shared/lead-results.js';
+import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,stepBlocker,surplusTimes,timerQuestion,cardProblems,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps,blocker:null});
@@ -151,6 +152,20 @@ test('a lead\'s card words and colour are one function on Races and Results: no 
   const decided={...group('R5',[race('h1',saved,'saved')],false,true),event:{code:'R5',format:'timed'}} as RaceGroup;
   expect([idle,relay,running,decided].map(item=>leadCardLine(item,[]))).toEqual(['No races yet','No races yet','Heat 2 in progress · Heat 1 saved','Medals decided']);
   expect([idle,relay,running,decided].map(cardState)).toEqual(['not-started','not-started','running','done']);
+});
+test('a lead\'s card shows two problem buttons at most and counts the rest, and keeps only a final reason that is not a To check problem',()=>{
+  const event={code:'R3'},heat=(number:number)=>({id:`h${number}`,kind:'heat' as const,number,checkedInAt:'2026-10-14T10:00:00Z'});
+  const issue=(fields:object)=>({id:'i',at:'2026-10-14T10:05:00Z',message:'m',event,...fields}) as unknown as DayLeadItem;
+  const on=(number:number,kind:string)=>issue({kind,race:heat(number),raceId:`h${number}`});
+  const held=(raceId:string)=>({...group('R3',[]),finalReason:{raceId,step:'times',line:'why'}}) as RaceGroup;
+  const four=[on(1,'warning'),on(1,'times-out-of-order'),on(2,'warning'),on(2,'ran-twice'),on(2,'warning')];
+  expect(cardProblems(held('h1'),four)).toEqual({buttons:[{label:'Check Heat 1 · 1 wristband',target:{event,raceId:'h1'}},{label:'Check Heat 1 · 1 time',target:{event,raceId:'h1'}}],more:2,finalReason:null});
+  // Heat 3 has no To check item: the final waits on its times, and the card still says so.
+  expect(cardProblems(held('h3'),[on(1,'warning')])).toMatchObject({buttons:[{label:'Check Heat 1 · 1 wristband'}],more:0,finalReason:{raceId:'h3',line:'why'}});
+  // A tie holds the final under one of its heats.
+  expect(cardProblems(held('h2'),[issue({kind:'tie',tieId:'t',tie:{time:1000,names:['1','2'],raceIds:['h1','h2']}})])).toEqual({buttons:[{label:'Decide the tie',target:{event,tieId:'t'}}],more:0,finalReason:null});
+  // Another event's items are not this card's.
+  expect(cardProblems(held('h1'),[{...on(1,'warning'),event:{code:'R9'}} as unknown as DayLeadItem])).toEqual({buttons:[],more:0,finalReason:{raceId:'h1',step:'times',line:'why'}});
 });
 test('a step names the last person who typed in it, or else up to three people in its role and a count of the rest',()=>{
   const typed=(version:number,by:string|null)=>({...status('in progress'),version,by});

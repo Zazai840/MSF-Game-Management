@@ -17,7 +17,9 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await recordRace(request,owner(),calmCode,[2011],[1400]);
   const {page}=await openPhone(ownName('Lead issues'),{lead:true});
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job',exact:true})).toBeVisible();
-  await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
+  // The problem is a button on the card, in place of the status line.
+  await expect(card(page,name).getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toBeVisible();
+  await expect(status(page,name)).toHaveCount(0);
   await expect(actionRequired(page).filter({hasText:name})).toHaveCount(1);
   // A lead's first section is Action required; Ready for you is a volunteer's.
   await expect(page.getByRole('heading',{level:2,name:'Ready for you'})).toHaveCount(0);
@@ -50,7 +52,7 @@ test('inside a race each issue sits on its step\'s tab; It\'s right clears it an
   await writeTimes(request,owner(),code,[1500,1300,1600],[1]);
   await submitRace(request,owner(),code);
   const {page}=await openPhone(ownName('Lead tabs'),{lead:true});
-  await expect(status(page,name)).toContainText('Heat 1: ');
+  await expect(card(page,name).getByRole('button',{name:/^Check Heat 1 · /})).toHaveCount(2);
   await openRace(page,name);
   const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
   await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check/,/^Finishing order.*1 to check/,/^Times.*1 to check/]);
@@ -97,7 +99,7 @@ test('a lead\'s card counts issues by race and kind, the Times tab marks only th
   await submitRace(request,owner(),code);
   const {page}=await openPhone(ownName('Lead counts'),{lead:true});
   // Groups come newest first; both of these date from the same saved race, so either may lead.
-  await expect(status(page,name)).toHaveText(/^(Heat 1: 2 wristbands to check · Heat 1: 1 time to check|Heat 1: 1 time to check · Heat 1: 2 wristbands to check)$/);
+  await expect(card(page,name).getByRole('button',{name:/^Check /})).toHaveText([/^Check Heat 1 · (2 wristbands|1 time)$/,/^Check Heat 1 · (2 wristbands|1 time)$/]);
   await openRace(page,name);
   await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
   const rows=page.getByRole('list',{name:'Times'}).locator('.rz-lead-row');

@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,type Page,flowPost,resultsCard} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,type Page,flowPost,resultsCard} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -251,10 +251,9 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  // Tapping the greyed chip anyway opens nothing. The click goes to the chip itself: a forced tap at its place can land on New race, fixed over a long Races list.
  await plusFinal.dispatchEvent('click');
  await expect(lena.getByRole('dialog')).toHaveCount(0);
- const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
- await expect(reason).toBeVisible();
- // Its warning icon is navy, an approved colour pair on the card and on paper (accessibility.md).
- await expect(reason.locator('.rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
+ // The card says why as its problem button; the line under the chips is for New race's sheet and the Race screen.
+ await expect(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toBeVisible();
+ await expect(card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toHaveCount(0);
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
  // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's Times tab too.
  await lena.getByRole('button',{name:'New race',exact:true}).click();
@@ -263,14 +262,14 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
  await expect(sheet.getByText('Boy Cubs already has heat 1.',{exact:true})).toBeVisible();
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-sheet.png')});
- await sheet.getByRole('button',{name:'Heat 1 has a time to check first',exact:true}).click();
+ const reason=sheet.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
+ // Its warning icon is navy, an approved colour pair on the card and on paper (accessibility.md).
+ await expect(reason.locator('.rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
+ await reason.click();
  const opened=async()=>{
   await expect(lena.getByRole('heading',{level:1,name:`${name} · Boy Cubs`,exact:true})).toBeVisible();
   await expect(lena.getByRole('tab',{name:/^Times/})).toHaveAttribute('aria-selected','true');
  };
- await opened();
- await backToRaces(lena);
- await reason.click();
  await opened();
  const onRace=lena.getByRole('navigation',{name:'Heats'});
  await expect(onRace.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveAttribute('aria-disabled','true');
