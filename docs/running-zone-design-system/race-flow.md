@@ -147,6 +147,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 #### 5. Start line: check in runners (artboard `N5-StartLine`)
 - **Prompt (compact):** meta "Heat 5 · 3 runners so far", question "Runner *n*: wristband number?".
 - **WristbandChips** for runners added; tap one to remove. Below them, the numeric TextField.
+- **Changing a number:** tap a chip to put it in the box. The footer is Cancel and a wide Save; a small red "Remove 2041" pill sits under the box, away from the thumb.
 - **Footer pair:** "That's everyone" (marks Runners done and returns to Races) and "Next" (adds the number).
 - **Keep the existing warnings** (wrong section, unknown, already raced) as the WarningCallout with Fix number / Keep.
 - **Soft capacity warning at 6 runners.** Specified in "Soft warning: usual heat size" below.
@@ -188,7 +189,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - The current slot is gold with a navy ring; tap any slot to retype it.
   - Over 9 places the grid is compact: 4 across, 44px tall.
 - **Time box** (numeric TextField): it shows the time itself, filling from the right as the timer's digits are typed ("13.05"), with the hint "Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34." under it.
-- **Footer trio:** Previous place / No more finishers / Next, each on one line.
+- **Footer trio:** Previous (named "Previous place" for a screen reader) / No more finishers / Next, on one row. Next is the primary button and takes the free width: the Timer taps it after every time.
 - **A wrong time is held** (Fix time / Keep), its WarningCallout directly above the time box, for a time faster than the place before ("Faster than 2nd place") or slower than 1.5 m/s for the race ("Slow for 200m": "The 3rd place time, 3:10.22, looks slow for 200m."). While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
 - **One time too many.** More times than the race can have (its finishers once Finishing order is done, before that its runners; an emptied place counts) show a WarningCallout above the time box, "3 times for 2 finishers." ("3 times for 2 runners." before the order is done), with one button, "Delete 3rd place time", that deletes the last time. The question reads "One time too many" ("2 times too many") in place of "Every place has a time". A lead working the unsaved race sees the same.
 - **A refused time** (seconds over 59, 0.00, faster than 10 m/s for the race) shows in the amber callout under the box, the digits selected so the next digit replaces them; nothing is saved.
@@ -286,7 +287,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | **PlacesBoard** | 4-column grid of 44px slots, 10px radius.<br>• Placed: `navy`, gold Saira ordinal + 16px/800 wristband; a button to change it.<br>• Current: `gold` + 2px `navy` ring, "3RD ?".<br>• Empty: 1.5px dashed `line-strong`, `ink-muted`. |
 | **RunnerButton** | Compact runner tile: 3-column grid, 72px tall, radius 36/36/12/12 (a shallow arch), `card`, `shadow-tile`, Saira 900 34px tabular. On press, move down 4px and drop to `shadow-card`. `aria-label="2032 came 3rd"`. This **replaces** the 150px RunnerTile on the finish line. |
 | **OrderRow** | 44px row, grid `44px 1fr 44px`: Saira ordinal, wristband 18px/800, a drag handle button. `card` + `shadow-card`; while dragging, `shadow-raised`. An unplaced row is dashed `line-strong`, with a DNF StatusTag. |
-| **Toast** | Fixed above the footer, `navy`, `radius-lg`-ish (14px), `shadow-raised`. Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 6 seconds, paused while focused. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this since. Open the race to edit it." |
+| **Toast** | Fixed just above whatever is fixed at the foot of the screen (an open sheet, a docked button such as New race, the lead's bar), so it never covers a button; it may cover the "Updated at" line. `navy`, `radius-lg`-ish (14px), `shadow-raised`. Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 6 seconds, paused while focused. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this since. Open the race to edit it." |
 | **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4"), then a small Button Take off at the end. On a heat and on a final its legs are four leg chips side by side (variant A): each 44px tall, `card` with a 2px `line` border and `radius-md`, "1st" 12px/700 `ink-muted` over the wristband ("–" dashed for an empty leg), with a grip under it. On a final the whole card is one `card` with "1st fastest · " before the name and Here / Absent pills in the head; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
 | **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, one line (32px), its 4th leg's wristband "2054" with no team label. `aria-label="2054 came 1st"`. |
 

@@ -13,7 +13,8 @@ Every screen:
 
 **The lead's bar.** On a lead's phone, Races, Results (25) and Day setup (30) end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`).
 - `<nav class="rz-leadnav" aria-label="Lead screens">`, one button per tab: the icon above the word, `crumb` type, `size-action` high, `navy` on `card`. The current screen's tab has `aria-current="page"` and is `on-navy` on `navy`.
-- It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast there sits one bar higher.
+- It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast sits just above New race.
+- Each of the three screens opens at once with what it showed last time (kept only while the app is open, dropped at Log out) and reads again behind it; only a first open shows the spinner over "Opening…".
 - Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has no bar. A phone that is not a lead's never shows the bar.
 - The layout is the same at every width.
 
