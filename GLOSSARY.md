@@ -262,7 +262,7 @@ The toast's way to reverse your own save of a step, only while nobody else has c
 _Avoid_: Revert, roll back
 
 **Confirm the medals**:
-A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event), with Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
+A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event). Its bar names the action: "Confirm the medals", the Reopen's label ("Reopen final"), or "Results without a final". It has Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
 _Avoid_: Sign off, approve, publish
 
 ### Testing

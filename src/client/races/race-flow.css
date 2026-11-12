@@ -117,11 +117,11 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-tabs button { gap: var(--space-6); }
 /* The lead's bar: three tabs across the foot of Races, Results and Day setup. It stays at the bottom of the screen,
    so Races' sticky New race footer, and the toast above it, sit one bar higher. */
-.rz-leadnav { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 var(--gutter) env(safe-area-inset-bottom, 0px); border-top: 1.5px solid var(--line); background: var(--card); }
-.rz-leadnav button { min-height: var(--size-action); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); border: 0; background: none; color: var(--navy); font-family: var(--font-body); font-size: 13px; line-height: 1.2; font-weight: 700; }
-.rz-leadnav button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
-.rz-app:has(> .rz-leadnav) .rz-footer--sticky { bottom: calc(var(--size-action) + env(safe-area-inset-bottom, 0px)); }
-body:has(.rz-footer--home ~ .rz-leadnav) .rz-toast { margin-bottom: var(--size-action); }
+.rz-leads-bar { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 var(--gutter) env(safe-area-inset-bottom, 0px); border-top: 1.5px solid var(--line); background: var(--card); }
+.rz-leads-bar button { min-height: var(--size-action); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); border: 0; background: none; color: var(--navy); font-family: var(--font-body); font-size: 13px; line-height: 1.2; font-weight: 700; }
+.rz-leads-bar button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
+.rz-app:has(> .rz-leads-bar) .rz-footer--sticky { bottom: calc(var(--size-action) + env(safe-area-inset-bottom, 0px)); }
+body:has(.rz-footer--home ~ .rz-leads-bar) .rz-toast { margin-bottom: var(--size-action); }
 
 /* ---------- RaceCard ---------- */
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
@@ -282,7 +282,6 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-attendance__who { display: flex; flex-direction: column; }
 .rz-attendance__seed { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
 .rz-attendance--one li { grid-template-columns: 1fr auto; }
-/* Signed in today: a card per person, its name over Lead or Volunteer, then its small buttons. */
 /* A relay heat's Start line: a card per team in the heat, then the teams still to run. */
 .rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }

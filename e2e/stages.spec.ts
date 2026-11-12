@@ -14,7 +14,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await expect(job.locator('.rz-prompt__meta')).toHaveText('Heat 2 · 1 runner so far');
   await page.goto('/');await join(page,ownName('Stage lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
+  await press(resultsCard(page,code));await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
   // The Confirm the medals screen: Heat 2 must be settled first, so the docked Confirm stays grey with the reason above it.
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
   await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 2 heats · no final`);

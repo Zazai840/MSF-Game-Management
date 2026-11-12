@@ -2,7 +2,7 @@
 
 The app's line icons: a 24px grid, 2.2px stroke in `currentColor`, round caps and joins, no fill. Drawn for this system. There is no third-party icon set; draw new icons to the same rules.
 
-**Markup:** inline SVG, so the colour follows the text. Add `rz-icon--bold` (2.6px) for chevrons and small sizes, and `rz-icon--sm` for 18px.
+**Markup:** inline SVG, so the colour follows the text. Add `rz-icon--bold` (2.6px) for chevrons and small sizes.
 
 ```html
 <svg class="rz-icon" viewBox="0 0 24 24" aria-hidden="true">PATHS</svg>

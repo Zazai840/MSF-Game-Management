@@ -7,9 +7,9 @@ test('Re-run is a screen that lands on the new heat at its first step, with Back
   const code=await ownCode(),name=ownName('Re-run heats'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
   const old=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2011,2012,2013],[1200,1300,1400]);
-  await page.goto('/');await join(page,ownName('Re-run lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await resultsCard(page,code).click();
+  await page.goto('/');await join(page,ownName('Re-run lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await press(resultsCard(page,code));
   await eventTab(page,'Heats');const racesTab=page.url();
-  await page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   await raceAction(page,'Re-run race');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/${old.id}/re-run$`));
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Re-run race',exact:true})).toBeVisible();

@@ -337,7 +337,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
    - *Done when:* a 12-runner heat can be fully placed and saved on a 390 × 844 screen with no horizontal scroll.
 6. **Timer body**, moved onto the shell. Behaviour unchanged.
 7. **Zone lead.**
-   - Tabs, editable steps, inline issues with "It's right", the "⋯" actions, the avatar menu, Action required for leads.
+   - Tabs, editable steps, the "⋯" actions, the avatar menu, Action required for leads. A saved race's problems are on its race page, each with "It's right" where it can be accepted.
    - Remove the Dashboard and To-check screens.
 8. **Finals:** "+ Final" on the card and in the sheet, the fastest 6 pre-filled, the tie block.
 9. **Toast with Undo**, and removal of the Saved screen.

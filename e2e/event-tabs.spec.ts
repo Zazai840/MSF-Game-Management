@@ -8,6 +8,7 @@ async function openEvent(page:Page,code:string,lead:string,notStarted=false) {
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event'}).getByRole('button');
 const tab=(page:Page,name:string)=>page.getByRole('navigation',{name:'Event'}).getByRole('button',{name,exact:true});
 const board=(page:Page)=>page.getByRole('list',{name:'Provisional leaderboard'}).locator(':scope > li');
+const scoreboard=(page:Page)=>page.getByRole('list',{name:'Provisional leaderboard'});
 
 test('an event opens on Heats: the scoreboard states only the rule, stars and Qs the fastest, says Check on an open warning, and puts Did not finish last',async({page},info)=>{
   const code=await ownCode(),name=ownName('Heats tab'),girls=await ownWristbands('Girl Cubs',3),scout=(await ownWristbands('Boy Scouts',1))(1);
@@ -72,8 +73,10 @@ test('Heats shows the scoreboard, then under a Heats heading each heat with its 
   await expect(unsaved).toHaveAccessibleDescription(/^1 runner · not in Results yet · checked in \d\d:\d\d Runners 1 so far Finishing order Not started Times Not started Not in Results yet: \d+ has no place\.$/);
   await expect(deleted).toHaveAccessibleDescription('1 runner');
   // Top to bottom: the scoreboard, the Heats heading and its rows, Deleted races.
-  const tops=await Promise.all([page.getByRole('region',{name:'Heats',exact:true}),page.getByRole('heading',{name:'Heats',exact:true}),heat1,unsaved,page.getByRole('heading',{name:'Deleted races',exact:true}),deleted].map(async part=>(await part.boundingBox())!.y));
+  const tops=await Promise.all([scoreboard(page),page.getByRole('heading',{name:'Heats',exact:true}),heat1,unsaved,page.getByRole('heading',{name:'Deleted races',exact:true}),deleted].map(async part=>(await part.boundingBox())!.y));
   expect(tops).toEqual([...tops].sort((a,b)=>a-b));
+  // Only the heading and the tab are named Heats: the scoreboard is named by its leaderboard.
+  await expect(page.getByRole('region',{name:'Heats'})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('heats-tab-rows.png'),fullPage:true});
   await eventTab(page,'Notes');
@@ -112,7 +115,7 @@ test('an event shows each open To check problem below its tabs on every tab: a t
   await expect(band.getByRole('button')).toHaveText(['Open Heat 2']);
   // Below the tabs, above the scoreboard; the heat's own row keeps its name, and the Tie tags stay.
   for(const problem of [tie,band]) {
-    const tops=await Promise.all([page.getByRole('navigation',{name:'Event'}),problem,page.getByRole('region',{name:'Heats',exact:true}),page.getByRole('listitem').getByRole('button',{name:'Open Heat 2',exact:true})].map(async part=>(await part.boundingBox())!.y));
+    const tops=await Promise.all([page.getByRole('navigation',{name:'Event'}),problem,scoreboard(page),page.getByRole('listitem').getByRole('button',{name:'Open Heat 2',exact:true})].map(async part=>(await part.boundingBox())!.y));
     expect(tops).toEqual([...tops].sort((a,b)=>a-b));
   }
   await expect(page.getByRole('button',{name:`TIE at 10.00 for ${girls(1)}`,exact:true})).toBeVisible();
@@ -131,4 +134,21 @@ test('an event shows each open To check problem below its tabs on every tab: a t
   await press(tie.getByRole('button',{name:'Decide the tie',exact:true}));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/ties/[^/]+$`));
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
+});
+
+test('an event with a Final tab shows its open To check problems on the Final tab too',async({page},info)=>{
+  const code=await ownCode(),name=ownName('Final problems'),girls=await ownWristbands('Girl Cubs',1),scout=(await ownWristbands('Boy Scouts',1))(1);
+  await ownEvent(page.request,code,name);
+  await recordRace(page.request,await signInThroughApi(page.request,ownName('Final problems timer')),code,[scout,girls(1)],[1200,1300],[scout]);
+  await openEvent(page,code,'Final problems lead');
+  const band=page.getByRole('main').getByRole('alert').filter({hasText:'A wristband number needs checking'});
+  await expect(band.getByRole('button')).toHaveText(['Open Heat 1']);
+  await eventTab(page,'Final');
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/final$`));
+  // Below the tabs, above the Final tab's own words.
+  await expect(band.getByRole('button')).toHaveText(['Open Heat 1']);
+  const tops=await Promise.all([page.getByRole('navigation',{name:'Event'}),band,page.getByText("The final's order appears here once its finishing order is saved.",{exact:true})].map(async part=>(await part.boundingBox())!.y));
+  expect(tops).toEqual([...tops].sort((a,b)=>a-b));
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('event-problems-final-tab.png'),fullPage:true});
 });

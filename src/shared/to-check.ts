@@ -1,20 +1,29 @@
 import type { DayLeadItem,ResultsTarget } from './lead-results.js';
 import { plainWristbandWarning,type WristbandWarning } from './wristband-checks.js';
 import { formatTime } from './time-entry.js';
-import { entryName,isTeamEntry,raceLabel,type RaceEntry } from './races.js';
+import { openRaceLabel,raceLabel,type RaceRead } from './races.js';
 import { ordinal } from './ordinal.js';
-import { capitalised,entryNoun,legsText } from './teams.js';
+import { capitalised,entryNoun } from './teams.js';
 import { raceName } from './race-flow.js';
-import { teamLine } from './results-rules.js';
+import { teamLine,type EventResults,type ResultEntry } from './results-rules.js';
 export interface ToCheckWording { race:string; title:string; explanation:string }
 /**
- * On a relay, each team an item is about with its four children, "Team 5 · 2101 · 2134 · 2187 · –": both tied teams, or
- * the team the item's race entry names (looked up in the race's `entries`). Nothing for a child's item.
+ * An event's open To check items as the To check wording takes them, in the event read's order: each with its event
+ * and its race. The day's To check list, the event's screen and a race page all take their items from here.
  */
-export function itemTeams(item:Pick<DayLeadItem,'entryId'|'tie'>,entries:readonly RaceEntry[]):string[] {
+export function eventItems({event,results}:{event:DayLeadItem['event'];results:Pick<EventResults,'needsYou'|'races'>}):DayLeadItem[] {
+  return results.needsYou.map(item=>{const race=results.races.find(({race})=>race.id===item.raceId)?.race;return {...item,event,...(race?{race}:{})};});
+}
+/** A race's open To check items: its own, and each tie it is in. */
+export const raceItems=(items:readonly DayLeadItem[],raceId:string)=>items.filter(item=>item.raceId===raceId || item.tie?.raceIds.includes(raceId));
+/**
+ * On a relay, each team an item is about with its four children, "Team 5 · 2101 · 2134 · 2187 · –": both tied teams, or
+ * the team whose result the item names (looked up in the event's result `rows`). Nothing for a child's item.
+ */
+export function itemTeams(item:Pick<DayLeadItem,'raceId'|'entryId'|'tie'>,rows:readonly ResultEntry[]):string[] {
   if(item.tie?.teams) return item.tie.teams.map(teamLine);
-  const entry=entries.find(other=>other.id===item.entryId);
-  return entry && isTeamEntry(entry)?[`${entryName(entry)} · ${legsText(entry.legs)}`]:[];
+  const team=rows.find(row=>row.raceId===item.raceId && row.entryId===item.entryId)?.team;
+  return team?[teamLine(team)]:[];
 }
 /** "2004", "2004 and 2005", "2004, 2005 and 2006". */
 export const listed=(names:readonly string[])=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names[names.length-1]}`;
@@ -78,6 +87,22 @@ export function issueLine(items:readonly DayLeadItem[]) {
   const lines=issueGroups(items).map(group=>`${group[0].race?raceName(group[0].race):'Event'}: ${countedNoun(group[0],group.length)} ${kindWords[group[0].kind]}`);
   return lines.slice(0,2).join(' · ')+(lines.length>2?` · ${lines.length-2} more`:'');
 }
+/** The kinds "It's right" accepts. A child who ran twice and a tie are settled on their own screens. */
+export const acceptable=({kind}:Pick<DayLeadItem,'kind'>)=>kind!=='ran-twice' && kind!=='tie';
+/** The correction that fixes a place: a final's places are in its finishing order, any other race's in its times. */
+export const placesCorrection=(final:boolean)=>final?'correct-finishing-order':'correct-times';
+const decideTheTie='Decide the tie';
+/**
+ * A problem's one button: its words and the screen it opens. On the race page (`on`, the race) each problem opens the
+ * correction that fits it; on the event (no `on`) it opens the problem's race page. A tie opens the tie on both.
+ */
+export function problemFix(item:Pick<DayLeadItem,'kind'|'race'>,on?:{kind:RaceRead['kind'];relay:boolean}) {
+  if(item.kind==='tie') return {label:decideTheTie,opens:'tie'} as const;
+  if(!on) return {label:item.race?openRaceLabel(item.race):'Open race',opens:'race-page'} as const;
+  if(item.kind==='ran-twice') return {label:'Fix',opens:'choose-result'} as const;
+  if(item.kind==='times-out-of-order') return {label:'Fix time',opens:placesCorrection(on.kind==='final')} as const;
+  return {label:'Fix',opens:on.relay?'correct-teams':'correct-runner-list'} as const;
+}
 export interface ProblemButton { label:string; target:ResultsTarget }
 /**
  * A lead's card problem buttons, one per group of the card line: "Decide the tie" opens the tie (the event in Results
@@ -86,7 +111,7 @@ export interface ProblemButton { label:string; target:ResultsTarget }
 export function problemButtons(items:readonly DayLeadItem[]):ProblemButton[] {
   return issueGroups(items).map(group=>{
     const [first]=group,{event,race}=first;
-    if(first.kind==='tie') return {label:'Decide the tie',target:group.length===1?{event,tieId:first.tieId}:{event}};
+    if(first.kind==='tie') return {label:decideTheTie,target:group.length===1?{event,tieId:first.tieId}:{event}};
     return {label:`Check ${race?raceName(race):'event'} · ${countedNoun(first,group.length)}`,target:race?{event,raceId:first.raceId}:{event}};
   });
 }

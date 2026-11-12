@@ -17,6 +17,8 @@ function settled(warning:ResultWarning,ruling:RunnerRuling|undefined):Settlement
 }
 /** Who settled a flag, in a lead's words: "Checked by Sam Patel", "Checked" with no name recorded, or nothing while open. */
 const checker=(flag:ResultFlag)=>flag.checkedBy?`Checked by ${flag.checkedBy.name}`:flag.checked?'Checked':null;
+/** A result's flags a lead reads as warnings, on its race page row and in the Day export's Warning column: all but a settled tie, which is a status. */
+export const warningFlags=(flags:readonly ResultFlag[])=>flags.filter(flag=>flag.kind!=='tie-settled');
 /** A flag as a lead reads it beside a name and in the Day export's Warning column: "Checked by Sam Patel: <message>", "Checked: <message>" with no name recorded, or the message alone. */
 export function flagText(flag:ResultFlag):string {
   const by=checker(flag);

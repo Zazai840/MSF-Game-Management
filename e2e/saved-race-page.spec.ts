@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,ownRelay,ownWristbands,back,backToRaces,deleteCurrentRace,enterTime,expect,flowPost,lookProblems,openRace,openRelays,press,recordRace,runHeat,saveFinal,test,writeCheckIn,writeOrder,writeTeam,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,ownRelay,ownWristbands,back,backToRaces,deleteCurrentRace,enterTime,expect,expectToast,flowPost,lookProblems,openRace,openRelays,press,recordRace,runHeat,saveFinal,test,writeCheckIn,writeOrder,writeTeam,writeTimes,type Page} from './fixtures.js';
 /**
  * One race, one page (spec #313): for a lead, a saved race is always its race page, whichever way it is opened, and
  * Back returns to where the lead came from. A race not in Results yet keeps the Race screen with its steps, and a
@@ -29,7 +29,7 @@ test('a lead opens a saved heat as its race page from a chip on Races, from a ch
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('saved-race-from-races.png'),fullPage:true});
   // Who saved each step is under Saved versions.
-  await page.getByText(/^Saved versions \(\d+\)$/).click();
+  await press(page.getByText(/^Saved versions \(\d+\)$/));
   await expect(page.getByRole('list',{name:'Saved versions',exact:true}).getByRole('listitem').first()).toBeVisible();
   // The race page took the Race screen's place in the history: one Back is Races, by the arrow and by the phone.
   await expect(page.getByRole('banner').getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
@@ -52,6 +52,31 @@ test('a lead opens a saved heat as its race page from a chip on Races, from a ch
   await back(page,`${name} · Girl Cubs`);
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await deleteCurrentRace(request,code);
+});
+
+test('on the Race screen of a race not in Results yet a lead presses the three dots, sees only Delete, and deletes the race',async({openPhone,request},info)=>{
+  const name=ownName('Dots delete'),code=await ownCode();
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  const {race}=await writeCheckIn(request,owner(),code,[2021,2022]);
+  const {page}=await openPhone(ownName('Dots delete lead'),{lead:true});
+  await openRace(page,name);
+  await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
+  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true});
+  await expect(actions.getByText('Heat 1 is not saved yet. Finish its steps on this screen first.',{exact:true})).toBeVisible();
+  // Only Delete: no correction, no Re-run, no Open.
+  await expect(actions.locator('.rz-sheet__actions').getByRole('button')).toHaveText(['Delete Heat 1']);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('unsaved-race-actions.png'),fullPage:true});
+  await press(actions.getByRole('button',{name:'Delete Heat 1',exact:true}));
+  await expect(page).toHaveURL(new RegExp(`/races/${race.id}/delete$`));
+  await title(page,'Delete race');
+  expect(await lookProblems(page)).toEqual([]);
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
+  // The delete goes back past the race to Races, with its toast; the race is gone from its card.
+  await races(page);
+  await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
+  await expect(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:/^Heat 1,/})).toHaveCount(0);
 });
 
 test('a volunteer opens a saved heat as the Race screen, as before',async({openPhone,request})=>{
