@@ -51,7 +51,7 @@ test('after a lead types a time for a place no child holds, the lead sees the su
   const sixth=page.getByRole('button',{name:'No finisher for 6th place',exact:true});expect((await sixth.boundingBox())!.height).toBeLessThan(50);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('surplus-times-lead.png'),fullPage:true});
   await press(sixth);await expect(sixth).toHaveAttribute('aria-pressed','true');await expect(page.getByText(mismatch,{exact:true})).toHaveCount(0);
-  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await press(save);expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600,null]);await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);
+  const correction=page.waitForResponse(response=>response.url().endsWith(`/api/lead/races/${race.id}/times`));await press(save);expect((await correction).request().postDataJSON().places).toEqual([1200,1300,1400,1500,1600,null]);await expectToast(page,`Times saved`);
   const corrected=(await (await page.request.get(`/api/lead/races/${race.id}`,{headers})).json()).race;expect(corrected.parts.times.value.places).toEqual([1200,1300,1400,1500,1600,null]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });

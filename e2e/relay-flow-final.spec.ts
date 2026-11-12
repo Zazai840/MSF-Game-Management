@@ -87,7 +87,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   expect(await lookProblems(boss)).toEqual([]);
   await boss.screenshot({path:info.outputPath('relay-confirm-the-medals.png'),fullPage:true});
   await confirmTheMedals(boss);
-  await expectToast(boss,`Medals confirmed · ${name} Girl Cubs`);
+  await expectToast(boss,`Medals confirmed`);
   const done=boss.locator('details',{hasText:/^Done \(\d+\)/});
   await done.locator('summary').click();
   await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');

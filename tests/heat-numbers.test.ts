@@ -38,7 +38,7 @@ test('restoring a heat whose number a live heat now has brings it back with the 
   const restored=await call(lead,`/api/lead/races/${mistake.id}/restore`,{});
   expect(restored.statusCode,restored.body).toBe(200);
   expect(restored.json().auditNotes[0].message).toBe('Aisha restored Heat 1 as Heat 2');
-  // The number it came back with, for the toast ("Heat 2 restored · Girl Cubs").
+  // The number it came back with, for the toast ("Heat 2 restored").
   expect(restored.json().number).toBe(2);
   expect((await group()).races.map(race=>[race.id,race.number])).toEqual([[heat1.id,1],[mistake.id,2]]);
   await remove(heat1.id);

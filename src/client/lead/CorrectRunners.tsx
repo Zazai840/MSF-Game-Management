@@ -38,7 +38,7 @@ export function RaceCorrection({view,onBack,onChanged}:{view:CorrectionView;onBa
     setBusy(true);
     try {
       await api(`lead/races/${race.id}/${command}`,body);
-      toast({message:toastLine({kind:'corrected',part:command,race:{section:race.event.section,kind:race.kind,number:race.number}})});
+      toast({message:toastLine({kind:'corrected',part:command})});
       onChanged?.();onBack();return null;
     } catch(error) {setBusy(false);return error;}
   };

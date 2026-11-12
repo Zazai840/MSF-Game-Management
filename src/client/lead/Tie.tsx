@@ -48,7 +48,7 @@ function TieForm({detail,tie,stage,up,onBack}:{detail:EventResultsRead;tie:Resul
     setSaving(true);setError(null);
     try {
       await api(`lead/events/${encodeURIComponent(event.code)}/settle-tie`,{tieId:tie.id,stage,outcome,comment,...(outcome==='no-run-off'?{}:{order:order.map(({raceId,entryId})=>({raceId,entryId}))})});
-      toast({message:toastLine({kind:'tie-saved',event})});onBack();
+      toast({message:toastLine({kind:'tie-saved'})});onBack();
     } catch(failure) {setError(failure);setSaving(false);}
   }
   return <LeadHeader title={`Tie at ${formatTime(tie.time)}`} code={event.code} up={up} body={<>

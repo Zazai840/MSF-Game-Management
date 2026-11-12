@@ -55,7 +55,7 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await field.fill(renamed);
   await expect(docked(page)).not.toContainText('Change the name to save.');
   await press(docked(page).getByRole('button',{name:'Save name',exact:true}));
-  await expectToast(page,`Name saved · ${code} ${renamed}`);
+  await expectToast(page,`Name saved · ${code}`);
   await expect(page).toHaveURL(/\/day\/events$/);
   await expect(heading(page,'Events')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);

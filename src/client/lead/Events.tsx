@@ -75,7 +75,7 @@ function Rename({code,day,error,onBack,onSaved}:{code:string;day:DayRead|null;er
   async function submit() {
     if(reason || busy) return;
     setRefused(null);
-    const failure=await save(`day/events/${encodeURIComponent(code)}/rename`,{name},{kind:'renamed',code,name:name.trim()});
+    const failure=await save(`day/events/${encodeURIComponent(code)}/rename`,{name},{kind:'renamed',code});
     if(failure) setRefused(failure);else onBack();
   }
   return <LeadHeader title={`Rename ${code}`} up="Events" body={<><main className="rz-main rz-main--form">

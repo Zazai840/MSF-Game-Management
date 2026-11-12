@@ -154,7 +154,7 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
     return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},read.relays||[],team.id,row.raceId).map(warning=>warning.message);
   }
   async function send(keep:boolean) {
-    setHeld(null);setRefused(await save(runnerPath(row,'correct-number'),{expectedWristband:original,wristband:Number(number),keepWarnings:keep,...(team?{leg}:{})},{kind:'number-saved',who:number,race:row.race}));
+    setHeld(null);setRefused(await save(runnerPath(row,'correct-number'),{expectedWristband:original,wristband:Number(number),keepWarnings:keep,...(team?{leg}:{})},{kind:'number-saved',who:number}));
   }
   async function go() {
     setChecking(true);setRefused(null);input.current?.blur();
@@ -182,7 +182,7 @@ function ChooseResult({row,rows,save,busy}:ScreenProps) {
   const target=choices.find(other=>`${other.raceId}:${other.entryId}`===counted);
   return <Frame meta={`${who} has a result in ${choices.length} races`} question={<>Which result counts for <em>{who}?</em></>} help="The others stay on the leaderboard as not counted."
     reason={target?null:'Choose a result.'} busy={busy} label="Save counted result" refused={refused}
-    onGo={async()=>setRefused(await save(runnerPath(target!,'count-result'),{},{kind:'result-counts',who,race:target!.race}))}>
+    onGo={async()=>setRefused(await save(runnerPath(target!,'count-result'),{},{kind:'result-counts',who}))}>
     <fieldset><legend className="rz-field__label">Results</legend><div className="rz-choices">
       {choices.map(other=><button key={`${other.raceId}:${other.entryId}`} type="button" className="rz-choice" aria-pressed={`${other.raceId}:${other.entryId}`===counted} onClick={()=>setCounted(`${other.raceId}:${other.entryId}`)}>
         {raceName(other.race)} · {other.recordingPending?'Not recorded yet':other.time===null?'Did not finish':formatTime(other.time)}{other.notCounted?' · Not counted':''}</button>)}</div></fieldset>

@@ -83,7 +83,7 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
     setBusy(true);setRefused(null);
     try {
       await api(`lead/events/${encodeURIComponent(event.code)}/${reopening?'reopen-stage':'complete-stage'}`,{stage:sheet!.stage,...(screen?{comment}:{})});
-      toast({message:toastLine({kind:reopening?'reopened':'stage-complete',stage:sheet!.stage,event})});onBack();
+      toast({message:toastLine(reopening?{kind:'reopened',stage:sheet!.stage}:{kind:'stage-complete'})});onBack();
     } catch(failure) {setRefused(failure);setBusy(false);}
   }
   const reason=settle?`Settle ${settle===1?'1 thing':`${settle} things`} first.`:screen && !comment.trim()?'Write a comment first.':null;

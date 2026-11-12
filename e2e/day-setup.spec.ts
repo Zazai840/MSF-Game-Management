@@ -131,7 +131,7 @@ test('Day export is its own screen: the download with its status, and its row is
   const dayExport=section(page,'Day export');
   await expect(dayExport).toContainText("Excel file of today's results for the scoring workbook.");
   const downloaded=page.waitForEvent('download');await dayExport.getByRole('button',{name:'Download day export',exact:true}).click();
-  await expectToast(page,`Downloaded · ${(await downloaded).suggestedFilename()}`);
+  await expectToast(page,'Downloaded');await downloaded;
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, includes every change so far\./);
   await expect(page.getByText(/^Updated at \d\d:\d\d:\d\d/)).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);

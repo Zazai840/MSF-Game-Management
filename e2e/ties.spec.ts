@@ -31,7 +31,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   await expect(reason(page)).toHaveCount(0);
   await press(saveTie(page));
   // Saved, the lead is back on the event's Heats tab with the toast.
-  await expectToast(page,`Tie saved · ${name} Girl Cubs`);
+  await expectToast(page,`Tie saved`);
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await expect(page.getByRole('button',{name:/^TIE at/})).toHaveCount(0);
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
@@ -66,7 +66,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('tie-screen-order.png'),fullPage:true});
   await press(saveTie(page));
-  await expectToast(page,`Tie saved · ${name} Girl Cubs`);
+  await expectToast(page,`Tie saved`);
   const ranked=page.getByRole('list',{name:'Provisional leaderboard'}).locator(':scope > li');
   await expect(ranked.nth(1)).toContainText('2702');await expect(ranked.nth(1)).toContainText('10.00');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('without a run-off: 2702 then 2701 - Runner had already left');
@@ -130,7 +130,7 @@ test('a tie between two heats runs end to end: leaderboard TIE tags, the tie scr
     await dragTo(page,order.getByRole('button',{name:'Move 2733',exact:true}),rows.filter({hasText:'2731'}));
     await expect(rows).toHaveText([/^1st2733/,/^2nd2731/,/^3rd2735/]);
     await press(saveTie(page));
-    await expectToast(page,`Tie saved · ${name} Girl Cubs`);
+    await expectToast(page,`Tie saved`);
     const ranked=board.getByRole('button',{name:/^Runner /});
     await expect(ranked.nth(0)).toContainText('2733');await expect(ranked.nth(1)).toContainText('2731');await expect(ranked.nth(2)).toContainText('2735');
     await expect(board.getByRole('button',{name:/^TIE at/})).toHaveCount(0);

@@ -75,7 +75,7 @@ test('on the Race screen of a race not in Results yet a lead presses the three d
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
   // The delete goes back past the race to Races, with its toast; the race is gone from its card.
   await races(page);
-  await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
+  await expectToast(page,'Heat 1 moved to Deleted races');
   await expect(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:/^Heat 1,/})).toHaveCount(0);
 });
 
@@ -118,7 +118,7 @@ test('the Race screen a lead has open changes to the race page when the race sav
   await press(steps.getByRole('tab',{name:/^Times/}));
   await enterTime(page,'1400');
   await races(page);
-  await expect(page.locator('.rz-toast')).toHaveText('Times saved · Girl Cubs Heat 2Undo');
+  await expect(page.locator('.rz-toast')).toHaveText('Times savedUndo');
   // Undo un-saves the race: the Race screen again, at Times.
   await press(page.locator('.rz-toast').getByRole('button',{name:'Undo',exact:true}));
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();

@@ -29,7 +29,7 @@ test('a phone checks in 8 runners and carries them through each job in turn, the
   await phone.getByRole('button',{name:'Save the order',exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Timer');
   for(const [index] of numbers.entries()) {await expect(phone.getByRole('heading',{level:2,name:/place time\?$/})).toBeVisible();await enterTime(phone,1200+index*15);}
-  await expect(phone.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(phone.locator('.rz-toast')).toContainText('Times saved');
   await openResults(page,code,ownName('Eight lead'));
   const board=page.getByRole('list',{name:'Provisional leaderboard'});
   await expect(board.getByRole('button',{name:/^Runner /})).toHaveCount(8);await expect(board.getByText('Q',{exact:true})).toHaveCount(6);
@@ -54,7 +54,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await openRace(phone,name,'Boy Cubs','Final');await switchJob(phone,'Finish line');
   for(const [number,place] of [[1801,'1st'],[1807,'2nd'],[1802,'3rd'],[1803,'4th'],[1804,'5th'],[1805,'6th']] as const) await phone.getByRole('button',{name:`${number} came ${place}`,exact:true}).click();
   await phone.getByRole('button',{name:'Save the order',exact:true}).click();
-  await expect(phone.locator('.rz-toast')).toContainText('Finishing order saved · Boy Cubs Final');
+  await expect(phone.locator('.rz-toast')).toContainText('Finishing order saved');
   // A tie for 6th: the lead adds 1806 to the saved final, then gives them their place.
   await openResults(page,code,ownName('Seven lead'));
   await eventTab(page,'Final');await press(page.getByRole('button',{name:'Open final',exact:true}));await raceAction(page,'Correct runner list');
@@ -63,13 +63,13 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await page.screenshot({path:info.outputPath('lead-add-seventh.png'),fullPage:true});
   await press(docked.getByRole('button',{name:'Review runner list',exact:true}));await expect(page.getByRole('heading',{level:2,name:'7 runners. Is that right?',exact:true})).toBeVisible();
   await press(page.getByRole('button',{name:'New runners did not finish',exact:true}));
-  await page.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved · Boy Cubs Final');
+  await page.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved');
   await raceAction(page,'Correct finishing order');
   await press(page.getByRole('button',{name:'Give a place to 1806',exact:true}));
   const rows=page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveCount(7);await expect(rows.last()).toContainText('7th1806');
   await page.screenshot({path:info.outputPath('lead-order-seventh.png'),fullPage:true});
-  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved · Boy Cubs Final');
+  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved');
   await back(page,`${name} · Boy Cubs`);await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.getByRole('button')).toHaveCount(7);
   await expect(final.getByRole('button').first()).toContainText('1801');await expect(final.getByRole('button').last()).toContainText('1806');

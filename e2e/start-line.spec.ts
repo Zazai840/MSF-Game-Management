@@ -272,7 +272,7 @@ test('the 6th runner brings the usual heat size note once; That\'s everyone save
   await page.getByRole('button',{name:"That's everyone",exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   const toast=page.locator('.rz-toast');
-  await expect(toast).toContainText('Runners saved · Girl Cubs Heat 1');
+  await expect(toast).toContainText('Runners saved');
   await expect(page.getByRole('article',{name:`${name} · Girl Cubs`}).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName(/^Heat 1, /);
   await page.screenshot({path:info.outputPath('toast.png')});
   expect(await lookProblems(page)).toEqual([]);

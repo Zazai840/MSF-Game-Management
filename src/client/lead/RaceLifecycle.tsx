@@ -34,7 +34,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
   })();},[]);
   const title=titles[view.action];
   if(!read) return <LeadHeader title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
-  const {race}=read,name=raceName(race),named={section:race.event.section,kind:race.kind,number:race.number};
+  const {race}=read,name=raceName(race);
   /** Sends the save; a refusal shows on the screen, which stays. */
   async function save(body:object,saved:(answer:Answer)=>ToastSave,land:(answer:Answer)=>void) {
     setBusy(true);setRefused(null);
@@ -46,7 +46,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
   if(view.action==='re-run') {
     body=<Frame meta={meta} question={question('Re-run')} help={`${name} moves to Deleted races. A new ${race.kind==='final'?'final':name} opens with the same ${race.event.relay?'teams':'runners'} checked in.`}
       reason={null} busy={busy} label={`Re-run ${name}`} refused={refused}
-      onGo={()=>void save({comment},()=>({kind:'re-run',race:named}),answer=>onOpen({kind:'race',id:answer.newRaceId!,step:'runners'},{over:true}))}>
+      onGo={()=>void save({comment},()=>({kind:'re-run'}),answer=>onOpen({kind:'race',id:answer.newRaceId!,step:'runners'},{over:true}))}>
       <Comment value={comment} onChange={setComment}/>
     </Frame>;
   } else if(view.action==='delete') {
@@ -54,7 +54,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
     const permanent=race.deleted || forGood;
     body=<Frame meta={meta} question={question('Delete')} help={race.deleted?'It is already in Deleted races. Deleting it for good cannot be undone. Notes stay.':'Its results stop counting. You can restore it from Deleted races.'}
       reason={null} busy={busy} label={`Delete ${name}${permanent?' for good':''}`} danger refused={refused}
-      onGo={()=>void save({permanent,comment},()=>({kind:'deleted',race:named,forGood:permanent}),()=>onBack(2))}>
+      onGo={()=>void save({permanent,comment},()=>({kind:'deleted',race,forGood:permanent}),()=>onBack(2))}>
       {!race.deleted && <div className="rz-choices rz-choices--stack" role="group" aria-label="How to delete">
         <button type="button" className="rz-choice" aria-pressed={!forGood} onClick={()=>setForGood(false)}><span>Move to Deleted races<span className="rz-choice__detail">You can restore it later.</span></span></button>
         <button type="button" className="rz-choice" aria-pressed={forGood} onClick={()=>setForGood(true)}><span>Delete for good<span className="rz-choice__detail">Cannot be undone. Notes stay.</span></span></button>
@@ -65,7 +65,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
     body=<Frame meta={`${eventTitle(race.event)}${race.deletedAt?` · deleted ${clock(race.deletedAt)}`:''}`} question={question('Restore')}
       help={`Its results count again.${comesBackAs===null?'':` ${name} is taken now, so it comes back as ${raceName({kind:race.kind,number:comesBackAs})}.`}`}
       reason={null} busy={busy} label={`Restore ${name}`} refused={refused}
-      onGo={()=>void save({},answer=>({kind:'restored',race:{...named,number:answer.number??race.number}}),()=>onBack())}>{null}</Frame>;
+      onGo={()=>void save({},answer=>({kind:'restored',race:{...race,number:answer.number??race.number}}),()=>onBack())}>{null}</Frame>;
   }
   return <LeadHeader title={title} code={race.event.code} up={name} body={body}/>;
 }

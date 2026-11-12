@@ -27,7 +27,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await page.screenshot({path:info.outputPath('must-settle-first.png'),fullPage:true});
   // Open Heat 2 opens its race; once deleted, the lead is back on Confirm the medals with nothing left to settle.
   await press(settle.getByRole('button',{name:'Open Heat 2',exact:true}));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 2',exact:true})).toBeVisible();
-  await raceAction(page,'Delete Heat 2');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 2',exact:true}));await expectToast(page,'Heat 2 moved to Deleted races · Girl Cubs');
+  await raceAction(page,'Delete Heat 2');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 2',exact:true}));await expectToast(page,'Heat 2 moved to Deleted races');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
   await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 1 heat · no final`);
   await expect(page.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'Worth a look',exact:true})).toHaveCount(0);
@@ -40,7 +40,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('confirm-the-medals.png'),fullPage:true});await confirmTheMedals(page);
   // Back on the event's Heats tab it was opened from, with the toast.
-  await expectToast(page,`Medals confirmed · ${name} Girl Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+  await expectToast(page,`Medals confirmed`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await expect(page.getByText('Day export 1st 2601 · 2nd 2602 · 3rd -',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('completed-event.png'),fullPage:true});
@@ -63,7 +63,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   let failed=false;await page.route('**/api/lead/events/*/reopen-stage',async route=>{if(!failed){failed=true;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'This stage changed - try again'})});}else await route.continue();});
   await press(reopen);await expect(page.getByRole('main').getByRole('alert')).toContainText('Not saved - try again');await expect(page.getByLabel('Comment',{exact:true})).toHaveValue('Late time correction');
   await press(reopen);
-  await expectToast(page,`Event reopened · ${name} Girl Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+  await expectToast(page,`Event reopened`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   // Reopened, the race is saved again rather than locked, and the event offers its next heat: Heat 2 again, as the deleted Heat 2 freed its number.
   await expect(job.getByRole('status').filter({hasText:'Girl Cubs heats are finished. Ask a lead to change this race.'})).toHaveCount(0,live);
   await expect(job.getByRole('button',{name:'Add heat 2',exact:true})).toBeVisible();
@@ -94,7 +94,7 @@ test('Confirm the medals: Fix opens the place\'s heat on Correct times and retur
   await press(page.getByRole('button',{name:'1st place · 9.50',exact:true}));
   const time=page.getByLabel('1st place time',{exact:true});await time.pressSequentially('1050');await time.press('Enter');
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
-  await expectToast(page,'Times saved · Girl Cubs Heat 2');
+  await expectToast(page,'Times saved');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
   await expect(places.nth(1)).toHaveText(/^2\d+Heat [34] · 10\.00Tie\s*Fix$/);await expect(places.nth(2)).toHaveText(/^3\d+Heat [34] · 10\.00Tie\s*Fix$/);
   await expect(page.getByRole('list',{name:'Medal places',exact:true})).not.toContainText(String(w(2)));
@@ -103,13 +103,13 @@ test('Confirm the medals: Fix opens the place\'s heat on Correct times and retur
   await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
   await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · decides 2nd and 3rd`);
   await press(page.getByRole('button',{name:'No run-off needed',exact:true}));await press(page.getByRole('button',{name:'Save tie',exact:true}));
-  await expectToast(page,`Tie saved · ${name} Girl Cubs`);
+  await expectToast(page,`Tie saved`);
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
   await expect(page.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);
   await expect(page.getByRole('list',{name:'Medal places',exact:true}).getByText('Tie',{exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('confirm-the-medals-ready.png'),fullPage:true});
   await confirmTheMedals(page);
-  await expectToast(page,`Medals confirmed · ${name} Girl Cubs`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+  await expectToast(page,`Medals confirmed`);await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await expect(page.getByText(new RegExp(`^Day export 1st ${w(1)} · 2nd \\d+ · 3rd \\d+$`))).toBeVisible();
 });

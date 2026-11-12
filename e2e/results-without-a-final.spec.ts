@@ -64,7 +64,7 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await lead.screenshot({path:info.outputPath('a3-ready.png'),fullPage:true});
   await press(docked(lead,'Confirm the medals'));
   // Back on the event's Heats tab it was opened from, with the toast.
-  await expectToast(lead,`Medals confirmed · ${name} Girl Cubs`);
+  await expectToast(lead,`Medals confirmed`);
   await expect(lead).toHaveURL(new RegExp(`/results/${code}/heats$`));
   // Done: no Final tab, medal marks instead of Q and no qualifying line, the Day export line and the audit note.
   await expect(tabs(lead)).toHaveText(['Heats','Notes']);
@@ -119,7 +119,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   await openMore(lead);
   await press(lead.getByRole('button',{name:'Results without a final',exact:true}));
   await lead.getByLabel('Comment',{exact:true}).fill('Out of time');await press(docked(lead,'Confirm the medals'));
-  await expectToast(lead,`Medals confirmed · ${name} Girl Cubs`);
+  await expectToast(lead,`Medals confirmed`);
   await expect(tabs(lead)).toHaveText(['Heats','Notes']);
   const stages=stageButtons(lead);
   await expect(stages).toHaveText(['Reopen results']);
@@ -141,7 +141,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   expect(await lookProblems(lead)).toEqual([]);
   await lead.screenshot({path:info.outputPath('a5-reopen-screen.png'),fullPage:true});
   await press(docked(lead,'Reopen results'));
-  await expectToast(lead,`Results reopened · ${name} Girl Cubs`);
+  await expectToast(lead,`Results reopened`);
   // Heats open again: the Final tab, the qualifying line and Q marks, no medals, no Day export line, and the audit note.
   await expect(tabs(lead)).toHaveText(['Heats','Final','Notes']);
   await expect(lead.getByText('Fastest 6 go to the final',{exact:true})).toBeVisible();
@@ -195,14 +195,14 @@ test('after + Final, a lead chooses Results without a final before the final sta
   expect(await lookProblems(lead)).toEqual([]);
   await lead.screenshot({path:info.outputPath('a6-discard-screen.png'),fullPage:true});
   await press(docked(lead,'Confirm the medals'));
-  await expectToast(lead,`Medals confirmed · ${name} Girl Cubs`);
+  await expectToast(lead,`Medals confirmed`);
   await expect(tabs(lead)).toHaveText(['Heats','Notes']);
   await expect(marks(lead.getByRole('list',{name:'Official leaderboard'}))).toHaveText(['1st','2nd','3rd']);
   await expect(stages).toHaveText(['Reopen results']);
   await lead.screenshot({path:info.outputPath('a6-done.png'),fullPage:true});
   await press(stages);
   await lead.getByLabel('Comment',{exact:true}).fill('The final fits after all');await press(docked(lead,'Reopen results'));
-  await expectToast(lead,`Results reopened · ${name} Girl Cubs`);
+  await expectToast(lead,`Results reopened`);
   // Heats open again, not complete: + Final on Races builds a fresh final.
   await expect(tabs(lead)).toHaveText(['Heats','Final','Notes']);
   await expect(stages).toHaveText(['Results without a final']);

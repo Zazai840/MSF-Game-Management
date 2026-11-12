@@ -80,7 +80,7 @@ test('a wrong time shows in amber with a reason, Fix time or Keep; a kept one st
   // The last place's time marks Times done: back on Races with the toast.
   await enterTime(page,'1400');
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
-  await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(page.locator('.rz-toast')).toContainText('Times saved');
   await deleteCurrentRace(request,code);
 });
 
@@ -259,7 +259,7 @@ test('tapping a time while typing retypes that place, selected so typing replace
   await expect.poll(async()=>(await savedTimes(request,code))!.places).toEqual([1050,1210]);
   // Two of five finished: No more finishers marks Times done.
   await page.getByRole('button',{name:'No more finishers',exact:true}).click();
-  await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(page.locator('.rz-toast')).toContainText('Times saved');
   await deleteCurrentRace(request,code);
 });
 
@@ -288,7 +288,7 @@ test('once the finishing order is saved, the Timer has one slot per finisher and
   await expect(page.getByRole('heading',{level:2,name:'10th place time?'})).toBeVisible();
   // The 10th and last finisher's time marks Times done.
   await enterTime(page,'1300');
-  await expect(page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(page.locator('.rz-toast')).toContainText('Times saved');
   await expect.poll(async()=>(await savedTimes(request,code))?.places.length).toBe(10);
   await deleteCurrentRace(request,code);
 });
@@ -316,10 +316,10 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await expect(timer.page.getByRole('tab',{name:/^Finishing order/})).toContainText('2 of 3',live);
   await finish.page.getByRole('button',{name:'2203 came 3rd',exact:true}).click();
   await finish.page.getByRole('button',{name:'Save the order',exact:true}).click();
-  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
+  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved');
   // Every step done and agreeing: the last one saves the race.
   await enterTime(timer.page,'1350');
-  await expect(timer.page.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(timer.page.locator('.rz-toast')).toContainText('Times saved');
   const heat1=async()=>(await (await request.get('/api/races',{headers:{authorization:`Bearer ${start.token}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===code).races[0].state;
   await expect.poll(heat1).toBe('saved');
   await expect(timer.page.getByRole('article',{name:`${name} · Girl Cubs`})).toBeVisible();
