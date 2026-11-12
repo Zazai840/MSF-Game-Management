@@ -1,9 +1,9 @@
-import {eventTab,expectToast,ownName,press,recordRace,openLeadMenu,becomeLead,expect,join,lookProblems,test} from './fixtures.js';
+import {eventTab,expectToast,ownName,press,recordRace,openLeadMenu,becomeLead,expect,join,lookProblems,test,resultsCard} from './fixtures.js';
 test('lead checks an eligibility warning at once from the runner sheet, corrects a number with Fix or Keep and chooses the counted repeated result, each screen landing back on the event',async({page},info)=>{
   const number=2601+['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const race=(numbers:number[],places:number[])=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,'R10',numbers,places,numbers);
   const first=await race([number,3045],[1100,1200]),second=await race([number],[1300]);
-  await page.goto('/');await join(page,ownName('Runner lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:/^R10 · Girl Cubs/}).click();
+  await page.goto('/');await join(page,ownName('Runner lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await resultsCard(page,'R10').click();
   const heats=new RegExp('/results/R10/heats$');await expect(page).toHaveURL(heats);
   // The runner sheet: the meta line, the warning as a Notes card, then Mark checked as the main button.
   let checks=0;page.on('request',request=>{if(request.url().includes('/mark-warning-checked')) checks++;});

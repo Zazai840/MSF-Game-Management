@@ -187,7 +187,7 @@ The race problems that need a lead to decide, such as a tie, a warning or a kept
 _Avoid_: Needs you, inbox, alerts
 
 **Action required**:
-A lead's first section of Races: the events with something To check or whose medals wait on their Confirm the medals. The cards are the same as anywhere else on Races.
+A lead's first section of Races and of Results: the events with something To check or whose medals wait on their Confirm the medals. One rule decides it for both screens. The cards are the same as anywhere else on Races; on Results the sections after it are Running and Done, then the events with no races under one closed line, "Not started (26)".
 _Avoid_: Ready for you (a volunteer's first section), Action needed
 
 **Ready for you**:

@@ -1,5 +1,5 @@
 import { clock } from '../src/shared/clock.js';
-import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,raceAction,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,selected,join,openLeadMenu,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,raceAction,recordRace,writeCheckIn,writeOrder,becomeLead,expect,expectToast,selected,join,openLeadMenu,test,type Page,resultsCard} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 // The race flow's amber, on the race page and in Correct times.
 const amber='rgb(255, 241, 199)',red='rgb(196, 30, 58)';
@@ -14,7 +14,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await resultsCard(page,code).click();
   await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${number}`,exact:true}));
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
@@ -262,7 +262,7 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   created.push(race.id!);
   // Its Results row opens the race screen (results.spec.ts); the race page is at its own address.
   await page.goto('/');await join(page,ownName('In progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await resultsCard(page,code).click();
   await eventTab(page,'Heats');await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url();
   const notSaved=page.getByRole('status').filter({hasText:'Heat 1 is not saved yet. Open it to finish its steps.'});
@@ -313,7 +313,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   const second=await recordRace(page.request,token,code,[2163,2164],[1250,1350]);created.push(second.id);expect(second.number).toBe(1);
   const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
   await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await resultsCard(page,code).click();
   await eventTab(page,'Heats');await press(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}));
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();
   await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toHaveText(new RegExp(`^Deleted at ${clock(deletedAt)} by .+: Wrong section checked in\\. Its results do not count\\.$`));

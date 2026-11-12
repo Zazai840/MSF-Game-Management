@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page,resultsCard} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -81,17 +81,17 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
   // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventPage('final');
+  await resultsCard(page,code).click();await eventPage('final');
   await expect(page.getByRole('banner').getByText(code,{exact:true})).toBeVisible();
   for(const tab of ['Heats','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
   await page.screenshot({path:info.outputPath('event.png')});
   await bothGoBack(page,results);
   // A Heats tab's TIE tag opens the tie, which goes back to the tab; the runner sheet closes on Back and the tab stays.
-  await page.getByRole('button',{name:new RegExp(`^${tieCode} · Girl Cubs`)}).click();await eventPage('heats',tieCode,tieEvent);
+  await resultsCard(page,tieCode).click();await eventPage('heats',tieCode,tieEvent);
   await press(page.getByRole('button',{name:`TIE at 10.00 for ${w(3)}`,exact:true}));await tie(tieEvent);
   await bothGoBack(page,()=>eventPage('heats',tieCode,tieEvent));
   await bothGoBack(page,results);
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await eventTab(page,'Heats');await eventPage('heats');
+  await resultsCard(page,code).click();await eventTab(page,'Heats');await eventPage('heats');
   const runner=page.getByRole('dialog',{name:`Runner ${w(2)}`,exact:true});
   await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
   await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');

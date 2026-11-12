@@ -318,10 +318,12 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
 export const leadCardLine=(group:Parameters<typeof leadLine>[0],issues:readonly DayLeadItem[])=>group.races.length?leadLine(group,issues):'No races yet';
 /** A Results card's colour: Done once the medals are decided, Running once a race is made, else Not started. */
 export const cardState=(group:Pick<RaceGroup,'races'|'medalsDecided'>):EventState=>group.medalsDecided?'done':group.races.length?'running':'not-started';
-/** A lead's sections: Action required (`ready`) is the groups with open issues or medals waiting on the lead; the rest as for everyone. */
+/** An event in a lead's Action required, on Races and on Results: it has races, and an open issue or medals waiting on the lead. */
+export const actionRequired=(group:Pick<RaceGroup,'event'|'races'|'medalsWaiting'>,issues:readonly DayLeadItem[])=>group.races.length>0 && (ownIssues(group,issues).length>0 || !!group.medalsWaiting);
+/** A lead's sections: Action required (`ready`, by `actionRequired`); the rest as for everyone. */
 export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {
   const listed=groups.filter(group=>group.races.length);
-  const ready=listed.filter(group=>ownIssues(group,issues).length || group.medalsWaiting);
+  const ready=listed.filter(group=>actionRequired(group,issues));
   const rest=listed.filter(group=>!ready.includes(group));
   return {ready,inProgress:rest.filter(group=>!groupDone(group)),done:rest.filter(groupDone)};
 }

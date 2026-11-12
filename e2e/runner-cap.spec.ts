@@ -1,10 +1,10 @@
-import {confirmTheMedals,medalPlaces,eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction,press,expectToast} from './fixtures.js';
+import {confirmTheMedals,medalPlaces,eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction,press,expectToast,resultsCard} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {
-  await signInAs(page,name,true);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · `)}).click();
+  await signInAs(page,name,true);await openLeadMenu(page,'Results');await resultsCard(page,code).click();
 }
 
 test('a phone checks in 8 runners and carries them through each job in turn, the race saving itself, and Results',async({page,openPhone},info)=>{

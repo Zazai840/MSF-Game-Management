@@ -12,8 +12,8 @@ export interface DayLeadItem extends LeadItem { race?:RaceReference; event:DayEv
 export type ResultsTarget=Pick<DayLeadItem,'event'> & Partial<DayLeadItem> & {stage?:Stage};
 export interface EventSummary { needsYou:number; event:DayEvent; status:EventResults['status']; decidedWithoutFinal:boolean; raceCount:number; provisional:boolean; latestNoteAt:string|null }
 export interface ResultsRead { needsYou:DayLeadItem[]; groups:Array<{name:string;events:EventSummary[]}> }
-/** Results' event grid: each event with its card, coloured and worded as its Races card (`cardState`, `leadCardLine`). */
-export interface ResultsGridRead extends ResultsRead { groups:Array<{name:string;events:Array<EventSummary & {card:{state:EventState;line:string}}>}> }
+/** The Results list: each event with its card, coloured and worded as its Races card (`cardState`, `leadCardLine`) and in Action required by Races' rule (`actionRequired`). */
+export interface ResultsGridRead extends ResultsRead { groups:Array<{name:string;events:Array<EventSummary & {card:{state:EventState;line:string;actionRequired:boolean}}>}> }
 /**
  * `summaries` is each live race of the event as the races read lists it (its steps and blocker), for the heat rows.
  * A relay's also carries its team list, which a lead picks a team to add to its Final from.

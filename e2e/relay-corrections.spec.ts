@@ -1,11 +1,11 @@
-import {eventTab,press,raceAction,ownName,ownWristbands,ownCode,back,expect,expectToast,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,press,raceAction,ownName,ownWristbands,ownCode,back,expect,expectToast,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
 import type {RaceFlowRead,RacesRead} from '../src/shared/race-flow.js';
 
 /** A lead's Results for the relay, then its event page. */
 async function openRelayResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
+  await resultsCard(page,code).click();
 }
 /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
 async function runHeat(request:APIRequestContext,token:string,code:string,placed:number[],times:number[]) {
