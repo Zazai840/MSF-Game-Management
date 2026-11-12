@@ -45,9 +45,8 @@ export function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>P
     <legend className="rz-field__label">{legend}</legend>
     <div className="rz-choices rz-choices--row">{values.map(value=><button key={value} type="button" className="rz-choice" aria-pressed={day[field]===value} onClick={()=>void save(field,value)}>{value}</button>)}</div>
   </fieldset>;
-  const id=useId();
-  return <section className="rz-codecard" aria-labelledby={id}>
-    <h2 className="rz-codecard__label" id={id}>This day</h2>
+  // The bar names the screen, so the card has no heading of its own (and so with Day export and Start a new day).
+  return <section className="rz-codecard" aria-label="This day">
     {choices('year','Year',thisDayYears(new Date()))}
     {choices('region','Region',regions)}
     {choices('dayNumber','Day',dayNumbers)}
@@ -96,9 +95,7 @@ export function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<voi
     } catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  const id=useId();
-  return <section className="rz-codecard" aria-labelledby={id}>
-    <h2 className="rz-codecard__label" id={id}>Day export</h2>
+  return <section className="rz-codecard" aria-label="Day export">
     <p className="rz-codecard__text">Excel file of today's results for the scoring workbook. <span>{exportStatus(day)}</span></p>
     {error!==null && <ErrorCallout error={error} action="read"/>}
     <button type="button" className="rz-btn rz-btn--primary rz-btn--block" disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
@@ -117,8 +114,7 @@ export function NewDay() {
     finally {setBusy(false);}
   }
   const id=useId();
-  return <section className="rz-codecard rz-codecard--danger" aria-labelledby={id}>
-    <h2 className="rz-codecard__label" id={id}>Start a new day</h2>
+  return <section className="rz-codecard rz-codecard--danger" aria-label="Start a new day">
     <p className="rz-codecard__text">Clears today's races. Download the day export first.</p>
     <form className="rz-codecard__form" onSubmit={start}>
       <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor={`${id}-typed`}>Type NEW DAY to confirm</label>

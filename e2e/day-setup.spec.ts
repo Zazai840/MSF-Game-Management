@@ -16,6 +16,8 @@ async function openRow(page:Page,name:string,address:string) {
   await press(row(page,name));
   await expect(page).toHaveURL(new RegExp(`${address}$`));await title(page,name);
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
+  // The bar names the screen; the card below does not say it again.
+  await expect(page.getByRole('heading',{name,exact:true})).toHaveCount(1);
 }
 const toDaySetup=async(page:Page)=>{await back(page,'Day setup');await title(page,'Day setup');};
 /** Make a new lead code, answered yes in its sheet: the new code from the server, after its toast. */

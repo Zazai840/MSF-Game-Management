@@ -107,7 +107,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons for every races and hurdles event, one list in the day's programme with no Races or Hurdles headings. On Relays, + New relay lists only the relays.
+- **Event:** choice buttons for every races and hurdles event, one list in the day's programme with no Races or Hurdles headings. On Relays, + New relay lists only the relays; on a day with no relay switched on it holds only a status callout, "This day has no relays. A zone lead can switch them on in Day setup, Events."
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.

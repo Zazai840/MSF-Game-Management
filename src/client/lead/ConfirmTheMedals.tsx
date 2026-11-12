@@ -95,7 +95,7 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
       {check}
       <Comment value={comment} onChange={setComment} required/>
     </Frame>
-    :<Frame {...frame} question={<>Confirm the <em>medals</em></>} help="Check the places, then confirm. They go to the Day export." label="Confirm the medals">{check}</Frame>}/>
+    :<Frame {...frame} help="Check the places, then confirm. They go to the Day export." label="Confirm the medals">{check}</Frame>}/>
     {runner && <RunnerSheet key={`${runner.raceId}:${runner.entryId}`} event={event} row={runner} rows={detail.results.actionableRunners} onSaved={next=>{setRunner(null);setDetail(next);}}
       onClose={()=>setRunner(null)} onOpen={onOpen} onRace={()=>onOpen({kind:'race-page',code:event.code,raceId:runner.raceId})}/>}</>;
 }

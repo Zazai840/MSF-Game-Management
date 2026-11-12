@@ -12,7 +12,7 @@ Every screen:
 - Ends with an **ActionFooter** whose first line is "Updated at 11:41:17 AM" plus a small **Refresh** button, named for what it refreshes ("Refresh Start line", "Refresh Finish order", "Refresh Times", "Refresh Results").
 
 **The lead's bar.** On a lead's phone, Races, Results (25) and Day setup (30) end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`).
-- `<nav class="rz-leadnav" aria-label="Lead screens">`, one button per tab: the icon above the word, `crumb` type, `size-action` high, `navy` on `card`. The current screen's tab has `aria-current="page"` and is `on-navy` on `navy`.
+- `<nav class="rz-leadnav rz-on-dark" aria-label="Lead screens">`: the AppBar's surface, `navy` with the **Pattern** motif, so the screen has the same bar at its top and its foot. One button per tab: the icon above the word, `crumb` type, `size-action` high, `on-navy` on `navy`. The current screen's tab has `aria-current="page"` and is the inverse, `navy` on a `paper` cell inset `space-4` with `radius-sm` corners, as the avatar sits in the AppBar. The focus ring is `gold`, and `navy` on the current tab.
 - It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast there sits one bar higher.
 - Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has no bar. A phone that is not a lead's never shows the bar.
 - The layout is the same at every width.
@@ -133,7 +133,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - Comment (needed only for Decided without a run-off), then a docked "Save tie" with its reason above while it cannot save. Saving shows "Tie saved · 60m Girl Cubs" and goes back.
 
 **25 Confirm the medals.** A full screen at `/results/<code>/confirm-the-medals`, opened from a Races card, the Final tab, or the Heats tab of a timed event; Back (the only way out) returns there:
-- Lead header "Confirm the medals" with the event code (the action, as on Results without a final and each Reopen: "Reopen heats"); the back arrow's fallback is the event. Prompt: meta "200m · Boy Cubs · 3 heats · no final" ("... · 2 heats · final" on a final), question "Confirm the *medals*", help "Check the places, then confirm. They go to the Day export."
+- Lead header "Confirm the medals" with the event code (the action, as on Results without a final and each Reopen: "Reopen heats"); the back arrow's fallback is the event. Prompt: meta "200m · Boy Cubs · 3 heats · no final" ("... · 2 heats · final" on a final), no question (the header says it), help "Check the places, then confirm. They go to the Day export."
 - "Settle first" and "Worth a look": IssueCards, each with one small button naming its action and thing: "Settle tie" (the tie screen), "Open Heat 3" (the race page), "Open 2041" (the runner sheet over the screen). Settle first's are primary. A section with nothing in it is left out.
 - "Medal places": "A place is wrong? Tap Fix beside it.", then a row per place: the place on a gold star, the number or team, its race and time below ("Heat 2 · 10.00"; "Final" on a final), a TIE tag while an open tie holds it, and a small "Fix" with the pencil, which opens that race on Correct times (Correct finishing order on a final) and comes back here.
 - A docked "Confirm the medals", grey with "Settle 2 things first." above it while Settle first holds anything. Confirming shows "Medals confirmed · 200m Boy Cubs" and goes back.
@@ -176,7 +176,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - `display-screen` "Day setup".
 - One CodeCard with "Olympics password" and "Lead code" side by side (each code in `display-screen` size, so two fit across a 360px phone) and one line: "The Olympics password is for every volunteer. The lead code is only for zone leads." No button in the card.
 - Seven ListRows in the order of the day, all on one phone screen: "This day" (meta "2026 · South · Day 1", or "Choose the region and day" in the `--warn` style until region and day are both set), "Events" (meta "26 events"), "Signed in today" (meta "4 people signed in today"), "Change Olympics password", "Make a new lead code" (asks in a Sheet), "Day export" (meta its status sentence, in the `--warn` style when changes came after the last download), "Start a new day".
-- This day (`/day/this-day`), Day export (`/day/export`) and Start a new day (`/day/start-a-new-day`) are their own screens with a back arrow to Day setup, each holding one card: the Year, Region and Day choices saved on tap; the download with its status; the red-outlined card with "Type NEW DAY to confirm".
+- This day (`/day/this-day`), Day export (`/day/export`) and Start a new day (`/day/start-a-new-day`) are their own screens with a back arrow to Day setup, each holding one card with no heading (the header names the screen): the Year, Region and Day choices saved on tap; the download with its status; the red-outlined card with "Type NEW DAY to confirm".
 - "Updated at" with Refresh.
 
 **31 Day setup: events**
@@ -188,5 +188,5 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 **32 Day setup: Signed in today**
 - `display-screen` "Signed in today", a `body` line "Role changes last for today only."
 - A ListRow for each person: label the name ("Amina Yusuf (you)"), meta the level, Owner and role ("Lead · Owner · Zone lead", "Volunteer · Timer"). The lead's own row is not a button and has no chevron.
-- A tap on another person's row opens a Sheet named after the person: block Buttons "Make lead" or "Make volunteer" (never Make volunteer for the owner; saved at once with a toast), then a red "Remove" set apart, which asks "Remove <name>?" in a second Sheet.
+- A tap on another person's row opens a Sheet named after the person: block Buttons "Make lead" or "Make volunteer" (never Make volunteer for the owner; saved at once with a toast), then a red "Remove" set apart, which asks "Remove <name>?" in a second Sheet. A refused save shows "Not saved - try again" in the Sheet that made it, which stays open.
 - A closed disclosure "Notes (3)" at the foot, then "Updated at" with Refresh.

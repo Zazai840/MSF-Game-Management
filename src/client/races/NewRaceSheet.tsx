@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { finalMade,heatsFinishedLine,volunteerFinalLine,type RaceGroup,type Role,type Step } from '../../shared/race-flow.js';
+import { finalMade,heatsFinishedLine,noRelaysLine,volunteerFinalLine,type RaceGroup,type Role,type Step } from '../../shared/race-flow.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { Callout,CodeTag,FinalReasonButton,Sheet } from './parts.js';
 /** What New race makes: an event group, a heat (with its number) or the final. `direct` is a card's "+": pre-selected. */
@@ -48,7 +48,8 @@ export function NewRaceSheet({groups,relays=false,role,choice,failure,onClose,on
       {hasFinal && !made && group.finalReason && <FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>}
     </fieldset>}
     {failure && <Callout message={failure}/>}
-    {group && race==='heat' && !group.heatsOpen?<Callout status message={heatsFinishedLine(group)}/>
+    {relays && !names.length?<Callout status message={noRelaysLine}/>
+      :group && race==='heat' && !group.heatsOpen?<Callout status message={heatsFinishedLine(group)}/>
       :<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!group}
         onClick={()=>group && onCreate({eventCode:group.event.code,kind:race!,number:race==='final'?0:number!,direct:!!choice.direct})}>
         {!group?'Choose the event and section':race==='final'?made?'Open the final':'Create the final':`Create heat ${number}`}</button>}
