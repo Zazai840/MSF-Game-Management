@@ -41,8 +41,9 @@ test('a saved 60m final waits in the lead\'s Action required; Confirm the medals
   await press(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}));
   // The screen, at its own address, in the race-flow frame: nothing to settle, the final's medal places, each with Fix.
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
-  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  await expect(page.locator('.rz-prompt__meta')).toHaveText('1 heat · final');
+  // The bar names the action; the event is named in the body, and is the back arrow's fallback.
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Confirm the medals',exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 1 heat · final`);
   await expect(page.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(medalPlaces(page)).toHaveText([new RegExp(`^1${w(2)}Final\\s*Fix$`),new RegExp(`^2${w(1)}Final\\s*Fix$`),/^3-$/]);
@@ -59,7 +60,7 @@ test('a saved 60m final waits in the lead\'s Action required; Confirm the medals
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+/correct-finishing-order$`));
   await expect(page.getByRole('heading',{level:1,name:'Correct finishing order',exact:true})).toBeVisible();
   // The phone's Back returns to the screen as the back arrow would.
-  await expect(page.getByRole('banner').getByRole('button',{name:`Back to ${name} · Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button',{name:'Back to Confirm the medals',exact:true})).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
   await expect(page.getByRole('banner').getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
@@ -85,7 +86,7 @@ test('a timed event waits on Event complete only while every race so far is save
   await recordRace(request,owner(),code,[w(2)],[1300]);
   await expect(status(page,name)).toHaveText('Every race saved · confirm the medals after the last race',live);
   await press(card(page,name).getByRole('button',{name:'Confirm the medals',exact:true}));
-  await expect(page.locator('.rz-prompt__meta')).toHaveText('2 heats · no final');
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 2 heats · no final`);
   await expect(medalPlaces(page)).toHaveText([new RegExp(`^1${w(1)}Heat 1 · 12\\.00\\s*Fix$`),new RegExp(`^2${w(2)}Heat 2 · 13\\.00\\s*Fix$`),/^3-$/]);
   expect(await lookProblems(page)).toEqual([]);
   await confirmAndFindDone(page,name);
