@@ -232,3 +232,115 @@ test('a toast with Undo is a 44px pill above the docked button on narrow and wid
   await page.screenshot({path:info.outputPath('toast-box-two-rows.png')});
   await deleteCurrentRace(request,code);
 });
+
+/** What a person saw of one toast: how long it was on the screen and, at each frame, how solid it was, where its foot was and how far off centre it sat. */
+interface Watched { shownFor:number; frames:Array<{at:number;opacity:number;bottom:number;offCentre:number}> }
+/** Watches the next toast, from before it shows until it has gone. Start it before the press that saves; `watched` waits for the toast to go. */
+const watchToast=(page:Page)=>page.evaluate(()=>{
+  (window as unknown as {toastWatch:Promise<Watched>}).toastWatch=new Promise(resolve=>{
+    const frames:Watched['frames']=[];
+    let shown=0;
+    const frame=()=>{
+      const element=document.querySelector('.rz-toast'),now=performance.now();
+      if(element) {
+        shown||=now;
+        const box=element.getBoundingClientRect();
+        frames.push({at:now-shown,opacity:Number(getComputedStyle(element).opacity),bottom:box.bottom,offCentre:Math.abs(box.left+box.width/2-document.documentElement.clientWidth/2)});
+      } else if(shown) return resolve({shownFor:now-shown,frames});
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+});
+const watched=(page:Page)=>page.evaluate(()=>(window as unknown as {toastWatch:Promise<Watched>}).toastWatch);
+/** The frame nearest a time after the toast showed. */
+const frameAt=(seen:Watched,at:number)=>seen.frames.reduce((near,frame)=>Math.abs(frame.at-at)<Math.abs(near.at-at)?frame:near);
+/** About 3 seconds: a timer on a busy machine runs late, never early. */
+const aboutThreeSeconds=(time:number)=>{expect(time).toBeGreaterThan(2700);expect(time).toBeLessThan(3700);};
+/** A lead on Day setup's events with an event of their own to switch off and on: each press saves and shows a plain toast. */
+async function onEvents(page:Page,request:APIRequestContext,words:string) {
+  const code=await ownCode();
+  await ownEvent(request,code,ownName(words),'Girl Cubs','timed');
+  await page.goto('/day/events');
+  return code;
+}
+
+test('a plain toast fades and rises in, stays centred, is still showing after 2 seconds and has faded out and gone after about 3',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast time lead'),{lead:true}),code=await onEvents(page,request,'Toast time');
+  await watchToast(page);
+  await press(page.getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  const seen=await watched(page),first=seen.frames[0]!,rest=frameAt(seen,1000),last=seen.frames.at(-1)!;
+  aboutThreeSeconds(seen.shownFor);
+  // In: it starts clear and below its place, and is solid and in place well within a second.
+  expect(first.opacity).toBeLessThan(0.5);
+  expect(first.bottom).toBeGreaterThan(rest.bottom);
+  expect(frameAt(seen,500)).toEqual({...rest,at:expect.any(Number)});
+  expect(frameAt(seen,2000)).toMatchObject({opacity:1,bottom:rest.bottom});
+  // Out: it is solid until the fade, and is not taken away until it has faded.
+  expect(frameAt(seen,seen.shownFor-400).opacity).toBe(1);
+  expect(last.opacity).toBeLessThan(0.2);
+  expect(Math.max(...seen.frames.map(frame=>frame.offCentre))).toBeLessThanOrEqual(0.5);
+});
+
+test('with reduced motion the toast shows and goes with no animation, after about 3 seconds',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast still lead'),{lead:true}),code=await onEvents(page,request,'Toast still');
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await watchToast(page);
+  await press(page.getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  const seen=await watched(page),first=seen.frames[0]!;
+  aboutThreeSeconds(seen.shownFor);
+  expect(first.opacity).toBe(1);
+  for(const frame of seen.frames) expect(frame).toEqual({...first,at:expect.any(Number)});
+});
+
+test('a new toast takes the place of the one showing, and has its own 3 seconds',async({openPhone,request})=>{
+  const {page}=await openPhone(ownName('Toast next lead'),{lead:true}),code=await onEvents(page,request,'Toast next');
+  await watchToast(page);
+  await press(page.getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  await expect(toast(page)).toHaveText(/switched off/);
+  await page.waitForTimeout(1500);
+  await press(page.getByRole('button',{name:`Switch on ${code}`,exact:true}));
+  await expect(toast(page)).toHaveText(/switched on/);
+  await expect(toast(page)).toHaveCount(1);
+  // The second toast came 1.5 seconds into the first, and its count started afresh.
+  expect((await watched(page)).shownFor).toBeGreaterThan(4200);
+});
+
+test('a toast with Undo stays while its button has focus, and goes about 3 seconds after the focus leaves',async({openPhone,request})=>{
+  const code=await ownCode();
+  await ownEvent(request,code,ownName('Toast focus'),'Girl Cubs','heats');
+  const {race}=await writeCheckIn(request,owner(),code,[2051,2052]);
+  const {page}=await openPhone(ownName('Toast focus lead'),{lead:true});
+  await openAt(page,race.id,'races');
+  await press(page.getByRole('button',{name:"That's everyone",exact:true}));
+  const undo=toast(page).getByRole('button',{name:'Undo',exact:true});
+  await undo.focus();
+  await page.waitForTimeout(4000);
+  await expect(undo).toBeVisible();
+  await expect(toast(page)).toHaveCSS('opacity','1');
+  await undo.blur();
+  const left=Date.now();
+  await expect(toast(page)).toHaveCount(0,{timeout:6000});
+  aboutThreeSeconds(Date.now()-left);
+  await deleteCurrentRace(request,code);
+});
+
+test('the 3 seconds start again when the toast changes to the "changed since" warning',async({openPhone,request})=>{
+  const code=await ownCode();
+  await ownEvent(request,code,ownName('Toast changed'),'Girl Cubs','heats');
+  const {race}=await writeCheckIn(request,owner(),code,[2061,2062]);
+  const {page}=await openPhone(ownName('Toast changed lead'),{lead:true});
+  await openAt(page,race.id,'races');
+  await watchToast(page);
+  await press(page.getByRole('button',{name:"That's everyone",exact:true}));
+  await expect(toast(page).getByRole('button',{name:'Undo',exact:true})).toBeVisible();
+  await page.waitForTimeout(1500);
+  // Someone else changes the runners after this phone's save.
+  await writeCheckIn(request,owner(),code,[2061,2062,2063]);
+  await expect(toast(page).getByRole('button',{name:'Open race',exact:true})).toBeVisible();
+  const changed=Date.now();
+  await expect(toast(page)).toHaveCount(0,{timeout:6000});
+  aboutThreeSeconds(Date.now()-changed);
+  expect((await watched(page)).shownFor).toBeGreaterThan(4200);
+  await deleteCurrentRace(request,code);
+});
