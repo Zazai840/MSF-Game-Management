@@ -23,7 +23,9 @@ test('a lead screen seen before opens at once with what it showed last, and a fi
   const updated=await page.locator('.rz-refresh').textContent();
   // Seen once: from Races it opens at once with the same cards and the time they arrived, while the new read is held.
   await tab('Races').click();
-  await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
+  // Races has shown the race before it is left, so that is what it remembers.
+  const raceCard=page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
+  await expect(raceCard).toBeVisible();
   held=new Promise<void>(resolve=>{release=resolve;});
   await tab('Results').click();
   await expect(card).toBeVisible();
@@ -32,7 +34,7 @@ test('a lead screen seen before opens at once with what it showed last, and a fi
   // Races too, with its stream held.
   await page.route('**/api/live/races',()=>{});
   await tab('Races').click();
-  await expect(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
+  await expect(raceCard).toBeVisible();
   release();
 });
 
