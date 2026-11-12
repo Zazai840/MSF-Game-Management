@@ -135,8 +135,10 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 ## Results
 
 **25 Results: all events**
-- `display-screen` "Results" and the EventGrid legend (Done, Running, Not started).
-- For each event, an `rz-section` ("60m", "60m Hurdles", "200m"…) and an EventGrid of its sections: "R4 · Girl Cubs" with status "Heats running · 5 races".
+- `display-screen` "Results". No legend and no distance headings.
+- Three `rz-section`s, each an EventGrid in programme order and left out when empty: "Action required" (the same events as a lead's Action required on Races), "Running", "Done".
+- Then a closed Disclosure "Not started (26)": the events with no races, as an EventGrid when opened.
+- A cell: "60m · Girl Cubs" with its code tag (R4), then the status in its Races card's words ("Heat 1: 1 time to check"), " · Switched off" on a switched-off event, and "Latest note 10:42" when it has a note.
 
 **26 Results: one event's leaderboard**
 - The scoreboard surface: compact AppBar on `scoreboard` with the star pattern, back link "Results" in gold.

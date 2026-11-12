@@ -1,4 +1,4 @@
-import {eventTab,lookProblems,ownName,ownWristbands,ownEvent,ownCode,backToRaces,confirmTheMedals,deleteCurrentRace,live,medalPlaces,openRace,recordRace,openLeadMenu,becomeLead,expect,expectToast,join,test,raceAction,press} from './fixtures.js';
+import {eventTab,lookProblems,ownName,ownWristbands,ownEvent,ownCode,backToRaces,confirmTheMedals,deleteCurrentRace,live,medalPlaces,openRace,recordRace,openLeadMenu,becomeLead,expect,expectToast,join,test,raceAction,press,resultsCard} from './fixtures.js';
 test('timed Event complete checks blockers, locks the event\'s races live, and reopens with a retained comment',async({page,openPhone},info)=>{
   const code=await ownCode(),name=ownName('Stage event');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
@@ -14,7 +14,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await expect(job.locator('.rz-prompt__meta')).toHaveText('Heat 2 · 1 runner so far');
   await page.goto('/');await join(page,ownName('Stage lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
+  await resultsCard(page,code).click();await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
   // The Confirm the medals screen: Heat 2 must be settled first, so the docked Confirm stays grey with the reason above it.
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
   await expect(page.locator('.rz-prompt__meta')).toHaveText('2 heats · no final');
@@ -74,7 +74,7 @@ test('Confirm the medals: Fix opens the place\'s heat on Correct times and retur
   // One runner per heat: a tie at 10.00 decides 3rd and 4th.
   for(const [wristband,time] of [[w(1),900],[w(2),950],[w(3),1000],[w(4),1000]]) await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[wristband],[time]);
   const {page}=await openPhone(ownName('Medals fix lead'),{lead:true});
-  await openLeadMenu(page,'Results');await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  await openLeadMenu(page,'Results');await press(resultsCard(page,code));
   await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
   await expect(page.locator('.rz-prompt__meta')).toHaveText('4 heats · no final');
   const settle=page.getByRole('list',{name:'Settle first',exact:true}).getByRole('listitem');

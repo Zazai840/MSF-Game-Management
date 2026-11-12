@@ -22,7 +22,7 @@ import { clock } from '../../shared/clock.js';
 import { eventTitle } from '../../shared/day.js';
 type ResultsProps={code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean})=>void;onBack:()=>void;onChanged?:()=>void};
 /**
- * Results (no `code`): the event grid, each card in its Races card's words; an event (`code`): its leaderboard,
+ * Results (no `code`): the Results list, Action required first, each card in its Races card's words; an event (`code`): its leaderboard,
  * rulings and audit notes; a race page (`code` and `raceId`). Each is its own screen with its own address, under the
  * lead header; `onOpen` moves to another screen (a tie is one) and `onBack` goes back. `target` is what Open in
  * Results asked to open on the event: the runner sheet. `runner` is one of the runner sheet's screens.
@@ -30,7 +30,7 @@ type ResultsProps={code?:string;raceId?:string;runner?:RunnerView;tab?:EventTab;
 export function Results({code,...props}:ResultsProps) {
   return code?<EventResults code={code} {...props}/>:<ResultsGrid onOpen={props.onOpen}/>;
 }
-/** Results: the event grid, read every 5 s. */
+/** Results: the list of the day's events, read every 5 s. */
 function ResultsGrid({onOpen}:{onOpen:(view:View)=>void}) {
   const {read:list,updated,error,refresh}=usePolledRead<ResultsGridRead>('lead/results');
   return <LeadBar title="Results" up="Races" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
@@ -165,19 +165,25 @@ function LiveRaces({races,detail,onRace}:{races:EventResultsRead['results']['rac
   })}/>;
 }
 
-const keyStates=[['done','Done'],['running','Running'],['idle','Not started']] as const;
-/** Results: the key, then each distance's events as a grid of cards worded and coloured as their Races cards. */
+type GridEvent=ResultsGridRead['groups'][number]['events'][number];
+/**
+ * The Results list: Action required (Races' rule, from the read), Running and Done, each in programme order and
+ * left out when empty; then the events with no races under one closed line. A card is worded and coloured as its Races card.
+ */
 function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|null;error:unknown;updated:string;onRefresh:()=>void;onOpen:(view:View)=>void}) {
+  const events=list?.groups.flatMap(group=>group.events)??[],started=events.filter(item=>item.card.state!=='not-started'),idle=events.filter(item=>item.card.state==='not-started');
+  const sections=[['Action required',started.filter(item=>item.card.actionRequired)],['Running',started.filter(item=>!item.card.actionRequired && item.card.state==='running')],['Done',started.filter(item=>!item.card.actionRequired && item.card.state==='done')]] as const;
+  const cards=(items:readonly GridEvent[])=><ul className="rz-events">{items.map(({event,card,latestNoteAt})=><li key={event.id}>
+    <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code})}>
+      <span className="rz-event__head"><span className="rz-event__name">{eventTitle(event)}</span><span className="rz-code-tag">{event.code}</span></span>
+      <span className="rz-event__status">{card.state==='done' && <Icon name="check"/>}{card.line}{!event.enabled?' · Switched off':''}</span>
+      {latestNoteAt && <span className="rz-event__status">Latest note {clock(latestNoteAt)}</span>}
+    </button></li>)}</ul>;
   return <><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
-    <ul className="rz-legend" aria-label="Key">{keyStates.map(([state,label])=><li key={state}><span className={`rz-legend__swatch rz-legend__swatch--${state}`} aria-hidden="true"/>{label}</li>)}</ul>
     {!list?error===null && <p className="rz-empty">Opening…</p>:<>
-      {list.groups.map((group,index)=><section key={group.name} aria-labelledby={`results-group-${index}`}><h2 className="rz-section" id={`results-group-${index}`}>{group.name}</h2><ul className="rz-events">{group.events.map(({event,card,latestNoteAt})=><li key={event.id}>
-        <button type="button" className={`rz-event rz-event--${card.state==='not-started'?'idle':card.state}`} onClick={()=>onOpen({kind:'event',code:event.code})}>
-          <span className="rz-event__name">{event.code} · {event.section}</span>
-          <span className="rz-event__status">{card.state==='done' && <Icon name="check"/>}{card.line}{!event.enabled?' · Switched off':''}</span>
-          {latestNoteAt && <span className="rz-event__status">Latest note {clock(latestNoteAt)}</span>}
-        </button></li>)}</ul></section>)}</>}
+      {sections.map(([title,items],index)=>items.length>0 && <section key={title} aria-labelledby={`results-section-${index}`}><h2 className="rz-section" id={`results-section-${index}`}>{title}</h2>{cards(items)}</section>)}
+      {idle.length>0 && <details className="rz-disclosure"><summary>Not started ({idle.length})</summary>{cards(idle)}</details>}</>}
   </main>
   <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer></>;
 }

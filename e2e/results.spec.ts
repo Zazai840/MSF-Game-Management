@@ -1,9 +1,9 @@
-import {becomeLead,deleteCurrentRace,enterTime,eventTab,expect,join,lookProblems,openLeadMenu,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder} from './fixtures.js';
+import {becomeLead,deleteCurrentRace,enterTime,eventTab,expect,join,lookProblems,openLeadMenu,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,notStartedCard,resultsCard} from './fixtures.js';
 test('a lead sees a race worked in the race flow appear within one Results poll',async({page,openPhone},info)=>{
   const code=await ownCode(),name=ownName('Results phone');
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
   await page.goto('/');await join(page,ownName('Results lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await (await notStartedCard(page,code)).click();
   // One phone does every job in turn: the start line with a kept warning, the finish line, then the timer.
   const phone=(await openPhone(ownName('Results phone'))).page;
   await phone.getByRole('button',{name:'New race',exact:true}).click();
@@ -36,7 +36,7 @@ test('a timed event marks its medal places 1st, 2nd and 3rd beside the wristband
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,await signInThroughApi(page.request,ownName('Medal timer')),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);
   await page.goto('/');await join(page,ownName('Medal lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await resultsCard(page,code).click();
   const rows=page.getByRole('list',{name:'Provisional leaderboard'}).locator(':scope > li');
   for(const [index,mark] of ['1st','2nd','3rd'].entries()) await expect(rows.nth(index)).toContainText(`${2601+index}${mark}Heat 1`);
   await expect(rows.nth(3)).toContainText('2604Heat 1');
@@ -52,7 +52,7 @@ test('a heat not in Results shows three bars with counts and the Race screen ban
   await writeCheckIn(page.request,phone,code,[girls(3),girls(4)]);
   await writeOrder(page.request,phone,code,[girls(3)]);
   await page.goto('/');await join(page,ownName('Heat progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  await press(resultsCard(page,code));
   const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true}),heat2=page.getByRole('button',{name:'Open Heat 2',exact:true});
   const sentence=`Not in Results yet: ${girls(4)} has no place.`;
   await expect(heat1).toHaveAccessibleDescription(/^2 runners · in Results · checked in \d\d:\d\d$/);
