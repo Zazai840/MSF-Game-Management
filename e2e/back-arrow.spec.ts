@@ -123,7 +123,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await page.getByRole('button',{name:/^Events /}).click();
   const events=()=>onScreen(page,'/day/events','Events','Day setup');
   await events();
-  await page.getByRole('button',{name:'Rename R4',exact:true}).click();await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
+  await page.getByRole('button',{name:/ R4 · /}).click();await page.getByRole('dialog').getByRole('button',{name:'Rename',exact:true}).click();await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
   await bothGoBack(page,events);
   await page.getByRole('button',{name:'Add an event',exact:true}).click();await onScreen(page,'/day/events/new','Add an event','Events');
   await bothGoBack(page,events);

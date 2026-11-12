@@ -127,7 +127,6 @@ body:has(.rz-footer--home ~ .rz-leadnav) .rz-toast { margin-bottom: var(--size-a
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-racecard__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
 .rz-racecard__title { margin: 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; }
-.rz-racecard__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .rz-racecard__status { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--ink-muted); }
 
 /* ---------- HeatChips: states follow the viewer's step ---------- */
@@ -395,8 +394,6 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
   /* Races: cards flow into columns; headings, notes and Done span the row. */
   .rz-main--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-content: start; }
   .rz-main--cards > :not(.rz-racecard) { grid-column: 1 / -1; }
-  /* Events: its cards flow into columns too. */
-  .rz-list--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-12); }
   .rz-disclosure__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
   /* Races' footer: the Updated-at line, then New race at its own width. */
   .rz-footer--home { flex-direction: row; align-items: center; justify-content: space-between; }

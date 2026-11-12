@@ -181,7 +181,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 
 **31 Day setup: events**
 - `display-screen` "Events".
-- A card for each event: title "60m · Boy Beavers" with its code tag R1, meta "Races · Heats then final" (plus " · Switched off" when off), and small Buttons "Rename" and "Switch off". A refused save shows "Not saved - try again" on that card.
+- A ListRow for each event: label "60m · Boy Beavers", meta "R1 · Races · Heats then final" (plus " · Switched off" when off). A tap opens a Sheet named after the event ("60m · Boy Beavers") with block Buttons "Rename" and "Switch off" (or "Switch on"). Switch off or on saves at once with its toast and closes the Sheet; a refused save shows "Not saved - try again" in the Sheet.
 - A block Button "+ Add an event", then "Updated at" with Refresh.
 - Rename and Add an event are full race-flow screens with a docked button ("Save name", "Add event").
 

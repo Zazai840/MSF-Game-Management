@@ -1,6 +1,7 @@
 import {ownName,ownCode,ownEvent,openLeadMenu,becomeLead,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
-const card=(page:Page,code:string,section='Girl Cubs')=>page.getByRole('article',{name:`${code} · ${section}`,exact:true});
+/** An event's row on Events, found by the code that starts its second line. */
+const row=(page:Page,code:string)=>page.getByRole('list',{name:'Events'}).getByRole('button',{name:new RegExp(` ${code} · `)});
 const heading=(page:Page,name:string)=>page.getByRole('banner').getByRole('heading',{level:1,name,exact:true});
 const docked=(page:Page)=>page.getByRole('contentinfo');
 
@@ -20,18 +21,28 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await expect(heading(page,'Events')).toBeVisible();
   await expect(page.getByText(/confirm/i)).toHaveCount(0);
 
-  // A card per event, named as on Races ("60m · Girl Cubs") with its code tag, then Races or Hurdles and its format.
-  const event=card(page,code);
-  await expect(event.getByText(code,{exact:true})).toBeVisible();
-  await expect(event.getByRole('heading',{name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  await expect(event.getByText('Hurdles · Timed',{exact:true})).toBeVisible();
-  await expect(event).not.toContainText('Switched off');
+  // A row per event: its title as on Races ("60m · Girl Cubs"), then its code, Races or Hurdles and its format.
+  const event=row(page,code),sheet=page.getByRole('dialog',{name:`${name} · Girl Cubs`,exact:true});
+  await expect(event.getByText(`${name} · Girl Cubs`,{exact:true})).toBeVisible();
+  await expect(event.getByText(`${code} · Hurdles · Timed`,{exact:true})).toBeVisible();
+  await expect(page.getByRole('article')).toHaveCount(0);
   await expect(page.getByText(/Updated at \d\d:\d\d:\d\d/)).toBeVisible();
+  // Add an event stays at the end of the list.
+  expect(await page.getByRole('main').getByRole('button').last().textContent()).toBe('Add an event');
   await event.scrollIntoViewIfNeeded();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('events.png')});
 
-  // Rename opens its own screen with a docked Save, then goes back to Events.
-  await press(event.getByRole('button',{name:`Rename ${code}`,exact:true}));
+  // A tap opens a sheet named after the event with Rename and Switch off; the phone's Back closes it and stays on Events.
+  await press(event);
+  await expect(sheet.getByRole('button',{name:'Rename',exact:true})).toBeVisible();
+  await expect(sheet.getByRole('button',{name:'Switch off',exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('event-sheet.png')});
+  await page.goBack();
+  await expect(sheet).toHaveCount(0);
+  await expect(page).toHaveURL(/\/day\/events$/);await expect(heading(page,'Events')).toBeVisible();
+
+  // Rename opens its own screen with a docked Save, then goes back to Events with the sheet closed.
+  await press(event);await press(sheet.getByRole('button',{name:'Rename',exact:true}));
   await expect(page).toHaveURL(new RegExp(`/day/events/${code}/rename$`));
   await expect(heading(page,`Rename ${code}`)).toBeVisible();
   await expect(page.getByRole('banner').getByRole('button',{name:'Back to Events',exact:true})).toBeVisible();
@@ -47,15 +58,22 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await expectToast(page,`Name saved · ${code} ${renamed}`);
   await expect(page).toHaveURL(/\/day\/events$/);
   await expect(heading(page,'Events')).toBeVisible();
-  await expect(event.getByRole('heading',{name:`${renamed} · Girl Cubs`,exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(event.getByText(`${renamed} · Girl Cubs`,{exact:true})).toBeVisible();
 
-  // Switch off and on save at once.
-  await press(event.getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  // Switch off and on save at once and close the sheet; the row says "Switched off".
+  const renamedSheet=page.getByRole('dialog',{name:`${renamed} · Girl Cubs`,exact:true});
+  await press(event);await press(renamedSheet.getByRole('button',{name:'Switch off',exact:true}));
   await expectToast(page,`${code} switched off`);
-  await expect(event.getByText('Hurdles · Timed · Switched off',{exact:true})).toBeVisible();
+  await expect(renamedSheet).toHaveCount(0);
+  await expect(event.getByText(`${code} · Hurdles · Timed · Switched off`,{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('switched-off.png')});
-  await press(event.getByRole('button',{name:`Switch on ${code}`,exact:true}));
+  await press(event);
+  await expect(renamedSheet.getByRole('button',{name:'Switch off',exact:true})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);
+  await press(renamedSheet.getByRole('button',{name:'Switch on',exact:true}));
   await expectToast(page,`${code} switched on`);
+  await expect(renamedSheet).toHaveCount(0);
   await expect(event).not.toContainText('Switched off');
   // A reload stays on Events.
   await page.reload();await expect(heading(page,'Events')).toBeVisible();
@@ -63,7 +81,7 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await expect(heading(page,'Day setup')).toBeVisible();
 });
 
-test('a lead adds an event on its own screen: the docked Add event says what is missing, then the new event has its card',async({page},info)=>{
+test('a lead adds an event on its own screen: the docked Add event says what is missing, then the new event has its row',async({page},info)=>{
   const code=await ownCode(),name=ownName('Added sprint');
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/day/events');
@@ -90,9 +108,9 @@ test('a lead adds an event on its own screen: the docked Add event says what is 
   await press(add);
   await expectToast(page,`Event added · ${code}`);
   await expect(page).toHaveURL(/\/day\/events$/);
-  const event=card(page,code,'Boy Scouts');
-  await expect(event.getByRole('heading',{name:`${name} · Boy Scouts`,exact:true})).toBeVisible();
-  await expect(event.getByText('Races · Heats then final',{exact:true})).toBeVisible();
+  const event=row(page,code);
+  await expect(event.getByText(`${name} · Boy Scouts`,{exact:true})).toBeVisible();
+  await expect(event.getByText(`${code} · Races · Heats then final`,{exact:true})).toBeVisible();
 
   // A code already in the programme is refused on the Add an event screen, which keeps what was typed.
   await press(page.getByRole('button',{name:'Add an event',exact:true}));
@@ -108,23 +126,25 @@ test('a lead adds an event on its own screen: the docked Add event says what is 
   expect(await lookProblems(page)).toEqual([]);
 });
 
-test('a refused Switch off shows Not saved on that event\'s own card only',async({page},info)=>{
-  const code=await ownCode(),other=await ownCode();
-  await ownEvent(page.request,code,ownName('Refused sprint'),'Girl Cubs','timed');
-  await ownEvent(page.request,other,ownName('Other sprint'),'Girl Cubs','timed');
+test('a refused Switch off says Not saved in the event\'s sheet, which stays open',async({page},info)=>{
+  const code=await ownCode(),name=ownName('Refused sprint');
+  await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
   await page.goto('/day/events');
   await page.route(`**/api/day/events/${code}/enabled`,route=>route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'Event list changed'})}));
-  await press(card(page,code).getByRole('button',{name:`Switch off ${code}`,exact:true}));
-  await expect(card(page,code).getByRole('alert')).toHaveText('Not saved - try again. Event list changed');
-  await expect(card(page,other).getByRole('alert')).toHaveCount(0);
-  await expect(card(page,code)).not.toContainText('Switched off');
-  await card(page,code).scrollIntoViewIfNeeded();
+  const sheet=page.getByRole('dialog',{name:`${name} · Girl Cubs`,exact:true}),off=sheet.getByRole('button',{name:'Switch off',exact:true});
+  await press(row(page,code));await press(off);
+  await expect(sheet.getByRole('alert')).toHaveText('Not saved - try again. Event list changed');
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  await expect(row(page,code)).not.toContainText('Switched off');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('not-saved.png')});
-  // The next save that gets through clears it.
+  // A sheet opened again starts without the refusal.
+  await press(sheet.getByLabel('Close',{exact:true}));await press(row(page,code));
+  await expect(off).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  // The next save that gets through closes the sheet.
   await page.unroute(`**/api/day/events/${code}/enabled`);
-  await press(card(page,code).getByRole('button',{name:`Switch off ${code}`,exact:true}));
+  await press(off);
   await expectToast(page,`${code} switched off`);
-  await expect(card(page,code).getByRole('alert')).toHaveCount(0);
+  await expect(sheet).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(0);
   expect((await(await page.request.get('/api/day',{headers:headers()})).json()).events.find((event:{code:string})=>event.code===code).enabled).toBe(false);
 });
