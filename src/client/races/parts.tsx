@@ -11,6 +11,9 @@ const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
   list:<><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6h1M4 12h1M4 18h1"/></>,
   stopwatch:<><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></>,
+  hurdle:<><path d="M6 21V9M18 21V9"/><path d="M4 7h16v4H4z"/></>,
+  trophy:<><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M8 20h8M10 17h4"/></>,
+  sliders:<><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="3"/><circle cx="8" cy="17" r="3"/></>,
   dashboard:<><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></>,
   check:<path d="M5 12.5l4.5 4.5L19 7.5"/>,
   warning:<><path d="M12 3.5L2.5 20h19L12 3.5z"/><path d="M12 10v4.5"/><path d="M12 17.5v.01"/></>,
@@ -60,7 +63,7 @@ export function NeedsBand({race,ask=false}:{race:Parameters<typeof raceNeeds>[0]
   const saved=race.state==='saved';
   return <p className={saved?'rz-needsband rz-needsband--saved':'rz-needsband'} aria-live="polite">{saved && <Icon name="check"/>}<span>{raceNeeds(race,ask)}</span></p>;
 }
-/** The avatar: your initials. It opens the avatar menu, which its label names. */
+/** The avatar: your initials. It opens the avatar menu (Log out), which its label names. */
 export function Avatar({name,onOpen,label}:{name:string;onOpen:(anchor:HTMLElement)=>void;label:string}) {
   return <button type="button" className="rz-avatar" aria-label={label} onClick={event=>onOpen(event.currentTarget)}>{initials(name)}</button>;
 }

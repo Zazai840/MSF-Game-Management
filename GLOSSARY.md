@@ -175,8 +175,12 @@ Anyone who typed today's lead code (or the owner password), trusted with everyth
 _Avoid_: Admin, organiser, superuser
 
 **Avatar menu**:
-What the avatar opens, at the top right of Races, the Race screen and every lead screen: Log out for everyone, with Races, Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+What the avatar opens, at the top right of Races, the Race screen and every lead screen: Log out only, for a lead as for a volunteer. A lead reaches Results and Day setup by the lead's bar. It replaced the Dashboard and the Your profile screen.
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
+
+**Lead's bar**:
+The bar at the bottom of Races, Results and Day setup on a lead's phone, with those three screens as tabs: one tap moves between them, and the current screen's tab is marked. On Races it sits below New race. No other screen has it, so a deeper lead screen keeps its back arrow; Results and Day setup have no back arrow. A lead in a volunteer role keeps it; a volunteer's phone never shows it.
+_Avoid_: Lead menu, tab bar, bottom menu
 
 **Log out**:
 Ending the session on this phone, at once with no confirmation. The phone keeps its listed names and shows Join.

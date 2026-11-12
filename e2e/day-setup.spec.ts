@@ -25,7 +25,8 @@ test('Day setup is cards in the spec\'s order: the codes, the Signed in today an
   const day=await(await page.request.get('/api/day',{headers:headers()})).json();
   await asOwner(page);
   await expect(page).toHaveURL(/\/day$/);
-  await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
+  // Day setup has no back arrow: the lead's bar goes to Races and Results.
+  await expect(page.getByRole('banner').getByRole('button',{name:/^Back to /})).toHaveCount(0);
 
   const password=section(page,'Olympics password');
   await expect(password.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();

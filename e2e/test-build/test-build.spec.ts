@@ -51,7 +51,6 @@ test('inside the lead area the Report a bug link names the screen shown',async({
   await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   await expectReports(page,'Results');
-  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
   await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expectReports(page,'Day setup');

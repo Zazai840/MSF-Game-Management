@@ -1,44 +1,40 @@
-import {ownCode,ownEvent,ownName,ownWristbands,expect,lookProblems,openRace,press,recordRace,test,type Page} from './fixtures.js';
+import {back,ownCode,ownEvent,ownName,ownWristbands,expect,lookProblems,openLeadMenu,openRace,press,recordRace,test,type Page} from './fixtures.js';
 const items=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
 const title=(page:Page,name:string)=>expect(page.getByRole('banner').getByRole('heading',{level:1,name,exact:true})).toBeVisible();
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 
-test('a lead\'s avatar menu is on every lead screen and the Race screen: Races, Results, Day setup, Log out, each opening its screen',async({openPhone,request},info)=>{
+test('a lead\'s avatar menu is on every lead screen and the Race screen, and holds Log out only',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Menu walk'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',2);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
   const {page}=await openPhone(ownName('Menu lead'),{lead:true});
-  /** On this screen: the avatar at the top right of the bar, its four items, and the one picked. */
-  const pick=async(item:string,screen:string)=>{
-    const avatar=page.getByRole('banner').getByRole('button',{name:`${ownName('Menu lead')}: Races, Results, Day setup and Log out`,exact:true});
+  /** On this screen: the avatar at the top right of the bar, and its one item. */
+  const menu=async(screen:string)=>{
+    const avatar=page.getByRole('banner').getByRole('button',{name:`${ownName('Menu lead')}: Log out`,exact:true});
     // Nothing in the bar sits to the right of the avatar, and it is in the bar's top row.
     const box=(await avatar.boundingBox())!,bar=(await page.getByRole('banner').boundingBox())!;
     const rights=await page.getByRole('banner').getByRole('button').evaluateAll(buttons=>buttons.map(button=>button.getBoundingClientRect().right));
     expect(box.x+box.width,screen).toBe(Math.max(...rights));expect(box.x,screen).toBeGreaterThan(bar.x+bar.width/2);
     await press(avatar);
-    await expect(items(page),screen).toHaveText(['Races','Results','Day setup','Log out']);
+    await expect(items(page),screen).toHaveText(['Log out']);
     expect(await lookProblems(page),screen).toEqual([]);
     await page.screenshot({path:info.outputPath(`${screen}.png`)});
-    await press(items(page).getByText(item,{exact:true}));
+    await press(avatar);
     await expect(page.getByRole('menu')).toHaveCount(0);
   };
-  await pick('Results','races');await title(page,'Results');
+  await menu('races');
   // Results, its event and the lead's race page.
-  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));await title(page,event);
-  await pick('Results','event');await title(page,'Results');
-  await page.goto(`/results/${code}/races/${race.id}`);await title(page,`Heat ${race.number}`);
-  await pick('Day setup','race-page');await title(page,'Day setup');
+  await openLeadMenu(page,'Results');await title(page,'Results');await menu('results');
+  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));await title(page,event);await menu('event');
+  await page.goto(`/results/${code}/races/${race.id}`);await title(page,`Heat ${race.number}`);await menu('race-page');
   // Day setup, Signed in today and Events.
-  await press(page.getByRole('button',{name:/^Signed in today /}));await title(page,'Signed in today');
-  await pick('Day setup','signed-in-today');await title(page,'Day setup');
-  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');
-  await pick('Races','events');await races(page);
-  // The Race screen: the menu leaves the race for Results, and the back arrow still returns to the race.
-  await openRace(page,name);
-  await pick('Results','race');await title(page,'Results');
-  await press(page.getByRole('banner').getByRole('button',{name:/^Back to /}));
-  await title(page,event);await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
-  await press(page.getByRole('banner').getByRole('button',{name:'Back to Races',exact:true}));await races(page);
+  await openLeadMenu(page,'Day setup');await title(page,'Day setup');await menu('day-setup');
+  await press(page.getByRole('button',{name:/^Signed in today /}));await title(page,'Signed in today');await menu('signed-in-today');
+  await back(page,'Day setup');
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await menu('events');
+  // The Race screen.
+  await back(page,'Races');await races(page);
+  await openRace(page,name);await menu('race');
 });
 test('a volunteer\'s avatar menu on the Race screen has Log out only',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Menu heat');

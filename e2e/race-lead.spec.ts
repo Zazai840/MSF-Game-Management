@@ -2,14 +2,14 @@ import {ownName,ownCode,back,press,raceAction,backToRaces,expect,expectToast,lea
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Action required is the groups with
  * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
- * way to settle it. Results and Day setup are in the lead menu.
+ * way to settle it. Results and Day setup are on the lead's bar.
  */
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 const status=(page:Page,name:string)=>card(page,name).locator('.rz-racecard__status');
 const actionRequired=(page:Page)=>page.locator('h2:text-is("Action required") ~ article');
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
 
-test('a lead\'s Action required is the groups with open issues or medals to confirm, each card naming them, and the lead menu opens Results and Day setup',async({openPhone,request},info)=>{
+test('a lead\'s Action required is the groups with open issues or medals to confirm, each card naming them, and the lead\'s bar opens Results and Day setup',async({openPhone,request},info)=>{
   const name=ownName('Lead issues'),calm=ownName('Lead calm'),code=await ownCode(),calmCode=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');await ownEvent(request,calmCode,calm,'Girl Cubs','timed');
   // A kept time faster than the place before, and a calm race.
@@ -27,13 +27,11 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await expect(card(page,name).getByRole('button',{name:/^Heat 1/})).toHaveAccessibleName('Heat 1, saved');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
-  // The avatar's menu: Races, Results, Day setup and Log out.
-  await leadMenuButton(page).click();
-  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Races','Results','Day setup','Log out']);
-  await page.screenshot({path:info.outputPath('lead-menu.png')});
-  await page.getByRole('menuitem',{name:'Results',exact:true}).click();
+  // The lead's bar: Races, Results and Day setup.
+  await expect(leadMenuButton(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
+  await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await back(page,'Races');
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
   await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();

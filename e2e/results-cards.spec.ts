@@ -61,7 +61,7 @@ test('Results is the event grid: a key, events by distance, each card in its Rac
     await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
     await back(page,'Results');
     await expect(key).toBeVisible();
-    await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
+    await expect(page.getByRole('banner').getByRole('button',{name:/^Back to /})).toHaveCount(0);
   } finally {await cleanUp(page,races);}
 });
 

@@ -185,9 +185,9 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
   await look('lead-race');
   await backToRaces(page);
-  await leadMenuButton(page).click();await expect(page.getByRole('menuitem',{name:'Results',exact:true})).toBeVisible();
-  await look('lead-avatar-menu');
-  await page.getByRole('menuitem',{name:'Results',exact:true}).click();
+  await expect(leadMenuButton(page)).toBeVisible();
+  await look('lead-bar');
+  await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   await look('results');
   await deleteCurrentRace(request,code);
