@@ -72,7 +72,7 @@ test('two phones: the start line checks in, the finish line places them live, wi
   expect(await lookProblems(finish.page)).toEqual([]);await finish.page.screenshot({path:info.outputPath('check-the-order.png'),fullPage:true});
   await finish.page.getByRole('button',{name:'Save the order',exact:true}).click();
   await expect(finish.page.getByRole('navigation',{name:'Event type'})).toBeVisible();
-  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
+  await expect(finish.page.locator('.rz-toast')).toContainText('Finishing order saved');
   // Didn't run takes 2014 off the race, and the runner added at the finish is in it: the start line can't type 3045 again.
   const chips=start.page.getByRole('list',{name:'Wristbands entered'}).getByRole('button');
   await expect(chips).toHaveText(['2011','2012','2013','3045'],live);
@@ -275,7 +275,7 @@ test('Check the order asks about every runner nobody placed, above Save the orde
   await notPlaced(page,dnr).getByRole('button',{name:"Didn't run",exact:true}).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.getByRole('button',{name:'Save the order',exact:true}).click();
-  await expect(page.locator('.rz-toast')).toContainText('Finishing order saved · Girl Cubs Heat 1');
+  await expect(page.locator('.rz-toast')).toContainText('Finishing order saved');
   const {race}=(await flowRace(request,token,code)),saved=race.parts.runners.value!.filter(isRunner);
   const id=(number:number)=>saved.find(runner=>runner.wristband===number)?.id;
   expect(race.parts.finish.value!.didNotFinish).toEqual([id(dnf)]);

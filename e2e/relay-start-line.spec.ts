@@ -56,7 +56,7 @@ test('two start-line phones check a relay heat in at once: Add and Take off land
   await one.screenshot({path:info.outputPath('relay-start-line.png'),fullPage:true});
   await one.screenshot({path:info.outputPath('relay-start-line-viewport.png')});
   await one.locator('footer.rz-footer').getByRole('button',{name:"That's everyone",exact:true}).click();
-  await expect(one.locator('.rz-toast')).toContainText('Runners saved · Girl Cubs Heat 1');
+  await expect(one.locator('.rz-toast')).toContainText('Runners saved');
   const read=await (await request.get(`/api/races/${raceId}`,{headers:{authorization:`Bearer ${priya.token}`}})).json() as RaceFlowRead;
   expect(read.steps.runners!.state).toBe('done');
 });

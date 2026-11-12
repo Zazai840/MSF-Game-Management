@@ -99,7 +99,7 @@ function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<void>}) {
       const url=URL.createObjectURL(blob),link=document.createElement('a');
       link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();
       window.setTimeout(()=>URL.revokeObjectURL(url),1000);
-      toast({message:toastLine({kind:'downloaded',file:filename})});await onChanged();
+      toast({message:toastLine({kind:'downloaded'})});await onChanged();
     } catch(error) {setError(error);}
     finally {setBusy(false);}
   }

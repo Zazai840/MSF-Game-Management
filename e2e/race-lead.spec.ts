@@ -137,7 +137,7 @@ test('an issue settled elsewhere opens in Results, and the race actions open ove
   const sheet=page.getByRole('dialog',{name:'Runner 2001',exact:true});
   await sheet.getByRole('button',{name:'Choose which result counts',exact:true}).click();
   await page.getByRole('button',{name:/^Heat 2 · /}).click();
-  await page.getByRole('button',{name:'Save counted result',exact:true}).click();await expectToast(page,'Result counts · 2001 Heat 2');
+  await page.getByRole('button',{name:'Save counted result',exact:true}).click();await expectToast(page,'Result counts · 2001');
   await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   // Back returns to the race Results was opened from.
   await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
@@ -195,7 +195,7 @@ test('a correction from Race actions on the race screen returns to the race scre
   await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
   const input=page.getByLabel('2nd place time',{exact:true});await input.fill('1350');await input.press('Enter');
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
-  await expectToast(page,'Times saved · Girl Cubs Heat 1');await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
+  await expectToast(page,'Times saved');await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions-toast.png')});
 });
@@ -215,7 +215,7 @@ test('Correct runner list from Race actions on the race screen has the race scre
   await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
   await expect(page.getByRole('heading',{level:2,name:'2 runners. Is that right?',exact:true})).toBeVisible();
   await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
-  await expectToast(page,'Runner list saved · Girl Cubs Heat 1');
+  await expectToast(page,'Runner list saved');
   await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-runner-list-saved.png')});

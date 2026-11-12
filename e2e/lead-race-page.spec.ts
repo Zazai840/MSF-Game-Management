@@ -71,7 +71,7 @@ test('the race page is in the race-flow look: its meta line, a wrong time in amb
   await expect(footer.locator('.rz-footer__reason')).toHaveCount(0);
   // Save lands back on the race page it was opened from, with one toast.
   await press(save);
-  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expectToast(page,`Times saved`);await expect(page).toHaveURL(racePage);
   await expect(second).toContainText('12.20');await expect(second).not.toContainText('Faster');
   expect(await background(second)).not.toBe(amber);
 });
@@ -102,7 +102,7 @@ test('Correct times refuses a time no one can run in the amber callout under the
   await input.pressSequentially('1350');await input.press('Enter');
   await expect(page.getByRole('button',{name:'2nd place · 13.50',exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
-  await expectToast(page,`Times saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expectToast(page,`Times saved`);await expect(page).toHaveURL(racePage);
 });
 
 test('a slow time the timer kept shows in amber with its reason on the race page and in Correct times, as on the Timer',async({page},info)=>{
@@ -165,7 +165,7 @@ test('a lead corrects a number on its screen with the phone number pad: digits o
   await press(held.getByRole('button',{name:'Fix number',exact:true}));
   await expect(input).toHaveValue('');await expect(input).toBeFocused();
   await input.fill('2115');await input.press('Enter');
-  await expectToast(page,`Number saved · 2115 in Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expectToast(page,`Number saved · 2115`);await expect(page).toHaveURL(racePage);
   await expect(page.getByRole('list',{name:'Current record',exact:true})).toContainText('2115');
   // The race's history: the saved runners, order and times, then the lead's correction. Taps before saving are not kept.
   await page.getByText('Saved versions (4)',{exact:true}).click();
@@ -204,7 +204,7 @@ test('Correct runner list is a screen: tap a runner to retype on the number pad,
   await press(page.getByRole('button',{name:'New runners did not finish',exact:true}));
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('runner-list-review.png'),fullPage:true});
   await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
-  await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expectToast(page,`Runner list saved`);await expect(page).toHaveURL(racePage);
   await expect(page.getByRole('button',{name:'Runner 2127',exact:true})).toHaveText(/^2nd\s*2127\s*13\.10$/);
   // One save, one Notes line.
   await page.getByRole('button',{name:'Back to Race page · Girl Cubs',exact:true}).click();await eventTab(page,'Notes');
@@ -220,7 +220,7 @@ test('a lead removes the 4th of 6 children from a saved race, then gives the 2nd
   await press(page.getByRole('button',{name:'Remove runner 4',exact:true}));
   await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
   await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
-  await expectToast(page,`Runner list saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expectToast(page,`Runner list saved`);await expect(page).toHaveURL(racePage);
   await expect(record).toHaveText([/^1st\s*2151\s*13\.00$/,/^2nd\s*2152\s*13\.10$/,/^3rd\s*2153\s*13\.20$/,/^4th\s*2155\s*13\.40$/,/^5th\s*2156\s*13\.50$/]);
   await expect(page.getByText('5 times · 5 finishers',{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('removed-place-runner-list.png'),fullPage:true});
@@ -231,7 +231,7 @@ test('a lead removes the 4th of 6 children from a saved race, then gives the 2nd
   await expect(page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem')).toHaveText(['1st215113.00No place','2nd215313.20No place','3rd215513.40No place','4th215613.50No place']);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('removed-place-order.png'),fullPage:true});
   await press(docked.getByRole('button',{name:'Save finishing order',exact:true}));
-  await expectToast(page,`Finishing order saved · Girl Cubs Heat ${race.number}`);await expect(page).toHaveURL(racePage);
+  await expectToast(page,`Finishing order saved`);await expect(page).toHaveURL(racePage);
   await expect(record).toHaveText([/^1st\s*2151\s*13\.00$/,/^2nd\s*2153\s*13\.20$/,/^3rd\s*2155\s*13\.40$/,/^4th\s*2156\s*13\.50$/,/^–\s*2152\s*Did not finish$/]);
   await expect(page.getByText('4 times · 4 finishers',{exact:true})).toBeVisible();
 });
@@ -300,7 +300,7 @@ test('a race not saved yet says so on its race page with Open Heat 1; Race actio
   await page.getByLabel('Comment (optional)',{exact:true}).fill('Opened by mistake');
   await press(remove);
   // Back on the event's Heats tab. (Back from there is event-tabs.spec.ts's: this race page was opened by its address.)
-  await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');
+  await expectToast(page,'Heat 1 moved to Deleted races');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
 });
 
@@ -329,7 +329,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('restore-race.png'),fullPage:true});
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));
   // It stays on the restored race page, now Heat 2.
-  await expectToast(page,'Heat 2 restored · Girl Cubs');
+  await expectToast(page,'Heat 2 restored');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/${first.id}$`));
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 2',exact:true})).toBeVisible();
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · saved`,{exact:true})).toBeVisible();

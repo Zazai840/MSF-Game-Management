@@ -102,7 +102,7 @@ test('four phones run a relay heat to saved: two start lines, the finish line pl
   await clock.screenshot({path:info.outputPath('relay-timer.png'),fullPage:true});
   await enterTime(clock,'1412');
   await enterTime(clock,'1530');
-  await expect(clock.locator('.rz-toast')).toContainText('Times saved · Girl Cubs Heat 1');
+  await expect(clock.locator('.rz-toast')).toContainText('Times saved');
   expect((await read()).race.state).toBe('saved');
   for(const page of [one,two,line,clock]) await expect(page.getByRole('button',{name:/Submit/})).toHaveCount(0);
   // The team that didn't run is back among those still to run.

@@ -38,7 +38,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   expect(await lookProblems(page)).toEqual([]);
 
   await press(row.getByRole('button',{name:'Make lead',exact:true}));
-  await expectToast(page,`${name} is a lead now · today only`);
+  await expectToast(page,`${name} is a lead now`);
   await expect(row.getByText('Lead · Start line',{exact:true})).toBeVisible();
   await expect(row.getByRole('button')).toHaveText(['Make volunteer','Remove']);
   await press(page.getByText(/^Notes \(\d+\)$/));
@@ -65,7 +65,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
 
   await press(row.getByRole('button',{name:'Remove',exact:true}));
   await press(ask.getByRole('button',{name:`Remove ${name}`,exact:true}));
-  await expect(ask).toHaveCount(0);await expect(row).toHaveCount(0);await expectToast(page,`${name} removed · signed out`);
+  await expect(ask).toHaveCount(0);await expect(row).toHaveCount(0);await expectToast(page,`${name} removed`);
   await expect(page.getByText(`Removed ${name} · E2E Owner`)).toBeVisible();
   await expect(other.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible({timeout:10000});
   expect(await other.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('msf:')))).toEqual(['msf:profiles']);

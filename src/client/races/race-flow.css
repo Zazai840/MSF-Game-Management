@@ -214,12 +214,21 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 
 /* ---------- Toast ---------- */
 /* Above the lead's Race actions over the race (z-index 20), so a correction there shows its toast. */
-.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 21; display: flex; min-height: var(--size-touch); align-items: center; justify-content: space-between; gap: var(--space-10); max-width: 400px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-4) var(--space-14); border-radius: 14px; background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
-.rz-toast__msg { display: flex; align-items: center; gap: var(--space-8); font-size: 14px; line-height: 1.3; font-weight: 700; }
-/* A lead save's toast has no button: its line keeps the same space on the right as on the left. */
+.rz-toast { position: fixed; left: var(--space-20); right: var(--space-20); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 21; display: flex; width: fit-content; max-width: 400px; min-height: 36px; align-items: center; gap: var(--space-10); margin: 0 auto; padding: 0 var(--space-6) 0 var(--space-14); border-radius: var(--radius-pill); background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); }
+/* A line that wraps to a second row: fully round ends would cut into its words. */
+.rz-toast--box { border-radius: var(--radius-lg); }
+.rz-toast__msg { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) 0; font-size: 14px; line-height: 1.3; font-weight: 700; }
+/* A toast with no button: its line keeps the same space on the right as on the left. */
 .rz-toast__msg:only-child { padding-right: var(--space-8); }
 .rz-toast__msg .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); }
 .rz-toast button { min-height: var(--size-touch); padding: 0 var(--space-10); border: 0; background: none; color: var(--gold); font-size: 15px; font-weight: 800; white-space: nowrap; }
+/* It fades and rises in. The rise is a transform, so the pill stays centred. */
+.rz-toast { animation: rz-toast-in 150ms ease-out; }
+@keyframes rz-toast-in { from { opacity: 0; transform: translateY(var(--space-8)); } }
+/* It fades out as it leaves: Toast.tsx adds rz-toast--out for its last moments and removes the toast when this fade ends. A transition, so a toast brought back (focus, a new line) is solid at once and does not rise in again. */
+.rz-toast--out { opacity: 0; transition: opacity 150ms ease-in; }
+/* Toast.tsx does not add rz-toast--out under reduced motion. */
+@media (prefers-reduced-motion: reduce) { .rz-toast { animation: none; } }
 
 /* ---------- Sheet bits: choice buttons and radio cards ---------- */
 .rz-scrim { z-index: 10; }

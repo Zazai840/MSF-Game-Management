@@ -35,7 +35,7 @@ test('the start line calls up the next-ranked team at a relay final\'s check-in,
   await expect(callUp).toHaveText('Call up next fastest: Team 7 (7th)');
   expect(await lookProblems(sam.page)).toEqual([]);
   await press(callUp);
-  await expectToast(sam.page,'Team 7 called up · Girl Scouts Final');
+  await expectToast(sam.page,'Team 7 called up');
   await expect(card(sam.page,7).getByRole('heading',{level:3})).toHaveText('Called up · Team 7');
   await expect(card(sam.page,7).getByRole('button',{name:'Team 7: Here',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(callUp).toHaveCount(0);
@@ -81,7 +81,7 @@ test('a lead adds a team to a relay Final by picking it from the relay\'s teams,
   expect(await lookProblems(lead.page)).toEqual([]);
   await lead.page.screenshot({path:info.outputPath('relay-final-add-team.png'),fullPage:true});
   await picks.first().click();
-  await expectToast(lead.page,'Team 3 added · Girl Scouts Final');
+  await expectToast(lead.page,'Team 3 added');
   await expect(sheet).toHaveCount(0);
   await expect((await lineUp(lead.page)).last()).toHaveText(`Added · Team 3 · ${legs(3).join(' · ')}`);
   // Every team is in now: the sheet says so.

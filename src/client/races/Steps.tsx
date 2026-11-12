@@ -147,8 +147,7 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
     setBusy(true);flow.setError('');
     try {
       await api(`lead/events/${encodeURIComponent(group.event.code)}/call-up`,{expectedHeatEntryId:next.entryId});
-      // A final has no number: the toast names it "Final".
-      toast({message:toastLine({kind:'called-up',who:next.who,race:{section:group.event.section,kind:'final',number:0}})});
+      toast({message:toastLine({kind:'called-up',who:next.who})});
       flow.offer(await api<RaceFlowRead>(`races/${race.id}`));
     } catch(failure) {flow.setError(failureLine(failure,'save'));}
     finally {setBusy(false);}
