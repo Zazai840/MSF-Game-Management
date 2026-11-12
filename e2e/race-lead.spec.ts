@@ -1,8 +1,8 @@
-import {ownName,ownCode,back,press,raceAction,backToRaces,expect,expectToast,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,press,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Action required is the groups with
- * open issues, each card names them, and inside a race each issue sits on the step it is about, with It's right or the
- * way to settle it. Results and Day setup are in the lead menu.
+ * open issues, each card names them, and a saved race opens as its race page with them on top (lead-race-page.spec,
+ * saved-race-page.spec). Results and Day setup are in the lead menu.
  */
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 const status=(page:Page,name:string)=>card(page,name).locator('.rz-racecard__status');
@@ -41,53 +41,7 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();
 });
 
-test('inside a race each issue sits on its step\'s tab; It\'s right clears it and records who accepted it',async({openPhone,request},info)=>{
-  const name=ownName('Lead tabs'),code=await ownCode();
-  await ownEvent(request,code,name,'Girl Cubs','timed');
-  // A kept wrong-section number, a runner added at the finish, and a kept wrong time.
-  await writeCheckIn(request,owner(),code,[3045,2001],[3045]);
-  await writeOrder(request,owner(),code,[3045,2001,2002],{added:[2002]});
-  await writeTimes(request,owner(),code,[1500,1300,1600],[1]);
-  await submitRace(request,owner(),code);
-  const {page}=await openPhone(ownName('Lead tabs'),{lead:true});
-  await expect(status(page,name)).toContainText('Heat 1: ');
-  await openRace(page,name);
-  const tabs=page.getByRole('tablist',{name:'Heat 1 steps'});
-  await expect(tabs.getByRole('tab')).toHaveText([/^Runners.*1 to check/,/^Finishing order.*1 to check/,/^Times.*1 to check/]);
-  // The warning icon on a tab not open is navy on paper, an approved colour pair (accessibility.md).
-  await expect(tabs.getByRole('tab',{name:/^Times/}).locator('.rz-step__status .rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
-  // Runners: the kept number, with Fix and It's right.
-  const runners=page.getByRole('alert').filter({hasText:'3045'});
-  await expect(runners).toContainText('A wristband number needs checking. 3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.');
-  expect(await lookProblems(page)).toEqual([]);
-  await page.screenshot({path:info.outputPath('lead-runners.png'),fullPage:true});
-  await runners.getByRole('button',{name:"It's right",exact:true}).click();
-  await expect(page.getByRole('alert').filter({hasText:'3045'})).toHaveCount(0);
-  await expect(tabs.getByRole('tab',{name:/^Runners/})).not.toContainText('to check');
-  // Finishing order: the runner added at the finish.
-  await tabs.getByRole('tab',{name:/^Finishing order/}).click();
-  await expect(tabs.getByRole('tab',{name:/^Finishing order/})).toHaveAttribute('aria-selected','true');
-  const added=page.getByRole('alert').filter({hasText:'2002'});
-  await expect(added).toBeVisible();
-  await added.getByRole('button',{name:"It's right",exact:true}).click();
-  await expect(added).toHaveCount(0);
-  // Times: the kept wrong time, joined to its wristband by place.
-  await tabs.getByRole('tab',{name:/^Times/}).click();
-  const time=page.getByRole('alert').filter({hasText:'A time looks wrong'});
-  await expect(time).toContainText('2nd place (13.00) is faster than 1st (15.00). The timer kept it as typed.');
-  await expect(page.getByRole('list',{name:'Times'}).getByRole('listitem')).toHaveText([/^1st\s*3045\s*15\.00/,/^2nd\s*2001\s*13\.00/,/^3rd\s*2002\s*16\.00/]);
-  await page.screenshot({path:info.outputPath('lead-times-issue.png'),fullPage:true});
-  await time.getByRole('button',{name:"It's right",exact:true}).click();
-  await expect(time).toHaveCount(0);
-  await expect(tabs.getByRole('tab')).not.toContainText(['to check']);
-  // Nothing left to check: the card turns to the medals, and the accepted issues name who accepted them.
-  await backToRaces(page);
-  await expect(status(page,name)).toHaveText('Every race saved · confirm the medals after the last race');
-  const notes=(await (await request.get(`/api/lead/events/${code}/results`,{headers:{authorization:`Bearer ${owner()}`}})).json()).auditNotes.map((note:{action:string})=>note.action);
-  expect(notes).toEqual(expect.arrayContaining(['mark-warning-checked','mark-added-checked']));
-});
-
-test('a lead\'s card counts issues by race and kind, the Times tab marks only the wrong time amber, and Race actions offers the corrections over the race',async({openPhone,request},info)=>{
+test('a lead\'s card counts issues by race and kind, the race page marks the wrong time amber, and its button offers the corrections',async({openPhone,request},info)=>{
   const name=ownName('Lead counts'),code=await ownCode();
   await ownEvent(request,code,name,'Girl Cubs','timed');
   // Two kept wrong-section numbers, a runner who did not finish checked in first, and a kept wrong time in 3rd place.
@@ -98,125 +52,12 @@ test('a lead\'s card counts issues by race and kind, the Times tab marks only th
   const {page}=await openPhone(ownName('Lead counts'),{lead:true});
   // Groups come newest first; both of these date from the same saved race, so either may lead.
   await expect(status(page,name)).toHaveText(/^(Heat 1: 2 wristbands to check · Heat 1: 1 time to check|Heat 1: 1 time to check · Heat 1: 2 wristbands to check)$/);
+  // The chip opens the race page: the wrong time's row is amber, and its button opens the corrections.
   await openRace(page,name);
-  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
-  const rows=page.getByRole('list',{name:'Times'}).locator('.rz-lead-row');
-  await expect(rows).toHaveCount(4);
-  await expect(page.getByRole('list',{name:'Times'}).locator('.rz-lead-row--warn')).toHaveText([/^3rd\s*2001\s*13\.50/]);
+  const record=page.getByRole('list',{name:'Current record',exact:true});
+  await expect(record.locator('.rz-lead-row--warn').filter({hasText:'13.50'})).toHaveCount(1);
   await page.screenshot({path:info.outputPath('lead-times-one-amber.png'),fullPage:true});
-  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await press(page.getByRole('main').getByRole('button',{name:'Correct or delete Heat 1',exact:true}));
   await expect(page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}).getByRole('button')).toHaveText(['','Correct times','Correct finishing order','Correct runner list','Re-run race','Delete Heat 1']);
   expect(await lookProblems(page)).toEqual([]);
-});
-
-test('a lead\'s Times tab marks a kept slow time amber, as the Timer does',async({openPhone,request})=>{
-  // The distance comes from the event name: 45.00 is slow for 60m (over 40.00).
-  const name=`60m ${ownName('Lead slow')}`,code=await ownCode();
-  await ownEvent(request,code,name,'Girl Cubs','timed');
-  await recordRace(request,owner(),code,[2001,2002],[1200,4500]);
-  const {page}=await openPhone(ownName('Lead slow'),{lead:true});
-  await openRace(page,name);
-  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
-  await expect(page.getByRole('list',{name:'Times'}).locator('.rz-lead-row--warn')).toHaveText([/^2nd\s*2002\s*45\.00/]);
-});
-
-test('an issue settled elsewhere opens in Results, and the race actions open over the race',async({openPhone,request},info)=>{
-  const name=ownName('Lead results'),code=await ownCode();
-  await ownEvent(request,code,name,'Girl Cubs','timed');
-  // 2001 has a result in two races: the lead chooses which counts, in Results.
-  await recordRace(request,owner(),code,[2001,2002],[1200,1300]);
-  await recordRace(request,owner(),code,[2001],[1250],[2001]);
-  const {page}=await openPhone(ownName('Lead results'),{lead:true});
-  await openRace(page,name,'Girl Cubs','H2');
-  const ranTwice=page.getByRole('alert').filter({hasText:'2001'});
-  await expect(ranTwice).toBeVisible();
-  await expect(ranTwice.getByRole('button',{name:"It's right",exact:true})).toHaveCount(0);
-  await ranTwice.getByRole('button',{name:'Open in Results',exact:true}).click();
-  // The event's results, with the runner sheet open.
-  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  const sheet=page.getByRole('dialog',{name:'Runner 2001',exact:true});
-  await sheet.getByRole('button',{name:'Choose which result counts',exact:true}).click();
-  await page.getByRole('button',{name:/^Heat 2 · /}).click();
-  await page.getByRole('button',{name:'Save counted result',exact:true}).click();await expectToast(page,'Result counts · 2001 Heat 2');
-  await expect(page.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
-  // Back returns to the race Results was opened from.
-  await page.getByRole('button',{name:'Back to Heat 2',exact:true}).click();
-  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
-  await expect(page.getByRole('alert').filter({hasText:'2001'})).toHaveCount(0);
-  // "⋯" opens Race actions as a sheet over the race, not a page in a panel; Escape and the phone's Back close it, and the race stays.
-  const more=page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}),actions=page.getByRole('dialog',{name:'Heat 2 · actions',exact:true});
-  await press(more);
-  await expect(actions.getByRole('button',{name:'Correct times',exact:true})).toBeVisible();
-  await expect(actions.getByRole('list',{name:'Current record'})).toHaveCount(0);
-  expect(await lookProblems(page)).toEqual([]);
-  await actions.screenshot({path:info.outputPath('race-actions.png')});
-  await page.keyboard.press('Escape');await expect(actions).toHaveCount(0);
-  await press(more);await expect(actions).toBeVisible();
-  await page.goBack();await expect(actions).toHaveCount(0);
-  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
-});
-
-test('a tie between two heats shows on both heats\' Times tab, and Open in Results opens the tie screen, with Back to the race',async({openPhone,request},info)=>{
-  const name=ownName('Lead tie'),code=await ownCode();
-  await ownEvent(request,code,name,'Girl Cubs','heats');
-  // 2041 in Heat 1 and 2043 in Heat 2 share a time.
-  await recordRace(request,owner(),code,[2041,2042],[1000,1100]);
-  await recordRace(request,owner(),code,[2043],[1000]);
-  const {page}=await openPhone(ownName('Lead tie'),{lead:true});
-  for(const chip of ['H1','H2']) {
-    if(chip==='H2') await backToRaces(page);
-    await openRace(page,name,'Girl Cubs',chip);
-    const tabs=page.getByRole('tablist',{name:`Heat ${chip.slice(1)} steps`});
-    await expect(tabs.getByRole('tab',{name:/^Times/})).toContainText('1 to check');
-    await tabs.getByRole('tab',{name:/^Times/}).click();
-    const tie=page.getByRole('alert').filter({hasText:'Runners tied on time'});
-    await expect(tie).toContainText('2041 and 2043 both have 10.00. Decide whether a run-off is needed.');
-    await expect(tie.getByRole('button',{name:"It's right",exact:true})).toHaveCount(0);
-    expect(await lookProblems(page)).toEqual([]);
-    await page.screenshot({path:info.outputPath(`lead-tie-${chip}.png`),fullPage:true});
-  }
-  await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
-  await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
-  await expect(page.locator('.rz-prompt__help')).toHaveText('2041 (Heat 1) and 2043 (Heat 2) both ran 10.00.');
-  expect(await lookProblems(page)).toEqual([]);
-  await back(page,'Heat 2');
-  await expect(page.getByRole('tablist',{name:'Heat 2 steps'})).toBeVisible();
-});
-
-test('a correction from Race actions on the race screen returns to the race screen with its toast, with no Undo',async({openPhone,request},info)=>{
-  const name=ownName('Lead toast'),code=await ownCode();
-  await ownEvent(request,code,name,'Girl Cubs','timed');
-  const race=await recordRace(request,owner(),code,[2011,2012],[1200,1300]);
-  const {page}=await openPhone(ownName('Lead toast'),{lead:true});
-  await openRace(page,name);
-  await raceAction(page,'Correct times');
-  await expect(page).toHaveURL(new RegExp(`/races/${race.id}/correct-times$`));
-  await expect(page.getByRole('banner').getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
-  await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
-  const input=page.getByLabel('2nd place time',{exact:true});await input.fill('1350');await input.press('Enter');
-  await press(page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true}));
-  await expectToast(page,'Times saved · Girl Cubs Heat 1');await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
-  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-actions-toast.png')});
-});
-
-test('Correct runner list from Race actions on the race screen has the race screen\'s address under it, saves on Save runner list, and returns to the race',async({openPhone,request},info)=>{
-  const name=ownName('Lead runner list'),code=await ownCode();
-  await ownEvent(request,code,name,'Girl Cubs','timed');
-  const race=await recordRace(request,owner(),code,[2021,2022],[1200,1300]);
-  const {page}=await openPhone(ownName('Lead runner list'),{lead:true});
-  await openRace(page,name);
-  await raceAction(page,'Correct runner list');
-  await expect(page).toHaveURL(new RegExp(`/races/${race.id}/correct-runner-list$`));
-  await expect(page.getByRole('button',{name:'Back to Heat 1',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Runner 2 · 2022',exact:true}).click();
-  await page.getByLabel('Wristband for runner 2',{exact:true}).fill('2029');await page.keyboard.press('Enter');
-  const docked=page.getByRole('contentinfo');
-  await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
-  await expect(page.getByRole('heading',{level:2,name:'2 runners. Is that right?',exact:true})).toBeVisible();
-  await press(docked.getByRole('button',{name:'Save runner list',exact:true}));
-  await expectToast(page,'Runner list saved · Girl Cubs Heat 1');
-  await expect(page).toHaveURL(new RegExp(`/races/${race.id}$`));
-  await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
-  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-runner-list-saved.png')});
 });
