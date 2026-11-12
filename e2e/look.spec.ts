@@ -152,7 +152,7 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await expect(page.getByRole('button',{name:'Add another runner',exact:true})).toBeVisible();
   await look('start-line-six');
   await chips.first().click();
-  await expect(page.getByRole('button',{name:'Remove',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Remove \d+$/})).toBeVisible();
   await look('start-line-change');
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('contentinfo').getByRole('button',{name:"That's everyone",exact:true}).click();

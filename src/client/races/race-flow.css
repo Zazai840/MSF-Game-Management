@@ -231,7 +231,7 @@ body:has(.rz-footer--home ~ .rz-leadnav) .rz-toast { margin-bottom: var(--size-a
 
 /* ---------- Sheet bits: choice buttons and radio cards ---------- */
 .rz-scrim { z-index: 10; }
-.rz-sheet { max-height: 90dvh; overflow-y: auto; }
+.rz-sheet { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
 /* While the phone is typing (flow/keyboard.ts), a sheet sits on the keyboard, its foot's actions in reach. */
 html[data-keyboard="open"] .rz-scrim { top: var(--vv-top); bottom: auto; height: var(--vv-height); }
 html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(--space-24)); }
@@ -407,4 +407,22 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
   .rz-prompt--compact .rz-prompt__q { font-size: 48px; }
   .rz-field { max-width: 520px; }
   .rz-toast { bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/*
+ * Motion (docs/running-zone-design-system/README.md, "Motion"). Every control shrinks a little while pressed, so a tap
+ * outdoors shows it was heard; the runner tiles keep their 4px drop. `scale` leaves a control's own transform alone.
+ */
+.rz-screen { --ease-out: cubic-bezier(.23, 1, .32, 1); --ease-drawer: cubic-bezier(.32, .72, 0, 1); }
+@media (prefers-reduced-motion: no-preference) {
+  .rz-screen :is(button, summary, a[href], .rz-jobcard):not(.rz-tile, .rz-runner, [aria-roledescription="drag handle"], :disabled, [aria-disabled="true"]) { transition: scale 140ms var(--ease-out); }
+  .rz-screen :is(button, summary, a[href], .rz-jobcard):not(.rz-tile, .rz-runner, [aria-roledescription="drag handle"], :disabled, [aria-disabled="true"]):active { scale: .97; }
+}
+/* Remove on a wristband being changed: small, under the number box. */
+.rz-remove { align-self: flex-start; }
+/* Under the lead's bar the bar itself keeps clear of the home bar. */
+.rz-app:has(> .rz-leadnav) .rz-footer { padding-bottom: var(--space-24); }
+@media (prefers-reduced-motion: reduce) {
+  /* A row being dragged (flow/SortableList.tsx) jumps to its place instead of sliding. */
+  .rz-screen li:has(> [aria-roledescription="drag handle"]) { transition: none !important; }
 }

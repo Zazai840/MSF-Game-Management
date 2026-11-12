@@ -26,4 +26,7 @@
   -webkit-text-size-adjust:100%;
 }
 body {margin:0; min-height:100vh;}
-button {-webkit-tap-highlight-color:transparent;}
+/* A page that feels installed: no grey flash on a tap, no zoom on two quick taps, no text selected by a long press on a button. */
+html {-webkit-tap-highlight-color:transparent;}
+button,a,summary,label {touch-action:manipulation;}
+button {-webkit-user-select:none;user-select:none;}

@@ -7,7 +7,7 @@ import { isTeamEntry } from '../../shared/races.js';
 import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
 import { SortableList } from '../flow/SortableList.js';
 import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
-import { CallUp,DigitsField,KeepFocus,type StepProps } from './Steps.js';
+import { CallUp,DigitsField,KeepFocus,useTapQueue,type StepProps } from './Steps.js';
 import { useWrites } from './writes.js';
 
 /** A final's mark for a finalist: Here, Absent, or not marked yet. */
@@ -221,7 +221,9 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
   const box=useLegBox(read,flow,teamId=>cards.find(item=>item.team.id===teamId)),{change,held}=box;
   const here=cards.filter(item=>item.mark==='here').length,unmarked=cards.filter(item=>item.mark===null);
   const send=(teamId:string,mark:Mark)=>flow.write(`teams/${teamId}/absent`,{mark});
-  const tap=(item:typeof cards[number],mark:Mark)=>{setAsking(false);void send(item.team.id,item.mark===mark?null:mark);};
+  // Looked up again when its turn comes: the team's mark may have changed while the tap waited.
+  const tapQueue=useTapQueue(flow.busy,({teamId,mark}:{teamId:string;mark:Mark})=>{setAsking(false);void send(teamId,cards.find(card=>card.team.id===teamId)?.mark===mark?null:mark);});
+  const tap=(item:typeof cards[number],mark:Mark)=>tapQueue({teamId:item.team.id,mark});
   async function recordAbsent() {
     setAsking(false);
     for(const item of unmarked) if(typeof await send(item.team.id,'absent')!=='object') return;
@@ -240,7 +242,7 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
       {cards.map(item=><section key={item.entry.finalEntryId} className={item.mark==='absent'?'rz-teamcard rz-teamcard--final is-absent':'rz-teamcard rz-teamcard--final'} aria-label={`Team ${item.team.number}`}>
         <div className="rz-teamcard__head"><div className="rz-teamcard__title"><h3 className="rz-teamcard__name"><span className="rz-teamcard__seed">{seedLabel(item.entry)} · </span>Team {item.team.number}</h3><TeamNote legs={item.legs}/></div>
           <span className="rz-teamcard__marks">{(['here','absent'] as const).map(mark=><button key={mark} type="button" className={item.mark===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'}
-            disabled={locked || flow.busy} aria-pressed={item.mark===mark} aria-label={`Team ${item.team.number}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(item,mark)}>{mark==='here'?'Here':'Absent'}</button>)}</span></div>
+            disabled={locked} aria-pressed={item.mark===mark} aria-label={`Team ${item.team.number}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(item,mark)}>{mark==='here'?'Here':'Absent'}</button>)}</span></div>
         <TeamLegs read={read} flow={flow} team={item.team} legs={item.legs} grips={!locked && item.mark!=='absent' && !change}
           content={box.chip(item.team.id,item.team.number,!locked && item.mark!=='absent')}/>
       </section>)}

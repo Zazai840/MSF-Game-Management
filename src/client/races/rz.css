@@ -216,11 +216,10 @@
 /* A small red button keeps the small button's card ground with red-ink text (Remove on Signed in today). */
 .rz-btn--danger.rz-btn--small { border-color: var(--line); background: var(--card); color: var(--red-ink); }
 .rz-btn--block { display: flex; width: 100%; }
-.rz-btn:active { transform: translateY(1px); }
 .rz-btn:disabled, .rz-btn[aria-disabled="true"] { background: var(--disabled-fill); border-color: var(--disabled-fill); color: var(--disabled-ink); cursor: not-allowed; transform: none; }
 
 /* ---------- ActionFooter ---------- */
-.rz-footer { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-12) var(--space-20) var(--space-24); background: var(--paper); }
+.rz-footer { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-12) var(--space-20) calc(var(--space-24) + env(safe-area-inset-bottom, 0px)); background: var(--paper); }
 .rz-footer--sticky { position: sticky; bottom: 0; }
 /* While the phone is typing (flow/keyboard.ts), a race step's footer sits on the keyboard, with no home-indicator room. */
 html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom: auto; left: 0; right: 0; transform: translateY(calc(var(--vv-top) + var(--vv-height) - 100%)); }
@@ -229,7 +228,9 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 /* Narrower sides keep "That's everyone" on one line at 360px. */
 .rz-footer__pair .rz-btn { padding: 0 var(--space-12); }
 /* The middle button takes the room the short end ones leave, so "No more finishers" stays on one line at 360px. */
-.rz-footer__trio { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-8); }
+/* The step's main button comes last and takes the free width; Cancel and Save alone are the same row with two buttons. */
+.rz-footer__trio { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: var(--space-8); }
+.rz-footer__trio--two { grid-template-columns: auto minmax(0, 1fr); }
 .rz-footer__trio .rz-btn { padding: 0 var(--space-8); font-size: 14px; white-space: nowrap; }
 .rz-footer__reason { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: var(--navy); }
 
@@ -370,7 +371,7 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 /* ---------- Sheet ---------- */
 .rz-scrim { position: fixed; inset: 0; display: flex; align-items: flex-end; background: var(--overlay); }
 .rz-scrim--contained { position: absolute; }
-.rz-sheet { width: 100%; display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-10) var(--space-20) var(--space-24); border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; background: var(--paper); color: var(--navy); box-shadow: var(--shadow-raised); }
+.rz-sheet { width: 100%; display: flex; flex-direction: column; gap: var(--space-12); padding: var(--space-10) var(--space-20) calc(var(--space-24) + env(safe-area-inset-bottom, 0px)); border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; background: var(--paper); color: var(--navy); box-shadow: var(--shadow-raised); }
 .rz-sheet__grip { align-self: center; width: 44px; height: 5px; border-radius: var(--radius-pill); background: var(--line-strong); }
 .rz-sheet__title { margin: var(--space-4) 0 0; font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 28px; line-height: 1; text-transform: uppercase; }
 .rz-sheet__text { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
@@ -431,6 +432,6 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-disclosure__body { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-4) 0 var(--space-8) var(--space-20); font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
 
 @media (prefers-reduced-motion: reduce) {
-  .rz-btn:active, .rz-tile:active { transform: none; }
+  .rz-tile:active { transform: none; }
   .rz-disclosure summary::before { transition: none; }
 }

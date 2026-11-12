@@ -6,7 +6,7 @@ const footerButton=(page:Page,name:string)=>page.locator('footer.rz-footer').get
 /** Taps a typed number, then Remove: how the start line takes a runner off. */
 async function remove(page:Page,number:string) {
   await page.getByRole('list',{name:'Wristbands entered'}).getByRole('button',{name:new RegExp(`^${number}, `)}).click();
-  await footerButton(page,'Remove').click();
+  await page.getByRole('main').getByRole('button',{name:`Remove ${number}`,exact:true}).click();
 }
 test('wristbands go in through the phone keyboard, each saved as it is typed, and the input keeps focus between runners',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Keyboard sprint');
@@ -124,7 +124,7 @@ test('tapping a typed wristband changes it in the big box, checked like a new nu
   await expect(box).toBeFocused();await expect(box).toHaveValue('2015');
   await expect.poll(()=>selected(page,'New number for 2015')).toBe('2015');
   await expect(page.locator('.rz-field__hint')).toHaveText('Type the right number and tap Save, or Remove to take this runner off.');
-  await expect(page.locator('footer.rz-footer').getByRole('button')).toHaveText(['Cancel','Remove','Save']);
+  await expect(page.locator('footer.rz-footer').getByRole('button')).toHaveText(['Cancel','Save']);
   await page.screenshot({path:info.outputPath('changing.png'),fullPage:true});
   expect(await lookProblems(page)).toEqual([]);
   // A number already in this race is refused: Fix number only.
@@ -193,7 +193,7 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   await expect(progress).toContainText('You · done');
   expect(await order()).toEqual([2062,2001,2003]);
   // Taking off a runner the finish line has placed asks first; Keep keeps them.
-  await chip('2001').click();await footerButton(page,'Remove').click();
+  await chip('2001').click();await page.getByRole('main').getByRole('button',{name:'Remove 2001',exact:true}).click();
   const ask=page.getByRole('alert').filter({hasText:'2001 has 2nd place. Remove?'});
   await expect(ask).toBeVisible();
   await page.screenshot({path:info.outputPath('remove-placed.png'),fullPage:true});
@@ -202,7 +202,7 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   await expect(ask).toHaveCount(0);
   await expect(chips(page)).toHaveText(['2001','2062','2003']);
   // Remove drops the place.
-  await footerButton(page,'Remove').click();
+  await page.getByRole('main').getByRole('button',{name:'Remove 2001',exact:true}).click();
   await press(ask.getByRole('button',{name:'Remove',exact:true}));
   await expect(chips(page)).toHaveText(['2062','2003']);
   await expect(page.getByRole('status').filter({hasText:'2001 taken off this heat'})).toBeVisible();
