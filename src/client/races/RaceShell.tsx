@@ -27,7 +27,10 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
   useEffect(()=>{if(gone) onGone(snapshot?`A lead removed ${snapshot.group.event.section} ${raceName(snapshot.race)}`:'That race is gone');},[gone]);
   const flow=useFlowWrite(raceId,offer);
-  const lead=role==='lead',page=lead && snapshot?.race.state==='saved';
+  // This lead's own done mark, while it is on its way: the mark that saves the race goes to Races with the toast, so
+  // the race page must not take this screen's place first. Only a save by someone else does that.
+  const [marking,setMarking]=useState(false);
+  const lead=role==='lead',page=lead && !marking && snapshot?.race.state==='saved';
   useEffect(()=>{if(page) onPage(snapshot!.group.event.code);},[page]);
   const [tab,setTab]=useState<Step>(opened??'runners');
   // Another role's step, opened read-only from the step strip.
@@ -56,11 +59,11 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
   async function markDone(done:Step) {
     // Read before the write: a lead correcting a step already done stays on the race.
     const already=snapshot!.steps[done]?.state==='done';
-    setAnswered(null);
+    setAnswered(null);setMarking(true);
     const answer=await flow.write(`steps/${done}/done`,{});
-    if(typeof answer!=='object') return;
+    if(typeof answer!=='object') {setMarking(false);return;}
     // The mark changed nothing, so the button says so: a lead never taps a done button that does nothing.
-    if(lead && already) {if(answer.race.state!=='saved') setAnswered({step:done,line:alreadyDoneLine(answer.group.races.find(item=>item.id===race.id)!,done)});return;}
+    if(lead && already) {setMarking(false);if(answer.race.state!=='saved') setAnswered({step:done,line:alreadyDoneLine(answer.group.races.find(item=>item.id===race.id)!,done)});return;}
     onSaved({raceId:race.id,step:done,version:answer.steps[done]!.version,message:`${stepLabels[done]} saved · ${event.section} ${raceName(race)}`,tab:homeTabOf(event)});
   }
   async function create(kind:'heat'|'final',number=group.nextHeat) {
