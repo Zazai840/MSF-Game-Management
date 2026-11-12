@@ -177,7 +177,8 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - A block Button "+ Add an event", then "Updated at" with Refresh.
 - Rename and Add an event are full race-flow screens with a docked button ("Save name", "Add event").
 
-**32 Day setup: phones**
-- `display-screen` "Phones", a `body` line explaining Remove.
-- A card for each person: name ("Amina Yusuf (you)"), role meta ("Scoring team" / "Volunteer"), and small Buttons "Remove from scoring team" and "Remove".
-- A ListRow "Phone and access audit notes" at the end.
+**32 Day setup: Signed in today**
+- `display-screen` "Signed in today", a `body` line "Role changes last for today only."
+- A ListRow for each person: label the name ("Amina Yusuf (you)"), meta the level, Owner and role ("Lead · Owner · Zone lead", "Volunteer · Timer"). The lead's own row is not a button and has no chevron.
+- A tap on another person's row opens a Sheet named after the person: block Buttons "Make lead" or "Make volunteer" (never Make volunteer for the owner; saved at once with a toast), then a red "Remove" set apart, which asks "Remove <name>?" in a second Sheet.
+- A closed disclosure "Notes (3)" at the foot, then "Updated at" with Refresh.
