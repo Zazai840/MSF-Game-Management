@@ -3,7 +3,7 @@ import { eventTitle,eventTypeNames,sections,type DayEvent,type DayRead } from '.
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
-import { Callout,DockedFooter,ErrorCallout,Icon } from '../races/parts.js';
+import { Callout,DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
 import { LeadBar } from './LeadBar.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import type { View } from '../shell/addresses.js';
@@ -24,9 +24,9 @@ function useSave(onSaved:()=>Promise<void>) {
 }
 
 /**
- * Events (from Day setup) and the two screens it opens: Rename and Add an event. Events is a card per event with
- * Rename and Switch off / on; Switch saves at once and a refused save shows on that event's card. There is no event
- * list to confirm.
+ * Events (from Day setup) and the two screens it opens: Rename and Add an event. Events is a row per event; a tap opens
+ * the event's sheet with Rename and Switch off / on. Switch saves at once and closes the sheet; a refused save shows in
+ * the sheet. There is no event list to confirm.
  */
 export function Events({view,day,updated,error,onRefresh,onOpen,onBack,onSaved}:{view:EventsView;day:DayRead|null;updated:string;error:unknown;
   onRefresh:()=>Promise<void>;onOpen:(view:View)=>void;onBack:()=>void;onSaved:()=>Promise<void>}) {
@@ -37,28 +37,32 @@ export function Events({view,day,updated,error,onRefresh,onOpen,onBack,onSaved}:
 
 function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|null;updated:string;error:unknown;onRefresh:()=>Promise<void>;onOpen:(view:View)=>void;onSaved:()=>Promise<void>}) {
   const {busy,save}=useSave(onSaved);
-  const [failed,setFailed]=useState<{code:string;error:unknown}|null>(null);
+  const [openId,setOpenId]=useState<DayEvent['id']|null>(null);
+  const [refused,setRefused]=useState<unknown>(null);
+  const open=day?.events.find(event=>event.id===openId);
   async function toggle(event:DayEvent) {
-    setFailed(null);
-    const refused=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled});
-    if(refused) setFailed({code:event.code,error:refused});
+    setRefused(null);
+    const failure=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled});
+    if(failure) setRefused(failure);else setOpenId(null);
   }
-  // A card grid, as on Races, so it takes Races' wide column on a laptop.
-  return <LeadBar title="Events" up="Day setup" wide body={<><main className="rz-main">
+  return <LeadBar title="Events" up="Day setup" body={<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
-    {day && <ul className="rz-list rz-list--cards" aria-label="Events">{day.events.map(event=><li key={event.id}>
-      <article className="rz-racecard" aria-label={`${event.code} · ${event.section}`}>
-        <div className="rz-racecard__head"><h2 className="rz-racecard__title">{eventTitle(event)}</h2><span className="rz-code-tag">{event.code}</span></div>
-        <p className="rz-racecard__status">{eventTypeNames[event.type]} · {formats[event.format]}{!event.enabled && ' · Switched off'}</p>
-        <div className="rz-racecard__actions">
-          <button type="button" className="rz-btn rz-btn--small" aria-label={`Rename ${event.code}`} onClick={()=>onOpen({kind:'rename-event',code:event.code})}>Rename</button>
-          <button type="button" className="rz-btn rz-btn--small" aria-label={`${event.enabled?'Switch off':'Switch on'} ${event.code}`} disabled={busy} onClick={()=>void toggle(event)}>{event.enabled?'Switch off':'Switch on'}</button>
-        </div>
-        {failed?.code===event.code && <ErrorCallout error={failed.error} action="save"/>}
-      </article>
+    {day && <ul className="rz-list" aria-label="Events">{day.events.map(event=><li key={event.id}>
+      <button type="button" className="rz-listrow" onClick={()=>{setRefused(null);setOpenId(event.id);}}>
+        <span className="rz-listrow__main"><span className="rz-listrow__label">{eventTitle(event)}</span>
+          <span className="rz-listrow__meta">{event.code} · {eventTypeNames[event.type]} · {formats[event.format]}{!event.enabled && ' · Switched off'}</span></span>
+        <Icon name="chevron-right" className="rz-icon--bold"/></button>
     </li>)}</ul>}
     <button type="button" className="rz-btn rz-btn--block" onClick={()=>onOpen({kind:'new-event'})}><Icon name="plus"/>Add an event</button>
-  </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void onRefresh()}/></footer></>}/>;
+  </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void onRefresh()}/></footer>
+  {open && <Sheet title={eventTitle(open)} onClose={()=>setOpenId(null)}>
+    {refused!==null && <ErrorCallout error={refused} action="save"/>}
+    <div className="rz-sheet__actions">
+      <button type="button" className="rz-btn rz-btn--block" onClick={()=>onOpen({kind:'rename-event',code:open.code})}>Rename</button>
+      <button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void toggle(open)}>{open.enabled?'Switch off':'Switch on'}</button>
+    </div>
+  </Sheet>}
+  </>}/>;
 }
 
 /** Rename: the event's new name, saved by the docked button; Races, Results and the Day export show it. */
