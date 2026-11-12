@@ -215,6 +215,13 @@ export async function ownWristbands(section:keyof typeof sectionStart,count:numb
     return named.get(key)!;
   };
 }
+/** An event's card in the Results list, found by its event code. A card of an event with no races is under the closed "Not started" line: `notStartedCard`. */
+export const resultsCard=(page:Page,code:string)=>page.getByRole('button').filter({has:page.locator('.rz-code-tag',{hasText:new RegExp(`^${code}$`)})});
+/** The card of an event with no races yet: opens the Results list's "Not started" line, then answers the card. */
+export async function notStartedCard(page:Page,code:string) {
+  await press(page.locator('details:not([open]) > summary',{hasText:/^Not started \(\d+\)$/}));
+  return resultsCard(page,code);
+}
 /** Makes this test's own event under a code from ownCode(), so its races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats',type:'races'|'hurdles'='races') {
   claimed(code);
@@ -368,9 +375,12 @@ export async function saveFinal(request:APIRequestContext,code:string,order:numb
   await writeOrder(request,token,code,order);
   await submitRace(request,token,code);
 }
-/** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
+/**
+ * Opens the race's actions sheet and taps one of its buttons ("Correct times", "Delete Heat 1"): by the race page's
+ * button with words ("Correct or delete Heat 1"), or by "⋯" on the race screen.
+ */
 export async function raceAction(page:Page,action:string) {
-  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await press(page.getByRole('main').getByRole('button',{name:/^(Correct or delete|Restore or delete|Delete) (Heat \d+|Final)$/}).or(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true})));
   await press(page.getByRole('dialog',{name:/ · actions$/}).getByRole('button',{name:action,exact:true}));
 }
 /** The Confirm the medals screen's medal places, one row per place ("1st 2041 Heat 2 · 10.00 Fix"). */

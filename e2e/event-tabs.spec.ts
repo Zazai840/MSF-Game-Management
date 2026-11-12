@@ -1,9 +1,9 @@
-import {becomeLead,deleteCurrentRace,eventTab,expect,join,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,deleteCurrentRace,eventTab,expect,join,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Page,notStartedCard,resultsCard} from './fixtures.js';
 const owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
-/** As a new lead: Results, then the event's card. */
-async function openEvent(page:Page,code:string,lead:string,section='Girl Cubs') {
+/** As a new lead: Results, then the event's card (under the Not started line while the event has no races). */
+async function openEvent(page:Page,code:string,lead:string,notStarted=false) {
   await page.goto('/');await join(page,ownName(lead),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await press(page.getByRole('button',{name:new RegExp(`^${code} · ${section}`)}));
+  await press(notStarted?await notStartedCard(page,code):resultsCard(page,code));
 }
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event'}).getByRole('button');
 const tab=(page:Page,name:string)=>page.getByRole('navigation',{name:'Event'}).getByRole('button',{name,exact:true});
@@ -35,7 +35,7 @@ test('an event opens on Heats: the scoreboard states only the rule, stars and Qs
 test('a timed event has tabs Heats and Notes, states the medal places, and each empty tab says what will appear',async({page},info)=>{
   const code=await ownCode(),name=ownName('Timed tabs'),girls=await ownWristbands('Girl Cubs',2);
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
-  await openEvent(page,code,'Timed tabs lead');
+  await openEvent(page,code,'Timed tabs lead',true);
   await expect(tabs(page)).toHaveText(['Heats','Notes']);
   await expect(page.getByText('Runners appear here once a heat is saved.',{exact:true})).toBeVisible();
   await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();

@@ -187,11 +187,11 @@ Ending the session on this phone, at once with no confirmation. The phone keeps 
 _Avoid_: Sign out
 
 **To check**:
-The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. A saved race's problems also show at the top of its page in Results, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
 **Action required**:
-A lead's first section of Races: the events with something To check or whose medals wait on their Confirm the medals. The cards are the same as anywhere else on Races.
+A lead's first section of Races and of Results: the events with something To check or whose medals wait on their Confirm the medals. One rule decides it for both screens. The cards are the same as anywhere else on Races; on Results the sections after it are Running and Done, then the events with no races under one closed line, "Not started (26)".
 _Avoid_: Ready for you (a volunteer's first section), Action needed
 
 **Ready for you**:

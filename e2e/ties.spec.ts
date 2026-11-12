@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {back,eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,lookProblems,press,test,type Page} from './fixtures.js';
+import {back,eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,lookProblems,press,test,type Page,resultsCard} from './fixtures.js';
 /** The tie screen's docked Save tie and the reason above it while it cannot save. */
 const saveTie=(page:Page)=>page.getByRole('button',{name:'Save tie',exact:true});
 const reason=(page:Page)=>page.locator('.rz-footer__reason');
@@ -11,7 +11,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   await createRace(2701,1000);await createRace(2702,1000);
   await page.goto('/');await join(page,ownName('Tie lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await resultsCard(page,code).click();
   // The TIE tag opens the tie as its own screen at its own address.
   await press(page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}));
   await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
@@ -85,7 +85,7 @@ test('a tie between two heats runs end to end: leaderboard TIE tags, the tie scr
     await page.goto('/');await join(page,ownName('Tie heats lead'),{job:'Start line'});await becomeLead(page);
     // The line beside + Final names every heat with a tied runner.
     await expect(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:'Heats 1 and 2 have a tie to settle first',exact:true})).toBeVisible();
-    await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+    await openLeadMenu(page,'Results');await resultsCard(page,code).click();
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {
       await expect(board.getByRole('button',{name:`TIE at 10.00 for ${wristband}`,exact:true})).toBeVisible();

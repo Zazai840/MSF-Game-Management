@@ -1,10 +1,11 @@
 import { eventTitle } from '../../shared/day.js';
 import { useEffect,useRef,useState,type ReactNode,type TouchEvent } from 'react';
-import type { DayLeadItem,LeadRaceRead,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import type { LeadRaceRead,ResultsTarget } from '../../shared/lead-results.js';
 import { alreadyDoneLine,changedLine,finalMade,raceFinishedLine,raceName,roleLabels,roleSteps,stepLabels,stepRole,stepsOf,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Role,type Step } from '../../shared/race-flow.js';
-import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
+import { api,homeTabOf,type HomeTab } from '../api.js';
 import { useLive } from '../live.js';
 import { RaceActions } from '../lead/RaceActions.js';
+import { useRaceIssues } from '../lead/RaceProblems.js';
 import { Callout,FinalReasonButton,FinalSheet,HeatChips,Icon,JobBand,NeedsBand,RaceBar,Sheet,StepStrip } from './parts.js';
 import { LeadStep,StepRecord,issueStep } from './LeadStep.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
@@ -15,17 +16,6 @@ import { useScreenName,type View } from '../shell/addresses.js';
 
 /** What a done mark hands back for the toast on Races: the step, the part version it was marked at, its words, and the Races-home tab holding its event. */
 export interface SavedStep { raceId:string; step:Step; version:number; message:string; tab:HomeTab }
-/** This race's open lead items (To check), read while a lead has it open. */
-function useRaceIssues(raceId:string,on:boolean) {
-  const [items,setItems]=useState<DayLeadItem[]>([]);
-  const refresh=()=>api<ResultsRead>('lead').then(read=>setItems(read.needsYou.filter(item=>item.raceId===raceId || item.tie?.raceIds.includes(raceId)))).catch(error=>{if(!(error instanceof StaleRequest)) {/* keep the last */}});
-  useEffect(()=>{
-    if(!on) return;
-    void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);
-    return ()=>clearInterval(timer);
-  },[raceId,on]);
-  return {items,refresh};
-}
 /**
  * The race screen, one route per race (/races/:raceId), the same shell for every role: the app bar, the event group's
  * heat chips (swipe the body to move between heats), the three steps, and only the body for my role. A lead gets the

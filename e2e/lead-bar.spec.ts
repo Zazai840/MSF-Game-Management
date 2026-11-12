@@ -1,4 +1,4 @@
-import {becomeLead,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,switchJob,test,type Page} from './fixtures.js';
+import {becomeLead,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
@@ -42,7 +42,7 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   await expect(updated).toBeVisible();await onBar(page,'Results',updated);
   await page.screenshot({path:info.outputPath('results.png')});
   // An event and a race page: no bar, and the back arrow names Results, then the event.
-  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));await title(page,event);
+  await press(resultsCard(page,code));await title(page,event);
   await expect(bar(page)).toHaveCount(0);await expect(arrow(page)).toHaveAccessibleName('Back to Results');
   await press(page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));await title(page,`Heat ${race.number}`);
   await expect(bar(page)).toHaveCount(0);await expect(arrow(page)).toHaveAccessibleName(`Back to ${event}`);

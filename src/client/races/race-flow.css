@@ -67,6 +67,8 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 /* The Updated-at line sits centred in its footer. */
 .rz-footer .rz-refresh { justify-content: center; }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
+/* A Results card's first line: the event's name, its code tag at the end. */
+.rz-event__head { align-self: stretch; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-8); }
 .rz-note { margin: 0; padding: var(--space-10) var(--space-14); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-card); font-size: 14px; line-height: 1.4; font-weight: 700; }
 .rz-empty { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink-muted); }
 .rz-appbar__brand { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -282,8 +284,6 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-attendance__seed { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
 .rz-attendance--one li { grid-template-columns: 1fr auto; }
 /* Signed in today: a card per person, its name over Lead or Volunteer, then its small buttons. */
-.rz-person__name { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 800; color: var(--navy); }
-.rz-person__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: var(--space-4); }
 /* A relay heat's Start line: a card per team in the heat, then the teams still to run. */
 .rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }
 .rz-teamcard__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); min-height: var(--size-touch); }
