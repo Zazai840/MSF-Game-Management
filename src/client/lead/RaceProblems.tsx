@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment,useState } from 'react';
 import type { DayLeadItem,EventResultsRead } from '../../shared/lead-results.js';
 import type { RaceRead } from '../../shared/races.js';
 import type { ResultEntry } from '../../shared/results-rules.js';
@@ -42,6 +42,7 @@ export function RaceProblems({items,rows,race,onOpen,onAccepted}:{items:readonly
   return <>{error && <Callout message={error}/>}{race?items.map(callout):raceCallouts(items).map(group=>{
     if(!group.title) return callout(group.items[0]);
     const {label,open}=fixOf(group.items[0]);
-    return <Callout key={group.items[0].id} message={<><span><strong>{group.title}.</strong></span>{group.lines!.map((line,index)=><span key={group.items[index].id} className="rz-callout__team">{line}</span>)}</>}
+    return <Callout key={group.items[0].id} message={<><span><strong>{group.title}.</strong></span>{group.lines!.map((line,index)=><Fragment key={group.items[index].id}><span className="rz-callout__team">{line}</span>
+        {itemTeams(group.items[index],rows).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</Fragment>)}</>}
       actions={<button type="button" className="rz-btn rz-btn--primary" onClick={open}>{label}</button>}/>;})}</>;
 }

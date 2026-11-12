@@ -32,9 +32,11 @@ describe('To check wording',()=>{
     const tie=item({id:'t',kind:'tie',message:'Tie',race:undefined,raceId:undefined,tieId:'t',tie:{time:2000,names:['2004','2005'],raceIds:['r1','r2']}});
     const late=item({id:'l',kind:'added-at-finish',message:'a',race:heat(1),raceId:'r1',wristband:1002});
     const alone=item({id:'a',kind:'times-out-of-order',message:'Times out of order',race:heat(2),raceId:'r2'});
+    // One kind of problem: the facts only.
+    expect(raceCallouts([wrong('w1',5141,'unknown-number'),wrong('w2',3141,'wrong-section')])[0].lines).toEqual(['5141 is not a wristband number. Wristbands are 1 to 4999.','3141 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999.']);
     expect(raceCallouts([wrong('w1',5141,'unknown-number'),tie,wrong('w2',3141,'wrong-section'),alone,late])).toEqual([
       {items:[expect.objectContaining({id:'w1'}),expect.objectContaining({id:'w2'}),expect.objectContaining({id:'l'})],title:'Heat 1 · 3 things to check',
-        lines:['5141 is not a wristband number. Wristbands are 1 to 4999.','3141 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999.','1002 crossed the line but was not checked in at the start.']},
+        lines:['A wristband number needs checking. 5141 is not a wristband number. Wristbands are 1 to 4999.','A wristband number needs checking. 3141 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999.','A runner was added at the finish. 1002 crossed the line but was not checked in at the start.']},
       {items:[expect.objectContaining({id:'t'})]},
       {items:[expect.objectContaining({id:'a'})]}]);
   });
