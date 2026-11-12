@@ -127,7 +127,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - Comment (needed only for Decided without a run-off), then a docked "Save tie" with its reason above while it cannot save. Saving shows "Tie saved · 60m Girl Cubs" and goes back.
 
 **25 Confirm the medals.** A full screen at `/results/<code>/confirm-the-medals`, opened from a Races card, the Final tab, or the Heats tab of a timed event; Back (the only way out) returns there:
-- Lead header "200m · Boy Cubs" with the event code. Prompt: meta "3 heats · no final" ("2 heats · final" on a final), question "Confirm the *medals*", help "Check the places, then confirm. They go to the Day export."
+- Lead header "Confirm the medals" with the event code (the action, as on Results without a final and each Reopen: "Reopen heats"); the back arrow's fallback is the event. Prompt: meta "200m · Boy Cubs · 3 heats · no final" ("... · 2 heats · final" on a final), question "Confirm the *medals*", help "Check the places, then confirm. They go to the Day export."
 - "Settle first" and "Worth a look": IssueCards, each with one small button naming its action and thing: "Settle tie" (the tie screen), "Open Heat 3" (the race page), "Open 2041" (the runner sheet over the screen). Settle first's are primary. A section with nothing in it is left out.
 - "Medal places": "A place is wrong? Tap Fix beside it.", then a row per place: the place on a gold star, the number or team, its race and time below ("Heat 2 · 10.00"; "Final" on a final), a TIE tag while an open tie holds it, and a small "Fix" with the pencil, which opens that race on Correct times (Correct finishing order on a final) and comes back here.
 - A docked "Confirm the medals", grey with "Settle 2 things first." above it while Settle first holds anything. Confirming shows "Medals confirmed · 200m Boy Cubs" and goes back.
@@ -179,7 +179,8 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - A block Button "+ Add an event", then "Updated at" with Refresh.
 - Rename and Add an event are full race-flow screens with a docked button ("Save name", "Add event").
 
-**32 Day setup: phones**
-- `display-screen` "Phones", a `body` line explaining Remove.
-- A card for each person: name ("Amina Yusuf (you)"), role meta ("Scoring team" / "Volunteer"), and small Buttons "Remove from scoring team" and "Remove".
-- A ListRow "Phone and access audit notes" at the end.
+**32 Day setup: Signed in today**
+- `display-screen` "Signed in today", a `body` line "Role changes last for today only."
+- A ListRow for each person: label the name ("Amina Yusuf (you)"), meta the level, Owner and role ("Lead · Owner · Zone lead", "Volunteer · Timer"). The lead's own row is not a button and has no chevron.
+- A tap on another person's row opens a Sheet named after the person: block Buttons "Make lead" or "Make volunteer" (never Make volunteer for the owner; saved at once with a toast), then a red "Remove" set apart, which asks "Remove <name>?" in a second Sheet.
+- A closed disclosure "Notes (3)" at the foot, then "Updated at" with Refresh.

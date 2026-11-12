@@ -62,7 +62,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   const tie=(to:string)=>onScreen(page,new RegExp(`/results/${tieCode}/ties/[^/]+$`),'Tie at 10.00',to);
   // Races' card opens Confirm the medals; Back returns to Races.
   await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Confirm the medals',exact:true}));
-  await onScreen(page,`/results/${code}/confirm-the-medals`,event,'Races');
+  await onScreen(page,`/results/${code}/confirm-the-medals`,'Confirm the medals','Races');
   await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await bothGoBack(page,races);
@@ -146,6 +146,9 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await press(arrow(page));await onScreen(page,`/results/${code}/heats`,event,'Results');
   await press(arrow(page));await onScreen(page,'/results','Results','Races');
   await press(arrow(page));await onRaces(page);
+  // A medal screen's bar names the action, and with no history its back arrow names the event.
+  await page.goto(`/results/${code}/confirm-the-medals`);await onScreen(page,`/results/${code}/confirm-the-medals`,'Confirm the medals',event);
+  await press(arrow(page));await onScreen(page,`/results/${code}/heats`,event,'Results');
   await page.goto('/day/signed-in-today');await onScreen(page,'/day/signed-in-today','Signed in today','Day setup');
   await press(arrow(page));await onScreen(page,'/day','Day setup','Races');
   await press(arrow(page));await onRaces(page);

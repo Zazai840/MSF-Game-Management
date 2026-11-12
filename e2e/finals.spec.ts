@@ -105,6 +105,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await eventTab(page,'Heats');await expect(stageButtons(page)).toHaveCount(0);
  await page.goto(`/results/${code}/reopen-heats`);
  await expect(page.getByText('The final has started. Heats cannot be reopened.',{exact:true})).toBeVisible();await expect(page.getByRole('contentinfo').getByRole('button')).toHaveCount(0);
+ await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Reopen heats',exact:true})).toBeVisible();
  await back(page,`${name} · Boy Cubs`);await expect(final).toContainText(String(n(15)));
 });
 test('the start line and the lead call up the next fastest at the final\'s check-in: Here at once, offered only while a seed is free and a ranked runner is left; a finalist the finish line adds counts as Here',async({openPhone,request},info)=>{
@@ -190,6 +191,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await expect(page.getByRole('button',{name:'Reopen heats',exact:true})).toBeHidden();await openMore(page);
  await press(page.getByRole('button',{name:'Reopen heats',exact:true}));
  await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-heats$`));
+ await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Reopen heats',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{level:2,name:'Reopen the heats?',exact:true})).toBeVisible();
  await expect(page.getByText('The final has not run. It is removed. Make it again with + Final on Races after every heat has run.',{exact:true})).toBeVisible();
  const reopen=page.getByRole('contentinfo').getByRole('button',{name:'Reopen heats',exact:true});

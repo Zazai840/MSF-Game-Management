@@ -6,10 +6,10 @@ test('Signed in today shows the job each phone last reported: the one chosen on 
   await page.goto('/');await page.evaluate(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);await page.reload();
   await openLeadMenu(page,'Day setup');
   await page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/}).click();
-  const row=page.getByRole('article',{name,exact:true});
+  const row=page.getByRole('listitem').filter({hasText:name});
   await expect(row.getByText('Volunteer · Finish line',{exact:true})).toBeVisible({timeout:10000});
   // The owner's own phone reports too: a lead starts as Zone lead.
-  await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toContainText('Lead · Owner · ',{timeout:10000});
+  await expect(page.getByRole('listitem').filter({hasText:'E2E Owner'})).toContainText('Lead · Owner · ',{timeout:10000});
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('signed-in-today-jobs.png'),fullPage:true});
   await switchJob(other,'Timer');
   await expect(row.getByText('Volunteer · Timer',{exact:true})).toBeVisible({timeout:10000});
@@ -27,20 +27,30 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
   await expect(page.getByText('Role changes last for today only.',{exact:true})).toBeVisible();
-  const self=page.getByRole('article',{name:'E2E Owner',exact:true});
+  const self=page.getByRole('listitem').filter({hasText:'E2E Owner'});
   await expect(self).toContainText('(you)');await expect(self).toContainText('Lead · Owner');await expect(self.getByRole('button')).toHaveCount(0);
-  const row=page.getByRole('article',{name,exact:true});
+  const row=page.getByRole('listitem').filter({hasText:name});
   await expect(row.getByText('Volunteer · Start line',{exact:true})).toBeVisible({timeout:10000});
-  await expect(row.getByRole('button')).toHaveText(['Make lead','Remove']);
+  // One row per person: its actions are in the sheet the row opens, so no red Remove is on the list.
+  await expect(row.getByRole('button')).toHaveCount(1);await expect(page.getByRole('button',{name:'Remove',exact:true})).toHaveCount(0);
   await expect(page.getByText(/^Updated at \d\d:\d\d:\d\d/)).toBeVisible();
   await press(page.getByRole('button',{name:'Refresh',exact:true}));
   await expect(page.getByText(/Phones/)).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
 
-  await press(row.getByRole('button',{name:'Make lead',exact:true}));
+  const sheet=page.getByRole('dialog',{name,exact:true}),actions=sheet.getByRole('button',{name:/^(Make|Remove)/});
+  await press(row.getByRole('button'));
+  await expect(actions).toHaveText(['Make lead','Remove']);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('person-sheet.png')});
+  // The phone's Back closes the sheet and stays on Signed in today.
+  await page.goBack();await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
+  await press(row.getByRole('button'));
+  await press(sheet.getByRole('button',{name:'Make lead',exact:true}));
   await expectToast(page,`${name} is a lead now · today only`);
-  await expect(row.getByText('Lead · Start line',{exact:true})).toBeVisible();
-  await expect(row.getByRole('button')).toHaveText(['Make volunteer','Remove']);
+  await expect(sheet).toHaveCount(0);await expect(row.getByText('Lead · Start line',{exact:true})).toBeVisible();
+  await press(row.getByRole('button'));await expect(actions).toHaveText(['Make volunteer','Remove']);
+  await press(sheet.getByLabel('Close',{exact:true}));await expect(sheet).toHaveCount(0);
   await press(page.getByText(/^Notes \(\d+\)$/));
   await expect(page.getByText(`Made ${name} a lead · E2E Owner`)).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('signed-in-today.png'),fullPage:true});
@@ -49,12 +59,13 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   // As a lead it sees the owner's row, which offers Remove but never Make volunteer.
   await openLeadMenu(other,'Day setup');
   await other.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/}).click();
-  const ownerRow=other.getByRole('article',{name:'E2E Owner',exact:true});
-  await expect(ownerRow).toContainText('Lead · Owner');await expect(ownerRow.getByRole('button')).toHaveText(['Remove']);
+  const ownerRow=other.getByRole('listitem').filter({hasText:'E2E Owner'});
+  await expect(ownerRow).toContainText('Lead · Owner');await press(ownerRow.getByRole('button'));
+  await expect(other.getByRole('dialog',{name:'E2E Owner',exact:true}).getByRole('button',{name:/^(Make|Remove)/})).toHaveText(['Remove']);
   await other.goto('/');await expect(leadMenuButton(other)).toBeVisible();
 
   // Remove asks first; Keep changes nothing.
-  await press(row.getByRole('button',{name:'Remove',exact:true}));
+  await press(row.getByRole('button'));await press(sheet.getByRole('button',{name:'Remove',exact:true}));
   const ask=page.getByRole('dialog',{name:`Remove ${name}?`,exact:true});
   await expect(ask).toContainText('Their phone goes back to Join and drops anything it has not saved. They can join again with the Olympics password.');
   await expect(ask.getByRole('button',{name:/^(Remove|Keep) /})).toHaveText([`Keep ${name}`,`Remove ${name}`]);
@@ -63,7 +74,8 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   await expect(ask).toHaveCount(0);await expect(row).toBeVisible();
   await expect(page.getByRole('status').filter({hasText:'removed'})).toHaveCount(0);
 
-  await press(row.getByRole('button',{name:'Remove',exact:true}));
+  await press(row.getByRole('button'));await press(sheet.getByRole('button',{name:'Remove',exact:true}));
+  await expect(sheet).toHaveCount(0);
   await press(ask.getByRole('button',{name:`Remove ${name}`,exact:true}));
   await expect(ask).toHaveCount(0);await expect(row).toHaveCount(0);await expectToast(page,`${name} removed · signed out`);
   await expect(page.getByText(`Removed ${name} · E2E Owner`)).toBeVisible();
