@@ -1,9 +1,9 @@
-import { createContext,useContext,useEffect,useRef,useState,type ReactNode } from 'react';
+import { createContext,useContext,useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import type { RacesRead,Step } from '../../shared/race-flow.js';
 import { ApiFailure,api } from '../api.js';
 import { useLive } from '../live.js';
 import { failureLine } from '../../shared/request-failure.js';
-import { Icon } from './parts.js';
+import { Icon,useWayOut } from './parts.js';
 import type { SavedStep } from './RaceShell.js';
 /** How long the toast stays, unless it has focus. */
 const showFor=6000;
@@ -20,11 +20,32 @@ export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:st
   return toast.saved?<StepToast saved={toast.saved} onOpen={onOpen} onClose={onClose}/>
     :<ToastBox onClose={onClose}><span className="rz-toast__msg"><Icon name="check"/>{toast.message}</span></ToastBox>;
 }
+/**
+ * Where the toast sits: just above whatever is fixed at the foot of the screen (an open sheet, a docked button, the
+ * lead's bar), so it never covers a button. The "Updated at" line is not in its way: the toast may cover it.
+ */
+function useClearOfButtons(box:{current:HTMLElement|null}) {
+  useLayoutEffect(()=>{
+    const place=()=>{
+      const tops=[...document.querySelectorAll<HTMLElement>('.rz-leadnav, .rz-footer--sticky > :not(.rz-refresh)')].map(fixed=>fixed.getBoundingClientRect()).filter(rect=>rect.height).map(rect=>rect.top);
+      // A sheet by where it ends up, not where it is on its way in.
+      for(const sheet of document.querySelectorAll<HTMLElement>('.rz-scrim:not([data-closing]) > .rz-sheet')) tops.push(sheet.parentElement!.getBoundingClientRect().top+sheet.offsetTop);
+      const floor=Math.min(innerHeight,...tops);
+      if(box.current) box.current.style.bottom=floor<innerHeight?`${innerHeight-floor+8}px`:'';
+    };
+    place();
+    const observer=new MutationObserver(place);
+    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-closing','data-keyboard']});
+    addEventListener('resize',place);
+    return ()=>{observer.disconnect();removeEventListener('resize',place);};
+  },[]);
+}
 /** The toast's box: it closes after 6 seconds, the count starting again when `restartOn` changes, and waits while focused. */
 function ToastBox({restartOn,onClose,children}:{restartOn?:unknown;onClose:()=>void;children:ReactNode}) {
-  const [focused,setFocused]=useState(false),box=useRef<HTMLDivElement>(null);
-  useEffect(()=>{if(focused) return;const timer=window.setTimeout(onClose,showFor);return ()=>clearTimeout(timer);},[focused,restartOn]);
-  return <div ref={box} className="rz-toast" role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
+  const [focused,setFocused]=useState(false),box=useRef<HTMLDivElement>(null),out=useWayOut(onClose);
+  useEffect(()=>{if(focused) return;const timer=window.setTimeout(out.start,showFor);return ()=>clearTimeout(timer);},[focused,restartOn]);
+  useClearOfButtons(box);
+  return <div ref={box} className="rz-toast" data-leaving={out.leaving?'':undefined} role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
 }
 /**
  * After a step is saved: "Times saved · Girl Cubs Heat 2" with Undo, which reverses only this person's own save and

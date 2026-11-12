@@ -8,7 +8,7 @@ import { reopenHeatsSheet,resultName,teamWristbands,type LeaderboardRow } from '
 import type { Stage,StageCheckSheet,StageItem,StagePlace } from '../../shared/stages.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { toastLine } from '../../shared/toast-lines.js';
-import { Callout,ErrorCallout,Icon,Star } from '../races/parts.js';
+import { Callout,ErrorCallout,Icon,Star,Opening } from '../races/parts.js';
 import { LeadBar } from './LeadBar.js';
 import { useToast } from '../races/Toast.js';
 import type { StageScreen,View } from '../shell/addresses.js';
@@ -73,7 +73,7 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
   const sheet=decidedSheet(detail,screen),up=detail?eventTitle(detail.event):code;
   const title=!screen?'Confirm the medals':screen==='results-without-a-final'?'Results without a final':`Reopen ${screen.slice('reopen-'.length)}`; // a Reopen's address holds its label's words (stageView)
   if(!detail || !sheet) return <LeadBar title={title} code={code} up={up} body={<main className="rz-main rz-main--form">
-    {error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">{!detail?'Opening…':nothingLine(detail,screen)}</p>}
+    {error!==null?<ErrorCallout error={error} action="read"/>:!detail?<Opening/>:<p className="rz-empty">{nothingLine(detail,screen)}</p>}
   </main>}/>;
   const event=detail.event,reopening=sheet.completed,settle=reopening?0:sheet.mustSettleFirst.length;
   async function save() {

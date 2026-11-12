@@ -110,3 +110,47 @@ test('the phone-feel fixes: no double-tap zoom or text selection on buttons, she
   expect(rules).toMatch(/\.rz-footer\b[^{]*\{[^}]*safe-area-inset-bottom/);
   expect(rules).toMatch(/\.rz-sheet\b[^{]*\{[^}]*safe-area-inset-bottom/);
 });
+
+test('a sheet slides up and leaves faster than it came; with reduced motion it opens and closes at once',async({openPhone})=>{
+  const {page}=await openPhone(ownName('Feel sheet'));
+  const sheet=page.getByRole('dialog',{name:'New race'}),open=()=>page.getByRole('button',{name:/New race/}).click();
+  await open();
+  await expect(sheet).toBeVisible();
+  expect(await sheet.evaluate(element=>getComputedStyle(element).transitionProperty)).toContain('translate');
+  // Closing: the sheet stays for its short way out, marked as closing, then is gone.
+  await sheet.getByRole('button',{name:'Close',exact:true}).click();
+  await expect(page.locator('.rz-scrim[data-closing]')).toHaveCount(1);
+  await expect(sheet).toHaveCount(0);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await open();
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button',{name:'Close',exact:true}).click();
+  expect(await sheet.count()).toBe(0);
+});
+
+test('the toast sits just above an open sheet, and on Day setup just above the lead\'s bar, clear of the rows',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Feel toast');
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const {page}=await openPhone(ownName('Feel toast lead'),{lead:true});
+  const bar=page.getByRole('navigation',{name:'Lead screens'}),toast=page.locator('.rz-toast');
+  await bar.getByRole('button',{name:'Day setup',exact:true}).click();
+  await page.getByRole('button',{name:/^Events/}).click();
+  const row=page.getByRole('button',{name:new RegExp(`^${name}`)}),sheet=page.getByRole('dialog');
+  const box=async(target:Locator)=>(await target.boundingBox())!;
+  await row.click();await sheet.getByRole('button',{name:'Switch off',exact:true}).click();
+  await expect(toast).toContainText(`${code} switched off`);
+  await row.click();
+  await expect(sheet.getByRole('button',{name:'Switch on',exact:true})).toBeVisible();
+  // Once the sheet has slid up, the toast is above it, not on its title.
+  await expect(async()=>{const top=(await box(sheet)).y,foot=await box(toast);expect(foot.y+foot.height).toBeLessThanOrEqual(top);expect(foot.y+foot.height).toBeGreaterThan(top-16);}).toPass({timeout:3000});
+  await sheet.getByRole('button',{name:'Switch on',exact:true}).click();
+  await expect(toast).toContainText(`${code} switched on`);
+  await page.getByRole('banner').getByRole('button',{name:'Back to Day setup'}).click();
+  const last=page.getByRole('button',{name:/^Start a new day/});
+  await expect(last).toBeVisible();
+  await expect(async()=>{
+    const foot=await box(toast),above=await box(bar),rowBox=await box(last);
+    expect(foot.y+foot.height).toBeLessThanOrEqual(above.y);expect(foot.y+foot.height).toBeGreaterThan(above.y-16);
+    expect(foot.y).toBeGreaterThanOrEqual(rowBox.y+rowBox.height);
+  }).toPass({timeout:3000});
+});

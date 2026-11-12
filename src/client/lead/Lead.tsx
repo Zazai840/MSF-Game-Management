@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api,StaleRequest } from '../api.js';
+import { api,keepSeen,lastSeen,StaleRequest } from '../api.js';
 import type { DayRead } from '../../shared/day.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { ErrorCallout } from '../races/parts.js';
@@ -28,18 +28,19 @@ const daySetup:Record<DayView['kind'],string>={day:'Day setup','this-day':'This 
  * race's issues on the race itself, so there is no Dashboard or To check list.
  */
 export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadView;target?:ResultsTarget;onOpen:(view:View,options?:{replace?:boolean;over?:boolean})=>void;onBack:(levels?:1|2)=>void;onChanged:()=>void}) {
-  const [day,setDay] = useState<DayRead|null>(null);
-  const [phones,setPhones] = useState<number|null>(null);
+  // Day setup seen before opens at once with what it showed last (api.ts, lastSeen), and reads again behind it.
+  const [day,setDay] = useState<DayRead|null>(()=>lastSeen<DayRead>('day')?.value??null);
+  const [phones,setPhones] = useState<number|null>(()=>lastSeen<number>('day/phones')?.value??null);
   const [error,setError] = useState<unknown>(null);
-  const [updated,setUpdated] = useState('');
+  const [updated,setUpdated] = useState(()=>lastSeen('day')?.at??'');
   const kind=view.kind,section=kind in daySetup?daySetup[kind as DayView['kind']]:null;
   async function refresh() {
     try {
-      if (kind === 'day') {
-        const [read,signedIn]=await Promise.all([api<DayRead>('day'),api<PhonesRead>('day/phones')]);
-        setDay(read);setPhones(signedIn.phones.length);
-      } else if (section) setDay(await api('day'));
-      setUpdated(clockWithSeconds(new Date())); setError(null);
+      if(!section) return;
+      const [read,signedIn]=await Promise.all([api<DayRead>('day'),kind==='day'?api<PhonesRead>('day/phones'):null]),at=clockWithSeconds(new Date());
+      if(signedIn) {setPhones(signedIn.phones.length);keepSeen('day/phones',signedIn.phones.length,at);}
+      setDay(read);keepSeen('day',read,at);
+      setUpdated(at); setError(null);
     } catch (error) { if(error instanceof StaleRequest) return;setError(error); }
   }
   useEffect(()=>{if(!section) return;void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==='visible') void refresh();},5000);return()=>clearInterval(timer);},[section]);

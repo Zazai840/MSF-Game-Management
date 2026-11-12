@@ -7,7 +7,7 @@ import { SignIn } from './access/SignIn.js';
 import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
-import { Avatar,Callout,HomeBar,JobBand,Screen } from './races/parts.js';
+import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine } from './races/parts.js';
 import { failureLine } from '../shared/request-failure.js';
 import { LeadBar,LeadFrame,LeadTabs } from './lead/LeadBar.js';
 import { RacesHome } from './races/RacesHome.js';
@@ -155,7 +155,7 @@ export function App() {
 /** While the app (or Lead) opens: the app bar and a spinner, or the amber callout with Refresh when the read failed. */
 function Opening({words,error,onRefresh}:{words:string;error?:unknown;onRefresh?:()=>void}) {
   return <Screen screen="Opening"><HomeBar>{null}</HomeBar>
-    {error===undefined?<main className="rz-main rz-opening"><p className="rz-empty rz-opening__line" role="status"><span className="rz-spinner" aria-hidden="true"/>{words}</p></main>
+    {error===undefined?<main className="rz-main rz-opening"><OpeningLine words={words}/></main>
       :<main className="rz-main"><Callout message={failureLine(error,'read')} actions={<button type="button" className="rz-btn rz-btn--small" onClick={onRefresh}>Refresh</button>}/></main>}
   </Screen>;
 }

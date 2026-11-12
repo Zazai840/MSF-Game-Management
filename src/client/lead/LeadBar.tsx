@@ -1,5 +1,5 @@
 import { createContext,useContext,type ReactNode } from 'react';
-import { ErrorCallout,Icon,Pattern,Screen,type IconName } from '../races/parts.js';
+import { ErrorCallout,Icon,Pattern,Screen,type IconName,Opening } from '../races/parts.js';
 import { entryBack,useScreenName,type View } from '../shell/addresses.js';
 /** What every lead screen's header needs from the app: the avatar with its menu, and where Back goes. */
 export const LeadFrame=createContext<{avatar:ReactNode;onBack:()=>void}|null>(null);
@@ -28,7 +28,7 @@ export function LeadBar({title,code,up,body,wide=false}:{title:string;code?:stri
  * A full lead screen's body while its read is on its way: "Opening…", or why the read failed. The screen passes it as
  * its LeadBar's `body`, so the header stays the same element once the read arrives (no remount, no lost focus).
  */
-export const OpeningBody=({error}:{error:unknown})=><main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">Opening…</p>}</main>;
+export const OpeningBody=({error}:{error:unknown})=><main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<Opening/>}</main>;
 const leadTabs:Array<[name:string,icon:IconName,view:View]>=[['Races','hurdle',{kind:'races'}],['Results','trophy',{kind:'results'}],['Day setup','sliders',{kind:'day'}]];
 /** The lead's bar: Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. */
 export function LeadTabs({current,onOpen}:{current:string;onOpen:(view:View)=>void}) {
