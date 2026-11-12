@@ -213,6 +213,13 @@ export async function ownWristbands(section:keyof typeof sectionStart,count:numb
     return named.get(key)!;
   };
 }
+/** An event's card in the Results list, found by its event code. A card of an event with no races is under the closed "Not started" line: `notStartedCard`. */
+export const resultsCard=(page:Page,code:string)=>page.getByRole('button').filter({has:page.locator('.rz-code-tag',{hasText:new RegExp(`^${code}$`)})});
+/** The card of an event with no races yet: opens the Results list's "Not started" line, then answers the card. */
+export async function notStartedCard(page:Page,code:string) {
+  await press(page.locator('details:not([open]) > summary',{hasText:/^Not started \(\d+\)$/}));
+  return resultsCard(page,code);
+}
 /** Makes this test's own event under a code from ownCode(), so its races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats',type:'races'|'hurdles'='races') {
   claimed(code);

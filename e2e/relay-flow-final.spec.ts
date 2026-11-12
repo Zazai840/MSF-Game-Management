@@ -1,6 +1,6 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { ordinal } from '../src/shared/ordinal.js';
-import {press,confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {press,confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page,resultsCard} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
@@ -92,7 +92,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await done.locator('summary').click();
   await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');
   await expect(relayCard.getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
-  await openLeadMenu(boss,'Results');await boss.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await openLeadMenu(boss,'Results');await resultsCard(boss,code).click();
   await eventTab(boss,'Final');
   const board=boss.getByRole('list',{name:'Final leaderboard',exact:true});
   for(const team of [3,1,4,2]) await expect(board.getByRole('button',{name:`Team ${team} · ${legs(team)} · Final`,exact:true})).toBeVisible();

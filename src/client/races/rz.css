@@ -405,12 +405,6 @@ html[data-keyboard="open"] .rz-footer--docked { position: fixed; top: 0; bottom:
 .rz-qline span { font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 14px; line-height: 1; letter-spacing: .14em; text-transform: uppercase; }
 
 /* ---------- EventGrid ---------- */
-.rz-legend { display: flex; flex-wrap: wrap; gap: var(--space-8) var(--space-14); margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.2; font-weight: 700; color: var(--ink-muted); }
-.rz-legend li { display: inline-flex; align-items: center; gap: var(--space-6); }
-.rz-legend__swatch { width: 14px; height: 14px; border-radius: 4px; }
-.rz-legend__swatch--done { background: var(--navy); }
-.rz-legend__swatch--running { background: var(--card); box-shadow: inset 0 0 0 2px var(--navy); }
-.rz-legend__swatch--idle { border: 1.5px dashed var(--line-strong); }
 .rz-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-event { width: 100%; min-height: 60px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: var(--space-10) var(--space-12); border: 0; border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); text-align: left; text-decoration: none; }
 .rz-event__name { font-size: 14px; line-height: 1.25; font-weight: 800; }

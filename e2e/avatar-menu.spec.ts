@@ -1,4 +1,4 @@
-import {ownCode,ownEvent,ownName,ownWristbands,deleteCurrentRace,expect,lookProblems,openRace,press,recordRace,test,writeCheckIn,type Page} from './fixtures.js';
+import {ownCode,ownEvent,ownName,ownWristbands,deleteCurrentRace,expect,lookProblems,openRace,press,recordRace,test,writeCheckIn,type Page,resultsCard} from './fixtures.js';
 const items=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
 const title=(page:Page,name:string)=>expect(page.getByRole('banner').getByRole('heading',{level:1,name,exact:true})).toBeVisible();
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
@@ -26,7 +26,7 @@ test('a lead\'s avatar menu is on every lead screen and the Race screen: Races, 
   };
   await pick('Results','races');await title(page,'Results');
   // Results, its event and the lead's race page.
-  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));await title(page,event);
+  await press(resultsCard(page,code));await title(page,event);
   await pick('Results','event');await title(page,'Results');
   await page.goto(`/results/${code}/races/${race.id}`);await title(page,`Heat ${race.number}`);
   await pick('Day setup','race-page');await title(page,'Day setup');

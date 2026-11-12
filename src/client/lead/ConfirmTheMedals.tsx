@@ -53,7 +53,7 @@ const reopenHelp:Record<Exclude<Stage,'heats'>,string>={final:'The medals are no
   event:"The medals are no longer confirmed, and the event's races open for corrections.",
   'no-final':'This clears the medals and opens the heats again. You can then run a final or choose Results without a final again.'};
 /**
- * A medal decision as its own screen (spec #250 "Confirm the medals and the tie"): Confirm the medals at
+ * A medal decision as its own screen (spec #250 "Confirm the medals and the tie"; its bar names the action, spec #313): Confirm the medals at
  * /results/<code>/confirm-the-medals, and (`screen`) Results without a final and each Reopen at /results/<code>/<screen>.
  * Confirm the medals and Results without a final show Settle first, Worth a look and the medal places, each with Fix,
  * then the docked Confirm the medals, grey while anything must be settled first; Results without a final and a Reopen
@@ -69,8 +69,10 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
   useEffect(()=>{
     api<EventResultsRead>(`lead/events/${encodeURIComponent(code)}/results`).then(setDetail,failure=>{if(!(failure instanceof StaleRequest)) setError(failure);});
   },[code]);
-  const sheet=decidedSheet(detail,screen),title=detail?eventTitle(detail.event):code;
-  if(!detail || !sheet) return <LeadBar title={title} code={code} up={title} body={<main className="rz-main rz-main--form">
+  // The bar names the action; the event is the back arrow's fallback and is named in the body's meta line.
+  const sheet=decidedSheet(detail,screen),up=detail?eventTitle(detail.event):code;
+  const title=!screen?'Confirm the medals':screen==='results-without-a-final'?'Results without a final':`Reopen ${screen.slice('reopen-'.length)}`; // a Reopen's address holds its label's words (stageView)
+  if(!detail || !sheet) return <LeadBar title={title} code={code} up={up} body={<main className="rz-main rz-main--form">
     {error!==null?<ErrorCallout error={error} action="read"/>:<p className="rz-empty">{!detail?'Opening…':nothingLine(detail,screen)}</p>}
   </main>}/>;
   const event=detail.event,reopening=sheet.completed,settle=reopening?0:sheet.mustSettleFirst.length;
@@ -83,8 +85,8 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
   }
   const reason=settle?`Settle ${settle===1?'1 thing':`${settle} things`} first.`:screen && !comment.trim()?'Write a comment first.':null;
   const check=<MedalsCheck detail={detail} sheet={sheet} onOpen={onOpen} onRunner={setRunner}/>;
-  const frame={meta:medalsMeta(detail,sheet),reason,busy,refused,onGo:()=>void save()};
-  return <><LeadBar title={title} code={event.code} up={title} body={
+  const frame={event:up,meta:medalsMeta(detail,sheet),reason,busy,refused,onGo:()=>void save()};
+  return <><LeadBar title={title} code={event.code} up={up} body={
     reopening?<Frame {...frame} question={<>Reopen the <em>{reopened[sheet.stage]}</em>?</>} help={sheet.stage==='heats'?sheet.reopenWarning!:reopenHelp[sheet.stage]} label={reopenLabel(sheet.stage)}>
       <Comment value={comment} onChange={setComment} required/>
     </Frame>

@@ -1,4 +1,4 @@
-import {ownName,ownCode,press,ownEvent,becomeLead,join,openLeadMenu,recordRace,ownWristbands,expect,inViewAboveFooter,openRace,signInThroughApi,test,writeCheckIn,type Locator,type Page,type PhoneSession} from './fixtures.js';
+import {ownName,ownCode,press,ownEvent,becomeLead,join,openLeadMenu,recordRace,ownWristbands,expect,inViewAboveFooter,openRace,signInThroughApi,test,writeCheckIn,type Locator,type Page,type PhoneSession,resultsCard} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -137,7 +137,7 @@ test('a lead\'s Correct number keeps Save number on the keyboard',async({page})=
   await ownEvent(page.request,code,name);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
   await page.goto('/');await join(page,ownName('Docked number lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  await press(resultsCard(page,code));
   await press(page.getByRole('button',{name:new RegExp(`^Runner ${n(2)} · `)}));
   await press(page.getByRole('dialog',{name:`Runner ${n(2)}`,exact:true}).getByRole('button',{name:'Correct number',exact:true}));
   const box=page.getByLabel('New wristband number',{exact:true});
