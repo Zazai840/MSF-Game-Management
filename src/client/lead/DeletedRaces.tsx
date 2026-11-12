@@ -10,11 +10,10 @@ export function RaceRows({rows,onRace}:{rows:ReadonlyArray<{id:string;label:stri
     <span className={row.more?'rz-listrow__main rz-listrow__main--wide':'rz-listrow__main'}><span className="rz-listrow__label">{row.label}</span><span className="rz-listrow__meta" id={`${id}-${index}`}>{row.meta}</span>
       {row.more && <span className="rz-listrow__more" id={`${id}-${index}-more`}>{row.more}</span>}</span><Icon name="chevron-right" className="rz-icon--bold"/></button></li>)}</ul>;
 }
-/** An event's deleted races, newest first, each opening its race page and named with when it was deleted (none for a race deleted before the time was kept); a no-break space keeps "deleted 10:42" on one line. */
+/** Deleted races, heading and list, only when the event has one: an event's deleted races, newest first, each opening its race page and named with when it was deleted (none for a race deleted before the time was kept); a no-break space keeps "deleted 10:42" on one line. */
 export function DeletedRaces({eventCode,onOpen}:{eventCode:string;onOpen:(id:string)=>void}) {
   const {read:races,error}=usePolledRead<RaceRead[]>(`lead/events/${encodeURIComponent(eventCode)}/deleted-races`);
   if(error!==null) return <ErrorCallout error={error} action="read"/>;
-  if(!races) return <p className="rz-empty">Opening…</p>;
-  if(!races.length) return <p className="rz-empty">Deleted races appear here when a lead deletes a race.</p>;
-  return <RaceRows rows={races.map(race=>({id:race.id,label:`Open deleted ${raceLabel(race)}${race.deletedAt?` · deleted\u00a0${clock(race.deletedAt)}`:''}`,meta:[replacedByRerun(race),runnersText(race.parts.runners.value?.length??0)].filter(Boolean).join(' · ')}))} onRace={onOpen}/>;
+  if(!races?.length) return null;
+  return <><h2 className="rz-section">Deleted races</h2><RaceRows rows={races.map(race=>({id:race.id,label:`Open deleted ${raceLabel(race)}${race.deletedAt?` · deleted\u00a0${clock(race.deletedAt)}`:''}`,meta:[replacedByRerun(race),runnersText(race.parts.runners.value?.length??0)].filter(Boolean).join(' · ')}))} onRace={onOpen}/></>;
 }

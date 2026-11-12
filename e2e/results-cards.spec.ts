@@ -25,10 +25,11 @@ test('Results puts Action required first, then Running and Done, each card in it
     await page.goto('/');await join(page,ownName('Cards lead'),{job:'Start line'});await becomeLead(page);
     // Races says it first: Results must say the same, and hold the same events in Action required.
     const racesCard=(section:string)=>page.getByRole('article',{name:`${name} · ${section}`,exact:true}),racesWords=(section:string)=>racesCard(section).locator('.rz-racecard__status');
-    await expect(racesWords('Boy Cubs')).toHaveText('Heat 1: 1 time to check');
-    await expect(racesWords('Girl Scouts')).toHaveText('Heat 1: 1 wristband to check');
+    // A Races card with a To check problem says it as a button; its Results card keeps the status line's words.
+    await expect(racesCard('Boy Cubs').getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toBeVisible();
+    await expect(racesCard('Girl Scouts').getByRole('button',{name:'Check Heat 1 · 1 wristband',exact:true})).toBeVisible();
     await expect(racesWords('Boy Beavers')).toHaveText(/Heat 2/);
-    const words={R:await racesWords('Boy Cubs').innerText(),H:await racesWords('Girl Scouts').innerText(),U:await racesWords('Boy Beavers').innerText()};
+    const words={R:'Heat 1: 1 time to check',H:'Heat 1: 1 wristband to check',U:await racesWords('Boy Beavers').innerText()};
     const racesOrder=await page.locator('main').locator('h2.rz-section,article.rz-racecard').evaluateAll(nodes=>nodes.map(node=>node.tagName==='H2'?node.textContent:node.getAttribute('aria-label')));
     const actionOnRaces=racesOrder.slice(racesOrder.indexOf('Action required')+1,racesOrder.indexOf('In progress'));
     expect(actionOnRaces).toEqual(expect.arrayContaining([`${name} · Boy Cubs`,`${name} · Girl Scouts`]));
@@ -73,10 +74,10 @@ test('Results puts Action required first, then Running and Done, each card in it
     await expect(page.locator('main')).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
     await eventTab(page,'Heats');
-    await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+    await page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}).click();
     await expect(page.getByRole('button',{name:`Back to ${name} · Boy Cubs`,exact:true})).toBeVisible();
     await back(page,`${name} · Boy Cubs`);
-    await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
+    await expect(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
     await back(page,'Results');
     await expect(section('Action required')).toBeVisible();
     await expect(page.getByRole('banner').getByRole('button',{name:/^Back to /})).toHaveCount(0);

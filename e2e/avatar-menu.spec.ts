@@ -1,12 +1,14 @@
-import {back,ownCode,ownEvent,ownName,ownWristbands,expect,lookProblems,openLeadMenu,openRace,press,recordRace,test,type Page,resultsCard} from './fixtures.js';
+import {back,ownCode,ownEvent,ownName,ownWristbands,deleteCurrentRace,expect,lookProblems,openLeadMenu,openRace,press,recordRace,test,writeCheckIn,type Page,resultsCard} from './fixtures.js';
 const items=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
 const title=(page:Page,name:string)=>expect(page.getByRole('banner').getByRole('heading',{level:1,name,exact:true})).toBeVisible();
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 
 test('a lead\'s avatar menu is on every lead screen and the Race screen, and holds Log out only',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=ownName('Menu walk'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',2);
+  const code=await ownCode(),name=ownName('Menu walk'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',3);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  // Heat 2 is not in Results yet: a lead's Race screen (a saved race is its race page).
+  const open=(await writeCheckIn(request,process.env.E2E_OWNER_TOKEN!,code,[w(3)])).race;
   const {page}=await openPhone(ownName('Menu lead'),{lead:true});
   /** On this screen: the avatar at the top right of the bar, and its one item. */
   const menu=async(screen:string)=>{
@@ -34,7 +36,8 @@ test('a lead\'s avatar menu is on every lead screen and the Race screen, and hol
   await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await menu('events');
   // The Race screen.
   await back(page,'Races');await races(page);
-  await openRace(page,name);await menu('race');
+  await openRace(page,name,'Girl Cubs','H2');await expect(page).toHaveURL(new RegExp(`/races/${open.id}$`));await menu('race');
+  await deleteCurrentRace(request,code);
 });
 test('a volunteer\'s avatar menu on the Race screen has Log out only',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Menu heat');

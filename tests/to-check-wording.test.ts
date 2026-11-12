@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest';
-import { issueLine,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
+import { issueLine,problemButtons,toCheckWording,toCheckHeading } from '../src/shared/to-check.js';
 import type { DayLeadItem } from '../src/shared/lead-results.js';
 const event={id:'e',code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const,enabled:true,type:'races' as const,relay:false};
 const race={id:'r',kind:'heat' as const,number:2,checkedInAt:'2026-10-14T10:00:00Z'};
@@ -40,4 +40,33 @@ describe('To check wording',()=>{
       item({kind:'ran-twice',message:'t',race:heat(2),raceId:'r2',wristband:2001}),item({kind:'tie',message:'t',race:undefined,raceId:undefined})]))
       .toBe('Heat 2: 9 wristbands to check · Heat 1: 1 wristband to check · 3 more');
   });
+});
+describe("A lead's card problem buttons",()=>{
+  const heat=(number:number)=>({id:`r${number}`,kind:'heat' as const,number,checkedInAt:'2026-10-14T10:00:00Z'});
+  const relay={...event,name:'4x100m Relay',type:'relays' as const,relay:true};
+  const on=(number:number,fields:Partial<DayLeadItem>&Pick<DayLeadItem,'kind'>)=>item({message:'m',race:heat(number),raceId:`r${number}`,entryId:'e',...fields});
+  const tie=(id:string,from:DayLeadItem['event']=event)=>item({kind:'tie',message:'t',event:from,race:undefined,raceId:undefined,tieId:id,tie:{time:2000,names:['2004','2005'],raceIds:['r1','r2']}});
+  it('names the race and the count of each kind on an individual event, and opens that race\'s page',()=>{
+    const kinds=['times-out-of-order','warning','added-at-finish','ran-twice'] as const;
+    expect(problemButtons(kinds.map((kind,index)=>on(index+1,{kind,wristband:2001})))).toEqual([
+      {label:'Check Heat 1 · 1 time',target:{event,raceId:'r1'}},{label:'Check Heat 2 · 1 wristband',target:{event,raceId:'r2'}},
+      {label:'Check Heat 3 · 1 runner',target:{event,raceId:'r3'}},{label:'Check Heat 4 · 1 runner',target:{event,raceId:'r4'}}]);
+  });
+  it('counts teams and children on a relay',()=>{
+    const kinds=['two-relays','ran-short','added-at-finish','ran-twice','warning','times-out-of-order'] as const;
+    expect(problemButtons(kinds.map((kind,index)=>on(index+1,{kind,event:relay,team:5}))).map(button=>button.label)).toEqual([
+      'Check Heat 1 · 1 child','Check Heat 2 · 1 team','Check Heat 3 · 1 team','Check Heat 4 · 1 team','Check Heat 5 · 1 wristband','Check Heat 6 · 1 time']);
+    expect(problemButtons([on(1,{kind:'two-relays',event:relay,team:5}),on(1,{kind:'two-relays',event:relay,team:6})])).toEqual([{label:'Check Heat 1 · 2 children',target:{event:relay,raceId:'r1'}}]);
+  });
+  it('groups by race and kind, in the order of the status line',()=>{
+    const final={id:'f',kind:'final' as const,number:1,checkedInAt:'2026-10-14T11:00:00Z'};
+    expect(problemButtons([on(2,{kind:'warning'}),on(1,{kind:'warning'}),on(2,{kind:'warning'}),on(2,{kind:'times-out-of-order'}),on(9,{kind:'times-out-of-order',race:final,raceId:'f'})]).map(button=>button.label))
+      .toEqual(['Check Heat 2 · 2 wristbands','Check Heat 1 · 1 wristband','Check Heat 2 · 1 time','Check Final · 1 time']);
+  });
+  it('says Decide the tie: one tie opens the tie, more than one the event in Results',()=>{
+    expect(problemButtons([tie('t1')])).toEqual([{label:'Decide the tie',target:{event,tieId:'t1'}}]);
+    expect(problemButtons([tie('t1'),tie('t2')])).toEqual([{label:'Decide the tie',target:{event}}]);
+    expect(problemButtons([tie('t1',relay)])).toEqual([{label:'Decide the tie',target:{event:relay,tieId:'t1'}}]);
+  });
+  it('is empty with nothing to check',()=>{expect(problemButtons([])).toEqual([]);});
 });

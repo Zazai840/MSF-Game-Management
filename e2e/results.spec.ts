@@ -15,7 +15,7 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
   await expect(input).toBeEditable();await input.fill('3045');await input.press('Enter');await phone.getByRole('button',{name:'Keep',exact:true}).click();
   // The race shows on Heats within one poll, not in Results yet; the scoreboard waits.
   await eventTab(page,'Heats');
-  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toHaveAccessibleDescription(/^2 runners · not in Results yet · checked in /,{timeout:6500});
+  await expect(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true})).toHaveAccessibleDescription(/^2 runners · not in Results yet · checked in /,{timeout:6500});
   await eventTab(page,'Heats');
   await phone.getByRole('button',{name:"That's everyone",exact:true}).click();
   await openRace(phone,name);await switchJob(phone,'Finish line');
@@ -53,7 +53,7 @@ test('a heat not in Results shows three bars with counts and the Race screen ban
   await writeOrder(page.request,phone,code,[girls(3)]);
   await page.goto('/');await join(page,ownName('Heat progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await press(resultsCard(page,code));
-  const heat1=page.getByRole('button',{name:'Open Heat 1',exact:true}),heat2=page.getByRole('button',{name:'Open Heat 2',exact:true});
+  const heat1=page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}),heat2=page.getByRole('listitem').getByRole('button',{name:'Open Heat 2',exact:true});
   const sentence=`Not in Results yet: ${girls(4)} has no place.`;
   await expect(heat1).toHaveAccessibleDescription(/^2 runners · in Results · checked in \d\d:\d\d$/);
   await expect(heat1.locator('.rz-progress')).toHaveCount(0);

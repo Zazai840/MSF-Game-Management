@@ -2,7 +2,10 @@ import {ownName,ownCode,back,eventTab,expect,expectToast,live,lookProblems,makeF
 /** The event's tabs: a Final tab only while the event runs a final. */
 const tabs=(page:Page)=>page.getByRole('navigation',{name:'Event'}).getByRole('button');
 /** The check-sheet buttons on the event's tab showing. */
-const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/});
+/** Opens the Heats tab's closed More, which holds Reopen heats and Results without a final. */
+const openMore=(page:Page)=>press(page.locator('details:not([open]) > summary',{hasText:/^More$/}));
+// Hidden ones too: Reopen heats and Results without a final are under the closed More.
+const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/,includeHidden:true});
 /** A medal decision screen's docked button, and the reason above it while it is grey. */
 const docked=(page:Page,name:string)=>page.getByRole('contentinfo').getByRole('button',{name,exact:true});
 const reason=(page:Page)=>page.getByRole('contentinfo').locator('.rz-footer__reason');
@@ -24,8 +27,11 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   await expect(lead.getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
   const stages=stageButtons(lead);
   await expect(stages).toHaveText(['Results without a final']);
+  // A rare action: under a closed More.
+  await expect(lead.getByRole('button',{name:'Results without a final',exact:true})).toBeHidden();
   await lead.screenshot({path:info.outputPath('a1-heats-run.png'),fullPage:true});
   // Its own screen in the race-flow frame. Without a final the tie decides the bronze, so it comes back to settle first.
+  await openMore(lead);
   await press(lead.getByRole('button',{name:'Results without a final',exact:true}));
   await expect(lead).toHaveURL(new RegExp(`/results/${code}/results-without-a-final$`));
   await expect(lead.getByRole('banner').getByRole('heading',{level:1,name:'Results without a final',exact:true})).toBeVisible();
@@ -110,6 +116,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   const lead=(await openPhone(ownName('Reopen lead'),{lead:true})).page;
   await openLeadMenu(lead,'Results');
   await resultsCard(lead,code).click();
+  await openMore(lead);
   await press(lead.getByRole('button',{name:'Results without a final',exact:true}));
   await lead.getByLabel('Comment',{exact:true}).fill('Out of time');await press(docked(lead,'Confirm the medals'));
   await expectToast(lead,`Medals confirmed · ${name} Girl Cubs`);
@@ -173,10 +180,12 @@ test('after + Final, a lead chooses Results without a final before the final sta
   await eventTab(lead,'Heats');
   await lead.screenshot({path:info.outputPath('a6-final-built.png'),fullPage:true});
   // Back leaves the screen and changes nothing.
+  await openMore(lead);
   await press(lead.getByRole('button',{name:'Results without a final',exact:true}));
   await expect(lead).toHaveURL(new RegExp(`/results/${code}/results-without-a-final$`));
   await back(lead,`${name} · Girl Cubs`);
   await expect(stages).toHaveText(['Reopen heats','Results without a final']);
+  await openMore(lead);
   await press(lead.getByRole('button',{name:'Results without a final',exact:true}));
   await expect(lead.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);
   await expect(medalPlaces(lead)).toHaveText([new RegExp(`^1${w(1)}Heat 1`),new RegExp(`^2${w(11)}Heat 2`),new RegExp(`^3${w(2)}Heat 1`)]);

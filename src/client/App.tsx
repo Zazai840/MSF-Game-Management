@@ -57,14 +57,15 @@ export function App() {
   /**
    * Moves to another screen at its own address. The history entry carries the name of the screen left, for the back
    * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
-   * event's tab in place, keeping the entry's back label and what Open in Results asked to open there.
+   * event's tab in place, keeping the entry's back label and what Open in Results asked to open there. A lead's saved
+   * race opens as its race page in place of its Race screen the same way, keeping the entry's back label.
    */
   function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
-    const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code;
+    const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
     setMenu(null);setView(next);setTarget(replace && tab?target:opening);
     // `over`: the new screen takes the place of this one and the one it was opened from (a re-run's new race replaces the old race and the re-run screen).
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
-    else if(replace || over) history.replaceState(tab?history.state:null,'',path);
+    else if(replace || over) history.replaceState(tab || page?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
     else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
     window.scrollTo(0,0);
@@ -132,7 +133,7 @@ export function App() {
       const bar=<><HomeBar>{avatar}</HomeBar><JobBand role={role} onOpen={()=>setRoleSheet(true)}/></>;
       const toRace=(id:string,step?:Step)=>{setGone('');go({kind:'race',id,step});};
       if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} avatar={avatar} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
-        onRace={toRace} onSaved={saved=>{showToast({message:saved.message,saved});pickTab(saved.tab);toRaces();}} onResults={toResults} onOpen={next=>go(next)}/>{sheet}</Screen>;
+        onRace={toRace} onSaved={saved=>{showToast({message:saved.message,saved});pickTab(saved.tab);toRaces();}} onResults={toResults} onOpen={next=>go(next)} onPage={code=>go({kind:'race-page',code,raceId:view.id},{replace:true})}/>{sheet}</Screen>;
       return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={toRace}
         onResults={toResults}/>{isLead && <LeadTabs current="Races" onOpen={next=>go(next)}/>}{sheet}</Screen>;
     }

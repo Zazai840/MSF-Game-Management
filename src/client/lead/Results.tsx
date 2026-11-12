@@ -3,7 +3,8 @@ import { reopenLabel,stageView } from './ConfirmTheMedals.js';
 import { dayExportLine,type InputRunning,type StageCheckSheet } from '../../shared/stages.js';
 import { DeletedRaces,RaceRows } from './DeletedRaces.js';
 import { Fragment,useEffect,useState } from 'react';
-import type { ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import type { DayLeadItem,ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import { RaceProblems } from './RaceProblems.js';
 import { RacePage } from './RacePage.js';
 import { RunnerScreens,RunnerSheet } from './RunnerSheet.js';
 import { medalSheet,needsCheck,placeText,qualifyingLineAt,reopenHeatsSheet,resultLabel,resultName,ruleLine,teamWristbands,type LeaderboardRow } from '../../shared/results-rules.js';
@@ -70,15 +71,19 @@ const hasFinalTab=(detail:EventResultsRead)=>detail.event.format==='heats' && !d
 const openingTab=(detail:EventResultsRead):EventTab=>hasFinalTab(detail) && !!detail.results.finalResults?.leaderboard.length?'final':'heats';
 type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie:(id:string)=>void;onStage:(sheet:StageCheckSheet)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(next:EventResultsRead)=>void};
 /**
- * An event's tabs: Heats (its heats, the scoreboard, deleted races), Final (a heats event not decided without one) and Notes. The tab is
- * part of the address; switching replaces it in place, so Back leaves the event.
+ * An event's tabs: Heats (the scoreboard, its heats, deleted races), Final (a heats event not decided without one) and Notes. The tab is
+ * part of the address; switching replaces it in place, so Back leaves the event. Below the tabs, on every tab, are the
+ * event's open To check problems, each with one button: "Decide the tie", or "Open Heat 1" to that race's page.
  */
 function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:EventTab)=>void}) {
   const {detail}=props,final=hasFinalTab(detail);
   const tabs=eventTabs.filter(item=>item!=='final' || final),shown=tabs.includes(tab)?tab:'heats';
+  // The read's items as the To check wording takes them: with their event and race, as the day's To check list has them.
+  const problems:DayLeadItem[]=detail.results.needsYou.map(item=>({...item,event:detail.event,race:detail.results.races.find(({race})=>race.id===item.raceId)?.race}));
   return <>
     <nav className="rz-tabs" aria-label="Event">{tabs.map(item=><button key={item} type="button" aria-current={item===shown?'page':undefined} onClick={()=>onTab(item)}>{tabNames[item]}</button>)}</nav>
     {!detail.event.enabled && <p className="rz-note">Switched off</p>}
+    <RaceProblems items={problems} fix={item=>item.kind==='tie'?{label:'Decide the tie',open:()=>props.onTie(item.tieId!)}:{label:item.race?openRaceLabel(item.race):'Open race',open:()=>props.onRace(item.raceId!)}}/>
     {shown==='heats' && <HeatsTab {...props} final={final}/>}
     {shown==='final' && <FinalTab {...props}/>}
     {shown==='notes' && (detail.auditNotes.length?<ol className="rz-notes" aria-label="Audit notes">{[...detail.auditNotes].reverse().map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol>
@@ -97,11 +102,10 @@ const Medals=({input,sheet,onStage}:{input:InputRunning|null;sheet:StageCheckShe
   {sheet && (sheet.completed?<StageButton sheet={sheet} onStage={onStage}/>
     :<button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onStage(sheet)}>Confirm the medals</button>)}
 </>;
-/** A row per heat, the scoreboard of every heat's runners, the medal decision (no Final tab), Reopen heats and Results without a final, then Deleted races. */
+/** The scoreboard of every heat's runners, a row per heat under Heats, the medal decision (no Final tab), a closed More with Reopen heats and Results without a final (when either applies), then Deleted races (when there is one). */
 function HeatsTab({detail,final,onRunner,onTie,onStage,onRace}:TabProps & {final:boolean}) {
-  const results=detail.results,reopenHeats=reopenHeatsSheet(results),line=qualifyingLineAt(results);
+  const results=detail.results,reopenHeats=reopenHeatsSheet(results),line=qualifyingLineAt(results),heats=results.races.filter(({race})=>race.kind!=='final');
   return <>
-    <LiveRaces races={results.races.filter(({race})=>race.kind!=='final')} detail={detail} onRace={onRace}/>
     {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
       <div className="rz-stripes" aria-hidden="true"><span/><span/><span/></div>
       <div className="rz-board-head"><p className="rz-board-note">{ruleLine(results.band)}</p></div>
@@ -120,10 +124,12 @@ function HeatsTab({detail,final,onRunner,onTie,onStage,onRace}:TabProps & {final
           {line!==null && row.position===line && <li className="rz-qline" aria-label="Qualifying line: places above go through to the final"><span aria-hidden="true">Qualifying line</span></li>}
         </Fragment>;})}</ol>
     </section>}
+    {heats.length>0 && <h2 className="rz-section">Heats</h2>}
+    <LiveRaces races={heats} detail={detail} onRace={onRace}/>
     {!final && <Medals input={results.inputRunning} sheet={medalSheet(results)} onStage={onStage}/>}
-    {reopenHeats && <StageButton sheet={reopenHeats} onStage={onStage}/>}
-    {results.noFinalCheckSheet && <StageButton sheet={results.noFinalCheckSheet} onStage={onStage}/>}
-    <h2 className="rz-section">Deleted races</h2>
+    {(reopenHeats || results.noFinalCheckSheet) && <details className="rz-disclosure"><summary>More</summary><div className="rz-disclosure__cards">
+      {reopenHeats && <StageButton sheet={reopenHeats} onStage={onStage}/>}
+      {results.noFinalCheckSheet && <StageButton sheet={results.noFinalCheckSheet} onStage={onStage}/>}</div></details>}
     <DeletedRaces eventCode={detail.event.code} onOpen={onRace}/>
   </>;
 }

@@ -7,7 +7,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
   await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await resultsCard(page,code).click();
-  await eventTab(page,'Heats');const racesTab=page.url();await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));const racePage=page.url();await raceAction(page,'Correct times');
+  await eventTab(page,'Heats');const racesTab=page.url();await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));const racePage=page.url();await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A refused save keeps the screen and what was typed, and says why.
@@ -66,7 +66,7 @@ test('a lead can correct times again straight after saving, even when the race i
   await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
   await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await resultsCard(page,code).click();
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Correct times');
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen Correct times on the version just replaced.
@@ -122,7 +122,7 @@ test('a lead corrects a saved race\'s finishing order on its screen: a drag with
   await expectToast(page,'Finishing order saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
   await expect(record.first()).toHaveText(/^1st\s*2003[\s\S]*12\.00/);
   await back(page,'Order corrections · Girl Cubs');
-  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);
+  await expect(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);
   await eventTab(page,'Notes');const notes=page.getByRole('list',{name:'Audit notes'}).getByRole('listitem');
   await expect(notes.filter({hasText:'corrected the finishing order'})).toHaveText([/corrected the finishing order for Heat 1: 2003, 2001; Did not finish 2002 - Checked the video/]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});

@@ -5,7 +5,7 @@ import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type Rac
 import type { NotRankedReason } from './results-rules.js';
 import type { EventState } from './event-state.js';
 import { capitalised,entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
-import { issueLine } from './to-check.js';
+import { issueLine,problemButtons } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
@@ -316,6 +316,15 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
 }
 /** A lead's card words for an event, the same on Races and Results: "No races yet" before its first race, then the lead's line. */
 export const leadCardLine=(group:Parameters<typeof leadLine>[0],issues:readonly DayLeadItem[])=>group.races.length?leadLine(group,issues):'No races yet';
+/**
+ * A lead's card problems: the first two problem buttons of its open To check items and how many more there are. With
+ * a button the card drops its status line; `finalReason` is its final's reason unless that is one of these problems
+ * (an item of the race the reason names, or a tie with a runner in it).
+ */
+export function cardProblems(group:Pick<RaceGroup,'event'|'finalReason'>,issues:readonly DayLeadItem[]) {
+  const own=ownIssues(group,issues),buttons=problemButtons(own),reason=group.finalReason;
+  return {buttons:buttons.slice(0,2),more:Math.max(0,buttons.length-2),finalReason:reason && own.some(item=>item.raceId===reason.raceId || item.tie?.raceIds.includes(reason.raceId))?null:reason};
+}
 /** A Results card's colour: Done once the medals are decided, Running once a race is made, else Not started. */
 export const cardState=(group:Pick<RaceGroup,'races'|'medalsDecided'>):EventState=>group.medalsDecided?'done':group.races.length?'running':'not-started';
 /** An event in a lead's Action required, on Races and on Results: it has races, and an open issue or medals waiting on the lead. */

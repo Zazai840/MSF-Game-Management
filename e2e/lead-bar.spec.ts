@@ -1,4 +1,4 @@
-import {becomeLead,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,type Page} from './fixtures.js';
+import {becomeLead,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,writeCheckIn,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
@@ -20,9 +20,11 @@ async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>)
 }
 
 test('a lead moves between Races, Results and Day setup by the bar at the bottom; deeper screens have the back arrow and no bar',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=ownName('Bar walk'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',2);
+  const code=await ownCode(),name=ownName('Bar walk'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',3);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  // Heat 2 is not in Results yet: a lead's Race screen.
+  await writeCheckIn(request,process.env.E2E_OWNER_TOKEN!,code,[w(3)]);
   const lead=ownName('Bar lead'),{page}=await openPhone(lead,{lead:true});
   const updated=page.getByRole('contentinfo').getByText(/^Updated at \d/);
   // Races, on both of its tabs: the bar sits below New race.
@@ -64,8 +66,9 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   await press(tab(page,'Races'));await races(page);await expect(page).toHaveURL(/\/$/);
   // The Race screen has no bar.
   await press(page.getByRole('navigation',{name:'Event type'}).getByRole('button',{name:/^Races/}));
-  await openRace(page,name);await expect(bar(page)).toHaveCount(0);
+  await openRace(page,name,'Girl Cubs','H2');await expect(bar(page)).toHaveCount(0);
   await expect(page.getByRole('banner').getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();
+  await deleteCurrentRace(request,code);
 });
 
 test('a volunteer has no bar; it appears at once when the phone becomes a lead\'s, and stays in a volunteer role',async({openPhone})=>{

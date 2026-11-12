@@ -150,6 +150,8 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - The scoreboard surface: compact AppBar on `scoreboard` with the star pattern, back link "Results" in gold.
 - `rz-board-title` "60m / Girl Cubs" with an R4 code tag, the live chip "Heats running · 5 races", and the note "Top 8 · Q = fastest 6".
 - Leaderboard: qualifiers (star rank, Q tag, gold time), the qualifying line, places 7–8 with plain ranks, then places outside the top 8 as `--outside` rows. Tied rows carry a TIE tag.
+- Below the event's tabs, on every tab: one Callout per open To check problem in the To check words, with one primary Button: "Decide the tie" for a tie, else "Open Heat 1", which opens that race's page.
+- Heats tab, top to bottom: the scoreboard; `rz-section` "Heats" with a ListRow per heat; Confirm the medals (an event with no Final tab); a closed Disclosure "More" with "Reopen heats" and "Results without a final" when either applies; `rz-section` "Deleted races" with its rows only when the event has a deleted race.
 
 **27 The runner sheet.** Tapping a runner (on the Heats leaderboard, the Final tab or a race page) opens a Sheet titled "Runner 2002" (or "Team 3"): a meta line (event, heat, place in race, time, any disqualification), the runner's Notes as IssueCards, then block Buttons: primary "Mark checked" (only with an open warning; saves at once), "Correct number", "Choose which result counts" (when the runner has more than one result), "Open Heat 1", and a danger "Disqualify 2002" last (or "Lift disqualification"). Correct number, Choose which result counts, Disqualify and Lift disqualification are race-flow screens with a docked button.
 

@@ -9,7 +9,7 @@ test('Re-run is a screen that lands on the new heat at its first step, with Back
   const old=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2011,2012,2013],[1200,1300,1400]);
   await page.goto('/');await join(page,ownName('Re-run lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await resultsCard(page,code).click();
   await eventTab(page,'Heats');const racesTab=page.url();
-  await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}).click();
   await raceAction(page,'Re-run race');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/${old.id}/re-run$`));
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Re-run race',exact:true})).toBeVisible();

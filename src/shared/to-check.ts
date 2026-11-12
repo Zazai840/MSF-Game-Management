@@ -1,4 +1,4 @@
-import type { DayLeadItem } from './lead-results.js';
+import type { DayLeadItem,ResultsTarget } from './lead-results.js';
 import { plainWristbandWarning,type WristbandWarning } from './wristband-checks.js';
 import { formatTime } from './time-entry.js';
 import { entryName,isTeamEntry,raceLabel,type RaceEntry } from './races.js';
@@ -55,23 +55,38 @@ export function toCheckWording(item:DayLeadItem):ToCheckWording {
 /** The To check heading, counting what is waiting. */
 export const toCheckHeading=(count:number)=>count===0?'Nothing to check':count===1?'1 thing needs a zone lead':`${count} things need a zone lead`;
 const counted=(count:number,one:string,many=`${one}s`)=>`${count} ${count===1?one:many}`;
-/** One kind of item, counted for a lead's card: "9 wristbands to check". */
-function countedWording(item:DayLeadItem,count:number) {
-  const team=item.team!==undefined;
+/** One kind of item as a count and its noun: "9 wristbands", "1 team". */
+function countedNoun(item:DayLeadItem,count:number) {
   switch(item.kind) {
-    case 'times-out-of-order': return `${counted(count,'time')} to check`;
-    case 'warning': return `${counted(count,'wristband')} to check`;
-    case 'two-relays': return `${counted(count,'child','children')} in two relays`;
-    case 'ran-short': return `${counted(count,'team')} ran short`;
-    case 'added-at-finish': return `${counted(count,entryNoun(team))} added at the finish`;
-    case 'ran-twice': return `${counted(count,entryNoun(team))} ran twice`;
-    case 'tie': return `${counted(count,'tie')} to decide`;
+    case 'times-out-of-order': return counted(count,'time');
+    case 'warning': return counted(count,'wristband');
+    case 'two-relays': return counted(count,'child','children');
+    case 'ran-short': return counted(count,'team');
+    case 'added-at-finish': case 'ran-twice': return counted(count,entryNoun(item.team!==undefined));
+    case 'tie': return counted(count,'tie');
   }
+}
+const kindWords:Record<DayLeadItem['kind'],string>={'times-out-of-order':'to check',warning:'to check','two-relays':'in two relays','ran-short':'ran short','added-at-finish':'added at the finish','ran-twice':'ran twice',tie:'to decide'};
+/** A card's open items grouped by race and kind, in the items' order. An event's ties have no race: they are one group. */
+function issueGroups(items:readonly DayLeadItem[]) {
+  const groups=new Map<string,DayLeadItem[]>();
+  for(const item of items) {const key=`${item.race?.id??''}:${item.kind}`;groups.set(key,[...groups.get(key)||[],item]);}
+  return [...groups.values()];
 }
 /** A lead's card line: its items grouped by race and kind and counted, two groups then how many more ("Heat 2: 9 wristbands to check · 3 more"). */
 export function issueLine(items:readonly DayLeadItem[]) {
-  const groups=new Map<string,DayLeadItem[]>();
-  for(const item of items) {const key=`${item.race?.id??''}:${item.kind}`;groups.set(key,[...groups.get(key)||[],item]);}
-  const lines=[...groups.values()].map(group=>`${group[0].race?raceName(group[0].race):'Event'}: ${countedWording(group[0],group.length)}`);
+  const lines=issueGroups(items).map(group=>`${group[0].race?raceName(group[0].race):'Event'}: ${countedNoun(group[0],group.length)} ${kindWords[group[0].kind]}`);
   return lines.slice(0,2).join(' · ')+(lines.length>2?` · ${lines.length-2} more`:'');
+}
+export interface ProblemButton { label:string; target:ResultsTarget }
+/**
+ * A lead's card problem buttons, one per group of the card line: "Decide the tie" opens the tie (the event in Results
+ * when there is more than one), "Check Heat 1 · 1 time" opens that race's page.
+ */
+export function problemButtons(items:readonly DayLeadItem[]):ProblemButton[] {
+  return issueGroups(items).map(group=>{
+    const [first]=group,{event,race}=first;
+    if(first.kind==='tie') return {label:'Decide the tie',target:group.length===1?{event,tieId:first.tieId}:{event}};
+    return {label:`Check ${race?raceName(race):'event'} · ${countedNoun(first,group.length)}`,target:race?{event,raceId:first.raceId}:{event}};
+  });
 }

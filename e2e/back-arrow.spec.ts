@@ -74,11 +74,11 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await bothGoBack(page,races);
-  // The race screen's Open in Results opens the tie, and Back returns to the race.
+  // A saved heat's chip opens its race page in the Race screen's place, so its Back is Races; Decide the tie opens the tie, and Back returns to the race page.
   await openRace(page,tieName);
-  const race=async()=>{await expect(page).toHaveURL(new RegExp(`/races/${tieHeat}$`));await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();};
-  await page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Times/}).click();
-  await page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Open in Results',exact:true}).click();
+  const race=()=>onScreen(page,`/results/${tieCode}/races/${tieHeat}`,'Heat 1','Races');
+  await race();
+  await press(page.getByRole('alert').filter({hasText:'Runners tied on time'}).getByRole('button',{name:'Decide the tie',exact:true}));
   await tie('Heat 1');
   await bothGoBack(page,race);
   await bothGoBack(page,races);
@@ -102,7 +102,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
   await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');
   // The Races tab: a race page goes back to the tab, a correction to the race page, also after a reload on its address.
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=()=>onScreen(page,`/results/${code}/races/${heat1}`,'Heat 1',event);
   await racePage();
   expect(await lookProblems(page)).toEqual([]);

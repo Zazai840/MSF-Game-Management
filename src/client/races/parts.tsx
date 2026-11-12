@@ -91,8 +91,9 @@ export function RaceBar({title,code,role,onBack,children}:{title:string;code:str
  * screen a race ready for you that is not open gets a ring and a gold dot. A final that would be refused greys "+ Final"
  * with the reason beside it, which opens what it is about.
  */
-export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
-  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:ReactNode}) {
+export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,finalHeld=!!finalReason,nextHeat}:{races:readonly RaceSummary[];role:Role;current?:string;nextHeat:number;
+  onRace:(id:string)=>void;onAdd?:()=>void;onFinal?:()=>void;finalReason?:ReactNode;finalHeld?:boolean}) {
+  // `finalHeld` greys "+ Final" where the reason is said elsewhere: a lead's card with a problem button for it.
   // "+" sits right after the last heat, before the final (races come heats first, then the final).
   const heats=races.filter(race=>race.kind!=='final').length;
   const chip=(race:RaceSummary)=>{
@@ -107,8 +108,8 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,n
     {races.slice(0,heats).map(chip)}
     {onAdd && <li><button type="button" className="rz-heat rz-heat--add" aria-label={`Add heat ${nextHeat}`} onClick={onAdd}><Icon name="plus"/></button></li>}
     {races.slice(heats).map(chip)}
-    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalReason?true:undefined}
-      onClick={finalReason?undefined:onFinal}>+ Final</button></li>}
+    {onFinal && <li><button type="button" className="rz-heat rz-heat--final" aria-label="Create the final from the fastest 6" aria-disabled={finalHeld?true:undefined}
+      onClick={finalHeld?undefined:onFinal}>+ Final</button></li>}
     {onFinal && finalReason && <li>{finalReason}</li>}
   </ol>;
 }
