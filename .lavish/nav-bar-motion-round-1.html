@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" data-lavish-annotate="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navigation bar motion - round 1</title>
+<style>
+  :root { --paper:#f0e7d3; --card:#fbf7ee; --line:#ddd1b7; --line-strong:#b9ac90; --navy:#1e2b51; --ink-muted:#3b4565; --gold:#ffb800; --challenge:#fe7711; --throwing-ink:#2f6b0a;
+    --ease-out:cubic-bezier(.23,1,.32,1); --ease-drawer:cubic-bezier(.32,.72,0,1); --display:Saira,"Arial Narrow","Roboto Condensed",sans-serif-condensed,sans-serif; }
+  *,*::before,*::after { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--navy); font:500 16px/1.45 Nunito,system-ui,sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:32px 20px 120px; }
+  h1,h2,h3 { font-family:var(--display); font-style:italic; font-weight:900; text-transform:uppercase; line-height:.95; margin:0; }
+  h1 { font-size:44px; } h1 span { color:var(--challenge); }
+  h2 { font-size:28px; margin-top:44px; }
+  p { margin:0; overflow-wrap:anywhere; }
+  .lede { margin-top:12px; max-width:64ch; font-weight:600; color:var(--ink-muted); }
+  .anchor { display:inline-block; margin-top:14px; padding:4px 10px; border-radius:999px; background:var(--navy); color:var(--paper); font-size:13px; font-weight:700; }
+  .q { margin-top:8px; font-weight:700; max-width:64ch; }
+  .opts { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:16px; }
+  .opt { position:relative; display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:18px; background:var(--card); box-shadow:0 2px 0 var(--line); min-width:0; }
+  .opt:has(input:checked) { box-shadow:inset 0 0 0 3px var(--navy); }
+  .opt__pick { display:flex; align-items:flex-start; gap:10px; font-weight:800; cursor:pointer; min-height:44px; }
+  .opt__pick input { flex:none; width:22px; height:22px; margin-top:1px; accent-color:var(--navy); }
+  .opt small { font-size:13px; font-weight:600; color:var(--ink-muted); }
+  .rec { align-self:flex-start; padding:2px 9px; border-radius:999px; border:1.5px solid var(--throwing-ink); color:var(--throwing-ink); font-size:12px; font-weight:800; }
+  /* phone */
+  .phone { position:relative; height:300px; overflow:hidden; border-radius:16px; border:2px solid var(--navy); background:var(--paper); display:flex; flex-direction:column; }
+  .top { flex:none; height:34px; background:var(--navy); display:flex; align-items:center; padding:0 10px; color:var(--paper); font:italic 900 15px var(--display); text-transform:uppercase; }
+  .pill { flex:none; position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin:8px 10px 0; padding:4px; border-radius:12px; background:var(--card); box-shadow:0 1px 0 var(--line); }
+  .pill button, .bar button { position:relative; z-index:1; border:0; background:none; color:inherit; cursor:pointer; font-family:inherit; }
+  .pill button { height:30px; font:italic 800 14px var(--display); text-transform:uppercase; color:var(--navy); border-radius:8px; }
+  .pill button[aria-current] { color:var(--paper); }
+  .content { flex:1; min-height:0; position:relative; overflow:hidden; }
+  .pane { position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; gap:7px; }
+  .rowm { height:30px; border-radius:8px; background:var(--card); box-shadow:0 1px 0 var(--line); display:flex; align-items:center; padding:0 10px; font-size:12.5px; font-weight:800; }
+  .bar { flex:none; position:relative; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:0 6px; background:var(--navy); color:var(--paper); }
+  .bar button { height:46px; font-size:11.5px; font-weight:700; }
+  .bar button[aria-current] { color:var(--navy); }
+  .marker { position:absolute; z-index:0; border-radius:10px; }
+  .bar .marker { top:4px; bottom:4px; left:10px; width:calc((100% - 12px) / 3 - 8px); background:var(--paper); }
+  .pill .marker { top:4px; bottom:4px; left:4px; width:calc((100% - 12px) / 2); background:var(--navy); border-radius:8px; }
+  [data-slide] .marker { transition:translate 200ms var(--ease-out); }
+  [data-slide] button { transition:color 200ms var(--ease-out); }
+  .hl { outline:3px solid var(--gold); outline-offset:-3px; }
+  .dim { opacity:.35; }
+  @keyframes fade { from { opacity:0; } }
+  @keyframes fromRight { from { opacity:0; translate:24px 0; } }
+  @keyframes fromLeft { from { opacity:0; translate:-24px 0; } }
+  textarea { width:100%; min-height:64px; padding:10px 12px; border-radius:12px; border:2px solid var(--line-strong); background:var(--card); color:var(--navy); font:600 15px Nunito,system-ui,sans-serif; }
+  .btn { min-height:44px; padding:0 18px; border:0; border-radius:12px; background:var(--navy); color:var(--paper); font:800 15px Nunito,system-ui,sans-serif; cursor:pointer; transition:scale 140ms var(--ease-out); }
+  .btn:active { scale:.97; }
+  .send { position:sticky; bottom:12px; display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:28px; padding:12px 16px; border-radius:16px; background:var(--gold); box-shadow:0 6px 18px rgba(30,43,81,.25); font-weight:800; }
+  .send .btn { margin-left:auto; }
+  .fact { margin-top:14px; padding:12px 16px; border-radius:14px; border:1.5px dashed var(--line-strong); font-size:14px; font-weight:600; color:var(--ink-muted); max-width:72ch; }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Navigation bar <span>motion</span></h1>
+  <p class="lede">You asked for animation and fluidity on the navigation bar, explored as a grilling session. This is round 1 of about 3. It has two questions. The answer I recommend is ticked. Tap the tabs in each small phone to feel the motion.</p>
+  <span class="anchor">MSF-Game-Management · branch integration/lead-screens-simplify · PR #327 · nothing is built yet</span>
+
+  <form id="round">
+  <h2>Q1 - Which bar do you mean?</h2>
+  <p class="q">The app has three sets of tabs. The gold line shows the one each option covers. Is it the lead's bar and the pill tabs together, with one motion for both?</p>
+  <div class="opts">
+    <div class="opt">
+      <div class="phone"><div class="top">Races</div><div class="pill hl"><span class="marker"></span><button type="button" aria-current="page">Races</button><button type="button">Relays</button></div><div class="content"><div class="pane"><div class="rowm">100 m Girls A</div><div class="rowm">100 m Boys A</div></div></div><div class="bar hl"><span class="marker"></span><button type="button" aria-current="page">Races</button><button type="button">Results</button><button type="button">Day setup</button></div></div>
+      <span class="rec">Recommended</span>
+      <label class="opt__pick"><input type="radio" name="q1" value="lead's bar and pill tabs" checked><span>The lead's bar and the pill tabs<br><small>Both show the current tab as a filled cell. One motion keeps them the same. Volunteers see the pill tabs, so they get it too.</small></span></label>
+    </div>
+    <div class="opt">
+      <div class="phone"><div class="top">Races</div><div class="pill dim"><span class="marker"></span><button type="button" aria-current="page">Races</button><button type="button">Relays</button></div><div class="content"><div class="pane"><div class="rowm">100 m Girls A</div><div class="rowm">100 m Boys A</div></div></div><div class="bar hl"><span class="marker"></span><button type="button" aria-current="page">Races</button><button type="button">Results</button><button type="button">Day setup</button></div></div>
+      <label class="opt__pick"><input type="radio" name="q1" value="lead's bar only"><span>The lead's bar only<br><small>The three tabs at the foot of the screen. Only leads see it.</small></span></label>
+    </div>
+    <div class="opt">
+      <div class="phone"><div class="top hl">Races</div><div class="pill dim"><span class="marker"></span><button type="button" aria-current="page">Races</button><button type="button">Relays</button></div><div class="content"><div class="pane"><div class="rowm">100 m Girls A</div><div class="rowm">100 m Boys A</div></div></div><div class="bar dim"><span class="marker"></span><button type="button" aria-current="page">Races</button><button type="button">Results</button><button type="button">Day setup</button></div></div>
+      <label class="opt__pick"><input type="radio" name="q1" value="top bar"><span>The navy bar at the top<br><small>The title, Back and the avatar. Tell me below what must move.</small></span></label>
+    </div>
+  </div>
+
+  <h2>Q2 - What moves?</h2>
+  <p class="q">Today a tap changes the tab and the screen at once. Is it enough that only the filled cell slides to the tapped tab, while the screen still changes at once?</p>
+  <div class="opts">
+    <div class="opt">
+      <div class="phone" data-live="marker"></div>
+      <span class="rec">Recommended</span>
+      <label class="opt__pick"><input type="radio" name="q2" value="marker slides, screen changes at once" checked><span>The cell slides<br><small>200ms. The screen changes at once, so nothing gets slower. It shows where you went.</small></span></label>
+    </div>
+    <div class="opt">
+      <div class="phone" data-live="fade"></div>
+      <label class="opt__pick"><input type="radio" name="q2" value="marker slides and screen fades in"><span>The cell slides, the screen fades in<br><small>The new screen fades in over 150ms. Softer. Text is not sharp for a moment.</small></span></label>
+    </div>
+    <div class="opt">
+      <div class="phone" data-live="push"></div>
+      <label class="opt__pick"><input type="radio" name="q2" value="marker slides and screen slides sideways"><span>The cell slides, the screen slides<br><small>The new screen comes from the side of its tab over 220ms. Most fluid. People who change tabs all day wait each time.</small></span></label>
+    </div>
+    <div class="opt">
+      <div class="phone" data-live="none"></div>
+      <label class="opt__pick"><input type="radio" name="q2" value="no change"><span>Today<br><small>For comparison. Nothing moves.</small></span></label>
+    </div>
+  </div>
+  <p class="fact">Fact from the code: each screen draws its own copy of the lead's bar, so today the bar is new after each tap. A cell that slides needs one small change to how the bar is drawn. That is my problem, not yours. It does not limit your answer.</p>
+
+  <h2>Something else?</h2>
+  <p class="q">If you had a different picture in mind, describe it here.</p>
+  <textarea name="note" style="margin-top:12px" placeholder="Optional"></textarea>
+
+  <div class="send"><span id="state">Two answers ticked</span><button type="submit" class="btn">Queue my answers</button></div>
+  </form>
+</div>
+<script>
+  const tabs=['Races','Results','Day setup'],rows={Races:['100 m Girls A','100 m Boys A','200 m Girls B'],Results:['Girls A · 3 events','Boys A · 2 events'],'Day setup':['This day','Events','Signed in today']};
+  for(const phone of document.querySelectorAll('[data-live]')) {
+    const mode=phone.dataset.live;let at=0;
+    phone.innerHTML=`<div class="top"></div><div class="content"></div><div class="bar" ${mode==='none'?'':'data-slide'}><span class="marker"></span>${tabs.map(t=>`<button type="button">${t}</button>`).join('')}</div>`;
+    const top=phone.querySelector('.top'),content=phone.querySelector('.content'),marker=phone.querySelector('.marker'),buttons=[...phone.querySelectorAll('.bar button')];
+    const show=(to,first)=>{
+      const from=at;at=to;top.textContent=tabs[to];
+      buttons.forEach((b,i)=>i===to?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current'));
+      marker.style.translate=`calc(${to} * (100% + 8px)) 0`;
+      const pane=document.createElement('div');pane.className='pane';pane.innerHTML=rows[tabs[to]].map(r=>`<div class="rowm">${r}</div>`).join('');
+      if(!first && mode==='fade') pane.style.animation='fade 150ms ease-out';
+      if(!first && mode==='push') pane.style.animation=`${to>from?'fromRight':'fromLeft'} 220ms var(--ease-drawer)`;
+      content.replaceChildren(pane);
+    };
+    buttons.forEach((b,i)=>b.addEventListener('click',()=>{if(i!==at) show(i);}));show(0,true);
+  }
+  const form=document.getElementById('round'),state=document.getElementById('state');
+  form.addEventListener('submit',event=>{
+    event.preventDefault();
+    const data=new FormData(form),q1=data.get('q1'),q2=data.get('q2'),note=(data.get('note')||'').trim();
+    const text=`Navigation bar motion, round 1. Q1 which bar: ${q1}. Q2 what moves: ${q2}.${note?` Note: ${note}`:''}`;
+    if(window.lavish?.queuePrompt) window.lavish.queuePrompt(text,{tag:'choice',text:`Q1: ${q1} · Q2: ${q2}`,element:form,queueKey:'nav-round-1',data:{q1,q2,note}});
+    state.textContent='Queued. Press Send to Agent.';
+  });
+</script>
+</body>
+</html>

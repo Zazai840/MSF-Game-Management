@@ -6,6 +6,7 @@ import { entryCount } from '../../shared/teams.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { useSheetEntry } from '../shell/addresses.js';
 import { useSheetFocus } from './sheet-focus.js';
+import { useSheetDrag } from './sheet-drag.js';
 /** The design system's line icons (components/Icon/README.md). */
 const paths={
   flag:<><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></>,
@@ -176,14 +177,15 @@ export function useWayOut(onGone:()=>void) {
   return {leaving,start};
 }
 /**
- * A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim or the phone's Back. The sheet
+ * A bottom sheet over the screen, closed by its close button, Escape, a tap on the scrim, the phone's Back or a pull
+ * down on its grip or title (sheet-drag.ts). The sheet
  * itself takes focus (no field does), Tab stays inside it, and closing gives focus back to what opened it.
  */
 export function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) {
-  const id=useId(),close=useWayOut(onClose),focus=useSheetFocus(close.start);
+  const id=useId(),close=useWayOut(onClose),focus=useSheetFocus(close.start),drag=useSheetDrag(close.start);
   useSheetEntry(close.start);
   return <div className="rz-scrim" data-closing={close.leaving?'':undefined} onClick={event=>{if(event.target===event.currentTarget) close.start();}}>
-    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={focus.ref} onKeyDown={focus.onKeyDown}>
+    <div className="rz-sheet" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} ref={focus.ref} onKeyDown={focus.onKeyDown} {...drag}>
       <div className="rz-sheet__grip" aria-hidden="true"/>
       <div className="rz-sheet__head"><h2 className="rz-sheet__title" id={id}>{title}</h2><button type="button" className="rz-sheet__close" aria-label="Close" onClick={close.start}><Icon name="close"/></button></div>
       {children}
