@@ -164,7 +164,7 @@ test('Signed in today, Events and Change Olympics password open their screens wi
   await page.getByRole('button',{name:/^Signed in today /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Signed in today',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
-  await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toContainText('(you)');
+  await expect(page.getByRole('listitem').filter({hasText:'E2E Owner'})).toContainText('(you)');
   await expect(page.getByRole('button',{name:'Back',exact:true})).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('phones.png'),fullPage:true});
   await back(page,'Day setup');
@@ -190,7 +190,7 @@ test('a lead who signed in with the lead code opens Day setup and makes a new le
   const before=process.env.E2E_LEAD_CODE!;
   await expect(section(page,'Lead code').getByText(before,{exact:true})).toBeVisible();
   await page.getByRole('button',{name:/^Signed in today /}).click();
-  await expect(page.getByRole('article',{name,exact:true})).toContainText('(you)');
+  await expect(page.getByRole('listitem').filter({hasText:name})).toContainText('(you)');
   await back(page,'Day setup');
   await page.getByRole('button',{name:/^Events /}).click();
   await expect(page.getByRole('heading',{level:1,name:'Events',exact:true})).toBeVisible();

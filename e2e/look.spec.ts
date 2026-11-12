@@ -93,7 +93,7 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   await expect(page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Signed in today /}).click();
-  await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem').filter({hasText:'E2E Owner'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await back(page,'Day setup');
   await page.getByRole('button',{name:/^Events /}).click();

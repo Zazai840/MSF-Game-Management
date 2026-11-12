@@ -465,9 +465,6 @@
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 
 
-/* Signed in today: a card per person, its name over Lead or Volunteer, then its small buttons. */
-.rz-person__name { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 800; color: var(--navy); }
-.rz-person__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: var(--space-4); }
 @media (prefers-reduced-motion: reduce) {
   .rz-btn:active, .rz-tile:active, .rz-runner:active { transform: none; }
   .rz-disclosure summary::before { transition: none; }
