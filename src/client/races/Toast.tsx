@@ -1,4 +1,4 @@
-import { createContext,useContext,useEffect,useRef,useState,type ReactNode } from 'react';
+import { createContext,useContext,useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import type { RacesRead,Step } from '../../shared/race-flow.js';
 import { ApiFailure,api } from '../api.js';
 import { useLive } from '../live.js';
@@ -20,11 +20,17 @@ export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:st
   return toast.saved?<StepToast saved={toast.saved} onOpen={onOpen} onClose={onClose}/>
     :<ToastBox onClose={onClose}><span className="rz-toast__msg"><Icon name="check"/>{toast.message}</span></ToastBox>;
 }
-/** The toast's box: it closes after 6 seconds, the count starting again when `restartOn` changes, and waits while focused. */
+/** The toast's pill, a rounded box once its line wraps to a second row: it closes after 6 seconds, the count starting again when `restartOn` changes, and waits while focused. */
 function ToastBox({restartOn,onClose,children}:{restartOn?:unknown;onClose:()=>void;children:ReactNode}) {
-  const [focused,setFocused]=useState(false),box=useRef<HTMLDivElement>(null);
+  const [focused,setFocused]=useState(false),[wrapped,setWrapped]=useState(false),box=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(focused) return;const timer=window.setTimeout(onClose,showFor);return ()=>clearTimeout(timer);},[focused,restartOn]);
-  return <div ref={box} className="rz-toast" role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
+  // CSS cannot tell that a line has wrapped: one row is never taller than the 44px touch size, two rows always are.
+  useLayoutEffect(()=>{
+    const element=box.current!,observer=new ResizeObserver(()=>setWrapped(element.offsetHeight>44));
+    observer.observe(element);
+    return ()=>observer.disconnect();
+  },[]);
+  return <div ref={box} className={`rz-toast${wrapped?' rz-toast--box':''}`} role="status" onFocus={()=>setFocused(true)} onBlur={event=>{if(!box.current?.contains(event.relatedTarget)) setFocused(false);}}>{children}</div>;
 }
 /**
  * After a step is saved: "Times saved · Girl Cubs Heat 2" with Undo, which reverses only this person's own save and
