@@ -17,7 +17,9 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   await recordRace(request,owner(),calmCode,[2011],[1400]);
   const {page}=await openPhone(ownName('Lead issues'),{lead:true});
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job',exact:true})).toBeVisible();
-  await expect(status(page,name)).toHaveText('Heat 1: 1 time to check');
+  // The problem is a button on the card, in place of the status line.
+  await expect(card(page,name).getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toBeVisible();
+  await expect(status(page,name)).toHaveCount(0);
   await expect(actionRequired(page).filter({hasText:name})).toHaveCount(1);
   // A lead's first section is Action required; Ready for you is a volunteer's.
   await expect(page.getByRole('heading',{level:2,name:'Ready for you'})).toHaveCount(0);
@@ -51,7 +53,7 @@ test('a lead\'s card counts issues by race and kind, the race page marks the wro
   await submitRace(request,owner(),code);
   const {page}=await openPhone(ownName('Lead counts'),{lead:true});
   // Groups come newest first; both of these date from the same saved race, so either may lead.
-  await expect(status(page,name)).toHaveText(/^(Heat 1: 2 wristbands to check · Heat 1: 1 time to check|Heat 1: 1 time to check · Heat 1: 2 wristbands to check)$/);
+  await expect(card(page,name).getByRole('button',{name:/^Check /})).toHaveText([/^Check Heat 1 · (2 wristbands|1 time)$/,/^Check Heat 1 · (2 wristbands|1 time)$/]);
   // The chip opens the race page: the wrong time's row is amber, and its button opens the corrections.
   await openRace(page,name);
   const record=page.getByRole('list',{name:'Current record',exact:true});

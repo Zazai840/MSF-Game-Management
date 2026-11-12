@@ -83,8 +83,14 @@ test('a tie between two heats runs end to end: leaderboard TIE tags, the tie scr
   await heat([2731,2735,2736],[1000,1000,1200]);await heat([2733,2734],[1000,1100]);
   try {
     await page.goto('/');await join(page,ownName('Tie heats lead'),{job:'Start line'});await becomeLead(page);
-    // The line beside + Final names every heat with a tied runner.
-    await expect(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:'Heats 1 and 2 have a tie to settle first',exact:true})).toBeVisible();
+    // The card's Decide the tie button says why "+ Final" is off, in place of the line beside it, and opens the tie.
+    const racesCard=page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true});
+    await expect(racesCard.getByRole('button',{name:'Create the final from the fastest 6',exact:true})).toHaveAttribute('aria-disabled','true');
+    await expect(racesCard.locator('.rz-heat-reason')).toHaveCount(0);
+    expect(await lookProblems(page)).toEqual([]);
+    await press(racesCard.getByRole('button',{name:'Decide the tie',exact:true}));
+    await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
+    await back(page,'Races');
     await openLeadMenu(page,'Results');await resultsCard(page,code).click();
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {

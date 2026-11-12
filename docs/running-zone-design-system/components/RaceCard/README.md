@@ -14,6 +14,6 @@ One event group (an event in one section) on Races: its title, code, a status li
 
 **Rules**
 - `card`, `shadow-card`, `radius-xl`, padding 12/14; title in `display-card`; status in `meta` + `ink-muted`.
-- The status line is written for the viewer's role; a lead's names open issues ("Heat 3: A time looks wrong").
+- The status line is written for the viewer's role; a lead's card with open To check problems shows them as primary block buttons in its place ("Check Heat 3 · 1 time", "Decide the tie"; two at most, then a "1 more" line).
 - Over 700px wide, cards flow into columns of at least 320px.
 - A relay's card is the same as any event's: its teams are typed into its heats, so it has no Teams row.

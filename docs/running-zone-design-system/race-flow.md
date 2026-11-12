@@ -201,7 +201,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - "⋯" opens a Sheet of race actions: Delete race. The corrections and Re-run are on the saved race's race page.
 - **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times (`role="tablist"`). The selected tab is navy.
 - **Each tab is that step's own body,** as the role that owns it works it.
-- **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card's status line names them ("Heat 3: a time looks wrong").
+- **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card shows them as large buttons in the shape of Confirm the medals, in place of its status line: "Decide the tie" opens the tie (the event in Results when there is more than one), "Check Heat 3 · 1 time" that race's page. Two buttons at most, then a line ("1 more") that opens the event in Results. The reason beside a greyed "+ Final" is not shown when one of these buttons says it.
 - **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. For a lead it opens a menu with Races, Results and Day setup, then Log out; for a volunteer, Log out only.
 
 ### 9. Relays

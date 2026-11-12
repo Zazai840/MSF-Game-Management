@@ -255,10 +255,9 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  // Tapping the greyed chip anyway opens nothing. The click goes to the chip itself: a forced tap at its place can land on New race, fixed over a long Races list.
  await plusFinal.dispatchEvent('click');
  await expect(lena.getByRole('dialog')).toHaveCount(0);
- const reason=card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
- await expect(reason).toBeVisible();
- // Its warning icon is navy, an approved colour pair on the card and on paper (accessibility.md).
- await expect(reason.locator('.rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
+ // The card says why as its problem button; the line under the chips is for New race's sheet and the Race screen.
+ await expect(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toBeVisible();
+ await expect(card.getByRole('button',{name:'Heat 1 has a time to check first',exact:true})).toHaveCount(0);
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-card.png'),fullPage:true});
  // New race never offers the final the server would refuse: Final is greyed, with the reason under it, which opens that heat's race page too.
  await lena.getByRole('button',{name:'New race',exact:true}).click();
@@ -267,21 +266,25 @@ test('a lead\'s + Final is greyed with why the final cannot be made yet, the rea
  await expect(sheet.getByRole('button',{name:'Final',exact:true})).toBeDisabled();
  await expect(sheet.getByText('Boy Cubs already has heat 1.',{exact:true})).toBeVisible();
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-sheet.png')});
- await sheet.getByRole('button',{name:'Heat 1 has a time to check first',exact:true}).click();
+ const reason=sheet.getByRole('button',{name:'Heat 1 has a time to check first',exact:true});
+ // Its warning icon is navy, an approved colour pair on the card and on paper (accessibility.md).
+ await expect(reason.locator('.rz-icon')).toHaveCSS('color','rgb(30, 43, 81)');
+ await reason.click();
  const opened=async()=>{
   await expect(lena.getByRole('banner').getByRole('heading',{level:1,name:'Heat 1',exact:true})).toBeVisible();
   await expect(lena.getByRole('alert').filter({hasText:'A time looks wrong'})).toBeVisible();
  };
  await opened();
+ // The card's problem button opens the same race page.
  await backToRaces(lena);
- await reason.click();
+ await press(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true}));
  await opened();
  expect(await lookProblems(lena)).toEqual([]);await lena.screenshot({path:info.outputPath('final-reason-race.png'),fullPage:true});
  // The lead accepts the time on the race page: back on Races "+ Final" is tappable again, and opens the confirm.
  await lena.getByRole('button',{name:"It's right",exact:true}).click();
  await expect(lena.getByRole('alert').filter({hasText:'A time looks wrong'})).toHaveCount(0);
  await backToRaces(lena);
- await expect(reason).toHaveCount(0,live);
+ await expect(card.getByRole('button',{name:'Check Heat 1 · 1 time',exact:true})).toHaveCount(0,live);
  await expect(plusFinal).not.toHaveAttribute('aria-disabled','true');
  await plusFinal.click();
  await expect(lena.getByRole('dialog',{name:'Have all Boy Cubs heats run?',exact:true})).toBeVisible();
