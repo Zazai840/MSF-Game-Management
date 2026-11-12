@@ -10,13 +10,13 @@ import type { View } from '../shell/addresses.js';
 
 type EventsView=Extract<View,{kind:'events'|'rename-event'|'new-event'}>;
 const formats={heats:'Heats then final',timed:'Timed'} as const;
-/** One save from an Events screen: the server call, then the toast and a fresh day read; a refusal comes back to show. */
+/** One save from an Events screen: the server call, then `saved` (a sheet closes here, so the toast shows in its final place), the toast and a fresh day read; a refusal comes back to show. */
 function useSave(onSaved:()=>Promise<void>) {
   const toast=useToast();
   const [busy,setBusy]=useState(false);
-  async function save(path:string,body:unknown,line:ToastSave) {
+  async function save(path:string,body:unknown,line:ToastSave,saved?:()=>void) {
     setBusy(true);
-    try {await api(path,body);toast({message:toastLine(line)});await onSaved();return null;}
+    try {await api(path,body);saved?.();toast({message:toastLine(line)});await onSaved();return null;}
     catch(error) {return error;}
     finally {setBusy(false);}
   }
@@ -42,8 +42,8 @@ function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|nul
   const open=day?.events.find(event=>event.id===openId);
   async function toggle(event:DayEvent) {
     setRefused(null);
-    const failure=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled});
-    if(failure) setRefused(failure);else setOpenId(null);
+    const failure=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled},()=>setOpenId(null));
+    if(failure) setRefused(failure);
   }
   return <LeadHeader title="Events" up="Day setup" body={<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
