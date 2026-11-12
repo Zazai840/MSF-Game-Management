@@ -27,7 +27,7 @@ export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:st
 function useClearOfButtons(box:{current:HTMLElement|null}) {
   useLayoutEffect(()=>{
     const place=()=>{
-      const tops=[...document.querySelectorAll<HTMLElement>('.rz-leadnav, .rz-footer--sticky > :not(.rz-refresh, .rz-pull)')].map(fixed=>fixed.getBoundingClientRect()).filter(rect=>rect.height).map(rect=>rect.top);
+      const tops=[...document.querySelectorAll<HTMLElement>('.rz-leads-bar, .rz-footer--sticky > :not(.rz-refresh, .rz-pull)')].map(fixed=>fixed.getBoundingClientRect()).filter(rect=>rect.height).map(rect=>rect.top);
       // A sheet by where it ends up, not where it is on its way in.
       for(const sheet of document.querySelectorAll<HTMLElement>('.rz-scrim:not([data-closing]) > .rz-sheet')) tops.push(sheet.parentElement!.getBoundingClientRect().top+sheet.offsetTop);
       const floor=Math.min(innerHeight,...tops);

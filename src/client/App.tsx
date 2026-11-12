@@ -9,7 +9,7 @@ import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine } from './races/parts.js';
 import { failureLine } from '../shared/request-failure.js';
-import { LeadBar,LeadFrame,LeadTabs } from './lead/LeadBar.js';
+import { LeadHeader,LeadFrame,LeadsBar } from './lead/LeadHeader.js';
 import { RacesHome } from './races/RacesHome.js';
 import { RaceShell } from './races/RaceShell.js';
 import { Toast,ToastContext,type ToastShown } from './races/Toast.js';
@@ -135,7 +135,7 @@ export function App() {
       if(view.kind==='race') return <Screen screen="Race"><RaceShell key={view.id} raceId={view.id} step={view.step} role={role} avatar={avatar} onRole={()=>setRoleSheet(true)} onBack={toRaces} onGone={line=>{setGone(line);toRaces();}}
         onRace={toRace} onSaved={saved=>{showToast({message:saved.message,saved});pickTab(saved.tab);toRaces();}} onResults={toResults} onOpen={next=>go(next)} onPage={code=>go({kind:'race-page',code,raceId:view.id},{replace:true})}/>{sheet}</Screen>;
       return <Screen screen="Races" wide>{bar}<RacesHome tab={homeTab} onTab={pickTab} role={role} gone={gone} onRace={toRace}
-        onResults={toResults}/>{isLead && <LeadTabs current="Races" onOpen={next=>go(next)}/>}{sheet}</Screen>;
+        onResults={toResults}/>{isLead && <LeadsBar current="Races" onOpen={next=>go(next)}/>}{sheet}</Screen>;
     }
     // Back goes where the lead came from; with no history, up a level. A non-lead goes back to Races. Two levels (after a
     // delete) goes back past the race too: to its entry first, then on from there as its own Back would.
@@ -161,7 +161,7 @@ function Opening({words,error,onRefresh}:{words:string;error?:unknown;onRefresh?
 }
 /** Lead access needed: someone without lead access at a lead screen's address types the lead code to open it. */
 function LeadAccess({onLead}:{onLead:()=>Promise<void>}) {
-  return <LeadBar title="Lead access needed" up="Races" body={<LeadCode onLead={onLead} prompt={<div className="rz-prompt">
+  return <LeadHeader title="Lead access needed" up="Races" body={<LeadCode onLead={onLead} prompt={<div className="rz-prompt">
     <p className="rz-prompt__meta">Results and Day setup are for zone leads</p><h2 className="rz-prompt__q">Type the <em>lead code</em></h2>
     <p className="rz-prompt__help">Ask the zone lead who set up today.</p>
   </div>}/>}/>;

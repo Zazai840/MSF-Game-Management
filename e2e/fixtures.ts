@@ -391,9 +391,11 @@ export async function raceAction(page:Page,action:string) {
 export const medalPlaces=(page:Page)=>page.getByRole('list',{name:'Medal places',exact:true}).getByRole('listitem');
 /** On the Confirm the medals screen: taps its docked Confirm the medals, which goes back where the screen was opened. */
 export async function confirmTheMedals(page:Page) {
-  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
+  // The bar names the screen; nothing below it says so again.
+  await expect(page.getByRole('heading',{name:'Confirm the medals',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Confirm the medals',exact:true})).toBeVisible();
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Confirm the medals',exact:true}));
-  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Confirm the medals',exact:true})).toHaveCount(0);
 }
 /** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
 export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
@@ -487,7 +489,7 @@ export const press=(target:Locator,force=false)=>test.info().project.use.hasTouc
 /** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer or the lead's bar, whichever is higher (or the keyboard). */
 export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
-    footer:Math.min(...['footer.rz-footer','.rz-leadnav'].map(foot=>document.querySelector(foot)?.getBoundingClientRect().top??Infinity))}));
+    footer:Math.min(...['footer.rz-footer','.rz-leads-bar'].map(foot=>document.querySelector(foot)?.getBoundingClientRect().top??Infinity))}));
   expect(scrolled).toBe(0);
   for(const target of targets) {
     const box=(await target.boundingBox())!;

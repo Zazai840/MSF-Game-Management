@@ -16,6 +16,8 @@ async function openRow(page:Page,name:string,address:string) {
   await press(row(page,name));
   await expect(page).toHaveURL(new RegExp(`${address}$`));await title(page,name);
   await expect(page.getByRole('button',{name:'Back to Day setup',exact:true})).toBeVisible();
+  // The bar names the screen; the card below does not say it again.
+  await expect(page.getByRole('heading',{name,exact:true})).toHaveCount(1);
 }
 const toDaySetup=async(page:Page)=>{await back(page,'Day setup');await title(page,'Day setup');};
 /** Make a new lead code, answered yes in its sheet: the new code from the server, after its toast. */
@@ -63,7 +65,7 @@ test('This day is its own screen: each choice saves on tap with its toast, and i
   const year=new Date().getUTCFullYear();
   await asOwner(page);
   await openRow(page,'Day export','/day/export');
-  const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Download day export',exact:true}).click();await downloaded;
+  const downloaded=page.waitForEvent('download');await press(page.getByRole('button',{name:'Download day export',exact:true}));await downloaded;
   await expect(section(page,'Day export')).toContainText(/includes every change so far\./);
   await toDaySetup(page);
   await openRow(page,'This day','/day/this-day');

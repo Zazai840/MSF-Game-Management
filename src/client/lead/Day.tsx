@@ -1,18 +1,11 @@
 import { useId,useState,type FormEvent } from 'react';
-import { dayNumbers, regions, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
+import { dayNumbers, exportBehind, exportStatus, regions, thisDayChosen, thisDayYears, type DayRead, type ThisDay as ThisDayRead } from '../../shared/day.js';
 import { api,apiDownload,phoneStorage,startNewDay } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { LeadHeader } from './LeadHeader.js';
 import type { View } from '../shell/addresses.js';
 import { toastLine } from '../../shared/toast-lines.js';
-import { clock } from '../../shared/clock.js';
-
-/** When the day export was last downloaded, and whether anything changed after it. */
-export function exportStatus(day:Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>) {
-  if(!day.exportedAt) return 'Not downloaded yet.';
-  return `Last downloaded ${clock(day.exportedAt)}, ${day.exportedRevision===day.revision?'includes every change so far':'with newer changes since'}.`;
-}
 
 /** A code a lead reads out, one of the two side by side in Day setup's card. */
 function Code({label,code}:{label:string;code:string}) {
@@ -45,9 +38,8 @@ export function ThisDay({day,onChanged,onSaved}:{day:ThisDayRead;onChanged:()=>P
     <legend className="rz-field__label">{legend}</legend>
     <div className="rz-choices rz-choices--row">{values.map(value=><button key={value} type="button" className="rz-choice" aria-pressed={day[field]===value} onClick={()=>void save(field,value)}>{value}</button>)}</div>
   </fieldset>;
-  const id=useId();
-  return <section className="rz-codecard" aria-labelledby={id}>
-    <h2 className="rz-codecard__label" id={id}>This day</h2>
+  // The bar names the screen, so the card has no heading of its own (and so with Day export and Start a new day).
+  return <section className="rz-codecard" aria-label="This day">
     {choices('year','Year',thisDayYears(new Date()))}
     {choices('region','Region',regions)}
     {choices('dayNumber','Day',dayNumbers)}
@@ -96,9 +88,7 @@ export function DayExport({day,onChanged}:{day:DayRead;onChanged:()=>Promise<voi
     } catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  const id=useId();
-  return <section className="rz-codecard" aria-labelledby={id}>
-    <h2 className="rz-codecard__label" id={id}>Day export</h2>
+  return <section className="rz-codecard" aria-label="Day export">
     <p className="rz-codecard__text">Excel file of today's results for the scoring workbook. <span>{exportStatus(day)}</span></p>
     {error!==null && <ErrorCallout error={error} action="read"/>}
     <button type="button" className="rz-btn rz-btn--primary rz-btn--block" disabled={busy} onClick={()=>void download()}>{busy?'Please wait…':'Download day export'}</button>
@@ -117,8 +107,7 @@ export function NewDay() {
     finally {setBusy(false);}
   }
   const id=useId();
-  return <section className="rz-codecard rz-codecard--danger" aria-labelledby={id}>
-    <h2 className="rz-codecard__label" id={id}>Start a new day</h2>
+  return <section className="rz-codecard rz-codecard--danger" aria-label="Start a new day">
     <p className="rz-codecard__text">Clears today's races. Download the day export first.</p>
     <form className="rz-codecard__form" onSubmit={start}>
       <div className="rz-field rz-field--text"><label className="rz-field__label" htmlFor={`${id}-typed`}>Type NEW DAY to confirm</label>
@@ -135,14 +124,14 @@ export function NewDay() {
  */
 export function Day({day,phones,onOpen,onChanged,onSaved}:{day:DayRead;phones:number|null;onOpen:(view:View)=>void;onChanged:()=>Promise<void>;onSaved:()=>void}) {
   const [asking,setAsking]=useState(false);
-  const events=day.events.length,labelled=day.region!==null && day.dayNumber!==null;
+  const events=day.events.length,labelled=thisDayChosen(day);
   const rows:Array<{label:string;meta?:string|null;warn?:boolean;view?:View}>=[
     {label:'This day',meta:labelled?`${day.year} · ${day.region} · Day ${day.dayNumber}`:'Choose the region and day',warn:!labelled,view:{kind:'this-day'}},
     {label:'Events',meta:`${events} ${events===1?'event':'events'}`,view:{kind:'events'}},
     {label:'Signed in today',meta:phones===null?null:`${phones} ${phones===1?'person':'people'} signed in today`,view:{kind:'signed-in-today'}},
     {label:'Change Olympics password',view:{kind:'olympics-password'}},
     {label:'Make a new lead code'},
-    {label:'Day export',meta:exportStatus(day),warn:day.exportedAt!==null && day.exportedRevision!==day.revision,view:{kind:'day-export'}},
+    {label:'Day export',meta:exportStatus(day),warn:exportBehind(day),view:{kind:'day-export'}},
     {label:'Start a new day',view:{kind:'start-a-new-day'}}
   ];
   return <>
@@ -173,7 +162,7 @@ export function ChangePassword() {
     try {await api('day/olympics-password',{password});phoneStorage.signOut();}
     catch(error) {setError(error);setBusy(false);}
   }
-  return <LeadBar title="Change Olympics password" up="Day setup" body={<>
+  return <LeadHeader title="Change Olympics password" up="Day setup" body={<>
     <main className="rz-main rz-main--form">
       <div className="rz-prompt rz-prompt--compact"><h2 className="rz-prompt__q">New <em>Olympics password?</em></h2>
         <p className="rz-prompt__help">Every phone, including yours, goes back to Join.</p></div>

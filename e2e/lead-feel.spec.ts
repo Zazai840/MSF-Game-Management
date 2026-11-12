@@ -36,13 +36,13 @@ test('an event shows one callout for the problems of one heat, with one line eac
   await expect(shared).toContainText(`${scouts(1)} is not a Girl Cubs number.`);
   await expect(shared).toContainText(`${scouts(2)} is not a Girl Cubs number.`);
   await expect(shared).not.toContainText('Correct it or mark it checked');
-  await expect(shared.getByRole('button')).toHaveText(['Open Heat 1']);
+  await expect(shared.getByRole('button')).toHaveText(['Check Heat 1']);
   const alone=problems.filter({hasText:'A wristband number needs checking'});
   await expect(alone).toContainText(`${scouts(3)} is not a Girl Cubs number.`);
-  await expect(alone.getByRole('button')).toHaveText(['Open Heat 2']);
+  await expect(alone.getByRole('button')).toHaveText(['Check Heat 2']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('one-callout.png'),fullPage:true});
   // The shared callout's button opens the heat's race page, where each problem has its own callout.
-  await shared.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+  await shared.getByRole('button',{name:'Check Heat 1',exact:true}).click();
   await expect(page.getByRole('main').getByRole('alert').filter({hasText:'A wristband number needs checking'})).toHaveCount(2);
 });

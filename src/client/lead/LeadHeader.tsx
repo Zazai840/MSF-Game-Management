@@ -11,7 +11,7 @@ export const LeadFrame=createContext<{avatar:ReactNode;onBack:()=>void}|null>(nu
  * and the avatar. It also names the screen, so a screen opened from here names it on its own back arrow.
  * The screen's `body` shares the bar's screen root; `wide` lets a card grid widen on a laptop, as on Races.
  */
-export function LeadBar({title,code,up,body,wide=false}:{title:string;code?:string;up?:string;body:ReactNode;wide?:boolean}) {
+export function LeadHeader({title,code,up,body,wide=false}:{title:string;code?:string;up?:string;body:ReactNode;wide?:boolean}) {
   const frame=useContext(LeadFrame)!,back=entryBack()??up;
   useScreenName(title);
   const header=<header className="rz-appbar rz-appbar--compact rz-appbar--race rz-appbar--lead"><Pattern/>
@@ -26,12 +26,12 @@ export function LeadBar({title,code,up,body,wide=false}:{title:string;code?:stri
 }
 /**
  * A full lead screen's body while its read is on its way: "Opening…", or why the read failed. The screen passes it as
- * its LeadBar's `body`, so the header stays the same element once the read arrives (no remount, no lost focus).
+ * its LeadHeader's `body`, so the header stays the same element once the read arrives (no remount, no lost focus).
  */
 export const OpeningBody=({error}:{error:unknown})=><main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<Opening/>}</main>;
-const leadTabs:Array<[name:string,icon:IconName,view:View]>=[['Races','hurdle',{kind:'races'}],['Results','trophy',{kind:'results'}],['Day setup','sliders',{kind:'day'}]];
-/** The lead's bar: Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. */
-export function LeadTabs({current,onOpen}:{current:string;onOpen:(view:View)=>void}) {
-  return <nav className="rz-leadnav" aria-label="Lead screens">{leadTabs.map(([name,icon,view])=>
+const leadsBarTabs:Array<[name:string,icon:IconName,view:View]>=[['Races','hurdle',{kind:'races'}],['Results','trophy',{kind:'results'}],['Day setup','sliders',{kind:'day'}]];
+/** The Lead's bar (glossary), `LeadsBar`; the header above is `LeadHeader`. Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. It is the header's navy surface with its pattern. */
+export function LeadsBar({current,onOpen}:{current:string;onOpen:(view:View)=>void}) {
+  return <nav className="rz-leads-bar rz-on-dark" aria-label="Lead screens"><Pattern/>{leadsBarTabs.map(([name,icon,view])=>
     <button key={name} type="button" aria-current={name===current?'page':undefined} onClick={()=>onOpen(view)}><Icon name={icon}/>{name}</button>)}</nav>;
 }

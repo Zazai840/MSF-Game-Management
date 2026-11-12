@@ -315,6 +315,8 @@ export const leadFinalLine=(group:FinalGroup)=>heatsRunning(group) && savedHeats
 /** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
 const finishedLine=(section:string,final:boolean,ask:string)=>`${section} ${final?'final is':'heats are'} finished. Ask a lead to ${ask}.`;
 export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>finishedLine(group.event.section,false,'add another heat');
+/** New relay in place of its choices, on a day with no relay switched on. Volunteers read it too. */
+export const noRelaysLine='This day has no relays. A zone lead can switch them on in Day setup, Events.';
 /** A race whose stage is complete, on its screen and in the refusal of its writes: "Girl Cubs heats are finished. Ask a lead to change this race." */
 export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>finishedLine(race.event.section,race.kind==='final','change this race');
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
@@ -338,7 +340,7 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
 /** A lead's card words for an event, the same on Races and Results: "No races yet" before its first race, then the lead's line. */
 export const leadCardLine=(group:Parameters<typeof leadLine>[0],issues:readonly DayLeadItem[])=>group.races.length?leadLine(group,issues):'No races yet';
 /**
- * A lead's card problems: the first two problem buttons of its open To check items and how many more there are. With
+ * A lead's card problems: the first two problem buttons of its open To check items (one per race, one for its ties) and how many more there are. With
  * a button the card drops its status line; `finalReason` is its final's reason unless that is one of these problems
  * (an item of the race the reason names, or a tie with a runner in it).
  */

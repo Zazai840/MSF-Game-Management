@@ -158,8 +158,9 @@ test('a lead\'s card shows two problem buttons at most and counts the rest, and 
   const issue=(fields:object)=>({id:'i',at:'2026-10-14T10:05:00Z',message:'m',event,...fields}) as unknown as DayLeadItem;
   const on=(number:number,kind:string)=>issue({kind,race:heat(number),raceId:`h${number}`});
   const held=(raceId:string)=>({...group('R3',[]),finalReason:{raceId,step:'times',line:'why'}}) as RaceGroup;
-  const four=[on(1,'warning'),on(1,'times-out-of-order'),on(2,'warning'),on(2,'ran-twice'),on(2,'warning')];
-  expect(cardProblems(held('h1'),four)).toEqual({buttons:[{label:'Check Heat 1 · 1 wristband',target:{event,raceId:'h1'}},{label:'Check Heat 1 · 1 time',target:{event,raceId:'h1'}}],more:2,finalReason:null});
+  // One button per race: Heat 1 and Heat 2 have more than one kind each, and Heats 3 and 4 are counted as more.
+  const four=[on(1,'warning'),on(1,'times-out-of-order'),on(2,'warning'),on(2,'ran-twice'),on(2,'warning'),on(3,'warning'),on(4,'times-out-of-order')];
+  expect(cardProblems(held('h1'),four)).toEqual({buttons:[{label:'Check Heat 1 · 2 problems',target:{event,raceId:'h1'}},{label:'Check Heat 2 · 3 problems',target:{event,raceId:'h2'}}],more:2,finalReason:null});
   // Heat 3 has no To check item: the final waits on its times, and the card still says so.
   expect(cardProblems(held('h3'),[on(1,'warning')])).toMatchObject({buttons:[{label:'Check Heat 1 · 1 wristband'}],more:0,finalReason:{raceId:'h3',line:'why'}});
   // A tie holds the final under one of its heats.

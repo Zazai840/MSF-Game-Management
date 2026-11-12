@@ -5,7 +5,7 @@ import type {RaceFlowRead,RacesRead} from '../src/shared/race-flow.js';
 /** A lead's Results for the relay, then its event page. */
 async function openRelayResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
 }
 /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
 async function runHeat(request:APIRequestContext,token:string,code:string,placed:number[],times:number[]) {

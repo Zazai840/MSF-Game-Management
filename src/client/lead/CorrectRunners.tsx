@@ -10,7 +10,7 @@ import { entryCount,legCheck,stillToRun,teamListOf } from '../../shared/teams.js
 import type { WristbandWarning } from '../../shared/wristband-checks.js';
 import { toastLine } from '../../shared/toast-lines.js';
 import { Callout,ErrorCallout,Icon } from '../races/parts.js';
-import { LeadBar,OpeningBody } from './LeadBar.js';
+import { LeadHeader,OpeningBody } from './LeadHeader.js';
 import { DigitsField,KeepFocus } from '../races/Steps.js';
 import { HeldCallout,TeamNote,TeamRow,type Held } from '../races/TeamSteps.js';
 import { useToast } from '../races/Toast.js';
@@ -24,7 +24,7 @@ type Save=(command:'runners'|'teams',body:object)=>Promise<unknown>;
 interface BodyProps { read:LeadRaceRead; save:Save; busy:boolean }
 
 /**
- * Correct runner list or Correct teams, under the race page or the race screen it was opened from. The draft lives on
+ * Correct runner list or Correct teams, under the race page it was opened from. The draft lives on
  * this screen only: leaving it changes nothing. The docked Save sends it once, shows the toast and goes back.
  */
 export function RaceCorrection({view,onBack,onChanged}:{view:CorrectionView;onBack:()=>void;onChanged?:()=>void}) {
@@ -32,7 +32,7 @@ export function RaceCorrection({view,onBack,onChanged}:{view:CorrectionView;onBa
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState<unknown>(null),[busy,setBusy]=useState(false);
   useEffect(()=>{api<LeadRaceRead>(`lead/races/${view.raceId}`).then(setRead,setError);},[]);
   const teams=view.action==='correct-teams',title=teams?'Correct teams':'Correct runner list';
-  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
+  if(!read) return <LeadHeader title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
   const {race}=read;
   const save:Save=async(command,body)=>{
     setBusy(true);
@@ -43,7 +43,7 @@ export function RaceCorrection({view,onBack,onChanged}:{view:CorrectionView;onBa
     } catch(error) {setBusy(false);return error;}
   };
   const Body=teams?CorrectTeams:CorrectRunnerList;
-  return <LeadBar title={title} code={race.event.code} up={raceName(race)} body={<Body read={read} save={save} busy={busy}/>}/>;
+  return <LeadHeader title={title} code={race.event.code} up={raceName(race)} body={<Body read={read} save={save} busy={busy}/>}/>;
 }
 const raceMeta=(race:LeadRaceRead['race'])=>`${eventTitle(race.event)} · ${raceName(race)}`;
 

@@ -92,7 +92,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await done.locator('summary').click();
   await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');
   await expect(relayCard.getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
-  await openLeadMenu(boss,'Results');await resultsCard(boss,code).click();
+  await openLeadMenu(boss,'Results');await press(resultsCard(boss,code));
   await eventTab(boss,'Final');
   const board=boss.getByRole('list',{name:'Final leaderboard',exact:true});
   for(const team of [3,1,4,2]) await expect(board.getByRole('button',{name:`Team ${team} · ${legs(team)} · Final`,exact:true})).toBeVisible();

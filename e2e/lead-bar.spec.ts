@@ -9,8 +9,18 @@ async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>)
   await expect(bar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
   for(const name of ['Races','Results','Day setup']) {
     if(name===current) await expect(tab(page,name)).toHaveAttribute('aria-current','page');else await expect(tab(page,name)).not.toHaveAttribute('aria-current');
-    await expect(tab(page,name).locator('svg')).toHaveCount(1);
+    await expect(tab(page,name).locator('svg.rz-icon')).toHaveCount(1);
   }
+  // The bar is the top header's surface: its navy with the pattern, light words; the current tab is the inverse, navy on a light cell.
+  const paint=(of:ReturnType<Page['locator']>)=>of.evaluate(el=>{const style=getComputedStyle(el);return {ground:style.backgroundColor,ink:style.color};});
+  const header=await paint(page.getByRole('banner'));
+  expect(await paint(bar(page)),current).toEqual(header);
+  await expect(bar(page).locator('svg.rz-pattern')).toHaveCount(1);
+  for(const name of ['Races','Results','Day setup']) expect((await paint(tab(page,name))).ink,name).toBe(name===current?header.ground:header.ink);
+  expect((await paint(tab(page,current))).ground,current).toBe(header.ink);
+  // Nothing shows under the bar: it ends at the foot of the screen.
+  const foot=await bar(page).evaluate(el=>el.getBoundingClientRect().bottom-window.innerHeight);
+  expect(Math.abs(foot),current).toBeLessThanOrEqual(0.5);
   await expect(bar(page)).toBeInViewport({ratio:1});
   // The bar stays at the bottom while the screen scrolls under it: at the end of the screen, `above` is clear of it.
   await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
@@ -30,6 +40,8 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   // Races, on both of its tabs: the bar sits below New race.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   await onBar(page,'Races',page.getByRole('button',{name:'New race',exact:true}));
+  // The current tab's light cell sits inside the navy bar, not edge to edge.
+  await expect(page.getByRole('navigation',{name:'Lead screens'}).locator('[aria-current="page"]')).toHaveCSS('background-clip','padding-box');
   await page.screenshot({path:info.outputPath('races.png')});
   await openRelays(page);
   await onBar(page,'Races',page.getByRole('button',{name:'New relay',exact:true}));

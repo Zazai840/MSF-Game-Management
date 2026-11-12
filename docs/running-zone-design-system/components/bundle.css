@@ -46,7 +46,6 @@
 
 /* ---------- Icons and motifs ---------- */
 .rz-icon { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.rz-icon--sm { width: 18px; height: 18px; }
 .rz-icon--bold { stroke-width: 2.6; }
 .rz-star { display: block; width: 100%; height: 100%; fill: currentColor; flex: none; }
 .rz-pattern { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

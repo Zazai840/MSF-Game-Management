@@ -1,4 +1,4 @@
-import {ownName,becomeLead,expect,join,lookProblems,openLeadMenu,openRelays,test,type Page} from './fixtures.js';
+import {press,ownName,becomeLead,expect,join,lookProblems,openLeadMenu,openRelays,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:/Join( the Running Zone)?$/})).toBeVisible();
 const menuItems=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
@@ -20,13 +20,13 @@ test('a lead\'s avatar menu has only Log out too, on Races and on the lead heade
   const name=ownName('Sami Out');
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);await becomeLead(page);
   const avatar=page.getByRole('banner').getByRole('button',{name:`${name}: Log out`,exact:true});
-  await avatar.click();
+  await press(avatar);
   await expect(menuItems(page)).toHaveText(['Log out']);
-  await avatar.click();await expect(menuItems(page)).toHaveCount(0);
+  await press(avatar);await expect(menuItems(page)).toHaveCount(0);
   await openLeadMenu(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup'})).toBeVisible();
   await expect(page.getByText(name,{exact:true})).toHaveCount(0);
-  await avatar.click();
+  await press(avatar);
   await expect(menuItems(page)).toHaveText(['Log out']);
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-menu.png')});

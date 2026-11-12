@@ -1,4 +1,4 @@
-import {ownName,back,becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page} from './fixtures.js';
+import {press,ownName,back,becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible({timeout:10000});
 test('Change Olympics password is one screen, and saving sends both phones back to Join with their profiles kept',async({page,browser,baseURL},info)=>{
@@ -12,7 +12,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     await becomeLead(page,'e2e-owner-fixture');
     await openLeadMenu(page,'Day setup');
     const open=async()=>{
-      await page.getByRole('button',{name:'Change Olympics password',exact:true}).click();
+      await press(page.getByRole('button',{name:'Change Olympics password',exact:true}));
       await expect(page).toHaveURL(/\/day\/olympics-password$/);
       await expect(page.getByRole('heading',{level:1,name:'Change Olympics password',exact:true})).toBeVisible();
     };

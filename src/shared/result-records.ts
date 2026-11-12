@@ -1,5 +1,5 @@
 import { disqualifiedText } from './rulings.js';
-import { flagText } from './runner-rulings.js';
+import { flagText,warningFlags } from './runner-rulings.js';
 import { noteText } from './result-notes.js';
 import { finalRows,type FinalField } from './finals.js';
 import type { EventState,LeaderboardRow,NotRankedReason,RaceReference } from './results-rules.js';
@@ -20,7 +20,7 @@ export function resultRecords(state:EventState,rows:readonly LeaderboardRow[],re
   if(row.flags.some(flag=>flag.kind==='tie-settled')) statuses.push('Tie settled');
   if(reasons.get(row.raceId)?.length) statuses.push(...reasons.get(row.raceId)!);
   if(race.times?.acceptedByLead) statuses.push('Times accepted by lead');
-  const warning=row.flags.filter(flag=>flag.kind!=='tie-settled').map(flagText).join('; ');
+  const warning=warningFlags(row.flags).map(flagText).join('; ');
   const note=row.notes.map(note=>`${note.at} ${note.actor}: ${noteText(note)}`).join('\n');
   return {...row,deleted:race.deleted,statuses,warning,note};
  });

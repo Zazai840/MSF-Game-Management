@@ -8,8 +8,9 @@ import { reopenHeatsSheet,resultName,teamWristbands,type LeaderboardRow } from '
 import type { Stage,StageCheckSheet,StageItem,StagePlace } from '../../shared/stages.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { toastLine } from '../../shared/toast-lines.js';
+import { placesCorrection } from '../../shared/to-check.js';
 import { Callout,ErrorCallout,Icon,Star,Opening } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { LeadHeader } from './LeadHeader.js';
 import { useToast } from '../races/Toast.js';
 import type { StageScreen,View } from '../shell/addresses.js';
 import { Comment } from './Comment.js';
@@ -17,6 +18,8 @@ import { Frame,RunnerSheet } from './RunnerSheet.js';
 /** What each stage's Reopen names: "Reopen heats" at /results/<code>/reopen-heats. */
 const reopened:Record<Stage,string>={event:'event',heats:'heats',final:'final','no-final':'results'};
 export const reopenLabel=(stage:Stage)=>`Reopen ${reopened[stage]}`;
+/** The stage a Reopen screen reopens: its address holds its label's word (`stageView`). */
+const reopenedStage=(screen:StageScreen)=>(Object.keys(reopened) as Stage[]).find(stage=>`reopen-${reopened[stage]}`===screen);
 /** The screen a medal decision's button opens: Confirm the medals, Results without a final, or the stage's Reopen once complete. */
 export function stageView(code:string,sheet:StageCheckSheet):View {
   if(sheet.completed) return {kind:'stage',code,screen:`reopen-${reopened[sheet.stage]}` as StageScreen};
@@ -34,7 +37,7 @@ function decidedSheet(detail:EventResultsRead|null,screen?:StageScreen) {
     const sheet=results.checkSheet;
     return sheet && !sheet.completed && (sheet.stage==='event' || sheet.stage==='final')?sheet:null;
   }
-  const reopening=screen!=='results-without-a-final',stage=reopening?(Object.keys(reopened) as Stage[]).find(stage=>`reopen-${reopened[stage]}`===screen):'no-final';
+  const reopening=screen!=='results-without-a-final',stage=reopening?reopenedStage(screen):'no-final';
   if(stage==='heats' && !reopenHeatsSheet(results)) return null;
   return [results.heatsCheckSheet,results.noFinalCheckSheet,results.checkSheet].find(sheet=>sheet?.stage===stage && sheet?.completed===reopening)??null;
 }
@@ -71,8 +74,8 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
   },[code]);
   // The bar names the action; the event is the back arrow's fallback and is named in the body's meta line.
   const sheet=decidedSheet(detail,screen),up=detail?eventTitle(detail.event):code;
-  const title=!screen?'Confirm the medals':screen==='results-without-a-final'?'Results without a final':`Reopen ${screen.slice('reopen-'.length)}`; // a Reopen's address holds its label's words (stageView)
-  if(!detail || !sheet) return <LeadBar title={title} code={code} up={up} body={<main className="rz-main rz-main--form">
+  const title=!screen?'Confirm the medals':screen==='results-without-a-final'?'Results without a final':reopenLabel(reopenedStage(screen)!);
+  if(!detail || !sheet) return <LeadHeader title={title} code={code} up={up} body={<main className="rz-main rz-main--form">
     {error!==null?<ErrorCallout error={error} action="read"/>:!detail?<Opening/>:<p className="rz-empty">{nothingLine(detail,screen)}</p>}
   </main>}/>;
   const event=detail.event,reopening=sheet.completed,settle=reopening?0:sheet.mustSettleFirst.length;
@@ -86,7 +89,7 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
   const reason=settle?`Settle ${settle===1?'1 thing':`${settle} things`} first.`:screen && !comment.trim()?'Write a comment first.':null;
   const check=<MedalsCheck detail={detail} sheet={sheet} onOpen={onOpen} onRunner={setRunner}/>;
   const frame={event:up,meta:medalsMeta(detail,sheet),reason,busy,refused,onGo:()=>void save()};
-  return <><LeadBar title={title} code={event.code} up={up} body={
+  return <><LeadHeader title={title} code={event.code} up={up} body={
     reopening?<Frame {...frame} question={<>Reopen the <em>{reopened[sheet.stage]}</em>?</>} help={sheet.stage==='heats'?sheet.reopenWarning!:reopenHelp[sheet.stage]} label={reopenLabel(sheet.stage)}>
       <Comment value={comment} onChange={setComment} required/>
     </Frame>
@@ -95,7 +98,7 @@ export function ConfirmTheMedals({code,screen,onOpen,onBack}:{code:string;screen
       {check}
       <Comment value={comment} onChange={setComment} required/>
     </Frame>
-    :<Frame {...frame} question={<>Confirm the <em>medals</em></>} help="Check the places, then confirm. They go to the Day export." label="Confirm the medals">{check}</Frame>}/>
+    :<Frame {...frame} help="Check the places, then confirm. They go to the Day export." label="Confirm the medals">{check}</Frame>}/>
     {runner && <RunnerSheet key={`${runner.raceId}:${runner.entryId}`} event={event} row={runner} rows={detail.results.actionableRunners} onSaved={next=>{setRunner(null);setDetail(next);}}
       onClose={()=>setRunner(null)} onOpen={onOpen} onRace={()=>onOpen({kind:'race-page',code:event.code,raceId:runner.raceId})}/>}</>;
 }
@@ -120,7 +123,7 @@ export function MedalsCheck({detail,sheet,onOpen,onRunner}:{detail:EventResultsR
         {open && <button type="button" className={`rz-btn rz-btn--small${primary?' rz-btn--primary':''}`} onClick={open[1]}>{open[0]}</button>}</li>;
     })}</ul></>;
   // A final's places are fixed in its finishing order; a timed event's (or results without a final) in their heat's times.
-  const fix=(place:StagePlace)=>onOpen({kind:'correction',code,raceId:place.race!.id,action:sheet.stage==='final'?'correct-finishing-order':'correct-times'});
+  const fix=(place:StagePlace)=>onOpen({kind:'correction',code,raceId:place.race!.id,action:placesCorrection(sheet.stage==='final')});
   return <>
     {cards('Settle first',sheet.mustSettleFirst,true)}
     {cards('Worth a look',sheet.worthALook,false)}
