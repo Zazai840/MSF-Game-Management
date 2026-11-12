@@ -98,7 +98,7 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await press(row);await press(runner.getByRole('button',{name:'Close',exact:true}));await expect(runner).toHaveCount(0);await eventPage();
   // Race actions on a race page: Back closes it and the race page stays. Delete from it goes to its screen, and the
   // delete goes back to the event, past the race and the screen; the next Back goes to Results.
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=async()=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 1',exact:true})).toBeVisible();};
   await racePage();
   const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}),more=page.getByRole('main').getByRole('button',{name:'Correct or delete Heat 1',exact:true});

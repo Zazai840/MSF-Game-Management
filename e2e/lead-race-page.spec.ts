@@ -15,7 +15,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
 async function openRace(page:Page,code:string,name:string,number:number) {
   await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
   await resultsCard(page,code).click();
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:`Open Heat ${number}`,exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:`Open Heat ${number}`,exact:true}));
 }
 const background=(element:{evaluate:(fn:(element:Element)=>string)=>Promise<string>})=>element.evaluate(element=>getComputedStyle(element).backgroundColor);
 

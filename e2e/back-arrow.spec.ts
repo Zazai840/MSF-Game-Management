@@ -96,7 +96,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
   await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');
   // The Races tab: a race page goes back to the tab, a correction to the race page, also after a reload on its address.
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=()=>onScreen(page,`/results/${code}/races/${heat1}`,'Heat 1',event);
   await racePage();
   expect(await lookProblems(page)).toEqual([]);

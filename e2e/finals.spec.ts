@@ -13,7 +13,10 @@ async function marks(page:Page) {
  return attendance(page).evaluateAll(rows=>rows.map(row=>row.querySelector('button[aria-pressed="true"]')?.textContent??'none'));
 }
 /** The check-sheet buttons on the event's tab showing. */
-const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/});
+/** Opens the Heats tab's closed More, which holds Reopen heats and Results without a final. */
+const openMore=(page:Page)=>press(page.locator('details:not([open]) > summary',{hasText:/^More$/}));
+// Hidden ones too: Reopen heats and Results without a final are under the closed More.
+const stageButtons=(page:Page)=>page.locator('main').getByRole('button',{name:/^(Confirm the medals|Results without a final|Reopen \w+)$/,includeHidden:true});
 /** The rows of the Final tab's "Line-up, fastest first", opened. */
 async function lineUp(page:Page) {
  const rows=page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem');
@@ -183,7 +186,8 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await expect(attendance(sam.page)).toHaveText([seed('1st',n(41)),seed('2nd',n(42))]);
  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
- // Reopen heats, a plain button under the Heats leaderboard, opens its own screen with #249's warning and a required comment.
+ // Reopen heats, a plain button under the Heats tab's closed More, opens its own screen with #249's warning and a required comment.
+ await expect(page.getByRole('button',{name:'Reopen heats',exact:true})).toBeHidden();await openMore(page);
  await press(page.getByRole('button',{name:'Reopen heats',exact:true}));
  await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-heats$`));
  await expect(page.getByRole('heading',{level:2,name:'Reopen the heats?',exact:true})).toBeVisible();
@@ -197,7 +201,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  // The unrun final is gone with its line-up, not into Deleted races; the reopen and its reason stay in the notes.
  await expect(stageButtons(page)).toHaveText(['Results without a final']);
  await eventTab(page,'Final');await expect(page.getByText('The final\'s order appears here once its finishing order is saved.',{exact:true})).toBeVisible();
- await eventTab(page,'Heats');await expect(page.getByText('Deleted races appear here when a lead deletes a race.',{exact:true})).toBeVisible();
+ await eventTab(page,'Heats');await expect(page.getByRole('heading',{name:'Deleted races',exact:true})).toHaveCount(0);
  await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('reopened Heats complete - Corrected heat timer');
  // Both phones open on the removed final go back to Races, saying so. The card is as for an event with no final: no F
  // chip, "+" right after the last heat, and "+ Final" back as every heat is saved.

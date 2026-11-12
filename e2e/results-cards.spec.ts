@@ -73,10 +73,10 @@ test('Results puts Action required first, then Running and Done, each card in it
     await expect(page.locator('main')).not.toContainText(/to check|needing you/i);
     await page.screenshot({path:info.outputPath('results-event.png'),fullPage:true});
     await eventTab(page,'Heats');
-    await page.getByRole('button',{name:'Open Heat 1',exact:true}).click();
+    await page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}).click();
     await expect(page.getByRole('button',{name:`Back to ${name} · Boy Cubs`,exact:true})).toBeVisible();
     await back(page,`${name} · Boy Cubs`);
-    await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
+    await expect(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true})).toBeVisible();
     await back(page,'Results');
     await expect(section('Action required')).toBeVisible();
     await expect(page.getByRole('button',{name:'Back to Races',exact:true})).toBeVisible();

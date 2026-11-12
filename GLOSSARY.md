@@ -93,7 +93,7 @@ A relay team that no race of its relay holds, apart from deleted races: a team t
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
-A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number. In Results, an event's tabs are Heats, Final (only where the event has one) and Notes: Heats has a row for each heat, then the scoreboard, then the deleted races; the final's own row is on the Final tab.
+A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number. In Results, an event's tabs are Heats, Final (only where the event has one) and Notes: Heats has the scoreboard, then a row for each heat under a Heats heading, then the deleted races, which show only when the event has one; the final's own row is on the Final tab.
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
