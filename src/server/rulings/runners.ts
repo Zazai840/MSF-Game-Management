@@ -6,7 +6,7 @@ import { actions,Refusal } from '../access/permissions.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandRaces } from '../races/warnings.js';
-import { readRace,listRaces } from '../races/records.js';
+import { readRace,requireRace,listRaces } from '../races/records.js';
 import { entryName,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { correctTeam } from '../relays/teams.js';
 import { readEventResults } from '../results/read.js';
@@ -25,7 +25,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireRace(race,'rule');
       const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
@@ -40,7 +40,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireRace(race,'rule');
       const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       const previous=(await readRulings(client,current.dayId)).find(ruling=>ruling.raceId===raceId && ruling.entryId===entryId);
@@ -63,7 +63,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireRace(race,'rule');
       const entry=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(entry && isTeamEntry(entry)) {
         // A child of a team: the leg given, checked and written as a team write is.
@@ -100,7 +100,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
-      if(race.deleted) throw new Refusal(409,'This race is in Deleted races');
+      requireRace(race,'rule');
       const runner=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(!runner) throw new Refusal(404,'Runner not found in this race');
       // A child's results are matched by wristband, a team's by team.

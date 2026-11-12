@@ -7,6 +7,7 @@ import { actions,Refusal } from '../access/permissions.js';
 import { resultsSnapshot } from '../results/read.js';
 import { changedLine,raceName } from '../../shared/race-flow.js';
 import { changeTeamEntry,raceFlowRead } from '../races/race-flow.js';
+import { saveIfDone } from '../races/steps.js';
 import { keepFinalistLegs } from '../races/final-field.js';
 import { raceChange } from '../races/records.js';
 import { checkedLegs,joiningTeam,requestedDone,requestedTeam,teamsWriteRead,type TeamsWriteRead } from './teams.js';
@@ -32,7 +33,11 @@ function requestedRace(raceId:unknown) {
 export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
   const action=actions(app,pool),params=(request:FastifyRequest)=>request.params as {eventId:string;teamId:string};
   async function write(phone:Phone,eventId:string,raceId:string,change:(client:pg.PoolClient,relay:TeamsWriteRead)=>Promise<void>) {
-    await raceChange(pool,phone,async client=>change(client,await teamsWriteRead(client,phone.dayId,{id:eventId})));
+    await raceChange(pool,phone,async client=>{
+      await change(client,await teamsWriteRead(client,phone.dayId,{id:eventId}));
+      // As every race-flow write ends: the race saves itself once its steps are all done.
+      await saveIfDone(client,phone,raceId);
+    });
     return resultsSnapshot(pool,phone.dayId,db=>raceFlowRead(db,phone,raceId));
   }
   // A team typed into a heat (`joinRaceId`): the only way a team is made. It takes the next number the relay has never

@@ -29,7 +29,7 @@ test('batched pool and client reads match individual reads, preserve ordering, a
       await client.query('UPDATE races SET checked_in_at=$1,deleted=$2,delete_reason=$3 WHERE id=$4',[new Date(Date.UTC(2026,9,12,10,i<=1?0:i)),i===6,i===6?'lead-delete':null,ids[i]]);
     }
     for(const i of [2,3,4,5]) await client.query("INSERT INTO race_finals(race_id,entries,additional_entries,generation) VALUES($1,$2,$3,$4)",[ids[i],JSON.stringify([{finalEntryId:`entry-${i}`,heatRaceId:ids[1],heatEntryId:'entry-1',heatWristband:2002,seed:i-1,heatRank:i-1,kind:'qualifier',absent:false}]),JSON.stringify([{runner:{id:`extra-${i}`,wristband:2010+i},absent:true}]),`generation-${i}`]);
-    await client.query("INSERT INTO event_stages(event_id,stage) VALUES($1,'heats'),($2,'event')",[heats,timed]);
+    await client.query("UPDATE events SET phase=CASE WHEN id=$1 THEN 'final' ELSE 'medals' END WHERE id IN ($1,$2)",[heats,timed]);
     // A final has run once saved; a finishing order recorded on an unsaved final is not enough.
     await client.query("INSERT INTO race_part_history(race_id,part,version,value,runners) VALUES($1,'finish',1,$2,'[]')",[ids[2],JSON.stringify({order:['entry-2'],didNotFinish:[]})]);
     await client.query("UPDATE races SET state='saved',saved_at=now(),saved_by='Ahmed' WHERE id=ANY($1::uuid[])",[[ids[3],ids[4],ids[5]]]);

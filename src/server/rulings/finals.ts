@@ -33,7 +33,6 @@ const relayTeams=async(client:pg.PoolClient,dayId:string,eventId:string)=>(await
 export async function seedFinal(client:pg.PoolClient,phone:Phone,event:DayEvent,qualifiers:readonly LeaderboardRow[]) {
   const races=await listRaces(client,phone.dayId),existing=races.find(race=>race.event.id===event.id && race.kind==='final');
   if(existing?.final?.hasRun) return;
-  await client.query("DELETE FROM event_stages WHERE event_id=$1 AND stage='final'",[event.id]);
   const id=existing?.id||randomUUID();
   const entries:FinalEntry[]=qualifiers.map((row,index)=>({finalEntryId:randomUUID(),heatRaceId:row.raceId,heatEntryId:row.entryId,heatWristband:row.wristband,heatRank:row.position!,seed:index+1,kind:'qualifier',absent:false}));
   const teams=await relayTeams(client,phone.dayId,event.id),lineup=entries.map((entry,index)=>finalist(teams,qualifiers[index],entry.finalEntryId));

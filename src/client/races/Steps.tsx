@@ -1,6 +1,6 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { callUpLabel,seedLabel } from '../../shared/finals.js';
+import { callUpLabel,finalMark,seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,doneButtons,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,surplusTimes,timerQuestion,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
@@ -160,8 +160,8 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
  * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
  */
 function Attendance({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,final=race.final!,inRace=new Set((race.parts.runners.value||[]).map(entry=>entry.id));
-  const markOf=(entry:typeof final.entries[number]):Mark=>inRace.has(entry.finalEntryId)?'here':entry.absent?'absent':null;
+  const {race}=read,final=race.final!,inRace=race.parts.runners.value||[];
+  const markOf=(entry:typeof final.entries[number]):Mark=>finalMark(entry,inRace);
   const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
   // The question appears under the list, so it is brought into view clear of the footer.
   useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
