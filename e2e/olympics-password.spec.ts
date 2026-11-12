@@ -12,7 +12,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     await becomeLead(page,'e2e-owner-fixture');
     await openLeadMenu(page,'Day setup');
     const open=async()=>{
-      await page.getByRole('region',{name:'Olympics password'}).getByRole('button',{name:'Change Olympics password',exact:true}).click();
+      await page.getByRole('button',{name:'Change Olympics password',exact:true}).click();
       await expect(page).toHaveURL(/\/day\/olympics-password$/);
       await expect(page.getByRole('heading',{level:1,name:'Change Olympics password',exact:true})).toBeVisible();
     };
