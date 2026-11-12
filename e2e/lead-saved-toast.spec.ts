@@ -222,6 +222,8 @@ test('a toast with Undo is a 44px pill above the docked button on narrow and wid
   await press(undo);
   await failed;
   await expect.poll(async()=>(await shape(page)).rows).toBe(2);
+  // The box shape follows the wrap a moment later (the app measures it), so wait for it too.
+  await expect.poll(async()=>(await shape(page)).roundEnds).toBe(false);
   const narrow=await shape(page);
   expect(narrow).toMatchObject({rows:2,roundEnds:false,cut:false,aboveDocked:true});
   expect(narrow.offCentre).toBeLessThanOrEqual(0.5);
