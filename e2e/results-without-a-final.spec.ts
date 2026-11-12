@@ -28,9 +28,10 @@ test('a lead awards medals from heat times: a tie for 3rd settled for qualifying
   // Its own screen in the race-flow frame. Without a final the tie decides the bronze, so it comes back to settle first.
   await press(lead.getByRole('button',{name:'Results without a final',exact:true}));
   await expect(lead).toHaveURL(new RegExp(`/results/${code}/results-without-a-final$`));
+  await expect(lead.getByRole('banner').getByRole('heading',{level:1,name:'Results without a final',exact:true})).toBeVisible();
   await expect(lead.getByRole('heading',{level:2,name:'Results without a final?',exact:true})).toBeVisible();
   await expect(lead.getByText('No final will be run. Medals go to the 3 fastest heat times.',{exact:true})).toBeVisible();
-  await expect(lead.locator('.rz-prompt__meta')).toHaveText('2 heats · no final');
+  await expect(lead.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 2 heats · no final`);
   const settle=lead.getByRole('list',{name:'Settle first',exact:true}).getByRole('listitem');
   await expect(settle).toHaveText([`Tie: ${w(2)}, ${w(12)}Settle tie`]);
   await expect(reason(lead)).toHaveText('Settle 1 thing first.');await expect(docked(lead,'Confirm the medals')).toHaveAttribute('aria-disabled','true');
@@ -120,6 +121,7 @@ test('a lead reopens results with a comment: the medals clear, the heats open ag
   // Reopen results is its own screen too, and its address opens it again after a reload.
   await expect(lead).toHaveURL(new RegExp(`/results/${code}/reopen-results$`));
   await lead.reload();
+  await expect(lead.getByRole('banner').getByRole('heading',{level:1,name:'Reopen results',exact:true})).toBeVisible();
   await expect(lead.getByRole('heading',{level:2,name:'Reopen the results?',exact:true})).toBeVisible();
   await expect(lead.getByText('This clears the medals and opens the heats again. You can then run a final or choose Results without a final again.',{exact:true})).toBeVisible();
   await expect(lead.getByRole('list',{name:'Medal places'})).toHaveCount(0);
