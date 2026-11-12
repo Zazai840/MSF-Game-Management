@@ -443,7 +443,7 @@ test('on a relay\'s race page and on its event a team that ran short and a kept 
   const onEvent=page.getByRole('main').getByRole('alert');
   await expect(onEvent.filter({hasText:'A team ran short'})).toContainText(`A team ran short. Team 2 ran with 3 of 4 children marked here.Team 2 · ${w(21)} · ${w(22)} · ${w(23)} · –`);
   await expect(onEvent.filter({hasText:'A wristband number needs checking'})).toContainText(`Team 1 · ${cub(1)} · ${w(12)} · ${w(13)} · ${w(14)}`);
-  await expect(onEvent.filter({hasText:'A team ran short'}).getByRole('button')).toHaveText(['Open Heat 1']);
+  await expect(onEvent.filter({hasText:'A team ran short'}).getByRole('button')).toHaveText(['Check Heat 1']);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('event-relay-problems.png'),fullPage:true});
   await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url(),short=page.getByRole('alert').filter({hasText:'A team ran short'}),kept=page.getByRole('alert').filter({hasText:'A wristband number needs checking'});

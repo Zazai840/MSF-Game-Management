@@ -187,7 +187,7 @@ Ending the session on this phone, at once with no confirmation. The phone keeps 
 _Avoid_: Sign out
 
 **To check**:
-The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, each problem a large button on its card ("Decide the tie" opens the tie, "Check Heat 1 · 1 time" that race's page; two buttons at most, then a line such as "1 more" that opens the event in Results). A saved race's problems show at the top of its race page, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, with a large button per race that has a problem on its card ("Check Heat 1 · 1 time" opens that race's page; "Check Heat 1 · 2 problems" when the race has more than one kind) and one for its ties ("Decide the tie" opens the tie); two buttons at most, then a line such as "1 more" that opens the event in Results. On the event in Results each problem's button is "Check Heat 1", or "Decide the tie". A saved race's problems show at the top of its race page, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
 **Action required**:

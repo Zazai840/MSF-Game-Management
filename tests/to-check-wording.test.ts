@@ -59,10 +59,11 @@ describe("A lead's card problem buttons",()=>{
       'Check Heat 1 · 1 child','Check Heat 2 · 1 team','Check Heat 3 · 1 team','Check Heat 4 · 1 team','Check Heat 5 · 1 wristband','Check Heat 6 · 1 time']);
     expect(problemButtons([on(1,{kind:'two-relays',event:relay,team:5}),on(1,{kind:'two-relays',event:relay,team:6})])).toEqual([{label:'Check Heat 1 · 2 children',target:{event:relay,raceId:'r1'}}]);
   });
-  it('groups by race and kind, in the order of the status line',()=>{
+  it('is one button per race, in the order of the items: a race with more than one kind counts its problems',()=>{
     const final={id:'f',kind:'final' as const,number:1,checkedInAt:'2026-10-14T11:00:00Z'};
     expect(problemButtons([on(2,{kind:'warning'}),on(1,{kind:'warning'}),on(2,{kind:'warning'}),on(2,{kind:'times-out-of-order'}),on(9,{kind:'times-out-of-order',race:final,raceId:'f'})]).map(button=>button.label))
-      .toEqual(['Check Heat 2 · 2 wristbands','Check Heat 1 · 1 wristband','Check Heat 2 · 1 time','Check Final · 1 time']);
+      .toEqual(['Check Heat 2 · 3 problems','Check Heat 1 · 1 wristband','Check Final · 1 time']);
+    expect(problemButtons([on(1,{kind:'added-at-finish',wristband:2001}),on(1,{kind:'ran-twice',wristband:2002})])).toEqual([{label:'Check Heat 1 · 2 problems',target:{event,raceId:'r1'}}]);
   });
   it('says Decide the tie: one tie opens the tie, more than one the event in Results',()=>{
     expect(problemButtons([tie('t1')])).toEqual([{label:'Decide the tie',target:{event,tieId:'t1'}}]);
@@ -84,8 +85,8 @@ describe("A problem's button",()=>{
   });
   it('on the event opens the tie, or the race page of the problem',()=>{
     expect(problemFix(tie)).toEqual({label:'Decide the tie',opens:'tie'});
-    expect(problemFix(item({kind:'warning',message:'m'}))).toEqual({label:'Open Heat 2',opens:'race-page'});
-    expect(problemFix(item({kind:'times-out-of-order',message:'m',race:final}))).toEqual({label:'Open final',opens:'race-page'});
+    expect(problemFix(item({kind:'warning',message:'m'}))).toEqual({label:'Check Heat 2',opens:'race-page'});
+    expect(problemFix(item({kind:'times-out-of-order',message:'m',race:final}))).toEqual({label:'Check Final',opens:'race-page'});
   });
   it("a place is fixed in a final's finishing order, else in its race's times",()=>{
     expect([placesCorrection(true),placesCorrection(false)]).toEqual(['correct-finishing-order','correct-times']);

@@ -75,7 +75,7 @@ type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie
  * An event's tabs: Heats (the scoreboard, its heats, deleted races), Final (a heats event not decided without one) and Notes. The tab is
  * part of the address; switching replaces it in place, so Back leaves the event. Below the tabs, on every tab, are the
  * event's open To check problems, a relay's teams with their four children, each with one button: "Decide the tie",
- * or "Open Heat 1" to that race's page.
+ * or "Check Heat 1" to that race's page.
  */
 function EventTabs({tab,onTab,onOpen,...props}:TabProps & {tab:EventTab;onTab:(tab:EventTab)=>void;onOpen:(view:View)=>void}) {
   const {detail}=props,final=hasFinalTab(detail);

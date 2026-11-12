@@ -1,7 +1,7 @@
 import type { DayLeadItem,ResultsTarget } from './lead-results.js';
 import { plainWristbandWarning,type WristbandWarning } from './wristband-checks.js';
 import { formatTime } from './time-entry.js';
-import { openRaceLabel,raceLabel,type RaceRead } from './races.js';
+import { raceLabel,type RaceRead } from './races.js';
 import { ordinal } from './ordinal.js';
 import { capitalised,entryNoun } from './teams.js';
 import { raceName } from './race-flow.js';
@@ -92,26 +92,32 @@ export const acceptable=({kind}:Pick<DayLeadItem,'kind'>)=>kind!=='ran-twice' &&
 /** The correction that fixes a place: a final's places are in its finishing order, any other race's in its times. */
 export const placesCorrection=(final:boolean)=>final?'correct-finishing-order':'correct-times';
 const decideTheTie='Decide the tie';
+/** "Check Heat 1": the words that open a race's page from a problem, on a card and on the event. */
+const checkRace=(race:DayLeadItem['race'])=>`Check ${race?raceName(race):'event'}`;
 /**
  * A problem's one button: its words and the screen it opens. On the race page (`on`, the race) each problem opens the
- * correction that fits it; on the event (no `on`) it opens the problem's race page. A tie opens the tie on both.
+ * correction that fits it; on the event (no `on`) "Check Heat 1" opens the problem's race page. A tie opens the tie on both.
  */
 export function problemFix(item:Pick<DayLeadItem,'kind'|'race'>,on?:{kind:RaceRead['kind'];relay:boolean}) {
   if(item.kind==='tie') return {label:decideTheTie,opens:'tie'} as const;
-  if(!on) return {label:item.race?openRaceLabel(item.race):'Open race',opens:'race-page'} as const;
+  if(!on) return {label:checkRace(item.race),opens:'race-page'} as const;
   if(item.kind==='ran-twice') return {label:'Fix',opens:'choose-result'} as const;
   if(item.kind==='times-out-of-order') return {label:'Fix time',opens:placesCorrection(on.kind==='final')} as const;
   return {label:'Fix',opens:on.relay?'correct-teams':'correct-runner-list'} as const;
 }
 export interface ProblemButton { label:string; target:ResultsTarget }
 /**
- * A lead's card problem buttons, one per group of the card line: "Decide the tie" opens the tie (the event in Results
- * when there is more than one), "Check Heat 1 · 1 time" opens that race's page.
+ * A lead's card problem buttons, in the items' order: one "Decide the tie" for the event's ties, which opens the tie
+ * (the event in Results when there is more than one), and one button per race, which opens that race's page: "Check
+ * Heat 1 · 1 time" for one kind of problem, "Check Heat 1 · 2 problems" (the race's open problems) for more than one.
  */
 export function problemButtons(items:readonly DayLeadItem[]):ProblemButton[] {
-  return issueGroups(items).map(group=>{
+  const races=new Map<string,DayLeadItem[]>();
+  for(const item of items) {const key=item.kind==='tie'?'tie':`race:${item.race?.id??''}`;races.set(key,[...races.get(key)||[],item]);}
+  return [...races.values()].map(group=>{
     const [first]=group,{event,race}=first;
     if(first.kind==='tie') return {label:decideTheTie,target:group.length===1?{event,tieId:first.tieId}:{event}};
-    return {label:`Check ${race?raceName(race):'event'} · ${countedNoun(first,group.length)}`,target:race?{event,raceId:first.raceId}:{event}};
+    const count=group.every(item=>item.kind===first.kind)?countedNoun(first,group.length):counted(group.length,'problem');
+    return {label:`${checkRace(race)} · ${count}`,target:race?{event,raceId:first.raceId}:{event}};
   });
 }
