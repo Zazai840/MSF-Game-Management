@@ -40,6 +40,8 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   // Races, on both of its tabs: the bar sits below New race.
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   await onBar(page,'Races',page.getByRole('button',{name:'New race',exact:true}));
+  // The current tab's light cell sits inside the navy bar, not edge to edge.
+  await expect(page.getByRole('navigation',{name:'Lead screens'}).locator('[aria-current="page"]')).toHaveCSS('background-clip','padding-box');
   await page.screenshot({path:info.outputPath('races.png')});
   await openRelays(page);
   await onBar(page,'Races',page.getByRole('button',{name:'New relay',exact:true}));
