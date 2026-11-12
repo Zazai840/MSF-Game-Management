@@ -13,27 +13,27 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   // A refused save keeps the screen and what was typed, and says why.
   let failed=true;await page.route('**/api/lead/races/*/times',async route=>{if(failed){failed=false;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'The server is busy'})});}else await route.continue();});
   await press(save);await expect(page.getByRole('alert')).toHaveText('Not saved - try again. The server is busy');await expect(page.getByLabel('2nd place time',{exact:true})).toHaveValue('14.00');
-  await press(save);await expectToast(page,'Times saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
+  await press(save);await expectToast(page,'Times saved');await expect(page).toHaveURL(racePage);
   // Out-of-order times need the lead's explicit acceptance, taken back by any change to a time.
   await raceAction(page,'Correct times');await press(page.getByRole('button',{name:/^1st place · /}));await page.getByLabel('1st place time',{exact:true}).fill('1500');
   const accept=page.getByRole('button',{name:'Accept these out-of-order times',exact:true});
   await press(accept);await expect(accept).toHaveAttribute('aria-pressed','true');await page.getByLabel('1st place time',{exact:true}).fill('1600');await expect(accept).toHaveAttribute('aria-pressed','false');
   await press(accept);expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('lead-time-acceptance.png'),fullPage:true});
-  await press(save);await expectToast(page,'Times saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
+  await press(save);await expectToast(page,'Times saved');await expect(page).toHaveURL(racePage);
   // Correct runner list's warnings and review stages, on one screen: Fix runners goes back to the list, Keep warnings on to the review.
   const docked=page.getByRole('contentinfo'),warning=page.getByRole('alert').filter({hasText:'4045 belongs to Girl Scouts - this race is Girl Cubs'});
   await raceAction(page,'Correct runner list');await page.getByRole('button',{name:'Runner 2 · 2002',exact:true}).click();await page.getByLabel('Wristband for runner 2',{exact:true}).fill('4045');await press(docked.getByRole('button',{name:'Done',exact:true}));await press(docked.getByRole('button',{name:'Review runner list',exact:true}));
   await expect(warning).toBeVisible();await expect(docked.getByText('Fix the runners or keep the warnings.',{exact:true})).toBeVisible();expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('lead-runner-warnings.png'),fullPage:true});
   await press(warning.getByRole('button',{name:'Fix runners',exact:true}));await expect(page.getByRole('button',{name:'Runner 2 · 4045',exact:true})).toBeVisible();await press(docked.getByRole('button',{name:'Review runner list',exact:true}));await press(warning.getByRole('button',{name:'Keep warnings',exact:true}));
   await expect(page.getByRole('heading',{level:2,name:'2 runners. Is that right?',exact:true})).toBeVisible();await expect(page.getByText('4045 belongs to Girl Scouts - this race is Girl Cubs · Warning kept',{exact:true})).toBeVisible();expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('lead-runner-review.png'),fullPage:true});
-  await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved · Girl Cubs Heat 1');await expect(page.getByRole('button',{name:'Runner 4045',exact:true})).toHaveText(/^2nd\s*4045\s*14\.00/);
+  await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved');await expect(page.getByRole('button',{name:'Runner 4045',exact:true})).toHaveText(/^2nd\s*4045\s*14\.00/);
   await page.screenshot({path:info.outputPath('race-corrected.png'),fullPage:true});
   // Delete goes back to the event's Heats tab; Restore stays on the restored race page.
-  await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));await expectToast(page,'Heat 1 moved to Deleted races · Girl Cubs');await expect(page).toHaveURL(racesTab);
+  await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));await expectToast(page,'Heat 1 moved to Deleted races');await expect(page).toHaveURL(racesTab);
   await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();const deletedPage=page.url();
-  await raceAction(page,'Restore Heat 1');await expect(page.getByText('Its results count again.',{exact:true})).toBeVisible();await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));await expectToast(page,'Heat 1 restored · Girl Cubs');await expect(page).toHaveURL(deletedPage);
+  await raceAction(page,'Restore Heat 1');await expect(page.getByText('Its results count again.',{exact:true})).toBeVisible();await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));await expectToast(page,'Heat 1 restored');await expect(page).toHaveURL(deletedPage);
   // Re-run lands on the new heat, its runners pre-filled; the phone's Back goes where Back from the old race went.
-  await raceAction(page,'Re-run race');await page.getByLabel('Comment (optional)',{exact:true}).fill('Recording lost');await press(page.getByRole('contentinfo').getByRole('button',{name:'Re-run Heat 1',exact:true}));await expectToast(page,'Re-run made · Girl Cubs Heat 1');
+  await raceAction(page,'Re-run race');await page.getByLabel('Comment (optional)',{exact:true}).fill('Recording lost');await press(page.getByRole('contentinfo').getByRole('button',{name:'Re-run Heat 1',exact:true}));await expectToast(page,'Re-run made');
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'}).getByRole('tab',{name:/^Runners/})).toContainText('2 so far');
   await expect(page.getByRole('list',{name:'Wristbands entered'}).getByRole('button')).toHaveText(['2001','4045']);
   await page.screenshot({path:info.outputPath('race-rerun.png'),fullPage:true});
@@ -41,7 +41,7 @@ test('a lead repairs a race, keeps failed corrections, deletes and restores it, 
   // The replaced heat can only be deleted for good: a screen with no choice, back to the Heats tab.
   await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();await raceAction(page,'Delete for good');
   await expect(page.getByText('It is already in Deleted races. Deleting it for good cannot be undone. Notes stay.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Move to Deleted races/})).toHaveCount(0);
-  expect(await lookProblems(page)).toEqual([]);await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}));await expectToast(page,'Heat 1 deleted for good · Girl Cubs');await expect(page).toHaveURL(racesTab);
+  expect(await lookProblems(page)).toEqual([]);await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}));await expectToast(page,'Heat 1 deleted for good');await expect(page).toHaveURL(racesTab);
   await expect(page.getByRole('button',{name:/^Open deleted Heat 1/})).toHaveCount(0);await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('permanently deleted');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('called a re-run of Heat 1');
   await deleteCurrentRace(page.request,code);
 });
@@ -71,10 +71,10 @@ test('a lead can correct times again straight after saving, even when the race i
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen Correct times on the version just replaced.
   await page.route(`**/api/lead/races/${race.id}`,async route=>{await new Promise(resolve=>setTimeout(resolve,1500));await route.continue();});
-  await press(save);await expectToast(page,'Times saved · Girl Cubs Heat 1');
+  await press(save);await expectToast(page,'Times saved');
   await raceAction(page,'Correct times');
   await expect(page.getByRole('button',{name:'2nd place · 14.00',exact:true})).toBeVisible();
-  await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1500');await press(save);await expectToast(page,'Times saved · Girl Cubs Heat 1');
+  await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1500');await press(save);await expectToast(page,'Times saved');
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});
 });
 test('a lead corrects a saved race\'s finishing order on its screen: a drag without Save changes nothing; one Save is one toast and one Notes line',async({page},info)=>{
@@ -119,7 +119,7 @@ test('a lead corrects a saved race\'s finishing order on its screen: a drag with
   await page.getByLabel('Comment (optional)',{exact:true}).fill('Checked the video');
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('order-corrected.png'),fullPage:true});
   await press(save);
-  await expectToast(page,'Finishing order saved · Girl Cubs Heat 1');await expect(page).toHaveURL(racePage);
+  await expectToast(page,'Finishing order saved');await expect(page).toHaveURL(racePage);
   await expect(record.first()).toHaveText(/^1st\s*2003[\s\S]*12\.00/);
   await back(page,'Order corrections · Girl Cubs');
   await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);

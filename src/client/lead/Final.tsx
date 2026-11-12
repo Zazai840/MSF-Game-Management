@@ -20,7 +20,7 @@ const who=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?teamLine(entr
  */
 export function Final({event,teams=[],final,onSaved,onRunner}:{event:DayEvent;teams?:readonly RelayTeam[];final:FinalResults;onSaved:(next:EventResultsRead)=>void;onRunner:(row:LeaderboardRow)=>void}) {
   const [busy,setBusy]=useState(false),[error,setError]=useState<unknown>(null),[adding,setAdding]=useState(false);
-  const toast=useToast(),race={section:event.section,kind:'final',number:0} as const;
+  const toast=useToast();
   async function send(what:'call-up'|'add-team',body:object,saved:ToastSave) {
     setBusy(true);setError(null);
     try {onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(event.code)}/${what}`,body));toast({message:toastLine(saved)});setAdding(false);}
@@ -51,13 +51,13 @@ export function Final({event,teams=[],final,onSaved,onRunner}:{event:DayEvent;te
         {final.additionalEntries?.map(entry=><span role="listitem" key={entry.runner.id}>{['Added',who(finalist(entry.runner.id,entry.runner)!),absent(entry)].filter(Boolean).join(' · ')}</span>)}
       </div></details>
     {open && final.vacancy && <>{next
-      ?<button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void send('call-up',{expectedHeatEntryId:next.entryId},{kind:'called-up',who:resultName(next),race})}>{busy?'Saving…':callUpLabel(resultName(next),next.position!)}</button>
+      ?<button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void send('call-up',{expectedHeatEntryId:next.entryId},{kind:'called-up',who:resultName(next)})}>{busy?'Saving…':callUpLabel(resultName(next),next.position!)}</button>
       :<p className="rz-empty">No further ranked heat {entryNoun(event.relay)} to call up.</p>}
       <p className="rz-empty">The final can run short.</p></>}
     {event.relay && open && <button type="button" className="rz-btn rz-btn--block" onClick={()=>{setError(null);setAdding(true);}}>Add a team to the final</button>}
     {adding && <Sheet title="Add a team to the final" onClose={()=>{setAdding(false);setError(null);}}>
       {error!==null && <ErrorCallout error={error} action="save"/>}
-      {addable.length?<ul className="rz-list">{addable.map(team=><li key={team.id}><button type="button" className="rz-listrow" disabled={busy} onClick={()=>void send('add-team',{teamId:team.id},{kind:'team-added',team:team.number,race})}>
+      {addable.length?<ul className="rz-list">{addable.map(team=><li key={team.id}><button type="button" className="rz-listrow" disabled={busy} onClick={()=>void send('add-team',{teamId:team.id},{kind:'team-added',team:team.number})}>
         <span className="rz-listrow__main"><span className="rz-listrow__label">Team {team.number}</span><span className="rz-listrow__meta">{legsText(team.legs)}</span></span><Icon name="plus" className="rz-icon--bold"/></button></li>)}</ul>
         :<p className="rz-sheet__text">Every team is in the final.</p>}
     </Sheet>}

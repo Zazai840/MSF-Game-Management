@@ -60,7 +60,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await page.screenshot({path:info.outputPath('correct-teams.png'),fullPage:true});
   // One save for every change: one toast and one Notes line, back on the race page.
   await press(docked.getByRole('button',{name:'Save teams',exact:true}));
-  await expectToast(page,'Teams saved · Boy Scouts Heat 1');await expect(page).toHaveURL(racePage);
+  await expectToast(page,'Teams saved');await expect(page).toHaveURL(racePage);
   // Team 1's time went with Team 1: Team 3 has its place, and no time until a lead types its own.
   await expect(record).toHaveText([/^1st\s*Team 2\s*15\.00/,/^2nd\s*Team 3\s*No time/]);
   const leadRace=`/api/lead/races/${racePage.split('/').at(-1)}`,headers={authorization:`Bearer ${lead}`};
@@ -86,7 +86,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await page.getByLabel('New wristband number',{exact:true}).fill(String(n(14)));
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('correct-number-team.png'),fullPage:true});
-  await page.getByRole('button',{name:'Save number',exact:true}).click();await expectToast(page,`Number saved · ${n(14)} in Heat 1`);
+  await page.getByRole('button',{name:'Save number',exact:true}).click();await expectToast(page,`Number saved · ${n(14)}`);
   const corrected=[legs(2)[0],n(14),n(13),legs(2)[3]];
   await expect(page.getByRole('button',{name:`Team 2 · ${corrected.join(' · ')} · Heat 1`,exact:true})).toBeVisible(live);
   expect((await team(2)).legs.map(leg=>leg.wristband)).toEqual(corrected);
@@ -107,13 +107,13 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url();
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
-  await expectToast(page,'Heat 1 moved to Deleted races · Boy Scouts');
+  await expectToast(page,'Heat 1 moved to Deleted races');
   await page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}).click();await expect(page).toHaveURL(racePage);
   // Heat 1 deleted, Team 1 is still to run, and runs again in Heat 2.
   await runHeat(request,token,code,[1],[1450]);
   // The heat Team 1 ran again took the freed number, so Heat 1 comes back as Heat 2, and the toast says so.
   await raceAction(page,'Restore Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Restore Heat 1',exact:true}));
-  await expectToast(page,'Heat 2 restored · Boy Scouts');await expect(page).toHaveURL(racePage);
+  await expectToast(page,'Heat 2 restored');await expect(page).toHaveURL(racePage);
   await back(page,`${name} · Boy Scouts`);await eventTab(page,'Heats');
   const row=(heat:number)=>page.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat ${heat}`,exact:true});
   // Both rows rank; Team 1's sheet offers the choice because it ran twice.
@@ -124,7 +124,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await page.getByRole('button',{name:/^Heat 2 · /}).click();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-choose-result.png'),fullPage:true});
-  await page.getByRole('button',{name:'Save counted result',exact:true}).click();await expectToast(page,'Result counts · Team 1 Heat 2');
+  await page.getByRole('button',{name:'Save counted result',exact:true}).click();await expectToast(page,'Result counts · Team 1');
   await expect(row(1)).toContainText('Not counted');await expect(row(2)).not.toContainText('Not counted');
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').last()).toContainText('counted Team 1 from Heat 2; Heat 1 not counted');
   expect(await lookProblems(page)).toEqual([]);

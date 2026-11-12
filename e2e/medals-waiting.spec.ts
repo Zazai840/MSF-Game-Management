@@ -13,7 +13,7 @@ const owner=()=>process.env.E2E_OWNER_TOKEN!;
 /** Confirms the medals on their screen, lands back on Races with the toast and finds the card in Done as Medals decided. */
 async function confirmAndFindDone(page:Page,name:string) {
   await confirmTheMedals(page);
-  await expectToast(page,`Medals confirmed · ${name} Girl Cubs`);
+  await expectToast(page,`Medals confirmed`);
   await expect(page).toHaveURL(/\/$/);
   const done=page.locator('details',{hasText:/^Done \(\d+\)/});
   await done.locator('summary').click();
