@@ -23,6 +23,9 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
   const setSnapshot=(value:T)=>{const at=clockWithSeconds(new Date());if(remember) keepSeen(path,value,at);setShown({value,at});};
   const [error,setError]=useState(''),[gone,setGone]=useState(false);
   const held=useRef<T|null>(null);
+  // A remembered snapshot on the screen counts as held: the note then says the connection is lost, not that nothing could be read.
+  const showing=useRef(false);
+  useEffect(()=>{showing.current=snapshot!==null;});
   useEffect(()=>{
     held.current=null;
     // The link's state and every decision about it are `linkNext`'s; this effect only opens, reads and drops streams.
@@ -66,7 +69,7 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
         if(failure instanceof StaleRequest) return;
         if(failure instanceof ApiFailure && failure.status<500) {say({type:'refused',line:failure.status===401?null:failureLine(failure,'read')});setGone(!!failure.body.gone);return;}
         // The watchdog's own abort is silence; anything else is a lost link.
-        say(mine.signal.aborted?{type:'silent'}:{type:'lost',held:held.current!==null});
+        say(mine.signal.aborted?{type:'silent'}:{type:'lost',held:held.current!==null || showing.current});
       } finally {
         clearTimeout(watchdog);
         if(controller===mine) controller=null;
