@@ -10,6 +10,7 @@ import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
 import type { DayEvent } from '../../shared/day.js';
 import { runnersOf,type Runner } from '../../shared/races.js';
+import { eventItems } from '../../shared/to-check.js';
 import { newDay, Refusal } from '../access/permissions.js';
 import type { TieSettlement } from '../../shared/ties.js';
 import { readTieSettlements } from '../rulings/ties.js';
@@ -32,7 +33,7 @@ export async function readResults(db:Database,dayId:string,providedRaces?:Stored
   const groups=new Map<string,EventSummary[]>(),needsYou:ResultsRead['needsYou']=[];
   for(const event of events) {
     const results=eventResults(eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),tieSettlements.filter(settlement=>settlement.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),timings,relays));
-    needsYou.push(...results.needsYou.map(item=>{const race=races.find(race=>race.id===item.raceId);return {...item,event,...(race?{race:{id:race.id,number:race.number,kind:race.kind,checkedInAt:race.checkedInAt}}:{})};}));
+    needsYou.push(...eventItems({event,results}));
     const rows=groups.get(event.name)||[];rows.push({event,needsYou:results.needsYou.length,status:results.status,decidedWithoutFinal:results.decidedWithoutFinal,raceCount:results.raceCount,provisional:results.provisional,latestNoteAt:notes.find(note=>note.eventId===event.id)?.at??null});groups.set(event.name,rows);
   }
   return {needsYou:needsYou.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id)),groups:[...groups].map(([name,events])=>({name,events}))};

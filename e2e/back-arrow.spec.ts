@@ -87,17 +87,17 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
   // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
-  await resultsCard(page,code).click();await eventPage('final');
+  await press(resultsCard(page,code));await eventPage('final');
   await expect(page.getByRole('banner').getByText(code,{exact:true})).toBeVisible();
   for(const tab of ['Heats','Notes','Final'] as const) {await eventTab(page,tab);await eventPage(tab.toLowerCase());expect(await lookProblems(page)).toEqual([]);}
   await page.screenshot({path:info.outputPath('event.png')});
   await bothGoBack(page,results);
   // A Heats tab's TIE tag opens the tie, which goes back to the tab; the runner sheet closes on Back and the tab stays.
-  await resultsCard(page,tieCode).click();await eventPage('heats',tieCode,tieEvent);
+  await press(resultsCard(page,tieCode));await eventPage('heats',tieCode,tieEvent);
   await press(page.getByRole('button',{name:`TIE at 10.00 for ${w(3)}`,exact:true}));await tie(tieEvent);
   await bothGoBack(page,()=>eventPage('heats',tieCode,tieEvent));
   await bothGoBack(page,results);
-  await resultsCard(page,code).click();await eventTab(page,'Heats');await eventPage('heats');
+  await press(resultsCard(page,code));await eventTab(page,'Heats');await eventPage('heats');
   const runner=page.getByRole('dialog',{name:`Runner ${w(2)}`,exact:true});
   await press(page.getByRole('button',{name:new RegExp(`${w(2)}.* · Heat 1$`)}));await expect(runner).toBeVisible();
   await page.goBack();await expect(runner).toHaveCount(0);await eventPage('heats');
@@ -123,7 +123,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await page.getByRole('button',{name:/^Events /}).click();
   const events=()=>onScreen(page,'/day/events','Events','Day setup');
   await events();
-  await page.getByRole('button',{name:/ R4 · /}).click();await page.getByRole('dialog').getByRole('button',{name:'Rename',exact:true}).click();await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
+  await press(page.getByRole('button',{name:/ R4 · /}));await press(page.getByRole('dialog').getByRole('button',{name:'Rename',exact:true}));await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
   await bothGoBack(page,events);
   await page.getByRole('button',{name:'Add an event',exact:true}).click();await onScreen(page,'/day/events/new','Add an event','Events');
   await bothGoBack(page,events);
@@ -134,7 +134,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   expect(await lookProblems(page)).toEqual([]);
   await bothGoBack(page,day);
   for(const [row,address,name] of [[/^This day /,'/day/this-day','This day'],[/^Day export /,'/day/export','Day export'],[/^Start a new day$/,'/day/start-a-new-day','Start a new day']] as const) {
-    await page.getByRole('button',{name:row}).click();await onScreen(page,address,name,'Day setup');
+    await press(page.getByRole('button',{name:row}));await onScreen(page,address,name,'Day setup');
     expect(await lookProblems(page)).toEqual([]);
     await bothGoBack(page,day);
   }

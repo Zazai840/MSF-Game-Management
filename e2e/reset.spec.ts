@@ -39,7 +39,7 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     await asOwner(page);await exportDay(page);
     // A change after the export: Start a new day is refused until the latest changes are in a day export.
     await ownEvent(page.request,await ownCode(),'Reset sprint','Girl Cubs','timed');
-    await typeNewDay(page);await page.getByRole('button',{name:'Start a new day',exact:true}).click();
+    await typeNewDay(page);await press(page.getByRole('button',{name:'Start a new day',exact:true}));
     await expect(page.getByRole('region',{name:'Start a new day'}).getByRole('alert')).toHaveText('Download a day export after the last change before starting a new day');
     expect(await lookProblems(page)).toEqual([]);
     await toDaySetup(page);await exportDay(page);await typeNewDay(page);
@@ -98,7 +98,7 @@ for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${o
     delivered();
   });
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
-  await typeNewDay(page);const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await committed;
+  await typeNewDay(page);const committed=page.waitForResponse(response=>response.url().endsWith('/api/day/start-new') && response.status()===200);await press(page.getByRole('button',{name:'Start a new day',exact:true}));await committed;
   const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1,name:/Join/})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
@@ -110,7 +110,7 @@ test('a lost reset reply recovers the fresh Day through Home and discards an old
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;
   await page.route('**/api/day/export',async route=>{if(!first){await route.continue();return;}first=false;const response=await route.fetch();seen();await held;await route.fulfill({response});delivered();});
   let downloads=0;page.on('download',()=>downloads++);
-  await press(row(page,'Day export'));await page.getByRole('button',{name:'Download day export',exact:true}).click();await captured;
+  await press(row(page,'Day export'));await press(page.getByRole('button',{name:'Download day export',exact:true}));await captured;
   // The server committed this reset. Its response never reaches the browser's
   // caller; the next ordinary Home read must discover the changed day identity.
   await page.route('**/api/day/start-new',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);await route.abort('failed');});
@@ -156,7 +156,7 @@ test('a lost reply from Start new day keeps the retained phone safe from a previ
   await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;await route.fetch();seen();await held;await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({message:'Please sign in again'})});delivered();});
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
   await page.route('**/api/day/start-new',async route=>{const response=await route.fetch();expect(response.ok()).toBe(true);await route.abort('failed');});
-  await typeNewDay(page);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();
+  await typeNewDay(page);await press(page.getByRole('button',{name:'Start a new day',exact:true}));await expect(page.getByRole('alert')).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();
@@ -166,7 +166,7 @@ test('polling started while reset is pending cannot authenticate into the old da
   let release!:()=>void,seen!:()=>void;const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;});let committed=false,pendingReads=0;
   await page.route('**/api/home',async route=>{if(!committed) pendingReads++;await route.continue();});
   await page.route('**/api/day/start-new',async route=>{seen();await held;const response=await route.fetch();expect(response.ok()).toBe(true);committed=true;await route.fulfill({response});});
-  await typeNewDay(page);await page.getByRole('button',{name:'Start a new day',exact:true}).click();await captured;
+  await typeNewDay(page);await press(page.getByRole('button',{name:'Start a new day',exact:true}));await captured;
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(pendingReads).toBe(0);
   release();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);

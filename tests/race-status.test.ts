@@ -1,5 +1,5 @@
 import { expect,test } from 'vitest';
-import { raceActions,raceRefusal,raceStatus,raceStatuses,type RaceAction,type RaceStatus } from '../src/shared/race-status.js';
+import { raceActions,raceActionsLabel,raceRefusal,raceStatus,raceStatuses,type RaceAction,type RaceStatus } from '../src/shared/race-status.js';
 const race=(status:RaceStatus,stageComplete=false)=>({kind:'heat' as const,number:2,event:{section:'Girl Cubs' as const},stageComplete,
   state:status==='in progress'?'in progress' as const:'saved' as const,deleted:status==='deleted' || status==='replaced',deleteReason:status==='replaced'?'re-run':status==='deleted'?'lead-delete':null});
 test('a race is in one of four states, read from what is stored',()=>{
@@ -27,4 +27,7 @@ test('a complete stage closes a race to its steps and their undo, before its sav
   for(const action of ['step','undo'] as const) for(const status of ['in progress','saved'] as const) expect(raceRefusal(race(status,true),action)).toBe(finished);
   expect(raceRefusal(race('deleted',true),'step')).toBe('A lead deleted Heat 2');
   for(const action of ['open','rule','correct','re-run','delete'] as const) expect(raceRefusal(race('saved',true),action)).toBeNull();
+});
+test("a race page's Race actions button names what its sheet holds",()=>{
+  expect(raceStatuses.map(status=>raceActionsLabel(race(status)))).toEqual(['Delete Heat 2','Correct or delete Heat 2','Restore or delete Heat 2','Delete Heat 2']);
 });

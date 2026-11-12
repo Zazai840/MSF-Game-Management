@@ -187,7 +187,7 @@ Ending the session on this phone, at once with no confirmation. The phone keeps 
 _Avoid_: Sign out
 
 **To check**:
-The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, each problem a large button on its card ("Decide the tie" opens the tie, "Check Heat 1 · 1 time" that race's page; two buttons at most, then a line such as "1 more" that opens the event in Results). A saved race's problems show at the top of its race page, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, with a large button per race that has a problem on its card ("Check Heat 1 · 1 time" opens that race's page; "Check Heat 1 · 2 problems" when the race has more than one kind) and one for its ties ("Decide the tie" opens the tie); two buttons at most, then a line such as "1 more" that opens the event in Results. On the event in Results each problem's button is "Check Heat 1", or "Decide the tie". A saved race's problems show at the top of its race page, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
 **Action required**:
@@ -262,7 +262,7 @@ The toast's way to reverse your own save of a step, only while nobody else has c
 _Avoid_: Revert, roll back
 
 **Confirm the medals**:
-A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event), with Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
+A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event). Its bar names the action: "Confirm the medals", the Reopen's label ("Reopen final"), or "Results without a final". It has Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
 _Avoid_: Sign off, approve, publish
 
 ### Testing

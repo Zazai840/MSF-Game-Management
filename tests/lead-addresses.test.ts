@@ -26,16 +26,11 @@ test('each lead screen has its own address, and opening an address opens that sc
     ['/results/R4/races/r-1/re-run',{kind:'race-action',code:'R4',raceId:'r-1',action:'re-run'}],
     ['/results/R4/races/r-1/delete',{kind:'race-action',code:'R4',raceId:'r-1',action:'delete'}],
     ['/results/R4/races/r-1/restore',{kind:'race-action',code:'R4',raceId:'r-1',action:'restore'}],
-    ['/races/r-1/re-run',{kind:'race-action',raceId:'r-1',action:'re-run'}],
     ['/races/r-1/delete',{kind:'race-action',raceId:'r-1',action:'delete'}],
     ['/results/R4/races/r-1/correct-times',{kind:'correction',code:'R4',raceId:'r-1',action:'correct-times'}],
     ['/results/R4/races/r-1/correct-finishing-order',{kind:'correction',code:'R4',raceId:'r-1',action:'correct-finishing-order'}],
-    ['/races/r-1/correct-times',{kind:'correction',raceId:'r-1',action:'correct-times'}],
-    ['/races/r-1/correct-finishing-order',{kind:'correction',raceId:'r-1',action:'correct-finishing-order'}],
     ['/results/R4/races/r-1/correct-runner-list',{kind:'correction',code:'R4',raceId:'r-1',action:'correct-runner-list'}],
     ['/results/R4/races/r-1/correct-teams',{kind:'correction',code:'R4',raceId:'r-1',action:'correct-teams'}],
-    ['/races/r-1/correct-runner-list',{kind:'correction',raceId:'r-1',action:'correct-runner-list'}],
-    ['/races/r-1/correct-teams',{kind:'correction',raceId:'r-1',action:'correct-teams'}],
     ['/day',{kind:'day'}],
     ['/day/signed-in-today',{kind:'signed-in-today'}],
     ['/day/events',{kind:'events'}],
@@ -61,6 +56,8 @@ test('an address the app does not know opens Races',()=>{
   expect(viewAt('/results/R4/races/r-1/runners/e-2/promote')).toEqual({kind:'races'});
   expect(viewAt('/nowhere')).toEqual({kind:'races'});
   expect(viewAt('/races/r-1/promote')).toEqual({kind:'races'});
+  // Only Delete opens from the Race screen: a saved or deleted race is a race page, under Results.
+  for(const action of ['re-run','restore','correct-times','correct-finishing-order','correct-runner-list','correct-teams']) expect(viewAt(`/races/r-1/${action}`)).toEqual({kind:'races'});
 });
 
 test('codes and race ids with spaces or slashes survive the address',()=>{
@@ -80,12 +77,11 @@ test('a screen reached with no history goes up one level',()=>{
   // Confirm the medals goes up to its event, which opens on the tab holding the medal decision.
   expect(parentOf({kind:'confirm-the-medals',code:'R4'})).toEqual({kind:'event',code:'R4'});
   expect(parentOf({kind:'stage',code:'R4',screen:'reopen-heats'})).toEqual({kind:'event',code:'R4'});
-  // Re-run, Delete and Restore go up to their race: its race page under Results, else the race screen.
+  // Re-run, Delete and Restore go up to their race page; the Delete of a race not saved yet to its Race screen.
   expect(parentOf({kind:'race-action',code:'R4',raceId:'r-1',action:'delete'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
-  expect(parentOf({kind:'race-action',raceId:'r-1',action:'re-run'})).toEqual({kind:'race',id:'r-1'});
-  // A correction goes up to its race the same way.
+  expect(parentOf({kind:'race-action',raceId:'r-1',action:'delete'})).toEqual({kind:'race',id:'r-1'});
+  // A correction goes up to its race page.
   expect(parentOf({kind:'correction',code:'R4',raceId:'r-1',action:'correct-times'})).toEqual({kind:'race-page',code:'R4',raceId:'r-1'});
-  expect(parentOf({kind:'correction',raceId:'r-1',action:'correct-finishing-order'})).toEqual({kind:'race',id:'r-1'});
   expect(parentOf({kind:'results'})).toEqual({kind:'races'});
   expect(parentOf({kind:'day'})).toEqual({kind:'races'});
   expect(parentOf({kind:'signed-in-today'})).toEqual({kind:'day'});

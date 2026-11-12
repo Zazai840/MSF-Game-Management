@@ -13,7 +13,7 @@ import { SortableList } from '../flow/SortableList.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { Callout,Icon,Sheet } from '../races/parts.js';
-import { LeadBar,OpeningBody } from './LeadBar.js';
+import { LeadHeader,OpeningBody } from './LeadHeader.js';
 import { DigitsField } from '../races/Steps.js';
 import { useToast } from '../races/Toast.js';
 import type { View } from '../shell/addresses.js';
@@ -24,7 +24,7 @@ type Race=LeadRaceRead['race'];
 /** Sends the correction; null once saved, else the refusal to show while the screen stays. */
 type Save=(command:'times'|'finish-order',body:object)=>Promise<unknown>;
 /**
- * Correct times or Correct finishing order, under its race page or its race screen: the lead changes a draft, and only
+ * Correct times or Correct finishing order, under its race page: the lead changes a draft, and only
  * the docked Save sends it, once, with the versions it was read at. A save shows its toast and goes back to the screen
  * it was opened from; Back without saving changes nothing.
  */
@@ -33,7 +33,7 @@ export function TimesAndOrder({view,onBack,onChanged}:{view:CorrectionView;onBac
   const [read,setRead]=useState<LeadRaceRead|null>(null),[error,setError]=useState<unknown>(null),[busy,setBusy]=useState(false);
   useEffect(()=>{api<LeadRaceRead>(`lead/races/${view.raceId}`).then(setRead,setError);},[]);
   const title=view.action==='correct-times'?'Correct times':'Correct finishing order';
-  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
+  if(!read) return <LeadHeader title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
   const {race}=read;
   const save:Save=async(command,body)=>{
     setBusy(true);
@@ -44,7 +44,7 @@ export function TimesAndOrder({view,onBack,onChanged}:{view:CorrectionView;onBac
     } catch(error) {setBusy(false);return error;}
   };
   const Body=view.action==='correct-times'?CorrectTimes:CorrectOrder;
-  return <LeadBar title={title} code={race.event.code} up={raceName(race)} body={<Body race={race} save={save} busy={busy}/>}/>;
+  return <LeadHeader title={title} code={race.event.code} up={raceName(race)} body={<Body race={race} save={save} busy={busy}/>}/>;
 }
 const meta=(race:Race)=>`${eventTitle(race.event)} · ${raceName(race)}`;
 /**

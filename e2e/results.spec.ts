@@ -3,7 +3,7 @@ test('a lead sees a race worked in the race flow appear within one Results poll'
   const code=await ownCode(),name=ownName('Results phone');
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
   await page.goto('/');await join(page,ownName('Results lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await (await notStartedCard(page,code)).click();
+  await press(await notStartedCard(page,code));
   // One phone does every job in turn: the start line with a kept warning, the finish line, then the timer.
   const phone=(await openPhone(ownName('Results phone'))).page;
   await phone.getByRole('button',{name:'New race',exact:true}).click();
@@ -36,7 +36,7 @@ test('a timed event marks its medal places 1st, 2nd and 3rd beside the wristband
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,await signInThroughApi(page.request,ownName('Medal timer')),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);
   await page.goto('/');await join(page,ownName('Medal lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
-  await resultsCard(page,code).click();
+  await press(resultsCard(page,code));
   const rows=page.getByRole('list',{name:'Provisional leaderboard'}).locator(':scope > li');
   for(const [index,mark] of ['1st','2nd','3rd'].entries()) await expect(rows.nth(index)).toContainText(`${2601+index}${mark}Heat 1`);
   await expect(rows.nth(3)).toContainText('2604Heat 1');

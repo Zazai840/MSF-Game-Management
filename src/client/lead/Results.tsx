@@ -3,7 +3,8 @@ import { reopenLabel,stageView } from './ConfirmTheMedals.js';
 import { dayExportLine,type InputRunning,type StageCheckSheet } from '../../shared/stages.js';
 import { DeletedRaces,RaceRows } from './DeletedRaces.js';
 import { Fragment,useEffect,useState } from 'react';
-import type { DayLeadItem,ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import type { ResultsGridRead,EventResultsRead,ResultsTarget } from '../../shared/lead-results.js';
+import { eventItems,raceItems } from '../../shared/to-check.js';
 import { RaceProblems } from './RaceProblems.js';
 import { RacePage } from './RacePage.js';
 import { RunnerScreens,RunnerSheet } from './RunnerSheet.js';
@@ -12,7 +13,7 @@ import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords } from '../races/parts.js';
 import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
-import { LeadBar,LeadTabs } from './LeadBar.js';
+import { LeadHeader,LeadsBar } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
 import { addressOf,eventTabs,type EventTab,type View } from '../shell/addresses.js';
@@ -34,7 +35,7 @@ export function Results({code,...props}:ResultsProps) {
 /** Results: the list of the day's events, read every 5 s. */
 function ResultsGrid({onOpen}:{onOpen:(view:View)=>void}) {
   const {read:list,updated,error,refresh}=usePolledRead<ResultsGridRead>('lead/results');
-  return <LeadBar title="Results" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
+  return <LeadHeader title="Results" wide body={<EventGrid list={list} error={error} updated={updated} onRefresh={()=>void refresh()} onOpen={onOpen}/>}/>;
 }
 /** An event's screens (its tabs, a race page, a runner screen), on the event's results read every 5 s. */
 function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:ResultsProps & {code:string}) {
@@ -53,16 +54,16 @@ function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:Re
   function showSaved(next:EventResultsRead) {offer(next);setSelected(null);onChanged?.();}
   const openStage=(sheet:StageCheckSheet)=>onOpen(stageView(code,sheet));
   if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
-  if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} actionableRunners={detail?.results.actionableRunners} onSaved={showSaved} onOpen={onOpen}/>;
+  if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} items={detail?raceItems(eventItems(detail),raceId):[]} actionableRunners={detail?.results.actionableRunners} onSaved={showSaved} onOpen={onOpen}/>;
   const sheets=detail && selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={showSaved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>;
   const body=<><main className="rz-main rz-main--event">
     {error!==null && <ErrorCallout error={error} action="read"/>}
     {!detail?error===null && <p className="rz-empty">Opening…</p>:<EventTabs detail={detail} tab={tab??openingTab(detail)} onTab={next=>onOpen({kind:'event',code,tab:next},{replace:true})}
       onRunner={row=>setSelected({raceId:row.raceId,entryId:row.entryId})} onTie={id=>openTie(id)}
-      onStage={openStage} onRace={openRace} onSaved={showSaved}/>}
+      onStage={openStage} onRace={openRace} onSaved={showSaved} onOpen={onOpen}/>}
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>;
   // The runner sheet wraps itself in its own screen root, beside this one.
-  return <><LeadBar title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" body={body}/>{sheets}</>;
+  return <><LeadHeader title={detail?eventTitle(detail.event):code} code={detail?.event.code} up="Results" body={body}/>{sheets}</>;
 }
 const tabNames:Record<EventTab,string>={heats:'Heats',final:'Final',notes:'Notes'};
 /** A heats event has a Final tab unless it was decided without a final. */
@@ -73,17 +74,16 @@ type TabProps={detail:EventResultsRead;onRunner:(row:LeaderboardRow)=>void;onTie
 /**
  * An event's tabs: Heats (the scoreboard, its heats, deleted races), Final (a heats event not decided without one) and Notes. The tab is
  * part of the address; switching replaces it in place, so Back leaves the event. Below the tabs, on every tab, are the
- * event's open To check problems, each with one button: "Decide the tie", or "Open Heat 1" to that race's page.
+ * event's open To check problems, a relay's teams with their four children, each with one button: "Decide the tie",
+ * or "Check Heat 1" to that race's page.
  */
-function EventTabs({tab,onTab,...props}:TabProps & {tab:EventTab;onTab:(tab:EventTab)=>void}) {
+function EventTabs({tab,onTab,onOpen,...props}:TabProps & {tab:EventTab;onTab:(tab:EventTab)=>void;onOpen:(view:View)=>void}) {
   const {detail}=props,final=hasFinalTab(detail);
   const tabs=eventTabs.filter(item=>item!=='final' || final),shown=tabs.includes(tab)?tab:'heats';
-  // The read's items as the To check wording takes them: with their event and race, as the day's To check list has them.
-  const problems:DayLeadItem[]=detail.results.needsYou.map(item=>({...item,event:detail.event,race:detail.results.races.find(({race})=>race.id===item.raceId)?.race}));
   return <>
     <nav className="rz-tabs" aria-label="Event">{tabs.map(item=><button key={item} type="button" aria-current={item===shown?'page':undefined} onClick={()=>onTab(item)}>{tabNames[item]}</button>)}</nav>
     {!detail.event.enabled && <p className="rz-note">Switched off</p>}
-    <RaceProblems items={problems} fix={item=>item.kind==='tie'?{label:'Decide the tie',open:()=>props.onTie(item.tieId!)}:{label:item.race?openRaceLabel(item.race):'Open race',open:()=>props.onRace(item.raceId!)}}/>
+    <RaceProblems items={eventItems(detail)} rows={detail.results.actionableRunners} onOpen={onOpen}/>
     {shown==='heats' && <HeatsTab {...props} final={final}/>}
     {shown==='final' && <FinalTab {...props}/>}
     {shown==='notes' && (detail.auditNotes.length?<ol className="rz-notes" aria-label="Audit notes">{[...detail.auditNotes].reverse().map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol>
@@ -106,7 +106,7 @@ const Medals=({input,sheet,onStage}:{input:InputRunning|null;sheet:StageCheckShe
 function HeatsTab({detail,final,onRunner,onTie,onStage,onRace}:TabProps & {final:boolean}) {
   const results=detail.results,reopenHeats=reopenHeatsSheet(results),line=qualifyingLineAt(results),heats=results.races.filter(({race})=>race.kind!=='final');
   return <>
-    {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab" aria-label="Heats">
+    {results.leaderboard.length===0?<p className="rz-empty">Runners appear here once a heat is saved.</p>:<section className="rz-scoreboard rz-scoreboard--tab">
       <div className="rz-stripes" aria-hidden="true"><span/><span/><span/></div>
       <div className="rz-board-head"><p className="rz-board-note">{ruleLine(results.band)}</p></div>
       <ol className="rz-board" aria-label={results.provisional?'Provisional leaderboard':'Official leaderboard'}>{results.leaderboard.map(row=>{
@@ -191,5 +191,5 @@ function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|n
       {sections.map(([title,items],index)=>items.length>0 && <section key={title} aria-labelledby={`results-section-${index}`}><h2 className="rz-section" id={`results-section-${index}`}>{title}</h2>{cards(items)}</section>)}
       {idle.length>0 && <details className="rz-disclosure"><summary>Not started ({idle.length})</summary>{cards(idle)}</details>}</>}
   </main>
-  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer><LeadTabs current="Results" onOpen={onOpen}/></>;
+  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer><LeadsBar current="Results" onOpen={onOpen}/></>;
 }

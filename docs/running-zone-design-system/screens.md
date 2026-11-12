@@ -12,7 +12,7 @@ Every screen:
 - Ends with an **ActionFooter** whose first line is "Updated at 11:41:17 AM" plus a small **Refresh** button, named for what it refreshes ("Refresh Start line", "Refresh Finish order", "Refresh Times", "Refresh Results").
 
 **The lead's bar.** On a lead's phone, Races, Results (25) and Day setup (30) end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`).
-- `<nav class="rz-leadnav" aria-label="Lead screens">`, one button per tab: the icon above the word, `crumb` type, `size-action` high, `navy` on `card`. The current screen's tab has `aria-current="page"` and is `on-navy` on `navy`.
+- `<nav class="rz-leads-bar" aria-label="Lead screens">`, one button per tab: the icon above the word, `crumb` type, `size-action` high, `navy` on `card`. The current screen's tab has `aria-current="page"` and is `on-navy` on `navy`.
 - It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast there sits one bar higher.
 - Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has no bar. A phone that is not a lead's never shows the bar.
 - The layout is the same at every width.
@@ -150,7 +150,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - The scoreboard surface: compact AppBar on `scoreboard` with the star pattern, back link "Results" in gold.
 - `rz-board-title` "60m / Girl Cubs" with an R4 code tag, the live chip "Heats running · 5 races", and the note "Top 8 · Q = fastest 6".
 - Leaderboard: qualifiers (star rank, Q tag, gold time), the qualifying line, places 7–8 with plain ranks, then places outside the top 8 as `--outside` rows. Tied rows carry a TIE tag.
-- Below the event's tabs, on every tab: one Callout per open To check problem in the To check words, with one primary Button: "Decide the tie" for a tie, else "Open Heat 1", which opens that race's page.
+- Below the event's tabs, on every tab: one Callout per open To check problem in the To check words, with one primary Button: "Decide the tie" for a tie, else "Check Heat 1", which opens that race's page (the heat's own row below stays "Open Heat 1").
 - Heats tab, top to bottom: the scoreboard; `rz-section` "Heats" with a ListRow per heat; Confirm the medals (an event with no Final tab); a closed Disclosure "More" with "Reopen heats" and "Results without a final" when either applies; `rz-section` "Deleted races" with its rows only when the event has a deleted race.
 
 **27 The runner sheet.** Tapping a runner (on the Heats leaderboard, the Final tab or a race page) opens a Sheet titled "Runner 2002" (or "Team 3"): a meta line (event, heat, place in race, time, any disqualification), the runner's Notes as IssueCards, then block Buttons: primary "Mark checked" (only with an open warning; saves at once), "Correct number", "Choose which result counts" (when the runner has more than one result), "Open Heat 1", and a danger "Disqualify 2002" last (or "Lift disqualification"). Correct number, Choose which result counts, Disqualify and Lift disqualification are race-flow screens with a docked button.

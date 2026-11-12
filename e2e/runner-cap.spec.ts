@@ -4,7 +4,7 @@ async function signInAs(page:Page,name:string,lead=false) {
   if(lead) {await becomeLead(page);}
 }
 async function openResults(page:Page,code:string,name:string) {
-  await signInAs(page,name,true);await openLeadMenu(page,'Results');await resultsCard(page,code).click();
+  await signInAs(page,name,true);await openLeadMenu(page,'Results');await press(resultsCard(page,code));
 }
 
 test('a phone checks in 8 runners and carries them through each job in turn, the race saving itself, and Results',async({page,openPhone},info)=>{
