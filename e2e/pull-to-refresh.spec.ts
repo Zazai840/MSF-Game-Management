@@ -90,11 +90,14 @@ test('pull down to refresh on each step of a race: the live stream starts again 
   const number=page.getByLabel('Wristband number',{exact:true});
   await number.fill(String(w(1)));
   await expect.poll(()=>stream.starts).toBe(1);
-  // While the box is typed in the keyboard is open, and a pull does nothing.
+  // While the box is typed in the phone's keyboard is open, and a pull does nothing. (A laptop raises no keyboard.)
   await expect(number).toBeFocused();
-  let lift=await fingerDown(page,320);
-  await expect(hint).toBeHidden();
-  await lift();
+  let lift=async()=>{};
+  if(info.project.use.hasTouch) {
+    lift=await fingerDown(page,320);
+    await expect(hint).toBeHidden();
+    await lift();
+  }
   // The keyboard closed. A short pull: the hint comes down with the finger and goes back, and the stream stays.
   await number.blur();
   lift=await fingerDown(page,60);
