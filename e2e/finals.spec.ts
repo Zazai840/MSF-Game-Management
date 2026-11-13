@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,type Page,flowPost,resultsCard} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,pullToRefresh,type Page,flowPost,resultsCard} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -68,7 +68,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  // The start line is offered the next-ranked runner too; here the lead calls up from the Final tab.
  await expect(sam.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true})).toBeVisible(live);
  // A lead's call-up for the absent seed appears live, Here at once: the finish line has them with no second tap.
- await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true}).click();
+ await pullToRefresh(page);await page.getByRole('button',{name:`Call up next fastest: ${n(15)} (7th)`,exact:true}).click();
  // The call-up saves at once: the toast, then the line-up names it and the seed it replaces stays Absent.
  await expectToast(page,`${n(15)} called up`);
  await expect(await lineUp(page)).toContainText([`2nd fastest · ${n(12)} · Absent · no final place`,`Called up from heat rank 7 · ${n(15)}`]);
@@ -87,7 +87,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await sam.getByRole('button',{name:"That's everyone",exact:true}).click();
  await expect(sam.locator('.rz-toast')).toContainText('Runners saved');
  await expect(samCard.locator('.rz-racecard__status')).toHaveText('Heats 1 and 2 and the final done',live);
- await page.getByRole('button',{name:'Refresh',exact:true}).click();
+ await pullToRefresh(page);
  // The final's order, medal places on gold stars and no times; a row opens the runner sheet.
  const final=page.getByRole('list',{name:'Final leaderboard'});
  await expect(final.getByRole('button')).toHaveText([`1${n(15)}`,`2${n(11)}`,`3${n(17)}`,`4th${n(13)}`,`5th${n(18)}`,`6th${n(14)}`]);
@@ -188,7 +188,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  await expect(sam.page.getByRole('heading',{level:2,name:'Who is here?'})).toBeVisible();
  await expect(attendance(sam.page)).toHaveText([seed('1st',n(41)),seed('2nd',n(42))]);
  const headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
- await page.getByRole('button',{name:'Refresh',exact:true}).click();
+ await pullToRefresh(page);
  // Reopen heats, a plain button under the Heats tab's closed More, opens its own screen with #249's warning and a required comment.
  await expect(page.getByRole('button',{name:'Reopen heats',exact:true})).toBeHidden();await openMore(page);
  await press(page.getByRole('button',{name:'Reopen heats',exact:true}));
@@ -225,7 +225,7 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  expect((await page.request.post(`/api/races/${race.id}/absent`,{headers,data:{raceId:race.id,version:race.parts.runners.version,here:race.final!.entries.map(entry=>entry.finalEntryId),absent:[]}})).ok()).toBe(true);
  const corrected=race.final!.entries.find(entry=>entry.wristband===n(41))!;
  expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true}})).ok()).toBe(true);
- await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
+ await eventTab(page,'Final');await pullToRefresh(page);
  await expect((await lineUp(page)).filter({hasText:String(n(43))})).toHaveText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
 });
 test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{

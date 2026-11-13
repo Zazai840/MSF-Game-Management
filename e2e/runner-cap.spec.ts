@@ -1,4 +1,4 @@
-import {confirmTheMedals,medalPlaces,eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,type Page,enterTime,flowPost,raceAction,press,expectToast,resultsCard} from './fixtures.js';
+import {confirmTheMedals,medalPlaces,eventTab,ownName,ownCode,ownEvent,openRace,recordRace,back,openLeadMenu,switchJob,becomeLead,expect,join,test,pullToRefresh,type Page,enterTime,flowPost,raceAction,press,expectToast,resultsCard} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
   await page.goto('/');await join(page,name,{job:'Start line'});
   if(lead) {await becomeLead(page);}
@@ -70,7 +70,7 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await expect(rows).toHaveCount(7);await expect(rows.last()).toContainText('7th1806');
   await page.screenshot({path:info.outputPath('lead-order-seventh.png'),fullPage:true});
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Save finishing order',exact:true}));await expectToast(page,'Finishing order saved');
-  await back(page,`${name} · Boy Cubs`);await eventTab(page,'Final');await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await back(page,`${name} · Boy Cubs`);await eventTab(page,'Final');await pullToRefresh(page);
   const final=page.getByRole('list',{name:'Final leaderboard'});await expect(final.getByRole('button')).toHaveCount(7);
   await expect(final.getByRole('button').first()).toContainText('1801');await expect(final.getByRole('button').last()).toContainText('1806');
   await page.getByRole('button',{name:'Confirm the medals',exact:true}).click();await expect(medalPlaces(page).first()).toContainText('1801');await confirmTheMedals(page);

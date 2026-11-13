@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,type Page,resultsCard} from './fixtures.js';
+import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,pullToRefresh,type Page,resultsCard} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
@@ -52,7 +52,7 @@ test('the start line calls up the next-ranked team at a relay final\'s check-in,
   read=await flowPost(request,sam.token,`/api/races/${finalId}/order`,{raceId:finalId,version:read.race.parts.finish.version,order:[3,2,7,1,6,4].map(entry),didNotFinish:[],didNotRun:[],added:[]});
   read=await flowPost(request,sam.token,`/api/races/${finalId}/steps/positions/done`,{});
   expect(read.race.state).toBe('saved');
-  await lead.page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await pullToRefresh(lead.page);
   const board=lead.page.getByRole('list',{name:'Final leaderboard',exact:true});
   await expect(board.getByRole('button')).toHaveCount(6);
   for(const [index,number] of [[0,3],[1,2],[2,7]] as const) await expect(board.getByRole('button').nth(index)).toHaveAccessibleName(`Team ${number} · ${legs(number).join(' · ')} · Final`);

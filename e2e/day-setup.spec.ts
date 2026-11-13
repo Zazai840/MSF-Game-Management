@@ -1,4 +1,4 @@
-import {ownName,ownEvent,ownCode,lookProblems,inViewAboveFooter,back,expectToast,join,labelDay,leadMenuButton,openLeadMenu,press,expect,test,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,inViewAboveFooter,back,expectToast,join,labelDay,leadMenuButton,openLeadMenu,press,expect,test,pullToRefresh,type Page} from './fixtures.js';
 
 const redInk='rgb(196, 30, 58)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
@@ -55,7 +55,7 @@ test('Day setup is one card with both codes and seven rows in the order of the d
   await expect(row(page,'This day')).not.toHaveClass(/rz-listrow--warn/);
 
   await expect(page.getByText(/^Updated at \d\d:\d\d:\d\d/)).toBeVisible();
-  await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Refresh',exact:true})).toHaveCount(0);
   // Every row shows without scrolling.
   await inViewAboveFooter(page,await rows.all());
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('day-setup.png'),fullPage:true});
@@ -139,7 +139,7 @@ test('Day export is its own screen: the download with its status, and its row is
   await expect(row(page,'Day export')).toHaveText(/Last downloaded \d\d:\d\d, includes every change so far\.$/);await expect(row(page,'Day export')).not.toHaveClass(/rz-listrow--warn/);
   const code=await ownCode();
   await ownEvent(page.request,code,'Day setup sprint','Girl Cubs','timed');
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await pullToRefresh(page);
   await expect(row(page,'Day export')).toHaveText(/Last downloaded \d\d:\d\d, with newer changes since\.$/);await expect(row(page,'Day export')).toHaveClass(/rz-listrow--warn/);
   await openRow(page,'Day export','/day/export');
   await expect(dayExport).toContainText(/Last downloaded \d\d:\d\d, with newer changes since\./);
