@@ -1,4 +1,4 @@
-import {ownName,ownCode,press,ownEvent,becomeLead,join,openLeadMenu,recordRace,ownWristbands,expect,inViewAboveFooter,openRace,signInThroughApi,test,writeCheckIn,type Locator,type Page,type PhoneSession,resultsCard} from './fixtures.js';
+import {ownName,ownCode,press,ownEvent,becomeLead,join,lookProblems,openLeadsBarTab,recordRace,ownWristbands,expect,inViewAboveFooter,openRace,signInThroughApi,test,writeCheckIn,type Locator,type Page,type PhoneSession,resultsCard} from './fixtures.js';
 /**
  * Playwright cannot raise a phone keyboard, so each page gets a fake visualViewport: keyboard(height) shrinks it to
  * what shows above the keyboard and fires resize, as iPhone Safari does; keyboard(null) closes it.
@@ -19,13 +19,20 @@ async function withKeyboard(session:PhoneSession) {
 }
 const keyboard=(page:Page,height:number|null)=>page.evaluate(height=>(window as unknown as {keyboard:(height:number|null)=>void}).keyboard(height),height);
 const footerBottom=async(footer:Locator)=>{const box=(await footer.boundingBox())!;return box.y+box.height;};
-/** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen, or on a lead screen to the top of the lead's bar. The bar is not shown while the keyboard is open, so it never covers the docked button. */
+/** On a phone, with the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen, or on a lead screen to the top of the lead's bar. The bar is not shown while the keyboard is open, so it never covers the docked button. */
 async function docksAboveKeyboard(page:Page,box:Locator,footer=page.locator('footer.rz-footer')) {
   // By its class: a box that already has focus hides the bar, and a role does not find a hidden element.
   const bar=page.locator('.rz-leads-bar'),lead=await bar.count()>0;
   const foot=lead?(await bar.boundingBox())!.y:page.viewportSize()!.height,open=Math.round(page.viewportSize()!.height*0.55);
   await expect(box).toBeFocused();
   await keyboard(page,open);
+  // A laptop raises no keyboard: the footer stays at the foot of the screen, or on the lead's bar, which stays.
+  if(!test.info().project.use.hasTouch) {
+    await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
+    expect(Math.abs(await footerBottom(footer)-foot)).toBeLessThanOrEqual(1);
+    if(lead) await expect(bar).toBeVisible();
+    await keyboard(page,null);return;
+  }
   if(lead) await expect(bar).toBeHidden();
   await expect.poll(async()=>Math.abs(await footerBottom(footer)-open)).toBeLessThanOrEqual(1);
   const docked=(await footer.boundingBox())!.height;
@@ -140,7 +147,7 @@ test('a lead\'s Correct number keeps Save number on the keyboard',async({page})=
   const code=await ownCode(),name=ownName('Docked number'),n=await ownWristbands('Girl Cubs',2);
   await ownEvent(page.request,code,name);
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
-  await page.goto('/');await join(page,ownName('Docked number lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,ownName('Docked number lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await press(page.getByRole('button',{name:new RegExp(`^Runner ${n(2)} · `)}));
   await press(page.getByRole('dialog',{name:`Runner ${n(2)}`,exact:true}).getByRole('button',{name:'Correct number',exact:true}));
@@ -160,4 +167,19 @@ test('a lead\'s Correct runner list, opened at its own address, keeps Done on th
   await press(page.getByRole('button',{name:`Runner 2 · ${n(2)}`,exact:true}));
   await docksAboveKeyboard(page,page.getByLabel('Wristband for runner 2',{exact:true}));
   await expect(page.locator('footer.rz-footer').getByRole('button',{name:'Done',exact:true})).toBeVisible();
+});
+test('on a laptop, which has no on-screen keyboard, a box being typed in keeps the lead\'s bar with the docked button above it; on a phone the bar is not shown while typing',async({page},info)=>{
+  const code=await ownCode(),name=ownName('Docked rename');
+  await ownEvent(page.request,code,name);
+  await page.goto('/');await join(page,ownName('Docked rename lead'),{job:'Start line'});await becomeLead(page);
+  await page.goto(`/day/events/${code}/rename`);
+  const bar=page.locator('.rz-leads-bar'),box=page.getByLabel('Event name',{exact:true}),footer=page.locator('footer.rz-footer');
+  await expect(bar).toBeVisible();
+  await press(box);await expect(box).toBeFocused();
+  // Two frames: the docking reads the focus a frame after it changes.
+  await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
+  if(info.project.use.hasTouch) {await expect(bar).toBeHidden();return;}
+  await expect(bar).toBeVisible();
+  expect(await footerBottom(footer)).toBeLessThanOrEqual((await bar.boundingBox())!.y+0.5);
+  expect(await lookProblems(page)).toEqual([]);
 });

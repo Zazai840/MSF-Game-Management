@@ -1,4 +1,4 @@
-import {expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,recordRace,resultsCard,signInThroughApi,test} from './fixtures.js';
+import {expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,signInThroughApi,test} from './fixtures.js';
 
 test('Results on a phone lists one event per line in the Races card\'s type; a laptop keeps the grid',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Phone cards a long event name');
@@ -51,7 +51,7 @@ test('a long press on a disclosure line selects no words',async({openPhone,reque
   const code=await ownCode();
   await ownEvent(request,code,ownName('No select'),'Girl Cubs','timed');
   const {page}=await openPhone(ownName('No select lead'),{lead:true});
-  await page.getByRole('navigation',{name:'Lead screens'}).getByRole('button',{name:'Results',exact:true}).click();
+  await press(page.getByRole('navigation',{name:'Lead screens'}).getByRole('button',{name:'Results',exact:true}));
   const line=page.locator('summary',{hasText:/^Not started \(\d+\)$/});
   await expect(line).toBeVisible();
   expect(await line.evaluate(element=>getComputedStyle(element).userSelect)).toBe('none');

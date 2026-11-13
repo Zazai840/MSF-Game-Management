@@ -1,4 +1,4 @@
-import {ownName,expect,join,lookProblems,openLeadMenu,test,type Locator,type Page} from './fixtures.js';
+import {ownName,expect,join,lookProblems,openLeadsBarTab,test,type Locator,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** Docked buttons sit at the bottom of the phone screen, as on the race screens. */
 async function expectDocked(page:Page,button:Locator) {
@@ -77,7 +77,7 @@ test('a new phone joins with its name, the password and its job, stays signed in
   await page.getByLabel('Lead code',{exact:true}).fill(process.env.E2E_LEAD_CODE!);
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await races(page);await expect(jobChip(page,'Zone lead')).toBeVisible();
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(downloaded.some(url=>/\/Lead-[^/]+\.js/.test(url))).toBe(true);
 });
@@ -138,7 +138,7 @@ test('the owner password joins as the owner lead on the running day without touc
   const before=await (await page.request.get('/api/day',{headers:headers()})).json();
   await page.goto('/');await join(page,ownName('Owner Sign'),{code:'e2e-owner-fixture'});
   await races(page);await expect(jobChip(page,'Zone lead')).toBeVisible();
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   const after=await (await page.request.get('/api/day',{headers:headers()})).json();
   expect(after).toMatchObject({leadCode:before.leadCode,olympicsPassword:before.olympicsPassword,revision:expect.any(Number)});

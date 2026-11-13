@@ -5,7 +5,8 @@ import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { Callout,DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
-import { PullToRefresh,UpdatedAt } from '../races/UpdatedAt.js';
+import { PullToRefresh } from '../races/PullToRefresh.js';
+import { UpdatedAt } from '../races/UpdatedAt.js';
 import type { View } from '../shell/addresses.js';
 
 type EventsView=Extract<View,{kind:'events'|'rename-event'|'new-event'}>;

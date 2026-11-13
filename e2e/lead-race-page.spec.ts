@@ -1,5 +1,5 @@
 import { clock } from '../src/shared/clock.js';
-import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,raceAction,recordRace,submitRace,writeCheckIn,writeOrder,writeTimes,ownRelay,ownWristbands,writeTeam,tickTeam,writeTeamOrder,becomeLead,expect,expectToast,selected,join,openLeadMenu,test,type Page,resultsCard} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,lookProblems,press,raceAction,recordRace,submitRace,writeCheckIn,writeOrder,writeTimes,ownRelay,ownWristbands,writeTeam,tickTeam,writeTeamOrder,becomeLead,expect,expectToast,selected,join,openLeadsBarTab,test,type Page,resultsCard} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 // The race flow's amber, on the race page and in Correct times.
 const amber='rgb(255, 241, 199)',red='rgb(196, 30, 58)';
@@ -13,7 +13,7 @@ async function recordedRace(page:Page,code:string,runners:number[],places:number
   return race;
 }
 async function openRace(page:Page,code:string,name:string,number:number) {
-  await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,name,{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:`Open Heat ${number}`,exact:true}));
 }
@@ -266,7 +266,7 @@ test('a race not saved yet says so on its race page with Open Heat 1; its "Delet
   const {race}=await writeOrder(page.request,token,code,[2131,2132]);
   created.push(race.id!);
   // Its Results row opens the race screen (results.spec.ts); the race page is at its own address.
-  await page.goto('/');await join(page,ownName('In progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,ownName('In progress lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await eventTab(page,'Heats');await page.goto(`/results/${code}/races/${race.id}`);
   const racePage=page.url();
@@ -318,7 +318,7 @@ test('a deleted race says when and by whom, Restore brings it back on its race p
   // A new Heat 1 runs in its place.
   const second=await recordRace(page.request,token,code,[2163,2164],[1250,1350]);created.push(second.id);expect(second.number).toBe(1);
   const deletedAt=((await (await page.request.get(`/api/lead/races/${first.id}`,{headers:headers()})).json()) as {race:{deletedAt:string}}).race.deletedAt;
-  await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,ownName('Restore lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await eventTab(page,'Heats');await press(page.getByRole('button',{name:/^Open deleted Heat 1 · deleted\s\d\d:\d\d$/}));
   await expect(page.getByText(`Restore page · Girl Cubs · checked in ${clock(first.checkedInAt)} · deleted`,{exact:true})).toBeVisible();

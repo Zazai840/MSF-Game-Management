@@ -1,4 +1,4 @@
-import {back,ownCode,ownEvent,ownName,ownWristbands,deleteCurrentRace,expect,lookProblems,openLeadMenu,openRace,press,recordRace,test,writeCheckIn,type Page,resultsCard} from './fixtures.js';
+import {back,ownCode,ownEvent,ownName,ownWristbands,deleteCurrentRace,expect,lookProblems,openLeadsBarTab,openRace,press,recordRace,test,writeCheckIn,type Page,resultsCard} from './fixtures.js';
 const items=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
 const title=(page:Page,name:string)=>expect(page.getByRole('banner').getByRole('heading',{level:1,name,exact:true})).toBeVisible();
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
@@ -26,11 +26,11 @@ test('a lead\'s avatar menu is on every lead screen and the Race screen, and hol
   };
   await menu('races');
   // Results, its event and the lead's race page.
-  await openLeadMenu(page,'Results');await title(page,'Results');await menu('results');
+  await openLeadsBarTab(page,'Results');await title(page,'Results');await menu('results');
   await press(resultsCard(page,code));await title(page,event);await menu('event');
   await page.goto(`/results/${code}/races/${race.id}`);await title(page,`Heat ${race.number}`);await menu('race-page');
   // Day setup, Signed in today and Events.
-  await openLeadMenu(page,'Day setup');await title(page,'Day setup');await menu('day-setup');
+  await openLeadsBarTab(page,'Day setup');await title(page,'Day setup');await menu('day-setup');
   await press(page.getByRole('button',{name:/^Signed in today /}));await title(page,'Signed in today');await menu('signed-in-today');
   await back(page,'Day setup');
   await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await menu('events');

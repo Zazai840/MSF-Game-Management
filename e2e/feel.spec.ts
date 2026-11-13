@@ -1,4 +1,4 @@
-import {expect,flowPost,lookProblems,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Locator,type Page} from './fixtures.js';
+import {boxOf,expect,flowPost,lookProblems,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,test,writeCheckIn,type Locator,type Page} from './fixtures.js';
 
 const width=async(target:Locator)=>(await target.boundingBox())!.width;
 /** The element's scale while the mouse is held down on it, once any press transition has ended. */
@@ -136,25 +136,46 @@ test('the toast sits just above an open sheet, and on Events and on Day setup ju
   await bar.getByRole('button',{name:'Day setup',exact:true}).click();
   await page.getByRole('button',{name:/^Events/}).click();
   const row=page.getByRole('button',{name:new RegExp(`^${name}`)}),sheet=page.getByRole('dialog');
-  const box=async(target:Locator)=>(await target.boundingBox())!;
   await row.click();await sheet.getByRole('button',{name:'Switch off',exact:true}).click();
   await expect(toast).toContainText(`${code} switched off`);
   await row.click();
   await expect(sheet.getByRole('button',{name:'Switch on',exact:true})).toBeVisible();
   // Once the sheet has slid up, the toast is above it, not on its title.
-  await expect(async()=>{const top=(await box(sheet)).y,foot=await box(toast);expect(foot.y+foot.height).toBeLessThanOrEqual(top);expect(foot.y+foot.height).toBeGreaterThan(top-16);}).toPass({timeout:3000});
+  await expect(async()=>{const top=(await boxOf(sheet)).y,foot=await boxOf(toast);expect(foot.y+foot.height).toBeLessThanOrEqual(top);expect(foot.y+foot.height).toBeGreaterThan(top-16);}).toPass({timeout:3000});
   await sheet.getByRole('button',{name:'Switch on',exact:true}).click();
   await expect(toast).toContainText(`${code} switched on`);
   // On Events, a deeper screen, with the sheet closed: just above the lead's bar.
-  await expect(async()=>{const foot=await box(toast),above=await box(bar);expect(foot.y+foot.height).toBeLessThanOrEqual(above.y);expect(foot.y+foot.height).toBeGreaterThan(above.y-16);}).toPass({timeout:3000});
+  await expect(async()=>{const foot=await boxOf(toast),above=await boxOf(bar);expect(foot.y+foot.height).toBeLessThanOrEqual(above.y);expect(foot.y+foot.height).toBeGreaterThan(above.y-16);}).toPass({timeout:3000});
   await page.getByRole('banner').getByRole('button',{name:'Back to Day setup'}).click();
   const last=page.getByRole('button',{name:/^Start a new day/});
   await expect(last).toBeVisible();
   await expect(async()=>{
-    const foot=await box(toast),above=await box(bar),rowBox=await box(last);
+    const foot=await boxOf(toast),above=await boxOf(bar),rowBox=await boxOf(last);
     expect(foot.y+foot.height).toBeLessThanOrEqual(above.y);expect(foot.y+foot.height).toBeGreaterThan(above.y-16);
     expect(foot.y).toBeGreaterThanOrEqual(rowBox.y+rowBox.height);
   }).toPass({timeout:3000});
+});
+
+test('on Rename, a deeper lead screen with a footer button, the toast sits just above the footer, which sits above the lead\'s bar',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Feel toast footer');
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const {page}=await openPhone(ownName('Feel toast footer lead'),{lead:true});
+  const bar=page.getByRole('navigation',{name:'Lead screens'}),toast=page.locator('.rz-toast'),sheet=page.getByRole('dialog');
+  await press(bar.getByRole('button',{name:'Day setup',exact:true}));
+  await press(page.getByRole('button',{name:/^Events/}));
+  const row=page.getByRole('button',{name:new RegExp(`^${name}`)});
+  await press(row);await press(sheet.getByRole('button',{name:'Switch off',exact:true}));
+  await expect(toast).toContainText(`${code} switched off`);
+  // Rename opens while the toast still shows.
+  await press(row);await press(sheet.getByRole('button',{name:'Rename',exact:true}));
+  const save=page.getByRole('contentinfo').getByRole('button',{name:'Save name',exact:true}),reason=page.getByRole('contentinfo').getByText('Change the name to save.',{exact:true});
+  await expect(async()=>{
+    const foot=await boxOf(toast),line=await boxOf(reason),button=await boxOf(save),above=await boxOf(bar);
+    // The toast is clear of the footer's reason line and button; the button is clear of the bar.
+    expect(foot.y+foot.height).toBeLessThanOrEqual(line.y);expect(foot.y+foot.height).toBeGreaterThan(line.y-16);
+    expect(line.y+line.height).toBeLessThanOrEqual(button.y);expect(button.y+button.height).toBeLessThanOrEqual(above.y);
+  }).toPass({timeout:3000});
+  expect(await lookProblems(page)).toEqual([]);
 });
 
 test('on every screen, Join also, a pull down never reloads the app and two fast taps never zoom; a pinch still zooms',async({page})=>{

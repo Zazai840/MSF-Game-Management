@@ -99,7 +99,7 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
  * Results and Day setup have no back arrow: from there the lead's bar goes to Races.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadMenuButton(page).getByRole('button',{name:'Races',exact:true});
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadsBar(page).getByRole('button',{name:'Races',exact:true});
   for(let tries=0;tries<6;tries++) {
     await expect(arrow.or(races).first()).toBeVisible();
     if(!await arrow.isVisible()) {if(to==='Races') return press(races);break;}
@@ -415,12 +415,12 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job'})).toBeVisible();
 }
 /** The lead's bar (Races, Results, Day setup), at the foot of every lead screen on a lead's phone only: there, it shows that the phone is a lead's. The Race screen has none. */
-export function leadMenuButton(page:Page) {
+export function leadsBar(page:Page) {
   return page.getByRole('navigation',{name:'Lead screens',exact:true});
 }
 /** From any screen as a lead: the lead's bar's Results or Day setup tab; from a Race screen, back along the back arrow to Races first. */
-export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
-  const tab=leadMenuButton(page).getByRole('button',{name:section,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+export async function openLeadsBarTab(page:Page,name:'Results'|'Day setup') {
+  const tab=leadsBar(page).getByRole('button',{name,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
     await expect(tab.or(arrow).first()).toBeVisible();
     if(await tab.isVisible()) return press(tab);
@@ -428,6 +428,18 @@ export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
     await press(arrow);await expect(page).not.toHaveURL(here);
   }
   throw new Error(`No way back to the lead's bar`);
+}
+/** One finger on the glass, sent as the browser's touch events: every drag and pull in the tests goes through it. */
+async function fingerOn(page:Page) {
+  const touch=await page.context().newCDPSession(page);
+  const send=(type:'touchStart'|'touchMove'|'touchEnd',touchPoints:Array<{x:number;y:number}>)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints});
+  return {down:(x:number,y:number)=>send('touchStart',[{x,y}]),move:(x:number,y:number)=>send('touchMove',[{x,y}]),up:async()=>{await send('touchEnd',[]);await touch.detach();}};
+}
+/** A finger put down at a point and moved down the screen by `by`, still on the glass. The answer lifts it. */
+export async function fingerDown(page:Page,by:number,{x,y}={x:180,y:200}) {
+  const finger=await fingerOn(page);
+  await finger.down(x,y);for(let at=y+20;at<=y+by;at+=20) await finger.move(x,at);
+  return finger.up;
 }
 /**
  * Starts dragging from `from` the way a person would: a real finger on the phone projects
@@ -440,13 +452,12 @@ export async function startDrag(page:Page,from:Locator) {
   await from.scrollIntoViewIfNeeded();
   const box=(await from.boundingBox())!;
   let x=box.x+box.width/2,y=box.y+box.height/2;
-  const cdp=touch?await page.context().newCDPSession(page):null;
-  const finger=(type:'touchStart'|'touchMove'|'touchEnd',px=x,py=y)=>cdp!.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x:px,y:py}]});
-  if(touch) await finger('touchStart');else {await page.mouse.move(x,y);await page.mouse.down();}
+  const finger=touch?await fingerOn(page):null;
+  if(finger) await finger.down(x,y);else {await page.mouse.move(x,y);await page.mouse.down();}
   async function toPoint(targetX:number,targetY:number,moves=12) {
     for(let index=1;index<=moves;index++) {
       const px=x+(targetX-x)*index/moves,py=y+(targetY-y)*index/moves;
-      if(touch) await finger('touchMove',px,py);else await page.mouse.move(px,py);
+      if(finger) await finger.move(px,py);else await page.mouse.move(px,py);
     }
     x=targetX;y=targetY;
   }
@@ -457,7 +468,7 @@ export async function startDrag(page:Page,from:Locator) {
     async drop() {
       // A person stops over the place before letting go. A finger lifted while still moving is a flick: Chromium on
       // Linux (CI) then takes the next tap as the one that stops the flick and sends no click for it.
-      if(touch) {await page.waitForTimeout(100);await finger('touchMove');await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
+      if(finger) {await page.waitForTimeout(100);await finger.move(x,y);await finger.up();} else await page.mouse.up();
       // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
       await page.waitForTimeout(100);
     },
@@ -489,14 +500,14 @@ export async function expectToast(page:Page,line:string|RegExp) {
  */
 export async function pullToRefresh(page:Page) {
   await page.evaluate(()=>scrollTo(0,0));
-  const touch=await page.context().newCDPSession(page);
-  const send=(type:'touchStart'|'touchMove'|'touchEnd',y?:number)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:y===undefined?[]:[{x:180,y}]});
-  await send('touchStart',200);for(let y=220;y<=520;y+=20) await send('touchMove',y);
+  const lift=await fingerDown(page,320);
   await expect(page.locator('.rz-pull')).toHaveText('Let go to refresh');
   // Letting go there refreshes. "Refreshing…" shows for under a second, and the read may change the screen, so only the let-go is waited for.
-  await send('touchEnd');await touch.detach();
+  await lift();
   await expect(page.locator('.rz-pull[data-state="ready"]')).toHaveCount(0);
 }
+/** Where a target is on the screen. */
+export const boxOf=async(target:Locator)=>(await target.boundingBox())!;
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});

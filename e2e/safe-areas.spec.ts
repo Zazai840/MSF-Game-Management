@@ -1,5 +1,4 @@
-import type {APIRequestContext} from '@playwright/test';
-import {expect,jobBand,lookProblems,openRace,ownCode,ownEvent,ownName,press,test,type Locator,type Page} from './fixtures.js';
+import {boxOf,expect,flowRace,jobBand,lookProblems,openRace,ownCode,ownEvent,ownName,press,test,type Locator,type Page} from './fixtures.js';
 
 /** An iPhone's safe areas in portrait: the status bar with the Dynamic Island, and the home bar. */
 const portrait={top:59,bottom:34,left:0,right:0};
@@ -10,14 +9,11 @@ async function safeAreas(page:Page,insets:typeof portrait) {
   const session=await page.context().newCDPSession(page);
   await session.send('Emulation.setSafeAreaInsetsOverride',{insets});
 }
-const box=async(target:Locator)=>(await target.boundingBox())!;
-const bottom=async(target:Locator)=>{const {y,height}=await box(target);return y+height;};
+const bottom=async(target:Locator)=>{const {y,height}=await boxOf(target);return y+height;};
 const screenHeight=(page:Page)=>page.evaluate(()=>innerHeight);
 const screenWidth=(page:Page)=>page.evaluate(()=>innerWidth);
 /** The room above a bar's words: its top padding. */
 const topPadding=(bar:Locator)=>bar.evaluate(element=>getComputedStyle(element).paddingTop);
-/** A heat to open, so the race bar shows. */
-const heat=async(request:APIRequestContext,token:string,eventCode:string)=>expect((await request.post('/api/races',{headers:{authorization:`Bearer ${token}`},data:{eventCode,kind:'heat',number:1}})).ok()).toBe(true);
 
 test('the page goes under the notch and the home bar, an installed iPhone shows the page behind its status bar, and zoom stays on',async({page})=>{
   await page.goto('/');
@@ -32,23 +28,23 @@ test('with no safe areas (the browser, Android, desktop) the app bars and the fo
   const code=await ownCode(),name=ownName('Safe still');
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(ownName('Safe still start'));
-  await heat(request,token,code);
+  await flowRace(request,token,code);
   // The Races bar: edge to edge from the top, 10px above its words; New race sits 24px above the bottom edge.
   const races=page.getByRole('banner');
-  expect(await box(races)).toMatchObject({x:0,y:0,width:await screenWidth(page)});
+  expect(await boxOf(races)).toMatchObject({x:0,y:0,width:await screenWidth(page)});
   expect(await topPadding(races)).toBe('10px');
   expect(await screenHeight(page)-await bottom(page.getByRole('button',{name:'New race'}))).toBe(24);
   await page.reload();await openRace(page,name);
   // The compact race bar: 52px tall from the top edge.
-  expect(await box(page.getByRole('banner'))).toMatchObject({x:0,y:0,height:52});
+  expect(await boxOf(page.getByRole('banner'))).toMatchObject({x:0,y:0,height:52});
   const lead=(await openPhone(ownName('Safe still lead'),{lead:true})).page;
   await lead.goto('/results');
   const header=lead.getByRole('banner');
   await expect(header.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   // The lead header: from the top edge, 8px above its words; the lead's bar is 56px tall on the bottom edge.
-  expect(await box(header)).toMatchObject({x:0,y:0});
+  expect(await boxOf(header)).toMatchObject({x:0,y:0});
   expect(await topPadding(header)).toBe('8px');
-  const bar=await box(lead.getByRole('navigation',{name:'Lead screens'}));
+  const bar=await boxOf(lead.getByRole('navigation',{name:'Lead screens'}));
   expect(bar.height).toBe(56);expect(bar.y+bar.height).toBe(await screenHeight(lead));
 });
 
@@ -56,17 +52,17 @@ test('on a phone with a notch and a home bar, each app bar\'s navy goes to the t
   const code=await ownCode(),name=ownName('Safe top');
   await ownEvent(request,code,name);
   const {page,token}=await openPhone(ownName('Safe top start'));
-  await heat(request,token,code);
+  await flowRace(request,token,code);
   /** The bar keeps its top edge and grows by the notch's height, so all it holds starts below the notch. */
   const grows=async(bar:Locator,within:Page)=>{
-    const flat=(await box(bar)).height;
+    const flat=(await boxOf(bar)).height;
     await safeAreas(within,portrait);
-    await expect.poll(async()=>(await box(bar)).height).toBe(flat+portrait.top);
-    expect((await box(bar)).y).toBe(0);
-    for(const control of await bar.getByRole('button').or(bar.getByRole('heading',{level:1})).all()) expect((await box(control)).y).toBeGreaterThanOrEqual(portrait.top);
+    await expect.poll(async()=>(await boxOf(bar)).height).toBe(flat+portrait.top);
+    expect((await boxOf(bar)).y).toBe(0);
+    for(const control of await bar.getByRole('button').or(bar.getByRole('heading',{level:1})).all()) expect((await boxOf(control)).y).toBeGreaterThanOrEqual(portrait.top);
     expect(await lookProblems(within)).toEqual([]);
     await safeAreas(within,{top:0,bottom:0,left:0,right:0});
-    await expect.poll(async()=>(await box(bar)).height).toBe(flat);
+    await expect.poll(async()=>(await boxOf(bar)).height).toBe(flat);
   };
   await grows(page.getByRole('banner'),page);
   await page.reload();await openRace(page,name);
@@ -95,7 +91,7 @@ test('footers, a sheet and the lead\'s bar keep clear of the home bar with one i
   const bar=lead.getByRole('navigation',{name:'Lead screens'}),tab=bar.getByRole('button').first();
   expect(await bottom(bar)).toBe(height);
   expect(await bottom(tab)).toBeLessThanOrEqual(height-portrait.bottom);
-  expect((await box(bar)).y-await bottom(lead.getByRole('button',{name:'New race'}))).toBe(24);
+  expect((await boxOf(bar)).y-await bottom(lead.getByRole('button',{name:'New race'}))).toBe(24);
   expect(await lookProblems(lead)).toEqual([]);
 });
 
@@ -105,7 +101,7 @@ test('with the phone on its side, nothing on the screen or in a sheet sits under
   await safeAreas(page,onItsSide);
   const width=await screenWidth(page);
   const clear=async(target:Locator)=>{
-    const {x,width:wide}=await box(target);
+    const {x,width:wide}=await boxOf(target);
     expect(x).toBeGreaterThanOrEqual(onItsSide.left);expect(x+wide).toBeLessThanOrEqual(width-onItsSide.right);
   };
   for(const part of [page.getByRole('banner'),page.getByRole('main'),page.getByRole('button',{name:'New race'})]) await clear(part);

@@ -15,11 +15,13 @@ export function dockToKeyboard(root:{style:{setProperty(name:string,value:string
   if(!viewport) {root.style.removeProperty('--vv-top');root.style.removeProperty('--vv-height');delete root.dataset.keyboard;return;}
   root.style.setProperty('--vv-top',`${viewport.offsetTop}px`);root.style.setProperty('--vv-height',`${viewport.height}px`);root.dataset.keyboard='open';
 }
-/** Started once with the app: follows the visual viewport and focus, reading them a frame later (iOS settles late). */
+/** Started once with the app: follows the visual viewport and focus on a phone, reading them a frame later (iOS settles late). */
 export function followKeyboard() {
   const viewport=window.visualViewport;if(!viewport) return;
   let frame=0;
-  const update=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>dockToKeyboard(document.documentElement,typingIn(document.activeElement as HTMLInputElement|null)?viewport:null));};
+  // A laptop (a fine pointer) raises no keyboard: a box typed in there docks nothing and hides nothing.
+  const raises=()=>matchMedia('(pointer: coarse)').matches && typingIn(document.activeElement as HTMLInputElement|null);
+  const update=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>dockToKeyboard(document.documentElement,raises()?viewport:null));};
   for(const event of ['resize','scroll']) viewport.addEventListener(event,update);
   for(const event of ['focusin','focusout']) document.addEventListener(event,update);
 }

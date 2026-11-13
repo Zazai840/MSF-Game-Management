@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberBox.js';
 import { Callout,DockedFooter,ErrorCallout,Sheet,Opening } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
-import { PullToRefresh } from '../races/UpdatedAt.js';
+import { PullToRefresh } from '../races/PullToRefresh.js';
 import { Comment } from './Comment.js';
 import { useToast } from '../races/Toast.js';
 import type { RunnerScreen,View } from '../shell/addresses.js';

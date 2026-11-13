@@ -1,10 +1,10 @@
-import {ownName,ownEvent,ownCode,lookProblems,inViewAboveFooter,back,expectToast,join,labelDay,leadMenuButton,openLeadMenu,press,expect,test,pullToRefresh,type Page} from './fixtures.js';
+import {ownName,ownEvent,ownCode,lookProblems,inViewAboveFooter,back,expectToast,join,labelDay,leadsBar,openLeadsBarTab,press,expect,test,pullToRefresh,type Page} from './fixtures.js';
 
 const redInk='rgb(196, 30, 58)';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
-  await page.goto('/');await openLeadMenu(page,'Day setup');
+  await page.goto('/');await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
 }
 const section=(page:Page,name:string)=>page.getByRole('region',{name,exact:true});
@@ -187,8 +187,8 @@ test('Signed in today, Events and Change Olympics password open their screens wi
 test('a lead who signed in with the lead code opens Day setup and makes a new lead code',async({page})=>{
   const name=ownName('Day setup lead');
   await page.goto('/');await join(page,name,{code:process.env.E2E_LEAD_CODE});
-  await expect(leadMenuButton(page)).toBeVisible();
-  await openLeadMenu(page,'Day setup');
+  await expect(leadsBar(page)).toBeVisible();
+  await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expect(section(page,'Olympics password').getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
   const before=process.env.E2E_LEAD_CODE!;
@@ -203,6 +203,6 @@ test('a lead who signed in with the lead code opens Day setup and makes a new le
   await expect(section(page,'Lead code').getByText(before,{exact:true})).toHaveCount(0);
   await expect(section(page,'Lead code').getByText(fresh,{exact:true})).toBeVisible();
   // The lead who made it stays a lead.
-  await back(page,'Races');await expect(leadMenuButton(page)).toBeVisible();
+  await back(page,'Races');await expect(leadsBar(page)).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
 });

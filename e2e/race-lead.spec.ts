@@ -1,4 +1,4 @@
-import {ownName,ownCode,back,press,expect,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {ownName,ownCode,back,press,expect,leadsBar,lookProblems,openLeadsBarTab,openRace,ownEvent,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A zone lead in the race flow: no To check screen. Issues live on races: a lead's Action required is the groups with
  * open issues, each card names them, and a saved race opens as its race page with them on top (lead-race-page.spec,
@@ -30,12 +30,12 @@ test('a lead\'s Action required is the groups with open issues or medals to conf
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-races.png'),fullPage:true});
   // The lead's bar: Races, Results and Day setup.
-  await expect(leadMenuButton(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
-  await openLeadMenu(page,'Results');
+  await expect(leadsBar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
+  await openLeadsBarTab(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   await back(page,'Races');
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expect(page.getByText(process.env.E2E_OLYMPICS_PASSWORD!,{exact:true})).toBeVisible();
   await expect(page.getByText(process.env.E2E_LEAD_CODE!,{exact:true})).toBeVisible();

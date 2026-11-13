@@ -1,4 +1,4 @@
-import {press,ownName,back,becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page} from './fixtures.js';
+import {press,ownName,back,becomeLead,expect,join,lookProblems,openLeadsBarTab,signOwnerBackIn,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible({timeout:10000});
 test('Change Olympics password is one screen, and saving sends both phones back to Join with their profiles kept',async({page,browser,baseURL},info)=>{
@@ -10,7 +10,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     await becomeLead(other);
     await page.goto('/');await join(page,owner,{job:'Start line'});await races(page);
     await becomeLead(page,'e2e-owner-fixture');
-    await openLeadMenu(page,'Day setup');
+    await openLeadsBarTab(page,'Day setup');
     const open=async()=>{
       await press(page.getByRole('button',{name:'Change Olympics password',exact:true}));
       await expect(page).toHaveURL(/\/day\/olympics-password$/);
@@ -50,7 +50,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     await expect(other.getByRole('navigation',{name:'Lead screens',exact:true})).toBeVisible();
     // The owner gets back in with the owner password and reads the new password off the card.
     await join(page,owner,{code:'e2e-owner-fixture'});await races(page);
-    await openLeadMenu(page,'Day setup');
+    await openLeadsBarTab(page,'Day setup');
     await expect(page.getByRole('region',{name:'Olympics password'}).getByText(changed,{exact:true})).toBeVisible();
     await page.getByRole('region',{name:'Olympics password'}).screenshot({path:info.outputPath('new-password-card.png')});
   } finally {

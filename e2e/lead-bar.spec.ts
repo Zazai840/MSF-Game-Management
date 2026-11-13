@@ -1,4 +1,4 @@
-import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,stillTabs,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,eventTab,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,raceAction,recordRace,resultsCard,stillTabs,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
@@ -9,8 +9,8 @@ const cell=(page:Page)=>bar(page).locator('.rz-tab-cell');
 // The page watches the bar's cell on every frame (fixtures, watchCell): 0 on Races, 1 on Results, 2 on Day setup.
 const trace=cellTrace,slid=cellSlid;
 const cellOn=(page:Page,name:string)=>tabsCellOn(bar(page),name);
-/** The lead's bar on one of its three screens: the three tabs, each an icon and a word, this screen's marked, at the foot of the screen below `above`. */
-async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>) {
+/** The lead's bar on a screen: the three tabs, each an icon and a word, `current` lit, at the foot of the screen, below `above` when one is named. */
+async function onBar(page:Page,current:string,above?:ReturnType<Page['locator']>) {
   await expect(bar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
   for(const name of ['Races','Results','Day setup']) {
     if(name===current) await expect(tab(page,name)).toHaveAttribute('aria-current','page');else await expect(tab(page,name)).not.toHaveAttribute('aria-current');
@@ -30,18 +30,11 @@ async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>)
   expect(Math.abs(foot),current).toBeLessThanOrEqual(0.5);
   await expect(bar(page)).toBeInViewport({ratio:1});
   // The bar stays at the bottom while the screen scrolls under it: at the end of the screen, `above` is clear of it.
-  await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
-  const box=(await bar(page).boundingBox())!,over=(await above.boundingBox())!;
-  expect(over.y+over.height,current).toBeLessThanOrEqual(box.y+0.5);
-  expect(await lookProblems(page),current).toEqual([]);
-}
-/** The lead's bar on a deeper lead screen: the three tabs, `current` lit with the cell on it, at the foot of the screen. */
-async function lit(page:Page,current:string) {
-  await expect(bar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
-  await expect(bar(page).locator('[aria-current="page"]')).toHaveText(current);
-  await cellOn(page,current);
-  const foot=await bar(page).evaluate(el=>el.getBoundingClientRect().bottom-window.innerHeight);
-  expect(Math.abs(foot),current).toBeLessThanOrEqual(0.5);
+  if(above) {
+    await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+    const box=(await bar(page).boundingBox())!,over=(await above.boundingBox())!;
+    expect(over.y+over.height,current).toBeLessThanOrEqual(box.y+0.5);
+  }
   expect(await lookProblems(page),current).toEqual([]);
 }
 
@@ -71,12 +64,12 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   await expect(arrow(page)).toHaveCount(0);
   await expect(updated).toBeVisible();await onBar(page,'Results',updated);
   await page.screenshot({path:info.outputPath('results.png')});
-  // An event (with its Deleted races) and a race page: the bar with Results lit, and the back arrow names Results, then the event.
+  // An event and a race page: the bar with Results lit, and the back arrow names Results, then the event.
   await press(resultsCard(page,code));await title(page,event);
   await expect(updated).toBeVisible();await onBar(page,'Results',updated);await expect(arrow(page)).toHaveAccessibleName('Back to Results');
   await page.screenshot({path:info.outputPath('event.png')});
   await press(page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));await title(page,`Heat ${race.number}`);
-  await lit(page,'Results');await expect(arrow(page)).toHaveAccessibleName(`Back to ${event}`);
+  await onBar(page,'Results');await expect(arrow(page)).toHaveAccessibleName(`Back to ${event}`);
   await press(arrow(page));await title(page,event);await press(arrow(page));await title(page,'Results');
   // Results to Day setup in one tap, with no visit to Races.
   await press(tab(page,'Day setup'));await title(page,'Day setup');await expect(page).toHaveURL(/\/day$/);
@@ -86,7 +79,7 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   // Each Day setup screen: the bar with Day setup lit, and the back arrow.
   for(const [row,screen] of [[/^Signed in today /,'Signed in today'],[/^Events /,'Events'],[/^This day/,'This day'],[/^Change Olympics password/,'Change Olympics password'],[/^Day export/,'Day export'],[/^Start a new day/,'Start a new day']] as const) {
     await press(page.getByRole('button',{name:row}));await title(page,screen);
-    await lit(page,'Day setup');await expect(arrow(page)).toHaveAccessibleName('Back to Day setup');
+    await onBar(page,'Day setup');await expect(arrow(page)).toHaveAccessibleName('Back to Day setup');
     await press(arrow(page));await title(page,'Day setup');
   }
   // The phone's Back goes through the screens visited, and forward again.
@@ -120,7 +113,7 @@ test('a volunteer has no bar; it appears at once when the phone becomes a lead\'
   await expect(tab(page,'Results')).toHaveAttribute('aria-current','page');
   // The same on a deeper screen.
   await press(tab(page,'Day setup'));await title(page,'Day setup');
-  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await lit(page,'Day setup');
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await onBar(page,'Day setup');
 });
 
 test('on a deeper screen the lit tab is the section the lead came from, or the screen\'s own section with no history; a different tab opens its first screen, and the phone\'s Back returns',async({openPhone,request})=>{
@@ -131,27 +124,65 @@ test('on a deeper screen the lit tab is the section the lead came from, or the s
   const page=await watched(openPhone,'Bar way in lead'),heat=`Heat ${race.number}`,open=page.getByRole('button',{name:`Open ${heat}`,exact:true});
   // From Races: the event, and the race page opened from it, light Races.
   await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));
-  await title(page,event);await lit(page,'Races');
-  await press(open);await title(page,heat);await lit(page,'Races');
+  await title(page,event);await onBar(page,'Races');
+  await press(open);await title(page,heat);await onBar(page,'Races');
   // A different tab opens that section's first screen, and the cell slides from the tab lit before.
   await trace(page);
   await press(tab(page,'Results'));await title(page,'Results');await expect(page).toHaveURL(/\/results$/);await expect(arrow(page)).toHaveCount(0);
   await cellOn(page,'Results');slid(await trace(page),0,1,'Results');
   // The phone's Back goes to the screen shown before.
-  await page.goBack();await title(page,heat);await lit(page,'Races');
+  await page.goBack();await title(page,heat);await onBar(page,'Races');
   await page.goForward();await title(page,'Results');
   // The same event and race page opened from Results light Results.
-  await press(resultsCard(page,code));await title(page,event);await lit(page,'Results');
-  await press(open);await title(page,heat);await lit(page,'Results');
+  await press(resultsCard(page,code));await title(page,event);await onBar(page,'Results');
+  await press(open);await title(page,heat);await onBar(page,'Results');
   await press(tab(page,'Day setup'));await title(page,'Day setup');await expect(page).toHaveURL(/\/day$/);await expect(arrow(page)).toHaveCount(0);
-  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await lit(page,'Day setup');
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await onBar(page,'Day setup');
   // Results opens at its first screen, not at the race page the lead left there.
   await press(tab(page,'Results'));await title(page,'Results');await expect(page).toHaveURL(/\/results$/);
   await press(tab(page,'Races'));await races(page);
   // With no history, a screen lights the section it belongs to.
-  await page.goto(`/results/${code}/races/${race.id}`);await title(page,heat);await lit(page,'Results');
-  await page.goto(`/results/${code}`);await title(page,event);await lit(page,'Results');
-  await page.goto('/day/events/new');await title(page,'Add an event');await lit(page,'Day setup');
+  await page.goto(`/results/${code}/races/${race.id}`);await title(page,heat);await onBar(page,'Results');
+  await page.goto(`/results/${code}`);await title(page,event);await onBar(page,'Results');
+  await page.goto('/day/events/new');await title(page,'Add an event');await onBar(page,'Day setup');
+});
+
+test('an event that shows Deleted races, and a deleted race\'s page, have the bar with the tab the lead came from lit',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Bar deleted'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',2),owner=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,owner,code,[w(1)],[1100]);
+  const gone=await recordRace(request,owner,code,[w(2)],[1200]);
+  expect((await request.post(`/api/lead/races/${gone.id}/delete`,{headers:{authorization:`Bearer ${owner}`},data:{permanent:false}})).ok()).toBe(true);
+  const {page}=await openPhone(ownName('Bar deleted lead'),{lead:true});
+  await press(tab(page,'Results'));await title(page,'Results');
+  await press(resultsCard(page,code));await title(page,event);await eventTab(page,'Heats');
+  const deleted=page.getByRole('button',{name:new RegExp(`^Open deleted Heat ${gone.number} `)});
+  await expect(page.getByRole('heading',{name:'Deleted races',exact:true})).toBeVisible();
+  await onBar(page,'Results',deleted);
+  await press(deleted);await title(page,`Heat ${gone.number}`);
+  await expect(page.getByRole('status').filter({hasText:/^Deleted at /})).toBeVisible();
+  await onBar(page,'Results');await expect(arrow(page)).toHaveAccessibleName(`Back to ${event}`);
+});
+
+test('Delete opened from a Race screen lights the tab the lead came to the race from: Races from Races, Results from Results',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Bar race way in'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',3);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  // Heat 2 is not in Results yet: a lead's Race screen, whose Delete is the screen under it.
+  const {race}=await writeCheckIn(request,process.env.E2E_OWNER_TOKEN!,code,[w(3)]);
+  const {page}=await openPhone(ownName('Bar race way in lead'),{lead:true});
+  const toDelete=async()=>{
+    await expect.poll(()=>new URL(page.url()).pathname).toBe(`/races/${race.id}`);await expect(bar(page)).toHaveCount(0);
+    await raceAction(page,'Delete Heat 2');await title(page,'Delete race');
+    await expect.poll(()=>new URL(page.url()).pathname).toBe(`/races/${race.id}/delete`);
+  };
+  await openRace(page,name,'Girl Cubs','H2');await toDelete();await onBar(page,'Races');
+  await press(tab(page,'Results'));await title(page,'Results');
+  await press(resultsCard(page,code));await title(page,event);
+  await press(page.getByRole('button',{name:'Open Heat 2',exact:true}));await toDelete();await onBar(page,'Results');
+  // Back goes to the Race screen, then to the event, with Results still lit.
+  await press(arrow(page));await expect(bar(page)).toHaveCount(0);
+  await page.goBack();await title(page,event);await onBar(page,'Results');
 });
 
 /** A lead on Races, the page watching the cell from its first frame. */
@@ -272,14 +303,14 @@ test('a tap on the lit tab opens the first screen of its section from a deeper s
   await races(page);
   // A race page opened from Races: a tap on Races, the lit tab, opens Races, and Back goes to the race page.
   await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));await title(page,event);
-  await press(page.getByRole('button',{name:`Open ${heat}`,exact:true}));await title(page,heat);await lit(page,'Races');
+  await press(page.getByRole('button',{name:`Open ${heat}`,exact:true}));await title(page,heat);await onBar(page,'Races');
   await press(tab(page,'Races'));await races(page);await expect(page).toHaveURL(/\/$/);await cellOn(page,'Races');
-  await page.goBack();await title(page,heat);await lit(page,'Races');
+  await page.goBack();await title(page,heat);await onBar(page,'Races');
   // An event opened from Results: a tap on Results, the lit tab, opens the Results list, and Back goes to the event.
   await press(tab(page,'Results'));await title(page,'Results');
-  await press(resultsCard(page,code));await title(page,event);await lit(page,'Results');
+  await press(resultsCard(page,code));await title(page,event);await onBar(page,'Results');
   await press(tab(page,'Results'));await title(page,'Results');await expect(page).toHaveURL(/\/results$/);await expect(arrow(page)).toHaveCount(0);
-  await page.goBack();await title(page,event);await lit(page,'Results');
+  await page.goBack();await title(page,event);await onBar(page,'Results');
   // A short screen, so each first screen scrolls. Scrolled down, a tap on the lit tab scrolls to the top, through the places between.
   const {width}=page.viewportSize()!;await page.setViewportSize({width,height:420});
   await press(tab(page,'Results'));await title(page,'Results');
