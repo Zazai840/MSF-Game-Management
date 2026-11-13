@@ -4,11 +4,11 @@ import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
-import type { FinalField } from '../../shared/finals.js';
+import { placeFree,type FinalField } from '../../shared/finals.js';
 import { digitsForTime,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
-import { finishOf,onlyRunners,placesBoard,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
+import { finishOf,onlyRunners,placesBoard,raceName,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
 import { raceStatus } from '../../shared/race-status.js';
 import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
@@ -16,6 +16,8 @@ import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { markAbsentFinalists } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
+import { writeChangeNote } from '../rulings/records.js';
+import { requireChangeReason } from '../rulings/validation.js';
 /** What a step write acts on: the event and the race as it stands. */
 export interface WriteTarget { event:DayEvent; race:RaceRead }
 export type CheckInInput=ReturnType<typeof checkInInput>;
@@ -73,6 +75,30 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   await publishPart(client,phone,race,'runners',runners);
   await markAbsentFinalists(client,race.id,id=>absent.includes(id));
   await dropFromOrder(client,target.race,runners);
+}
+export type AddRunnerInput=ReturnType<typeof addRunnerInput>;
+/** "+ Runner" at a final's start line: the race and runners version the phone saw, the wristband, its kept warning and "Why the change?". */
+export function addRunnerInput(body:unknown) {
+  const input=(body||{}) as {raceId?:unknown;version?:unknown;wristband?:unknown;reason?:unknown};
+  const {raceId,version}=seenRace(input,'Open the final before adding a runner');
+  const refusal=runnerListRefusal([input.wristband as number]);
+  if(refusal) throw new Refusal(400,refusal);
+  const wristband=input.wristband as number;
+  return {raceId,version,wristband,kept:keptWarningNumbers(input,[wristband]),reason:requireChangeReason(input.reason,false)};
+}
+/**
+ * "+ Runner": any wristband joins an individual final while a place is free (`placeFree`), Here at once, so it is the
+ * final's added entry ("Added"). The reason is kept as an audit note on that entry.
+ */
+export async function addRunner(client:pg.PoolClient,phone:Phone,{event,race}:WriteTarget,{wristband,kept,reason}:AddRunnerInput) {
+  if(race.kind!=='final' || event.relay) throw new Refusal(409,'Only a final\'s start line adds a runner this way');
+  const final=race.final!,name=raceName(race);
+  if(!placeFree(final)) throw new Refusal(409,`No place is free in the ${name}`);
+  if(final.entries.some(entry=>entry.wristband===wristband)) throw new Refusal(409,`${wristband} is already in the ${name}`);
+  // A final's runners all ran in its heats, so "already ran in this event" does not apply.
+  const [runner]=await annotateRunners(client,phone.dayId,event,[{id:randomUUID(),wristband}],kept,race.id,[],true);
+  await publishPart(client,phone,await readRace(client,phone.dayId,race.id),'runners',[...race.parts.runners.value||[],runner]);
+  await writeChangeNote(client,phone,event.id,'add-runner',`added ${wristband} to the ${name}`,reason,[{raceId:race.id,entryId:runner.id}]);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
 /**
