@@ -124,7 +124,16 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 /* The lead's bar is the header's surface (navy, pattern, light words). The current tab is its inverse: a light cell inset by the button's clear border, as the avatar sits in the header, so the button keeps the full touch height. */
 .rz-leads-bar { position: sticky; bottom: 0; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 var(--gutter) env(safe-area-inset-bottom, 0px); background: var(--navy); color: var(--on-navy); }
 .rz-leads-bar button { position: relative; min-height: var(--size-action); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); border: var(--space-4) solid transparent; border-radius: var(--radius-tab); background: none; background-clip: padding-box; color: inherit; font-family: var(--font-body); font-size: 13px; line-height: 1.2; font-weight: 700; outline-offset: -4px; }
-.rz-leads-bar button[aria-current="page"] { background-color: var(--on-navy); color: var(--navy); }
+.rz-leads-bar button[data-lit] { color: var(--navy); }
+.rz-leads-bar .rz-tab-cell { --cell-inset: var(--gutter); bottom: env(safe-area-inset-bottom, 0px); border: var(--space-4) solid transparent; border-radius: var(--radius-tab); background: var(--on-navy); background-clip: padding-box; }
+/* Tabs with a sliding cell (SlidingTabs.tsx): one cell behind the buttons marks the current tab. It has one tab's width, from the number of tabs (--tabs), the set's side inset (--cell-inset) and the gap between its tabs (--cell-gap); --tab moves it by whole tabs. Only the cell moves: the screen changes at once. */
+.rz-tab-cell { position: absolute; top: 0; bottom: 0; left: var(--cell-inset, 0px); width: calc((100% - 2 * var(--cell-inset, 0px) - (var(--tabs) - 1) * var(--cell-gap, 0px)) / var(--tabs)); transform: translateX(calc(var(--tab) * (100% + var(--cell-gap, 0px)))); pointer-events: none; }
+.rz-tab-cell ~ button { position: relative; }
+@media (prefers-reduced-motion: no-preference) {
+  .rz-tab-cell { transition: transform 200ms var(--ease-out); }
+  /* The words change colour with the cell. More specific than the press rule under "Motion", whose scale it keeps. */
+  .rz-screen nav > .rz-tab-cell ~ button:not(:disabled) { transition: scale 140ms var(--ease-out), color 200ms var(--ease-out); }
+}
 .rz-leads-bar button[aria-current="page"]:focus-visible { outline-color: var(--navy); }
 .rz-app:has(> .rz-leads-bar) .rz-footer--sticky { bottom: calc(var(--size-action) + env(safe-area-inset-bottom, 0px)); }
 
@@ -432,7 +441,7 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
 }
 /*
  * A sheet slides up from the foot of the screen (a centred one on a wide screen grows a little) and leaves faster
- * than it came (parts.tsx, wayOut). The toast's own fade is with the toast, above. Screens and tabs change at once: people change them all day.
+ * than it came (parts.tsx, wayOut). The toast's own fade is with the toast, above. Screens change at once: people change them all day. The current tab's cell slides (SlidingTabs.tsx).
  */
 @media (prefers-reduced-motion: no-preference) {
   .rz-scrim { transition: background-color 200ms ease-out; }

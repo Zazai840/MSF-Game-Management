@@ -527,7 +527,12 @@ export async function lookProblems(page:Page) {
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.map(Number);
     const luminance=(value:string)=>{const [r,g,b]=rgb(value).slice(0,3).map(channel=>{const c=channel/255;return c<=0.03928?c/12.92:((c+0.055)/1.055)**2.4;});return 0.2126*r+0.7152*g+0.0722*b;};
     const background=(element:Element|null):string=>{
-      for(let current=element;current;current=current.parentElement) {const value=getComputedStyle(current).backgroundColor;if(rgb(value)[3]!==0) return value;}
+      for(let current=element;current;current=current.parentElement) {
+        const value=getComputedStyle(current).backgroundColor;if(rgb(value)[3]!==0) return value;
+        // Tabs with a sliding cell: the tab the cell is on shows the cell's colour, not the bar's.
+        const cell=current.parentElement?.querySelector(':scope > .rz-tab-cell');
+        if(cell) {const on=cell.getBoundingClientRect(),box=current.getBoundingClientRect(),middle=box.x+box.width/2;if(middle>on.left&&middle<on.right) return getComputedStyle(cell).backgroundColor;}
+      }
       return 'rgb(255, 255, 255)';
     };
     for(const target of document.querySelectorAll('button,a[href],input:not([type=hidden]),select,textarea,summary')) {
