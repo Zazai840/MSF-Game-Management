@@ -138,7 +138,8 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
   .rz-screen nav > .rz-tab-cell ~ button:not(:disabled) { transition: scale 140ms var(--ease-out), color 200ms var(--ease-out); }
 }
 .rz-leads-bar button[aria-current="page"]:focus-visible { outline-color: var(--navy); }
-.rz-app:has(> .rz-leads-bar) .rz-footer--sticky { bottom: calc(var(--size-action) + env(safe-area-inset-bottom, 0px)); }
+/* Not while typing: a docked footer is then placed from the top (rz.css), and a bottom here would stretch it. */
+html:not([data-keyboard="open"]) .rz-app:has(> .rz-leads-bar) .rz-footer--sticky { bottom: calc(var(--size-action) + env(safe-area-inset-bottom, 0px)); }
 /* While the phone is typing the bar is not shown (it keeps its room), so it never covers a button docked on the keyboard. */
 html[data-keyboard="open"] .rz-leads-bar { visibility: hidden; }
 

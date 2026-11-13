@@ -21,7 +21,8 @@ const keyboard=(page:Page,height:number|null)=>page.evaluate(height=>(window as 
 const footerBottom=async(footer:Locator)=>{const box=(await footer.boundingBox())!;return box.y+box.height;};
 /** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen, or on a lead screen to the top of the lead's bar. The bar is not shown while the keyboard is open, so it never covers the docked button. */
 async function docksAboveKeyboard(page:Page,box:Locator,footer=page.locator('footer.rz-footer')) {
-  const bar=page.getByRole('navigation',{name:'Lead screens',exact:true}),lead=await bar.count()>0;
+  // By its class: a box that already has focus hides the bar, and a role does not find a hidden element.
+  const bar=page.locator('.rz-leads-bar'),lead=await bar.count()>0;
   const foot=lead?(await bar.boundingBox())!.y:page.viewportSize()!.height,open=Math.round(page.viewportSize()!.height*0.55);
   await expect(box).toBeFocused();
   await keyboard(page,open);
