@@ -448,8 +448,10 @@ export async function fingerDown(page:Page,by:number,{x,y}={x:180,y:200}) {
  */
 export async function startDrag(page:Page,from:Locator) {
   const touch=!!test.info().project.use.hasTouch;
-  // A person scrolls the handle into sight before putting a finger on it.
-  await from.scrollIntoViewIfNeeded();
+  // A person scrolls the handle into sight before putting a finger on it: clear of a sticky footer and the lead's bar,
+  // as the page's own scroll padding places it. A finger on something that covers the handle would drag nothing.
+  await from.evaluate(handle=>handle.scrollIntoView({block:'nearest'}));
+  expect(await from.evaluate(handle=>{const box=handle.getBoundingClientRect();return handle.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2));}),'the drag handle is not covered').toBe(true);
   const box=(await from.boundingBox())!;
   let x=box.x+box.width/2,y=box.y+box.height/2;
   const finger=touch?await fingerOn(page):null;
