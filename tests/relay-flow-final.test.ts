@@ -211,6 +211,26 @@ test('a leg replaced at a relay final needs a reason, Other with text, and is ke
   expect((await change(sam,1,[2101,2102,2103,2195],{reason:'Hurt',text:null})).json().message).toBe('Final is saved - ask a lead to change it');
 });
 
+test('on a saved relay final a lead\'s Correct number needs a reason and Correct teams adding a team needs a comment',async()=>{
+  const {sam,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  const raceId=read.race.id;
+  for(const number of [2,5,1,6,3,7]) await mark(sam,read,number,'here');
+  read=await ok(sam,`/api/races/${raceId}/steps/runners/done`,{});
+  read=await ok(sam,`/api/races/${raceId}/order`,{raceId,version:read.race.parts.finish.version,order:teamsOf(read.race).map(entry=>entry.id),didNotFinish:[],didNotRun:[],added:[]});
+  read=await ok(sam,`/api/races/${raceId}/steps/positions/done`,{});
+  const two=teamsOf(read.race).find(entry=>entry.team.number===2)!;
+  const correct=(body:object)=>call(lead,`/api/lead/races/${raceId}/runners/${two.id}/correct-number`,{expectedWristband:2203,wristband:2198,leg:2,keepWarnings:true,...body});
+  expect((await correct({})).json()).toEqual({message:'Choose why the change'});
+  const corrected=await correct({reason:{reason:'Hurt',text:null}});
+  expect(corrected.json().auditNotes[0].message).toBe('Jo Evans corrected 2203 to 2198 in Team 2 (Final) - Hurt');
+  // Team 8 never ran: Correct teams adds it only with a comment.
+  const race=(await ok<{race:RaceRead}>(lead,`/api/lead/races/${raceId}`)).race,team8=read.teams!.find(team=>team.number===8)!.id;
+  const teams=(body:object)=>call(lead,`/api/lead/races/${raceId}/teams`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,teams:[...teamsOf(race).map(entry=>({entryId:entry.id})),{teamId:team8}],...body});
+  expect((await teams({})).json()).toEqual({message:'Enter a comment explaining this ruling'});
+  expect((await teams({comment:'Ran in lane 7'})).json().auditNotes[0].message).toBe('Jo Evans corrected the teams for Final 1: Team 2, Team 5, Team 1, Team 6, Team 3, Team 7, Team 8 - Ran in lane 7');
+});
+
 test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{
   const {sam,priya,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;
