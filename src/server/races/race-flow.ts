@@ -12,6 +12,8 @@ import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { changeStage,readCompletedStages } from '../rulings/stages.js';
+import { seedFinal } from '../rulings/finals.js';
+import type { CompletedStage } from '../../shared/stage-lock.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
@@ -32,6 +34,8 @@ async function finalReason(db:Database,dayId:string,code:string,own:readonly Sto
   if(item.kind==='tie') return {raceId,...tieHold(own.filter(race=>tied.some(entry=>entry.raceId===race.id)))};
   return {raceId,...finalHold(results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0],name)};
 }
+/** The event's medals are decided (by its final, or without one): no final can be made. Heats complete alone still waits for its final. */
+const pastHeats=(eventId:string,stages:readonly CompletedStage[])=>stages.some(item=>item.eventId===eventId && item.stage!=='heats');
 /** Each switched-on event (with `switchedOff`, every event) as an event group, its races in order (heats, then the final). */
 export async function readGroups(db:Database,dayId:string,only?:string,switchedOff=false):Promise<RaceGroup[]> {
   const events=(await readEvents(db,!switchedOff,dayId)).filter(event=>!only || event.id===only);
@@ -44,7 +48,7 @@ export async function readGroups(db:Database,dayId:string,only?:string,switchedO
     const summaries=own.map(race=>raceSummary(race,meta.get(race.id)));
     const heats=own.filter(race=>race.kind!=='final' && race.parts.runners.value?.length);
     const finalAvailable=event.format==='heats' && !finalMade({races:own}) && heats.length>0 && heats.every(race=>race.state==='saved')
-      && !stageDone(event.id,'heats',stages);
+      && !pastHeats(event.id,stages);
     // The highest live heat: listRaces leaves deleted races out.
     const last=Math.max(0,...own.filter(race=>race.kind!=='final').map(race=>race.number));
     const heatsOpen=!stageDone(event.id,stageForRace({kind:event.format==='timed'?'race':'heat',event}),stages);
@@ -168,7 +172,9 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
         if(!heats.length || heats.some(race=>race.state!=='saved')) throw new Refusal(409,'The final opens when every heat has times');
         const reason=await finalReason(client,phone.dayId,event.code,own);
         if(reason) throw new Refusal(409,reason.line,{raceId:reason.raceId,step:reason.step});
-        await changeStage(client,phone,event.code,'heats',false,null);
+        // Heats already complete and no live final: the final was deleted. The heats stay complete, and the final is made again.
+        if(stageDone(event.id,'heats',stages) && !pastHeats(event.id,stages)) await seedFinal(client,phone,event,(await readEventResults(client,phone.dayId,event.code)).results.qualifiers);
+        else await changeStage(client,phone,event.code,'heats',false,null);
         return (await listRaces(client,phone.dayId)).find(race=>race.event.id===event.id && race.kind==='final')!.id;
       }
       const heatKind=event.format==='timed'?'race':'heat';

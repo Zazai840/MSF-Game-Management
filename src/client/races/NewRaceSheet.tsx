@@ -31,7 +31,9 @@ export function NewRaceSheet({groups,relays=false,role,choice,failure,onClose,on
   const hasFinal=lead && group?.event.format==='heats',made=group && finalMade(group);
   // A final the server would refuse is greyed, with why in the hint.
   const blocked=!made && (!group?.finalAvailable || !!group.finalReason);
-  const race=group && (kind==='final' && hasFinal?'final':'heat'),number=heat??group?.nextHeat;
+  // Heats complete and the final deleted: the final is the one race to make, so it is chosen already.
+  const finalOnly=!!group && hasFinal && !group.heatsOpen && !made && !blocked;
+  const race=group && ((kind==='final' || finalOnly) && hasFinal?'final':'heat'),number=heat??group?.nextHeat;
   return <Sheet title={relays?'New relay':'New race'} onClose={onClose}>
     {names.length>0 && <fieldset><legend className="rz-field__label">{relays?'Relays':'Event'}</legend><div className="rz-choices">
       {names.map(item=><button key={item} type="button" className="rz-choice" aria-pressed={item===name} onClick={()=>{setName(item);setCode('');setKind('heat');setHeat(null);}}>{item}</button>)}
@@ -43,7 +45,7 @@ export function NewRaceSheet({groups,relays=false,role,choice,failure,onClose,on
       {group.heatsOpen && <button type="button" className="rz-choice" aria-pressed={race==='heat'} onClick={()=>setKind('heat')}>Heat {number}</button>}
       {hasFinal && <button type="button" className="rz-choice" aria-pressed={race==='final'} disabled={blocked} onClick={()=>setKind('final')}>Final</button>}
     </div>}
-      <p className="rz-field__hint">{already(group)}{hasFinal?made?' The final is made: open it from the card.':group.finalReason?'':' The final opens when every heat has times, with the fastest 6 filled in.'
+      <p className="rz-field__hint">{already(group)}{hasFinal?made?' The final is made: open it from the card.':group.finalReason || finalOnly?'':' The final opens when every heat has times, with the fastest 6 filled in.'
         :volunteerFinalLine(group)?` ${volunteerFinalLine(group)}`:''}</p>
       {hasFinal && !made && group.finalReason && <FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>}
     </fieldset>}
