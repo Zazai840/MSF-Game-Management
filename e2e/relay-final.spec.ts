@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadMenu,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,pullToRefresh,type Page,resultsCard} from './fixtures.js';
+import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadsBarTab,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,pullToRefresh,type Page,resultsCard} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
@@ -12,7 +12,7 @@ async function lineUp(page:Page) {
   return rows;
 }
 async function openFinalResults(page:Page,code:string) {
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await eventTab(page,'Final');
 }

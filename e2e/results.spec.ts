@@ -1,8 +1,8 @@
-import {becomeLead,deleteCurrentRace,enterTime,eventTab,expect,join,lookProblems,openLeadMenu,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,notStartedCard,resultsCard} from './fixtures.js';
+import {becomeLead,deleteCurrentRace,enterTime,eventTab,expect,join,lookProblems,openLeadsBarTab,openRace,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,signInThroughApi,switchJob,test,writeCheckIn,writeOrder,notStartedCard,resultsCard} from './fixtures.js';
 test('a lead sees a race worked in the race flow appear within one Results poll',async({page,openPhone},info)=>{
   const code=await ownCode(),name=ownName('Results phone');
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
-  await page.goto('/');await join(page,ownName('Results lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,ownName('Results lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(await notStartedCard(page,code));
   // One phone does every job in turn: the start line with a kept warning, the finish line, then the timer.
   const phone=(await openPhone(ownName('Results phone'))).page;
@@ -35,7 +35,7 @@ test('a timed event marks its medal places 1st, 2nd and 3rd beside the wristband
   const code=await ownCode(),name=ownName('Medal marks');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,await signInThroughApi(page.request,ownName('Medal timer')),code,[2601,2602,2603,2604],[1150,1200,1260,1300]);
-  await page.goto('/');await join(page,ownName('Medal lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,ownName('Medal lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   const rows=page.getByRole('list',{name:'Provisional leaderboard'}).locator(':scope > li');
   for(const [index,mark] of ['1st','2nd','3rd'].entries()) await expect(rows.nth(index)).toContainText(`${2601+index}${mark}Heat 1`);
@@ -51,7 +51,7 @@ test('a heat not in Results shows three bars with counts and the Race screen ban
   // Heat 2: two runners, That's everyone not tapped, one of them placed.
   await writeCheckIn(page.request,phone,code,[girls(3),girls(4)]);
   await writeOrder(page.request,phone,code,[girls(3)]);
-  await page.goto('/');await join(page,ownName('Heat progress lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,ownName('Heat progress lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   const heat1=page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}),heat2=page.getByRole('listitem').getByRole('button',{name:'Open Heat 2',exact:true});
   const sentence=`Not in Results yet: ${girls(4)} has no place.`;

@@ -1,8 +1,8 @@
-import {ownName,ownCode,ownEvent,back,expect,expectToast,join,labelDay,leadMenuButton,lookProblems,openLeadMenu,press,test,pullToRefresh,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,back,expect,expectToast,join,labelDay,leadsBar,lookProblems,openLeadsBarTab,press,test,pullToRefresh,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
-  await page.goto('/');await openLeadMenu(page,'Day setup');
+  await page.goto('/');await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
 }
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
@@ -83,7 +83,7 @@ test('new day shows fresh codes, retains its owner phone and returns other phone
     await other.screenshot({path:info.outputPath('empty-races.png')});
     await other.evaluate(()=>localStorage.removeItem('msf:token'));await other.reload();await welcomeBack(other);await expect(newDayLine).toHaveCount(0);
     await press(row(page,'Start a new day'));await expect(page.getByLabel('Type NEW DAY to confirm')).toBeVisible();await page.screenshot({path:info.outputPath('fresh-day-reset.png')});
-    await back(page,'Races');await expect(leadMenuButton(page)).toBeVisible();
+    await back(page,'Races');await expect(leadsBar(page)).toBeVisible();
   } finally {await otherContext.close().catch(()=>{});}
 });
 for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${oldResponse} response cannot repaint or eject the retained owner phone after reset`,async({page})=>{

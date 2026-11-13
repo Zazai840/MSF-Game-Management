@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import {ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadMenu,openRace,ownEvent,test,type Locator,type Page} from '../fixtures.js';
+import {ownName,ownCode,becomeLead,expect,join,lookProblems,openLeadsBarTab,openRace,ownEvent,test,type Locator,type Page} from '../fixtures.js';
 
 // Runs only under playwright.test-build.config.ts, which starts the server as a test build of this commit.
 const commit=process.env.E2E_TEST_BUILD_COMMIT!;
@@ -48,10 +48,10 @@ test('inside the lead area the Report a bug link names the screen shown',async({
   await page.goto('/');
   await join(page,ownName('Tester Lead'),{job:'Start line'});
   await becomeLead(page);
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await expect(page.getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   await expectReports(page,'Results');
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup',exact:true})).toBeVisible();
   await expectReports(page,'Day setup');
 });

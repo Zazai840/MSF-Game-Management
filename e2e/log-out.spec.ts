@@ -1,4 +1,4 @@
-import {press,ownName,becomeLead,expect,join,lookProblems,openLeadMenu,openRelays,test,type Page} from './fixtures.js';
+import {press,ownName,becomeLead,expect,join,lookProblems,openLeadsBarTab,openRelays,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:/Join( the Running Zone)?$/})).toBeVisible();
 const menuItems=(page:Page)=>page.getByRole('menu').getByRole('menuitem');
@@ -23,7 +23,7 @@ test('a lead\'s avatar menu has only Log out too, on Races and on the lead heade
   await press(avatar);
   await expect(menuItems(page)).toHaveText(['Log out']);
   await press(avatar);await expect(menuItems(page)).toHaveCount(0);
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('heading',{level:1,name:'Day setup'})).toBeVisible();
   await expect(page.getByText(name,{exact:true})).toHaveCount(0);
   await press(avatar);

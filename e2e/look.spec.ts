@@ -1,4 +1,4 @@
-import {ownName,ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadMenuButton,deleteCurrentRace,join,openLeadMenu,openRace,openRelays,ownEvent,press,ownRelay,expect,switchJob,test,writeCheckIn,writeTeam,type Page} from './fixtures.js';
+import {ownName,ownWristbands,ownCode,lookProblems,back,backToRaces,becomeLead,leadsBar,deleteCurrentRace,join,openLeadsBarTab,openRace,openRelays,ownEvent,press,ownRelay,expect,switchJob,test,writeCheckIn,writeTeam,type Page} from './fixtures.js';
 
 // The design system's navy and paper.
 const navy='rgb(30, 43, 81)',paper='rgb(240, 231, 211)';
@@ -80,7 +80,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
   expect(await lookProblems(page)).toEqual([]);
   await backToRaces(page);
   expect(await lookProblems(page)).toEqual([]);
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('lead-results.png'),fullPage:true});
@@ -89,7 +89,7 @@ test('volunteer and lead screens meet the touch, text size and contrast rules',a
 
 test('Day setup, Phones and Events meet the touch, text size and contrast rules',async({page})=>{
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
-  await page.goto('/');await openLeadMenu(page,'Day setup');
+  await page.goto('/');await openLeadsBarTab(page,'Day setup');
   await expect(page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Signed in today /}).click();
@@ -185,9 +185,9 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
   await look('lead-race');
   await backToRaces(page);
-  await expect(leadMenuButton(page)).toBeVisible();
+  await expect(leadsBar(page)).toBeVisible();
   await look('lead-bar');
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   await look('results');
   await deleteCurrentRace(request,code);

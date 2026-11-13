@@ -1,6 +1,6 @@
 import { test,expect,type Browser,type Page } from '@playwright/test';
 import readExcelFile from 'read-excel-file/node';
-import {press,back,enterTime,join,openLeadMenu,openRace,openRelays,writeCheckIn,type JobName} from '../fixtures.js';
+import {press,back,enterTime,join,openLeadsBarTab,openRace,openRelays,writeCheckIn,type JobName} from '../fixtures.js';
 import type { RaceFlowRead,RacesRead } from '../../src/shared/race-flow.js';
 import { isTeamEntry } from '../../src/shared/races.js';
 
@@ -35,7 +35,7 @@ test('five phones share the test build: three work one race live until it saves 
   await expectDeployedCommitShown(owner);
   await join(owner,`Smoke Owner ${run}`,{code:ownerPassword!});
   await races(owner);
-  await openLeadMenu(owner,'Day setup');
+  await openLeadsBarTab(owner,'Day setup');
   const ownerHeaders={authorization:`Bearer ${await token(owner)}`};
   const dayResponse=await owner.request.get('/api/day',{headers:ownerHeaders});
   expect(dayResponse.ok()).toBe(true);

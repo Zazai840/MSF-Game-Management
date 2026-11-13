@@ -1,13 +1,13 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {eventTab,ownName,ownCode,deleteCurrentRace,ownEvent,writeCheckIn,recordRace,goHome,openLeadMenu,openRace,becomeLead,expect,expectToast,join,live,lookProblems,press,raceAction,test,type Page,resultsCard} from './fixtures.js';
+import {eventTab,ownName,ownCode,deleteCurrentRace,ownEvent,writeCheckIn,recordRace,goHome,openLeadsBarTab,openRace,becomeLead,expect,expectToast,join,live,lookProblems,press,raceAction,test,type Page,resultsCard} from './fixtures.js';
 /** On the race screen: the heat chip of the race open now, which must show as soon as the race does. */
 const currentChip=(page:Page)=>page.getByRole('navigation',{name:'Heats',exact:true}).getByRole('button',{name:/, this race$/});
 test('Re-run is a screen that lands on the new heat at its first step, with Back where the old race\'s went; the replaced heat says so, offers no Restore, and the re-run reaches Races and the day export',async({page},info)=>{
   const code=await ownCode(),name=ownName('Re-run heats'),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,name,'Girl Cubs','heats');
   const old=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2011,2012,2013],[1200,1300,1400]);
-  await page.goto('/');await join(page,ownName('Re-run lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+  await page.goto('/');await join(page,ownName('Re-run lead'),{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');await press(resultsCard(page,code));
   await eventTab(page,'Heats');const racesTab=page.url();
   await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   await raceAction(page,'Re-run race');

@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadMenu,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,pullToRefresh,type Page,flowPost,resultsCard} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadsBarTab,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,pullToRefresh,type Page,flowPost,resultsCard} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -31,7 +31,7 @@ const runnerButtons=(page:Page)=>page.getByRole('list',{name:'Runners not yet pl
 async function heatsToFinal(page:Page,code:string,name:string,heats:Array<[number[],number[]]>,lead:string,final=false) {
  await ownEvent(page.request,code,name,'Boy Cubs');
  const races=[];for(const [runners,times] of heats) races.push(await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,runners,times));
- await signInAs(page,lead,true);if(final) await makeFinal(page,name,'Boy Cubs');await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+ await signInAs(page,lead,true);if(final) await makeFinal(page,name,'Boy Cubs');await openLeadsBarTab(page,'Results');await press(resultsCard(page,code));
  return races;
 }
 test('a final in the race flow: Absent takes a runner off the finish line live, a lead\'s call-up appears live, and the final has no times',async({page,openPhone},info)=>{

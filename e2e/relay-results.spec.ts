@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {confirmTheMedals,eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard,pullToRefresh} from './fixtures.js';
+import {confirmTheMedals,eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadsBarTab,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard,pullToRefresh} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -19,7 +19,7 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
 
   const {page}=await openPhone(ownName('To check relay lead'),{lead:true});
   // A relay's issues are on its results: each team's row names them, and its actions settle them.
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,cubs));
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
   const teamRow=(team:number)=>board.getByRole('button',{name:new RegExp(`^Team ${team} · .* · Heat 1$`)});
@@ -71,7 +71,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await heat([2,1,3,4],[1400,1500,1700,1900]);
   await heat([5,6,7],[1450,1600,1800]);
   const {page}=await openPhone(ownName('Relay results lead'),{lead:true});
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   // One row per team: Team N and its four children in leg order, then the time and where it ran.
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true}),rows=board.locator(':scope > li');
@@ -105,7 +105,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   await expect(page.getByRole('button',{name:'Heats complete',exact:true})).toHaveCount(0);
   await back(page,'Races');await openRelays(page);
   await makeFinal(page,name,'Girl Cubs');
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));await eventTab(page,'Final');
   await page.getByText('Line-up, fastest first',{exact:true}).click();
   await expect(page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem')).toHaveText([2,5,1,6,3,7].map((number,index)=>`${['1st','2nd','3rd','4th','5th','6th'][index]} fastest · Team ${number} · ${legs(number).join(' · ')}`));
@@ -149,7 +149,7 @@ test('a lead disqualifies a whole team for a handover outside the zone, and lift
   const {code,legs,heat}=await scoutsRelay(request,info,'Relay disqualify',3);
   await heat([1,2,3],[1400,1500,1600]);
   const {page}=await openPhone(ownName('Relay disqualify lead'),{lead:true});
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
   const team1=board.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat 1`,exact:true});
@@ -182,7 +182,7 @@ test('a lead settles a tie between two teams on the tie screen: a run-off puts T
   await heat([1,2,3,4],[1400,1500,1600,1700]);
   await heat([5,6,7,8],[1450,1550,1700,1800]);
   const {page}=await openPhone(ownName('Relay tie lead'),{lead:true});
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   // Team 4 and Team 7 share 6th place at 17.00: one of them misses the final.
   await page.getByRole('button',{name:'TIE at 17.00 for Team 4',exact:true}).click();
@@ -212,7 +212,7 @@ test('a lead corrects a relay heat\'s finishing order by dragging teams, and Did
   const {code,name,heat}=await scoutsRelay(request,info,'Relay order fix',3);
   await heat([1,2,3],[1400,1500,1600]);
   const {page}=await openPhone(ownName('Relay order fix lead'),{lead:true});
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   // The race page names each team, its four children on the line under it.

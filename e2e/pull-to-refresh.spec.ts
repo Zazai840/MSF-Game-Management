@@ -1,4 +1,4 @@
-import {expect,flowPost,flowRace,jobBand,lookProblems,openLeadMenu,openRace,ownCode,ownEvent,ownName,ownRelay,ownWristbands,press,pullToRefresh,recordRace,resultsCard,startDrag,switchJob,test,writeCheckIn,writeTeam,type Locator,type Page} from './fixtures.js';
+import {expect,flowPost,flowRace,jobBand,lookProblems,openLeadsBarTab,openRace,ownCode,ownEvent,ownName,ownRelay,ownWristbands,press,pullToRefresh,recordRace,resultsCard,startDrag,switchJob,test,writeCheckIn,writeTeam,type Locator,type Page} from './fixtures.js';
 
 test('pulling down from the top of a screen with the Updated at line refreshes it: the pull says when to let go, and a short pull or an open sheet does nothing',async({openPhone},info)=>{
   test.skip(!info.project.use.hasTouch,'a pull is a touch gesture');
@@ -52,12 +52,12 @@ test('no screen has a Refresh button: the Updated at line is one centred line th
   await screen('Races',/\/api\/live\/races$/);
   await openRace(page,name);
   await screen('a race page',/\/api\/lead\/races\/[^/]+$/);
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await screen('Results',/\/api\/lead\/results$/);
   await page.screenshot({path:info.outputPath('results-no-button.png')});
   await press(resultsCard(page,code));
   await screen('an event',new RegExp(`/api/lead/events/${code}/results$`));
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   await screen('Day setup',/\/api\/day$/);
   await press(page.getByRole('button',{name:/^Signed in today /}));
   await screen('the signed-in list',/\/api\/day\/phones$/);

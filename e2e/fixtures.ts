@@ -100,7 +100,7 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
  * Results and Day setup have no back arrow: from there the lead's bar goes to Races.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadMenuButton(page).getByRole('button',{name:'Races',exact:true});
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadsBar(page).getByRole('button',{name:'Races',exact:true});
   for(let tries=0;tries<6;tries++) {
     await expect(arrow.or(races).first()).toBeVisible();
     if(!await arrow.isVisible()) {if(to==='Races') return press(races);break;}
@@ -415,12 +415,12 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job'})).toBeVisible();
 }
 /** The lead's bar (Races, Results, Day setup), at the foot of every lead screen on a lead's phone only: there, it shows that the phone is a lead's. The Race screen has none. */
-export function leadMenuButton(page:Page) {
+export function leadsBar(page:Page) {
   return page.getByRole('navigation',{name:'Lead screens',exact:true});
 }
 /** From any screen as a lead: the lead's bar's Results or Day setup tab; from a Race screen, back along the back arrow to Races first. */
-export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
-  const tab=leadMenuButton(page).getByRole('button',{name:section,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+export async function openLeadsBarTab(page:Page,name:'Results'|'Day setup') {
+  const tab=leadsBar(page).getByRole('button',{name,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
     await expect(tab.or(arrow).first()).toBeVisible();
     if(await tab.isVisible()) return press(tab);

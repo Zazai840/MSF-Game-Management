@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,lookProblems,notStartedCard,press,resultsCard,test,pullToRefresh,type Page} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadsBarTab,becomeLead,expect,join,lookProblems,notStartedCard,press,resultsCard,test,pullToRefresh,type Page} from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** The design system's event grid colours: a navy Done card, a cream Running card (navy ring), a see-through Not started card (dashed). */
@@ -34,7 +34,7 @@ test('Results puts Action required first, then Running and Done, each card in it
     const actionOnRaces=racesOrder.slice(racesOrder.indexOf('Action required')+1,racesOrder.indexOf('In progress'));
     expect(actionOnRaces).toEqual(expect.arrayContaining([`${name} · Boy Cubs`,`${name} · Girl Scouts`]));
     expect(actionOnRaces).not.toContain(`${name} · Boy Beavers`);
-    await openLeadMenu(page,'Results');
+    await openLeadsBarTab(page,'Results');
     await expect(page.getByRole('list',{name:'Key'})).toHaveCount(0);
     await expect(page.getByRole('heading',{level:2,name,exact:true})).toHaveCount(0);
     await expect(page.locator('main').locator('h2.rz-section,summary')).toHaveText(['Action required','Running','Done',/^Not started \(\d+\)$/]);

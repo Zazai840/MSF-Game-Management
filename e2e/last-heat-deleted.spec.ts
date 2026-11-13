@@ -1,4 +1,4 @@
-import {eventTab,expect,expectToast,flowRace,live,lookProblems,openLeadMenu,ownCode,ownEvent,ownName,ownWristbands,press,raceAction,recordRace,resultsCard,test,type APIRequestContext,type Page} from './fixtures.js';
+import {eventTab,expect,expectToast,flowRace,live,lookProblems,openLeadsBarTab,ownCode,ownEvent,ownName,ownWristbands,press,raceAction,recordRace,resultsCard,test,type APIRequestContext,type Page} from './fixtures.js';
 const owner=()=>process.env.E2E_OWNER_TOKEN!;
 /** An event of its own with Heat 1 saved and its final made, both by the owner through the API. */
 async function heatAndFinal(request:APIRequestContext,name:string) {
@@ -10,7 +10,7 @@ async function heatAndFinal(request:APIRequestContext,name:string) {
 }
 /** From Races: the lead opens the event's Heat 1 page under Results and its Delete screen. */
 async function openDeleteHeat1(page:Page,code:string) {
-  await openLeadMenu(page,'Results');await press(resultsCard(page,code));await eventTab(page,'Heats');
+  await openLeadsBarTab(page,'Results');await press(resultsCard(page,code));await eventTab(page,'Heats');
   await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Delete Heat 1');
 }
 const card=(page:Page,name:string)=>page.getByRole('article',{name:`${name} · Girl Cubs`});
