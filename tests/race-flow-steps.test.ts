@@ -1,5 +1,6 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import { openDatabase } from '../src/server/storage.js';
 import { isRunner } from '../src/shared/races.js';
@@ -291,6 +292,57 @@ test('the final\'s race read offers the next call-up while a seed is free; any s
   // The seed is taken: no further call-up, and the same one twice is refused.
   expect(called.callUp).toBeUndefined();
   expect((await call(sam,'/api/lead/events/R4/call-up',{expectedHeatEntryId:away.callUp!.entryId})).statusCode).toBe(409);
+});
+test('a runner replaced at a final\'s start line: one write with a reason, the old runner Absent and the new one Added and Here, kept as an audit note',async()=>{
+  const {owner,sam,priya,read}=await final();
+  // All 6 Here but 2006, not marked: a replace needs no free place.
+  let seen=await ok(await attend(sam,await read(),[2001,2002,2003,2004,2005]));
+  const entryOf=(wristband:number)=>seen.race.final!.entries.find(entry=>entry.wristband===wristband)!.finalEntryId;
+  const replace=(token:string,old:number,wristband:number,reason?:unknown)=>call(token,`/api/races/${seen.race.id}/replace`,{raceId:seen.race.id,version:seen.race.parts.runners.version,finalEntryId:entryOf(old),wristband,keptWarnings:[],...(reason===undefined?{}:{reason})});
+  const rows=(read:RaceFlowRead)=>read.race.final!.entries.map(entry=>[entry.wristband,entry.seed===null?'Added':entry.seed,wristbands(read).includes(entry.wristband!)?'here':entry.absent?'absent':'unmarked']);
+  expect((await replace(sam,2003,2050)).json().message).toBe('Choose why the change');
+  expect((await replace(sam,2003,2050,{reason:'Other',text:''})).json().message).toBe('Write why for Other');
+  // A number already in this race is refused.
+  expect((await replace(sam,2003,2001,{reason:'Hurt',text:null})).json().message).toBe('2001 is already in this race');
+  // A Here row: the old runner is Absent, the new one Added and Here in the last row.
+  seen=await ok(await replace(sam,2003,2050,{reason:'Hurt',text:null}));
+  expect(rows(seen)).toEqual([[2001,1,'here'],[2002,2,'here'],[2003,3,'absent'],[2004,4,'here'],[2005,5,'here'],[2006,6,'unmarked'],[2050,'Added','here']]);
+  // A row not marked yet, by any volunteer.
+  seen=await ok(await replace(priya,2006,2051,{reason:'Other',text:'Went  home'}));
+  expect(rows(seen).slice(5)).toEqual([[2006,6,'absent'],[2050,'Added','here'],[2051,'Added','here']]);
+  // An Absent row has nothing to replace; the old runner's number is still in this race.
+  expect((await replace(sam,2003,2052,{reason:'Hurt',text:null})).statusCode).toBe(409);
+  expect((await replace(sam,2004,2003,{reason:'Hurt',text:null})).json().message).toBe('2003 is already in this race');
+  // An added runner's typing error, corrected the same way.
+  seen=await ok(await replace(sam,2050,2052,{reason:'Wrong number',text:null}));
+  expect(rows(seen).slice(6)).toEqual([[2050,'Added','absent'],[2051,'Added','here'],[2052,'Added','here']]);
+  expect(wristbands(seen)).toEqual([2001,2002,2004,2005,2051,2052]);
+  const lines=['Sam replaced 2003 with 2050 (Final) - Hurt','Priya replaced 2006 with 2051 (Final) - Other - Went home','Sam replaced 2050 with 2052 (Final) - Wrong number'];
+  expect((await call(owner,'/api/lead/events/R4/results')).json().auditNotes.map((note:{message:string})=>note.message).slice(0,3).reverse()).toEqual(lines);
+  // Once the race is saved, the start line replaces no more.
+  await ok(await order(priya,seen,{order:[2001,2002,2004,2005,2051,2052].map(wristband=>idOf(seen,wristband))}));
+  await done(sam,seen.race.id,'runners');await done(priya,seen.race.id,'positions');
+  expect((await read()).race.state).toBe('saved');
+  expect((await replace(sam,2001,2053,{reason:'Hurt',text:null})).json().message).toBe('Final is saved - ask a lead to change it');
+  // The Notes of the old runner (their heat row) and the new one (their row in the final).
+  const results=(await call(owner,'/api/lead/events/R4/results')).json().results;
+  const notes=(rows:Array<{wristband:number;notes:Array<{message:string}>}>,wristband:number)=>rows.find(row=>row.wristband===wristband)!.notes.map(note=>note.message);
+  expect(notes(results.leaderboard,2003)).toContain(lines[0]);
+  expect(notes(results.finalResults.leaderboard,2051)).toEqual([lines[1]]);
+  expect(notes(results.finalResults.leaderboard,2052)).toEqual([lines[2]]);
+  // The Day export: the Finals sheet, the Note column and the Audit notes sheet.
+  const sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);
+  const finals=sheets.find(sheet=>sheet.sheet==='Finals')!.data,[wristband,role]=['Wristband number','Attendance / role'].map(name=>finals[0].indexOf(name));
+  expect(Object.fromEntries(finals.filter(row=>row[0]==='R4').map(row=>[row[wristband],row[role]]))).toMatchObject({2003:'Absent; Qualifier',2006:'Absent; Qualifier',2050:'Absent; Added',2051:'Added',2052:'Added'});
+  const all=sheets.find(sheet=>sheet.sheet==='All results')!.data,[race,number,note]=['Race','Wristband number','Note'].map(name=>all[0].indexOf(name));
+  expect(String(all.find(row=>row[0]==='R4' && row[race]==='Final 1' && row[number]===2052)![note])).toContain(lines[2]);
+  expect(sheets.find(sheet=>sheet.sheet==='Audit notes')!.data.flat().filter(cell=>typeof cell==='string' && lines.some(line=>cell.includes(line)))).toHaveLength(3);
+});
+test('a heat has no replace: its start line changes a number with no reason',async()=>{
+  const {sam}=await start();
+  const read=await heat(sam),checked=await ok(await checkIn(sam,read,[2001]));
+  expect((await call(sam,`/api/races/${read.race.id}/replace`,{raceId:read.race.id,version:checked.race.parts.runners.version,finalEntryId:idOf(checked,2001),wristband:2002,keptWarnings:[],reason:{reason:'Hurt',text:null}})).json().message).toBe('Only a final has a replace');
+  expect(wristbands(await ok(await checkIn(sam,checked,[{id:idOf(checked,2001),wristband:2002}])))).toEqual([2002]);
 });
 test('a finalist the finish line adds counts as Here: their own line-up entry joins the final, not a second runner',async()=>{
   const {sam,priya,read}=await final();

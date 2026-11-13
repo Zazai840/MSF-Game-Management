@@ -333,6 +333,7 @@ html[data-keyboard="open"] .rz-sheet { max-height: calc(var(--vv-height) - var(-
 .rz-attendance li.is-absent { background: none; box-shadow: none; border: 1.5px dashed var(--line-strong); }
 .rz-attendance__who { display: flex; flex-direction: column; }
 .rz-attendance__seed { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.rz-attendance__who .rz-chip { align-self: flex-start; }
 .rz-attendance--one li { grid-template-columns: 1fr auto; }
 /* A relay heat's Start line: a card per team in the heat, then the teams still to run. */
 .rz-teamcard { display: flex; flex-direction: column; gap: var(--space-6); }

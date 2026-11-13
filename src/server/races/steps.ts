@@ -4,11 +4,11 @@ import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { entryName,isTeamEntry,runnersOf,type RaceEntry,type RacePartName,type RaceRead,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
-import type { FinalField } from '../../shared/finals.js';
+import { finalMark,type FinalField } from '../../shared/finals.js';
 import { digitsForTime,timeRefusal,removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { wrongTimes } from '../../shared/wrong-times.js';
 import { runnerListRefusal } from '../../shared/runner-list.js';
-import { finishOf,onlyRunners,placesBoard,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
+import { finishOf,onlyRunners,placesBoard,raceName,stepBlocker,stepParts,steps,stepsOf,type Step } from '../../shared/race-flow.js';
 import { raceStatus } from '../../shared/race-status.js';
 import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
@@ -16,6 +16,8 @@ import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
 import { markAbsentFinalists } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
+import { writeChangeNote } from '../rulings/records.js';
+import { requireChangeReason } from '../rulings/validation.js';
 /** What a step write acts on: the event and the race as it stands. */
 export interface WriteTarget { event:DayEvent; race:RaceRead }
 export type CheckInInput=ReturnType<typeof checkInInput>;
@@ -73,6 +75,38 @@ export async function markAbsent(client:pg.PoolClient,phone:Phone,target:WriteTa
   await publishPart(client,phone,race,'runners',runners);
   await markAbsentFinalists(client,race.id,id=>absent.includes(id));
   await dropFromOrder(client,target.race,runners);
+}
+export type ReplaceInput=ReturnType<typeof replaceInput>;
+/** A replace body: the final and runners version the phone saw, the finalist tapped, the new wristband, and why. */
+export function replaceInput(body:unknown) {
+  const input=(body||{}) as {raceId?:unknown;version?:unknown;finalEntryId?:unknown;wristband?:unknown;reason?:unknown};
+  const {raceId,version}=seenRace(input,'Open the final before replacing a runner');
+  if(typeof input.finalEntryId!=='string') throw new Refusal(400,'Choose a runner from this final');
+  const refusal=runnerListRefusal([input.wristband as number]);
+  if(refusal) throw new Refusal(400,refusal);
+  const wristband=input.wristband as number;
+  return {raceId,version,finalEntryId:input.finalEntryId,wristband,kept:keptWarningNumbers(input,[wristband]),reason:requireChangeReason(input.reason,true)};
+}
+/**
+ * A final's runner replaced at the start line, in one write: the finalist tapped (Here or not marked) is Absent, and
+ * the new wristband joins as an added runner, Here. No free place is needed. The reason is kept as an audit note on
+ * both, the old one also on their heat entry, as a call-up's is.
+ */
+export async function replaceRunner(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,finalEntryId,wristband,kept,reason}:ReplaceInput) {
+  if(raceId===null || target.race.kind!=='final' || target.event.relay) throw new Refusal(409,'Only a final has a replace');
+  const race=await readRace(client,phone.dayId,raceId),final=race.final!,previous=runnersOf(race.parts.runners.value);
+  const old=runnersOf(finalLineup(final)).find(runner=>runner.id===finalEntryId);
+  if(!old) throw new Refusal(400,'Choose a runner from this final');
+  const seeded=final.entries.find(entry=>entry.finalEntryId===finalEntryId),added=final.additionalEntries?.find(entry=>entry.runner.id===finalEntryId);
+  if(finalMark({finalEntryId,absent:(seeded??added)!.absent},previous)==='absent') throw new Refusal(409,`${old.wristband} is Absent`);
+  if(runnersOf(finalLineup(final)).some(runner=>runner.wristband===wristband)) throw new Refusal(400,`${wristband} is already in this race`);
+  const [joining]=await annotateRunners(client,phone.dayId,target.event,[{id:randomUUID(),wristband}],kept,raceId,[],true);
+  const runners=[...previous.filter(runner=>runner.id!==finalEntryId),joining];
+  await publishPart(client,phone,race,'runners',runners);
+  await markAbsentFinalists(client,raceId,(id,stored)=>id===finalEntryId || stored);
+  await dropFromOrder(client,target.race,runners);
+  const touches=[{raceId,entryId:finalEntryId},{raceId,entryId:joining.id},...(seeded?[{raceId:seeded.heatRaceId,entryId:seeded.heatEntryId}]:[])];
+  await writeChangeNote(client,phone,target.event.id,'replace-runner',`replaced ${old.wristband} with ${wristband} (${raceName(race)})`,reason,touches);
 }
 export type OrderInput=ReturnType<typeof orderInput>;
 /**
