@@ -575,7 +575,7 @@ export async function lookProblems(page:Page) {
       const lines=[...button.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).flatMap(node=>{const range=document.createRange();range.selectNodeContents(node);return [...range.getClientRects()];});
       if(lines.length && Math.max(...lines.map(line=>line.top))-Math.min(...lines.map(line=>line.top))>Math.min(...lines.map(line=>line.height))/2) problems.push(`wrapped ${describe(button)}`);
     }
-    // A phone's footer spans the screen with its content on the 20px gutter, and the Updated-at line is centred in it.
+    // A phone's footer spans the screen with its content on the 20px gutter, and the Updated-at line is centred in it (Races has it at the left of its one row).
     for(const footer of document.querySelectorAll('.rz-footer')) {
       if(!visible(footer) || innerWidth>=600) continue;
       const box=footer.getBoundingClientRect(),style=getComputedStyle(footer);
@@ -584,7 +584,7 @@ export async function lookProblems(page:Page) {
         const edge=child.getBoundingClientRect();
         if(visible(child)&&(edge.left<box.left+19.5||edge.right>box.right-19.5)) problems.push(`footer content off the gutter ${describe(child)}`);
       }
-      for(const line of footer.querySelectorAll('.rz-refresh')) {
+      for(const line of footer.matches('.rz-footer--home')?[]:footer.querySelectorAll('.rz-refresh')) {
         const range=document.createRange();range.selectNodeContents(line);const text=range.getBoundingClientRect();
         if(Math.abs((text.left-box.left)-(box.right-text.right))>1) problems.push(`not centred ${describe(line)}`);
       }
