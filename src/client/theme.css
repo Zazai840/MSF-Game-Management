@@ -25,8 +25,11 @@
   color:#1e2b51; background:#f0e7d3;
   -webkit-text-size-adjust:100%;
 }
-body {margin:0; min-height:100vh;}
-/* A page that feels installed: no grey flash on a tap, no zoom on two quick taps, no text selected by a long press on a button. */
-html {-webkit-tap-highlight-color:transparent;}
-button,a,summary,label {touch-action:manipulation;}
-button {-webkit-user-select:none;user-select:none;}
+/* The visible screen's height (dvh), so a screen that fits has no scroll room under the phone browser's address bar. */
+body {margin:0; min-height:100dvh;}
+/* A page that feels installed: no grey flash on a tap, no browser reload on a pull down, no zoom on two quick taps
+   anywhere (a pinch still zooms), and no words selected and no Copy bubble on a long press on a control. Content
+   stays selectable: the rule is never on the body. */
+html {-webkit-tap-highlight-color:transparent; overscroll-behavior-y:contain;}
+html,button,a,summary,label {touch-action:manipulation;}
+button,a,summary,label {-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
