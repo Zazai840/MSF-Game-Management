@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { finalMark,seedLabel,type FinalMark } from '../../shared/finals.js';
+import { finalMark,placeFree,seedLabel,type FinalMark } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,changedLine,doneButtons,placedAsk,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
 import { isTeamEntry } from '../../shared/races.js';
@@ -220,7 +220,7 @@ function TeamLegs<Leg extends TeamLeg>({read,flow,team,legs,grips,content}:{read
  */
 export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
   const {race}=read,final=race.final!,inRace=(race.parts.runners.value||[]).filter(isTeamEntry);
-  const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
+  const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null),[adding,setAdding]=useState(false);
   useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
   // As on a children's final, a team in the race is Here; one out of it is Absent or not marked yet.
   const cards=final.entries.map(entry=>{
@@ -243,6 +243,7 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
     for(const item of unmarked) if(typeof await send(item.team.id,'absent')!=='object') return;
     onDone('runners');
   }
+  if(adding && !locked) return <AddTeam read={read} flow={flow} onClose={said=>{setAdding(false);box.setSaid(said??'');}}/>;
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {teamCount(cards.length)} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p>
@@ -261,11 +262,48 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
           content={box.chip(item.team.id,item.team.number,!locked && item.mark!=='absent')}/>
       </section>)}
       {!locked && !change && <CallUp read={read} flow={flow}/>}
+      {!locked && !change && placeFree(final,inRace.length) && <button type="button" className="rz-btn rz-btn--block" onClick={()=>{box.setSaid('');setAdding(true);}}>+ Team</button>}
       {box.reasonSheet}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>
     {!locked && <DockedFooter>{change?box.changeFooter:<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>{doneButtons.runners}</button>}</DockedFooter>}
+  </>;
+}
+/**
+ * "+ Team" at a relay final's start line: one child's wristband number finds that child's team of the relay, shown with
+ * its four children before its Add. Add asks "Why the change?" (no Wrong number on an add), then saves the team into the
+ * final, Here. A team already in the final, or a number in no team, is refused with Fix number. `onClose` names what was added.
+ */
+function AddTeam({read,flow,onClose}:Pick<StepProps,'read'|'flow'> & {onClose:(said?:string)=>void}) {
+  const {race}=read,saves=useWrites<RaceFlowRead>(flow.offer);
+  const [typed,setTyped]=useState(''),[held,setHeld]=useState<Held|null>(null),[found,setFound]=useState<RelayTeam|null>(null),[asking,setAsking]=useState(false);
+  function find() {
+    if(!typed) return;
+    const value=Number(typed),team=(read.teams||[]).find(item=>item.legs.some(leg=>leg.wristband===value));
+    if(!team) {setHeld({refused:`${value} is in no team`});return;}
+    if(race.final!.entries.some(entry=>entry.team?.id===team.id)) {setHeld({refused:`Team ${team.number} is already in the Final`});return;}
+    setFound(team);
+  }
+  async function add(reason:ChangeReason) {
+    setAsking(false);
+    const sent=await saves.send(`races/${race.id}/teams/${found!.id}/add`,{reason});
+    if(typeof sent==='object') onClose(`Team ${found!.number} added`);
+  }
+  return <>
+    <main className="rz-main">
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · + Team</p><h2 className="rz-prompt__q">Team to add: one child's wristband number?</h2></div>
+      {saves.error && <Callout message={saves.error}/>}
+      <DigitsField id="add-team" label="Wristband number" value={typed} held={!!held} onRelease={()=>setHeld(null)} busy={saves.busy} warn={!!held}
+        onChange={digits=>{setTyped(digits);setFound(null);}} onEnter={find}/>
+      {held && <HeldCallout held={held} onKeep={()=>{}} onFix={()=>setHeld(null)}/>}
+      {found && <ul className="rz-teamrows" aria-label="Team to add"><TeamRow team={found} onAdd={()=>setAsking(true)}/></ul>}
+      {asking && <ReasonSheet wrongNumber={false} onClose={()=>setAsking(false)} onSave={reason=>void add(reason)}/>}
+    </main>
+    <DockedFooter><div className="rz-footer__pair">
+      <button type="button" className="rz-btn" onClick={()=>onClose()}>Cancel</button>
+      <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held || !!found || saves.busy} onClick={find}>Find team</KeepFocus>
+    </div></DockedFooter>
   </>;
 }
 /** "+ Team not on the list" on a relay heat: the teams still to run, each with Add, never a typed wristband. */

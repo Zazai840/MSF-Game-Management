@@ -211,6 +211,53 @@ test('a leg replaced at a relay final needs a reason, Other with text, and is ke
   expect((await change(sam,1,[2101,2102,2103,2195],{reason:'Hurt',text:null})).json().message).toBe('Final is saved - ask a lead to change it');
 });
 
+test('"+ Team" at a relay final: a team of the relay joins Here with a reason while a place is free, kept as an audit note; refused without a reason, for a team already in, with no place free, or once the final is saved',async()=>{
+  const {sam,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  const raceId=read.race.id,team=(number:number)=>read.teams!.find(item=>item.number===number)!;
+  const add=(number:number,reason?:unknown)=>call(sam,`/api/races/${raceId}/teams/${team(number).id}/add`,reason===undefined?{}:{reason});
+  const notFound={reason:'Not found',text:null};
+  // No finalist Absent: no place is free.
+  const refused=async(response:ReturnType<typeof add>)=>[(await response).statusCode,(await response).json().message];
+  expect(await refused(add(8,notFound))).toEqual([409,'There is no free place in the Final']);
+  await mark(sam,read,7,'absent');
+  for(const number of [2,5,1,6,3]) await mark(sam,read,number,'here');
+  // A place is free: still refused without a reason, with Wrong number (a replace's reason), or for a team already in, Absent or not.
+  for(const reason of [undefined,{reason:'Wrong number',text:null},{reason:'Other',text:''}]) expect((await add(8,reason)).statusCode).toBe(400);
+  expect((await add(8)).json().message).toBe('Choose why the change');
+  expect(await refused(add(2,notFound))).toEqual([409,'Team 2 is already in the Final']);
+  expect((await add(7,notFound)).json().message).toBe('Team 7 is already in the Final');
+  // Team 8, which ran in no heat, joins Here at once with its four children, as Added.
+  read=await ok(sam,`/api/races/${raceId}/teams/${team(8).id}/add`,{reason:notFound});
+  expect(read.race.final!.entries.at(-1)).toMatchObject({team:{number:8},seed:null,calledUp:false,absent:false});
+  expect(marks(read).at(-1)).toEqual([8,'here']);
+  expect(teamsOf(read.race).at(-1)!.legs.map(leg=>[leg.wristband,leg.here])).toEqual(legs(8).map(wristband=>[wristband,true]));
+  // Six Here: no place is free. Team 8 marked Absent frees it again.
+  expect((await add(4,notFound)).json().message).toBe('There is no free place in the Final');
+  await mark(sam,read,8,'absent');
+  read=await ok(sam,`/api/races/${raceId}/teams/${team(4).id}/add`,{reason:{reason:'Other',text:'Zone lead  sent them'}});
+  expect(marks(read).slice(-2)).toEqual([[8,'absent'],[4,'here']]);
+  const lines=['Sam Patel added Team 8 to the Final - Not found','Sam Patel added Team 4 to the Final - Other - Zone lead sent them'];
+  expect((await ok<EventResultsRead>(lead,'/api/lead/events/R22/results')).auditNotes.map(note=>note.message).slice(0,2).reverse()).toEqual(lines);
+  // The final run and saved: Team 4's Notes, the export's Note column and its Audit notes sheet.
+  read=await ok(sam,`/api/races/${raceId}/steps/runners/done`,{});
+  read=await ok(sam,`/api/races/${raceId}/order`,{raceId,version:read.race.parts.finish.version,order:teamsOf(read.race).map(entry=>entry.id),didNotFinish:[],didNotRun:[],added:[]});
+  read=await ok(sam,`/api/races/${raceId}/steps/positions/done`,{});
+  expect(read.race.state).toBe('saved');
+  const leaderboard=(await ok<EventResultsRead>(lead,'/api/lead/events/R22/results')).results.finalResults!.leaderboard;
+  expect(leaderboard.find(item=>item.team?.number===4)!.notes.map(note=>note.message)).toEqual([lines[1]]);
+  const sheets=await readExcelFile((await call(lead,'/api/day/export',{})).rawPayload);
+  const all=sheets.find(sheet=>sheet.sheet==='All results')!.data,[raceColumn,teamColumn,note]=['Race','Team','Note'].map(name=>all[0].indexOf(name));
+  const rows=all.filter(row=>row[raceColumn]==='Final 1' && row[teamColumn]==='Team 4');
+  expect(rows.length).toBeGreaterThan(0);
+  expect(rows.every(row=>String(row[note]).includes(lines[1]))).toBe(true);
+  expect(sheets.find(sheet=>sheet.sheet==='Audit notes')!.data.flat().filter(cell=>typeof cell==='string' && lines.some(line=>cell.includes(line)))).toHaveLength(2);
+  // Once the final is saved, no team is added; nor on a heat.
+  expect((await add(8,notFound)).json().message).toBe('Final is saved - ask a lead to change it');
+  const heat=read.group.races.find(race=>race.kind==='heat')!;
+  expect((await call(sam,`/api/races/${heat.id}/teams/${team(8).id}/add`,{reason:notFound})).statusCode).toBe(409);
+});
+
 test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{
   const {sam,priya,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;
