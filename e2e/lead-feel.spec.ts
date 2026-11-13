@@ -46,3 +46,14 @@ test('an event shows one callout for the problems of one heat, with one line eac
   await shared.getByRole('button',{name:'Check Heat 1',exact:true}).click();
   await expect(page.getByRole('main').getByRole('alert').filter({hasText:'A wristband number needs checking'})).toHaveCount(2);
 });
+
+test('a long press on a disclosure line selects no words',async({openPhone,request})=>{
+  const code=await ownCode();
+  await ownEvent(request,code,ownName('No select'),'Girl Cubs','timed');
+  const {page}=await openPhone(ownName('No select lead'),{lead:true});
+  await page.getByRole('navigation',{name:'Lead screens'}).getByRole('button',{name:'Results',exact:true}).click();
+  const line=page.locator('summary',{hasText:/^Not started \(\d+\)$/});
+  await expect(line).toBeVisible();
+  expect(await line.evaluate(element=>getComputedStyle(element).userSelect)).toBe('none');
+  expect(await page.locator('body').evaluate(element=>getComputedStyle(element).userSelect)).not.toBe('none');
+});
