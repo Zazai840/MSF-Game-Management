@@ -18,6 +18,25 @@ import { readTeamLists,switchedOn,type TeamListRead } from '../relays/teams.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
   return (await db.query("SELECT id,code,name,section,format,enabled,type,(type='relays') AS relay FROM events WHERE day_id=$1 ORDER BY programme_order,code",[dayId])).rows;
 }
+const kept=new Map<string,{revision:number;reads:Map<string,Promise<unknown>>}>();
+/**
+ * A whole-day read shared by every read of the day at one revision: leads' phones poll these every 5 s. Each change
+ * that can move them raises the revision in its own transaction, so another read-only snapshot at that revision gets
+ * the same answer. Never call it inside a write: there the revision is raised only after the change.
+ */
+export async function atRevision<T>(db:Database,dayId:string,key:string,read:()=>Promise<T>):Promise<T> {
+  const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0]?.revision);
+  let day=kept.get(dayId);
+  // A snapshot begun before a newer change reads for itself, so the newer answers stay kept.
+  if(day && revision<day.revision) return read();
+  if(day?.revision!==revision) kept.set(dayId,day={revision,reads:new Map()});
+  let held=day.reads.get(key) as Promise<T>|undefined;
+  if(!held) {
+    const reads=day.reads,mine=read();held=mine;reads.set(key,mine);
+    mine.catch(()=>{if(reads.get(key)===mine) reads.delete(key);});
+  }
+  return held;
+}
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
 export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map(),relays:EventState['relays']=[]):EventState {
   return {event,rulings,...(event.relay?{relays}:{}),auditNotes,tieSettlements,completedStages,races:races.filter(race=>race.event.id===event.id).map(race=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt,deleted:race.deleted,saved:race.state==='saved',final:race.final,leadTimes:timings.get(race.id),runners:race.parts.runners.value||[],finish:race.parts.finish.value,times:race.parts.times.value}))};
