@@ -379,7 +379,7 @@ test('a Here tap that lands just as the tap before it starts to save waits its t
  expect(refused).toEqual([]);
 });
 test('a lead\'s Correct number on a final runner asks Why the change? and the reason shows in the runner\'s Notes and on the Notes tab',async({openPhone,request},info)=>{
- const code=await ownCode(),name=ownName('Final reason'),n=await ownWristbands('Girl Cubs',3),lead=ownName('Final reason lead');
+ const code=await ownCode(),name=ownName('Number why'),n=await ownWristbands('Girl Cubs',3),lead=ownName('Number why lead');
  await ownEvent(request,code,name);
  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1100,1200]);
  await saveFinal(request,code,[n(2),n(1)]);
