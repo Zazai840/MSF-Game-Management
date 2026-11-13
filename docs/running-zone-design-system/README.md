@@ -128,7 +128,8 @@ Motion is minimal and functional.
 
 - Every control shrinks a little while pressed (`scale: .97`, 140ms), so a tap outdoors shows it was heard: buttons, rows, heat chips, tabs, job cards, the job band, the lead's bar. A runner tile moves down 4px instead.
 - The disclosure chevron rotates in 150ms ease-out.
-- A sheet slides up from the foot of the screen in 220ms and leaves in 150ms; on a wide screen the centred sheet grows a little instead. The toast rises in 200ms and fades out in 150ms. Leaving is always faster than arriving.
+- A sheet slides up from the foot of the screen in 220ms and leaves in 150ms; on a wide screen the centred sheet grows a little instead. A bottom sheet follows a finger that pulls its grip or title down: let go past a quarter of its height, or flicked down, it closes; else it goes back up. The toast rises in 150ms and goes back down as it fades out in 150ms. Leaving is never slower than arriving.
+- What comes in answer to something arrives, once: a warning (180ms) and a closed list's content (150ms) fade in from `space-4` above, the gold dot of "Your turn" and of a heat ready for you grows in (200ms), and the avatar's menu grows from the avatar (150ms). A calm note does not.
 - Screens and tabs change at once, with no transition: people change them all day.
 - Pull down to refresh, on a screen with the "Updated at" line: a navy pill follows the finger from the top edge, slower the further it is pulled, and says "Let go to refresh" past its threshold.
 - Easing: `--ease-out` (`cubic-bezier(.23, 1, .32, 1)`) for things that arrive or answer a press, `--ease-drawer` (`cubic-bezier(.32, .72, 0, 1)`) for the sheet. Never ease-in.

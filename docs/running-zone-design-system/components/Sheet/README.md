@@ -11,7 +11,7 @@ A modal panel that slides up from the bottom for a decision about one thing: a t
   4. Stacked block actions.
 - The closing action comes last as a small button ("Close tie").
 - Destructive actions use the danger Button, and the scrim does not close a sheet that holds one.
-- Slides up in 220ms and leaves in 150ms (Close, Escape, the scrim, the phone's Back); appears and goes instantly with reduced motion.
+- Slides up in 220ms and leaves in 150ms (Close, Escape, the scrim, the phone's Back, or a pull down on its grip or title: it follows the finger, and closes when let go past a quarter of its height or flicked down); appears and goes instantly with reduced motion.
 
 **Tokens:** `paper`, `radius-2xl` top corners, `shadow-raised`, `overlay` scrim, `line-strong` grip.
 

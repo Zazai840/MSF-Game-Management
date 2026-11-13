@@ -429,8 +429,8 @@
 /* It fades and rises in. The rise is a transform, so the pill stays centred. */
 .rz-toast { animation: rz-toast-in 150ms ease-out; }
 @keyframes rz-toast-in { from { opacity: 0; transform: translateY(var(--space-8)); } }
-/* It fades out as it leaves: Toast.tsx adds rz-toast--out for its last moments and removes the toast when this fade ends. A transition, so a toast brought back (focus, a new line) is solid at once and does not rise in again. */
-.rz-toast--out { opacity: 0; transition: opacity 150ms ease-in; }
+/* It fades out as it leaves, going back down the way it came: Toast.tsx adds rz-toast--out for its last moments and removes the toast when this fade ends. A transition, so a toast brought back (focus, a new line) is solid at once and does not rise in again. */
+.rz-toast--out { opacity: 0; translate: 0 var(--space-8); transition: opacity 150ms ease-in, translate 150ms cubic-bezier(.23, 1, .32, 1); }
 /* Toast.tsx does not add rz-toast--out under reduced motion. */
 @media (prefers-reduced-motion: reduce) { .rz-toast { animation: none; } }
 

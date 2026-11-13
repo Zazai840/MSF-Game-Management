@@ -9,3 +9,6 @@ playwright-report/
 .env.*
 !.env.example
 .claude/worktrees/
+
+# Lavish review pages: scratch, per session
+.lavish/
