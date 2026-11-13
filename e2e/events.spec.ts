@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,openLeadMenu,becomeLead,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,openLeadsBarTab,becomeLead,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** An event's row on Events, found by the code that starts its second line. */
 const row=(page:Page,code:string)=>page.getByRole('list',{name:'Events'}).getByRole('button',{name:new RegExp(` ${code} · `)});
@@ -13,7 +13,7 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   // The owner password in the job sheet makes the phone a lead. A wrong code's refusal is shown in look.spec and proved in
   // the API tests: the server slows wrong codes from one address, which every e2e phone shares.
   await becomeLead(page,'e2e-owner-fixture');
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   // The Events row names only how many events there are: there is no list to confirm.
   await expect(page.getByRole('button',{name:/^Events \d+ events$/})).toBeVisible();
   await press(page.getByRole('button',{name:/^Events \d+ events$/}));
@@ -117,7 +117,7 @@ test('a lead adds an event on its own screen: the docked Add event says what is 
   await page.getByLabel('Event code',{exact:true}).fill(code);
   await page.getByLabel('Event name',{exact:true}).fill(name);
   await press(page.getByRole('button',{name:'Boy Scouts',exact:true}));
-  await press(page.getByRole('button',{name:'Races',exact:true}));
+  await press(page.getByRole('group',{name:'Races or Hurdles'}).getByRole('button',{name:'Races',exact:true}));
   await press(page.getByRole('button',{name:'Timed',exact:true}));
   await press(add);
   await expect(page.getByRole('alert')).toHaveText(`Not saved - try again. An event already uses ${code}`);

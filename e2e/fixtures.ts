@@ -99,9 +99,9 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
  * Results and Day setup have no back arrow: from there the lead's bar goes to Races.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadMenuButton(page).getByRole('button',{name:'Races',exact:true});
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadsBar(page).getByRole('button',{name:'Races',exact:true});
   for(let tries=0;tries<6;tries++) {
-    await expect(arrow.or(races)).toBeVisible();
+    await expect(arrow.or(races).first()).toBeVisible();
     if(!await arrow.isVisible()) {if(to==='Races') return press(races);break;}
     const label=(await arrow.getAttribute('aria-label'))!,here=page.url();
     await arrow.click();
@@ -414,20 +414,32 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job'})).toBeVisible();
 }
-/** The lead's bar (Races, Results, Day setup), at the foot of those three screens on a lead's phone only: there, it shows that the phone is a lead's. */
-export function leadMenuButton(page:Page) {
+/** The lead's bar (Races, Results, Day setup), at the foot of every lead screen on a lead's phone only: there, it shows that the phone is a lead's. The Race screen has none. */
+export function leadsBar(page:Page) {
   return page.getByRole('navigation',{name:'Lead screens',exact:true});
 }
-/** From any screen as a lead: back along the back arrow to a screen with the lead's bar, then its Results or Day setup tab. */
-export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
-  const tab=leadMenuButton(page).getByRole('button',{name:section,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+/** From any screen as a lead: the lead's bar's Results or Day setup tab; from a Race screen, back along the back arrow to Races first. */
+export async function openLeadsBarTab(page:Page,name:'Results'|'Day setup') {
+  const tab=leadsBar(page).getByRole('button',{name,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
-    await expect(tab.or(arrow)).toBeVisible();
+    await expect(tab.or(arrow).first()).toBeVisible();
     if(await tab.isVisible()) return press(tab);
     const here=page.url();
     await press(arrow);await expect(page).not.toHaveURL(here);
   }
   throw new Error(`No way back to the lead's bar`);
+}
+/** One finger on the glass, sent as the browser's touch events: every drag and pull in the tests goes through it. */
+async function fingerOn(page:Page) {
+  const touch=await page.context().newCDPSession(page);
+  const send=(type:'touchStart'|'touchMove'|'touchEnd',touchPoints:Array<{x:number;y:number}>)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints});
+  return {down:(x:number,y:number)=>send('touchStart',[{x,y}]),move:(x:number,y:number)=>send('touchMove',[{x,y}]),up:async()=>{await send('touchEnd',[]);await touch.detach();}};
+}
+/** A finger put down at a point and moved down the screen by `by`, still on the glass. The answer lifts it. */
+export async function fingerDown(page:Page,by:number,{x,y}={x:180,y:200}) {
+  const finger=await fingerOn(page);
+  await finger.down(x,y);for(let at=y+20;at<=y+by;at+=20) await finger.move(x,at);
+  return finger.up;
 }
 /**
  * Starts dragging from `from` the way a person would: a real finger on the phone projects
@@ -436,17 +448,18 @@ export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
  */
 export async function startDrag(page:Page,from:Locator) {
   const touch=!!test.info().project.use.hasTouch;
-  // A person scrolls the handle into sight before putting a finger on it.
-  await from.scrollIntoViewIfNeeded();
+  // A person scrolls the handle into sight before putting a finger on it: clear of a sticky footer and the lead's bar,
+  // as the page's own scroll padding places it. A finger on something that covers the handle would drag nothing.
+  await from.evaluate(handle=>handle.scrollIntoView({block:'nearest'}));
+  expect(await from.evaluate(handle=>{const box=handle.getBoundingClientRect();return handle.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2));}),'the drag handle is not covered').toBe(true);
   const box=(await from.boundingBox())!;
   let x=box.x+box.width/2,y=box.y+box.height/2;
-  const cdp=touch?await page.context().newCDPSession(page):null;
-  const finger=(type:'touchStart'|'touchMove'|'touchEnd',px=x,py=y)=>cdp!.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x:px,y:py}]});
-  if(touch) await finger('touchStart');else {await page.mouse.move(x,y);await page.mouse.down();}
+  const finger=touch?await fingerOn(page):null;
+  if(finger) await finger.down(x,y);else {await page.mouse.move(x,y);await page.mouse.down();}
   async function toPoint(targetX:number,targetY:number,moves=12) {
     for(let index=1;index<=moves;index++) {
       const px=x+(targetX-x)*index/moves,py=y+(targetY-y)*index/moves;
-      if(touch) await finger('touchMove',px,py);else await page.mouse.move(px,py);
+      if(finger) await finger.move(px,py);else await page.mouse.move(px,py);
     }
     x=targetX;y=targetY;
   }
@@ -457,7 +470,7 @@ export async function startDrag(page:Page,from:Locator) {
     async drop() {
       // A person stops over the place before letting go. A finger lifted while still moving is a flick: Chromium on
       // Linux (CI) then takes the next tap as the one that stops the flick and sends no click for it.
-      if(touch) {await page.waitForTimeout(100);await finger('touchMove');await finger('touchEnd');await cdp!.detach();} else await page.mouse.up();
+      if(finger) {await page.waitForTimeout(100);await finger.move(x,y);await finger.up();} else await page.mouse.up();
       // The drag helper ignores clicks for 50 ms after a drop so the drop never counts as a tap; no person taps that fast.
       await page.waitForTimeout(100);
     },
@@ -483,6 +496,20 @@ export async function expectToast(page:Page,line:string|RegExp) {
   await expect(page.getByText('Saved',{exact:true})).toHaveCount(0);
   return toast;
 }
+/**
+ * Pulls down from the top of the screen, past the point where the hint says "Let go to refresh", and lets go: the
+ * one way to refresh by hand. The finger is sent the same way on the laptop project, which has no Refresh button either.
+ */
+export async function pullToRefresh(page:Page) {
+  await page.evaluate(()=>scrollTo(0,0));
+  const lift=await fingerDown(page,320);
+  await expect(page.locator('.rz-pull')).toHaveText('Let go to refresh');
+  // Letting go there refreshes. "Refreshing…" shows for under a second, and the read may change the screen, so only the let-go is waited for.
+  await lift();
+  await expect(page.locator('.rz-pull[data-state="ready"]')).toHaveCount(0);
+}
+/** Where a target is on the screen. */
+export const boxOf=async(target:Locator)=>(await target.boundingBox())!;
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
@@ -540,12 +567,12 @@ export async function lookProblems(page:Page) {
       const box=(target.matches('input[type=radio],input[type=checkbox]')&&target.closest('label')?target.closest('label')!:target).getBoundingClientRect();
       if(box.height<43.5||box.width<43.5) problems.push(`tap target ${describe(target)} is ${Math.round(box.width)}x${Math.round(box.height)}`);
     }
-    // Nothing shows outside a screen root: the older look is gone. One clock; Refresh says only Refresh.
+    // Nothing shows outside a screen root: the older look is gone. One clock; no button beside the Updated at line.
     for(const element of document.body.querySelectorAll(':not(script,style)')) {
       if(visible(element) && !element.closest('.rz-screen') && !element.querySelector('.rz-screen')) problems.push(`outside the screen root ${describe(element)}`);
     }
     if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
-    for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
+    for(const button of document.querySelectorAll('.rz-refresh button')) if(visible(button)) problems.push(`refresh button ${describe(button)}`);
     // The step strip: each cell's label and status on one line, and the labels in line across the strip.
     for(const strip of document.querySelectorAll('.rz-steps')) {
       if(!visible(strip)) continue;
@@ -561,7 +588,7 @@ export async function lookProblems(page:Page) {
       const lines=[...button.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).flatMap(node=>{const range=document.createRange();range.selectNodeContents(node);return [...range.getClientRects()];});
       if(lines.length && Math.max(...lines.map(line=>line.top))-Math.min(...lines.map(line=>line.top))>Math.min(...lines.map(line=>line.height))/2) problems.push(`wrapped ${describe(button)}`);
     }
-    // A phone's footer spans the screen with its content on the 20px gutter, and the Updated-at line is centred in it.
+    // A phone's footer spans the screen with its content on the 20px gutter, and the Updated-at line is centred in it (Races has it at the left of its one row).
     for(const footer of document.querySelectorAll('.rz-footer')) {
       if(!visible(footer) || innerWidth>=600) continue;
       const box=footer.getBoundingClientRect(),style=getComputedStyle(footer);
@@ -570,7 +597,7 @@ export async function lookProblems(page:Page) {
         const edge=child.getBoundingClientRect();
         if(visible(child)&&(edge.left<box.left+19.5||edge.right>box.right-19.5)) problems.push(`footer content off the gutter ${describe(child)}`);
       }
-      for(const line of footer.querySelectorAll('.rz-refresh')) {
+      for(const line of footer.matches('.rz-footer--home')?[]:footer.querySelectorAll('.rz-refresh')) {
         const range=document.createRange();range.selectNodeContents(line);const text=range.getBoundingClientRect();
         if(Math.abs((text.left-box.left)-(box.right-text.right))>1) problems.push(`not centred ${describe(line)}`);
       }

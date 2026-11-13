@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page,resultsCard} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,leadsBar,lookProblems,openLeadsBarTab,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page,resultsCard} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -8,7 +8,8 @@ async function onRaces(page:Page) {
 }
 /**
  * A lead screen: its address, its title in the lead header, and the back arrow naming in gold the screen it goes to,
- * at the left of the header and 44px to tap. No lead screen has the job band.
+ * at the left of the header and 44px to tap. No lead screen has the job band. The lead's bar is at the
+ * foot with one tab lit.
  */
 async function onScreen(page:Page,address:string|RegExp,title:string,to:string) {
   await expect(page).toHaveURL(typeof address==='string'?new RegExp(`${address.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`):address);
@@ -19,6 +20,7 @@ async function onScreen(page:Page,address:string|RegExp,title:string,to:string) 
   const box=(await back.boundingBox())!,title1=(await header.getByRole('heading',{level:1}).boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(44);expect(box.x).toBeLessThan(page.viewportSize()!.width/4);
   expect(box.y+box.height/2).toBeLessThan(title1.y+title1.height/2);
+  await expect(leadsBar(page).locator('[aria-current="page"]')).toHaveCount(1);
   // The job band is on Races and on a race only.
   await expect(page.getByRole('button',{name:/Change job$/})).toHaveCount(0);
 }
@@ -27,9 +29,9 @@ async function onTop(page:Page,address:string,title:string) {
   await expect(page).toHaveURL(new RegExp(`${address}$`));
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
   await expect(arrow(page)).toHaveCount(0);
-  await expect(leadMenuButton(page).getByRole('button',{name:title,exact:true})).toHaveAttribute('aria-current','page');
+  await expect(leadsBar(page).getByRole('button',{name:title,exact:true})).toHaveAttribute('aria-current','page');
 }
-const toRaces=(page:Page)=>press(leadMenuButton(page).getByRole('button',{name:'Races',exact:true}));
+const toRaces=(page:Page)=>press(leadsBar(page).getByRole('button',{name:'Races',exact:true}));
 /** The phone's Back and the back arrow land on the same screen: Back, then forward again, then the arrow. */
 async function bothGoBack(page:Page,check:()=>Promise<void>) {
   const here=page.url();
@@ -83,7 +85,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await bothGoBack(page,race);
   await bothGoBack(page,races);
   // The lead's bar opens Results, which has no back arrow.
-  await openLeadMenu(page,'Results');await results();
+  await openLeadsBarTab(page,'Results');await results();
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('results.png')});
   // The event opens on its Final tab; each tab has its own address, and its back arrow still goes to Results.
@@ -116,7 +118,7 @@ test('the full Back walk: on every lead screen and sheet the phone\'s Back and t
   await bothGoBack(page,results);
   await page.goBack();await races();
   // Day setup and its screens.
-  await openLeadMenu(page,'Day setup');
+  await openLeadsBarTab(page,'Day setup');
   const day=()=>onTop(page,'/day','Day setup');
   await day();
   expect(await lookProblems(page)).toEqual([]);
@@ -177,22 +179,23 @@ test('the phone\'s Back from an event at the moment its results are read again g
   await ownEvent(request,code,name);
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2051,2052],[1200,1300]);
   const {page}=await openPhone(ownName('Back as read lands lead'),{lead:true});
-  await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+  await openLeadsBarTab(page,'Results');await press(resultsCard(page,code));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   // A slow phone, and Back pressed just as the event's next read arrives: the event is still drawing it when the Back lands.
   await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate',{rate:6});
   await page.evaluate(()=>{
     const read=window.fetch;
+    // One Back only: the first read of the event that starts from here. On a slow phone two reads can be on their way at once.
     window.fetch=async(...request)=>{
-      const answer=await read(...request);
-      if(!String(request[0]).includes('/events/')) return answer;
+      if(!String(request[0]).includes('/events/')) return read(...request);
       window.fetch=read;
+      const answer=await read(...request);
       const body=answer.json.bind(answer);
       answer.json=async()=>{const data=await body();history.back();return data;};
       return answer;
     };
   });
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
-  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
+  // No hand refresh here (the Refresh button is gone, and a pull on a phone this slow takes longer than the read): the event's own 5 second read is the read that lands.
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible({timeout:15000});
   await expect(page).toHaveURL(/\/results$/);
 });

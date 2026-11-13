@@ -1,11 +1,11 @@
-import {eventTab,expectToast,ownName,ownCode,becomeLead,join,expect,lookProblems,openLeadMenu,ownEvent,press,recordRace,test,resultsCard} from './fixtures.js';
+import {eventTab,expectToast,ownName,ownCode,becomeLead,join,expect,lookProblems,openLeadsBarTab,ownEvent,press,recordRace,test,resultsCard} from './fixtures.js';
 const amber='rgb(255, 241, 199)';
 test('a lead reads a kept wristband warning in the child\'s Notes on the runner sheet, checks it at once, and sees who checked it',async({page},info)=>{
   const code=await ownCode(),lead=ownName('Notes lead');
   await ownEvent(page.request,code,'Notes','Girl Cubs','timed');
   // The volunteer kept the out-of-range wristband at check-in, and the race was saved.
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2301,6000],[1100,1200],[6000]);
-  await page.goto('/');await join(page,lead,{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');
+  await page.goto('/');await join(page,lead,{job:'Start line'});await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));
   const racePage=new RegExp(`/results/${code}/races/${race.id}$`);await expect(page).toHaveURL(racePage);

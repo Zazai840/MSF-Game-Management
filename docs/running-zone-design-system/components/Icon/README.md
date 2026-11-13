@@ -27,7 +27,7 @@ Icons sit beside a word and are `aria-hidden`. If an icon must stand alone (drag
 | `close` | Remove a wristband chip | `<path d="M7 7l10 10M17 7L7 17"/>` |
 | `plus` | Add actions (optional; "+" text works too) | `<path d="M12 5v14M5 12h14"/>` |
 | `pencil` | Edit a time or runner | `<path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"/><path d="M14 7l3 3"/>` |
-| `refresh` | Refresh (optional beside the word) | `<path d="M20 11a8 8 0 0 0-14.5-4.5L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16"/><path d="M20 20v-4h-4"/>` |
+| `refresh` | Refresh on the "Could not connect" callout (optional beside the word) | `<path d="M20 11a8 8 0 0 0-14.5-4.5L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16"/><path d="M20 20v-4h-4"/>` |
 | `drag` | ReorderList handle (dots: stroke-width 3.4) | `<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/>` |
 | `chevron-left` | Back link | `<path d="M15 6l-6 6 6 6"/>` |
 | `chevron-right` | Rows and cards that navigate | `<path d="M9 6l6 6-6 6"/>` |

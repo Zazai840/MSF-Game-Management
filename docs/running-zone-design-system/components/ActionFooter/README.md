@@ -2,11 +2,11 @@
 
 > **Race flow:** volunteer race screens drop the Updated-at line; it stays on Races and the lead view.
 
-The bottom of every screen: when the data last arrived, a Refresh button, and the screen's way forward.
+The bottom of every screen: when the data last arrived, and the screen's way forward.
 
 **Use**
 - Make it sticky (`rz-footer--sticky`) so the actions stay under the thumb.
-- The first line is always `Updated at <time>` with a small Button named for what it refreshes ("Refresh Start line", "Refresh Finish order", "Refresh Times", "Refresh Results").
+- The first line is always `Updated at <time>`, with no button: one centred line on a lead screen; on Races, "Updated at" over the time at the left of the row, beside New race. A pull down from the top of the screen refreshes by hand.
 - Put that line in an `aria-live="polite"` element.
 - Then the actions, in one of three layouts:
   - **Task:** one display-primary button (`rz-btn--display rz-btn--block`), then at most one secondary block button.
@@ -27,13 +27,13 @@ The bottom of every screen: when the data last arrived, a Refresh button, and th
 
 ```html
 <footer class="rz-footer">
-  <p class="rz-refresh" aria-live="polite">Updated at 11:41:17 AM <button class="rz-btn rz-btn--small" type="button">Refresh Finish order</button></p>
+  <p class="rz-refresh" aria-live="polite">Updated at 11:41:17 AM</p>
   <button class="rz-btn rz-btn--display rz-btn--block" type="button">Nobody else crossed the line</button>
   <button class="rz-btn rz-btn--block" type="button">+ Runner not on the list</button>
 </footer>
 
 <footer class="rz-footer">
-  <p class="rz-refresh" aria-live="polite">Updated at 11:41:14 AM <button class="rz-btn rz-btn--small" type="button">Refresh Start line</button></p>
+  <p class="rz-refresh" aria-live="polite">Updated at 11:41:14 AM</p>
   <div class="rz-footer__pair">
     <button class="rz-btn" type="button">That's everyone</button>
     <button class="rz-btn rz-btn--primary" type="button">Next</button>

@@ -103,8 +103,10 @@ export function parentOf(view:View):View {
     default: return {kind:'races'};
   }
 }
-/** What a history entry carries: the name of the screen it was opened from, for the back arrow's label. */
-export interface Entry { back:string }
+/** The tabs of the lead's bar, by their names. */
+export type LeadsBarTab='Races'|'Results'|'Day setup';
+/** What a history entry carries: the name of the screen it was opened from, for the back arrow's label, and the tab of the lead's bar lit on that screen, to light here too. */
+export interface Entry { back:string; barTab?:LeadsBarTab }
 let shown='Races';
 /** The name of the screen showing now ("Results", "Heat 2"): what the next screen's back arrow will name. */
 export const shownName=()=>shown;
@@ -114,6 +116,18 @@ export function useScreenName(name:string) {
 }
 /** The back arrow's label carried by this history entry, or null when the screen was reached with no history. */
 export const entryBack=()=>(history.state as Entry|null)?.back??null;
+/**
+ * The lit tab of the lead's bar on a screen: Races, Results and Day setup light their own; a deeper screen lights
+ * the tab the lead came from (its history entry), or with no history the one its address is under.
+ * A Race screen draws no bar, and carries its tab on to the Delete screen under it.
+ */
+export function barTabOf(view:View):LeadsBarTab {
+  if(view.kind==='races') return 'Races';
+  if(view.kind==='results') return 'Results';
+  if(view.kind==='day') return 'Day setup';
+  const address=addressOf(view);
+  return (history.state as Entry|null)?.barTab??(address.startsWith('/day')?'Day setup':address.startsWith('/results')?'Results':'Races');
+}
 /**
  * An open sheet's history entry (spec #250 "Bottom sheets"): opening a sheet pushes one at the same address, so the
  * phone's Back closes the sheet and leaves the screen behind it. A sheet closed any other way takes its entry back off.

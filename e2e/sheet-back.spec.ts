@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,expect,lookProblems,openLeadMenu,openRace,ownEvent,press,recordRace,test,type Locator,type Page,resultsCard} from './fixtures.js';
+import {eventTab,ownName,ownCode,expect,leadsBar,lookProblems,openLeadsBarTab,openRace,ownEvent,press,recordRace,test,type Locator,type Page,resultsCard} from './fixtures.js';
 
 const owner=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function onRaces(page:Page) {
@@ -88,9 +88,9 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await expect(final).toBeVisible();await expect(newRace).toHaveCount(0);
   await page.goBack();await expect(final).toHaveCount(0);await races();
   // The runner sheet on an event: Back closes it and the event stays; the next Back goes to Results.
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
-  const eventPage=async(tab='heats')=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/${tab}$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:event,exact:true})).toBeVisible();};
+  const eventPage=async(tab='heats')=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/${tab}$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:event,exact:true})).toBeVisible();await expect(leadsBar(page)).toBeVisible();};
   await eventPage();
   const runner=page.getByRole('dialog',{name:/^Runner /}),row=page.getByRole('button',{name:/2042.* · Heat 1$/});
   await opensAndCloses(page,()=>press(row),runner,'back',eventPage);
@@ -99,7 +99,7 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   // Race actions on a race page: Back closes it and the race page stays. Delete from it goes to its screen, and the
   // delete goes back to the event, past the race and the screen; the next Back goes to Results.
   await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
-  const racePage=async()=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 1',exact:true})).toBeVisible();};
+  const racePage=async()=>{await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+$`));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 1',exact:true})).toBeVisible();await expect(leadsBar(page)).toBeVisible();};
   await racePage();
   const actions=page.getByRole('dialog',{name:'Heat 1 · actions',exact:true}),more=page.getByRole('main').getByRole('button',{name:'Correct or delete Heat 1',exact:true});
   await opensAndCloses(page,()=>press(more),actions,'back',racePage);
@@ -108,7 +108,10 @@ test('the phone\'s Back closes + Final and the lead\'s runner sheet, and the scr
   await press(more);await press(actions.getByRole('button',{name:'Delete Heat 1',exact:true}));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/races/[^/]+/delete$`));
   await press(page.getByRole('button',{name:/^Delete for good/}));
-  await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}));
+  // The Delete screen's button sits above the lead's bar.
+  const button=page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1 for good',exact:true}),buttonBox=(await button.boundingBox())!;
+  expect(buttonBox.y+buttonBox.height).toBeLessThanOrEqual((await leadsBar(page).boundingBox())!.y);
+  await press(button);
   await eventPage();
   await page.goBack();await expect(page).toHaveURL(/\/results$/);
 });

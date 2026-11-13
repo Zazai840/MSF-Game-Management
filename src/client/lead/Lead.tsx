@@ -3,7 +3,7 @@ import { api,keepSeen,lastSeen,StaleRequest } from '../api.js';
 import type { DayRead } from '../../shared/day.js';
 import type { ResultsTarget } from '../../shared/lead-results.js';
 import { ErrorCallout } from '../races/parts.js';
-import { LeadHeader,LeadsBar } from './LeadHeader.js';
+import { LeadHeader } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { addressOf,type View } from '../shell/addresses.js';
 import { Results } from './Results.js';
@@ -58,7 +58,7 @@ export default function Lead({view,target,onOpen,onBack,onChanged}:{view:LeadVie
     <main className="rz-main">{error!==null && <ErrorCallout error={error} action="read"/>}
       {day && (kind==='day'?<Day day={day} phones={phones} onOpen={onOpen} onChanged={refresh} onSaved={onChanged}/>
         :kind==='this-day'?<ThisDay day={day} onChanged={refresh} onSaved={onChanged}/>:<DayExport day={day} onChanged={refresh}/>)}</main>
-    <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer>{kind==='day' && <LeadsBar current="Day setup" onOpen={onOpen}/>}</>}/>;
+    <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void refresh()}/></footer></>}/>;
   if(kind==='events' || kind==='rename-event' || kind==='new-event') return <Events view={view} day={day} updated={updated} error={error} onRefresh={refresh} onOpen={onOpen} onBack={()=>onBack()} onSaved={async()=>{onChanged();await refresh();}}/>;
   return <Results key={`${view.kind==='event'?`event:${view.code}`:addressOf(view)}:${target?.id??''}`} tab={view.kind==='event'?view.tab:undefined} code={'code' in view?view.code:undefined} raceId={view.kind==='race-page'?view.raceId:undefined} runner={view.kind==='runner'?view:undefined} target={target} onOpen={onOpen} onBack={()=>onBack()} onChanged={onChanged}/>;
 }

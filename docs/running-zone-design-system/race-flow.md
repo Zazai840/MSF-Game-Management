@@ -95,7 +95,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 - Once the Confirm is recorded the card moves to Done and reads "Medals decided".
 - Volunteers' cards keep their wording and sections.
 
-**Footer**: Updated-at line with Refresh, and the display-primary "+ New race" (on Relays, "+ New relay").
+**Footer**: one row. "Updated at" over the time at the left (no Refresh button; a pull down refreshes), and the display-primary "+ New race" (on Relays, "+ New relay") in the rest of the row. A lead has the lead's bar below the row.
 
 **After saving any step**, return here and show the **Toast**: "Times saved" with **Undo**.
 - The toast lasts 3 seconds. It fades and rises in and fades out (about 150 ms each way); the fade-out is inside the 3 seconds. A phone that asks for reduced motion shows no animation.
@@ -204,7 +204,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 - **Each tab is that step's own body,** as the role that owns it works it.
 - **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card shows them as large buttons in the shape of Confirm the medals, in place of its status line: "Decide the tie" opens the tie (the event in Results when there is more than one), "Check Heat 3 · 1 time" that race's page. A race has one button: with more than one kind of problem it counts them, "Check Heat 3 · 2 problems". Two buttons at most, then a line ("1 more") that opens the event in Results. The reason beside a greyed "+ Final" is not shown when one of these buttons says it.
 - **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. It opens a menu with Log out only, for a lead as for a volunteer.
-- **The lead's bar:** on a lead's phone, Races, Results and Day setup end with a bar of three tabs (Races, Results, Day setup), below New race on Races. See "The lead's bar" in [screens.md](screens.md).
+- **The lead's bar:** on a lead's phone, Races, Results, Day setup and each screen below them end with a bar of three tabs (Races, Results, Day setup), below New race on Races. The Race screen has no bar. See "The lead's bar" in [screens.md](screens.md).
 
 ### 9. Relays
 

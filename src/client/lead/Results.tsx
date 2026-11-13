@@ -13,7 +13,7 @@ import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords,Opening } from '../races/parts.js';
 import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
-import { LeadHeader,LeadsBar } from './LeadHeader.js';
+import { LeadHeader } from './LeadHeader.js';
 import { SlidingTabs } from '../races/SlidingTabs.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
@@ -54,7 +54,7 @@ function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:Re
   /** A save answered with the event's results: show them, close the runner sheet, and tell the app. */
   function showSaved(next:EventResultsRead) {offer(next);setSelected(null);onChanged?.();}
   const openStage=(sheet:StageCheckSheet)=>onOpen(stageView(code,sheet));
-  if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
+  if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onRefresh={()=>void refresh()} onBack={onBack} onChanged={onChanged}/>;
   if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} items={detail?raceItems(eventItems(detail),raceId):[]} actionableRunners={detail?.results.actionableRunners} onSaved={showSaved} onOpen={onOpen}/>;
   const sheets=detail && selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={showSaved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>;
   const body=<><main className="rz-main rz-main--event">
@@ -193,5 +193,5 @@ function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|n
       {sections.map(([title,items],index)=>items.length>0 && <section key={title} aria-labelledby={`results-section-${index}`}><h2 className="rz-section" id={`results-section-${index}`}>{title}</h2>{cards(items)}</section>)}
       {idle.length>0 && <details className="rz-disclosure"><summary>Not started ({idle.length})</summary>{cards(idle)}</details>}</>}
   </main>
-  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer><LeadsBar current="Results" onOpen={onOpen}/></>;
+  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer></>;
 }

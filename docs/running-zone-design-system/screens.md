@@ -9,14 +9,14 @@ How each of the app's 32 screens is built from this system. Screen numbers match
 Every screen:
 - Starts `<div class="rz-screen rz-zone-running">`.
 - Has a compact **AppBar** with a back link to the parent screen and the avatar. Home (2) and Home as a zone lead (21) use the hero AppBar instead.
-- Ends with an **ActionFooter** whose first line is "Updated at 11:41:17 AM" plus a small **Refresh** button, named for what it refreshes ("Refresh Start line", "Refresh Finish order", "Refresh Times", "Refresh Results").
+- Ends with an **ActionFooter** whose first line is "Updated at 11:41:17", one centred line with no button (on Races it is at the left of the New race row, over two lines). A pull down from the top of the screen refreshes by hand.
 
-**The lead's bar.** On a lead's phone, Races, Results (25) and Day setup (30) end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`).
+**The lead's bar.** On a lead's phone, Races, Results (25), Day setup (30) and each screen below them end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`). The Race screen has no bar. On a deeper screen the lit tab is the tab the lead came from. While the phone's keyboard is open the bar is not shown, so a docked button is clear of it.
 - `<nav class="rz-leads-bar rz-on-dark" aria-label="Lead screens">`: the AppBar's surface, `navy` with the **Pattern** motif, so the screen has the same bar at its top and its foot. One button per tab: the icon above the word, `crumb` type, `size-action` high, `on-navy` on `navy`. The current screen's tab has `aria-current="page"` and is the inverse, `navy` on a `paper` cell inset `space-4` with `radius-sm` corners, as the avatar sits in the AppBar. The focus ring is `gold`, and `navy` on the current tab.
-- **The cell slides.** The cell is one element behind the buttons (`<span class="rz-tab-cell" aria-hidden="true">`, first in the bar after the pattern), one tab wide, placed by the index of the current tab with a transform. The buttons paint no background of their own. On a change of tab the screen changes at once and the cell slides to the new tab in 200ms with `--ease-out`; the words and icon change colour over the same 200ms. Each of the three screens draws the bar again, so the bar remembers where its cell was, draws it there first, then moves it: the cell slides also after the phone's Back. A second tap while it moves sends it on from where it is. No motion on the first screen after the app opens, on the way back to the same tab from a screen with no bar, or under `prefers-reduced-motion: reduce`.
+- **The cell slides.** The cell is one element behind the buttons (`<span class="rz-tab-cell" aria-hidden="true">`, first in the bar after the pattern), one tab wide, placed by the index of the current tab with a transform. The buttons paint no background of their own. On a change of tab the screen changes at once and the cell slides to the new tab in 200ms with `--ease-out`; the words and icon change colour over the same 200ms. Each lead screen draws the bar again, so the bar remembers where its cell was, draws it there first, then moves it: the cell slides also after the phone's Back. A second tap while it moves sends it on from where it is. No motion on the first screen after the app opens, on a move between two screens that light the same tab, or under `prefers-reduced-motion: reduce`.
 - It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast sits just above New race.
 - Each of the three screens opens at once with what it showed last time (kept only while the app is open, dropped at Log out) and reads again behind it; only a first open shows the spinner over "Opening…".
-- Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has no bar. A phone that is not a lead's never shows the bar.
+- Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has the bar. A phone that is not a lead's never shows the bar.
 - The layout is the same at every width.
 
 Volunteer task screens use the back link only. Zone-lead screens (22–32) also show a **Breadcrumb** under the AppBar. With more than four levels, it starts with "…".
@@ -179,16 +179,16 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - One CodeCard with "Olympics password" and "Lead code" side by side (each code in `display-screen` size, so two fit across a 360px phone) and one line: "The Olympics password is for every volunteer. The lead code is only for zone leads." No button in the card.
 - Seven ListRows in the order of the day, all on one phone screen: "This day" (meta "2026 · South · Day 1", or "Choose the region and day" in the `--warn` style until region and day are both set), "Events" (meta "26 events"), "Signed in today" (meta "4 people signed in today"), "Change Olympics password", "Make a new lead code" (asks in a Sheet), "Day export" (meta its status sentence, in the `--warn` style when changes came after the last download), "Start a new day".
 - This day (`/day/this-day`), Day export (`/day/export`) and Start a new day (`/day/start-a-new-day`) are their own screens with a back arrow to Day setup, each holding one card with no heading (the header names the screen): the Year, Region and Day choices saved on tap; the download with its status; the red-outlined card with "Type NEW DAY to confirm".
-- "Updated at" with Refresh.
+- "Updated at", one centred line.
 
 **31 Day setup: events**
 - `display-screen` "Events".
 - A ListRow for each event: label "60m · Boy Beavers", meta "R1 · Races · Heats then final" (plus " · Switched off" when off). A tap opens a Sheet named after the event ("60m · Boy Beavers") with block Buttons "Rename" and "Switch off" (or "Switch on"). Switch off or on saves at once with its toast and closes the Sheet; a refused save shows "Not saved - try again" in the Sheet.
-- A block Button "+ Add an event", then "Updated at" with Refresh.
+- A block Button "+ Add an event", then "Updated at".
 - Rename and Add an event are full race-flow screens with a docked button ("Save name", "Add event").
 
 **32 Day setup: Signed in today**
 - `display-screen` "Signed in today", a `body` line "Role changes last for today only."
 - A ListRow for each person: label the name ("Amina Yusuf (you)"), meta the level, Owner and role ("Lead · Owner · Zone lead", "Volunteer · Timer"). The lead's own row is not a button and has no chevron.
 - A tap on another person's row opens a Sheet named after the person: block Buttons "Make lead" or "Make volunteer" (never Make volunteer for the owner; saved at once with a toast), then a red "Remove" set apart, which asks "Remove <name>?" in a second Sheet. A refused save shows "Not saved - try again" in the Sheet that made it, which stays open.
-- A closed disclosure "Notes (3)" at the foot, then "Updated at" with Refresh.
+- A closed disclosure "Notes (3)" at the foot, then "Updated at".

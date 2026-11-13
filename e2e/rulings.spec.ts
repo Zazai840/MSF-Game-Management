@@ -1,10 +1,10 @@
-import {eventTab,expectToast,ownName,press,recordRace,back,openLeadMenu,becomeLead,expect,join,lookProblems,test,resultsCard} from './fixtures.js';
+import {eventTab,expectToast,ownName,press,recordRace,back,openLeadsBarTab,becomeLead,expect,join,lookProblems,test,resultsCard} from './fixtures.js';
 test('a lead disqualifies and lifts a runner on their screens, sees the ranking and audit notes change, and keeps a failed save',async({page},info)=>{
   const offset=['iPhone','Android','desktop'].indexOf(info.project.name)*10;
   const numbers=[2501,2502,2503,2504].map(number=>number+offset);
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,'R16',numbers,[3100,3200,3300,3400]);
   await page.goto('/');await join(page,ownName('Aisha'),{job:'Start line'});
-  await becomeLead(page);await openLeadMenu(page,'Results');
+  await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,'R16'));
   const heats=new RegExp('/results/R16/heats$');await expect(page).toHaveURL(heats);
   const runner=page.getByRole('button',{name:`Runner ${numbers[0]} · Heat ${race.number}`,exact:true}),sheet=page.getByRole('dialog',{name:`Runner ${numbers[0]}`,exact:true});

@@ -13,7 +13,8 @@ const silence=()=>30_000+Math.random()*15_000;
  * ignoring any older than the one held. A planned end reconnects at once; a failure or silence reconnects with backoff.
  * The stream closes while the page is hidden and reopens when it is visible, and starts again when the signal goes or comes back;
  * every connect sends the whole snapshot first.
- * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule.
+ * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule; `refresh` starts
+ * the stream again now (a pull down), which never clears the snapshot held.
  * With `remember`, it starts from what this path showed last (api.ts, lastSeen) while the stream connects; `arrived`
  * is when the snapshot shown came in ("10:42:05").
  */
@@ -25,6 +26,7 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
   const held=useRef<T|null>(null);
   // A remembered snapshot on the screen counts as held: the note then says the connection is lost, not that nothing could be read.
   const showing=useRef(false);
+  const restartNow=useRef(()=>{});
   useEffect(()=>{showing.current=snapshot!==null;});
   useEffect(()=>{
     held.current=null;
@@ -78,6 +80,7 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
     const visibility=()=>send({type:document.visibilityState==='hidden'?'hidden':'shown'});
     // The signal going or coming back leaves the open stream likely dead (it can stay silent until the watchdog): start again at once.
     const restart=()=>send({type:'restart'});
+    restartNow.current=restart;
     document.addEventListener('visibilitychange',visibility);addEventListener('offline',restart);addEventListener('online',restart);
     void connect();
     return ()=>{
@@ -86,7 +89,7 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
     };
   },[path]);
   const offer=(next:T)=>{if(newerSnapshot(held.current,next)) {held.current=next;setSnapshot(next);}};
-  return {snapshot,arrived:shown?.at??'',error,gone,offer};
+  return {snapshot,arrived:shown?.at??'',error,gone,offer,refresh:()=>restartNow.current()};
 }
 /**
  * A lead screen's read of `path`, read again every 5 s while the page is visible (lead reads have no live stream): the

@@ -1,4 +1,4 @@
-import {ownCode,ownName,ownRelay,ownWristbands,deleteCurrentRace,expect,flowPost,flowRace,join,lookProblems,openLeadMenu,openRace,ownEvent,press,test,tickTeam,writeCheckIn,writeOrder,writeTeam,writeTimes,type APIRequestContext} from './fixtures.js';
+import {ownCode,ownName,ownRelay,ownWristbands,deleteCurrentRace,expect,flowPost,flowRace,join,lookProblems,openLeadsBarTab,openRace,ownEvent,press,test,tickTeam,writeCheckIn,writeOrder,writeTeam,writeTimes,type APIRequestContext} from './fixtures.js';
 import { readFile,writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const joinHeading='Join the Running Zone';
@@ -135,7 +135,7 @@ test('a failed load of the Lead area reloads the app instead of leaving a blank 
   // An old page after a deploy: its Lead files are gone from the server until the app reloads onto the new build. The
   // service worker passes these requests on, so only the context sees them.
   await page.context().route(/\/assets\/Lead-[^/]+\.(js|css)$/,route=>reloaded?route.continue():route.abort());
-  await openLeadMenu(page,'Results');
+  await openLeadsBarTab(page,'Results');
   await expect.poll(()=>loads,{timeout:10000}).toBe(1);
   // The reload stays on Results, which now opens.
   await expect(page).toHaveURL(/\/results$/);

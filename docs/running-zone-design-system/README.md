@@ -130,7 +130,7 @@ Motion is minimal and functional.
 - The disclosure chevron rotates in 150ms ease-out.
 - A sheet slides up from the foot of the screen in 220ms and leaves in 150ms; on a wide screen the centred sheet grows a little instead. The toast rises in 200ms and fades out in 150ms. Leaving is always faster than arriving.
 - Screens change at once; the current tab's cell slides in 200ms (`--ease-out`), and the tab's words and icon change colour with it. Only the cell moves: people change tabs all day, and no change waits for the motion.
-- Pull down to refresh, on a screen with the "Updated at" line: a navy pill follows the finger from the top edge, slower the further it is pulled, and says "Let go to refresh" past its threshold.
+- Pull down to refresh, on every screen that shows data (a race step also; not Join, and not a lead form that saves with the versions it read): a navy pill follows the finger from the top edge, slower the further it is pulled, and says "Let go to refresh" past its threshold.
 - Easing: `--ease-out` (`cubic-bezier(.23, 1, .32, 1)`) for things that arrive or answer a press, `--ease-drawer` (`cubic-bezier(.32, .72, 0, 1)`) for the sheet. Never ease-in.
 - Nothing loops, bounces or celebrates.
 - Under `prefers-reduced-motion: reduce`, drop the movement and keep the state change.
@@ -143,7 +143,7 @@ Motion is minimal and functional.
 - **Current / selected:** `gold` fill with `navy` text (current place, current time slot), or `aria-current` with a filled zone tab.
 - **Warning:** `warn-soft` + `warn-line` on the field, slot, chip or row that needs a look, plus a WarningCallout or a Kept tag that says why.
 - **Error that blocks** (wrong day code): a WarningCallout under the field with one action. No red text alone.
-- **Loading / stale:** the Updated-at line shows when data last arrived, and Refresh fetches again. Don't use spinners over content.
+- **Loading / stale:** the Updated-at line shows when data last arrived, and a pull down reads again. There is no Refresh button. Don't use spinners over content.
 - **Empty:** a `body` sentence saying what will appear and when ("Races appear here once someone checks runners in.").
 
 ## Building screens

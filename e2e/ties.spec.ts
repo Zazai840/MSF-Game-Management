@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {back,eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,lookProblems,press,test,type Page,resultsCard} from './fixtures.js';
+import {back,eventTab,ownName,ownEvent,ownCode,recordRace,openLeadsBarTab,becomeLead,dragTo,expect,expectToast,join,lookProblems,press,test,pullToRefresh,type Page,resultsCard} from './fixtures.js';
 /** The tie screen's docked Save tie and the reason above it while it cannot save. */
 const saveTie=(page:Page)=>page.getByRole('button',{name:'Save tie',exact:true});
 const reason=(page:Page)=>page.locator('.rz-footer__reason');
@@ -10,7 +10,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   const createRace=(number:number,time:number)=>recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[number],[time]);
   await createRace(2701,1000);await createRace(2702,1000);
   await page.goto('/');await join(page,ownName('Tie lead'),{job:'Start line'});
-  await becomeLead(page);await openLeadMenu(page,'Results');
+  await becomeLead(page);await openLeadsBarTab(page,'Results');
   await press(resultsCard(page,code));
   // The TIE tag opens the tie as its own screen at its own address.
   await press(page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}));
@@ -36,7 +36,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   await expect(page.getByRole('button',{name:/^TIE at/})).toHaveCount(0);
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
   // A faster runner makes the tie decide 2nd and 3rd: the medal decision changed, so it comes back.
-  await eventTab(page,'Heats');await createRace(2703,800);await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await eventTab(page,'Heats');await createRace(2703,800);await pullToRefresh(page);
   await press(page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}));
   await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · decides 2nd and 3rd`);
   await press(page.getByRole('button',{name:'Decided without a run-off',exact:true}));
@@ -91,7 +91,7 @@ test('a tie between two heats runs end to end: leaderboard TIE tags, the tie scr
     await press(racesCard.getByRole('button',{name:'Decide the tie',exact:true}));
     await expect(page.getByRole('heading',{level:1,name:'Tie at 10.00',exact:true})).toBeVisible();
     await back(page,'Races');
-    await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+    await openLeadsBarTab(page,'Results');await press(resultsCard(page,code));
     const board=page.getByRole('list',{name:'Provisional leaderboard'});
     for(const wristband of [2731,2735,2733]) {
       await expect(board.getByRole('button',{name:`TIE at 10.00 for ${wristband}`,exact:true})).toBeVisible();

@@ -37,7 +37,7 @@ function useLeadItems(on:boolean) {
 export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;onTab:(tab:HomeTab)=>void;role:Role;gone:string;
   onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
   // Races seen before opens at once with what it showed last; the stream then brings it up to date.
-  const {snapshot,arrived,error,offer}=useLive<RacesRead>('live/races',{remember:true});
+  const {snapshot,arrived,error,refresh}=useLive<RacesRead>('live/races',{remember:true});
   const [creating,setCreating]=useState<NewRaceChoice|null>(null);
   // The event code whose final a lead is asked to confirm; the sheet reads its group live.
   const [confirming,setConfirming]=useState<string|null>(null);
@@ -81,7 +81,7 @@ export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;on
       {sections.done.length>0 && <details className="rz-disclosure"><summary>Done ({sections.done.length})</summary><div className="rz-disclosure__cards">{sections.done.map(card)}</div></details>}
     </main>
     <footer className="rz-footer rz-footer--sticky rz-footer--home">
-      <UpdatedAt time={arrived} onRefresh={()=>void api<RacesRead>('races').then(offer).catch(()=>{})}/>
+      <UpdatedAt time={arrived} onRefresh={refresh}/>
       <button type="button" className="rz-btn rz-btn--display rz-btn--block" onClick={()=>setCreating({})}><Icon name="plus"/>{tab==='relays'?'New relay':'New race'}</button>
     </footer>
     {creating && snapshot && <NewRaceSheet groups={groups} relays={tab==='relays'} role={role} choice={creating} onRace={onRace} onResults={onResults} failure={failure} onClose={()=>{setCreating(null);setFailure('');}} onCreate={choice=>{

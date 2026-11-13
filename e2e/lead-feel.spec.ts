@@ -1,4 +1,4 @@
-import {expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,recordRace,resultsCard,signInThroughApi,test} from './fixtures.js';
+import {expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,signInThroughApi,test} from './fixtures.js';
 
 test('Results on a phone lists one event per line in the Races card\'s type; a laptop keeps the grid',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Phone cards a long event name');
@@ -45,4 +45,15 @@ test('an event shows one callout for the problems of one heat, with one line eac
   // The shared callout's button opens the heat's race page, where each problem has its own callout.
   await shared.getByRole('button',{name:'Check Heat 1',exact:true}).click();
   await expect(page.getByRole('main').getByRole('alert').filter({hasText:'A wristband number needs checking'})).toHaveCount(2);
+});
+
+test('a long press on a disclosure line selects no words',async({openPhone,request})=>{
+  const code=await ownCode();
+  await ownEvent(request,code,ownName('No select'),'Girl Cubs','timed');
+  const {page}=await openPhone(ownName('No select lead'),{lead:true});
+  await press(page.getByRole('navigation',{name:'Lead screens'}).getByRole('button',{name:'Results',exact:true}));
+  const line=page.locator('summary',{hasText:/^Not started \(\d+\)$/});
+  await expect(line).toBeVisible();
+  expect(await line.evaluate(element=>getComputedStyle(element).userSelect)).toBe('none');
+  expect(await page.locator('body').evaluate(element=>getComputedStyle(element).userSelect)).not.toBe('none');
 });

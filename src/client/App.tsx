@@ -4,10 +4,10 @@ import type { ResultsTarget } from '../shared/lead-results.js';
 import { heldRole,holdsRole,type Role,type Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { addressOf,entryBack,onSheetEntry,parentOf,sameScreen,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
+import { addressOf,entryBack,onSheetEntry,parentOf,sameScreen,barTabOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
-import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine } from './races/parts.js';
+import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine,reducedMotion } from './races/parts.js';
 import { failureLine } from '../shared/request-failure.js';
 import { LeadHeader,LeadFrame,LeadsBar } from './lead/LeadHeader.js';
 import { RacesHome } from './races/RacesHome.js';
@@ -18,6 +18,8 @@ import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 /** `role`: the role the server last heard from this phone today, or null. */
 interface HomeRead { phone:Phone; needsYou?:number; role:Role|null }
+/** The address showing now: its path and query. */
+const address=()=>location.pathname+location.search;
 /** What the next Back (one the app made itself) does in place of opening the screen it lands on. */
 let afterBack:(()=>void)|null=null;
 /** Where Open in Results lands: a tie on its screen, a race's item on its race page, anything else on its event; a Races card's Confirm the medals on that screen. */
@@ -26,7 +28,7 @@ const resultsView=(target:ResultsTarget):View=>target.stage?{kind:'confirm-the-m
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
-  const [view,setView] = useState<View>(()=>viewAt(location.pathname+location.search));
+  const [view,setView] = useState<View>(()=>viewAt(address()));
   // What Open in Results asked to open on the event (the runner sheet, a check sheet), on that visit only.
   const [target,setTarget]=useState<ResultsTarget>();
   // Kept here as well as on the phone, so the back arrow returns to the tab you came from even when storage fails.
@@ -59,24 +61,26 @@ export function App() {
    * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
    * event's tab in place, keeping the entry's back label and what Open in Results asked to open there. A lead's saved
    * race opens as its race page in place of its Race screen the same way, keeping the entry's back label.
+   * A move to the screen showing now (a tap on the lit tab of the lead's bar on its first screen) adds no entry and
+   * scrolls to the top; with reduced motion it jumps.
    */
   function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
-    const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
+    const path=addressOf(next),here=address()===path,tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
     // A screen asks for these two moves by itself, once its read arrives. That can be just after the phone's Back left
     // the screen: the address is then another screen's, and the move would put this one back in its place.
-    if(replace && (tab || page) && !sameScreen(viewAt(location.pathname+location.search),view)) return;
+    if(replace && (tab || page) && !sameScreen(viewAt(address()),view)) return;
     setMenu(null);setView(next);setTarget(replace && tab?target:opening);
     // `over`: the new screen takes the place of this one and the one it was opened from (a re-run's new race replaces the old race and the re-run screen).
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
     else if(replace || over) history.replaceState(tab || page?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
-    else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
-    window.scrollTo(0,0);
+    else if(!here) history[onSheetEntry()?'replaceState':'pushState']({back:shownName(),barTab:barTabOf(view)},'',path);
+    window.scrollTo({top:0,behavior:here && !reducedMotion()?'smooth':'instant'});
   }
   useEffect(()=>{
     const back=()=>{
       if(afterBack) {const then=afterBack;afterBack=null;then();return;}
-      if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname+location.search));};
+      if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(address()));};
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{
@@ -144,11 +148,12 @@ export function App() {
     // delete) goes back past the race too: to its entry first, then on from there as its own Back would.
     const up=(from:View)=>go(isLead?parentOf(from):{kind:'races'},{replace:true});
     const back=(levels:1|2=1)=>{
-      if(levels===2) {if(entryBack()) {afterBack=()=>{if(entryBack()) history.back();else up(viewAt(location.pathname+location.search));};history.back();} else up(parentOf(view));return;}
+      if(levels===2) {if(entryBack()) {afterBack=()=>{if(entryBack()) history.back();else up(viewAt(address()));};history.back();} else up(parentOf(view));return;}
       if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
     };
     // The job sheet sits beside the lead screen's root, so it brings its own.
-    return <LeadFrame.Provider value={{avatar,onBack:()=>back()}}>
+    // Every lead screen has the lead's bar; someone with no lead access has none.
+    return <LeadFrame.Provider value={{avatar,onBack:()=>back(),bar:isLead && <LeadsBar current={barTabOf(view)} onOpen={next=>go(next)}/>}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}
