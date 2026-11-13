@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
 import { readAuditNotes,readRulings } from '../rulings/records.js';
 import type { Database,StoredRace } from '../races/records.js';
-import { listRaces,readStepMeta,raceSummary } from '../races/records.js';
+import { eventScope,listRaces,readStepMeta,raceSummary } from '../races/records.js';
 import type { EventState,ResultsRace } from '../../shared/results-rules.js';
 import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
@@ -17,6 +17,25 @@ import { readTieSettlements } from '../rulings/ties.js';
 import { readTeamLists,switchedOn,type TeamListRead } from '../relays/teams.js';
 async function eventsForDay(db:Database,dayId:string):Promise<DayEvent[]> {
   return (await db.query("SELECT id,code,name,section,format,enabled,type,(type='relays') AS relay FROM events WHERE day_id=$1 ORDER BY programme_order,code",[dayId])).rows;
+}
+const kept=new Map<string,{revision:number;reads:Map<string,Promise<unknown>>}>();
+/**
+ * A whole-day read shared by every read of the day at one revision: leads' phones poll these every 5 s. Each change
+ * that can move them raises the revision in its own transaction, so another read-only snapshot at that revision gets
+ * the same answer. Never call it inside a write: there the revision is raised only after the change.
+ */
+export async function atRevision<T>(db:Database,dayId:string,key:string,read:()=>Promise<T>):Promise<T> {
+  const revision=Number((await db.query('SELECT revision FROM olympics_days WHERE id=$1',[dayId])).rows[0]?.revision);
+  let day=kept.get(dayId);
+  // A snapshot begun before a newer change reads for itself, so the newer answers stay kept.
+  if(day && revision<day.revision) return read();
+  if(day?.revision!==revision) kept.set(dayId,day={revision,reads:new Map()});
+  let held=day.reads.get(key) as Promise<T>|undefined;
+  if(!held) {
+    const reads=day.reads,mine=read();held=mine;reads.set(key,mine);
+    mine.catch(()=>{if(reads.get(key)===mine) reads.delete(key);});
+  }
+  return held;
 }
 /** Storage adapter: the pure module receives facts, never pre-ranked rows. */
 export function eventState(event:DayEvent,races:readonly StoredRace[],rulings:readonly RunnerRuling[]=[],auditNotes:readonly AuditNote[]=[],tieSettlements:readonly TieSettlement[]=[],completedStages:readonly Stage[]=[],timings:Map<string,ResultsRace['leadTimes']>=new Map(),relays:EventState['relays']=[]):EventState {
@@ -45,20 +64,21 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   const tieSettlements=(await readTieSettlements(db,dayId)).filter(settlement=>settlement.eventId===event.id);
   const stages=(await readCompletedStages(db,dayId)).filter(stage=>stage.eventId===event.id).map(stage=>stage.stage);
   const lists=event.relay?await readTeamLists(db,dayId):new Map<string,TeamListRead>();
-  const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId);
-  return {event,auditNotes,results:eventResults(eventState(event,races,await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),switchedOn(lists))),
+  const races=await listRaces(db,dayId,event.id),meta=await readStepMeta(db,dayId,event.id);
+  return {event,auditNotes,results:eventResults(eventState(event,races,await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId,event.id),switchedOn(lists))),
     summaries:races.filter(race=>race.event.id===event.id).map(race=>raceSummary(race,meta.get(race.id))),
     ...(event.relay?{teams:lists.get(event.id)!.teams}:{})};
 }
 const switchedOnRelays=async(db:Database,dayId:string)=>switchedOn(await readTeamLists(db,dayId));
 /** Reuse persisted part and history times; queue ordering never depends on poll time. */
-async function leadTimings(db:Database,dayId:string) {
-  const rows=(await db.query('SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1',[dayId])).rows;
+async function leadTimings(db:Database,dayId:string,eventId?:string) {
+  const [scope,params]=eventScope(dayId,eventId);
+  const rows=(await db.query(`SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1${scope}`,params)).rows;
   const map=new Map<string,ResultsRace['leadTimes']>();
   for(const row of rows) {const times=map.get(row.race_id)||{},part=row.part as keyof NonNullable<ResultsRace['leadTimes']>;const at=row.saved_at?.toISOString();if(at && (!times[part] || at>times[part]!)) times[part]=at;map.set(row.race_id,times);}
   // Track the saved fact's introduction (at save, or by a lead correction), so a later change to somebody else never refreshes an old warning.
   const published=(await db.query(`SELECT h.race_id,h.value,h.saved_at FROM race_part_history h JOIN races r ON r.id=h.race_id
-    WHERE r.day_id=$1 AND h.part='runners' AND h.saved_at IS NOT NULL ORDER BY h.saved_at`,[dayId])).rows;
+    WHERE r.day_id=$1 AND h.part='runners' AND h.saved_at IS NOT NULL${scope} ORDER BY h.saved_at`,params)).rows;
   const current=new Map<string,Runner[]>(rows.filter(row=>row.part==='runners').map(row=>[row.race_id,runnersOf(row.value)]));
   for(const saved of published) for(const runner of current.get(saved.race_id)||[]) {
     const old=(saved.value as Runner[]|null)?.find(entry=>entry.id===runner.id);if(!old) continue;
