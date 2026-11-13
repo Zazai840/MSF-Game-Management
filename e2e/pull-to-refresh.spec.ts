@@ -1,4 +1,4 @@
-import {expect,flowPost,flowRace,jobBand,lookProblems,openLeadsBarTab,openRace,ownCode,ownEvent,ownName,ownRelay,ownWristbands,press,pullToRefresh,recordRace,resultsCard,startDrag,switchJob,test,writeCheckIn,writeTeam,type Locator,type Page} from './fixtures.js';
+import {expect,fingerDown,flowPost,flowRace,jobBand,lookProblems,openLeadsBarTab,openRace,ownCode,ownEvent,ownName,ownRelay,ownWristbands,press,pullToRefresh,recordRace,resultsCard,startDrag,switchJob,test,writeCheckIn,writeTeam,type Locator,type Page} from './fixtures.js';
 
 test('pulling down from the top of a screen with the Updated at line refreshes it: the pull says when to let go, and a short pull or an open sheet does nothing',async({openPhone},info)=>{
   test.skip(!info.project.use.hasTouch,'a pull is a touch gesture');
@@ -6,28 +6,25 @@ test('pulling down from the top of a screen with the Updated at line refreshes i
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   let reads=0;
   await page.route('**/api/live/races',route=>{if(route.request().method()==='GET') reads++;return route.continue();});
-  const touch=await page.context().newCDPSession(page),x=180;
-  const send=(type:'touchStart'|'touchMove'|'touchEnd',y?:number)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:y===undefined?[]:[{x,y}]});
-  const pull=async(by:number)=>{await send('touchStart',200);for(let y=200;y<=200+by;y+=20) await send('touchMove',y);};
   const hint=page.locator('.rz-pull');
   // A short pull: the hint comes down with the finger and goes back, and nothing is read.
-  await pull(60);
+  let lift=await fingerDown(page,60);
   await expect(hint).toHaveText('Pull down to refresh');
-  await send('touchEnd');
+  await lift();
   await expect(hint).toBeHidden();
   expect(reads).toBe(0);
   // A long pull: it says to let go, and letting go starts Races' live stream again.
-  await pull(320);
+  lift=await fingerDown(page,320);
   await expect(hint).toHaveText('Let go to refresh');
   await page.screenshot({path:info.outputPath('pull-ready.png')});
-  await send('touchEnd');
+  await lift();
   await expect(hint).toHaveText('Refreshing…');
   await expect.poll(()=>reads).toBe(1);
   await expect(hint).toBeHidden();
   // With a sheet open the pull belongs to the sheet.
-  await page.getByRole('button',{name:/New race/}).click();
+  await press(page.getByRole('button',{name:/New race/}));
   await expect(page.getByRole('dialog')).toBeVisible();
-  await pull(320);await send('touchEnd');
+  lift=await fingerDown(page,320);await lift();
   await expect(hint).toBeHidden();
   expect(reads).toBe(1);
 });
@@ -63,13 +60,6 @@ test('no screen has a Refresh button: the Updated at line is one centred line th
   await screen('the signed-in list',/\/api\/day\/phones$/);
 });
 
-/** A finger put down at a point and moved down the screen by `by`, still on the glass. The answer lifts it. */
-async function fingerDown(page:Page,by:number,{x,y}={x:180,y:200}) {
-  const touch=await page.context().newCDPSession(page);
-  const send=(type:'touchStart'|'touchMove'|'touchEnd',at?:number)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:at===undefined?[]:[{x,y:at}]});
-  await send('touchStart',y);for(let at=y+20;at<=y+by;at+=20) await send('touchMove',at);
-  return async()=>{await send('touchEnd');await touch.detach();};
-}
 /** Counts how many times the page has started the race's live stream. */
 function streamStarts(page:Page,raceId:string) {
   const count={starts:0};
@@ -130,8 +120,8 @@ test('pull down to refresh on each step of a race: the live stream starts again 
   await lift();
   expect(stream.starts).toBe(2);
   // Finishing order: a drag down from a row's handle moves the row and never pulls.
-  await page.getByRole('radiogroup',{name:'What\'s your job today?'}).getByRole('radio',{name:/^Finish line/}).click();
-  for(const [runner,place] of [[w(1),'1st'],[w(2),'2nd'],[w(3),'3rd']] as const) await page.getByRole('button',{name:`${runner} came ${place}`,exact:true}).click();
+  await press(page.getByRole('radiogroup',{name:'What\'s your job today?'}).getByRole('radio',{name:/^Finish line/}));
+  for(const [runner,place] of [[w(1),'1st'],[w(2),'2nd'],[w(3),'3rd']] as const) await press(page.getByRole('button',{name:`${runner} came ${place}`,exact:true}));
   const rows=page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');
   await expect(rows).toHaveText([`1st${w(1)}No place`,`2nd${w(2)}No place`,`3rd${w(3)}No place`]);
   const drag=await startDrag(page,page.getByRole('button',{name:`Move ${w(1)}`,exact:true}));
