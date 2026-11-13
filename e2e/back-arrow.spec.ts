@@ -171,3 +171,28 @@ test('a lead screen opened at its address with no history goes up one level: a r
   await page.goto('/day/events/R4/rename');await onScreen(page,'/day/events/R4/rename','Rename R4','Events');
   await press(arrow(page));await onScreen(page,'/day/events','Events','Day setup');
 });
+
+test('the phone\'s Back from an event at the moment its results are read again goes to Results and stays there',async({openPhone,request})=>{
+  const name=ownName('Back as read lands'),code=await ownCode();
+  await ownEvent(request,code,name);
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[2051,2052],[1200,1300]);
+  const {page}=await openPhone(ownName('Back as read lands lead'),{lead:true});
+  await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+  await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
+  // A slow phone, and Back pressed just as the event's next read arrives: the event is still drawing it when the Back lands.
+  await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate',{rate:6});
+  await page.evaluate(()=>{
+    const read=window.fetch;
+    window.fetch=async(...request)=>{
+      const answer=await read(...request);
+      if(!String(request[0]).includes('/events/')) return answer;
+      window.fetch=read;
+      const body=answer.json.bind(answer);
+      answer.json=async()=>{const data=await body();history.back();return data;};
+      return answer;
+    };
+  });
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
+  await expect(page).toHaveURL(/\/results$/);
+});

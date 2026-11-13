@@ -50,7 +50,7 @@ test('the Relays tab lists relays with heats as race-flow cards with no team lis
 });
 
 test('+ Final shows only in the Zone lead role, behind a confirm worded for teams, and the final\'s start line has the teams of the heats',async({openPhone,request})=>{
-  const name=ownName('Relay final'),code=await ownCode(),w=await ownWristbands('Girl Cubs',8);
+  const name=ownName('Relays tab final'),code=await ownCode(),w=await ownWristbands('Girl Cubs',8);
   await ownRelay(code,name);
   const sam=await openPhone(ownName('Sam Patel relay final')),lead=await openPhone(ownName('Jo Evans relay final'),{lead:true});
   for(const team of [1,2]) await writeTeam(request,sam.token,code,[w(team*4-3),w(team*4-2),w(team*4-1),w(team*4)]);

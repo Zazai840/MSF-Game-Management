@@ -221,9 +221,13 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
   const box=useLegBox(read,flow,teamId=>cards.find(item=>item.team.id===teamId)),{change,held}=box;
   const here=cards.filter(item=>item.mark==='here').length,unmarked=cards.filter(item=>item.mark===null);
   const send=(teamId:string,mark:Mark)=>flow.write(`teams/${teamId}/absent`,{mark});
-  // Looked up again when its turn comes: the team's mark may have changed while the tap waited.
-  const tapQueue=useTapQueue(flow.busy,({teamId,mark}:{teamId:string;mark:Mark})=>{setAsking(false);void send(teamId,cards.find(card=>card.team.id===teamId)?.mark===mark?null:mark);});
-  const tap=(item:typeof cards[number],mark:Mark)=>tapQueue({teamId:item.team.id,mark});
+  // Looked up when its turn comes, in the race as the save before it left it: the team's mark may have changed while the tap waited.
+  const markIn=(from:RaceFlowRead,teamId:string):Mark=>{
+    const entry=from.race.final!.entries.find(item=>item.team?.id===teamId);
+    return entry?finalMark(entry,from.race.parts.runners.value||[]):null;
+  };
+  const tapQueue=useTapQueue(read,({teamId,mark}:{teamId:string;mark:Mark},from)=>send(teamId,markIn(from,teamId)===mark?null:mark));
+  const tap=(item:typeof cards[number],mark:Mark)=>{setAsking(false);tapQueue({teamId:item.team.id,mark});};
   async function recordAbsent() {
     setAsking(false);
     for(const item of unmarked) if(typeof await send(item.team.id,'absent')!=='object') return;

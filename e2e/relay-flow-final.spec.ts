@@ -7,7 +7,7 @@ const footer=(page:Page)=>page.locator('footer.rz-footer');
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 const markButton=(page:Page,team:number,mark:'Here'|'Absent')=>card(page,team).getByRole('button',{name:`Team ${team}: ${mark}`,exact:true});
 test('a lead makes a relay final and two phones run it: Here / Absent per seeded team, That\'s everyone asking about the unmarked one, and the final saving itself with no Times',async({openPhone,request},info)=>{
-  const code=await ownCode(),name=ownName('Relay final');
+  const code=await ownCode(),name=ownName('Relay flow final');
   await ownRelay(code,name,'Girl Cubs');
   const w=await ownWristbands('Girl Cubs',28);
   const lead=await openPhone(ownName('Jo Evans lead final'),{lead:true});

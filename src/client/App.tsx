@@ -4,7 +4,7 @@ import type { ResultsTarget } from '../shared/lead-results.js';
 import { heldRole,holdsRole,type Role,type Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { addressOf,entryBack,onSheetEntry,parentOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
+import { addressOf,entryBack,onSheetEntry,parentOf,sameScreen,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine } from './races/parts.js';
@@ -62,6 +62,9 @@ export function App() {
    */
   function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
     const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
+    // A screen asks for these two moves by itself, once its read arrives. That can be just after the phone's Back left
+    // the screen: the address is then another screen's, and the move would put this one back in its place.
+    if(replace && (tab || page) && !sameScreen(viewAt(location.pathname+location.search),view)) return;
     setMenu(null);setView(next);setTarget(replace && tab?target:opening);
     // `over`: the new screen takes the place of this one and the one it was opened from (a re-run's new race replaces the old race and the re-run screen).
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
