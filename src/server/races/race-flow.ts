@@ -17,7 +17,7 @@ import type { CompletedStage } from '../../shared/stage-lock.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
 import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
-import { jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,requireRace,type Database,type StoredRace } from './records.js';
+import { eventScope,jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,requireRace,type Database,type StoredRace } from './records.js';
 import { raceRefusal } from '../../shared/race-status.js';
 import { markAbsentFinalists } from './final-field.js';
 import { publishPart } from './versions.js';
@@ -39,8 +39,10 @@ const pastHeats=(eventId:string,stages:readonly CompletedStage[])=>stages.some(i
 /** Each switched-on event (with `switchedOff`, every event) as an event group, its races in order (heats, then the final). */
 export async function readGroups(db:Database,dayId:string,only?:string,switchedOff=false):Promise<RaceGroup[]> {
   const events=(await readEvents(db,!switchedOff,dayId)).filter(event=>!only || event.id===only);
-  const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId),stages=await readCompletedStages(db,dayId);
-  const savedAt=new Map((await db.query("SELECT id,saved_at FROM races WHERE day_id=$1 AND NOT deleted AND state='saved'",[dayId])).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
+  // One event's page reads only that event's races.
+  const races=await listRaces(db,dayId,only),meta=await readStepMeta(db,dayId,only),stages=await readCompletedStages(db,dayId);
+  const [scope,params]=eventScope(dayId,only);
+  const savedAt=new Map((await db.query(`SELECT r.id,r.saved_at FROM races r WHERE r.day_id=$1 AND NOT r.deleted AND r.state='saved'${scope}`,params)).rows.map(row=>[row.id,row.saved_at?.toISOString() as string|undefined]));
   const groups:RaceGroup[]=[];
   // One event at a time: a final's reason reads through the same client, which runs one query at a time.
   for(const event of events) {

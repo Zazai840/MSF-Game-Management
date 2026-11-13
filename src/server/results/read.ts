@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
 import { readAuditNotes,readRulings } from '../rulings/records.js';
 import type { Database,StoredRace } from '../races/records.js';
-import { listRaces,readStepMeta,raceSummary } from '../races/records.js';
+import { eventScope,listRaces,readStepMeta,raceSummary } from '../races/records.js';
 import type { EventState,ResultsRace } from '../../shared/results-rules.js';
 import { eventResults } from '../../shared/results-rules.js';
 import type { EventSummary,ResultsRead,EventResultsRead } from '../../shared/lead-results.js';
@@ -64,20 +64,21 @@ export async function readEventResults(db:Database,dayId:string,code:string):Pro
   const tieSettlements=(await readTieSettlements(db,dayId)).filter(settlement=>settlement.eventId===event.id);
   const stages=(await readCompletedStages(db,dayId)).filter(stage=>stage.eventId===event.id).map(stage=>stage.stage);
   const lists=event.relay?await readTeamLists(db,dayId):new Map<string,TeamListRead>();
-  const races=await listRaces(db,dayId),meta=await readStepMeta(db,dayId);
-  return {event,auditNotes,results:eventResults(eventState(event,races,await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId),switchedOn(lists))),
+  const races=await listRaces(db,dayId,event.id),meta=await readStepMeta(db,dayId,event.id);
+  return {event,auditNotes,results:eventResults(eventState(event,races,await readRulings(db,dayId),auditNotes,tieSettlements,stages,await leadTimings(db,dayId,event.id),switchedOn(lists))),
     summaries:races.filter(race=>race.event.id===event.id).map(race=>raceSummary(race,meta.get(race.id))),
     ...(event.relay?{teams:lists.get(event.id)!.teams}:{})};
 }
 const switchedOnRelays=async(db:Database,dayId:string)=>switchedOn(await readTeamLists(db,dayId));
 /** Reuse persisted part and history times; queue ordering never depends on poll time. */
-async function leadTimings(db:Database,dayId:string) {
-  const rows=(await db.query('SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1',[dayId])).rows;
+async function leadTimings(db:Database,dayId:string,eventId?:string) {
+  const [scope,params]=eventScope(dayId,eventId);
+  const rows=(await db.query(`SELECT p.race_id,p.part,p.saved_at,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1${scope}`,params)).rows;
   const map=new Map<string,ResultsRace['leadTimes']>();
   for(const row of rows) {const times=map.get(row.race_id)||{},part=row.part as keyof NonNullable<ResultsRace['leadTimes']>;const at=row.saved_at?.toISOString();if(at && (!times[part] || at>times[part]!)) times[part]=at;map.set(row.race_id,times);}
   // Track the saved fact's introduction (at save, or by a lead correction), so a later change to somebody else never refreshes an old warning.
   const published=(await db.query(`SELECT h.race_id,h.value,h.saved_at FROM race_part_history h JOIN races r ON r.id=h.race_id
-    WHERE r.day_id=$1 AND h.part='runners' AND h.saved_at IS NOT NULL ORDER BY h.saved_at`,[dayId])).rows;
+    WHERE r.day_id=$1 AND h.part='runners' AND h.saved_at IS NOT NULL${scope} ORDER BY h.saved_at`,params)).rows;
   const current=new Map<string,Runner[]>(rows.filter(row=>row.part==='runners').map(row=>[row.race_id,runnersOf(row.value)]));
   for(const saved of published) for(const runner of current.get(saved.race_id)||[]) {
     const old=(saved.value as Runner[]|null)?.find(entry=>entry.id===runner.id);if(!old) continue;

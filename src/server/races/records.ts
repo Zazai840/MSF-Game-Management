@@ -21,13 +21,17 @@ export function jobRace(race:StoredRace):RaceRead {
   return {...rest,...(final?{final:{generation:final.generation,hasRun:final.hasRun,heatsComplete:final.heatsComplete,entries:[...final.entries.map(({finalEntryId,heatWristband,seed,absent,runner,kind})=>({finalEntryId,...named(finalEntryId,runner,heatWristband),seed,absent,calledUp:kind==='call-up'})),...(final.additionalEntries||[]).map(({runner,absent})=>({finalEntryId:runner.id,...named(runner.id,runner,null),seed:null,absent,calledUp:false}))]}}:{})};
 }
 export type Database=pg.Pool|pg.PoolClient;
+/** The SQL that keeps a day's race rows (`r`) to one event when one is given, with its parameters. */
+export const eventScope=(dayId:string,eventId?:string):[string,string[]]=>eventId?[' AND r.event_id=$2',[dayId,eventId]]:['',[dayId]];
 const raceRowsQuery=`SELECT r.*,e.code,e.name,e.section,e.format,e.enabled,e.type,(e.type='relays') AS relay,e.phase FROM races r JOIN events e ON e.id=r.event_id`;
 const finalRowsQuery='SELECT f.race_id,f.entries,f.additional_entries,f.generation FROM race_finals f JOIN races r ON r.id=f.race_id';
-export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> {
-  const rows=(await db.query(`${raceRowsQuery} WHERE r.day_id=$1 AND NOT r.deleted ORDER BY r.checked_in_at,r.id`,[dayId])).rows;
+/** The day's races, or only one event's when `eventId` is given (a race page or an event's results reads no other). */
+export async function listRaces(db:Database,dayId:string,eventId?:string):Promise<StoredRace[]> {
+  const [scope,params]=eventScope(dayId,eventId);
+  const rows=(await db.query(`${raceRowsQuery} WHERE r.day_id=$1 AND NOT r.deleted${scope} ORDER BY r.checked_in_at,r.id`,params)).rows;
   if(!rows.length) return [];
-  const partRows=(await db.query('SELECT p.race_id,p.part,p.version,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1 AND NOT r.deleted',[dayId])).rows;
-  const finalRows=(await db.query(`${finalRowsQuery} WHERE r.day_id=$1 AND NOT r.deleted AND r.kind='final'`,[dayId])).rows;
+  const partRows=(await db.query(`SELECT p.race_id,p.part,p.version,p.value FROM race_parts p JOIN races r ON r.id=p.race_id WHERE r.day_id=$1 AND NOT r.deleted${scope}`,params)).rows;
+  const finalRows=(await db.query(`${finalRowsQuery} WHERE r.day_id=$1 AND NOT r.deleted AND r.kind='final'${scope}`,params)).rows;
   const parts=new Map<string,pg.QueryResultRow[]>();
   for(const row of partRows) {const group=parts.get(row.race_id)||[];group.push(row);parts.set(row.race_id,group);}
   const finals=new Map(finalRows.map(row=>[row.race_id,row]));
@@ -89,10 +93,11 @@ export async function raceChange<T>(pool:pg.Pool,phone:Phone,change:(client:pg.P
   } finally {client.release(failure);}
 }
 /** Who last changed each part of each race of the day and who marked it done, by race id and part. */
-export async function readStepMeta(db:Database,dayId:string) {
+export async function readStepMeta(db:Database,dayId:string,eventId?:string) {
+  const [scope,params]=eventScope(dayId,eventId);
   const rows=(await db.query(`SELECT p.race_id,p.part,p.version,p.saved_at,s.name AS saved_name,p.done_at,d.name AS done_name
     FROM race_parts p JOIN races r ON r.id=p.race_id LEFT JOIN sign_ins s ON s.id=p.saved_by LEFT JOIN sign_ins d ON d.id=p.done_by
-    WHERE r.day_id=$1 AND NOT r.deleted`,[dayId])).rows;
+    WHERE r.day_id=$1 AND NOT r.deleted${scope}`,params)).rows;
   const meta=new Map<string,Partial<Record<RacePartName,StepMeta>>>();
   for(const row of rows) meta.set(row.race_id,{...meta.get(row.race_id),[row.part]:{version:row.version,by:row.saved_name??null,at:row.saved_at?.toISOString()??null,doneBy:row.done_name??null,doneAt:row.done_at?.toISOString()??null}});
   return meta;
