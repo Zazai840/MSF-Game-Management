@@ -47,7 +47,7 @@ test('a save that never gets an answer says so and frees the buttons, and tappin
   expect(await lookProblems(page)).toEqual([]);
   await page.unroute('**/steps/runners/done');
   await press(everyone);
-  await expect(page.locator('.rz-toast__msg')).toHaveText('Runners saved · Girl Cubs Heat 1');
+  await expect(page.locator('.rz-toast__msg')).toHaveText('Runners saved');
   await deleteCurrentRace(request,code);
 });
 
