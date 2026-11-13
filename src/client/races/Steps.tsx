@@ -19,6 +19,8 @@ import { Callout,DockedFooter,Icon } from './parts.js';
 import { useToast } from './Toast.js';
 import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
+import { inTurn } from './in-turn.js';
+import type { Outcome } from './latest-wins.js';
 
 /** What every step body gets: the race, its writes, and Done for its step (That's everyone, Save the order, No more finishers). */
 export interface StepProps { read:RaceFlowRead; flow:ReturnType<typeof useFlowWrite>; onDone:(step:Step)=>void; locked:boolean }
@@ -53,14 +55,16 @@ export function DigitsField({id,label,value,onChange,onEnter,onRelease,held=fals
 export const KeepFocus=({className,disabled=false,onClick,label,children}:{className:string;disabled?:boolean;onClick:()=>void;label?:string;children:ReactNode})=>
   <button type="button" className={className} aria-label={label} aria-disabled={disabled || undefined} onMouseDown={event=>event.preventDefault()} onClick={()=>{if(!disabled) onClick();}}>{children}</button>;
 /**
- * Taps on marks that save one at a time (Here / Absent): a tap made while the last one is being saved waits its turn,
- * so the marks never grey out between taps and no tap is lost. `run` is the newest render's, so it sees the saved marks.
+ * Taps on marks that save one at a time (Here / Absent): a tap made while the last one is being saved waits its turn
+ * (inTurn), so the marks never grey out between taps and no tap is lost. `save` gets the race to save from: the one
+ * the screen holds (`read`) when the tap's turn comes, or the answer of this phone's save before it.
  */
-export function useTapQueue<T>(busy:boolean,run:(tap:T)=>void) {
-  const queue=useRef<T[]>([]),latest=useRef(run);
-  useEffect(()=>{latest.current=run;});
-  useEffect(()=>{if(!busy && queue.current.length) latest.current(queue.current.shift()!);},[busy]);
-  return (tap:T)=>{if(busy) queue.current.push(tap);else run(tap);};
+export function useTapQueue<T>(read:RaceFlowRead,save:(tap:T,from:RaceFlowRead)=>Promise<Outcome<RaceFlowRead>>) {
+  // The queue outlives renders, so it calls the latest save and reads the latest race.
+  const latest=useRef({read,save});latest.current={read,save};
+  const queue=useRef<ReturnType<typeof inTurn<T,RaceFlowRead>>|null>(null);
+  queue.current??=inTurn<T,RaceFlowRead>((tap,from)=>latest.current.save(tap,from),()=>latest.current.read);
+  return (tap:T)=>void queue.current!(tap);
 }
 /** The usual-heat-size warning shows once per race per person: has this phone shown it for this race? */
 function useSizeWarning(raceId:string) {
@@ -170,20 +174,23 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
  * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
  */
 function Attendance({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,final=race.final!,inRace=race.parts.runners.value||[];
-  const markOf=(entry:typeof final.entries[number]):Mark=>finalMark(entry,inRace);
+  const {race}=read,final=race.final!;
+  const marksIn=(from:RaceFlowRead):Mark[]=>from.race.final!.entries.map(entry=>finalMark(entry,from.race.parts.runners.value||[]));
   const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
   // The question appears under the list, so it is brought into view clear of the footer.
   useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
-  const ids=(marks:Mark[],mark:Mark)=>final.entries.filter((_,index)=>marks[index]===mark).map(entry=>entry.finalEntryId);
-  const send=(marks:Mark[])=>flow.write('absent',{raceId:race.id,version:race.parts.runners.version,here:ids(marks,'here'),absent:ids(marks,'absent')});
-  const marks=final.entries.map(markOf),here=marks.filter(mark=>mark==='here').length;
+  /** Saves the marks of `from` with one change made, at its version: a tap that waited its turn changes the race as the save before it left it. */
+  const send=(from:RaceFlowRead,change:(marks:Mark[])=>Mark[])=>{
+    const changed=change(marksIn(from)),ids=(mark:Mark)=>from.race.final!.entries.filter((_,index)=>changed[index]===mark).map(entry=>entry.finalEntryId);
+    return flow.write('absent',{raceId:race.id,version:from.race.parts.runners.version,here:ids('here'),absent:ids('absent')});
+  };
+  const marks=marksIn(read),here=marks.filter(mark=>mark==='here').length;
   const unmarked=final.entries.filter((_,index)=>marks[index]===null);
-  const tapQueue=useTapQueue(flow.busy,({index,mark}:{index:number;mark:Mark})=>{setAsking(false);void send(marks.map((old,at)=>at===index?(old===mark?null:mark):old));});
-  const tap=(index:number,mark:Mark)=>tapQueue({index,mark});
+  const tapQueue=useTapQueue(read,({index,mark}:{index:number;mark:Mark},from)=>send(from,old=>old.map((was,at)=>at===index?(was===mark?null:mark):was)));
+  const tap=(index:number,mark:Mark)=>{setAsking(false);tapQueue({index,mark});};
   async function recordAbsent() {
     setAsking(false);
-    if(typeof await send(marks.map(mark=>mark??'absent'))==='object') onDone('runners');
+    if(typeof await send(read,old=>old.map(mark=>mark??'absent'))==='object') onDone('runners');
   }
   return <>
     <main className="rz-main">

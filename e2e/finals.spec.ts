@@ -353,3 +353,28 @@ test('a phone open on a race a lead removes goes back to Races with a short line
  await expect(page.getByRole('status').filter({hasText:'A lead removed Boy Cubs Heat 1'})).toBeVisible(live);
  await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 });
+test('a Here tap that lands just as the tap before it starts to save waits its turn: no save is refused, and every runner tapped is Here',async({page,openPhone})=>{
+ const code=await ownCode(),name=ownName('Final quick taps'),n=await ownWristbands('Boy Cubs',6);
+ await heatsToFinal(page,code,name,[[[n(1),n(2),n(3),n(4),n(5),n(6)],[900,1000,1100,1200,1300,1400]]],ownName('Final quick taps lead'),true);
+ const sam=(await openPhone(ownName('Sam quick taps'))).page;
+ await openRace(sam,name,'Boy Cubs','Final');
+ await expect(here(sam,n(1))).toBeVisible();
+ const refused:number[]=[];
+ sam.on('response',response=>{if(response.url().endsWith('/absent') && !response.ok()) refused.push(response.status());});
+ // The first save is held until the second tap waits behind it; the third tap lands the moment the second's save sets
+ // off, before the screen has drawn that a save is on its way.
+ let release=()=>{};
+ const held=new Promise<void>(resolve=>{release=resolve;});
+ await sam.route('**/absent',async route=>{await held;await route.continue();},{times:1});
+ await sam.evaluate(third=>{
+  const send=window.fetch;let saves=0;
+  window.fetch=(...request)=>{
+   const answer=send(...request);
+   if(String(request[0]).endsWith('/absent') && ++saves===2) document.querySelector<HTMLButtonElement>(`button[aria-label="${third}"]`)!.click();
+   return answer;
+  };
+ },`${n(3)}: Here`);
+ await here(sam,n(1)).click();await here(sam,n(2)).click();release();
+ await expect(sam.locator('.rz-prompt__meta')).toHaveText('Final · 3 of 6 here · 3 not marked');
+ expect(refused).toEqual([]);
+});
