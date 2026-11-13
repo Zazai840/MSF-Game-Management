@@ -35,8 +35,17 @@ async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>)
   expect(over.y+over.height,current).toBeLessThanOrEqual(box.y+0.5);
   expect(await lookProblems(page),current).toEqual([]);
 }
+/** The lead's bar on a deeper lead screen: the three tabs, `current` lit with the cell on it, at the foot of the screen. */
+async function lit(page:Page,current:string) {
+  await expect(bar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
+  await expect(bar(page).locator('[aria-current="page"]')).toHaveText(current);
+  await cellOn(page,current);
+  const foot=await bar(page).evaluate(el=>el.getBoundingClientRect().bottom-window.innerHeight);
+  expect(Math.abs(foot),current).toBeLessThanOrEqual(0.5);
+  expect(await lookProblems(page),current).toEqual([]);
+}
 
-test('a lead moves between Races, Results and Day setup by the bar at the bottom; deeper screens have the back arrow and no bar',async({openPhone,request},info)=>{
+test('a lead moves between Races, Results and Day setup by the bar at the bottom; deeper screens have the back arrow and the bar, the Race screen has none',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Bar walk'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',3);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
@@ -62,20 +71,22 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   await expect(arrow(page)).toHaveCount(0);
   await expect(updated).toBeVisible();await onBar(page,'Results',updated);
   await page.screenshot({path:info.outputPath('results.png')});
-  // An event and a race page: no bar, and the back arrow names Results, then the event.
+  // An event (with its Deleted races) and a race page: the bar with Results lit, and the back arrow names Results, then the event.
   await press(resultsCard(page,code));await title(page,event);
-  await expect(bar(page)).toHaveCount(0);await expect(arrow(page)).toHaveAccessibleName('Back to Results');
+  await expect(updated).toBeVisible();await onBar(page,'Results',updated);await expect(arrow(page)).toHaveAccessibleName('Back to Results');
+  await page.screenshot({path:info.outputPath('event.png')});
   await press(page.getByRole('button',{name:`Open Heat ${race.number}`,exact:true}));await title(page,`Heat ${race.number}`);
-  await expect(bar(page)).toHaveCount(0);await expect(arrow(page)).toHaveAccessibleName(`Back to ${event}`);
+  await lit(page,'Results');await expect(arrow(page)).toHaveAccessibleName(`Back to ${event}`);
   await press(arrow(page));await title(page,event);await press(arrow(page));await title(page,'Results');
   // Results to Day setup in one tap, with no visit to Races.
   await press(tab(page,'Day setup'));await title(page,'Day setup');await expect(page).toHaveURL(/\/day$/);
   await expect(arrow(page)).toHaveCount(0);
   await expect(updated).toBeVisible();await onBar(page,'Day setup',updated);
   await page.screenshot({path:info.outputPath('day-setup.png')});
-  for(const [row,screen] of [[/^Signed in today /,'Signed in today'],[/^Events /,'Events']] as const) {
+  // Each Day setup screen: the bar with Day setup lit, and the back arrow.
+  for(const [row,screen] of [[/^Signed in today /,'Signed in today'],[/^Events /,'Events'],[/^This day/,'This day'],[/^Change Olympics password/,'Change Olympics password'],[/^Day export/,'Day export'],[/^Start a new day/,'Start a new day']] as const) {
     await press(page.getByRole('button',{name:row}));await title(page,screen);
-    await expect(bar(page)).toHaveCount(0);await expect(arrow(page)).toHaveAccessibleName('Back to Day setup');
+    await lit(page,'Day setup');await expect(arrow(page)).toHaveAccessibleName('Back to Day setup');
     await press(arrow(page));await title(page,'Day setup');
   }
   // The phone's Back goes through the screens visited, and forward again.
@@ -107,6 +118,40 @@ test('a volunteer has no bar; it appears at once when the phone becomes a lead\'
   expect(await lookProblems(page)).toEqual([]);
   await press(tab(page,'Results'));await title(page,'Results');
   await expect(tab(page,'Results')).toHaveAttribute('aria-current','page');
+  // The same on a deeper screen.
+  await press(tab(page,'Day setup'));await title(page,'Day setup');
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await lit(page,'Day setup');
+});
+
+test('on a deeper screen the lit tab is the section the lead came from, or the screen\'s own section with no history; a different tab opens its first screen, and the phone\'s Back returns',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Bar way in'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',4);
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  // A tie between Heat 1 and Heat 2: a Decide the tie button on the event's card on Races.
+  const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1000,1100]);await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(3),w(4)],[1000,1100]);
+  const page=await watched(openPhone,'Bar way in lead'),heat=`Heat ${race.number}`,open=page.getByRole('button',{name:`Open ${heat}`,exact:true});
+  // From Races: the event, and the race page opened from it, light Races.
+  await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));
+  await title(page,event);await lit(page,'Races');
+  await press(open);await title(page,heat);await lit(page,'Races');
+  // A different tab opens that section's first screen, and the cell slides from the tab lit before.
+  await trace(page);
+  await press(tab(page,'Results'));await title(page,'Results');await expect(page).toHaveURL(/\/results$/);await expect(arrow(page)).toHaveCount(0);
+  await cellOn(page,'Results');slid(await trace(page),0,1,'Results');
+  // The phone's Back goes to the screen shown before.
+  await page.goBack();await title(page,heat);await lit(page,'Races');
+  await page.goForward();await title(page,'Results');
+  // The same event and race page opened from Results light Results.
+  await press(resultsCard(page,code));await title(page,event);await lit(page,'Results');
+  await press(open);await title(page,heat);await lit(page,'Results');
+  await press(tab(page,'Day setup'));await title(page,'Day setup');await expect(page).toHaveURL(/\/day$/);await expect(arrow(page)).toHaveCount(0);
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await lit(page,'Day setup');
+  // Results opens at its first screen, not at the race page the lead left there.
+  await press(tab(page,'Results'));await title(page,'Results');await expect(page).toHaveURL(/\/results$/);
+  await press(tab(page,'Races'));await races(page);
+  // With no history, a screen lights the section it belongs to.
+  await page.goto(`/results/${code}/races/${race.id}`);await title(page,heat);await lit(page,'Results');
+  await page.goto(`/results/${code}`);await title(page,event);await lit(page,'Results');
+  await page.goto('/day/events/new');await title(page,'Add an event');await lit(page,'Day setup');
 });
 
 /** A lead on Races, the page watching the cell from its first frame. */
@@ -141,7 +186,7 @@ test('the current tab\'s cell slides to the tapped tab while the new screen show
   await expect(tab(page,'Day setup')).toHaveCSS('color',await page.getByRole('banner').evaluate(el=>getComputedStyle(el).backgroundColor));
 });
 
-test('the cell slides from the tab shown before on the phone\'s Back and Forward, and stays still on the way back from a screen with no bar',async({openPhone,request})=>{
+test('the cell slides from the tab shown before on the phone\'s Back and Forward, and stays still through a deeper screen of the same section',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Cell event'),w=await ownWristbands('Girl Cubs',2);
   await ownEvent(request,code,name,'Girl Cubs','timed');
   await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
@@ -154,19 +199,19 @@ test('the cell slides from the tab shown before on the phone\'s Back and Forward
   slid(await trace(page),2,1,'Results');
   await page.goForward();await title(page,'Day setup');await cellOn(page,'Day setup');
   slid(await trace(page),1,2,'Day setup');
-  // A screen with no bar, then back to the same tab: the cell is where it was and does not move.
-  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await expect(bar(page)).toHaveCount(0);
+  // A deeper screen, then back to the same tab: the cell is where it was and does not move.
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await cellOn(page,'Day setup');
   await press(arrow(page));await title(page,'Day setup');await cellOn(page,'Day setup');
   expect(await trace(page)).toEqual([{tab:'Day setup',at:2}]);
-  // The same from Results, through an event: the bar comes back with the cell on Results.
+  // The same from Results, through an event: the cell stays on Results.
   await press(tab(page,'Results'));await title(page,'Results');await cellOn(page,'Results');
   await trace(page);
-  await press(resultsCard(page,code));await title(page,`${name} · Girl Cubs`);await expect(bar(page)).toHaveCount(0);
+  await press(resultsCard(page,code));await title(page,`${name} · Girl Cubs`);await cellOn(page,'Results');
   await press(arrow(page));await title(page,'Results');await cellOn(page,'Results');
   expect(await trace(page)).toEqual([{tab:'Results',at:1}]);
 });
 
-test('a problem on a Races card opens the event in Results, a screen with no bar; its back arrow returns to Races, and the cell has not moved',async({openPhone,request})=>{
+test('a problem on a Races card opens the event with Races still lit; its back arrow returns to Races, and the cell has not moved',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Cell card'),w=await ownWristbands('Girl Cubs',4);
   await ownEvent(request,code,name,'Girl Cubs','heats');
   // Two times, each shared by a runner of Heat 1 and a runner of Heat 2: one Decide the tie button on the card.
@@ -174,8 +219,8 @@ test('a problem on a Races card opens the event in Results, a screen with no bar
   const page=await watched(openPhone,'Cell card lead');
   await trace(page);
   await press(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));
-  await title(page,`${name} · Girl Cubs`);await expect(bar(page)).toHaveCount(0);
-  // The arrow names Races, where the lead came from: the bar comes back with its cell on Races, where it was.
+  await title(page,`${name} · Girl Cubs`);await cellOn(page,'Races');
+  // The arrow names Races, where the lead came from: the cell is on Races, where it was.
   await expect(arrow(page)).toHaveAccessibleName('Back to Races');
   await press(arrow(page));await races(page);await cellOn(page,'Races');
   expect(await trace(page)).toEqual([{tab:'Races',at:0}]);

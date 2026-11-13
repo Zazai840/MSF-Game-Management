@@ -102,7 +102,7 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
 export async function back(page:Page,to:string) {
   const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadMenuButton(page).getByRole('button',{name:'Races',exact:true});
   for(let tries=0;tries<6;tries++) {
-    await expect(arrow.or(races)).toBeVisible();
+    await expect(arrow.or(races).first()).toBeVisible();
     if(!await arrow.isVisible()) {if(to==='Races') return press(races);break;}
     const label=(await arrow.getAttribute('aria-label'))!,here=page.url();
     await arrow.click();
@@ -414,15 +414,15 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job'})).toBeVisible();
 }
-/** The lead's bar (Races, Results, Day setup), at the foot of those three screens on a lead's phone only: there, it shows that the phone is a lead's. */
+/** The lead's bar (Races, Results, Day setup), at the foot of every lead screen on a lead's phone only: there, it shows that the phone is a lead's. The Race screen has none. */
 export function leadMenuButton(page:Page) {
   return page.getByRole('navigation',{name:'Lead screens',exact:true});
 }
-/** From any screen as a lead: back along the back arrow to a screen with the lead's bar, then its Results or Day setup tab. */
+/** From any screen as a lead: the lead's bar's Results or Day setup tab; from a Race screen, back along the back arrow to Races first. */
 export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
   const tab=leadMenuButton(page).getByRole('button',{name:section,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
   for(let tries=0;tries<6;tries++) {
-    await expect(tab.or(arrow)).toBeVisible();
+    await expect(tab.or(arrow).first()).toBeVisible();
     if(await tab.isVisible()) return press(tab);
     const here=page.url();
     await press(arrow);await expect(page).not.toHaveURL(here);

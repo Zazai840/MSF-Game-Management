@@ -128,7 +128,7 @@ test('a sheet slides up and leaves faster than it came; with reduced motion it o
   expect(await sheet.count()).toBe(0);
 });
 
-test('the toast sits just above an open sheet, and on Day setup just above the lead\'s bar, clear of the rows',async({openPhone,request})=>{
+test('the toast sits just above an open sheet, and on Events and on Day setup just above the lead\'s bar, clear of the rows',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('Feel toast');
   await ownEvent(request,code,name,'Girl Cubs','timed');
   const {page}=await openPhone(ownName('Feel toast lead'),{lead:true});
@@ -145,6 +145,8 @@ test('the toast sits just above an open sheet, and on Day setup just above the l
   await expect(async()=>{const top=(await box(sheet)).y,foot=await box(toast);expect(foot.y+foot.height).toBeLessThanOrEqual(top);expect(foot.y+foot.height).toBeGreaterThan(top-16);}).toPass({timeout:3000});
   await sheet.getByRole('button',{name:'Switch on',exact:true}).click();
   await expect(toast).toContainText(`${code} switched on`);
+  // On Events, a deeper screen, with the sheet closed: just above the lead's bar.
+  await expect(async()=>{const foot=await box(toast),above=await box(bar);expect(foot.y+foot.height).toBeLessThanOrEqual(above.y);expect(foot.y+foot.height).toBeGreaterThan(above.y-16);}).toPass({timeout:3000});
   await page.getByRole('banner').getByRole('button',{name:'Back to Day setup'}).click();
   const last=page.getByRole('button',{name:/^Start a new day/});
   await expect(last).toBeVisible();
