@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { Phone,Level } from '../../shared/domain.js';
-import type { AuditNote,RunnerRuling } from '../../shared/rulings.js';
+import { changeReasonText,type AuditNote,type ChangeReason,type NoteTouch,type RunnerRuling } from '../../shared/rulings.js';
 import { requireLevel } from '../access/permissions.js';
 import { raceChange,type Database } from '../races/records.js';
 /** All lead rulings share the day lock, current permission check and export revision. */
@@ -28,4 +28,9 @@ export async function writeAuditNote(client:pg.PoolClient,phone:Phone,eventId:st
   const id=randomUUID();
   const at=(await client.query('INSERT INTO audit_notes(id,day_id,event_id,action,actor_name,message,comment,touches) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING occurred_at',[id,phone.dayId,eventId,note.action,phone.name,note.message,note.comment,JSON.stringify(note.touches)])).rows[0].occurred_at.toISOString();
   return {id,at};
+}
+/** A final's line-up changed by hand, with its reason: "Sam Patel <what> - Hurt", the reason also in the comment as a tie's comment is. */
+export function writeChangeNote(client:pg.PoolClient,phone:Phone,eventId:string,action:string,what:string,reason:ChangeReason,touches:NoteTouch[]) {
+  const comment=changeReasonText(reason);
+  return writeAuditNote(client,phone,eventId,{action,message:`${phone.name} ${what} - ${comment}`,comment,touches});
 }

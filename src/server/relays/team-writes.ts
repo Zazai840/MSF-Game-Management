@@ -10,6 +10,10 @@ import { changeTeamEntry,raceFlowRead } from '../races/race-flow.js';
 import { saveIfDone } from '../races/steps.js';
 import { keepFinalistLegs } from '../races/final-field.js';
 import { raceChange } from '../races/records.js';
+import { isTeamEntry } from '../../shared/races.js';
+import { ordinal } from '../../shared/ordinal.js';
+import { writeChangeNote } from '../rulings/records.js';
+import { requireChangeReason } from '../rulings/validation.js';
 import { checkedLegs,joiningTeam,requestedDone,requestedTeam,teamsWriteRead,type TeamsWriteRead } from './teams.js';
 /**
  * A Save on the version the phone last saw, or refused as changed ("Aisha Noor changed this a moment ago", or by this
@@ -62,15 +66,26 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
       requireVersion(team,phone,done.version!);
       const legs=checkedLegs(relay,team.id,done.wristbands,done.kept,raceId);
       await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4 WHERE id=$1',[team.id,JSON.stringify(legs),phone.name,phone.profileId]);
+      // A child new to the team at a final is a replace: it needs a reason, kept as an audit note on the team. A reorder is not.
+      const was=team.legs.map(leg=>leg.wristband),leg=legs.findIndex(item=>item.wristband!==null && !was.includes(item.wristband));
+      let replace=null as (()=>Promise<unknown>)|null;
       // A final's kept copy of the team (for Here / Absent) takes the new legs too: through its runner list while the
       // team is Here, else straight away.
       let outOfRace=false;
       await changeTeamEntry(client,phone,raceId,team.id,({race,entries,entry})=>{
+        if(race.kind==='final' && leg>=0) {
+          const reason=requireChangeReason((request.body as {reason?:unknown}).reason,true);
+          // The team's entry in the final, Here or not: its children old and new are its legs, so its Notes carry the note.
+          const entryId=[...race.final!.entries.map(item=>item.runner),...(race.final!.additionalEntries||[]).map(item=>item.runner)].find(runner=>runner && isTeamEntry(runner) && runner.team.id===team.id)?.id;
+          const what=`changed Team ${team.number}'s ${ordinal(leg+1)} leg from ${was[leg]??'empty'} to ${legs[leg].wristband} (${raceName(race)})`;
+          replace=()=>writeChangeNote(client,phone,race.event.id,'replace-leg',what,reason,[{raceId,entryId}]);
+        }
         if(!entry && race.kind==='final') {outOfRace=true;return;}
         if(!entry) throw new Refusal(409,`Team ${team.number} is no longer in ${raceName(race)}`);
         return entries.map(other=>other===entry?{...entry,legs:legs.map(leg=>({...leg,here:leg.wristband!==null}))}:other);
       });
       if(outOfRace && !await keepFinalistLegs(client,raceId,team.id,legs)) throw new Refusal(409,`Team ${team.number} is not in the final`);
+      await replace?.();
     });
   });
 }
