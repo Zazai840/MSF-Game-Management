@@ -156,3 +156,34 @@ test('the toast sits just above an open sheet, and on Events and on Day setup ju
     expect(foot.y).toBeGreaterThanOrEqual(rowBox.y+rowBox.height);
   }).toPass({timeout:3000});
 });
+
+test('on every screen, Join also, a pull down never reloads the app and two fast taps never zoom; a pinch still zooms',async({page})=>{
+  await page.goto('/');
+  await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
+  // A test browser has no pull-to-reload and no double-tap zoom, so the page's settings are read.
+  expect(await page.evaluate(()=>{const style=getComputedStyle(document.documentElement);return [style.overscrollBehaviorY,style.touchAction];})).toEqual(['contain','manipulation']);
+  expect(await page.locator('meta[name="viewport"]').getAttribute('content')).not.toMatch(/user-scalable|maximum-scale/);
+});
+
+test('a long press on a label or a link selects no words; a heading and typed words can still be selected',async({page})=>{
+  await page.goto('/');
+  const selects=(target:Locator)=>target.evaluate(element=>getComputedStyle(element).userSelect);
+  const name=page.getByRole('textbox',{name:'Full name'});
+  await expect(name).toBeVisible();
+  expect(await selects(page.locator('label[for="join-name"]'))).toBe('none');
+  // The only link is on the test build, so one is put on the screen to read the rule for links.
+  expect(await page.locator('.rz-screen').first().evaluate(screen=>{const link=screen.appendChild(document.createElement('a'));link.href='#';const select=getComputedStyle(link).userSelect;link.remove();return select;})).toBe('none');
+  for(const content of [page.locator('body'),page.getByRole('heading',{level:1}),name]) expect(await selects(content)).not.toBe('none');
+});
+
+test('Join has no scroll room when it fits; on a short screen it still scrolls',async({page})=>{
+  await page.goto('/');
+  await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
+  const room=()=>page.evaluate(()=>document.documentElement.scrollHeight-window.innerHeight);
+  expect(await room()).toBe(0);
+  // The phone's address bar cannot be shown in a test browser, so the page's own height rule is read: it follows the visible screen.
+  expect(await page.evaluate(()=>[...document.styleSheets].flatMap(sheet=>[...sheet.cssRules]).filter((rule):rule is CSSStyleRule=>rule instanceof CSSStyleRule && rule.selectorText==='body').map(rule=>rule.style.minHeight).filter(Boolean))).toEqual(['100dvh']);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.setViewportSize({width:page.viewportSize()!.width,height:300});
+  expect(await room()).toBeGreaterThan(0);
+});

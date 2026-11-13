@@ -46,11 +46,9 @@ function usePullToRefresh(onRefresh:()=>void) {
       set('refreshing');refresh.current();
       timer=window.setTimeout(()=>set('idle'),shownFor);
     };
-    // The browser's own pull (Chrome's reload) is off while this screen has its own.
-    document.documentElement.classList.add('rz-pulls');
     addEventListener('touchstart',start,{passive:true});addEventListener('touchmove',move,{passive:false});addEventListener('touchend',end);addEventListener('touchcancel',end);
     return ()=>{
-      clearTimeout(timer);document.documentElement.classList.remove('rz-pulls');
+      clearTimeout(timer);
       removeEventListener('touchstart',start);removeEventListener('touchmove',move);removeEventListener('touchend',end);removeEventListener('touchcancel',end);
     };
   },[]);
