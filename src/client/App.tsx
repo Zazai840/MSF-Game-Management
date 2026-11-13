@@ -18,6 +18,8 @@ import { JobCard,JobChoice,LeadCode,RoleSheet } from './races/RoleSheet.js';
 const Lead = lazy(()=>import('./lead/Lead.js').catch(()=>{reloadApp();return new Promise<never>(()=>{});}));
 /** `role`: the role the server last heard from this phone today, or null. */
 interface HomeRead { phone:Phone; needsYou?:number; role:Role|null }
+/** The address showing now: its path and query. */
+const address=()=>location.pathname+location.search;
 /** What the next Back (one the app made itself) does in place of opening the screen it lands on. */
 let afterBack:(()=>void)|null=null;
 /** Where Open in Results lands: a tie on its screen, a race's item on its race page, anything else on its event; a Races card's Confirm the medals on that screen. */
@@ -26,7 +28,7 @@ const resultsView=(target:ResultsTarget):View=>target.stage?{kind:'confirm-the-m
 export function App() {
   const [signedIn,setSignedIn] = useState(Boolean(phoneStorage.token()));
   const [home,setHome] = useState<HomeRead|null>(null);
-  const [view,setView] = useState<View>(()=>viewAt(location.pathname+location.search));
+  const [view,setView] = useState<View>(()=>viewAt(address()));
   // What Open in Results asked to open on the event (the runner sheet, a check sheet), on that visit only.
   const [target,setTarget]=useState<ResultsTarget>();
   // Kept here as well as on the phone, so the back arrow returns to the tab you came from even when storage fails.
@@ -63,10 +65,10 @@ export function App() {
    * scrolls to the top; with reduced motion it jumps.
    */
   function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
-    const path=addressOf(next),here=location.pathname+location.search===path,tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
+    const path=addressOf(next),here=address()===path,tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
     // A screen asks for these two moves by itself, once its read arrives. That can be just after the phone's Back left
     // the screen: the address is then another screen's, and the move would put this one back in its place.
-    if(replace && (tab || page) && !sameScreen(viewAt(location.pathname+location.search),view)) return;
+    if(replace && (tab || page) && !sameScreen(viewAt(address()),view)) return;
     setMenu(null);setView(next);setTarget(replace && tab?target:opening);
     // `over`: the new screen takes the place of this one and the one it was opened from (a re-run's new race replaces the old race and the re-run screen).
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
@@ -78,7 +80,7 @@ export function App() {
   useEffect(()=>{
     const back=()=>{
       if(afterBack) {const then=afterBack;afterBack=null;then();return;}
-      if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(location.pathname+location.search));};
+      if(sheetBack()) return;setMenu(null);setTarget(undefined);setView(viewAt(address()));};
     addEventListener('popstate',back);return ()=>removeEventListener('popstate',back);
   },[]);
   useEffect(()=>{
@@ -146,7 +148,7 @@ export function App() {
     // delete) goes back past the race too: to its entry first, then on from there as its own Back would.
     const up=(from:View)=>go(isLead?parentOf(from):{kind:'races'},{replace:true});
     const back=(levels:1|2=1)=>{
-      if(levels===2) {if(entryBack()) {afterBack=()=>{if(entryBack()) history.back();else up(viewAt(location.pathname+location.search));};history.back();} else up(parentOf(view));return;}
+      if(levels===2) {if(entryBack()) {afterBack=()=>{if(entryBack()) history.back();else up(viewAt(address()));};history.back();} else up(parentOf(view));return;}
       if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
     };
     // The job sheet sits beside the lead screen's root, so it brings its own.
