@@ -1,4 +1,5 @@
 import { request } from '@playwright/test';
+import pg from 'pg';
 import { labelDay } from './fixtures.js';
 /** Signs the owner in as a lead through the API with the owner password, starting the day, reads its codes and sets This day. */
 export default async function setup() {
@@ -17,4 +18,12 @@ export default async function setup() {
   // The day export needs This day's Region and Day.
   await labelDay(api, token);
   await api.dispose();
+  // The run's name and number claims, made once here: two workers making them at once collide in Postgres's catalog.
+  if(process.env.E2E_TEST_DATABASE_URL) {
+    const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
+    try {
+      await db.query('CREATE TABLE IF NOT EXISTS e2e_names(name text PRIMARY KEY,test text NOT NULL,title text NOT NULL)');
+      await db.query('CREATE TABLE IF NOT EXISTS e2e_claims(counter text PRIMARY KEY,next integer NOT NULL)');
+    } finally {await db.end();}
+  }
 }
