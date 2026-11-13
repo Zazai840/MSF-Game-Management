@@ -312,3 +312,33 @@ test('a saved race opens read-only for a volunteer, saying to ask a lead',async(
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('saved.png'),fullPage:true});
 });
+
+test('the bottom of Races is one row at 390px and at 320px: "Updated at" over the time at the left and New race in the rest of the row, for a volunteer and above the lead\'s bar for a lead',async({openPhone})=>{
+  for(const lead of [false,true]) {
+    const {page}=await openPhone(ownName(lead?'One row lead':'One row start'),{lead});
+    for(const [width,height] of [[390,844],[320,568]]) {
+      await page.setViewportSize({width,height});
+      const footer=page.locator('footer.rz-footer'),line=footer.getByText(/^Updated at/),time=line.getByText(/^\d\d:\d\d:\d\d$/),button=footer.getByRole('button',{name:'New race',exact:true});
+      await expect(time).toBeVisible();
+      const [row,words,clock,race]=(await Promise.all([footer,line,time,button].map(part=>part.boundingBox()))).map(box=>box!);
+      const right=await page.evaluate(()=>document.documentElement.clientWidth)-20;
+      // One row on the 20px gutter: the line at the left, New race from the line to the right gutter, at its full 56px.
+      expect(words.x).toBe(20);
+      expect(race.x).toBeGreaterThanOrEqual(words.x+words.width+8);expect(race.x).toBeLessThanOrEqual(words.x+words.width+16);
+      expect(race.x+race.width).toBe(right);expect(race.height).toBe(56);
+      expect(words.y).toBeGreaterThanOrEqual(race.y);expect(words.y+words.height).toBeLessThanOrEqual(race.y+race.height);
+      // "Updated at" over the time: the time starts at the left too, on the line's second row.
+      expect(clock.x).toBe(20);expect(clock.y).toBeGreaterThanOrEqual(words.y+clock.height-1);
+      // No cut words: the plus sign and the words show whole.
+      await expect(button.locator('svg')).toBeVisible();
+      expect(await button.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+      expect(await line.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+      // Shorter than the 146px stack: 12px above the button and its 24px foot. A lead has the lead's bar straight below.
+      expect(row.height).toBe(92);
+      const bar=page.getByRole('navigation',{name:'Lead screens'});
+      if(lead) expect((await bar.boundingBox())!.y).toBe(row.y+row.height);
+      else {await expect(bar).toHaveCount(0);expect(row.y+row.height).toBe(height);}
+      expect(await lookProblems(page)).toEqual([]);
+    }
+  }
+});
