@@ -1,6 +1,6 @@
 # Screen recipes
 
-> **Built as the race flow.** The volunteer and lead flows below (screens 2–24, 27–29) are replaced by [race-flow.md](race-flow.md): Races (Home), New race, Switch job and the race screen per role. Results, Day setup and Join keep the screens here, except that Join adds the job choice and Results and Day setup open from the lead menu.
+> **Built as the race flow.** The volunteer and lead flows below (screens 2–24, 27–29) are replaced by [race-flow.md](race-flow.md): Races (Home), New race, Switch job and the race screen per role. Results, Day setup and Join keep the screens here, except that Join adds the job choice and Results and Day setup open from the lead's bar (see "The lead's bar" below).
 
 > **Superseded in part.** [race-flow.md](race-flow.md) replaces the volunteer and zone-lead flows below (screens 2–24 and 27–28). Join, Results and Day setup still apply, except where race-flow.md changes them.
 
@@ -10,6 +10,13 @@ Every screen:
 - Starts `<div class="rz-screen rz-zone-running">`.
 - Has a compact **AppBar** with a back link to the parent screen and the avatar. Home (2) and Home as a zone lead (21) use the hero AppBar instead.
 - Ends with an **ActionFooter** whose first line is "Updated at 11:41:17 AM" plus a small **Refresh** button, named for what it refreshes ("Refresh Start line", "Refresh Finish order", "Refresh Times", "Refresh Results").
+
+**The lead's bar.** On a lead's phone, Races, Results (25) and Day setup (30) end with a bar of three tabs below the ActionFooter: Races (`hurdle`), Results (`trophy`), Day setup (`sliders`).
+- `<nav class="rz-leads-bar rz-on-dark" aria-label="Lead screens">`: the AppBar's surface, `navy` with the **Pattern** motif, so the screen has the same bar at its top and its foot. One button per tab: the icon above the word, `crumb` type, `size-action` high, `on-navy` on `navy`. The current screen's tab has `aria-current="page"` and is the inverse, `navy` on a `paper` cell inset `space-4` with `radius-sm` corners, as the avatar sits in the AppBar. The focus ring is `gold`, and `navy` on the current tab.
+- It stays at the bottom of the screen. On Races the sticky New race footer sits above it, and the toast sits just above New race.
+- Each of the three screens opens at once with what it showed last time (kept only while the app is open, dropped at Log out) and reads again behind it; only a first open shows the spinner over "Opening…".
+- Results and Day setup have no back link: the bar is the way between the three screens. Every deeper lead screen keeps its back link and has no bar. A phone that is not a lead's never shows the bar.
+- The layout is the same at every width.
 
 Volunteer task screens use the back link only. Zone-lead screens (22–32) also show a **Breadcrumb** under the AppBar. With more than four levels, it starts with "…".
 
@@ -127,7 +134,7 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 - Comment (needed only for Decided without a run-off), then a docked "Save tie" with its reason above while it cannot save. Saving shows "Tie saved" and goes back.
 
 **25 Confirm the medals.** A full screen at `/results/<code>/confirm-the-medals`, opened from a Races card, the Final tab, or the Heats tab of a timed event; Back (the only way out) returns there:
-- Lead header "200m · Boy Cubs" with the event code. Prompt: meta "3 heats · no final" ("2 heats · final" on a final), question "Confirm the *medals*", help "Check the places, then confirm. They go to the Day export."
+- Lead header "Confirm the medals" with the event code (the action, as on Results without a final and each Reopen: "Reopen heats"); the back arrow's fallback is the event. Prompt: meta "200m · Boy Cubs · 3 heats · no final" ("... · 2 heats · final" on a final), no question (the header says it), help "Check the places, then confirm. They go to the Day export."
 - "Settle first" and "Worth a look": IssueCards, each with one small button naming its action and thing: "Settle tie" (the tie screen), "Open Heat 3" (the race page), "Open 2041" (the runner sheet over the screen). Settle first's are primary. A section with nothing in it is left out.
 - "Medal places": "A place is wrong? Tap Fix beside it.", then a row per place: the place on a gold star, the number or team, its race and time below ("Heat 2 · 10.00"; "Final" on a final), a TIE tag while an open tie holds it, and a small "Fix" with the pencil, which opens that race on Correct times (Correct finishing order on a final) and comes back here.
 - A docked "Confirm the medals", grey with "Settle 2 things first." above it while Settle first holds anything. Confirming shows "Medals confirmed" and goes back.
@@ -135,22 +142,29 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 ## Results
 
 **25 Results: all events**
-- `display-screen` "Results" and the EventGrid legend (Done, Running, Not started).
-- For each event, an `rz-section` ("60m", "60m Hurdles", "200m"…) and an EventGrid of its sections: "R4 · Girl Cubs" with status "Heats running · 5 races".
+- `display-screen` "Results". No legend and no distance headings.
+- Three `rz-section`s, each an EventGrid in programme order and left out when empty: "Action required" (the same events as a lead's Action required on Races), "Running", "Done".
+- Then a closed Disclosure "Not started (26)": the events with no races, as an EventGrid when opened.
+- A cell: "60m · Girl Cubs" with its code tag (R4), then the status in its Races card's words ("Heat 1: 1 time to check"), " · Switched off" on a switched-off event, and "Latest note 10:42" when it has a note.
 
 **26 Results: one event's leaderboard**
 - The scoreboard surface: compact AppBar on `scoreboard` with the star pattern, back link "Results" in gold.
 - `rz-board-title` "60m / Girl Cubs" with an R4 code tag, the live chip "Heats running · 5 races", and the note "Top 8 · Q = fastest 6".
 - Leaderboard: qualifiers (star rank, Q tag, gold time), the qualifying line, places 7–8 with plain ranks, then places outside the top 8 as `--outside` rows. Tied rows carry a TIE tag.
+- Below the event's tabs, on every tab: one Callout per open To check problem in the To check words, with one primary Button: "Decide the tie" for a tie, else "Check Heat 1", which opens that race's page (the heat's own row below stays "Open Heat 1").
+- Heats tab, top to bottom: the scoreboard; `rz-section` "Heats" with a ListRow per heat; Confirm the medals (an event with no Final tab); a closed Disclosure "More" with "Reopen heats" and "Results without a final" when either applies; `rz-section` "Deleted races" with its rows only when the event has a deleted race.
 
 **27 The runner sheet.** Tapping a runner (on the Heats leaderboard, the Final tab or a race page) opens a Sheet titled "Runner 2002" (or "Team 3"): a meta line (event, heat, place in race, time, any disqualification), the runner's Notes as IssueCards, then block Buttons: primary "Mark checked" (only with an open warning; saves at once), "Correct number", "Choose which result counts" (when the runner has more than one result), "Open Heat 1", and a danger "Disqualify 2002" last (or "Lift disqualification"). Correct number, Choose which result counts, Disqualify and Lift disqualification are race-flow screens with a docked button.
 
 **28 A race page** at `/results/<code>/races/<raceId>`, and its Race actions:
-- Lead header "Heat 1" with the event code, back to the event's tab, and "⋯" (Race actions). Meta "60m · Girl Cubs · checked in 10:05 · saved" (or "deleted", "not saved yet").
+- Lead header "Heat 1" with the event code, back to the event's tab; no "⋯".
+- On top, the race's open To check problems as WarningCallouts in the To check wording, each with "It's right" (the kinds a lead can accept; it saves at once) and a primary button that opens the correction that fits: "Fix time" opens Correct times (Correct finishing order on a final); "Fix" opens Correct runner list (Correct teams on a relay) for a wristband warning, an entry added at the finish, a child in two relays and a team that ran short, and the Counted result screen for a child or team that ran twice; "Decide the tie" opens the tie.
+- Meta "60m · Girl Cubs · checked in 10:05 · saved" (or "deleted", "not saved yet").
 - A deleted race: a status WarningCallout "Deleted at 10:42 by Sara Ahmed: wrong section checked in. Its results do not count." ("Replaced by a re-run at …" for a re-run's race). A race not saved yet: "Heat 3 is not saved yet. Open it to finish its steps." with "Open Heat 3".
-- An ok StatusTag "6 times · 6 finishers", then the lead's rows: place, wristband or team (its four children under it), time; a wrong time's reason or a kept warning on its own line, the row amber while one is open. A row opens the runner sheet.
+- An ok StatusTag "6 times · 6 finishers", then the lead's rows: place, wristband or team (its four children under it), time; a wrong time's reason, a kept warning or another To check reason ("Added at the finish", "Ran twice in this event", "TIE") on its own line, the row amber while one is open. A row opens the runner sheet.
+- Below the rows, a block Button that names what its Sheet holds: "Correct or delete Heat 1" on a saved race, "Restore or delete Heat 1" on a deleted race, "Delete Heat 1" on a race not saved yet or replaced by a re-run.
 - A Disclosure "Saved versions (5)", then Updated at.
-- "⋯" here and on the race screen opens one Sheet "Heat 1 · actions": Correct times (not on a final), Correct finishing order, Correct runner list (Correct teams on a relay), Re-run race, then a danger "Delete Heat 1" set apart. A deleted race: primary "Restore Heat 4" and a danger "Delete for good". A race not saved yet: where to finish its steps ("… on this screen first." on the race screen), "Open Heat 3" on a race page, and Delete.
+- That Button, and "⋯" on the race screen, open one Sheet "Heat 1 · actions": Correct times (not on a final), Correct finishing order, Correct runner list (Correct teams on a relay), Re-run race, then a danger "Delete Heat 1" set apart. A deleted race: primary "Restore Heat 4" and a danger "Delete for good". A race not saved yet: where to finish its steps ("… on this screen first." on the race screen), "Open Heat 3" on a race page, and Delete.
 - Re-run, Delete and Restore are race-flow screens at `<race>/re-run`, `/delete`, `/restore` (under the race page or `/races/<raceId>`): Re-run "Re-run *Heat 2?*", "Heat 2 moves to Deleted races. A new Heat 2 opens with the same runners checked in.", docked "Re-run Heat 2", landing on the new heat at its first step in place of the old race in history; Delete with stacked choices "Move to Deleted races" / "Delete for good" and a danger docked "Delete Heat 1" (or "… for good"), back to the screen before the race; Restore "Its results count again." (and the number it comes back as when its own is taken), docked "Restore Heat 4", staying on the restored race page.
 - Correct times and Correct finishing order are race-flow screens at `<race>/correct-times` and `/correct-finishing-order`, back to the screen they were opened from on Save (one toast, one Notes line); Back without Save changes nothing. Both end with "Comment (optional)" (never focused on its own) and a docked Save greyed with its reason above it. Correct times: "Correct the *times*", a lead row per place (a wrong time amber with its reason) with a "No finisher" pill on the same line; tapping a row swaps it for the race flow's time box ("2nd place time"); out-of-order times show a WarningCallout with "Accept these out-of-order times"; docked "Save times" ("Change a time to save.", "Type a time for each place.", or the leftover places). Correct finishing order: "Correct the *finishing order*", OrderRows with the place's time under the wristband (or team), a small "No place" and the handle; No place opens a Sheet ("No place for 2002": Did not finish, Didn't run); those without a place follow under "No place" (Did not finish with "Give a place"); docked "Save finishing order" ("Change the order to save.").
 - Correct runner list and Correct teams are race-flow screens at `<race>/correct-runner-list` and `/correct-teams`. Nothing saves until the docked button; Back leaves the race as it was. Correct runner list: "Correct the *runner list*", one lead row per runner (tap to retype on the number pad, docked Done) with a small red × to remove it, a small "Add runner", docked "Review runner list" (greyed with "Change, add or remove a runner first."). Warnings wait in a WarningCallout with Keep warnings / Fix runners; then "*7 runners.* Is that right?", each kept warning, the choice "Record the finish order again" / "New runners did not finish" when runners were added after the finish, an optional comment and docked "Save runner list". Correct teams: "Correct the *teams*", each team as leg chips with a small Take off (a chip opens "Change *Team 2's* 3rd leg" with Cancel / Done, checked as the start line checks a leg), "Still to run" with Add, an optional comment and docked "Save teams" (greyed with "Change a team first."). Each save is one toast ("Runner list saved", "Teams saved") and one Notes line, back where it was opened.
@@ -161,18 +175,19 @@ Volunteer task screens use the back link only. Zone-lead screens (22–32) also 
 
 **30 Day setup**
 - `display-screen` "Day setup".
-- CodeCard "Day code" (6509) with the text "Volunteers type this to join today." and a small Button "Make a new day code".
-- CodeCard "Lead code" (KG6C42) with "Give this only to zone leads. It opens the Dashboard." and a small Button "Make a new lead code".
-- ListRows "Phones" (meta "4 people joined today") and "Events" (meta "20 events").
-- `rz-section` "Day export".
+- One CodeCard with "Olympics password" and "Lead code" side by side (each code in `display-screen` size, so two fit across a 360px phone) and one line: "The Olympics password is for every volunteer. The lead code is only for zone leads." No button in the card.
+- Seven ListRows in the order of the day, all on one phone screen: "This day" (meta "2026 · South · Day 1", or "Choose the region and day" in the `--warn` style until region and day are both set), "Events" (meta "26 events"), "Signed in today" (meta "4 people signed in today"), "Change Olympics password", "Make a new lead code" (asks in a Sheet), "Day export" (meta its status sentence, in the `--warn` style when changes came after the last download), "Start a new day".
+- This day (`/day/this-day`), Day export (`/day/export`) and Start a new day (`/day/start-a-new-day`) are their own screens with a back arrow to Day setup, each holding one card with no heading (the header names the screen): the Year, Region and Day choices saved on tap; the download with its status; the red-outlined card with "Type NEW DAY to confirm".
+- "Updated at" with Refresh.
 
 **31 Day setup: events**
 - `display-screen` "Events".
-- A card for each event: title "60m · Boy Beavers" with its code tag R1, meta "Races · Heats then final" (plus " · Switched off" when off), and small Buttons "Rename" and "Switch off". A refused save shows "Not saved - try again" on that card.
+- A ListRow for each event: label "60m · Boy Beavers", meta "R1 · Races · Heats then final" (plus " · Switched off" when off). A tap opens a Sheet named after the event ("60m · Boy Beavers") with block Buttons "Rename" and "Switch off" (or "Switch on"). Switch off or on saves at once with its toast and closes the Sheet; a refused save shows "Not saved - try again" in the Sheet.
 - A block Button "+ Add an event", then "Updated at" with Refresh.
 - Rename and Add an event are full race-flow screens with a docked button ("Save name", "Add event").
 
-**32 Day setup: phones**
-- `display-screen` "Phones", a `body` line explaining Remove.
-- A card for each person: name ("Amina Yusuf (you)"), role meta ("Scoring team" / "Volunteer"), and small Buttons "Remove from scoring team" and "Remove".
-- A ListRow "Phone and access audit notes" at the end.
+**32 Day setup: Signed in today**
+- `display-screen` "Signed in today", a `body` line "Role changes last for today only."
+- A ListRow for each person: label the name ("Amina Yusuf (you)"), meta the level, Owner and role ("Lead · Owner · Zone lead", "Volunteer · Timer"). The lead's own row is not a button and has no chevron.
+- A tap on another person's row opens a Sheet named after the person: block Buttons "Make lead" or "Make volunteer" (never Make volunteer for the owner; saved at once with a toast), then a red "Remove" set apart, which asks "Remove <name>?" in a second Sheet. A refused save shows "Not saved - try again" in the Sheet that made it, which stays open.
+- A closed disclosure "Notes (3)" at the foot, then "Updated at" with Refresh.

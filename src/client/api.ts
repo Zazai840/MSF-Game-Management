@@ -13,8 +13,16 @@ const homeTabKey=`${prefix}home-tab`;
 export type HomeTab='races'|'relays';
 /** The Home tab an event is listed on: Relays for a relay, Races for the rest. */
 export const homeTabOf=(event:{relay:boolean}):HomeTab=>event.relay?'relays':'races';
+/**
+ * What each read showed last and when it arrived, kept only while the app is open: a screen seen before opens at once
+ * with it and refreshes behind. It goes when the session's storage does, so the next person on this phone never sees it.
+ */
+const seen=new Map<string,{value:unknown;at:string}>();
+export const lastSeen=<T>(path:string)=>seen.get(path) as {value:T;at:string}|undefined;
+export const keepSeen=(path:string,value:unknown,at:string)=>{seen.set(path,{value,at});};
 // The session marker goes last: other tabs act on its storage event, so by then the rest is already gone.
 const erase=(keep:string[]=[])=>{
+  seen.clear();
   for(const key of Object.keys(localStorage)) if(key.startsWith(prefix) && !keep.includes(key) && key!==`${prefix}session` && key!==homeTabKey) localStorage.removeItem(key);
   localStorage.removeItem(`${prefix}session`);
 };

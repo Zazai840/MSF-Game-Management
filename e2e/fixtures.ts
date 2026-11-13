@@ -97,15 +97,17 @@ export async function signInThroughApi(request:APIRequestContext,name:string) {
 /**
  * Taps the back arrow in the header, one screen at a time, until it has gone back to the named screen
  * (the arrow's label says "Back to <to>"), for example back(page,'Results'). Wait for the screen to settle first.
+ * Results and Day setup have no back arrow: from there the lead's bar goes to Races.
  */
 export async function back(page:Page,to:string) {
-  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+  const arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /}),races=leadMenuButton(page).getByRole('button',{name:'Races',exact:true});
   for(let tries=0;tries<6;tries++) {
-    await expect(arrow).toBeVisible();
-    const label=(await arrow.getAttribute('aria-label'))!;
+    await expect(arrow.or(races)).toBeVisible();
+    if(!await arrow.isVisible()) {if(to==='Races') return press(races);break;}
+    const label=(await arrow.getAttribute('aria-label'))!,here=page.url();
     await arrow.click();
     if(label===`Back to ${to}`) return;
-    await expect(arrow).not.toHaveAttribute('aria-label',label);
+    await expect(page).not.toHaveURL(here);
   }
   throw new Error(`No way back to ${to}`);
 }
@@ -213,6 +215,13 @@ export async function ownWristbands(section:keyof typeof sectionStart,count:numb
     return named.get(key)!;
   };
 }
+/** An event's card in the Results list, found by its event code. A card of an event with no races is under the closed "Not started" line: `notStartedCard`. */
+export const resultsCard=(page:Page,code:string)=>page.getByRole('button').filter({has:page.locator('.rz-code-tag',{hasText:new RegExp(`^${code}$`)})});
+/** The card of an event with no races yet: opens the Results list's "Not started" line, then answers the card. */
+export async function notStartedCard(page:Page,code:string) {
+  await press(page.locator('details:not([open]) > summary',{hasText:/^Not started \(\d+\)$/}));
+  return resultsCard(page,code);
+}
 /** Makes this test's own event under a code from ownCode(), so its races touch no other test. */
 export async function ownEvent(request:APIRequestContext,code:string,name:string,section='Girl Cubs',format:'heats'|'timed'='heats',type:'races'|'hurdles'='races') {
   claimed(code);
@@ -306,7 +315,10 @@ export async function deleteCurrentRace(request:APIRequestContext,code:string) {
   const ids=group.races.filter(race=>race.state!=='saved').map(race=>race.id);
   for(const id of ids) expect((await request.post(`/api/lead/races/${id}/delete`,{headers:bearer(owner),data:{permanent:true}})).ok()).toBe(true);
 }
-/** From Races: taps a race's chip on its event group's card ("H1", "Final"), opening Done when the group is done, and waits for the race. */
+/**
+ * From Races: taps a race's chip on its event group's card ("H1", "Final"), opening Done when the group is done, and
+ * waits for the race: its Race screen, or for a lead on a saved race its race page.
+ */
 export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H1') {
   // A chip is "Heat 1, saved": a lead's line under the chips ("Heat 1 has a tie to settle") names a heat too.
   const label=chip==='Final'?/^Final,/:new RegExp(`^Heat ${chip.slice(1)},`),card=page.getByRole('article',{name:`${name} · ${section}`,exact:true});
@@ -318,7 +330,8 @@ export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H
     if(!await card.isVisible() && await done.count()) await done.locator('summary').click();
     await card.getByRole('button',{name:label}).click({timeout:2000});
   }).toPass();
-  await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true})).toBeVisible();
+  const race=chip==='Final'?'Final':`Heat ${chip.slice(1)}`;
+  await expect(page.getByRole('heading',{level:1,name:`${name} · ${section}`,exact:true}).or(page.getByRole('banner').getByRole('heading',{level:1,name:race,exact:true}))).toBeVisible();
 }
 /** On Races: the Relays tab. */
 export async function openRelays(page:Page) {
@@ -366,18 +379,23 @@ export async function saveFinal(request:APIRequestContext,code:string,order:numb
   await writeOrder(request,token,code,order);
   await submitRace(request,token,code);
 }
-/** On a race page or the race screen: "⋯" opens the race's actions sheet, and this taps one of its buttons ("Correct times", "Delete Heat 1"). */
+/**
+ * Opens the race's actions sheet and taps one of its buttons ("Correct times", "Delete Heat 1"): by the race page's
+ * button with words ("Correct or delete Heat 1"), or by "⋯" on the race screen.
+ */
 export async function raceAction(page:Page,action:string) {
-  await press(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true}));
+  await press(page.getByRole('main').getByRole('button',{name:/^(Correct or delete|Restore or delete|Delete) (Heat \d+|Final)$/}).or(page.getByRole('banner').getByRole('button',{name:'Race actions',exact:true})));
   await press(page.getByRole('dialog',{name:/ · actions$/}).getByRole('button',{name:action,exact:true}));
 }
 /** The Confirm the medals screen's medal places, one row per place ("1st 2041 Heat 2 · 10.00 Fix"). */
 export const medalPlaces=(page:Page)=>page.getByRole('list',{name:'Medal places',exact:true}).getByRole('listitem');
 /** On the Confirm the medals screen: taps its docked Confirm the medals, which goes back where the screen was opened. */
 export async function confirmTheMedals(page:Page) {
-  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toBeVisible();
+  // The bar names the screen; nothing below it says so again.
+  await expect(page.getByRole('heading',{name:'Confirm the medals',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Confirm the medals',exact:true})).toBeVisible();
   await press(page.getByRole('contentinfo').getByRole('button',{name:'Confirm the medals',exact:true}));
-  await expect(page.getByRole('heading',{level:2,name:'Confirm the medals',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Confirm the medals',exact:true})).toHaveCount(0);
 }
 /** A card's or race's chips as they read, in order: "H1", "Add heat 2", "F", "+ Final". */
 export const chipTexts=(within:Locator)=>within.getByRole('list',{name:'Heats',exact:true}).getByRole('button').evaluateAll(chips=>chips.map(chip=>chip.textContent||chip.getAttribute('aria-label')));
@@ -396,14 +414,20 @@ export async function becomeLead(page:Page,code=process.env.E2E_LEAD_CODE!) {
   await page.getByRole('button',{name:'Switch to Zone lead',exact:true}).click();
   await expect(page.getByRole('button',{name:'Your role is Zone lead. Change job'})).toBeVisible();
 }
-/** A lead's avatar, which opens the avatar menu (Races, Results, Day setup, Log out). */
+/** The lead's bar (Races, Results, Day setup), at the foot of those three screens on a lead's phone only: there, it shows that the phone is a lead's. */
 export function leadMenuButton(page:Page) {
-  return page.getByRole('button',{name:/: Races, Results, Day setup and Log out$/});
+  return page.getByRole('navigation',{name:'Lead screens',exact:true});
 }
-/** From any screen as a lead: the avatar menu, then Results or Day setup. */
+/** From any screen as a lead: back along the back arrow to a screen with the lead's bar, then its Results or Day setup tab. */
 export async function openLeadMenu(page:Page,section:'Results'|'Day setup') {
-  await leadMenuButton(page).click();
-  await page.getByRole('menu').getByRole('menuitem',{name:section,exact:true}).click();
+  const tab=leadMenuButton(page).getByRole('button',{name:section,exact:true}),arrow=page.getByRole('banner').getByRole('button',{name:/^Back to /});
+  for(let tries=0;tries<6;tries++) {
+    await expect(tab.or(arrow)).toBeVisible();
+    if(await tab.isVisible()) return press(tab);
+    const here=page.url();
+    await press(arrow);await expect(page).not.toHaveURL(here);
+  }
+  throw new Error(`No way back to the lead's bar`);
 }
 /**
  * Starts dragging from `from` the way a person would: a real finger on the phone projects
@@ -462,10 +486,10 @@ export async function expectToast(page:Page,line:string|RegExp) {
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
-/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer (or the keyboard). */
+/** Each target shows whole without scrolling: the page is at its top, and each sits between the top of the screen and the footer or the lead's bar, whichever is higher (or the keyboard). */
 export async function inViewAboveFooter(page:Page,targets:Locator[]) {
   const {scrolled,visible,footer}=await page.evaluate(()=>({scrolled:scrollY,visible:visualViewport?visualViewport.offsetTop+visualViewport.height:innerHeight,
-    footer:document.querySelector('footer.rz-footer')?.getBoundingClientRect().top??Infinity}));
+    footer:Math.min(...['footer.rz-footer','.rz-leads-bar'].map(foot=>document.querySelector(foot)?.getBoundingClientRect().top??Infinity))}));
   expect(scrolled).toBe(0);
   for(const target of targets) {
     const box=(await target.boundingBox())!;
@@ -492,6 +516,9 @@ const approvedColours=(()=>{
  * 44px targets, WCAG AA contrast and only its approved colour pairs, with display capitals from CSS.
  */
 export async function lookProblems(page:Page) {
+  // A control just tapped is still pressed for a moment, then grows back from its pressed size (140 ms): measure once that has ended.
+  await page.waitForFunction(()=>!document.querySelector('.rz-screen :active'));
+  await page.evaluate(()=>Promise.all(document.getAnimations().filter(animation=>!(animation.effect?.getTiming().iterations===Infinity)).map(animation=>animation.finished.catch(()=>{}))));
   await page.evaluate(()=>document.fonts.ready);
   return page.evaluate(approved=>{
     const problems:string[]=[];

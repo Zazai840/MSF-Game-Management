@@ -93,7 +93,7 @@ A relay team that no race of its relay holds, apart from deleted races: a team t
 _Avoid_: Pool, waiting teams, unassigned
 
 **Deleted race**:
-A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number. In Results, an event's tabs are Heats, Final (only where the event has one) and Notes: Heats has a row for each heat, then the scoreboard, then the deleted races; the final's own row is on the Final tab.
+A race removed from an event's results but kept so it can be restored, for example one created by mistake. Heat numbers follow the live races only: deleting the newest heat frees its number for the next heat, and a deleted race may share its number with a live one. A restored race whose number a live race now has comes back with the next number. In Results, an event's tabs are Heats, Final (only where the event has one) and Notes: Heats has the scoreboard, then a row for each heat under a Heats heading, then the deleted races, which show only when the event has one; the final's own row is on the Final tab.
 _Avoid_: Cancelled race, deleted game, void race
 
 **Saved race**:
@@ -175,19 +175,23 @@ Anyone who typed today's lead code (or the owner password), trusted with everyth
 _Avoid_: Admin, organiser, superuser
 
 **Avatar menu**:
-What the avatar opens, at the top right of Races, the Race screen and every lead screen: Log out for everyone, with Races, Results and Day setup before it for a lead. It replaced the Dashboard and the Your profile screen.
+What the avatar opens, at the top right of Races, the Race screen and every lead screen: Log out only, for a lead as for a volunteer. A lead reaches Results and Day setup by the lead's bar. It replaced the Dashboard and the Your profile screen.
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
+
+**Lead's bar**:
+The bar at the bottom of Races, Results and Day setup on a lead's phone, with those three screens as tabs: one tap moves between them, and the current screen's tab is marked. On Races it sits below New race. No other screen has it, so a deeper lead screen keeps its back arrow; Results and Day setup have no back arrow. A lead in a volunteer role keeps it; a volunteer's phone never shows it.
+_Avoid_: Lead menu, tab bar, bottom menu
 
 **Log out**:
 Ending the session on this phone, at once with no confirmation. The phone keeps its listed names and shows Join.
 _Avoid_: Sign out
 
 **To check**:
-The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, and each shows on the step it is about, with It's right or the way to settle it. There is no list screen.
+The race problems that need a lead to decide, such as a tie, a warning or a kept wrong time. They sit on their race: a lead's Action required lists the event cards with one, with a large button per race that has a problem on its card ("Check Heat 1 · 1 time" opens that race's page; "Check Heat 1 · 2 problems" when the race has more than one kind) and one for its ties ("Decide the tie" opens the tie); two buttons at most, then a line such as "1 more" that opens the event in Results. On the event in Results each problem's button is "Check Heat 1", or "Decide the tie". A saved race's problems show at the top of its race page, above the record: each has It's right when a lead can accept it, and a button that opens the correction that fits it (Decide the tie for a tie). The row a problem is about is amber, with its reason. There is no list screen.
 _Avoid_: Needs you, inbox, alerts
 
 **Action required**:
-A lead's first section of Races: the events with something To check or whose medals wait on their Confirm the medals. The cards are the same as anywhere else on Races.
+A lead's first section of Races and of Results: the events with something To check or whose medals wait on their Confirm the medals. One rule decides it for both screens. The cards are the same as anywhere else on Races; on Results the sections after it are Running and Done, then the events with no races under one closed line, "Not started (26)".
 _Avoid_: Ready for you (a volunteer's first section), Action needed
 
 **Ready for you**:
@@ -227,12 +231,15 @@ The lead who signed in with the owner password. Nobody can make the owner a volu
 _Avoid_: Admin, super lead
 
 **Races**:
-Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: a relay is listed once it has a heat, and its teams are typed into its heats. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
+Home: the event cards of one tab in Ready for you (a lead's Action required), In progress and Done, each section in the day's programme, each card with its heat chips. There are two tabs: Races holds races and hurdles events (60m, 60m Hurdles, 200m, 400m), Relays the relays; a hurdles card is told apart by its event name only. An event reaches Done once its medals are decided (a lead's Event complete, Final complete or Results without a final); until then it stays in progress, even with every race saved. The Relays tab works the same way: a relay is listed once it has a heat, and its teams are typed into its heats. For a lead, the heat chip of a saved race opens its race page; every other chip opens the Race screen. New race on Races is one list of the races and hurdles events in the day's programme, and makes the next heat, or for a lead the final. On Relays, New relay lists only the relays.
 _Avoid_: Event list, dashboard
 
 **Race**, as a screen:
-One race of the race flow (/races/:raceId): its event's heat chips, its steps, and only the body for your role. A lead sees every step as tabs.
-_Avoid_: Race page (the lead's), job screen
+One race of the race flow (/races/:raceId): its event's heat chips, its steps, and only the body for your role. A lead sees every step as tabs, on a race not in Results yet only: a lead's saved race is its race page.
+_Avoid_: Job screen
+
+**Race page**:
+A lead's one page for a race in Results (/results/:code/races/:raceId): its To check problems on top, the current record with places, wristbands and times together, Saved versions (who saved each step), and one button for the corrections. It has no steps and no heat chips. For a lead a saved race always opens as its race page: from a heat chip on Races or on another heat's Race screen, from a toast, and from its Race screen address. The race page takes the Race screen's place, so Back returns to where the lead came from. The Race screen a lead has open changes to it when the race saves itself; Undo on the saved toast brings the Race screen back at that step. A deleted race opens as its race page too. A volunteer never sees it.
 
 **Step**:
 One part of a race as the race flow works it: Runners (check-in), Finishing order or Times. A final has no Times. Each step is done when marked (That's everyone, Save the order, No more finishers, or the last place's time); a race whose steps are all done and agree is saved by itself. Steps never wait for each other: times are by place, the finishing order by wristband. On a lead's Race screen each step names the last person who typed in it, or else up to three of the people who have its role today and a count of the rest ("+2"). On the Race screen one band below the job band tells every role what the race still needs to reach Results and which role taps it ("Not in Results yet: 6th place has no time.", "Not in Results yet. Finish line: tap Save the order."), and says "In Results." once the race is saved.
@@ -247,7 +254,7 @@ The full-width band below the top bar on Races and the Race screen that names th
 _Avoid_: Role chip, job chip
 
 **Needs band**:
-The line below the job band on the Race screen, the same for every role, that says what the race still needs to reach Results: a missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once the race is saved. A heat row in Results says the same sentence and opens the race at the step it is about.
+The line below the job band on the Race screen that says what the race still needs to reach Results: a missing detail ("Not in Results yet: 6th place has no time."), else the first done button not tapped and its role ("Not in Results yet. Finish line: tap Save the order."), and "In Results." once the race is saved. A heat row in Results says the same sentence and opens the race at the step it is about. A volunteer's band starts with whose turn it is instead of "Not in Results yet", so nobody reads another role's missing work as their own mistake: "Your turn · 2 runners have no place" (with a gold dot) for the role whose step it is, "Waiting for Finish line · 2 runners have no place" for the others; a lead's band is the plain sentence.
 _Avoid_: Status bar, save banner
 
 **Undo**:
@@ -255,7 +262,7 @@ The toast's way to reverse your own save of a step, only while nobody else has c
 _Avoid_: Revert, roll back
 
 **Confirm the medals**:
-A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event), with Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
+A lead's Final complete or Event complete, which decides an event's medals. It is a screen, opened from the Races card or the event's Final tab (the Heats tab on a timed event). Its bar names the action: "Confirm the medals", the Reopen's label ("Reopen final"), or "Results without a final". It has Settle first, Worth a look and Medal places, each place with Fix, which opens that place's race on Correct times (Correct finishing order on a final). Until then the event waits in the lead's Action required.
 _Avoid_: Sign off, approve, publish
 
 ### Testing

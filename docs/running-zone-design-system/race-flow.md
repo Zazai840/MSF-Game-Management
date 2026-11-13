@@ -107,7 +107,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 ### 3. New race (artboard `N3-NewRace`)
 
 A Sheet over Races:
-- **Event:** choice buttons for every races and hurdles event, one list in the day's programme with no Races or Hurdles headings. On Relays, + New relay lists only the relays.
+- **Event:** choice buttons for every races and hurdles event, one list in the day's programme with no Races or Hurdles headings. On Relays, + New relay lists only the relays; on a day with no relay switched on it holds only a status callout, "This day has no relays. A zone lead can switch them on in Day setup, Events."
 - **Section:** a 2-column grid with codes.
 - **Race:** "Heat *n*" (the next number for that event group, pre-selected) and "Final".
   - Final is disabled until every heat has times. It is absent for events with no final.
@@ -147,6 +147,7 @@ One route per race (`/races/:raceId`), the same shell for every role.
 #### 5. Start line: check in runners (artboard `N5-StartLine`)
 - **Prompt (compact):** meta "Heat 5 · 3 runners so far", question "Runner *n*: wristband number?".
 - **WristbandChips** for runners added; tap one to remove. Below them, the numeric TextField.
+- **Changing a number:** tap a chip to put it in the box. The footer is Cancel and a wide Save; a small red "Remove 2041" pill sits under the box, away from the thumb.
 - **Footer pair:** "That's everyone" (marks Runners done and returns to Races) and "Next" (adds the number).
 - **Keep the existing warnings** (wrong section, unknown, already raced) as the WarningCallout with Fix number / Keep.
 - **Soft capacity warning at 6 runners.** Specified in "Soft warning: usual heat size" below.
@@ -188,25 +189,22 @@ One route per race (`/races/:raceId`), the same shell for every role.
   - The current slot is gold with a navy ring; tap any slot to retype it.
   - Over 9 places the grid is compact: 4 across, 44px tall.
 - **Time box** (numeric TextField): it shows the time itself, filling from the right as the timer's digits are typed ("13.05"), with the hint "Type the digits on the timer. They fill from the right: 1 2 3 4 shows 12.34." under it.
-- **Footer trio:** Previous place / No more finishers / Next, each on one line.
+- **Footer trio:** Previous (named "Previous place" for a screen reader) / No more finishers / Next, on one row. Next is the primary button and takes the free width: the Timer taps it after every time.
 - **A wrong time is held** (Fix time / Keep), its WarningCallout directly above the time box, for a time faster than the place before ("Faster than 2nd place") or slower than 1.5 m/s for the race ("Slow for 200m": "The 3rd place time, 3:10.22, looks slow for 200m."). While it waits, the footer says "Fix or keep the 3rd place time first" above its buttons.
 - **One time too many.** More times than the race can have (its finishers once Finishing order is done, before that its runners; an emptied place counts) show a WarningCallout above the time box, "3 times for 2 finishers." ("3 times for 2 runners." before the order is done), with one button, "Delete 3rd place time", that deletes the last time. The question reads "One time too many" ("2 times too many") in place of "Every place has a time". A lead working the unsaved race sees the same.
 - **A refused time** (seconds over 59, 0.00, faster than 10 m/s for the race) shows in the amber callout under the box, the digits selected so the next digit replaces them; nothing is saved.
 - **HeatChips for a timer:** a heat that needs times but isn't current gets a navy ring and a small gold dot.
 
 #### 8. Zone lead (artboard `N8-Lead`)
+- **A race not in Results yet only.** For a lead a saved race is its race page (screen 28), which takes this screen's place: from a heat chip, a toast or the Race screen's address, and when the race saves itself while the lead has it open. The record, its pencils and the problems with "It's right" are on the race page.
 - **Shell differences**
   - The JobBand reads "Your role is ZONE LEAD" on a `jumping` fill.
-  - "⋯" opens a Sheet of race actions: Re-run race, Delete race, Settle a tie (only when one exists), Correct runner list (Correct teams on a relay), Disqualify runner.
-  - These are today's lead actions from screens 24, 27 and 28, moved here.
-- **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times "⚠ 1 to check" (`role="tablist"`). The selected tab is navy.
-- **Each tab shows that step's data, editable:**
-  - Runners: the chip list.
-  - Finishing order: OrderRows.
-  - Times: rows joining place, wristband and time, each with a pencil button.
-- **Problems sit on the row they're about.** A kept warning or a count mismatch shows as an inline WarningCallout with actions: "Fix time" and "It's right". "It's right" clears the issue and records who accepted it.
-- **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card's status line names them ("Heat 3: a time looks wrong").
-- **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. For a lead it opens a menu with Races, Results and Day setup, then Log out; for a volunteer, Log out only.
+  - "⋯" opens a Sheet of race actions: Delete race. The corrections and Re-run are on the saved race's race page.
+- **StepStrip becomes tabs:** Runners ✓ / Finishing order ✓ / Times (`role="tablist"`). The selected tab is navy.
+- **Each tab is that step's own body,** as the role that owns it works it.
+- **No To-check screen.** Issues live on races. On Home, a lead's "Action required" section is the groups with open issues (and those whose medals wait on the lead), and each card shows them as large buttons in the shape of Confirm the medals, in place of its status line: "Decide the tie" opens the tie (the event in Results when there is more than one), "Check Heat 3 · 1 time" that race's page. A race has one button: with more than one kind of problem it counts them, "Check Heat 3 · 2 problems". Two buttons at most, then a line ("1 more") that opens the event in Results. The reason beside a greyed "+ Final" is not shown when one of these buttons says it.
+- **Avatar menu:** the avatar is at the top right of Races, the Race screen and every lead screen. It opens a menu with Log out only, for a lead as for a volunteer.
+- **The lead's bar:** on a lead's phone, Races, Results and Day setup end with a bar of three tabs (Races, Results, Day setup), below New race on Races. See "The lead's bar" in [screens.md](screens.md).
 
 ### 9. Relays
 
@@ -289,7 +287,7 @@ Build these in `components/bundle.css` alongside the existing ones, using only t
 | **PlacesBoard** | 4-column grid of 44px slots, 10px radius.<br>• Placed: `navy`, gold Saira ordinal + 16px/800 wristband; a button to change it.<br>• Current: `gold` + 2px `navy` ring, "3RD ?".<br>• Empty: 1.5px dashed `line-strong`, `ink-muted`. |
 | **RunnerButton** | Compact runner tile: 3-column grid, 72px tall, radius 36/36/12/12 (a shallow arch), `card`, `shadow-tile`, Saira 900 34px tabular. On press, move down 4px and drop to `shadow-card`. `aria-label="2032 came 3rd"`. This **replaces** the 150px RunnerTile on the finish line. |
 | **OrderRow** | 44px row, grid `44px 1fr 44px`: Saira ordinal, wristband 18px/800, a drag handle button. `card` + `shadow-card`; while dragging, `shadow-raised`. An unplaced row is dashed `line-strong`, with a DNF StatusTag. |
-| **Toast** | Fixed above the footer, `navy`, `shadow-raised`. A centred pill as wide as its words (`radius-pill`), 36px tall alone and 44px with a button; a line that wraps to two rows makes it a rounded box (`radius-lg`). Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 3 seconds, paused while focused; fades and rises in and fades out (150 ms each way), no animation under reduced motion. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this" |
+| **Toast** | Fixed just above whatever is fixed at the foot of the screen (an open sheet, a docked button such as New race, the lead's bar), so it never covers a button; it may cover the "Updated at" line. `navy`, `shadow-raised`. A centred pill as wide as its words (`radius-pill`), 36px tall alone and 44px with a button; a line that wraps to two rows makes it a rounded box (`radius-lg`). Gold tick + 14px/700 message + a gold "Undo" button at least 44px. `role="status"`. 3 seconds, paused while focused; fades and rises in and fades out (150 ms each way), no animation under reduced motion. The "changed since" variant swaps Undo for "Open race" and the message for "Tom Barker changed this" |
 | **TeamCard** | A relay team at the start line. Head row (at least 44px): "Team 5" 18px/800 `navy`, a 13px/700 `warn-ink` note ("Runs short · 3 of 4"), then a small Button Take off at the end. On a heat and on a final its legs are four leg chips side by side (variant A): each 44px tall, `card` with a 2px `line` border and `radius-md`, "1st" 12px/700 `ink-muted` over the wristband ("–" dashed for an empty leg), with a grip under it. On a final the whole card is one `card` with "1st fastest · " before the name and Here / Absent pills in the head; an Absent card is dashed `line-strong`. A dragged leg lifts with `shadow-raised`. |
 | **RunnerButton, team tile** | The relay variant of RunnerButton: 2 columns, at least 104px tall, one line (32px), its 4th leg's wristband "2054" with no team label. `aria-label="2054 came 1st"`. |
 
@@ -315,9 +313,9 @@ Update existing READMEs where the new flow changes them:
 | 20–21 Become a zone lead / lead home | The Zone lead row in the role sheet; Races as lead |
 | 22–23 Dashboard / To check | Removed: issues show on race cards and in the lead's race tabs |
 | 24, 27, 28 Settle tie, runner actions, race detail | The "⋯" race actions sheet and the lead tabs |
-| 25–26 Results, leaderboard | Unchanged; reached from the avatar menu |
+| 25–26 Results, leaderboard | Unchanged; reached from the lead's bar |
 | 29 Heats complete | Removed: a lead makes the final with "+ Final" on the card, after a confirm |
-| 30–32 Day setup | Unchanged; reached from the avatar menu |
+| 30–32 Day setup | Unchanged; reached from the lead's bar |
 | Relay race screen (holds, Take over, Submit Race), the Teams screen and the teams sheet | Relays tab in the race flow, with each team typed into its heat (see "9. Relays") |
 
 ## Build order
@@ -340,7 +338,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
    - *Done when:* a 12-runner heat can be fully placed and saved on a 390 × 844 screen with no horizontal scroll.
 6. **Timer body**, moved onto the shell. Behaviour unchanged.
 7. **Zone lead.**
-   - Tabs, editable steps, inline issues with "It's right", the "⋯" actions, the avatar menu, Action required for leads.
+   - Tabs, editable steps, the "⋯" actions, the avatar menu, Action required for leads. A saved race's problems are on its race page, each with "It's right" where it can be accepted.
    - Remove the Dashboard and To-check screens.
 8. **Finals:** "+ Final" on the card and in the sheet, the fastest 6 pre-filled, the tie block.
 9. **Toast with Undo**, and removal of the Saved screen.

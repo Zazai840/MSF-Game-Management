@@ -4,9 +4,11 @@ import type { View } from '../shell/addresses.js';
 import type { LeaderboardRow } from '../../shared/results-rules.js';
 import { RaceActions,notSavedLine } from './RaceActions.js';
 import { useState } from 'react';
-import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
+import type { DayLeadItem,EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
+import { RaceProblems } from './RaceProblems.js';
 import { isTeamEntry,openRaceLabel,partLabel,replacedByRerun } from '../../shared/races.js';
 import { raceName } from '../../shared/race-flow.js';
+import { raceActionsLabel } from '../../shared/race-status.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
 import { resultLabel,teamWristbands } from '../../shared/results-rules.js';
 import { formatTime } from '../../shared/time-entry.js';
@@ -16,30 +18,33 @@ import type { WrongTime } from '../../shared/wrong-times.js';
 import { usePolledRead } from '../live.js';
 import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { clock,clockWithSeconds } from '../../shared/clock.js';
-import { flagText } from '../../shared/runner-rulings.js';
-import { Callout,ErrorCallout,Icon } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { flagText,warningFlags } from '../../shared/runner-rulings.js';
+import { Callout,ErrorCallout,Icon,Opening } from '../races/parts.js';
+import { LeadHeader } from './LeadHeader.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 const plural=(count:number,word:string)=>`${count} ${word}${count===1?'':'s'}`;
 /**
- * A lead's page for one race, under the lead header ("Heat 1", back to its event, "⋯" for Race actions): its meta line,
- * its record rows, Saved versions and Updated at. A runner opens the runner sheet; `onOpen` moves to its screens and to
- * the race's Re-run, Delete and Restore screens.
+ * A lead's page for one race, under the lead header ("Heat 1", back to its event): its open To check problems on top
+ * (`items`, from the event's read, as its result rows `actionableRunners` are),
+ * each with "It's right" where it can be accepted and a Fix that opens the correction that fits it, its meta line, its
+ * record rows, a button with words for Race actions ("Correct or delete Heat 1"), Saved versions and Updated at. A
+ * runner opens the runner sheet; `onOpen` moves to its screens and to the race's corrections, Re-run, Delete and Restore.
  */
-export function RacePage({raceId,code,onSaved,onOpen,actionableRunners=[]}:{raceId:string;code:string;onSaved:(next:EventResultsRead)=>void;onOpen:(view:View)=>void;actionableRunners?:readonly LeaderboardRow[]}) {
+export function RacePage({raceId,code,items,onSaved,onOpen,actionableRunners=[]}:{raceId:string;code:string;items:readonly DayLeadItem[];onSaved:(next:EventResultsRead)=>void;onOpen:(view:View)=>void;actionableRunners?:readonly LeaderboardRow[]}) {
   const {read,updated,error,refresh}=usePolledRead<LeadRaceRead>(`lead/races/${raceId}`);
   const [selectedEntry,setSelectedEntry]=useState<string|null>(null),[actions,setActions]=useState(false);
   const selectedRow=actionableRunners.find(row=>row.raceId===raceId && row.entryId===selectedEntry);
   const race=read?.race,openRace=()=>onOpen({kind:'race',id:raceId});
-  const more=read && <button type="button" className="rz-iconbtn" aria-label="Race actions" onClick={()=>setActions(true)}><Icon name="more"/></button>;
   const body=<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
-    {!race?error===null && <p className="rz-empty">Opening…</p>:<>
+    {!race?error===null && <Opening/>:<>
+      <RaceProblems items={items} rows={actionableRunners} race={race} onOpen={onOpen} onAccepted={next=>{onSaved(next);void refresh();}}/>
       <p className="rz-page-meta">{eventTitle(race.event)} · checked in {clock(race.checkedInAt)} · {race.deleted?'deleted':race.state==='saved'?'saved':'not saved yet'}</p>
       {race.deleted && <Callout status message={deletedLine(read)}/>}
       {!race.deleted && race.state!=='saved' && <Callout status message={notSavedLine(race,'page')} actions={<button type="button" className="rz-btn rz-btn--primary" onClick={openRace}>{openRaceLabel(race)}</button>}/>}
       {race.parts.times.value?.acceptedByLead && <p className="rz-note">Out-of-order times accepted by a lead</p>}
       <Record race={race} rowFor={entryId=>actionableRunners.find(entry=>entry.raceId===raceId && entry.entryId===entryId)} onRunner={setSelectedEntry}/>
+      <button type="button" className="rz-btn rz-btn--block" onClick={()=>setActions(true)}>{raceActionsLabel(race)}</button>
       <details className="rz-disclosure"><summary>Saved versions ({read.history.length})</summary>
         <ol className="rz-disclosure__body" aria-label="Saved versions">{read.history.map(save=><li key={`${save.part}:${save.version}`}>{save.author||'Not recorded'} · {partLabel(save.part)}{save.at && <> · <time dateTime={save.at}>{clockWithSeconds(save.at)}</time></>}</li>)}</ol></details>
     </>}
@@ -47,7 +52,7 @@ export function RacePage({raceId,code,onSaved,onOpen,actionableRunners=[]}:{race
     {read && selectedRow && <RunnerSheet key={selectedRow.entryId} event={read.race.event} row={selectedRow} rows={actionableRunners} onSaved={next=>{setSelectedEntry(null);onSaved(next);void refresh();}} onClose={()=>setSelectedEntry(null)} onOpen={onOpen}/>}
     {read && actions && <RaceActions read={read} where="page" onOpen={onOpen} onRace={openRace} onClose={()=>setActions(false)}/>}
   </>;
-  return <LeadBar title={race?raceName(race):'Race'} code={race?.event.code??code} up={race?eventTitle(race.event):code} body={body}>{more}</LeadBar>;
+  return <LeadHeader title={race?raceName(race):'Race'} code={race?.event.code??code} up={race?eventTitle(race.event):code} body={body}/>;
 }
 /** "Deleted at 10:42 by Sara Ahmed: wrong section checked in. Its results do not count." A race deleted before its time was kept says no time. */
 function deletedLine({race,deletion}:LeadRaceRead) {
@@ -56,7 +61,7 @@ function deletedLine({race,deletion}:LeadRaceRead) {
 }
 /**
  * The race's places and times in place order (no place last), each a race-flow row: a wrong time in amber with its
- * reason, each child's or relay team's warnings on the row (amber while one is open), and the times and finishers count.
+ * reason, each child's or relay team's warnings and other To check reasons on the row (amber while one is open), and the times and finishers count.
  * A row with a result opens the runner sheet.
  */
 function Record({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryId:string)=>LeaderboardRow|undefined;onRunner:(entryId:string)=>void}) {
@@ -70,7 +75,7 @@ function Record({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryI
       const wrongTime=row.place===null?undefined:wrong.get(row.place-1);
       const entry=race.parts.runners.value?.find(entry=>entry.id===row.entryId),team=entry && isTeamEntry(entry)?entry:null,who=team?resultEntry(race,team):row,result=rowFor(row.entryId);
       // A deleted race has no result row: its teams keep their children's warnings as the race recorded them.
-      const notes=result?result.flags.filter(flag=>flag.kind==='warning').map(flag=>({text:flagText(flag),open:!flag.checked}))
+      const notes=result?warningFlags(result.flags).map(flag=>({text:flagText(flag),open:!flag.checked}))
         :(team?.legs.flatMap(leg=>leg.warnings)??[]).map(warning=>({text:warning.message,open:true}));
       const warn=!!wrongTime || notes.some(note=>note.open);
       const content=<>
@@ -78,7 +83,7 @@ function Record({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryI
         <span className="rz-lead-row__num">{team?`Team ${team.team.number}`:row.wristband}</span>
         <span className="rz-lead-row__end">{row.time!==null?formatTime(row.time):row.place===null && race.state==='saved'?<span className="rz-tag rz-tag--dnf">Did not finish</span>:times?'No time':''}</span>
         {team && <span className="rz-team-legs rz-lead-row__legs">{'team' in who && who.team?teamWristbands(who.team):legsText(team.legs)}</span>}
-        {team?.addedAtFinish && <span className="rz-lead-row__note">At finish</span>}
+        {!result && team?.addedAtFinish && <span className="rz-lead-row__note">At finish</span>}
         {wrongTime && <span className="rz-lead-row__note">{wrongTime.reason}</span>}
         {notes.map((note,index)=><span key={index} className="rz-lead-row__note">{note.text}</span>)}
       </>;

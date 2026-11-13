@@ -93,7 +93,7 @@ test('Day setup, Phones and Events meet the touch, text size and contrast rules'
   await expect(page.getByRole('button',{name:/^Signed in today \d+ (person|people) signed in today$/})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await page.getByRole('button',{name:/^Signed in today /}).click();
-  await expect(page.getByRole('article',{name:'E2E Owner',exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem').filter({hasText:'E2E Owner'})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);
   await back(page,'Day setup');
   await page.getByRole('button',{name:/^Events /}).click();
@@ -152,7 +152,7 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await expect(page.getByRole('button',{name:'Add another runner',exact:true})).toBeVisible();
   await look('start-line-six');
   await chips.first().click();
-  await expect(page.getByRole('button',{name:'Remove',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Remove \d+$/})).toBeVisible();
   await look('start-line-change');
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('contentinfo').getByRole('button',{name:"That's everyone",exact:true}).click();
@@ -185,9 +185,9 @@ test('each race-flow screen on a test build, from Races to every job\'s race and
   await expect(page.getByRole('tablist',{name:'Heat 1 steps'})).toBeVisible();
   await look('lead-race');
   await backToRaces(page);
-  await leadMenuButton(page).click();await expect(page.getByRole('menuitem',{name:'Results',exact:true})).toBeVisible();
-  await look('lead-avatar-menu');
-  await page.getByRole('menuitem',{name:'Results',exact:true}).click();
+  await expect(leadMenuButton(page)).toBeVisible();
+  await look('lead-bar');
+  await openLeadMenu(page,'Results');
   await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
   await look('results');
   await deleteCurrentRace(request,code);

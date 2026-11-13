@@ -50,8 +50,18 @@ export function DigitsField({id,label,value,onChange,onEnter,onRelease,held=fals
  * A footer button that keeps the number pad open (the tap does not take focus from the input). Greyed out it is
  * aria-disabled, not disabled: a disabled button gets no mousedown to cancel, so a tap on it would close the keyboard.
  */
-export const KeepFocus=({className,disabled=false,onClick,children}:{className:string;disabled?:boolean;onClick:()=>void;children:ReactNode})=>
-  <button type="button" className={className} aria-disabled={disabled || undefined} onMouseDown={event=>event.preventDefault()} onClick={()=>{if(!disabled) onClick();}}>{children}</button>;
+export const KeepFocus=({className,disabled=false,onClick,label,children}:{className:string;disabled?:boolean;onClick:()=>void;label?:string;children:ReactNode})=>
+  <button type="button" className={className} aria-label={label} aria-disabled={disabled || undefined} onMouseDown={event=>event.preventDefault()} onClick={()=>{if(!disabled) onClick();}}>{children}</button>;
+/**
+ * Taps on marks that save one at a time (Here / Absent): a tap made while the last one is being saved waits its turn,
+ * so the marks never grey out between taps and no tap is lost. `run` is the newest render's, so it sees the saved marks.
+ */
+export function useTapQueue<T>(busy:boolean,run:(tap:T)=>void) {
+  const queue=useRef<T[]>([]),latest=useRef(run);
+  useEffect(()=>{latest.current=run;});
+  useEffect(()=>{if(!busy && queue.current.length) latest.current(queue.current.shift()!);},[busy]);
+  return (tap:T)=>{if(busy) queue.current.push(tap);else run(tap);};
+}
 /** The usual-heat-size warning shows once per race per person: has this phone shown it for this race? */
 function useSizeWarning(raceId:string) {
   const [showing,setShowing]=useState(false);
@@ -119,15 +129,16 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {!locked && <DigitsField id="wristband" label={target?`New number for ${target.wristband}`:'Wristband number'} value={on.current} held={on.held} onRelease={on.fix} busy={on.checking || writes.sending} warn={on.held}
         onChange={digits=>{if(target) change.type(digits);else {entry.type(digits);size.dismiss();setSaid('');}}} onEnter={target?save:()=>void entry.next()} selectKey={target?String(target.id??target.wristband):undefined}
         hint={target?'Type the right number and tap Save, or Remove to take this runner off.':count>0?'Tap a number above to change it.':undefined}/>}
+      {/* Remove sits under the box, small and away from the thumb: Save is the footer's wide button. */}
+      {target && !locked && !asking && <button type="button" className="rz-btn rz-btn--pill rz-btn--remove rz-remove" onClick={remove}>Remove {target.wristband}</button>}
       {on.error && <Callout message={on.error}/>}
       {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
         actions={<>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button></>}/>}
       {target && asking && <Callout message={placedAsk(target.wristband,place,'Remove')}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Remove</button></>}/>}
     </main>
-    {!locked && <DockedFooter>{target?<div className="rz-footer__trio">
+    {!locked && <DockedFooter>{target?<div className="rz-footer__trio rz-footer__trio--two">
       <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
-      <button type="button" className="rz-btn rz-btn--remove" onClick={remove}>Remove</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!change.current || change.held || change.checking} onClick={save}>{change.checking?'Checking…':'Save'}</KeepFocus>
     </div>:<div className="rz-footer__pair">
       <button type="button" className="rz-btn" disabled={!count || writes.sending} onClick={()=>onDone('runners')}>{doneButtons.runners}</button>
@@ -168,7 +179,8 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
   const send=(marks:Mark[])=>flow.write('absent',{raceId:race.id,version:race.parts.runners.version,here:ids(marks,'here'),absent:ids(marks,'absent')});
   const marks=final.entries.map(markOf),here=marks.filter(mark=>mark==='here').length;
   const unmarked=final.entries.filter((_,index)=>marks[index]===null);
-  const tap=(index:number,mark:Mark)=>{setAsking(false);void send(marks.map((old,at)=>at===index?(old===mark?null:mark):old));};
+  const tapQueue=useTapQueue(flow.busy,({index,mark}:{index:number;mark:Mark})=>{setAsking(false);void send(marks.map((old,at)=>at===index?(old===mark?null:mark):old));});
+  const tap=(index:number,mark:Mark)=>tapQueue({index,mark});
   async function recordAbsent() {
     setAsking(false);
     if(typeof await send(marks.map(mark=>mark??'absent'))==='object') onDone('runners');
@@ -179,7 +191,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
       {flow.error && <Callout message={flow.error}/>}
       <ul className="rz-attendance" aria-label="Who is here">{final.entries.map((entry,index)=><li key={entry.finalEntryId} className={marks[index]==='absent'?'is-absent':undefined}>
         <span className="rz-attendance__who"><span className="rz-attendance__seed">{seedLabel(entry)}</span><span className="label">{entry.wristband}</span></span>
-        {(['here','absent'] as const).map(mark=><button key={mark} type="button" className={marks[index]===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked || flow.busy}
+        {(['here','absent'] as const).map(mark=><button key={mark} type="button" className={marks[index]===mark?'rz-btn rz-btn--pill rz-btn--primary':'rz-btn rz-btn--pill'} disabled={locked}
           aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
       {!locked && <CallUp read={read} flow={flow}/>}
@@ -401,7 +413,7 @@ export function Timer({read,flow,onDone,locked}:StepProps) {
       {refusal.message && <Callout message={refusal.message}/>}
     </main>
     {!locked && <DockedFooter>{held && <p className="rz-footer__reason">Fix or keep the {ordinal(target+1)} place time first</p>}<div className="rz-footer__trio">
-      <KeepFocus className="rz-btn" disabled={target===0} onClick={()=>{const back=target-1;if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}}>Previous place</KeepFocus>
+      <KeepFocus className="rz-btn" disabled={target===0} onClick={()=>{const back=target-1;if(places[back]!==undefined) {setRetype(back);setTyped(digitsForTime(places[back]));}}} label="Previous place">Previous</KeepFocus>
       <button type="button" className="rz-btn" disabled={!places.length || held || writes.sending} onClick={()=>onDone('times')}>{doneButtons.times}</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || held || full} onClick={()=>void next()}>Next</KeepFocus>
     </div></DockedFooter>}

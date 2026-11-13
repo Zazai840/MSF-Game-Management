@@ -68,3 +68,19 @@ test('+ Final shows only in the Zone lead role, behind a confirm worded for team
   const final=(await (await request.get('/api/races',{headers:{authorization:`Bearer ${sam.token}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===code).races.find((race:{kind:string})=>race.kind==='final');
   expect(((await (await request.get(`/api/races/${final.id}`,{headers:{authorization:`Bearer ${sam.token}`}})).json()) as RaceFlowRead).race.final!.entries).toHaveLength(2);
 });
+
+test('New relay on a day with no relays switched on says so, and where a zone lead switches them on',async({openPhone,request},info)=>{
+  const {page,token}=await openPhone(ownName('No relays volunteer'));
+  // The day as it reads with every relay switched off: the races list without its relays.
+  const day=await(await request.get('/api/races',{headers:{authorization:`Bearer ${token}`}})).json();
+  const frame=`data: ${JSON.stringify({...day,revision:day.revision+1000000,groups:day.groups.filter((group:{event:{relay:boolean}})=>!group.event.relay)})}\n\n`;
+  await page.route('**/api/live/races',route=>route.fulfill({status:200,contentType:'text/event-stream',body:frame}));
+  await page.reload();
+  await openRelays(page);
+  await press(page.getByRole('button',{name:'New relay',exact:true}));
+  const newRelay=sheet(page,'New relay');
+  await expect(newRelay.getByRole('status')).toHaveText('This day has no relays. A zone lead can switch them on in Day setup, Events.');
+  // Nothing to choose, so no greyed button that can never be pressed.
+  await expect(newRelay.getByRole('button',{name:'Choose the event and section'})).toHaveCount(0);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('no-relays.png')});
+});

@@ -1,4 +1,4 @@
-import {ownName,back,becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page} from './fixtures.js';
+import {press,ownName,back,becomeLead,expect,join,lookProblems,openLeadMenu,signOwnerBackIn,test,type Page} from './fixtures.js';
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 const joinScreen=(page:Page)=>expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible({timeout:10000});
 test('Change Olympics password is one screen, and saving sends both phones back to Join with their profiles kept',async({page,browser,baseURL},info)=>{
@@ -12,7 +12,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     await becomeLead(page,'e2e-owner-fixture');
     await openLeadMenu(page,'Day setup');
     const open=async()=>{
-      await page.getByRole('region',{name:'Olympics password'}).getByRole('button',{name:'Change Olympics password',exact:true}).click();
+      await press(page.getByRole('button',{name:'Change Olympics password',exact:true}));
       await expect(page).toHaveURL(/\/day\/olympics-password$/);
       await expect(page.getByRole('heading',{level:1,name:'Change Olympics password',exact:true})).toBeVisible();
     };
@@ -47,7 +47,7 @@ test('Change Olympics password is one screen, and saving sends both phones back 
     // Joining with the new password, today's role comes back: still a lead. Capitals do not matter: a phone
     // keyboard makes the first letter a capital.
     await join(other,lead,{code:`F${changed.slice(1)}`,job:'Start line'});await races(other);
-    await expect(other.getByRole('button',{name:`${lead}: Races, Results, Day setup and Log out`,exact:true})).toBeVisible();
+    await expect(other.getByRole('navigation',{name:'Lead screens',exact:true})).toBeVisible();
     // The owner gets back in with the owner password and reads the new password off the card.
     await join(page,owner,{code:'e2e-owner-fixture'});await races(page);
     await openLeadMenu(page,'Day setup');

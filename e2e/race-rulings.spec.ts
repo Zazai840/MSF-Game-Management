@@ -1,13 +1,13 @@
 import { clock } from '../src/shared/clock.js';
 import type { RaceRead } from '../src/shared/races.js';
-import {eventTab,ownName,ownEvent,ownWristbands,writeCheckIn,ownCode,deleteCurrentRace,recordRace,back,openLeadMenu,becomeLead,expect,expectToast,join,dragTo,lookProblems,press,raceAction,test} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownWristbands,writeCheckIn,ownCode,deleteCurrentRace,recordRace,back,openLeadMenu,becomeLead,expect,expectToast,join,dragTo,lookProblems,press,raceAction,test,notStartedCard,resultsCard} from './fixtures.js';
 test('a lead repairs a race, keeps failed corrections, deletes and restores it, then calls a prefilled re-run',async({page},info)=>{
   // The test day is shared and projects run at once: each names its own event, so its race screen tile is its alone.
   const code=await ownCode(),name=ownName('Race corrections');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
   await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1300,1200]);
-  await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');const racesTab=page.url();await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));const racePage=page.url();await raceAction(page,'Correct times');
+  await page.goto('/');await join(page,ownName('Race lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+  await eventTab(page,'Heats');const racesTab=page.url();await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));const racePage=page.url();await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A refused save keeps the screen and what was typed, and says why.
@@ -54,7 +54,7 @@ test('two deleted Heat 1s are told apart by when each was deleted',async({page},
     const deleted=await page.request.post(`/api/lead/races/${race.id}/delete`,{headers:lead,data:{permanent:false}});expect(deleted.ok()).toBe(true);
     for(const row of await (await page.request.get(`/api/lead/events/${code}/deleted-races`,{headers:lead})).json() as RaceRead[]) deletedAt.set(row.id,row.deletedAt!);
   }
-  await page.goto('/');await join(page,ownName('Two deleted heats lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await page.goto('/');await join(page,ownName('Two deleted heats lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await press(await notStartedCard(page,code));
   await eventTab(page,'Heats');const rows=page.getByRole('heading',{name:'Deleted races',exact:true}).locator('..').getByRole('button',{name:/^Open deleted/});
   const names=[...deletedAt.values()].reverse().map(at=>`Open deleted Heat 1 · deleted ${clock(at)}`);await expect(rows).toHaveCount(names.length);
   for(const [index,name] of names.entries()) await expect(rows.nth(index)).toHaveAccessibleName(name);
@@ -65,8 +65,8 @@ test('a lead can correct times again straight after saving, even when the race i
   const code=await ownCode(),headers={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
   await ownEvent(page.request,code,'Quick corrections','Girl Cubs','timed');
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[2001,2002],[1200,1300]);
-  await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Correct times');
+  await page.goto('/');await join(page,ownName('Quick lead'),{job:'Start line'});await becomeLead(page);await openLeadMenu(page,'Results');await press(resultsCard(page,code));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));await raceAction(page,'Correct times');
   const save=page.getByRole('contentinfo').getByRole('button',{name:'Save times',exact:true});
   await press(page.getByRole('button',{name:/^2nd place · /}));await page.getByLabel('2nd place time',{exact:true}).fill('1400');
   // A slow re-read of the race must not let the lead reopen Correct times on the version just replaced.
@@ -122,7 +122,7 @@ test('a lead corrects a saved race\'s finishing order on its screen: a drag with
   await expectToast(page,'Finishing order saved');await expect(page).toHaveURL(racePage);
   await expect(record.first()).toHaveText(/^1st\s*2003[\s\S]*12\.00/);
   await back(page,'Order corrections · Girl Cubs');
-  await expect(page.getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);
+  await expect(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true})).not.toHaveAccessibleDescription(/don't agree/);
   await eventTab(page,'Notes');const notes=page.getByRole('list',{name:'Audit notes'}).getByRole('listitem');
   await expect(notes.filter({hasText:'corrected the finishing order'})).toHaveText([/corrected the finishing order for Heat 1: 2003, 2001; Did not finish 2002 - Checked the video/]);
   await page.request.post(`/api/lead/races/${race.id}/delete`,{headers,data:{permanent:true}});

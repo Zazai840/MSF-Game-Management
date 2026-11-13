@@ -36,6 +36,11 @@ const refusals:Record<RaceAction,Partial<Record<RaceStatus,(race:Named)=>string>
   restore:{'in progress':lines.inEvent,saved:lines.inEvent,replaced:lines.replaced},
   'delete for good':{}
 };
+/** A race page's Race actions button, in words for what its sheet holds: "Correct or delete Heat 1", "Restore or delete Heat 1", or "Delete Heat 1" (a race not saved yet, or replaced by a re-run). */
+export function raceActionsLabel(race:Parameters<typeof raceRefusal>[0]) {
+  const allowed=(action:RaceAction)=>raceRefusal(race,action)===null;
+  return `${allowed('correct')?'Correct or delete':allowed('restore')?'Restore or delete':'Delete'} ${raceName(race)}`;
+}
 /**
  * Why an action is refused on a race as it stands, or null when it may go ahead: the one rule the server's routes
  * refuse by and the screens offer their buttons by. A complete stage also closes a race in the event to its steps and

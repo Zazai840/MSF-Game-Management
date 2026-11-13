@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState } from 'react';
 import { frameData,newerSnapshot,splitFrames } from '../shared/live.js';
-import { api,ApiFailure,apiResponse,StaleRequest } from './api.js';
+import { api,ApiFailure,apiResponse,keepSeen,lastSeen,StaleRequest } from './api.js';
 import { clockWithSeconds } from '../shared/clock.js';
 import { failureLine } from '../shared/request-failure.js';
 import { onThisBuild } from './shell/updates.js';
@@ -14,11 +14,18 @@ const silence=()=>30_000+Math.random()*15_000;
  * The stream closes while the page is hidden and reopens when it is visible, and starts again when the signal goes or comes back;
  * every connect sends the whole snapshot first.
  * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule.
+ * With `remember`, it starts from what this path showed last (api.ts, lastSeen) while the stream connects; `arrived`
+ * is when the snapshot shown came in ("10:42:05").
  */
-export function useLive<T extends {revision:number}>(path:string) {
-  const [snapshot,setSnapshot]=useState<T|null>(null);
+export function useLive<T extends {revision:number}>(path:string,{remember=false}:{remember?:boolean}={}) {
+  const [shown,setShown]=useState(()=>remember?lastSeen<T>(path)??null:null);
+  const snapshot=shown?.value??null;
+  const setSnapshot=(value:T)=>{const at=clockWithSeconds(new Date());if(remember) keepSeen(path,value,at);setShown({value,at});};
   const [error,setError]=useState(''),[gone,setGone]=useState(false);
   const held=useRef<T|null>(null);
+  // A remembered snapshot on the screen counts as held: the note then says the connection is lost, not that nothing could be read.
+  const showing=useRef(false);
+  useEffect(()=>{showing.current=snapshot!==null;});
   useEffect(()=>{
     held.current=null;
     // The link's state and every decision about it are `linkNext`'s; this effect only opens, reads and drops streams.
@@ -62,7 +69,7 @@ export function useLive<T extends {revision:number}>(path:string) {
         if(failure instanceof StaleRequest) return;
         if(failure instanceof ApiFailure && failure.status<500) {say({type:'refused',line:failure.status===401?null:failureLine(failure,'read')});setGone(!!failure.body.gone);return;}
         // The watchdog's own abort is silence; anything else is a lost link.
-        say(mine.signal.aborted?{type:'silent'}:{type:'lost',held:held.current!==null});
+        say(mine.signal.aborted?{type:'silent'}:{type:'lost',held:held.current!==null || showing.current});
       } finally {
         clearTimeout(watchdog);
         if(controller===mine) controller=null;
@@ -79,7 +86,7 @@ export function useLive<T extends {revision:number}>(path:string) {
     };
   },[path]);
   const offer=(next:T)=>{if(newerSnapshot(held.current,next)) {held.current=next;setSnapshot(next);}};
-  return {snapshot,error,gone,offer};
+  return {snapshot,arrived:shown?.at??'',error,gone,offer};
 }
 /**
  * A lead screen's read of `path`, read again every 5 s while the page is visible (lead reads have no live stream): the
@@ -87,9 +94,10 @@ export function useLive<T extends {revision:number}>(path:string) {
  * and `offer` to show a save's answer in its place (a read already on its way is then dropped).
  */
 export function usePolledRead<T>(path:string) {
-  const [read,setRead]=useState<T|null>(null),[updated,setUpdated]=useState(''),[error,setError]=useState<unknown>(null);
+  // A screen seen before starts from what it showed last, with the time it arrived, and reads again behind it.
+  const [read,setRead]=useState<T|null>(()=>lastSeen<T>(path)?.value??null),[updated,setUpdated]=useState(()=>lastSeen(path)?.at??''),[error,setError]=useState<unknown>(null);
   const request=useRef(0);
-  function show(next:T) {setRead(next);setUpdated(clockWithSeconds(new Date()));setError(null);}
+  function show(next:T) {const at=clockWithSeconds(new Date());keepSeen(path,next,at);setRead(next);setUpdated(at);setError(null);}
   async function refresh() {
     const generation=++request.current;
     try {const next=await api<T>(path);if(generation===request.current) show(next);}

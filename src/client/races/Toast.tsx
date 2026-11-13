@@ -24,6 +24,26 @@ export function Toast({toast,onOpen,onClose}:{toast:ToastShown;onOpen:(raceId:st
     :<ToastBox onClose={onClose}><span className="rz-toast__msg"><Icon name="check"/>{toast.message}</span></ToastBox>;
 }
 /**
+ * Where the toast sits: just above whatever is fixed at the foot of the screen (an open sheet, a docked button, the
+ * lead's bar), so it never covers a button. The "Updated at" line is not in its way: the toast may cover it.
+ */
+function useClearOfButtons(box:{current:HTMLElement|null}) {
+  useLayoutEffect(()=>{
+    const place=()=>{
+      const tops=[...document.querySelectorAll<HTMLElement>('.rz-leads-bar, .rz-footer--sticky > :not(.rz-refresh, .rz-pull)')].map(fixed=>fixed.getBoundingClientRect()).filter(rect=>rect.height).map(rect=>rect.top);
+      // A sheet by where it ends up, not where it is on its way in.
+      for(const sheet of document.querySelectorAll<HTMLElement>('.rz-scrim:not([data-closing]) > .rz-sheet')) tops.push(sheet.parentElement!.getBoundingClientRect().top+sheet.offsetTop);
+      const floor=Math.min(innerHeight,...tops);
+      if(box.current) box.current.style.bottom=floor<innerHeight?`${innerHeight-floor+8}px`:'';
+    };
+    place();
+    const observer=new MutationObserver(place);
+    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-closing','data-keyboard']});
+    addEventListener('resize',place);
+    return ()=>{observer.disconnect();removeEventListener('resize',place);};
+  },[]);
+}
+/**
  * The toast's pill, a rounded box once its line wraps to a second row: it fades in, and fades out to close after
  * 3 seconds. The count waits while the toast is focused or `held`, and starts again after that and when `restartOn` changes.
  */
@@ -39,6 +59,7 @@ function ToastBox({held=false,restartOn,onClose,children}:{held?:boolean;restart
     // Focus, a hold or a new count brings back a toast that had started to leave.
     return ()=>{clearTimeout(fade);clearTimeout(close);setLeaving(false);};
   },[focused,held,restartOn]);
+  useClearOfButtons(box);
   // CSS cannot tell that a line has wrapped: one row is never taller than the 44px touch size, two rows always are.
   useLayoutEffect(()=>{
     const element=box.current!,observer=new ResizeObserver(()=>setWrapped(element.offsetHeight>44));

@@ -46,7 +46,6 @@
 
 /* ---------- Icons and motifs ---------- */
 .rz-icon { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.rz-icon--sm { width: 18px; height: 18px; }
 .rz-icon--bold { stroke-width: 2.6; }
 .rz-star { display: block; width: 100%; height: 100%; fill: currentColor; flex: none; }
 .rz-pattern { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -476,9 +475,6 @@
 .rz-teamrows { display: flex; flex-direction: column; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
 
 
-/* Signed in today: a card per person, its name over Lead or Volunteer, then its small buttons. */
-.rz-person__name { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 800; color: var(--navy); }
-.rz-person__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: var(--space-4); }
 @media (prefers-reduced-motion: reduce) {
   .rz-btn:active, .rz-tile:active, .rz-runner:active { transform: none; }
   .rz-disclosure summary::before { transition: none; }

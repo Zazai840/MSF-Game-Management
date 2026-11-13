@@ -5,7 +5,7 @@ import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type Rac
 import type { NotRankedReason } from './results-rules.js';
 import type { EventState } from './event-state.js';
 import { capitalised,entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
-import { issueLine } from './to-check.js';
+import { issueLine,problemButtons } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
  * The race flow (docs/running-zone-design-system/race-flow.md): Home lists event groups, each with its races, and a
@@ -137,6 +137,18 @@ export function raceNeed(race:Pick<RaceSummary,'kind'|'state'|'steps'|'blocker'>
   return missing?{line:`${words}. ${stepRole(missing)}: tap ${doneButtons[missing]}.`,step:missing}:{line:`${words}.`,step:stepsOf(race).at(-1)!};
 }
 export const raceNeeds=(...args:Parameters<typeof raceNeed>)=>raceNeed(...args).line;
+/**
+ * The band's sentence on a volunteer's Race screen: the same need, starting with whose turn it is, so nobody reads
+ * another role's missing work as their own mistake ("Your turn · 2 runners have no place", "Waiting for Finish line ·
+ * 2 runners have no place"). A lead's band, a saved race and a race with nothing missing keep `raceNeeds`' sentence.
+ */
+export function raceNeedsFor(race:Parameters<typeof raceNeed>[0],role:Role,ask=false) {
+  const need=raceNeed(race,ask);
+  if(role==='lead' || need.step===null || (!race.blocker && race.steps[need.step]?.state==='done')) return need.line;
+  const mine=roleSteps[role]===need.step;
+  const detail=race.blocker?race.blocker.line:mine?`tap ${doneButtons[need.step]}`:doneButtons[need.step];
+  return `${mine?'Your turn':`Waiting for ${stepRole(need.step)}`} · ${detail}`;
+}
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**
@@ -303,6 +315,8 @@ export const leadFinalLine=(group:FinalGroup)=>heatsRunning(group) && savedHeats
 /** New race in place of Create heat, once a section's heats are complete (its final made, or results without one). */
 const finishedLine=(section:string,final:boolean,ask:string)=>`${section} ${final?'final is':'heats are'} finished. Ask a lead to ${ask}.`;
 export const heatsFinishedLine=(group:Pick<RaceGroup,'event'>)=>finishedLine(group.event.section,false,'add another heat');
+/** New relay in place of its choices, on a day with no relay switched on. Volunteers read it too. */
+export const noRelaysLine='This day has no relays. A zone lead can switch them on in Day setup, Events.';
 /** A race whose stage is complete, on its screen and in the refusal of its writes: "Girl Cubs heats are finished. Ask a lead to change this race." */
 export const raceFinishedLine=(race:{kind:string;event:Pick<RaceGroup['event'],'section'>})=>finishedLine(race.event.section,race.kind==='final','change this race');
 /** The sheet "+ Final" opens: the heat count to check against what the lead saw, and that the heats end. */
@@ -325,12 +339,23 @@ export function leadLine(group:Pick<RaceGroup,'event'|'races'|'heatsOpen'|'medal
 }
 /** A lead's card words for an event, the same on Races and Results: "No races yet" before its first race, then the lead's line. */
 export const leadCardLine=(group:Parameters<typeof leadLine>[0],issues:readonly DayLeadItem[])=>group.races.length?leadLine(group,issues):'No races yet';
+/**
+ * A lead's card problems: the first two problem buttons of its open To check items (one per race, one for its ties) and how many more there are. With
+ * a button the card drops its status line; `finalReason` is its final's reason unless that is one of these problems
+ * (an item of the race the reason names, or a tie with a runner in it).
+ */
+export function cardProblems(group:Pick<RaceGroup,'event'|'finalReason'>,issues:readonly DayLeadItem[]) {
+  const own=ownIssues(group,issues),buttons=problemButtons(own),reason=group.finalReason;
+  return {buttons:buttons.slice(0,2),more:Math.max(0,buttons.length-2),finalReason:reason && own.some(item=>item.raceId===reason.raceId || item.tie?.raceIds.includes(reason.raceId))?null:reason};
+}
 /** A Results card's colour: Done once the medals are decided, Running once a race is made, else Not started. */
 export const cardState=(group:Pick<RaceGroup,'races'|'medalsDecided'>):EventState=>group.medalsDecided?'done':group.races.length?'running':'not-started';
-/** A lead's sections: Action required (`ready`) is the groups with open issues or medals waiting on the lead; the rest as for everyone. */
+/** An event in a lead's Action required, on Races and on Results: it has races, and an open issue or medals waiting on the lead. */
+export const actionRequired=(group:Pick<RaceGroup,'event'|'races'|'medalsWaiting'>,issues:readonly DayLeadItem[])=>group.races.length>0 && (ownIssues(group,issues).length>0 || !!group.medalsWaiting);
+/** A lead's sections: Action required (`ready`, by `actionRequired`); the rest as for everyone. */
 export function leadSections(groups:readonly RaceGroup[],issues:readonly DayLeadItem[]) {
   const listed=groups.filter(group=>group.races.length);
-  const ready=listed.filter(group=>ownIssues(group,issues).length || group.medalsWaiting);
+  const ready=listed.filter(group=>actionRequired(group,issues));
   const rest=listed.filter(group=>!ready.includes(group));
   return {ready,inProgress:rest.filter(group=>!groupDone(group)),done:rest.filter(groupDone)};
 }

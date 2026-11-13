@@ -5,7 +5,7 @@ import { clock } from '../../shared/clock.js';
 import type { EventResultsRead,LeadRaceRead } from '../../shared/lead-results.js';
 import { raceName } from '../../shared/race-flow.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
-import { LeadBar,OpeningBody } from './LeadBar.js';
+import { LeadHeader,OpeningBody } from './LeadHeader.js';
 import { useToast } from '../races/Toast.js';
 import type { RaceAction,View } from '../shell/addresses.js';
 import { Comment } from './Comment.js';
@@ -14,7 +14,7 @@ type ActionView=Extract<View,{kind:'race-action'}>;
 type Answer=EventResultsRead & {newRaceId?:string;number?:number};
 const titles:Record<RaceAction,string>={'re-run':'Re-run race',delete:'Delete race',restore:'Restore race'};
 /**
- * A race's Re-run, Delete or Restore screen, under its race page or its race screen. Re-run lands on the new race at
+ * A race's Re-run, Delete or Restore screen, under its race page (Delete also under the Race screen of a race not saved yet). Re-run lands on the new race at
  * its first step in place of the old race in history (`onOpen` with `over`); Delete goes back to the screen before the
  * race (`onBack(2)`); Restore goes back to the restored race page. Each save shows its toast.
  */
@@ -33,7 +33,7 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
     } catch(error) {setError(error);}
   })();},[]);
   const title=titles[view.action];
-  if(!read) return <LeadBar title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
+  if(!read) return <LeadHeader title={title} code={view.code} up="Race" body={<OpeningBody error={error}/>}/>;
   const {race}=read,name=raceName(race);
   /** Sends the save; a refusal shows on the screen, which stays. */
   async function save(body:object,saved:(answer:Answer)=>ToastSave,land:(answer:Answer)=>void) {
@@ -67,5 +67,5 @@ export function RaceLifecycle({view,onOpen,onBack,onChanged}:{view:ActionView;on
       reason={null} busy={busy} label={`Restore ${name}`} refused={refused}
       onGo={()=>void save({},answer=>({kind:'restored',race:{...race,number:answer.number??race.number}}),()=>onBack())}>{null}</Frame>;
   }
-  return <LeadBar title={title} code={race.event.code} up={name} body={body}/>;
+  return <LeadHeader title={title} code={race.event.code} up={name} body={body}/>;
 }

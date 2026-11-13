@@ -1,4 +1,4 @@
-import {eventTab,lookProblems,ownName,ownWristbands,ownEvent,ownCode,backToRaces,confirmTheMedals,deleteCurrentRace,live,medalPlaces,openRace,recordRace,openLeadMenu,becomeLead,expect,expectToast,join,test,raceAction,press} from './fixtures.js';
+import {eventTab,lookProblems,ownName,ownWristbands,ownEvent,ownCode,backToRaces,confirmTheMedals,deleteCurrentRace,live,medalPlaces,openRace,recordRace,openLeadMenu,becomeLead,expect,expectToast,join,test,raceAction,press,resultsCard} from './fixtures.js';
 test('timed Event complete checks blockers, locks the event\'s races live, and reopens with a retained comment',async({page,openPhone},info)=>{
   const code=await ownCode(),name=ownName('Stage event');
   await ownEvent(page.request,code,name,'Girl Cubs','timed');
@@ -14,10 +14,10 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await expect(job.locator('.rz-prompt__meta')).toHaveText('Heat 2 · 1 runner so far');
   await page.goto('/');await join(page,ownName('Stage lead'),{job:'Start line'});
   await becomeLead(page);await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
+  await press(resultsCard(page,code));await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
   // The Confirm the medals screen: Heat 2 must be settled first, so the docked Confirm stays grey with the reason above it.
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
-  await expect(page.locator('.rz-prompt__meta')).toHaveText('2 heats · no final');
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 2 heats · no final`);
   const settle=page.getByRole('list',{name:'Settle first',exact:true}).getByRole('listitem');
   await expect(settle).toHaveText(['Heat 2 is in progress (1 checked in) - finish its steps or delete itOpen Heat 2']);
   const footer=page.getByRole('contentinfo'),confirm=footer.getByRole('button',{name:'Confirm the medals',exact:true});
@@ -29,7 +29,7 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await press(settle.getByRole('button',{name:'Open Heat 2',exact:true}));await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Heat 2',exact:true})).toBeVisible();
   await raceAction(page,'Delete Heat 2');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 2',exact:true}));await expectToast(page,'Heat 2 moved to Deleted races');
   await expect(page).toHaveURL(new RegExp(`/results/${code}/confirm-the-medals$`));
-  await expect(page.locator('.rz-prompt__meta')).toHaveText('1 heat · no final');
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 1 heat · no final`);
   await expect(page.getByRole('heading',{name:'Settle first',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'Worth a look',exact:true})).toHaveCount(0);
   await expect(footer.locator('.rz-footer__reason')).toHaveCount(0);await expect(confirm).not.toHaveAttribute('aria-disabled');
   await expect(medalPlaces(page)).toHaveText([/^12601Heat 1 · 10\.00\s*Fix$/,/^22602Heat 1 · 11\.00\s*Fix$/,/^3-$/]);
@@ -52,6 +52,8 @@ test('timed Event complete checks blockers, locks the event\'s races live, and r
   await press(page.getByRole('button',{name:'Reopen event',exact:true}));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-event$`));
   await expect(page.getByRole('heading',{level:2,name:'Reopen the event?',exact:true})).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Reopen event',exact:true})).toBeVisible();
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 1 heat · no final`);
   const reopen=footer.getByRole('button',{name:'Reopen event',exact:true});
   await expect(footer.locator('.rz-footer__reason')).toHaveText('Write a comment first.');await press(reopen,true);await expect(page).toHaveURL(new RegExp(`/results/${code}/reopen-event$`));
   await page.getByLabel('Comment',{exact:true}).fill('Late time correction');
@@ -74,9 +76,9 @@ test('Confirm the medals: Fix opens the place\'s heat on Correct times and retur
   // One runner per heat: a tie at 10.00 decides 3rd and 4th.
   for(const [wristband,time] of [[w(1),900],[w(2),950],[w(3),1000],[w(4),1000]]) await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[wristband],[time]);
   const {page}=await openPhone(ownName('Medals fix lead'),{lead:true});
-  await openLeadMenu(page,'Results');await press(page.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}));
+  await openLeadMenu(page,'Results');await press(resultsCard(page,code));
   await press(page.getByRole('button',{name:'Confirm the medals',exact:true}));
-  await expect(page.locator('.rz-prompt__meta')).toHaveText('4 heats · no final');
+  await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · 4 heats · no final`);
   const settle=page.getByRole('list',{name:'Settle first',exact:true}).getByRole('listitem');
   await expect(settle).toHaveCount(1);await expect(settle.getByRole('button')).toHaveText(['Settle tie']);
   await expect(page.getByRole('contentinfo').getByText('Settle 1 thing first.',{exact:true})).toBeVisible();

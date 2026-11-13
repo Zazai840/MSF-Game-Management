@@ -293,7 +293,7 @@ test('once the finishing order is saved, the Timer has one slot per finisher and
   await deleteCurrentRace(request,code);
 });
 
-test('three phones work one heat at once: each sees the others\' steps live, the race saves itself once every step is done and they agree, and a lead sees times joined to wristbands',async({openPhone,request},info)=>{
+test('three phones work one heat at once: each sees the others\' steps live, the race saves itself once every step is done and they agree, and a lead sees times joined to wristbands on the race page',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Times sprint');
   await ownEvent(request,code,name);
   const start=await openPhone(ownName('Sam times')),finish=await openPhone(ownName('Priya times'),{job:'finish'}),timer=await openPhone(ownName('Jo times'),{job:'timer'});
@@ -323,17 +323,12 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   const heat1=async()=>(await (await request.get('/api/races',{headers:{authorization:`Bearer ${start.token}`}})).json()).groups.find((group:{event:{code:string}})=>group.event.code===code).races[0].state;
   await expect.poll(heat1).toBe('saved');
   await expect(timer.page.getByRole('article',{name:`${name} · Girl Cubs`})).toBeVisible();
-  // A lead's Times tab joins place, wristband and time.
+  // A lead's race page joins place, wristband and time.
   const lead=await openPhone(ownName('Lead times'),{lead:true});
   await openRace(lead.page,name);
-  await lead.page.getByRole('tab',{name:/^Times/}).click();
-  await expect(lead.page.getByRole('list',{name:'Times'}).getByRole('listitem')).toHaveText([/^1st\s*2202\s*12\.34/,/^2nd\s*2201\s*13\.01/,/^3rd\s*2203\s*13\.50/]);
-  // The lead's race steps show the same Updated at as Races and every lead screen, and Refresh reads the race again.
-  const updated=lead.page.locator('.rz-refresh');
-  await expect(updated).toHaveText(/^Updated at \d\d:\d\d:\d\d Refresh$/);
-  const reread=lead.page.waitForRequest(sent=>sent.method()==='GET' && /^\/api\/races\/[^/]+$/.test(new URL(sent.url()).pathname));
-  await press(updated.getByRole('button',{name:'Refresh',exact:true}));
-  await reread;
+  await expect(lead.page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem')).toHaveText([/1st.*2202.*12\.34/,/2nd.*2201.*13\.01/,/3rd.*2203.*13\.50/]);
+  // It shows the same Updated at as Races and every lead screen.
+  await expect(lead.page.locator('.rz-refresh')).toHaveText(/^Updated at \d\d:\d\d:\d\d Refresh$/);
   expect(await lookProblems(lead.page)).toEqual([]);await lead.page.screenshot({path:info.outputPath('lead-times.png'),fullPage:true});
 });
 

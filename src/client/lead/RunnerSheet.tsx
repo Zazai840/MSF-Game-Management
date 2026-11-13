@@ -1,8 +1,8 @@
 import { useRef,useState,type ReactNode } from 'react';
 import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberBox.js';
-import { Callout,DockedFooter,ErrorCallout,Sheet } from '../races/parts.js';
-import { LeadBar } from './LeadBar.js';
+import { Callout,DockedFooter,ErrorCallout,Sheet,Opening } from '../races/parts.js';
+import { LeadHeader } from './LeadHeader.js';
 import { Comment } from './Comment.js';
 import { useToast } from '../races/Toast.js';
 import type { RunnerScreen,View } from '../shell/addresses.js';
@@ -95,20 +95,20 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
     catch(error) {setBusy(false);return error;}
   }
   const title=titles[view.screen],up=row?raceName(row.race):'Race';
-  if(!detail || !row) return <LeadBar title={title} code={view.code} up={up} body={<main className="rz-main">
-    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<p className="rz-empty">Opening…</p>}</main>}/>;
+  if(!detail || !row) return <LeadHeader title={title} code={view.code} up={up} body={<main className="rz-main">
+    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<Opening/>}</main>}/>;
   const props:ScreenProps={event:detail.event,row,rows:detail.results.actionableRunners,save,busy};
   const Body={disqualify:Disqualify,'lift-disqualification':Lift,'correct-number':CorrectNumber,'choose-result':ChooseResult}[view.screen];
-  return <LeadBar title={title} code={view.code} up={up} body={<Body {...props}/>}/>;
+  return <LeadHeader title={title} code={view.code} up={up} body={<Body {...props}/>}/>;
 }
 /**
  * A full race-flow screen's frame (the runner screens, Re-run, Delete, Restore, the corrections): the prompt and fields,
  * then the docked button, greyed with `reason` above it until it can go. `footer` takes the button's place while a
- * number is being typed (a correction's Done).
+ * number is being typed (a correction's Done). A screen whose bar already says the `question` leaves it out. `event` names the event before `meta`, cut short so the line stays one line.
  */
-export function Frame({meta,question,help,children,reason,busy,label,danger=false,refused,onGo,footer}:{meta:string;question:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void;footer?:ReactNode}) {
+export function Frame({event,meta,question,help,children,reason,busy,label,danger=false,refused,onGo,footer}:{event?:string;meta:string;question?:ReactNode;help:string;children:ReactNode;reason:string|null;busy:boolean;label:string;danger?:boolean;refused:unknown;onGo:()=>void;footer?:ReactNode}) {
   return <><main className="rz-main rz-main--form">
-    <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{meta}</p><h2 className="rz-prompt__q">{question}</h2><p className="rz-prompt__help">{help}</p></div>
+    <div className="rz-prompt rz-prompt--compact">{event?<p className="rz-prompt__meta rz-prompt__meta--fit"><span>{event}</span><span>{'\u00a0· '}{meta}</span></p>:<p className="rz-prompt__meta">{meta}</p>}{question && <h2 className="rz-prompt__q">{question}</h2>}<p className="rz-prompt__help">{help}</p></div>
     {children}
     {refused!==null && <ErrorCallout error={refused} action="save"/>}
   </main>

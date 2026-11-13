@@ -1,11 +1,11 @@
-import {eventTab,press,raceAction,ownName,ownWristbands,ownCode,back,expect,expectToast,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes} from './fixtures.js';
+import {eventTab,press,raceAction,ownName,ownWristbands,ownCode,back,expect,expectToast,live,lookProblems,openLeadMenu,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard} from './fixtures.js';
 import type {APIRequestContext,Page} from '@playwright/test';
 import type {RaceFlowRead,RacesRead} from '../src/shared/race-flow.js';
 
 /** A lead's Results for the relay, then its event page. */
 async function openRelayResults(page:Page,code:string) {
   await openLeadMenu(page,'Results');
-  await page.getByRole('button',{name:new RegExp(`^${code} · Boy Scouts`)}).click();
+  await press(resultsCard(page,code));
 }
 /** One phone ticks the teams in, places them in this order with these times, and marks every step done, which saves the heat. */
 async function runHeat(request:APIRequestContext,token:string,code:string,placed:number[],times:number[]) {
@@ -24,7 +24,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await runHeat(request,volunteer.token,code,[2,1],[1500,1600]);
   const {page,token:lead}=await openPhone(ownName('Correct teams lead'),{lead:true});
   await openRelayResults(page,code);
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url(),docked=page.getByRole('contentinfo'),record=page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem');
   const teamCard=(number:number)=>page.getByRole('region',{name:`Team ${number}`,exact:true});
   const legsOf=(numbers:number[])=>numbers.map((number,index)=>`${['1st','2nd','3rd','4th'][index]}${number}`);
@@ -104,7 +104,7 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await runHeat(request,token,code,[1,2],[1500,1600]);
   const {page}=await openPhone(ownName('Relay ran twice lead'),{lead:true});
   await openRelayResults(page,code);
-  await eventTab(page,'Heats');await press(page.getByRole('button',{name:'Open Heat 1',exact:true}));
+  await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   const racePage=page.url();
   await raceAction(page,'Delete Heat 1');await press(page.getByRole('contentinfo').getByRole('button',{name:'Delete Heat 1',exact:true}));
   await expectToast(page,'Heat 1 moved to Deleted races');

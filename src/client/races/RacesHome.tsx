@@ -1,12 +1,11 @@
 import { eventTitle } from '../../shared/day.js';
 import { useEffect,useState } from 'react';
-import { clockWithSeconds } from '../../shared/clock.js';
 import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-results.js';
-import { finalMade,groupStatus,leadCardLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
+import { cardProblems,finalMade,groupStatus,leadCardLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { useLive } from '../live.js';
-import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon } from './parts.js';
+import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon,Opening } from './parts.js';
 import { UpdatedAt } from './UpdatedAt.js';
 import { useScreenName } from '../shell/addresses.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
@@ -33,14 +32,14 @@ function useLeadItems(on:boolean) {
  * Races, the new Home: the event groups of this tab behind Races · Relays, live from the races stream, in
  * Ready for you (a race my step can be worked on now; for a lead it is Action required: a group with open issues or
  * medals waiting on their Confirm), In progress and Done, each in the day's programme.
+ * A lead's card with To check problems shows them as buttons (`cardProblems`) in place of its status line.
  * Each card's chips open a race; "+" makes the next heat and a lead's "+ Final", after a confirm, the final. A relay's
  * teams are typed into its heats, so a relay is listed once it has a heat, as any event is.
  */
 export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;onTab:(tab:HomeTab)=>void;role:Role;gone:string;
   onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
-  const {snapshot,error,offer}=useLive<RacesRead>('live/races');
-  const [arrived,setArrived]=useState('');
-  useEffect(()=>{if(snapshot) setArrived(clockWithSeconds(new Date()));},[snapshot]);
+  // Races seen before opens at once with what it showed last; the stream then brings it up to date.
+  const {snapshot,arrived,error,offer}=useLive<RacesRead>('live/races',{remember:true});
   const [creating,setCreating]=useState<NewRaceChoice|null>(null);
   // The event code whose final a lead is asked to confirm; the sheet reads its group live.
   const [confirming,setConfirming]=useState<string|null>(null);
@@ -58,15 +57,17 @@ export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;on
     catch(failure) {setFailure(failureLine(failure,'save'));}
   }
   const card=(group:RaceGroup)=>{
-    const confirm=role==='lead'?medalsToConfirm(group,issues):null;
+    const confirm=role==='lead'?medalsToConfirm(group,issues):null,problems=role==='lead'?cardProblems(group,issues):null;
     return <article key={group.event.id} className="rz-racecard" aria-label={eventTitle(group.event)}>
       <div className="rz-racecard__head"><h3 className="rz-racecard__title">{eventTitle(group.event)}</h3><CodeTag code={group.event.code} role={role}/></div>
-      <p className="rz-racecard__status">{role==='lead'?leadCardLine(group,issues):groupStatus(group,role)}</p>
+      {!problems?.buttons.length && <p className="rz-racecard__status">{role==='lead'?leadCardLine(group,issues):groupStatus(group,role)}</p>}
+      {problems?.buttons.map((button,index)=><button key={index} type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onResults(button.target)}>{button.label}</button>)}
+      {problems && problems.more>0 && <button type="button" className="rz-heat-reason" onClick={()=>onResults({event:group.event})}>{problems.more} more</button>}
       {confirm && <button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onResults({event:group.event,stage:confirm})}>Confirm the medals</button>}
       {group.races.length>0 && <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
         onAdd={group.heatsOpen?()=>setCreating({eventCode:group.event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined}
         onFinal={role==='lead' && group.finalAvailable?()=>setConfirming(group.event.code):undefined}
-        finalReason={role==='lead' && group.finalReason?<FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>:undefined}/>}
+        finalHeld={role==='lead' && !!group.finalReason} finalReason={problems?.finalReason?<FinalReasonButton group={group} onRace={onRace} onResults={onResults}/>:undefined}/>}
       {role!=='lead' && group.races.length>0 && volunteerFinalLine(group) && <p className="rz-field__hint">{volunteerFinalLine(group)}</p>}
     </article>;
   };
@@ -75,7 +76,7 @@ export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;on
     <EventTabs tab={tab} onTab={onTab}/>
     <main className="rz-main rz-main--cards">
       {gone && <Callout status message={gone}/>}
-      {!snapshot?error?<Callout message={error}/>:<p className="rz-empty">Opening…</p>:error && <p className="rz-note" role="status">{error}</p>}
+      {!snapshot?error?<Callout message={error}/>:<Opening/>:error && <p className="rz-note" role="status">{error}</p>}
       {snapshot && !groups.some(group=>group.races.length) && <p className="rz-empty">{tab==='relays'?'No relays yet. Tap New relay when a relay lines up.':'No races yet. Tap New race when a race lines up.'}</p>}
       {sections.ready.length>0 && <><h2 className="rz-section">{role==='lead'?'Action required':'Ready for you'}</h2>{sections.ready.map(card)}</>}
       {sections.inProgress.length>0 && <><h2 className="rz-section">In progress</h2>{sections.inProgress.map(card)}</>}

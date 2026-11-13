@@ -153,14 +153,16 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     );
     CREATE INDEX IF NOT EXISTS event_audit_order ON audit_notes(event_id,sequence_number DESC);
     -- An event's phase (shared/event-phase.ts). Older builds kept a row per complete stage in event_stages: each
-    -- event takes its phase from those rows once, and the rows stay aside under another name.
+    -- event with such rows takes its phase from them once, and the rows stay aside under another name. An older
+    -- build that runs again later (a roll back) makes the table anew, so the copy set aside before gives way.
     ALTER TABLE events ADD COLUMN IF NOT EXISTS phase text NOT NULL DEFAULT 'racing' CHECK (phase IN ('racing','final','medals','no final'));
     DO $$ BEGIN IF to_regclass('event_stages') IS NOT NULL THEN
       UPDATE events e SET phase=CASE
         WHEN EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage='no-final') THEN 'no final'
         WHEN EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage IN ('event','final')) THEN 'medals'
         WHEN EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id AND s.stage='heats') THEN 'final'
-        ELSE 'racing' END;
+        ELSE 'racing' END WHERE EXISTS(SELECT 1 FROM event_stages s WHERE s.event_id=e.id);
+      DROP TABLE IF EXISTS event_stages_before_phase;
       ALTER TABLE event_stages RENAME TO event_stages_before_phase;
     END IF; END $$;
     -- No part of the race flow has holds (ADR 0003), nor Submit presses: older builds kept them for relays here.

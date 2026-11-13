@@ -1,6 +1,7 @@
 import { expect,test } from 'vitest';
 import { eventTitle } from '../src/shared/day.js';
-import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,stepBlocker,surplusTimes,timerQuestion,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
+import type { DayLeadItem } from '../src/shared/lead-results.js';
+import { alreadyDoneLine,heldRole,raceNeed,raceNeeds,raceNeedsFor,stepBlocker,surplusTimes,timerQuestion,cardProblems,cardState,changedLine,tieHold,chipLabel,emptyRaceLine,chipState,finalConfirm,groupDone,groupStatus,leadCardLine,leadFinalLine,leadSections,raceName,raceSections,stepPeople,volunteerFinalLine,type RaceFlowRead,type RaceGroup,type RaceSummary,type StepStatus } from '../src/shared/race-flow.js';
 import { childCount,entryWords,legsText,runsShortLine,teamListOf,type RelayTeam } from '../src/shared/teams.js';
 const status=(state:StepStatus['state'],count=state==='not started'?0:1):StepStatus=>({state,count,expected:null,version:1,by:null,at:null,doneBy:null,doneAt:null});
 const race=(id:string,steps:RaceSummary['steps'],state:RaceSummary['state']='in progress'):RaceSummary=>({id,kind:'heat',number:1,state,steps,blocker:null});
@@ -152,6 +153,21 @@ test('a lead\'s card words and colour are one function on Races and Results: no 
   expect([idle,relay,running,decided].map(item=>leadCardLine(item,[]))).toEqual(['No races yet','No races yet','Heat 2 in progress · Heat 1 saved','Medals decided']);
   expect([idle,relay,running,decided].map(cardState)).toEqual(['not-started','not-started','running','done']);
 });
+test('a lead\'s card shows two problem buttons at most and counts the rest, and keeps only a final reason that is not a To check problem',()=>{
+  const event={code:'R3'},heat=(number:number)=>({id:`h${number}`,kind:'heat' as const,number,checkedInAt:'2026-10-14T10:00:00Z'});
+  const issue=(fields:object)=>({id:'i',at:'2026-10-14T10:05:00Z',message:'m',event,...fields}) as unknown as DayLeadItem;
+  const on=(number:number,kind:string)=>issue({kind,race:heat(number),raceId:`h${number}`});
+  const held=(raceId:string)=>({...group('R3',[]),finalReason:{raceId,step:'times',line:'why'}}) as RaceGroup;
+  // One button per race: Heat 1 and Heat 2 have more than one kind each, and Heats 3 and 4 are counted as more.
+  const four=[on(1,'warning'),on(1,'times-out-of-order'),on(2,'warning'),on(2,'ran-twice'),on(2,'warning'),on(3,'warning'),on(4,'times-out-of-order')];
+  expect(cardProblems(held('h1'),four)).toEqual({buttons:[{label:'Check Heat 1 · 2 problems',target:{event,raceId:'h1'}},{label:'Check Heat 2 · 3 problems',target:{event,raceId:'h2'}}],more:2,finalReason:null});
+  // Heat 3 has no To check item: the final waits on its times, and the card still says so.
+  expect(cardProblems(held('h3'),[on(1,'warning')])).toMatchObject({buttons:[{label:'Check Heat 1 · 1 wristband'}],more:0,finalReason:{raceId:'h3',line:'why'}});
+  // A tie holds the final under one of its heats.
+  expect(cardProblems(held('h2'),[issue({kind:'tie',tieId:'t',tie:{time:1000,names:['1','2'],raceIds:['h1','h2']}})])).toEqual({buttons:[{label:'Decide the tie',target:{event,tieId:'t'}}],more:0,finalReason:null});
+  // Another event's items are not this card's.
+  expect(cardProblems(held('h1'),[{...on(1,'warning'),event:{code:'R9'}} as unknown as DayLeadItem])).toEqual({buttons:[],more:0,finalReason:{raceId:'h1',step:'times',line:'why'}});
+});
 test('a step names the last person who typed in it, or else up to three people in its role and a count of the rest',()=>{
   const typed=(version:number,by:string|null)=>({...status('in progress'),version,by});
   expect(stepPeople('positions',typed(2,'Finish Fatima'),['Finish Omar'])).toBe('Finish Fatima');
@@ -200,6 +216,23 @@ test('with no detail missing, the band names the first done button not tapped ye
   // A volunteer on a race in Results is told who can change it.
   expect(raceNeeds({kind:'heat',state:'saved',steps:allDone,blocker:null},true)).toBe('In Results. Ask a lead to change it.');
   expect(needs(complete,{...allDone,times:todo})).toBe(raceNeed({kind:'heat',state:'in progress',steps:{...allDone,times:todo},blocker:null},true).line);
+});
+test('a volunteer\'s band starts with whose turn it is; a lead\'s band and a saved race keep the plain sentence',()=>{
+  const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps']=allDone)=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,read.event.relay)});
+  const unplaced=summary(parts(runnersAB,null,null));
+  expect(raceNeedsFor(unplaced,'finish')).toBe('Your turn · 2 runners have no place');
+  expect(raceNeedsFor(unplaced,'start')).toBe('Waiting for Finish line · 2 runners have no place');
+  expect(raceNeedsFor(unplaced,'timer')).toBe('Waiting for Finish line · 2 runners have no place');
+  expect(raceNeedsFor(unplaced,'lead')).toBe('Not in Results yet: 2 runners have no place.');
+  expect(raceNeedsFor(summary(parts([],null,null)),'start')).toBe('Your turn · Nobody is checked in');
+  // Nothing but a done button missing.
+  const button=summary(parts(runnersAB,{order:['a','b']},[1100,1200]),{...allDone,positions:status('in progress')});
+  expect(raceNeedsFor(button,'finish')).toBe('Your turn · tap Save the order');
+  expect(raceNeedsFor(button,'timer')).toBe('Waiting for Finish line · Save the order');
+  expect(raceNeedsFor(button,'lead')).toBe('Not in Results yet. Finish line: tap Save the order.');
+  expect(raceNeedsFor({kind:'heat',state:'saved',steps:allDone,blocker:null},'timer',true)).toBe('In Results. Ask a lead to change it.');
+  // Every step done and nothing missing: the race is saving itself, and nobody has a turn.
+  expect(raceNeedsFor(summary(parts(runnersAB,{order:['a','b']},[1100,1200])),'start')).toBe('Not in Results yet.');
 });
 test('a done button on a step already done says so, and what the race still needs, in the band\'s words',()=>{
   const summary=(read:RaceFlowRead['race'],steps:RaceSummary['steps'])=>({kind:read.kind,state:'in progress' as const,steps,blocker:stepBlocker(read,false)});

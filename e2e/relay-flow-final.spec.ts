@@ -1,6 +1,6 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
 import { ordinal } from '../src/shared/ordinal.js';
-import {press,confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page} from './fixtures.js';
+import {press,confirmTheMedals,eventTab,expectToast,medalPlaces,openLeadMenu,ownName,expect,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,flowPost,runHeat,test,writeTeam,type Page,resultsCard} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const footer=(page:Page)=>page.locator('footer.rz-footer');
 /** A finalist team's card, by its name ("Team 1"). */
@@ -42,6 +42,8 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   // Taps land at once on the finish line: those Here are its tiles, and the Absent or unmarked are not.
   for(const team of [1,2,3,4]) await markButton(one,team,'Here').click();
   await markButton(one,5,'Absent').click();
+  // The taps save one at a time, in order: the finish line's two seconds start once the last is saved.
+  await expect(markButton(one,5,'Absent')).toHaveAttribute('aria-pressed','true');
   const tiles=line.getByRole('list',{name:'Teams not yet placed'}).getByRole('button');
   await expect(tiles).toHaveText([1,2,3,4].map(team=>String(w(team*10+4))),live);
   await expect(meta(one)).toHaveText('Final · 4 of 6 teams here · 1 not marked');
@@ -92,7 +94,7 @@ test('a lead makes a relay final and two phones run it: Here / Absent per seeded
   await done.locator('summary').click();
   await expect(done.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).locator('.rz-racecard__status')).toHaveText('Medals decided');
   await expect(relayCard.getByRole('button',{name:'Confirm the medals',exact:true})).toHaveCount(0);
-  await openLeadMenu(boss,'Results');await boss.getByRole('button',{name:new RegExp(`^${code} · Girl Cubs`)}).click();
+  await openLeadMenu(boss,'Results');await press(resultsCard(boss,code));
   await eventTab(boss,'Final');
   const board=boss.getByRole('list',{name:'Final leaderboard',exact:true});
   for(const team of [3,1,4,2]) await expect(board.getByRole('button',{name:`Team ${team} · ${legs(team)} · Final`,exact:true})).toBeVisible();
