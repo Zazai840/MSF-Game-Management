@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
 import { Callout,DockedFooter,ErrorCallout,Icon,Sheet } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
-import { UpdatedAt } from '../races/UpdatedAt.js';
+import { PullToRefresh,UpdatedAt } from '../races/UpdatedAt.js';
 import type { View } from '../shell/addresses.js';
 
 type EventsView=Extract<View,{kind:'events'|'rename-event'|'new-event'}>;
@@ -30,7 +30,7 @@ function useSave(onSaved:()=>Promise<void>) {
  */
 export function Events({view,day,updated,error,onRefresh,onOpen,onBack,onSaved}:{view:EventsView;day:DayRead|null;updated:string;error:unknown;
   onRefresh:()=>Promise<void>;onOpen:(view:View)=>void;onBack:()=>void;onSaved:()=>Promise<void>}) {
-  if(view.kind==='rename-event') return <Rename code={view.code} day={day} error={error} onBack={onBack} onSaved={onSaved}/>;
+  if(view.kind==='rename-event') return <Rename code={view.code} day={day} error={error} onRefresh={onRefresh} onBack={onBack} onSaved={onSaved}/>;
   if(view.kind==='new-event') return <AddEvent onBack={onBack} onSaved={onSaved}/>;
   return <EventList day={day} updated={updated} error={error} onRefresh={onRefresh} onOpen={onOpen} onSaved={onSaved}/>;
 }
@@ -66,7 +66,7 @@ function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|nul
 }
 
 /** Rename: the event's new name, saved by the docked button; Races, Results and the Day export show it. */
-function Rename({code,day,error,onBack,onSaved}:{code:string;day:DayRead|null;error:unknown;onBack:()=>void;onSaved:()=>Promise<void>}) {
+function Rename({code,day,error,onRefresh,onBack,onSaved}:{code:string;day:DayRead|null;error:unknown;onRefresh:()=>Promise<void>;onBack:()=>void;onSaved:()=>Promise<void>}) {
   const {busy,save}=useSave(onSaved);
   const event=day?.events.find(item=>item.code===code);
   const [typed,setTyped]=useState<string|null>(null);
@@ -78,7 +78,7 @@ function Rename({code,day,error,onBack,onSaved}:{code:string;day:DayRead|null;er
     const failure=await save(`day/events/${encodeURIComponent(code)}/rename`,{name},{kind:'renamed',code});
     if(failure) setRefused(failure);else onBack();
   }
-  return <LeadHeader title={`Rename ${code}`} up="Events" body={<><main className="rz-main rz-main--form">
+  return <LeadHeader title={`Rename ${code}`} up="Events" body={<><PullToRefresh onRefresh={()=>void onRefresh()}/><main className="rz-main rz-main--form">
     {error!==null && <ErrorCallout error={error} action="read"/>}
     {day && !event && <Callout status message={`There is no event ${code} today.`}/>}
     {event && <>
