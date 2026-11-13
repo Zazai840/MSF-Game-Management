@@ -129,9 +129,14 @@ export async function apiResponse(path:string,body?:unknown,signal?:AbortSignal)
   sessions.set(response,captured);
   return response;
 }
+/** No answer by then means the link is dead: on weak signal a phone could otherwise wait minutes, its buttons greyed out, with no word why. */
+const answerLimit=20_000;
 export async function api<T>(path:string,body?:unknown):Promise<T> {
-  const response=await apiResponse(path,body),captured=sessions.get(response)!;
-  const result=await response.json();current(captured);return result as T;
+  const controller=new AbortController(),limit=setTimeout(()=>controller.abort(),answerLimit);
+  try {
+    const response=await apiResponse(path,body,controller.signal),captured=sessions.get(response)!;
+    const result=await response.json();current(captured);return result as T;
+  } finally {clearTimeout(limit);}
 }
 export async function apiDownload(path:string):Promise<{blob:Blob;filename:string}> {
   const response=await apiResponse(path,{}),captured=sessions.get(response)!;
