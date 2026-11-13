@@ -1,4 +1,4 @@
-import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,stillTabs,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,raceAction,recordRace,resultsCard,stillTabs,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
@@ -152,6 +152,27 @@ test('on a deeper screen the lit tab is the section the lead came from, or the s
   await page.goto(`/results/${code}/races/${race.id}`);await title(page,heat);await lit(page,'Results');
   await page.goto(`/results/${code}`);await title(page,event);await lit(page,'Results');
   await page.goto('/day/events/new');await title(page,'Add an event');await lit(page,'Day setup');
+});
+
+test('Delete opened from a Race screen lights the tab the lead came to the race from: Races from Races, Results from Results',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Bar race way in'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',3);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  // Heat 2 is not in Results yet: a lead's Race screen, whose Delete is the screen under it.
+  const {race}=await writeCheckIn(request,process.env.E2E_OWNER_TOKEN!,code,[w(3)]);
+  const {page}=await openPhone(ownName('Bar race way in lead'),{lead:true});
+  const toDelete=async()=>{
+    await expect.poll(()=>new URL(page.url()).pathname).toBe(`/races/${race.id}`);await expect(bar(page)).toHaveCount(0);
+    await raceAction(page,'Delete Heat 2');await title(page,'Delete race');
+    await expect.poll(()=>new URL(page.url()).pathname).toBe(`/races/${race.id}/delete`);
+  };
+  await openRace(page,name,'Girl Cubs','H2');await toDelete();await lit(page,'Races');
+  await press(tab(page,'Results'));await title(page,'Results');
+  await press(resultsCard(page,code));await title(page,event);
+  await press(page.getByRole('button',{name:'Open Heat 2',exact:true}));await toDelete();await lit(page,'Results');
+  // Back goes to the Race screen, then to the event, with Results still lit.
+  await press(arrow(page));await expect(bar(page)).toHaveCount(0);
+  await page.goBack();await title(page,event);await lit(page,'Results');
 });
 
 /** A lead on Races, the page watching the cell from its first frame. */

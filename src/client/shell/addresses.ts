@@ -119,9 +119,10 @@ export const entryBack=()=>(history.state as Entry|null)?.back??null;
 /**
  * The section a screen is in, the lit tab of the lead's bar: Races, Results and Day setup are their own; a deeper
  * screen is in the section the lead came from (its history entry), or with no history the one its address is under.
+ * A Race screen draws no bar, and carries its section on to the Delete screen under it.
  */
 export function sectionOf(view:View):Section {
-  if(view.kind==='races' || view.kind==='race') return 'Races';
+  if(view.kind==='races') return 'Races';
   if(view.kind==='results') return 'Results';
   if(view.kind==='day') return 'Day setup';
   const address=addressOf(view);
