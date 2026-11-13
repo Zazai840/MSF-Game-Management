@@ -46,7 +46,7 @@ function Join({onSignedIn}:{onSignedIn:(result:SignedIn)=>void}) {
     if(error instanceof ApiFailure && error.body.reason==='moved') {phoneStorage.forgetProfile(profile.id);setProfiles(phoneStorage.profiles());}
   });
   const forget=(profile:HeldProfile)=>{phoneStorage.forgetProfile(profile.id);const left=phoneStorage.profiles();setProfiles(left);if(!left.length) setEditing(false);};
-  return <RzScreen screen="Join"><HomeBar>{null}</HomeBar>
+  return <RzScreen screen="Join" narrow><HomeBar>{null}</HomeBar>
     <main className="rz-main rz-main--form">
       {phoneStorage.newDayLine() && <p className="rz-note" role="status">A new Olympics day has started. Tap your name to sign in.</p>}
       {pass && profiles.length>0 && <section style={{display:'flex',flexDirection:'column',gap:8}} aria-label="Joined on this phone before">
