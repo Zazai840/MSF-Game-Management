@@ -117,7 +117,7 @@ test('a lead adds an event on its own screen: the docked Add event says what is 
   await page.getByLabel('Event code',{exact:true}).fill(code);
   await page.getByLabel('Event name',{exact:true}).fill(name);
   await press(page.getByRole('button',{name:'Boy Scouts',exact:true}));
-  await press(page.getByRole('button',{name:'Races',exact:true}));
+  await press(page.getByRole('group',{name:'Races or Hurdles'}).getByRole('button',{name:'Races',exact:true}));
   await press(page.getByRole('button',{name:'Timed',exact:true}));
   await press(add);
   await expect(page.getByRole('alert')).toHaveText(`Not saved - try again. An event already uses ${code}`);
