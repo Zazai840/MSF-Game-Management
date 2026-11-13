@@ -81,7 +81,6 @@ async function nameIsThisTests(name:string) {
   const key=name.trim().replace(/\s+/g,' '),{testId,titlePath,repeatEachIndex}=test.info(),title=`${titlePath.join(' › ')}${repeatEachIndex?` (repeat ${repeatEachIndex})`:''}`;
   const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
   try {
-    await db.query('CREATE TABLE IF NOT EXISTS e2e_names(name text PRIMARY KEY,test text NOT NULL,title text NOT NULL)');
     const first=(await db.query('INSERT INTO e2e_names(name,test,title) VALUES($1,$2,$3) ON CONFLICT(name) DO UPDATE SET name=excluded.name RETURNING test,title',[key,testId,title])).rows[0];
     if(first.test!==testId) throw new Error(`"${key}" already joined in "${first.title}", so "${title}" clashes with it: build names with ownName() so each test's are its own`);
   } finally {await db.end();}
@@ -192,7 +191,6 @@ export async function recordRace(request:APIRequestContext,token:string,eventCod
 async function claim(counter:string,size:number,start:number) {
   const db=new pg.Client({connectionString:process.env.E2E_TEST_DATABASE_URL});await db.connect();
   try {
-    await db.query('CREATE TABLE IF NOT EXISTS e2e_claims(counter text PRIMARY KEY,next integer NOT NULL)');
     return Number((await db.query('INSERT INTO e2e_claims(counter,next) VALUES($1,$2::integer+$3::integer) ON CONFLICT(counter) DO UPDATE SET next=e2e_claims.next+$3::integer RETURNING next-$3::integer AS first',[counter,start,size])).rows[0].first);
   } finally {await db.end();}
 }
@@ -264,6 +262,8 @@ export async function typedAhead(relayCode:string,teams:Array<Array<number|null>
     for(const [index,legs] of teams.entries()) await db.query(`INSERT INTO relay_teams(id,event_id,number,legs,changed_by)
       SELECT gen_random_uuid(),e.id,$2,$3,'Typed ahead' FROM events e JOIN olympics_days d ON d.id=e.day_id AND d.active WHERE e.code=$1`,
       [relayCode,index+1,JSON.stringify(legs.map(wristband=>({wristband,warnings:[]})))]);
+    // Every change of the day raises its revision, as the server's own writes do: reads kept for a revision see these teams.
+    await db.query('UPDATE olympics_days SET revision=revision+1 WHERE active');
   } finally {await db.end();}
 }
 /** One race-flow write as that phone; fails unless the server accepts it, and returns the race as it then stands. */
