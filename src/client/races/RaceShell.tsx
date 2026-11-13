@@ -10,6 +10,7 @@ import { StepRecord } from './StepRecord.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import { useFlowWrite } from './writes.js';
+import { PullToRefresh } from './UpdatedAt.js';
 import { raceRefusal } from '../../shared/race-status.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { stepSavedLine } from '../../shared/toast-lines.js';
@@ -25,7 +26,7 @@ export interface SavedStep { raceId:string; step:Step; version:number; message:s
  */
 export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,onRace,onSaved,onResults,onOpen,onPage}:{raceId:string;step?:Step;role:Role;avatar:ReactNode;onRole:()=>void;onBack:()=>void;
   onGone:(line:string)=>void;onRace:(id:string,step?:Step)=>void;onSaved:(saved:SavedStep)=>void;onResults:(target:ResultsTarget)=>void;onOpen:(view:View)=>void;onPage:(code:string)=>void}) {
-  const {snapshot,error,gone,offer}=useLive<RaceFlowRead>(`live/races/${raceId}`);
+  const {snapshot,error,gone,offer,refresh}=useLive<RaceFlowRead>(`live/races/${raceId}`);
   // A race a lead removed for good (an unrun final, a permanent delete) has nothing left to show: back to Races.
   useEffect(()=>{if(gone) onGone(snapshot?`A lead removed ${snapshot.group.event.section} ${raceName(snapshot.race)}`:'That race is gone');},[gone]);
   const flow=useFlowWrite(raceId,offer);
@@ -92,6 +93,7 @@ export function RaceShell({raceId,step:opened,role,avatar,onRole,onBack,onGone,o
       {avatar}
     </RaceBar>
     <JobBand role={role} onOpen={onRole}/>
+    <PullToRefresh onRefresh={refresh}/>
     <NeedsBand race={summary} role={role} ask={!lead && !race.stageComplete}/>
     <nav className="rz-heats-nav" aria-label="Heats"><HeatChips races={group.races} role={role} current={race.id} nextHeat={group.nextHeat} onRace={onRace}
       onAdd={group.heatsOpen?()=>setAdding({eventCode:event.code,kind:'heat',number:group.nextHeat,direct:true}):undefined} onFinal={lead && group.finalAvailable?()=>setConfirmingFinal(true):undefined}

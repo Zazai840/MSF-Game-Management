@@ -1,11 +1,14 @@
 import { useEffect,useRef,useState } from 'react';
 import { Icon,reducedMotion } from './parts.js';
-/** "Updated at 10:42:05", one centred line on every lead screen; on Races, "Updated at" over the time beside New race. A pull down from the top of the screen is the one way to refresh by hand. */
+/** "Updated at 10:42:05", one centred line on every lead screen; on Races, "Updated at" over the time beside New race. It brings the pull down that refreshes the screen. */
 export function UpdatedAt({time,onRefresh}:{time:string;onRefresh:()=>void}) {
+  return <><p className="rz-refresh" aria-live="polite">Updated at <span>{time||'…'}</span></p><PullToRefresh onRefresh={onRefresh}/></>;
+}
+/** The pull down that refreshes a screen, with its hint: the one way to refresh by hand, on every screen that shows data (one per screen). */
+export function PullToRefresh({onRefresh}:{onRefresh:()=>void}) {
   const pull=usePullToRefresh(onRefresh);
-  return <><p className="rz-refresh" aria-live="polite">Updated at <span>{time||'…'}</span></p>
-    <p ref={pull.hint} className="rz-pull" data-state={pull.state}>{pull.state==='refreshing'?<span className="rz-spinner" aria-hidden="true"/>:<Icon name="chevron-down"/>}
-      {pull.state==='refreshing'?'Refreshing…':pull.state==='ready'?'Let go to refresh':'Pull down to refresh'}</p></>;
+  return <p ref={pull.hint} className="rz-pull" data-state={pull.state}>{pull.state==='refreshing'?<span className="rz-spinner" aria-hidden="true"/>:<Icon name="chevron-down"/>}
+    {pull.state==='refreshing'?'Refreshing…':pull.state==='ready'?'Let go to refresh':'Pull down to refresh'}</p>;
 }
 /** How far the hint comes down before letting go refreshes, how far a finger moves before a pull counts, and how long "Refreshing…" stays. */
 const threshold=64,slack=10,shownFor=700;

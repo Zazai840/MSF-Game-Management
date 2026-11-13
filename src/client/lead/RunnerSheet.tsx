@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { digitsOnly } from '../flow/NumberBox.js';
 import { Callout,DockedFooter,ErrorCallout,Sheet,Opening } from '../races/parts.js';
 import { LeadHeader } from './LeadHeader.js';
+import { PullToRefresh } from '../races/UpdatedAt.js';
 import { Comment } from './Comment.js';
 import { useToast } from '../races/Toast.js';
 import type { RunnerScreen,View } from '../shell/addresses.js';
@@ -84,7 +85,7 @@ interface ScreenProps { event:Event; row:LeaderboardRow; rows:readonly Leaderboa
  * One of the runner sheet's screens, at its own address under the result's race: a prompt, the fields and a docked
  * button with the reason above it while it cannot be used. A save shows its toast and goes back where it was opened.
  */
-export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerView;detail:EventResultsRead|null;error:unknown;onBack:()=>void;onChanged?:()=>void}) {
+export function RunnerScreens({view,detail,error,onRefresh,onBack,onChanged}:{view:RunnerView;detail:EventResultsRead|null;error:unknown;onRefresh:()=>void;onBack:()=>void;onChanged?:()=>void}) {
   const toast=useToast();
   const [busy,setBusy]=useState(false);
   const row=detail?.results.actionableRunners.find(row=>row.raceId===view.raceId && row.entryId===view.entryId);
@@ -95,11 +96,12 @@ export function RunnerScreens({view,detail,error,onBack,onChanged}:{view:RunnerV
     catch(error) {setBusy(false);return error;}
   }
   const title=titles[view.screen],up=row?raceName(row.race):'Race';
-  if(!detail || !row) return <LeadHeader title={title} code={view.code} up={up} body={<main className="rz-main">
-    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<Opening/>}</main>}/>;
+  const pull=<PullToRefresh onRefresh={onRefresh}/>;
+  if(!detail || !row) return <LeadHeader title={title} code={view.code} up={up} body={<>{pull}<main className="rz-main">
+    {error!==null?<ErrorCallout error={error} action="read"/>:detail?<Callout status message="This result is no longer in Results."/>:<Opening/>}</main></>}/>;
   const props:ScreenProps={event:detail.event,row,rows:detail.results.actionableRunners,save,busy};
   const Body={disqualify:Disqualify,'lift-disqualification':Lift,'correct-number':CorrectNumber,'choose-result':ChooseResult}[view.screen];
-  return <LeadHeader title={title} code={view.code} up={up} body={<Body {...props}/>}/>;
+  return <LeadHeader title={title} code={view.code} up={up} body={<>{pull}<Body {...props}/></>}/>;
 }
 /**
  * A full race-flow screen's frame (the runner screens, Re-run, Delete, Restore, the corrections): the prompt and fields,
