@@ -42,9 +42,9 @@ export const roleIcons:Record<Role,IconName>={start:'flag',finish:'list',timer:'
 /** What each job does, on Join and in the role sheet. */
 export const roleDescriptions:Record<Role,string>={start:'Type wristband numbers before the start',finish:'Tap runners as they cross the line',timer:'Type times from the stopwatch',lead:'See and fix every step. Needs the lead code.'};
 /** The screen root: the design system's tokens apply only inside it. A test build shows its commit and Report a bug over every screen. */
-export function Screen({screen,wide=false,children}:{screen:string;wide?:boolean;children:ReactNode}) {
+export function Screen({screen,wide=false,narrow=false,children}:{screen:string;wide?:boolean;narrow?:boolean;children:ReactNode}) {
   const testBuild=useTestBuild();
-  return <div className={wide?'rz-screen rz-zone-running rz-app rz-app--wide':'rz-screen rz-zone-running rz-app'}>
+  return <div className={`rz-screen rz-zone-running rz-app${wide?' rz-app--wide':''}${narrow?' rz-app--narrow':''}`}>
     {testBuild && <div className="rz-testbuild"><span>Test build · {testBuild.commit.slice(0,7)}</span><a href={reportLink(testBuild,screen)} target="_blank" rel="noreferrer">Report a bug</a></div>}
     {children}
   </div>;

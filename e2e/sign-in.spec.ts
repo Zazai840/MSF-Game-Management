@@ -89,6 +89,20 @@ async function forgotten(page:Page,name:string) {
   expect(await page.evaluate(()=>localStorage.getItem('msf:profiles'))).toBe('[]');
 }
 const question=(page:Page)=>page.locator('.rz-callout',{hasText:'Is this you on a new phone?'});
+test('Join is one column in the middle of the screen: the brand, title, boxes, job cards, help line and Join line up on its edges',async({page},info)=>{
+  await page.goto('/');
+  await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
+  const box=async(locator:Locator)=>{const {x,width}=(await locator.boundingBox())!;return {left:Math.round(x),right:Math.round(x+width)};};
+  const column=await box(page.getByRole('heading',{level:1,name:'Join the Running Zone'}));
+  const middle=page.viewportSize()!.width/2;
+  expect(Math.abs((column.left+column.right)/2-middle)).toBeLessThanOrEqual(1);
+  for(const part of [page.getByLabel('Full name',{exact:true}),page.getByLabel('Password',{exact:true}),page.getByRole('radiogroup',{name:"What's your job today?"}),page.getByRole('button',{name:'Join',exact:true})])
+    expect(await box(part)).toEqual(column);
+  // The help line and the brand are as wide as their words: they start on the column's left edge.
+  expect((await box(page.getByText('You can switch job on any race.',{exact:false}))).left).toBe(column.left);
+  expect((await box(page.locator('.rz-appbar__brand'))).left).toBe(column.left);
+  await page.screenshot({path:info.outputPath('join-column.png')});
+});
 test('a name held on another phone asks "Is this you on a new phone?": That\'s me signs the second phone in as that name and the first phone forgets it',async({page,browser},info)=>{
   const name=ownName('Amina Taken');
   await page.goto('/');await join(page,name,{job:'Finish line'});await races(page);

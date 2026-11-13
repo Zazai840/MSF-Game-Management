@@ -31,9 +31,10 @@
    Phone first: one column with space-20 gutters. Wider screens keep the navy bars edge to edge and centre the content
    in a column of --content: 720px on a tablet, and on a card grid (rz-app--wide: Races, Results, Events) 1040px on a
    laptop, where the cards flow into columns. Lists of rows, tabs and forms keep the 720px column, as a race does.
+   Join (rz-app--narrow) is one 520px column, the width of a field, so its bar, boxes, job cards and Join line up.
    Every full-width band pads its sides with --gutter, which is space-20 on a phone. */
 .rz-app { --content: 100%; --gutter: max(var(--space-20), calc((100% - var(--content)) / 2)); min-height: 100dvh; display: flex; flex-direction: column; }
-@media (min-width: 700px) { .rz-app { --content: 720px; } }
+@media (min-width: 700px) { .rz-app { --content: 720px; } .rz-app--narrow { --content: 520px; } }
 @media (min-width: 1100px) { .rz-app--wide { --content: 1040px; } }
 /* Safe areas (index.html lets the page go under them): the phone's notch or Dynamic Island and its status bar at the
    top, the notch at a side when the phone is turned. All are 0 in a browser, on Android and on a laptop. Each app bar
