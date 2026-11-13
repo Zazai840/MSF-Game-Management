@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,pullToRefresh,type Page,resultsCard} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page,resultsCard} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -183,16 +183,17 @@ test('the phone\'s Back from an event at the moment its results are read again g
   await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate',{rate:6});
   await page.evaluate(()=>{
     const read=window.fetch;
+    // One Back only: the first read of the event that starts from here. On a slow phone two reads can be on their way at once.
     window.fetch=async(...request)=>{
-      const answer=await read(...request);
-      if(!String(request[0]).includes('/events/')) return answer;
+      if(!String(request[0]).includes('/events/')) return read(...request);
       window.fetch=read;
+      const answer=await read(...request);
       const body=answer.json.bind(answer);
       answer.json=async()=>{const data=await body();history.back();return data;};
       return answer;
     };
   });
-  await pullToRefresh(page);
-  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
+  // No hand refresh here (the Refresh button is gone, and a pull on a phone this slow takes longer than the read): the event's own 5 second read is the read that lands.
+  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible({timeout:15000});
   await expect(page).toHaveURL(/\/results$/);
 });
