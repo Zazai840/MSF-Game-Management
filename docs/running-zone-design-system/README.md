@@ -129,7 +129,7 @@ Motion is minimal and functional.
 - Every control shrinks a little while pressed (`scale: .97`, 140ms), so a tap outdoors shows it was heard: buttons, rows, heat chips, tabs, job cards, the job band, the lead's bar. A runner tile moves down 4px instead.
 - The disclosure chevron rotates in 150ms ease-out.
 - A sheet slides up from the foot of the screen in 220ms and leaves in 150ms; on a wide screen the centred sheet grows a little instead. The toast rises in 200ms and fades out in 150ms. Leaving is always faster than arriving.
-- Screens and tabs change at once, with no transition: people change them all day.
+- Screens change at once; the current tab's cell slides in 200ms (`--ease-out`), and the tab's words and icon change colour with it. Only the cell moves: people change tabs all day, and no change waits for the motion.
 - Pull down to refresh, on a screen with the "Updated at" line: a navy pill follows the finger from the top edge, slower the further it is pulled, and says "Let go to refresh" past its threshold.
 - Easing: `--ease-out` (`cubic-bezier(.23, 1, .32, 1)`) for things that arrive or answer a press, `--ease-drawer` (`cubic-bezier(.32, .72, 0, 1)`) for the sheet. Never ease-in.
 - Nothing loops, bounces or celebrates.

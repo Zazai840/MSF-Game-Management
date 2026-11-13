@@ -14,6 +14,7 @@ import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords,Opening } from '../races/parts.js';
 import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
 import { LeadHeader,LeadsBar } from './LeadHeader.js';
+import { SlidingTabs } from '../races/SlidingTabs.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
 import { addressOf,eventTabs,type EventTab,type View } from '../shell/addresses.js';
@@ -81,7 +82,8 @@ function EventTabs({tab,onTab,onOpen,...props}:TabProps & {tab:EventTab;onTab:(t
   const {detail}=props,final=hasFinalTab(detail);
   const tabs=eventTabs.filter(item=>item!=='final' || final),shown=tabs.includes(tab)?tab:'heats';
   return <>
-    <nav className="rz-tabs" aria-label="Event">{tabs.map(item=><button key={item} type="button" aria-current={item===shown?'page':undefined} onClick={()=>onTab(item)}>{tabNames[item]}</button>)}</nav>
+    {/* The cell's place is remembered for this event only: another event's tabs start with no motion. */}
+    <SlidingTabs set={`event ${detail.event.code}`} label="Event" className="rz-tabs" tabs={tabs.map(item=>[item,tabNames[item]])} current={shown} onTab={onTab}/>
     {!detail.event.enabled && <p className="rz-note">Switched off</p>}
     <RaceProblems items={eventItems(detail)} rows={detail.results.actionableRunners} onOpen={onOpen}/>
     {shown==='heats' && <HeatsTab {...props} final={final}/>}

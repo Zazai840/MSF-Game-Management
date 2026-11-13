@@ -347,7 +347,15 @@
 /* ---------- EventTabs ---------- */
 .rz-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-14); padding: var(--space-4); border-radius: var(--radius-tab); background: var(--card); box-shadow: var(--shadow-card); }
 .rz-tabs button { min-height: var(--size-touch); display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--navy); font-family: var(--font-display); font-style: italic; font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; }
-.rz-tabs button[aria-current="page"] { background: var(--navy); color: var(--on-navy); }
+/* The current tab's navy cell is one element behind the buttons; the words on it are light. --tabs is the number of tabs and --tab the cell's place, counted in tabs from the first. Only the cell moves: the screen changes at once. */
+.rz-tabs { position: relative; }
+.rz-tabs button { position: relative; }
+.rz-tabs button[data-lit] { color: var(--on-navy); }
+.rz-tabs .rz-tab-cell { --cell-inset: var(--space-4); --cell-gap: var(--space-4); position: absolute; top: var(--space-4); bottom: var(--space-4); left: var(--cell-inset); width: calc((100% - 2 * var(--cell-inset) - (var(--tabs) - 1) * var(--cell-gap)) / var(--tabs)); transform: translateX(calc(var(--tab) * (100% + var(--cell-gap)))); border-radius: var(--radius-sm); background: var(--navy); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .rz-tabs .rz-tab-cell { transition: transform 200ms var(--ease-out); }
+  .rz-tabs button:not(:disabled) { transition: scale 140ms var(--ease-out), color 200ms var(--ease-out); }
+}
 
 /* ---------- RaceCard ---------- */
 .rz-racecard { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-12) var(--space-14); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-card); }

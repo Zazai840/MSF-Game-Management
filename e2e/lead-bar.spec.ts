@@ -1,9 +1,14 @@
-import {becomeLead,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,stillTabs,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 const title=(page:Page,name:string)=>expect(page.getByRole('banner').getByRole('heading',{level:1,name,exact:true})).toBeVisible();
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
+/** The filled cell that marks the current tab: one element behind the bar's buttons. */
+const cell=(page:Page)=>bar(page).locator('.rz-tab-cell');
+// The page watches the bar's cell on every frame (fixtures, watchCell): 0 on Races, 1 on Results, 2 on Day setup.
+const trace=cellTrace,slid=cellSlid;
+const cellOn=(page:Page,name:string)=>tabsCellOn(bar(page),name);
 /** The lead's bar on one of its three screens: the three tabs, each an icon and a word, this screen's marked, at the foot of the screen below `above`. */
 async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>) {
   await expect(bar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
@@ -16,8 +21,10 @@ async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>)
   const header=await paint(page.getByRole('banner'));
   expect(await paint(bar(page)),current).toEqual(header);
   await expect(bar(page).locator('svg.rz-pattern')).toHaveCount(1);
-  for(const name of ['Races','Results','Day setup']) expect((await paint(tab(page,name))).ink,name).toBe(name===current?header.ground:header.ink);
-  expect((await paint(tab(page,current))).ground,current).toBe(header.ink);
+  // The light cell is one element behind the buttons, at rest on the current tab; the words follow its colour.
+  await cellOn(page,current);
+  for(const name of ['Races','Results','Day setup']) await expect(tab(page,name),name).toHaveCSS('color',name===current?header.ground:header.ink);
+  await expect(cell(page),current).toHaveCSS('background-color',header.ink);
   // Nothing shows under the bar: it ends at the foot of the screen.
   const foot=await bar(page).evaluate(el=>el.getBoundingClientRect().bottom-window.innerHeight);
   expect(Math.abs(foot),current).toBeLessThanOrEqual(0.5);
@@ -41,7 +48,7 @@ test('a lead moves between Races, Results and Day setup by the bar at the bottom
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   await onBar(page,'Races',page.getByRole('button',{name:'New race',exact:true}));
   // The current tab's light cell sits inside the navy bar, not edge to edge.
-  await expect(page.getByRole('navigation',{name:'Lead screens'}).locator('[aria-current="page"]')).toHaveCSS('background-clip','padding-box');
+  await expect(cell(page)).toHaveCSS('background-clip','padding-box');
   await page.screenshot({path:info.outputPath('races.png')});
   await openRelays(page);
   await onBar(page,'Races',page.getByRole('button',{name:'New relay',exact:true}));
@@ -100,4 +107,95 @@ test('a volunteer has no bar; it appears at once when the phone becomes a lead\'
   expect(await lookProblems(page)).toEqual([]);
   await press(tab(page,'Results'));await title(page,'Results');
   await expect(tab(page,'Results')).toHaveAttribute('aria-current','page');
+});
+
+/** A lead on Races, the page watching the cell from its first frame. */
+async function watched(openPhone:(name:string,options?:{lead?:boolean})=>Promise<{page:Page}>,name:string) {
+  const {page}=await openPhone(ownName(name),{lead:true});
+  await page.addInitScript(watchCell,'Lead screens');await page.reload();
+  await races(page);await cellOn(page,'Races');
+  return page;
+}
+
+test('the current tab\'s cell slides to the tapped tab while the new screen shows at once; with reduced motion it is there at once',async({openPhone})=>{
+  const page=await watched(openPhone,'Cell lead');
+  // The first screen after the app opens: the cell is on the current tab and never moved.
+  expect(await trace(page)).toEqual([{tab:'Races',at:0}]);
+  // The cell is decoration, and it moves by a transition on its transform: 200ms, fast start, soft stop.
+  await expect(cell(page)).toHaveAttribute('aria-hidden','true');
+  await expect(cell(page)).toHaveCSS('transition-property','transform');
+  await expect(cell(page)).toHaveCSS('transition-duration','0.2s');
+  await expect(cell(page)).toHaveCSS('transition-timing-function','cubic-bezier(0.23, 1, 0.32, 1)');
+  // A tab's words and icon change colour with the cell, and the tab still shrinks while pressed.
+  expect(await tab(page,'Results').evaluate(el=>{const style=getComputedStyle(el);return Object.fromEntries(style.transitionProperty.split(', ').map((property,index)=>[property,style.transitionDuration.split(', ')[index]]));})).toEqual({scale:'0.14s',color:'0.2s'});
+  await press(tab(page,'Results'));await title(page,'Results');
+  await cellOn(page,'Results');
+  slid(await trace(page),0,1,'Results');
+  expect(await lookProblems(page)).toEqual([]);
+  // Reduced motion: the cell is on the new tab in the first frame of the new screen.
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await stillTabs(bar(page));
+  await press(tab(page,'Day setup'));await title(page,'Day setup');
+  await cellOn(page,'Day setup');
+  expect(await trace(page)).toEqual([{tab:'Results',at:1},{tab:'Day setup',at:2}]);
+  await expect(tab(page,'Day setup')).toHaveCSS('color',await page.getByRole('banner').evaluate(el=>getComputedStyle(el).backgroundColor));
+});
+
+test('the cell slides from the tab shown before on the phone\'s Back and Forward, and stays still on the way back from a screen with no bar',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Cell event'),w=await ownWristbands('Girl Cubs',2);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  const page=await watched(openPhone,'Cell back lead');
+  await press(tab(page,'Results'));await title(page,'Results');await cellOn(page,'Results');
+  await press(tab(page,'Day setup'));await title(page,'Day setup');await cellOn(page,'Day setup');
+  await trace(page);
+  // No tap on the bar: Back and Forward change the tab, and the cell slides from the tab shown before.
+  await page.goBack();await title(page,'Results');await cellOn(page,'Results');
+  slid(await trace(page),2,1,'Results');
+  await page.goForward();await title(page,'Day setup');await cellOn(page,'Day setup');
+  slid(await trace(page),1,2,'Day setup');
+  // A screen with no bar, then back to the same tab: the cell is where it was and does not move.
+  await press(page.getByRole('button',{name:/^Events /}));await title(page,'Events');await expect(bar(page)).toHaveCount(0);
+  await press(arrow(page));await title(page,'Day setup');await cellOn(page,'Day setup');
+  expect(await trace(page)).toEqual([{tab:'Day setup',at:2}]);
+  // The same from Results, through an event: the bar comes back with the cell on Results.
+  await press(tab(page,'Results'));await title(page,'Results');await cellOn(page,'Results');
+  await trace(page);
+  await press(resultsCard(page,code));await title(page,`${name} · Girl Cubs`);await expect(bar(page)).toHaveCount(0);
+  await press(arrow(page));await title(page,'Results');await cellOn(page,'Results');
+  expect(await trace(page)).toEqual([{tab:'Results',at:1}]);
+});
+
+test('a problem on a Races card opens the event in Results, a screen with no bar; its back arrow returns to Races, and the cell has not moved',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Cell card'),w=await ownWristbands('Girl Cubs',4);
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  // Two times, each shared by a runner of Heat 1 and a runner of Heat 2: one Decide the tie button on the card.
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1000,1100]);await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(3),w(4)],[1000,1100]);
+  const page=await watched(openPhone,'Cell card lead');
+  await trace(page);
+  await press(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));
+  await title(page,`${name} · Girl Cubs`);await expect(bar(page)).toHaveCount(0);
+  // The arrow names Races, where the lead came from: the bar comes back with its cell on Races, where it was.
+  await expect(arrow(page)).toHaveAccessibleName('Back to Races');
+  await press(arrow(page));await races(page);await cellOn(page,'Races');
+  expect(await trace(page)).toEqual([{tab:'Races',at:0}]);
+  expect(await lookProblems(page)).toEqual([]);
+});
+
+test('a second tap while the cell moves sends it straight to the last tab from where it is',async({openPhone})=>{
+  const page=await watched(openPhone,'Cell twice lead');
+  await trace(page);
+  // A slow cell for this test, so each frame is a small step and a jump shows. The page presses Day setup when the cell is a fifth of its way to Results.
+  await page.addStyleTag({content:'.rz-tab-cell { transition-duration: 3s !important; }'});
+  await cellThen(page,'Day setup');
+  await press(tab(page,'Results'));await title(page,'Day setup');
+  await expect.poll(()=>cellAt(page),{timeout:10000}).toBe(2);
+  await cellOn(page,'Day setup');
+  const samples=await trace(page),places=samples.map(sample=>sample.at),second=samples.findIndex(sample=>sample.tab==='Day setup'),seen=JSON.stringify(samples);
+  // At the second tap the cell was between Races and Results; it goes on from that place, never back and never by a jump to Results.
+  expect(places[second-1],seen).toBeGreaterThan(0.2);expect(places[second-1],seen).toBeLessThan(0.6);
+  expect(Math.abs(places[second]-places[second-1]),seen).toBeLessThanOrEqual(0.15);
+  expect(places,seen).toEqual([...places].sort((a,b)=>a-b));
+  expect(places.at(-1),seen).toBe(2);
+  expect(await lookProblems(page)).toEqual([]);
 });

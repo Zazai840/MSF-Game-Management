@@ -6,16 +6,14 @@ import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { useLive } from '../live.js';
 import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon,Opening } from './parts.js';
+import { SlidingTabs } from './SlidingTabs.js';
 import { UpdatedAt } from './UpdatedAt.js';
 import { useScreenName } from '../shell/addresses.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 
 const tabs:Array<[HomeTab,string]>=[['races','Races'],['relays','Relays']];
-/** Races · Relays, remembered per phone: races and hurdles events are on Races, relays on Relays. */
-export function EventTabs({tab,onTab}:{tab:HomeTab;onTab:(tab:HomeTab)=>void}) {
-  return <nav className="rz-tabs" aria-label="Event type">{tabs.map(([key,label])=><button key={key} type="button" aria-current={tab===key?'page':undefined} onClick={()=>onTab(key)}>
-    {label}</button>)}</nav>;
-}
+/** Races · Relays, remembered per phone: races and hurdles events are on Races, relays on Relays. The current tab's cell slides. */
+export const EventTabs=({tab,onTab}:{tab:HomeTab;onTab:(tab:HomeTab)=>void})=><SlidingTabs set="event-type" label="Event type" className="rz-tabs" tabs={tabs} current={tab} onTab={onTab}/>;
 /** A lead's open issues, by event code: the To check items, read while a lead has Races open. */
 function useLeadItems(on:boolean) {
   const [items,setItems]=useState<DayLeadItem[]>([]);

@@ -1,5 +1,6 @@
 import { createContext,useContext,type ReactNode } from 'react';
 import { ErrorCallout,Icon,Pattern,Screen,type IconName,Opening } from '../races/parts.js';
+import { SlidingTabs } from '../races/SlidingTabs.js';
 import { entryBack,useScreenName,type View } from '../shell/addresses.js';
 /** What every lead screen's header needs from the app: the avatar with its menu, and where Back goes. */
 export const LeadFrame=createContext<{avatar:ReactNode;onBack:()=>void}|null>(null);
@@ -30,8 +31,8 @@ export function LeadHeader({title,code,up,body,wide=false}:{title:string;code?:s
  */
 export const OpeningBody=({error}:{error:unknown})=><main className="rz-main">{error!==null?<ErrorCallout error={error} action="read"/>:<Opening/>}</main>;
 const leadsBarTabs:Array<[name:string,icon:IconName,view:View]>=[['Races','hurdle',{kind:'races'}],['Results','trophy',{kind:'results'}],['Day setup','sliders',{kind:'day'}]];
-/** The Lead's bar (glossary), `LeadsBar`; the header above is `LeadHeader`. Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. It is the header's navy surface with its pattern. */
+/** The Lead's bar (glossary), `LeadsBar`; the header above is `LeadHeader`. Races, Results and Day setup as three tabs at the foot of exactly those three screens, on a lead's phone only. It is the header's navy surface with its pattern. Each screen draws it again, and the current tab's cell slides from the tab shown before. */
 export function LeadsBar({current,onOpen}:{current:string;onOpen:(view:View)=>void}) {
-  return <nav className="rz-leads-bar rz-on-dark" aria-label="Lead screens"><Pattern/>{leadsBarTabs.map(([name,icon,view])=>
-    <button key={name} type="button" aria-current={name===current?'page':undefined} onClick={()=>onOpen(view)}><Icon name={icon}/>{name}</button>)}</nav>;
+  return <SlidingTabs set="lead" label="Lead screens" className="rz-leads-bar rz-on-dark" current={current} onTab={name=>onOpen(leadsBarTabs.find(tab=>tab[0]===name)![2])}
+    tabs={leadsBarTabs.map(([name,icon])=>[name,<><Icon name={icon}/>{name}</>])}><Pattern/></SlidingTabs>;
 }
