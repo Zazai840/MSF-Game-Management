@@ -476,7 +476,6 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
  * Pull down to refresh (UpdatedAt.tsx): a navy pill that comes down from the top edge with the finger. Out of sight
  * until a pull; back up quickly when the finger lets go, or held just below the edge while it refreshes.
  */
-html.rz-pulls { overscroll-behavior-y: contain; }
 .rz-pull { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: 30; display: flex; align-items: center; gap: var(--space-8); margin: 0; padding: var(--space-8) var(--space-16); border-radius: var(--radius-pill); background: var(--navy); color: var(--on-navy); box-shadow: var(--shadow-raised); font-size: 14px; line-height: 1.3; font-weight: 700; white-space: nowrap; pointer-events: none; translate: 0 -100%; transform: translate(-50%, 0); }
 .rz-pull .rz-icon { width: 18px; height: 18px; stroke-width: 3; color: var(--gold); transition: rotate 150ms var(--ease-out); }
 .rz-pull[data-state="ready"] .rz-icon { rotate: 180deg; }
