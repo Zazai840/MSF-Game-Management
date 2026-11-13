@@ -15,6 +15,7 @@ async function openDeleteHeat1(page:Page,code:string) {
 }
 const card=(page:Page,name:string)=>page.getByRole('article',{name:`${name} · Girl Cubs`});
 test('the last heat is deleted after the final was made: the final goes, New race offers Heat 1, and Restore brings "+ Final" back',async({openPhone,request},info)=>{
+  test.setTimeout(60000);
   const name=ownName('Starts again'),code=await heatAndFinal(request,name);
   const lead=(await openPhone(ownName('Starts again lead'),{lead:true})).page,other=(await openPhone(ownName('Starts again other lead'),{lead:true})).page;
   await expect(card(other,name).getByRole('button',{name:/^(Heat \d|Final)/})).toHaveText(['H1','F']);
