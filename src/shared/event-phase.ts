@@ -23,3 +23,7 @@ const moves:Record<Format,Partial<Record<Stage,{complete:Partial<Record<EventPha
 };
 /** The phase completing (or reopening) a stage leads to, or null when the event's phase does not allow it. */
 export const nextPhase=(phase:EventPhase,format:Format,stage:Stage,reopening:boolean):EventPhase|null=>moves[format][stage]?.[reopening?'reopen':'complete'][phase]??null;
+/** The move a delete makes: the last live heat of a heats event is deleted after its final was made, and the event starts again. */
+const lastHeatDeleted:Partial<Record<EventPhase,EventPhase>>={final:'racing'};
+/** The phase deleting an event's last live heat leads to, or null when the event stays in its phase. */
+export const phaseAfterLastHeat=(phase:EventPhase):EventPhase|null=>lastHeatDeleted[phase]??null;
