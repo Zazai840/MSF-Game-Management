@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,back,expect,expectToast,join,labelDay,leadMenuButton,lookProblems,openLeadMenu,press,test,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,back,expect,expectToast,join,labelDay,leadMenuButton,lookProblems,openLeadMenu,press,test,pullToRefresh,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
@@ -102,7 +102,7 @@ for(const oldResponse of ['success','removed'] as const) test(`a delayed old ${o
   const fresh=await (await page.request.get('/api/day',{headers:headers()})).json();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
   release();await done;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1,name:/Join/})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
+  await pullToRefresh(page);await expect(page.getByText(fresh.leadCode,{exact:true})).toBeVisible();
 });
 test('a lost reset reply recovers the fresh Day through Home and discards an old binary export response',async({page})=>{
   await asOwner(page);
@@ -132,7 +132,7 @@ test('an actual old removed-phone 401 cannot sign out a newly signed-in phone',a
   await page.route('**/api/home',async route=>{if(!first){await route.continue();return;}first=false;const response=await route.fetch();expect(response.status()).toBe(401);seen();await held;await route.fulfill({response});delivered();});
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await captured;
   // Removed means signed out: the next read sends the phone back to Join, which keeps its profile.
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await pullToRefresh(page);
   await expect(page.getByRole('heading',{level:1,name:'Join the Running Zone'})).toBeVisible();
   await join(page,ownName('Delayed'),{job:'Start line'});await races(page);
   const freshToken=await page.evaluate(()=>localStorage.getItem('msf:token'));expect(freshToken).not.toBe(oldToken);
@@ -170,5 +170,5 @@ test('polling started while reset is pending cannot authenticate into the old da
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   expect(pendingReads).toBe(0);
   release();await expect(page.getByText('Not downloaded yet.',{exact:true})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('msf:token'))).toBe(process.env.E2E_OWNER_TOKEN);
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('heading',{level:1,name:/Join/})).toHaveCount(0);
+  await pullToRefresh(page);await expect(page.getByRole('heading',{level:1,name:/Join/})).toHaveCount(0);
 });

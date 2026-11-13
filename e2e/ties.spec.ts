@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import readExcelFile from 'read-excel-file/node';
-import {back,eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,lookProblems,press,test,type Page,resultsCard} from './fixtures.js';
+import {back,eventTab,ownName,ownEvent,ownCode,recordRace,openLeadMenu,becomeLead,dragTo,expect,expectToast,join,lookProblems,press,test,pullToRefresh,type Page,resultsCard} from './fixtures.js';
 /** The tie screen's docked Save tie and the reason above it while it cannot save. */
 const saveTie=(page:Page)=>page.getByRole('button',{name:'Save tie',exact:true});
 const reason=(page:Page)=>page.locator('.rz-footer__reason');
@@ -36,7 +36,7 @@ test('a lead settles a tie on its screen, reconsiders a changed medal decision a
   await expect(page.getByRole('button',{name:/^TIE at/})).toHaveCount(0);
   await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText('No run-off needed');
   // A faster runner makes the tie decide 2nd and 3rd: the medal decision changed, so it comes back.
-  await eventTab(page,'Heats');await createRace(2703,800);await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await eventTab(page,'Heats');await createRace(2703,800);await pullToRefresh(page);
   await press(page.getByRole('button',{name:'TIE at 10.00 for 2701',exact:true}));
   await expect(page.locator('.rz-prompt__meta')).toHaveText(`${name} · Girl Cubs · decides 2nd and 3rd`);
   await press(page.getByRole('button',{name:'Decided without a run-off',exact:true}));

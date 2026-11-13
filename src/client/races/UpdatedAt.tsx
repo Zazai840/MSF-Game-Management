@@ -1,9 +1,9 @@
 import { useEffect,useRef,useState } from 'react';
 import { Icon,reducedMotion } from './parts.js';
-/** "Updated at 10:42:05" with Refresh, on Races, the lead's race steps and every lead screen. A pull down from the top of the screen refreshes too. */
+/** "Updated at 10:42:05", one centred line on Races and every lead screen. A pull down from the top of the screen is the one way to refresh by hand. */
 export function UpdatedAt({time,onRefresh}:{time:string;onRefresh:()=>void}) {
   const pull=usePullToRefresh(onRefresh);
-  return <><p className="rz-refresh" aria-live="polite">Updated at {time||'…'} <button className="rz-btn rz-btn--small" type="button" onClick={onRefresh}>Refresh</button></p>
+  return <><p className="rz-refresh" aria-live="polite">Updated at {time||'…'}</p>
     <p ref={pull.hint} className="rz-pull" data-state={pull.state}>{pull.state==='refreshing'?<span className="rz-spinner" aria-hidden="true"/>:<Icon name="chevron-down"/>}
       {pull.state==='refreshing'?'Refreshing…':pull.state==='ready'?'Let go to refresh':'Pull down to refresh'}</p></>;
 }

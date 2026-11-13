@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,lookProblems,notStartedCard,press,resultsCard,test,type Page} from './fixtures.js';
+import {eventTab,ownName,ownEvent,ownCode,recordRace,writeCheckIn,back,openLeadMenu,becomeLead,expect,join,lookProblems,notStartedCard,press,resultsCard,test,pullToRefresh,type Page} from './fixtures.js';
 
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** The design system's event grid colours: a navy Done card, a cream Running card (navy ring), a see-through Not started card (dashed). */
@@ -48,8 +48,8 @@ test('Results puts Action required first, then Running and Done, each card in it
     expect(await background(card(codes.H))).toBe(colours.running);
     expect(await background(card(codes.U))).toBe(colours.running);
     if(info.project.name==='desktop') expect((await section('Action required').getByRole('list').boundingBox())!.width,'the wide card grid on a laptop').toBeGreaterThan(900);
-    await expect(page.locator('.rz-refresh')).toHaveText(/^Updated at \d\d:\d\d:\d\d Refresh$/);
-    await page.getByRole('button',{name:'Refresh',exact:true}).click();
+    await expect(page.locator('.rz-refresh')).toHaveText(/^Updated at \d\d:\d\d:\d\d$/);
+    await pullToRefresh(page);
     await expect(card(codes.R)).toContainText(words.R);
     await section('Action required').scrollIntoViewIfNeeded();
     expect(await lookProblems(page)).toEqual([]);

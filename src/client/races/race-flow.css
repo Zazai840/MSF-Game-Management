@@ -77,8 +77,8 @@ html { scroll-padding-bottom: calc(12px + var(--rz-footer-height, 0px)); }
 .rz-spinner { width: var(--size-rank); height: var(--size-rank); border: 3px solid var(--line); border-top-color: var(--navy); border-radius: 50%; animation: rz-spin 1s linear infinite; }
 @keyframes rz-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rz-spinner { animation-duration: 3s; } }
-/* The Updated-at line sits centred in its footer. */
-.rz-footer .rz-refresh { justify-content: center; }
+/* The Updated-at line sits centred, in a footer or at the foot of a list. */
+.rz-refresh { justify-content: center; }
 .rz-disclosure__cards { display: flex; flex-direction: column; gap: var(--space-12); }
 /* A Results card's first line: the event's name, its code tag at the end. */
 .rz-event__head { align-self: stretch; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-8); }

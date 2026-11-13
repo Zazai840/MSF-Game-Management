@@ -483,6 +483,20 @@ export async function expectToast(page:Page,line:string|RegExp) {
   await expect(page.getByText('Saved',{exact:true})).toHaveCount(0);
   return toast;
 }
+/**
+ * Pulls down from the top of the screen, past the point where the hint says "Let go to refresh", and lets go: the
+ * one way to refresh by hand. The finger is sent the same way on the laptop project, which has no Refresh button either.
+ */
+export async function pullToRefresh(page:Page) {
+  await page.evaluate(()=>scrollTo(0,0));
+  const touch=await page.context().newCDPSession(page);
+  const send=(type:'touchStart'|'touchMove'|'touchEnd',y?:number)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:y===undefined?[]:[{x:180,y}]});
+  await send('touchStart',200);for(let y=220;y<=520;y+=20) await send('touchMove',y);
+  await expect(page.locator('.rz-pull')).toHaveText('Let go to refresh');
+  // Letting go there refreshes. "Refreshing…" shows for under a second, and the read may change the screen, so only the let-go is waited for.
+  await send('touchEnd');await touch.detach();
+  await expect(page.locator('.rz-pull[data-state="ready"]')).toHaveCount(0);
+}
 /** A phone taps; desktop has no touch, so it clicks. Both press the mouse down, which a button that keeps typing cancels. */
 // eslint-disable-next-line no-restricted-syntax -- the one place a tap belongs.
 export const press=(target:Locator,force=false)=>test.info().project.use.hasTouch?target.tap({force}):target.click({force});
@@ -540,12 +554,12 @@ export async function lookProblems(page:Page) {
       const box=(target.matches('input[type=radio],input[type=checkbox]')&&target.closest('label')?target.closest('label')!:target).getBoundingClientRect();
       if(box.height<43.5||box.width<43.5) problems.push(`tap target ${describe(target)} is ${Math.round(box.width)}x${Math.round(box.height)}`);
     }
-    // Nothing shows outside a screen root: the older look is gone. One clock; Refresh says only Refresh.
+    // Nothing shows outside a screen root: the older look is gone. One clock; no button beside the Updated at line.
     for(const element of document.body.querySelectorAll(':not(script,style)')) {
       if(visible(element) && !element.closest('.rz-screen') && !element.querySelector('.rz-screen')) problems.push(`outside the screen root ${describe(element)}`);
     }
     if(/\b\d{1,2}:\d\d(:\d\d)?\s?(AM|PM)\b/i.test(document.body.innerText)) problems.push('a 12-hour clock is shown');
-    for(const button of document.querySelectorAll('button')) if(visible(button)&&/^Refresh ./.test(button.textContent!.trim())) problems.push(`refresh button ${describe(button)}`);
+    for(const button of document.querySelectorAll('.rz-refresh button')) if(visible(button)) problems.push(`refresh button ${describe(button)}`);
     // The step strip: each cell's label and status on one line, and the labels in line across the strip.
     for(const strip of document.querySelectorAll('.rz-steps')) {
       if(!visible(strip)) continue;

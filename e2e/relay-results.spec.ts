@@ -1,5 +1,5 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
-import {confirmTheMedals,eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard} from './fixtures.js';
+import {confirmTheMedals,eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadMenu,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard,pullToRefresh} from './fixtures.js';
 
 test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
@@ -112,7 +112,7 @@ test('a lead sees a relay\'s two saved heats as team rows with four wristbands a
   // The final runs (its race screen is another slice's), then the Final leaderboard names each team's four children,
   // and the Day export line each medal team.
   await markFinalHere(request,token,code,[3,2,5,1,6,7]);await writeTeamOrder(request,token,code,[3,2,5,1,6,7]);await submitRace(request,token,code);
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await pullToRefresh(page);
   const winner=page.getByRole('list',{name:'Final leaderboard',exact:true}).getByRole('button',{name:`Team 3 · ${legs(3).join(' · ')} · Final`,exact:true});
   await expect(winner).toHaveText(`1Team 3${legs(3).join(' · ')}`);
   // A team on the Final tab opens the same runner sheet, with its final place and "Open final".

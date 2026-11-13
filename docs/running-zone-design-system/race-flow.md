@@ -95,7 +95,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 - Once the Confirm is recorded the card moves to Done and reads "Medals decided".
 - Volunteers' cards keep their wording and sections.
 
-**Footer**: Updated-at line with Refresh, and the display-primary "+ New race" (on Relays, "+ New relay").
+**Footer**: Updated-at line (no Refresh button; a pull down refreshes), and the display-primary "+ New race" (on Relays, "+ New relay").
 
 **After saving any step**, return here and show the **Toast**: "Times saved" with **Undo**.
 - The toast lasts 3 seconds. It fades and rises in and fades out (about 150 ms each way); the fade-out is inside the 3 seconds. A phone that asks for reduced motion shows no animation.

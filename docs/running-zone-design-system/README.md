@@ -143,7 +143,7 @@ Motion is minimal and functional.
 - **Current / selected:** `gold` fill with `navy` text (current place, current time slot), or `aria-current` with a filled zone tab.
 - **Warning:** `warn-soft` + `warn-line` on the field, slot, chip or row that needs a look, plus a WarningCallout or a Kept tag that says why.
 - **Error that blocks** (wrong day code): a WarningCallout under the field with one action. No red text alone.
-- **Loading / stale:** the Updated-at line shows when data last arrived, and Refresh fetches again. Don't use spinners over content.
+- **Loading / stale:** the Updated-at line shows when data last arrived, and a pull down reads again. There is no Refresh button. Don't use spinners over content.
 - **Empty:** a `body` sentence saying what will appear and when ("Races appear here once someone checks runners in.").
 
 ## Building screens
