@@ -223,3 +223,30 @@ test('pull down to refresh on each step of a relay: the live stream starts again
   await expect(hint).toBeHidden();
   expect(await lookProblems(page)).toEqual([]);
 });
+
+test('pull down to refresh on a lead screen with no Updated at line: Rename and a runner screen read again, and the typed name and the reason tapped stay',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Pull lead'),w=await ownWristbands('Girl Cubs',2);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  const {page}=await openPhone(ownName('Pull lead forms'),{lead:true}),hint=page.locator('.rz-pull');
+  /** A pull that reads `path` again. */
+  const pulled=async(path:string)=>{
+    const read=page.waitForResponse(response=>response.request().method()==='GET' && new URL(response.url()).pathname===path);
+    await pullToRefresh(page);
+    expect((await read).ok()).toBe(true);
+    await expect(hint).toBeHidden();
+    expect(await lookProblems(page)).toEqual([]);
+  };
+  await page.goto(`/day/events/${code}/rename`);
+  const field=page.getByLabel('Event name',{exact:true});
+  await expect(field).toHaveValue(name);
+  await field.fill(`${name} typed`);await field.blur();
+  await pulled('/api/day');
+  await expect(field).toHaveValue(`${name} typed`);
+  await page.goto(`/results/${code}/races/${race.id}/runners/${race.parts.runners.value![0].id}/disqualify`);
+  const reason=page.getByRole('group',{name:'Reason',exact:true}).getByRole('button').first();
+  await press(reason);
+  await expect(reason).toHaveAttribute('aria-pressed','true');
+  await pulled(`/api/lead/events/${code}/results`);
+  await expect(reason).toHaveAttribute('aria-pressed','true');
+});

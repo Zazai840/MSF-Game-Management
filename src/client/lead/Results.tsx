@@ -54,7 +54,7 @@ function EventResults({code,raceId,runner,tab,target,onOpen,onBack,onChanged}:Re
   /** A save answered with the event's results: show them, close the runner sheet, and tell the app. */
   function showSaved(next:EventResultsRead) {offer(next);setSelected(null);onChanged?.();}
   const openStage=(sheet:StageCheckSheet)=>onOpen(stageView(code,sheet));
-  if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onBack={onBack} onChanged={onChanged}/>;
+  if(runner) return <RunnerScreens view={runner} detail={detail} error={error} onRefresh={()=>void refresh()} onBack={onBack} onChanged={onChanged}/>;
   if(raceId) return <RacePage key={raceId} raceId={raceId} code={code} items={detail?raceItems(eventItems(detail),raceId):[]} actionableRunners={detail?.results.actionableRunners} onSaved={showSaved} onOpen={onOpen}/>;
   const sheets=detail && selectedRow && <RunnerSheet key={`${selectedRow.raceId}:${selectedRow.entryId}`} event={detail.event} row={selectedRow} rows={detail.results.actionableRunners} onSaved={showSaved} onClose={()=>setSelected(null)} onOpen={onOpen} onRace={()=>openRace(selectedRow.raceId)}/>;
   const body=<><main className="rz-main rz-main--event">
