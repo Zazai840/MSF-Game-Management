@@ -1,4 +1,4 @@
-import {back,expect,lookProblems,ownCode,ownEvent,ownName,press,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
+import {back,expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,submitRace,test,writeCheckIn,writeOrder,writeTimes,type Page} from './fixtures.js';
 /**
  * A problem on a lead's Races card is a large button in the shape of Confirm the medals: "Check Heat 1 · 1 time" opens
  * that race's page, "Decide the tie" the tie. One button per heat: a heat with more than one kind of problem counts
@@ -59,7 +59,7 @@ test('a card shows two problem buttons, one per heat, then a line that counts th
   await recordRace(request,owner(),code,[2001,2002],[1600,1305]);await recordRace(request,owner(),code,[2003,2004],[1610,1315]);await recordRace(request,owner(),code,[2005,2006],[1620,1325]);
   const {page}=await openPhone(ownName('Card more lead'),{lead:true});
   await expect(problems(page,name)).toHaveCount(2);
-  await expect(problems(page,name)).toHaveText([/^Check Heat \d · 1 time$/,/^Check Heat \d · 1 time$/]);
+  await expect(problems(page,name)).toHaveText([/^Check Heat \d\s· 1 time$/,/^Check Heat \d\s· 1 time$/]);
   const more=card(page,name).getByRole('button',{name:'1 more',exact:true});
   await expect(more).toBeVisible();
   await expect(card(page,name).locator('.rz-racecard__status')).toHaveCount(0);
@@ -81,4 +81,20 @@ test('two ties on one event are one Decide the tie button, which opens the event
   await press(problems(page,name));
   await expect(page).toHaveURL(new RegExp(`/results/${code}/heats$`));
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:`${name} · Girl Cubs`,exact:true})).toBeVisible();
+});
+
+test('on a phone 320px wide, the usual problem button keeps to one row',async({openPhone,request},info)=>{
+  const name=ownName('Card narrow'),code=await ownCode(),boy=await ownWristbands('Boy Cubs',2),girl=await ownWristbands('Girl Cubs',1);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  // Two kept wrong-section numbers: "Check Heat 1 · 2 wristbands", the longest of the usual words.
+  await writeCheckIn(request,owner(),code,[boy(1),boy(2),girl(1)],[boy(1),boy(2)]);
+  await writeOrder(request,owner(),code,[boy(1),boy(2),girl(1)]);
+  await writeTimes(request,owner(),code,[1300,1400,1500]);
+  await submitRace(request,owner(),code);
+  const {page}=await openPhone(ownName('Card narrow lead'),{lead:true});
+  await page.setViewportSize({width:320,height:700});
+  await expect(problems(page,name)).toHaveText(['Check Heat 1 · 2 wristbands']);
+  // One row of words: every line box of the label starts at the same height.
+  expect(await problems(page,name).evaluate(button=>{const words=document.createRange();words.selectNodeContents(button);return new Set([...words.getClientRects()].map(row=>Math.round(row.top))).size;})).toBe(1);
+  await card(page,name).screenshot({path:info.outputPath('card-problem-button-320.png')});
 });

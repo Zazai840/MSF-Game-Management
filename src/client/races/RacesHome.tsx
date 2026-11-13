@@ -61,7 +61,7 @@ export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;on
     return <article key={group.event.id} className="rz-racecard" aria-label={eventTitle(group.event)}>
       <div className="rz-racecard__head"><h3 className="rz-racecard__title">{eventTitle(group.event)}</h3><CodeTag code={group.event.code} role={role}/></div>
       {!problems?.buttons.length && <p className="rz-racecard__status">{role==='lead'?leadCardLine(group,issues):groupStatus(group,role)}</p>}
-      {problems?.buttons.map((button,index)=><button key={index} type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onResults(button.target)}>{button.label}</button>)}
+      {problems?.buttons.map((button,index)=><button key={index} type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onResults(button.target)}>{button.label.replace(' · ',' · ')/* words that take two rows break after the dot, not before it */}</button>)}
       {problems && problems.more>0 && <button type="button" className="rz-heat-reason" onClick={()=>onResults({event:group.event})}>{problems.more} more</button>}
       {confirm && <button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>onResults({event:group.event,stage:confirm})}>Confirm the medals</button>}
       {group.races.length>0 && <HeatChips races={group.races} role={role} nextHeat={group.nextHeat} onRace={onRace}
