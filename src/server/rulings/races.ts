@@ -14,9 +14,11 @@ import { correctPart,leadRace } from '../races/versions.js';
 import { readEventResults,resultsSnapshot } from '../results/read.js';
 import { reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
 import { rulingDetails } from './validation.js';
+import { remakeLineUp } from './finals.js';
 import { removedPlaces,timesOutOfOrder,timesWithoutPlaces } from '../../shared/time-entry.js';
 import { entryName,entryNumber,isTeamEntry,raceLabel,runnersOf } from '../../shared/races.js';
 import { entryCount } from '../../shared/teams.js';
+import { phaseAfterLastHeat,type EventPhase } from '../../shared/event-phase.js';
 import { correctTeam,fourBoxes,joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 /** These corrections rewrite a race child by child, so a relay race's teams would be lost: "Correct teams" corrects them. */
 function requireNotRelay(race:{event:{relay:boolean}}) {
@@ -77,9 +79,18 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     if(typeof value.permanent!=='boolean') throw new Refusal(400,'Choose Delete permanently or move to Deleted races');
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
-      requireRace(race,value.permanent?'delete for good':'delete');
+      const lastHeat=race.kind==='heat' && !race.deleted && !(await client.query("SELECT 1 FROM races WHERE event_id=$1 AND kind='heat' AND NOT deleted AND id<>$2",[race.event.id,race.id])).rowCount;
+      const final=lastHeat?(await readEventResults(client,current.dayId,race.event.code)).results.finalResults:null;
+      requireRace(race,value.permanent?'delete for good':'delete',!!final?.started);
       if(value.permanent) await client.query('DELETE FROM races WHERE id=$1',[race.id]);
       else await client.query('UPDATE races SET deleted=true,delete_reason=$1,deleted_at=now() WHERE id=$2',['lead-delete',race.id]);
+      // The last live heat goes after the final was made: the event starts again, and a final that has not started
+      // goes with its line-up as Reopen heats removes it, not into Deleted races.
+      const {phase}=(await client.query('SELECT phase FROM events WHERE id=$1',[race.event.id])).rows[0] as {phase:EventPhase},next=lastHeat?phaseAfterLastHeat(phase):null;
+      if(next) {
+        await client.query('UPDATE events SET phase=$2 WHERE id=$1',[race.event.id,next]);
+        if(final) await client.query('DELETE FROM races WHERE id=$1',[final.raceId]);
+      } else if(race.kind==='heat') await remakeLineUp(client,current,race.event.code);
       await writeAuditNote(client,current,race.event.id,{action:value.permanent?'delete-race-permanently':'delete-race',comment,message:`${current.name} ${value.permanent?'permanently deleted':'moved to Deleted races'} ${raceLabel(race)}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
@@ -89,11 +100,14 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
     return rulingChange(pool,phone,async(client,current)=>{
       const race=await readRace(client,current.dayId,(request.params as {id:string}).id);
       requireRace(race,'restore');
+      // The heats are complete and this heat is not: restored, it would leave the made final with a heat still to run.
+      if(race.kind==='heat' && race.state!=='saved' && race.stageComplete) throw new Refusal(409,'Reopen the heats first');
       if(race.kind==='final' && (await client.query("SELECT 1 FROM events WHERE id=$1 AND phase='no final'",[race.event.id])).rowCount) throw new Refusal(409,'Results were decided without a final - reopen results first');
       // A live race has its number now: it comes back with the next one, never touching the live race.
       const taken=(await client.query('SELECT 1 FROM races WHERE event_id=$1 AND kind=$2 AND number=$3 AND NOT deleted',[race.event.id,race.kind,race.number])).rowCount;
       const number=taken?await nextNumber(client,race.event.id,race.kind):race.number;
       await client.query('UPDATE races SET deleted=false,delete_reason=null,deleted_at=null,number=$2 WHERE id=$1',[race.id,number]);
+      if(race.kind==='heat') await remakeLineUp(client,current,race.event.code);
       await writeAuditNote(client,current,race.event.id,{action:'restore-race',comment,message:`${current.name} restored ${raceLabel(race)}${taken?` as ${raceLabel({...race,number})}`:''}${comment?`: ${comment}`:''}`,touches:[{raceId:race.id}]});
       return {status:'saved',number,...await readEventResults(client,current.dayId,race.event.code)};
     });

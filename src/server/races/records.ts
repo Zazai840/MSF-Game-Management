@@ -34,8 +34,8 @@ export async function listRaces(db:Database,dayId:string):Promise<StoredRace[]> 
   return rows.map(row=>storedRace(row,parts.get(row.id)||[],finals.get(row.id)));
 }
 /** Refuses an action a race's state does not allow (`raceRefusal`), in that rule's words. */
-export function requireRace(race:StoredRace,action:RaceAction) {
-  const refusal=raceRefusal(race,action);
+export function requireRace(race:StoredRace,action:RaceAction,holdsStartedFinal=false) {
+  const refusal=raceRefusal(race,action,holdsStartedFinal);
   if(refusal) throw new Refusal(409,refusal);
 }
 export function requireStageOpen(race:Pick<RaceRead,'stageComplete'|'kind'> & {event:Pick<RaceRead['event'],'section'>}) {
