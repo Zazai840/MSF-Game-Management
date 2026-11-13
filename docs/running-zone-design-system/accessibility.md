@@ -27,7 +27,7 @@ The target is WCAG 2.2 AA. Outdoor phone use pushes the rest further: bigger tar
 - **Reordering has a non-drag route.**
   - Each drag handle also responds to the arrow keys.
   - The "Change order" button opens a list where each row has Move up and Move down buttons.
-- **Live updates.** When Refresh brings new data, update the Updated-at line inside an `aria-live="polite"` region. Don't move focus.
+- **Live updates.** When new data arrives, update the Updated-at line inside an `aria-live="polite"` region. Don't move focus.
 - **Warnings** are announced: the WarningCallout has `role="alert"` when it appears after typing, and its first action takes focus only if the user pressed Next.
 - **Sheets** are modal dialogs.
   - They trap focus and close on Escape and on the Close action.

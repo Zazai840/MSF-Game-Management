@@ -1,4 +1,4 @@
-import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,type Page,resultsCard} from './fixtures.js';
+import {eventTab,ownName,ownCode,becomeLead,expect,join,leadMenuButton,lookProblems,openLeadMenu,openRace,ownEvent,ownWristbands,press,raceAction,recordRace,saveFinal,test,pullToRefresh,type Page,resultsCard} from './fixtures.js';
 
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
 async function onRaces(page:Page) {
@@ -192,7 +192,7 @@ test('the phone\'s Back from an event at the moment its results are read again g
       return answer;
     };
   });
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await pullToRefresh(page);
   await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Results',exact:true})).toBeVisible();
   await expect(page).toHaveURL(/\/results$/);
 });

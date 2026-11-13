@@ -1,4 +1,4 @@
-import {expect,ownName,test} from './fixtures.js';
+import {expect,lookProblems,openLeadMenu,openRace,ownCode,ownEvent,ownName,ownWristbands,press,pullToRefresh,recordRace,resultsCard,test} from './fixtures.js';
 
 test('pulling down from the top of a screen with the Updated at line refreshes it: the pull says when to let go, and a short pull or an open sheet does nothing',async({openPhone},info)=>{
   test.skip(!info.project.use.hasTouch,'a pull is a touch gesture');
@@ -30,4 +30,35 @@ test('pulling down from the top of a screen with the Updated at line refreshes i
   await pull(320);await send('touchEnd');
   await expect(hint).toBeHidden();
   expect(reads).toBe(1);
+});
+
+test('no screen has a Refresh button: the Updated at line is one centred line that is announced, and a pull down reads the screen again',async({openPhone,request},info)=>{
+  const code=await ownCode(),name=ownName('No button'),w=await ownWristbands('Girl Cubs',2);
+  await ownEvent(request,code,name,'Girl Cubs','timed');
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  const {page}=await openPhone(ownName('No button lead'),{lead:true});
+  /** On one screen: the line with no button, in its polite live region, and a pull that reads `path` again. */
+  const screen=async(words:string,path:RegExp)=>{
+    const line=page.locator('.rz-refresh');
+    await expect(line,words).toHaveText(/^Updated at \d\d:\d\d:\d\d$/);
+    await expect(line,words).toHaveAttribute('aria-live','polite');
+    await expect(page.getByRole('button',{name:/Refresh/}),words).toHaveCount(0);
+    expect(await lookProblems(page),words).toEqual([]);
+    const read=page.waitForResponse(response=>response.request().method()==='GET' && path.test(new URL(response.url()).pathname));
+    await pullToRefresh(page);
+    expect((await read).ok(),words).toBe(true);
+    await expect(line,words).toHaveText(/^Updated at \d\d:\d\d:\d\d$/);
+  };
+  await screen('Races',/\/api\/races$/);
+  await openRace(page,name);
+  await screen('a race page',/\/api\/lead\/races\/[^/]+$/);
+  await openLeadMenu(page,'Results');
+  await screen('Results',/\/api\/lead\/results$/);
+  await page.screenshot({path:info.outputPath('results-no-button.png')});
+  await press(resultsCard(page,code));
+  await screen('an event',new RegExp(`/api/lead/events/${code}/results$`));
+  await openLeadMenu(page,'Day setup');
+  await screen('Day setup',/\/api\/day$/);
+  await press(page.getByRole('button',{name:/^Signed in today /}));
+  await screen('the signed-in list',/\/api\/day\/phones$/);
 });

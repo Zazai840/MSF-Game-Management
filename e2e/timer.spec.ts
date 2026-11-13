@@ -328,7 +328,7 @@ test('three phones work one heat at once: each sees the others\' steps live, the
   await openRace(lead.page,name);
   await expect(lead.page.getByRole('list',{name:'Current record',exact:true}).getByRole('listitem')).toHaveText([/1st.*2202.*12\.34/,/2nd.*2201.*13\.01/,/3rd.*2203.*13\.50/]);
   // It shows the same Updated at as Races and every lead screen.
-  await expect(lead.page.locator('.rz-refresh')).toHaveText(/^Updated at \d\d:\d\d:\d\d Refresh$/);
+  await expect(lead.page.locator('.rz-refresh')).toHaveText(/^Updated at \d\d:\d\d:\d\d$/);
   expect(await lookProblems(lead.page)).toEqual([]);await lead.page.screenshot({path:info.outputPath('lead-times.png'),fullPage:true});
 });
 

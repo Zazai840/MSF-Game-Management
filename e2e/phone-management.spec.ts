@@ -1,4 +1,4 @@
-import {ownName,join,leadMenuButton,openLeadMenu,lookProblems,press,switchJob,expect,expectToast,test} from './fixtures.js';
+import {ownName,join,leadMenuButton,openLeadMenu,lookProblems,press,switchJob,expect,expectToast,test,pullToRefresh} from './fixtures.js';
 test('Signed in today shows the job each phone last reported: the one chosen on Join, then the one switched to',async({page,browser},info)=>{
   const name=ownName('Reports job');
   const context=await browser.newContext({viewport:{width:390,height:844}});const other=await context.newPage();
@@ -34,7 +34,7 @@ test('Signed in today: Make lead reaches the other phone, and Remove asks first,
   // One row per person: its actions are in the sheet the row opens, so no red Remove is on the list.
   await expect(row.getByRole('button')).toHaveCount(1);await expect(page.getByRole('button',{name:'Remove',exact:true})).toHaveCount(0);
   await expect(page.getByText(/^Updated at \d\d:\d\d:\d\d/)).toBeVisible();
-  await press(page.getByRole('button',{name:'Refresh',exact:true}));
+  await pullToRefresh(page);
   await expect(page.getByText(/Phones/)).toHaveCount(0);
   expect(await lookProblems(page)).toEqual([]);
 
