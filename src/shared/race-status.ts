@@ -22,7 +22,8 @@ const lines={
   inDeleted:()=>'This race is in Deleted races',
   alreadyDeleted:()=>'This race is already in Deleted races',
   inEvent:()=>'This race is already in the event',
-  replaced:()=>'This race was replaced by a re-run and cannot be restored'
+  replaced:()=>'This race was replaced by a re-run and cannot be restored',
+  finalFirst:()=>'Delete the Final first'
 };
 /** The one table: each action, and the states that refuse it with their words. A state not named allows the action. */
 const refusals:Record<RaceAction,Partial<Record<RaceStatus,(race:Named)=>string>>>={
@@ -44,9 +45,11 @@ export function raceActionsLabel(race:Parameters<typeof raceRefusal>[0]) {
 /**
  * Why an action is refused on a race as it stands, or null when it may go ahead: the one rule the server's routes
  * refuse by and the screens offer their buttons by. A complete stage also closes a race in the event to its steps and
- * their undo; a lead's actions are not held by it.
+ * their undo; a lead's actions are not held by it. `holdsStartedFinal`: the race is its event's last live heat and the
+ * event's final has started, so neither delete may take it: a final would stand with no heats.
  */
-export function raceRefusal(race:Stored & Named & Pick<RaceRead,'stageComplete'> & {event:Pick<RaceRead['event'],'section'>},action:RaceAction):string|null {
+export function raceRefusal(race:Stored & Named & Pick<RaceRead,'stageComplete'> & {event:Pick<RaceRead['event'],'section'>},action:RaceAction,holdsStartedFinal=false):string|null {
   if((action==='step' || action==='undo') && !race.deleted && race.stageComplete) return raceFinishedLine(race);
+  if((action==='delete' || action==='delete for good') && !race.deleted && holdsStartedFinal) return lines.finalFirst();
   return refusals[action][raceStatus(race)]?.(race)??null;
 }

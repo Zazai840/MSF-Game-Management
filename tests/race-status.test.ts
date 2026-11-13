@@ -22,6 +22,10 @@ test('one table says what may happen to a race in each state, and each refusal i
   };
   for(const action of raceActions) for(const status of raceStatuses) expect([action,status,raceRefusal(race(status),action)]).toEqual([action,status,table[action][status]]);
 });
+test('the last live heat of an event whose final has started is not deleted, either way; nothing else is held by it',()=>{
+  for(const action of raceActions) for(const status of raceStatuses)
+    expect([action,status,raceRefusal(race(status),action,true)]).toEqual([action,status,(action==='delete' || action==='delete for good') && (status==='in progress' || status==='saved')?'Delete the Final first':raceRefusal(race(status),action)]);
+});
 test('a complete stage closes a race to its steps and their undo, before its saved state is named; a lead still works on it',()=>{
   const finished='Girl Cubs heats are finished. Ask a lead to change this race.';
   for(const action of ['step','undo'] as const) for(const status of ['in progress','saved'] as const) expect(raceRefusal(race(status,true),action)).toBe(finished);
