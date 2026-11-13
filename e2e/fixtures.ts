@@ -616,5 +616,53 @@ export async function lookProblems(page:Page) {
     return problems;
   },approvedColours);
 }
+// Tabs with a sliding cell (SlidingTabs.tsx): the lead's bar and the pill tabs. Each set is a `<nav>` found by its label.
+/** One frame of a set of tabs: the tab marked current, and where the cell is, counted in tabs from the first (0.5: halfway between the first two). */
+export type CellSample={tab:string;at:number};
+type CellWatch=Window&{cellTrace:CellSample[];cellThen?:string};
+/**
+ * For `page.addInitScript(watchCell,label)`: runs in the page from its first moment. On every frame it notes a
+ * CellSample of the tabs with that label. A frame the same as the one before is not noted, so a cell that never moved
+ * leaves one sample. With a tab named by `cellThen`, it presses that tab once the cell is a fifth of a tab on its way:
+ * a second tap while the cell moves.
+ */
+export function watchCell(label:string) {
+  const traced=window as unknown as CellWatch;traced.cellTrace=[];
+  const frame=()=>{
+    const nav=document.querySelector(`nav[aria-label="${label}"]`),moving=nav?.querySelector('.rz-tab-cell'),tabs=[...nav?.querySelectorAll('button')??[]];
+    if(moving && tabs.length>1) {
+      // Measured between middles: a pressed tab shrinks a little about its middle, which must not read as the cell moving.
+      const middle=(element:Element)=>{const box=element.getBoundingClientRect();return box.x+box.width/2;};
+      const first=middle(tabs[0]),tab=tabs.find(button=>button.getAttribute('aria-current')==='page')?.textContent??'';
+      const sample={tab,at:Math.round((middle(moving)-first)/(middle(tabs[1])-first)*100)/100+0},last=traced.cellTrace.at(-1);
+      if(!last || last.tab!==sample.tab || last.at!==sample.at) traced.cellTrace.push(sample);
+      if(traced.cellThen && sample.at>0.2) {tabs.find(button=>button.textContent===traced.cellThen)!.click();delete traced.cellThen;}
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+/** What the watched page noted since the last call, the frame now on the screen included. */
+export const cellTrace=(page:Page)=>page.evaluate(()=>new Promise<CellSample[]>(resolve=>requestAnimationFrame(()=>resolve((window as unknown as CellWatch).cellTrace.splice(0)))));
+/** The watched page presses this tab itself once the cell is a fifth of a tab on its way. */
+export const cellThen=(page:Page,name:string)=>page.evaluate(then=>{(window as unknown as CellWatch).cellThen=then;},name);
+/** Where the watched cell is on the frame now on the screen. */
+export const cellAt=(page:Page)=>page.evaluate(()=>(window as unknown as CellWatch).cellTrace.at(-1)?.at);
+/** The cell of these tabs is at rest on the tab: the tab's place and size. */
+export async function cellOn(tabs:Locator,name:string) {
+  await expect.poll(async()=>{
+    const [on,under]=await Promise.all([tabs.locator('.rz-tab-cell'),tabs.getByRole('button',{name,exact:true})].map(part=>part.evaluate(el=>{const box=el.getBoundingClientRect();return [box.x,box.y,box.width,box.height];})));
+    return Math.max(...on.map((edge,index)=>Math.abs(edge-under[index])));
+  },name).toBeLessThanOrEqual(0.5);
+}
+/** The cell slid from one tab's place to another's: it started where it was, passed between the tabs and never went back. */
+export function cellSlid(samples:CellSample[],from:number,to:number,into:string) {
+  const places=samples.map(sample=>sample.at),arrived=samples.findIndex(sample=>sample.tab===into),seen=JSON.stringify(samples);
+  // Right after the change the cell is still where it was: it did not jump.
+  expect(Math.abs(places[arrived]-from),seen).toBeLessThanOrEqual(0.05);
+  expect(places.some(place=>place>Math.min(from,to)+0.05 && place<Math.max(from,to)-0.05),seen).toBe(true);
+  expect(places.slice(arrived),seen).toEqual([...places.slice(arrived)].sort((a,b)=>to>from?a-b:b-a));
+  expect(places.at(-1),seen).toBe(to);
+}
 export { expect };
 export type { APIRequestContext,Locator,Page };

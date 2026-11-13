@@ -1,4 +1,4 @@
-import {becomeLead,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
@@ -6,37 +6,9 @@ const title=(page:Page,name:string)=>expect(page.getByRole('banner').getByRole('
 const races=(page:Page)=>expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 /** The filled cell that marks the current tab: one element behind the bar's buttons. */
 const cell=(page:Page)=>bar(page).locator('.rz-tab-cell');
-type Sample={tab:string;at:number};
-type Traced=Window&{cellTrace:Sample[];cellThen?:string};
-/**
- * Runs in the page from its first moment: on every frame it notes where the cell is, counted in tabs from the first
- * tab (0 on Races, 1 on Results, 2 on Day setup, 0.5 halfway between the first two), and which tab is marked current.
- * A frame the same as the one before is not noted, so a cell that never moved leaves one sample.
- * With `cellThen` set, it presses that tab once the cell is a fifth of its way from Races to Results: a second tap while the cell moves.
- */
-function watchCell() {
-  const traced=window as unknown as Traced;traced.cellTrace=[];
-  const frame=()=>{
-    const moving=document.querySelector('.rz-leads-bar .rz-tab-cell'),tabs=[...document.querySelectorAll<HTMLElement>('.rz-leads-bar button')];
-    if(moving && tabs.length) {
-      const first=tabs[0].getBoundingClientRect(),tab=tabs.find(button=>button.getAttribute('aria-current')==='page')?.textContent??'';
-      const sample={tab,at:Math.round((moving.getBoundingClientRect().x-first.x)/first.width*100)/100},last=traced.cellTrace.at(-1);
-      if(!last || last.tab!==sample.tab || last.at!==sample.at) traced.cellTrace.push(sample);
-      if(traced.cellThen && tab==='Results' && sample.at>0.2) {tabs.find(button=>button.textContent===traced.cellThen)!.click();delete traced.cellThen;}
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-}
-/** What the page noted since the last call, the frame now on the screen included. */
-const trace=(page:Page)=>page.evaluate(()=>new Promise<Sample[]>(resolve=>requestAnimationFrame(()=>resolve((window as unknown as Traced).cellTrace.splice(0)))));
-/** The cell is at rest on the tab: the tab's place and size. */
-async function cellOn(page:Page,name:string) {
-  await expect.poll(async()=>{
-    const [on,under]=await Promise.all([cell(page),tab(page,name)].map(part=>part.evaluate(el=>{const box=el.getBoundingClientRect();return [box.x,box.y,box.width,box.height];})));
-    return Math.max(...on.map((edge,index)=>Math.abs(edge-under[index])));
-  },name).toBeLessThanOrEqual(0.5);
-}
+// The page watches the bar's cell on every frame (fixtures, watchCell): 0 on Races, 1 on Results, 2 on Day setup.
+const trace=cellTrace,slid=cellSlid;
+const cellOn=(page:Page,name:string)=>tabsCellOn(bar(page),name);
 /** The lead's bar on one of its three screens: the three tabs, each an icon and a word, this screen's marked, at the foot of the screen below `above`. */
 async function onBar(page:Page,current:string,above:ReturnType<Page['locator']>) {
   await expect(bar(page).getByRole('button')).toHaveText(['Races','Results','Day setup']);
@@ -140,18 +112,9 @@ test('a volunteer has no bar; it appears at once when the phone becomes a lead\'
 /** A lead on Races, the page watching the cell from its first frame. */
 async function watched(openPhone:(name:string,options?:{lead?:boolean})=>Promise<{page:Page}>,name:string) {
   const {page}=await openPhone(ownName(name),{lead:true});
-  await page.addInitScript(watchCell);await page.reload();
+  await page.addInitScript(watchCell,'Lead screens');await page.reload();
   await races(page);await cellOn(page,'Races');
   return page;
-}
-/** The cell slid from one tab's place to another's: it started where it was, passed between the tabs and never went back. */
-function slid(samples:Sample[],from:number,to:number,into:string) {
-  const places=samples.map(sample=>sample.at),arrived=samples.findIndex(sample=>sample.tab===into),seen=JSON.stringify(samples);
-  // Right after the change the cell is still where it was: it did not jump.
-  expect(Math.abs(places[arrived]-from),seen).toBeLessThanOrEqual(0.05);
-  expect(places.some(place=>place>Math.min(from,to)+0.05 && place<Math.max(from,to)-0.05),seen).toBe(true);
-  expect(places.slice(arrived),seen).toEqual([...places.slice(arrived)].sort((a,b)=>to>from?a-b:b-a));
-  expect(places.at(-1),seen).toBe(to);
 }
 
 test('the current tab\'s cell slides to the tapped tab while the new screen shows at once; with reduced motion it is there at once',async({openPhone})=>{
@@ -207,9 +170,9 @@ test('a second tap while the cell moves sends it straight to the last tab from w
   await trace(page);
   // A slow cell for this test, so each frame is a small step and a jump shows. The page presses Day setup when the cell is a fifth of its way to Results.
   await page.addStyleTag({content:'.rz-tab-cell { transition-duration: 3s !important; }'});
-  await page.evaluate(()=>{(window as unknown as Traced).cellThen='Day setup';});
+  await cellThen(page,'Day setup');
   await press(tab(page,'Results'));await title(page,'Day setup');
-  await expect.poll(()=>page.evaluate(()=>(window as unknown as Traced).cellTrace.at(-1)!.at),{timeout:10000}).toBe(2);
+  await expect.poll(()=>cellAt(page),{timeout:10000}).toBe(2);
   await cellOn(page,'Day setup');
   const samples=await trace(page),places=samples.map(sample=>sample.at),second=samples.findIndex(sample=>sample.tab==='Day setup'),seen=JSON.stringify(samples);
   // At the second tap the cell was between Races and Results; it goes on from that place, never back and never by a jump to Results.
