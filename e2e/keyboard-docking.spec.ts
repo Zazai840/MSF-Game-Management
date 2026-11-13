@@ -19,11 +19,14 @@ async function withKeyboard(session:PhoneSession) {
 }
 const keyboard=(page:Page,height:number|null)=>page.evaluate(height=>(window as unknown as {keyboard:(height:number|null)=>void}).keyboard(height),height);
 const footerBottom=async(footer:Locator)=>{const box=(await footer.boundingBox())!;return box.y+box.height;};
-/** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen. */
+/** With the box focused, the footer's bottom edge sits on the keyboard, the footer no taller; blurred, it goes back to the foot of the screen, or on a lead screen to the top of the lead's bar. The bar is not shown while the keyboard is open, so it never covers the docked button. */
 async function docksAboveKeyboard(page:Page,box:Locator,footer=page.locator('footer.rz-footer')) {
-  const foot=page.viewportSize()!.height,open=Math.round(foot*0.55);
+  // By its class: a box that already has focus hides the bar, and a role does not find a hidden element.
+  const bar=page.locator('.rz-leads-bar'),lead=await bar.count()>0;
+  const foot=lead?(await bar.boundingBox())!.y:page.viewportSize()!.height,open=Math.round(page.viewportSize()!.height*0.55);
   await expect(box).toBeFocused();
   await keyboard(page,open);
+  if(lead) await expect(bar).toBeHidden();
   await expect.poll(async()=>Math.abs(await footerBottom(footer)-open)).toBeLessThanOrEqual(1);
   const docked=(await footer.boundingBox())!.height;
   await page.screenshot({path:test.info().outputPath('docked.png')});
@@ -127,6 +130,7 @@ test('a lead\'s Correct times keeps Save times on the keyboard',async({page})=>{
   const race=await recordRace(page.request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1200,1300]);
   await page.goto('/');await join(page,ownName('Docked times fix lead'),{job:'Start line'});await becomeLead(page);
   await page.goto(`/results/${code}/races/${race.id}/correct-times`);
+  await expect(page.getByRole('navigation',{name:'Lead screens',exact:true})).toBeVisible();
   await press(page.getByRole('button',{name:'2nd place · 13.00',exact:true}));
   const box=page.getByLabel('2nd place time',{exact:true});
   await docksAboveKeyboard(page,box);

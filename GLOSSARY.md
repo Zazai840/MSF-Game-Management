@@ -179,7 +179,7 @@ What the avatar opens, at the top right of Races, the Race screen and every lead
 _Avoid_: Lead menu, Your details, Your profile, Dashboard, admin panel
 
 **Lead's bar**:
-The bar at the bottom of Races, Results and Day setup on a lead's phone, with those three screens as tabs: one tap moves between them, and the current screen's tab is marked. On Races it sits below New race. No other screen has it, so a deeper lead screen keeps its back arrow; Results and Day setup have no back arrow. A lead in a volunteer role keeps it; a volunteer's phone never shows it.
+The bar at the bottom of every lead screen on a lead's phone: Races, Results, Day setup and each screen below them (an event, a race page, the Day setup screens). Its three tabs are the sections Races, Results and Day setup. The lit tab is the section the lead came from: a race page opened from Races lights Races, and the same race page opened from Results lights Results. A screen opened with no history lights the section it belongs to. One tap on a different tab opens that section's first screen. On Races the bar sits below New race; on a deeper screen it sits below the footer button. The Race screen has no bar. A deeper lead screen keeps its back arrow; Results and Day setup have no back arrow. A lead in a volunteer role keeps the bar; a volunteer's phone never shows it.
 _Avoid_: Lead menu, tab bar, bottom menu
 
 **Log out**:

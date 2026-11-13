@@ -4,7 +4,7 @@ import type { ResultsTarget } from '../shared/lead-results.js';
 import { heldRole,holdsRole,type Role,type Step } from '../shared/race-flow.js';
 import { api, phoneStorage,StaleRequest,type HomeTab } from './api.js';
 import { SignIn } from './access/SignIn.js';
-import { addressOf,entryBack,onSheetEntry,parentOf,sameScreen,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
+import { addressOf,entryBack,onSheetEntry,parentOf,sameScreen,sectionOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
 import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine } from './races/parts.js';
@@ -70,7 +70,7 @@ export function App() {
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
     else if(replace || over) history.replaceState(tab || page?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
-    else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName()},'',path);
+    else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName(),section:sectionOf(view)},'',path);
     window.scrollTo(0,0);
   }
   useEffect(()=>{
@@ -148,7 +148,8 @@ export function App() {
       if(entryBack()) history.go(onSheetEntry()?-2:-1);else up(view);
     };
     // The job sheet sits beside the lead screen's root, so it brings its own.
-    return <LeadFrame.Provider value={{avatar,onBack:()=>back()}}>
+    // Every lead screen has the lead's bar; someone with no lead access has none.
+    return <LeadFrame.Provider value={{avatar,onBack:()=>back(),bar:isLead && <LeadsBar current={sectionOf(view)} onOpen={next=>go(next)}/>}}>
       {isLead?<Suspense fallback={<Opening words="Opening Lead…"/>}><Lead key={home.phone.dayId} view={view} target={target} onOpen={(next,options)=>go(next,options)} onBack={back} onChanged={()=>void refresh()}/></Suspense>
         :<LeadAccess onLead={async()=>{await refresh();choose('lead');}}/>}
       {sheet && <div className="rz-screen rz-zone-running">{sheet}</div>}

@@ -13,7 +13,7 @@ import { disqualifiedText } from '../../shared/rulings.js';
 import { formatTime } from '../../shared/time-entry.js';
 import { ErrorCallout,Icon,Star,stepWords,Opening } from '../races/parts.js';
 import { inResultsWords,raceNeed,stepLabels,stepsOf,type Step } from '../../shared/race-flow.js';
-import { LeadHeader,LeadsBar } from './LeadHeader.js';
+import { LeadHeader } from './LeadHeader.js';
 import { SlidingTabs } from '../races/SlidingTabs.js';
 import { UpdatedAt } from '../races/UpdatedAt.js';
 import { usePolledRead } from '../live.js';
@@ -193,5 +193,5 @@ function EventGrid({list,error,updated,onRefresh,onOpen}:{list:ResultsGridRead|n
       {sections.map(([title,items],index)=>items.length>0 && <section key={title} aria-labelledby={`results-section-${index}`}><h2 className="rz-section" id={`results-section-${index}`}>{title}</h2>{cards(items)}</section>)}
       {idle.length>0 && <details className="rz-disclosure"><summary>Not started ({idle.length})</summary>{cards(idle)}</details>}</>}
   </main>
-  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer><LeadsBar current="Results" onOpen={onOpen}/></>;
+  <footer className="rz-footer"><UpdatedAt time={updated} onRefresh={onRefresh}/></footer></>;
 }

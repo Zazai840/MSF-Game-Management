@@ -8,7 +8,8 @@ async function onRaces(page:Page) {
 }
 /**
  * A lead screen: its address, its title in the lead header, and the back arrow naming in gold the screen it goes to,
- * at the left of the header and 44px to tap. No lead screen has the job band.
+ * at the left of the header and 44px to tap. No lead screen has the job band. The lead's bar is at the
+ * foot with one tab lit.
  */
 async function onScreen(page:Page,address:string|RegExp,title:string,to:string) {
   await expect(page).toHaveURL(typeof address==='string'?new RegExp(`${address.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`):address);
@@ -19,6 +20,7 @@ async function onScreen(page:Page,address:string|RegExp,title:string,to:string) 
   const box=(await back.boundingBox())!,title1=(await header.getByRole('heading',{level:1}).boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(44);expect(box.x).toBeLessThan(page.viewportSize()!.width/4);
   expect(box.y+box.height/2).toBeLessThan(title1.y+title1.height/2);
+  await expect(leadMenuButton(page).locator('[aria-current="page"]')).toHaveCount(1);
   // The job band is on Races and on a race only.
   await expect(page.getByRole('button',{name:/Change job$/})).toHaveCount(0);
 }
