@@ -655,6 +655,10 @@ export async function cellOn(tabs:Locator,name:string) {
     return Math.max(...on.map((edge,index)=>Math.abs(edge-under[index])));
   },name).toBeLessThanOrEqual(0.5);
 }
+/** With reduced motion nothing of these tabs is set to move: no transition on the cell's place, nor on a tab's colour or size. */
+export async function stillTabs(tabs:Locator) {
+  for(const part of [tabs.locator('.rz-tab-cell'),...await tabs.getByRole('button').all()]) expect(await part.evaluate(el=>getComputedStyle(el).transitionDuration)).toBe('0s');
+}
 /** The cell slid from one tab's place to another's: it started where it was, passed between the tabs and never went back. */
 export function cellSlid(samples:CellSample[],from:number,to:number,into:string) {
   const places=samples.map(sample=>sample.at),arrived=samples.findIndex(sample=>sample.tab===into),seen=JSON.stringify(samples);

@@ -1,4 +1,4 @@
-import {cellAt,cellOn,cellSlid,cellThen,cellTrace,expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,test,watchCell,type Locator,type Page} from './fixtures.js';
+import {cellAt,cellOn,cellSlid,cellThen,cellTrace,expect,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,stillTabs,test,watchCell,type Locator,type Page} from './fixtures.js';
 // The pill tabs: the event type tabs on Races and the event tabs on an event in Results. One navy cell behind the
 // buttons marks the current tab and slides to it; the page watches it on every frame (fixtures, watchCell).
 const owner={authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`};
@@ -53,7 +53,7 @@ test('the event type tabs: the navy cell slides between Races and Relays while t
   await cellOn(tabs,'Races');
   cellSlid(await cellTrace(page),1,0,'Races');
   // Reduced motion: the cell is on the new tab in the first frame of the new list.
-  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.emulateMedia({reducedMotion:'reduce'});await stillTabs(tabs);
   await open(tabs,'Relays');
   await cellOn(tabs,'Relays');
   expect(await cellTrace(page)).toEqual([{tab:'Races',at:0},{tab:'Relays',at:1}]);
@@ -117,7 +117,7 @@ test('the event tabs, two: the cell slides between Heats and Notes with its tab\
   cellSlid(await cellTrace(page),0,1,'Notes');
   await expect(tab(tabs,'Notes')).toHaveCSS('color',light);await expect(tab(tabs,'Heats')).toHaveCSS('color',navy);
   expect(await lookProblems(page)).toEqual([]);
-  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.emulateMedia({reducedMotion:'reduce'});await stillTabs(tabs);
   await open(tabs,'Heats');
   await cellOn(tabs,'Heats');
   expect(await cellTrace(page)).toEqual([{tab:'Notes',at:1},{tab:'Heats',at:0}]);

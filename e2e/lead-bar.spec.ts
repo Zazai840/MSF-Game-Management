@@ -1,4 +1,4 @@
-import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
+import {becomeLead,cellAt,cellOn as tabsCellOn,cellSlid,cellThen,cellTrace,deleteCurrentRace,expect,lookProblems,openRace,openRelays,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,resultsCard,stillTabs,switchJob,test,watchCell,writeCheckIn,type Page} from './fixtures.js';
 const bar=(page:Page)=>page.getByRole('navigation',{name:'Lead screens',exact:true});
 const tab=(page:Page,name:string)=>bar(page).getByRole('button',{name,exact:true});
 const arrow=(page:Page)=>page.getByRole('banner').getByRole('button',{name:/^Back to /});
@@ -134,6 +134,7 @@ test('the current tab\'s cell slides to the tapped tab while the new screen show
   expect(await lookProblems(page)).toEqual([]);
   // Reduced motion: the cell is on the new tab in the first frame of the new screen.
   await page.emulateMedia({reducedMotion:'reduce'});
+  await stillTabs(bar(page));
   await press(tab(page,'Day setup'));await title(page,'Day setup');
   await cellOn(page,'Day setup');
   expect(await trace(page)).toEqual([{tab:'Results',at:1},{tab:'Day setup',at:2}]);
@@ -163,6 +164,22 @@ test('the cell slides from the tab shown before on the phone\'s Back and Forward
   await press(resultsCard(page,code));await title(page,`${name} · Girl Cubs`);await expect(bar(page)).toHaveCount(0);
   await press(arrow(page));await title(page,'Results');await cellOn(page,'Results');
   expect(await trace(page)).toEqual([{tab:'Results',at:1}]);
+});
+
+test('a problem on a Races card opens the event in Results, a screen with no bar; its back arrow returns to Races, and the cell has not moved',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Cell card'),w=await ownWristbands('Girl Cubs',4);
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  // Two times, each shared by a runner of Heat 1 and a runner of Heat 2: one Decide the tie button on the card.
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1000,1100]);await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(3),w(4)],[1000,1100]);
+  const page=await watched(openPhone,'Cell card lead');
+  await trace(page);
+  await press(page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));
+  await title(page,`${name} · Girl Cubs`);await expect(bar(page)).toHaveCount(0);
+  // The arrow names Races, where the lead came from: the bar comes back with its cell on Races, where it was.
+  await expect(arrow(page)).toHaveAccessibleName('Back to Races');
+  await press(arrow(page));await races(page);await cellOn(page,'Races');
+  expect(await trace(page)).toEqual([{tab:'Races',at:0}]);
+  expect(await lookProblems(page)).toEqual([]);
 });
 
 test('a second tap while the cell moves sends it straight to the last tab from where it is',async({openPhone})=>{
