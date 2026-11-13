@@ -64,6 +64,8 @@ export function viewAt(address:string):View {
   }
   return {kind:'races'};
 }
+/** True for two screens that share a history entry: one event's tabs, or one race's Race screen. */
+export const sameScreen=(a:View,b:View)=>(a.kind==='event' && b.kind==='event' && a.code===b.code) || (a.kind==='race' && b.kind==='race' && a.id===b.id);
 export function addressOf(view:View):string {
   switch(view.kind) {
     case 'races': return '/';
