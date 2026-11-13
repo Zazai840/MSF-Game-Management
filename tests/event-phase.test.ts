@@ -1,7 +1,7 @@
 import { afterEach,expect,test } from 'vitest';
 import pg from 'pg';
 import { createApp } from '../src/server/app.js';
-import { eventPhases,medalsDecided,nextPhase,stagesOf,type EventPhase } from '../src/shared/event-phase.js';
+import { eventPhases,medalsDecided,nextPhase,phaseAfterLastHeat,stagesOf,type EventPhase } from '../src/shared/event-phase.js';
 import type { Stage } from '../src/shared/stages.js';
 test('an event is in one phase, and each phase says which stages are complete',()=>{
   expect(eventPhases.map(phase=>stagesOf(phase,'heats'))).toEqual([[],['heats'],['heats','final'],['no-final']]);
@@ -20,6 +20,9 @@ test('one table says where completing or reopening a stage leads, and refuses ev
     const move=moves.find(move=>move[0]===format && move[1]===phase && move[2]===stage && move[3]===reopening);
     expect([format,phase,stage,reopening,nextPhase(phase,format,stage,reopening)]).toEqual([format,phase,stage,reopening,move?.[4]??null]);
   }
+});
+test('the last live heat deleted starts an event with its final made again, and moves no other phase',()=>{
+  expect(eventPhases.map(phaseAfterLastHeat)).toEqual([null,'racing',null,null]);
 });
 const adminUrl=process.env.PG_ADMIN_URL || `postgresql://${process.env.USER}@localhost:5432/postgres`;
 // The name a test database must have to be reset; the process id keeps it apart from the other upgrade test.
