@@ -7,7 +7,7 @@ import { SignIn } from './access/SignIn.js';
 import { addressOf,entryBack,onSheetEntry,parentOf,sameScreen,sectionOf,sheetBack,shownName,viewAt,type View } from './shell/addresses.js';
 import { reloadApp } from './shell/updates.js';
 import { useSubmit } from './flow/useSubmit.js';
-import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine } from './races/parts.js';
+import { Avatar,Callout,HomeBar,JobBand,Screen,Opening as OpeningLine,reducedMotion } from './races/parts.js';
 import { failureLine } from '../shared/request-failure.js';
 import { LeadHeader,LeadFrame,LeadsBar } from './lead/LeadHeader.js';
 import { RacesHome } from './races/RacesHome.js';
@@ -59,9 +59,11 @@ export function App() {
    * arrow; `replace` moves up a level in place of an entry (Back on a screen reached with no history), or switches an
    * event's tab in place, keeping the entry's back label and what Open in Results asked to open there. A lead's saved
    * race opens as its race page in place of its Race screen the same way, keeping the entry's back label.
+   * A move to the screen showing now (a tap on the lit tab of the lead's bar on its first screen) adds no entry and
+   * scrolls to the top; with reduced motion it jumps.
    */
   function go(next:View,{replace=false,over=false,opening}:{replace?:boolean;over?:boolean;opening?:ResultsTarget}={}) {
-    const path=addressOf(next),tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
+    const path=addressOf(next),here=location.pathname+location.search===path,tab=next.kind==='event' && view.kind==='event' && next.code===view.code,page=next.kind==='race-page' && view.kind==='race' && next.raceId===view.id;
     // A screen asks for these two moves by itself, once its read arrives. That can be just after the phone's Back left
     // the screen: the address is then another screen's, and the move would put this one back in its place.
     if(replace && (tab || page) && !sameScreen(viewAt(location.pathname+location.search),view)) return;
@@ -70,8 +72,8 @@ export function App() {
     if(over && entryBack()) {afterBack=()=>history.replaceState(history.state,'',path);history.back();}
     else if(replace || over) history.replaceState(tab || page?history.state:null,'',path);
     // A move from a sheet takes the sheet's entry, so Back from the new screen skips the closed sheet.
-    else if(location.pathname+location.search!==path) history[onSheetEntry()?'replaceState':'pushState']({back:shownName(),section:sectionOf(view)},'',path);
-    window.scrollTo(0,0);
+    else if(!here) history[onSheetEntry()?'replaceState':'pushState']({back:shownName(),section:sectionOf(view)},'',path);
+    window.scrollTo({top:0,behavior:here && !reducedMotion()?'smooth':'instant'});
   }
   useEffect(()=>{
     const back=()=>{

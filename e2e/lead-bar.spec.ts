@@ -244,3 +244,59 @@ test('a second tap while the cell moves sends it straight to the last tab from w
   expect(places.at(-1),seen).toBe(2);
   expect(await lookProblems(page)).toEqual([]);
 });
+
+/** The screen scrolled down, then a tap on the lit tab: each place the screen was at on its way to the top. */
+async function toTop(page:Page,name:string) {
+  await expect.poll(()=>page.evaluate(()=>{window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'});return window.scrollY;}),name).toBeGreaterThan(100);
+  // The places start at the tap: a scroll before it (the way down, a list that grew) is not on the way to the top.
+  await page.evaluate(()=>{
+    const seen=window as unknown as {places:number[]};seen.places=[];window.onscroll=()=>seen.places.push(window.scrollY);
+    window.addEventListener('click',()=>{seen.places=[];},{capture:true,once:true});
+  });
+  await press(tab(page,name));
+  await expect.poll(()=>page.evaluate(()=>window.scrollY),name).toBe(0);
+  return page.evaluate(()=>(window as unknown as {places:number[]}).places);
+}
+
+test('a tap on the lit tab opens the first screen of its section from a deeper screen, and on the first screen goes to the top; the phone\'s Back goes to the screen shown before',async({openPhone,request})=>{
+  const code=await ownCode(),name=ownName('Bar lit tap'),event=`${name} · Girl Cubs`,w=await ownWristbands('Girl Cubs',8);
+  await ownEvent(request,code,name,'Girl Cubs','heats');
+  // A tie between Heat 1 and Heat 2: a Decide the tie button on the event's card on Races.
+  const race=await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1000,1100]);await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(3),w(4)],[1000,1100]);
+  // Two more events with a result, so Races and Results are longer than a short screen.
+  for(const [at,words] of [[5,'Bar lit tap two'],[7,'Bar lit tap three']] as const) {
+    const other=await ownCode();await ownEvent(request,other,ownName(words),'Girl Cubs','timed');
+    await recordRace(request,process.env.E2E_OWNER_TOKEN!,other,[w(at),w(at+1)],[1100,1200]);
+  }
+  const {page}=await openPhone(ownName('Bar lit tap lead'),{lead:true}),heat=`Heat ${race.number}`;
+  await races(page);
+  // A race page opened from Races: a tap on Races, the lit tab, opens Races, and Back goes to the race page.
+  await press(page.getByRole('article',{name:event,exact:true}).getByRole('button',{name:'Decide the tie',exact:true}));await title(page,event);
+  await press(page.getByRole('button',{name:`Open ${heat}`,exact:true}));await title(page,heat);await lit(page,'Races');
+  await press(tab(page,'Races'));await races(page);await expect(page).toHaveURL(/\/$/);await cellOn(page,'Races');
+  await page.goBack();await title(page,heat);await lit(page,'Races');
+  // An event opened from Results: a tap on Results, the lit tab, opens the Results list, and Back goes to the event.
+  await press(tab(page,'Results'));await title(page,'Results');
+  await press(resultsCard(page,code));await title(page,event);await lit(page,'Results');
+  await press(tab(page,'Results'));await title(page,'Results');await expect(page).toHaveURL(/\/results$/);await expect(arrow(page)).toHaveCount(0);
+  await page.goBack();await title(page,event);await lit(page,'Results');
+  // A short screen, so each first screen scrolls. Scrolled down, a tap on the lit tab scrolls to the top, through the places between.
+  const {width}=page.viewportSize()!;await page.setViewportSize({width,height:420});
+  await press(tab(page,'Results'));await title(page,'Results');
+  for(const [section,address] of [['Results',/\/results$/],['Day setup',/\/day$/],['Races',/\/$/]] as const) {
+    await press(tab(page,section));await expect(page).toHaveURL(address);await cellOn(page,section);
+    const places=await toTop(page,section);
+    expect(places.some(place=>place>0),`${section} ${JSON.stringify(places)}`).toBe(true);
+    await expect(page).toHaveURL(address);await expect(tab(page,section)).toHaveAttribute('aria-current','page');
+    expect(await lookProblems(page),section).toEqual([]);
+  }
+  // The tap added no screen: Back from Races goes to Day setup, the screen shown before.
+  await page.goBack();await title(page,'Day setup');
+  await page.goBack();await title(page,'Results');
+  // Reduced motion: the screen is at the top at once, with no place between.
+  await page.emulateMedia({reducedMotion:'reduce'});
+  for(const section of ['Results','Day setup','Races']) {
+    await press(tab(page,section));await cellOn(page,section);
+    expect((await toTop(page,section)).filter(place=>place>0),section).toEqual([]);
+  }
+});
