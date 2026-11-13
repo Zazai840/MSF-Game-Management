@@ -1,6 +1,6 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { callUpLabel,finalMark,seedLabel } from '../../shared/finals.js';
+import { callUpLabel,finalMark,placeFree,seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,doneButtons,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,surplusTimes,timerQuestion,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
@@ -16,6 +16,7 @@ import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 import { useWristbandEntry } from './wristband-entry.js';
 import { Callout,DockedFooter,Icon } from './parts.js';
+import { ReasonSheet } from './ReasonSheet.js';
 import { useToast } from './Toast.js';
 import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
@@ -171,10 +172,16 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
 }
 /**
  * A final's start line: every finalist unmarked at first, each row with Here and Absent; tapping a lit mark again
- * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent.
+ * unmarks it. Only those Here run it. That's everyone with someone unmarked asks before recording them Absent. While a
+ * place is free, "+ Runner" takes any wristband (its warnings as Fix number / Keep), then "Why the change?", and the
+ * runner joins Here, as Added in the last row.
  */
 function Attendance({read,flow,onDone,locked}:StepProps) {
-  const {race}=read,final=race.final!;
+  const {race,group}=read,final=race.final!;
+  const [adding,setAdding]=useState(false),[reasonFor,setReasonFor]=useState<{wristband:number;kept:boolean}|null>(null);
+  // The number and its warning settled, "Why the change?" opens; Cancel there leaves the typed number in the box.
+  const added=useWristbandEntry(group.event,race.id,final.entries.flatMap(entry=>entry.wristband===null?[]:[entry.wristband]),async(wristband,kept)=>{added.fix();setReasonFor({wristband,kept});return false;});
+  const closeAdd=()=>{added.fix();added.type('');setAdding(false);};
   const marksIn=(from:RaceFlowRead):Mark[]=>from.race.final!.entries.map(entry=>finalMark(entry,from.race.parts.runners.value||[]));
   const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
   // The question appears under the list, so it is brought into view clear of the footer.
@@ -192,6 +199,26 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
     setAsking(false);
     if(typeof await send(read,old=>old.map(mark=>mark??'absent'))==='object') onDone('runners');
   }
+  const reasonSheet=reasonFor && <ReasonSheet wrongNumber={false} onClose={()=>setReasonFor(null)} onSave={async reason=>{
+    setReasonFor(null);
+    const {wristband,kept}=reasonFor;
+    if(typeof await flow.write('add-runner',{raceId:race.id,version:read.race.parts.runners.version,wristband,keptWarnings:kept?[wristband]:[],reason})==='object') closeAdd();
+  }}/>;
+  if(adding && !locked) return <>
+    <main className="rz-main">
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here</p><h2 className="rz-prompt__q">Runner to add: wristband number?</h2></div>
+      {flow.error && <Callout message={flow.error}/>}
+      {added.error && <Callout message={added.error}/>}
+      <DigitsField id="added" label="Wristband number" value={added.current} held={added.held} onRelease={added.fix} busy={added.checking || flow.busy} warn={added.held} onChange={added.type} onEnter={()=>void added.next()}/>
+      {added.held && <Callout message={added.refused||added.pending.map(warning=>plainWristbandWarning(warning,Number(added.current),group.event.section)).join(' ')}
+        actions={<>{!added.refused && <button type="button" className="rz-btn" onClick={()=>void added.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={added.fix}>Fix number</button></>}/>}
+      {reasonSheet}
+    </main>
+    <DockedFooter><div className="rz-footer__pair">
+      <button type="button" className="rz-btn" onClick={closeAdd}>Cancel</button>
+      <KeepFocus className="rz-btn rz-btn--primary" disabled={!added.current || added.held || added.checking || flow.busy} onClick={()=>void added.next()}>{added.checking?'Checking…':'Add runner'}</KeepFocus>
+    </div></DockedFooter>
+  </>;
   return <>
     <main className="rz-main">
       <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">Who is here?</h2></div>
@@ -202,6 +229,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
           aria-pressed={marks[index]===mark} aria-label={`${entry.wristband}: ${mark==='here'?'Here':'Absent'}`} onClick={()=>tap(index,mark)}>{mark==='here'?'Here':'Absent'}</button>)}
       </li>)}</ul>
       {!locked && <CallUp read={read} flow={flow}/>}
+      {!locked && placeFree(final) && <button type="button" className="rz-btn rz-btn--block" disabled={flow.busy} onClick={()=>{flow.setError('');setAdding(true);}}>+ Runner</button>}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>

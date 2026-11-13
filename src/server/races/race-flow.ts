@@ -16,7 +16,7 @@ import { seedFinal } from '../rulings/finals.js';
 import type { CompletedStage } from '../../shared/stage-lock.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
-import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
+import { absentInput,addRunner,addRunnerInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { eventScope,jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,requireRace,type Database,type StoredRace } from './records.js';
 import { raceRefusal } from '../../shared/race-status.js';
 import { markAbsentFinalists } from './final-field.js';
@@ -196,6 +196,10 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
   action('POST','/api/races/:raceId/absent','Volunteer',(request,_reply,phone)=>{
     const input=absentInput(request.body),id=raceId(request);
     return write(phone,id,async client=>{await markAbsent(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
+  });
+  action('POST','/api/races/:raceId/add-runner','Volunteer',(request,_reply,phone)=>{
+    const input=addRunnerInput(request.body),id=raceId(request);
+    return write(phone,id,async client=>{await addRunner(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
   });
   action('POST','/api/races/:raceId/order','Volunteer',(request,_reply,phone)=>{
     const input=orderInput(request.body),id=raceId(request);
