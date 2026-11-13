@@ -6,7 +6,7 @@ The bottom of every screen: when the data last arrived, and the screen's way for
 
 **Use**
 - Make it sticky (`rz-footer--sticky`) so the actions stay under the thumb.
-- The first line is always `Updated at <time>`, one centred line with no button. A pull down from the top of the screen refreshes by hand.
+- The first line is always `Updated at <time>`, with no button: one centred line on a lead screen; on Races, "Updated at" over the time at the left of the row, beside New race. A pull down from the top of the screen refreshes by hand.
 - Put that line in an `aria-live="polite"` element.
 - Then the actions, in one of three layouts:
   - **Task:** one display-primary button (`rz-btn--display rz-btn--block`), then at most one secondary block button.
