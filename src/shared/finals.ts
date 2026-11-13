@@ -47,11 +47,14 @@ export const finalTakesChanges=(final:Pick<FinalField,'heatsComplete'|'hasRun'>)
 /** The next-ranked heat entry a final can call up now, or null: it takes changes, an Absent finalist's seed is free, and a ranked entry is left. */
 export const openCallUp=(final:FinalResults|null)=>final && finalTakesChanges(final) && final.vacancy?final.nextCallUp:null;
 /**
- * A place is free for "+ Runner" at a final taking changes: a finalist is Absent and fewer than 6 are not Absent (Here,
- * or not marked yet, since each of those may still run). The start line's button and the server's check read this.
+ * A place is free for "+ Runner" or "+ Team" at a final taking changes: a finalist is Absent and fewer than 6 are not
+ * Absent (Here, or not marked yet, since each of those may still run). The start line's button and the server's check read this.
  */
-export const placeFree=(final:Pick<FinalField,'heatsComplete'|'hasRun'> & {entries:ReadonlyArray<{absent:boolean}>})=>
-  finalTakesChanges(final) && final.entries.some(entry=>entry.absent) && final.entries.filter(entry=>!entry.absent).length<6;
+export const placeFree=(final:Pick<FinalField,'heatsComplete'|'hasRun'> & {entries:ReadonlyArray<{absent:boolean}>;additionalEntries?:ReadonlyArray<{absent:boolean}>})=>{
+  // The server's stored final keeps added entries apart; a phone's line-up has them in `entries` already.
+  const all=[...final.entries,...final.additionalEntries||[]];
+  return finalTakesChanges(final) && all.some(entry=>entry.absent) && all.filter(entry=>!entry.absent).length<6;
+};
 /** The call-up button's words, at the final's check-in and on the Final tab: "Call up next fastest: 2011 (7th)". */
 export const callUpLabel=(who:string,position:number)=>`Call up next fastest: ${who} (${ordinal(position)})`;
 /** Whether a relay team is in the final's line-up, Absent ones included: such a team is not added again. */

@@ -6,7 +6,10 @@ import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceName,
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
-import { openCallUp } from '../../shared/finals.js';
+import { openCallUp,placeFree,teamInFinal } from '../../shared/finals.js';
+import { randomUUID } from 'node:crypto';
+import { writeChangeNote } from '../rulings/records.js';
+import { requireChangeReason } from '../rulings/validation.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
@@ -258,6 +261,24 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       // Set after the runner list, which marks a team leaving it Absent: neither leaves it unmarked.
       if(finalist && (moved || finalist.absent!==(mark==='absent'))) {const marked=finalist.id;await markAbsentFinalists(client,id,(other,stored)=>other===marked?mark==='absent':stored);}
       else if(!moved) unchanged();
+    });
+  });
+  // "+ Team" at a relay final's start line: a team of the relay joins the final as an added team, Here at once with
+  // each of its children, while a place is free, its reason kept as an audit note on the team.
+  action('POST','/api/races/:raceId/teams/:teamId/add','Volunteer',(request,_reply,phone)=>{
+    const {raceId:id,teamId}=request.params as {raceId:string;teamId:string};
+    const reason=requireChangeReason((request.body as {reason?:unknown}|null)?.reason,false);
+    return write(phone,id,async client=>{
+      let note=null as (()=>Promise<unknown>)|null;
+      await changeTeamEntry(client,phone,id,teamId,({race,team,entries})=>{
+        if(race.kind!=='final') throw new Refusal(409,'Only a final takes an added team');
+        if(teamInFinal({...race.final!,runners:entries},team.id)) throw new Refusal(409,`Team ${team.number} is already in the Final`);
+        if(!placeFree(race.final!)) throw new Refusal(409,'There is no free place in the Final');
+        const added:TeamEntry={id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null}))};
+        note=()=>writeChangeNote(client,phone,race.event.id,'add-team',`added Team ${team.number} to the ${raceName(race)}`,reason,[{raceId:id,entryId:added.id}]);
+        return [...entries,added];
+      });
+      await note?.();
     });
   });
   // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.
