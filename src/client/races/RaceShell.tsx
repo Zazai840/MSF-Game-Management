@@ -10,7 +10,7 @@ import { StepRecord } from './StepRecord.js';
 import { FinishLine,StartLine,Timer } from './Steps.js';
 import { NewRaceSheet,type NewRaceChoice } from './NewRaceSheet.js';
 import { useFlowWrite } from './writes.js';
-import { PullToRefresh } from './UpdatedAt.js';
+import { PullToRefresh } from './PullToRefresh.js';
 import { raceRefusal } from '../../shared/race-status.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { stepSavedLine } from '../../shared/toast-lines.js';
