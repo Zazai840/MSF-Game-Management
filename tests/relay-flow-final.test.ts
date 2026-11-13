@@ -1,5 +1,6 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import type { EventResultsRead,ResultsRead } from '../src/shared/lead-results.js';
 import { leadLine,type RaceFlowRead,type RacesRead } from '../src/shared/race-flow.js';
@@ -154,18 +155,60 @@ test('a finalist\'s child changed by its leg chip: one leg, against the team\'s 
   // Team 2 marked Here: a chip Save sends its legs with the 2nd changed, the others kept as they are; every child is still here.
   await mark(sam,read,2,'here');
   const two=team(2);
-  read=await ok(priya,url(2),{version:two.version,legs:[2201,2199,2203,2204],keptWarnings:[2201,2203,2204],raceId});
+  read=await ok(priya,url(2),{version:two.version,legs:[2201,2199,2203,2204],keptWarnings:[2201,2203,2204],raceId,reason:{reason:'Hurt',text:null}});
   expect(inRace(2)).toEqual([[2201,true],[2199,true],[2203,true],[2204,true]]);
   // A chip tapped before Priya's Save is refused as changed.
   expect((await call(sam,url(2),{version:two.version,legs:[2201,2202,2203,2198],keptWarnings:[2201,2202,2203],raceId})).json()).toMatchObject({reason:'changed',by:'Priya Shah'});
   // Team 5 not marked: its kept copy takes the change, and keeps it once marked Here.
-  read=await ok(sam,url(5),{version:team(5).version,legs:[2501,2502,2503,2198],keptWarnings:[2501,2502,2503],raceId});
+  read=await ok(sam,url(5),{version:team(5).version,legs:[2501,2502,2503,2198],keptWarnings:[2501,2502,2503],raceId,reason:{reason:'Hurt',text:null}});
   expect(read.race.final!.entries.find(item=>item.team?.number===5)!.legs!.map(leg=>leg.wristband)).toEqual([2501,2502,2503,2198]);
   expect(inRace(5)).toBeUndefined();
   await mark(sam,read,5,'here');
   read=await ok(sam,`/api/races/${raceId}`);
   expect(inRace(5)).toEqual([[2501,true],[2502,true],[2503,true],[2198,true]]);
   expect(marks(read)).toEqual([[2,'here'],[5,'here'],[1,'unmarked'],[6,'unmarked'],[3,'unmarked'],[7,'unmarked']]);
+});
+
+test('a leg replaced at a relay final needs a reason, Other with text, and is kept as an audit note on the team; a reorder needs none; refused once the final is saved',async()=>{
+  const {sam,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  const raceId=read.race.id,team=(number:number)=>read.teams!.find(item=>item.number===number)!;
+  const url=(number:number)=>`/api/relays/${read.group.event.id}/teams/${team(number).id}`;
+  const change=(token:string,number:number,wristbands:number[],reason?:unknown)=>call(token,url(number),{version:team(number).version,legs:wristbands,keptWarnings:wristbands,raceId,...(reason===undefined?{}:{reason})});
+  await mark(sam,read,2,'here');
+  // Team 2's 3rd leg, 2203, is replaced by 2198: refused with no reason, a reason not in the list, or Other with no text.
+  for(const reason of [undefined,{reason:'Tired',text:null},{reason:'Other',text:'  '}]) expect((await change(sam,2,[2201,2202,2198,2204],reason)).statusCode).toBe(400);
+  expect((await change(sam,2,[2201,2202,2198,2204])).json().message).toBe('Choose why the change');
+  expect((await change(sam,2,[2201,2202,2198,2204],{reason:'Other',text:''})).json().message).toBe('Write why for Other');
+  read=await ok(sam,`/api/races/${raceId}`);
+  expect(team(2).legs.map(leg=>leg.wristband)).toEqual(legs(2));
+  // With a reason it saves, the team still Here, and the note says who, what and why.
+  read=await ok(sam,url(2),{version:team(2).version,legs:[2201,2202,2198,2204],keptWarnings:[2201,2202,2198,2204],raceId,reason:{reason:'Did not want to run',text:null}});
+  expect(teamsOf(read.race).find(entry=>entry.team.number===2)!.legs.map(leg=>[leg.wristband,leg.here])).toEqual([[2201,true],[2202,true],[2198,true],[2204,true]]);
+  // Other with text, on a team not marked yet.
+  read=await ok(sam,url(5),{version:team(5).version,legs:[2501,2502,2503,2197],keptWarnings:[2501,2502,2503,2197],raceId,reason:{reason:'Other',text:'Went home  early'}});
+  // A reorder of the same children is no replace: no reason.
+  read=await ok(sam,url(2),{version:team(2).version,legs:[2202,2201,2198,2204],keptWarnings:[2202,2201,2198,2204],raceId});
+  const lines=['Sam Patel changed Team 2\'s 3rd leg from 2203 to 2198 (Final) - Did not want to run','Sam Patel changed Team 5\'s 4th leg from 2504 to 2197 (Final) - Other - Went home early'];
+  // The event's Notes tab.
+  expect((await ok<EventResultsRead>(lead,'/api/lead/events/R22/results')).auditNotes.map(note=>note.message).slice(0,2).reverse()).toEqual(lines);
+  // The final run and saved: each team's Notes in the Final.
+  for(const number of [5,1,6,3,7]) await mark(sam,read,number,'here');
+  read=await ok(sam,`/api/races/${raceId}/steps/runners/done`,{});
+  read=await ok(sam,`/api/races/${raceId}/order`,{raceId,version:read.race.parts.finish.version,order:teamsOf(read.race).map(entry=>entry.id),didNotFinish:[],didNotRun:[],added:[]});
+  read=await ok(sam,`/api/races/${raceId}/steps/positions/done`,{});
+  expect(read.race.state).toBe('saved');
+  const leaderboard=(await ok<EventResultsRead>(lead,'/api/lead/events/R22/results')).results.finalResults!.leaderboard;
+  for(const [number,line] of [[2,lines[0]],[5,lines[1]]] as const) expect(leaderboard.find(item=>item.team?.number===number)!.notes.map(note=>note.message)).toEqual([line]);
+  // The Day export: the Note column on the team's rows in the Final, and the Audit notes sheet.
+  const sheets=await readExcelFile((await call(lead,'/api/day/export',{})).rawPayload);
+  const all=sheets.find(sheet=>sheet.sheet==='All results')!.data,[raceColumn,teamColumn,note]=['Race','Team','Note'].map(name=>all[0].indexOf(name));
+  const finalRows=(number:number)=>all.filter(row=>row[raceColumn]==='Final 1' &&row[teamColumn]===`Team ${number}`);
+  expect(finalRows(2).length).toBeGreaterThan(0);
+  expect(finalRows(2).every(row=>String(row[note]).includes(lines[0]))).toBe(true);
+  expect(sheets.find(sheet=>sheet.sheet==='Audit notes')!.data.flat().filter(cell=>typeof cell==='string' && lines.some(line=>cell.includes(line)))).toHaveLength(2);
+  // Once the final is saved, no leg changes.
+  expect((await change(sam,1,[2101,2102,2103,2195],{reason:'Hurt',text:null})).json().message).toBe('Final is saved - ask a lead to change it');
 });
 
 test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{

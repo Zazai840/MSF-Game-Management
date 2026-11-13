@@ -6,7 +6,9 @@ import { andList,changedLine,doneButtons,placedAsk,raceName,type RaceFlowRead } 
 import { isTeamEntry } from '../../shared/races.js';
 import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamListOf,type RelayTeam,type TeamLeg } from '../../shared/teams.js';
 import { SortableList } from '../flow/SortableList.js';
+import type { ChangeReason } from '../../shared/rulings.js';
 import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
+import { ReasonSheet } from './ReasonSheet.js';
 import { CallUp,DigitsField,KeepFocus,useTapQueue,type StepProps } from './Steps.js';
 import { useWrites } from './writes.js';
 
@@ -40,6 +42,8 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
   const [typed,setTyped]=useState(''),[held,setHeld]=useState<Held|null>(null),[said,setSaid]=useState(''),[fresh,setFresh]=useState(0);
   /** The leg being changed by its chip, and the team's version when the chip was tapped. */
   const [changing,setChanging]=useState<{teamId:string;leg:number;version:number}|null>(null);
+  /** At a final, the change waiting on "Why the change?", with whether its warning was kept. */
+  const [asking,setAsking]=useState<{keep:boolean}|null>(null);
   const entry=changing && legsOf(changing.teamId),change=changing && entry?{...changing,entry}:null;
   function problem(teamId:string|null,wristbands:Array<number|null>,index:number):Held|null {
     const {refusal,warnings}=legCheck(relay,relays,teamId,wristbands,index,read.race.id);
@@ -52,8 +56,11 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
     if(version===undefined) return;
     saves.clearChanged();setHeld(null);setSaid('');setChanging({teamId,leg,version});setTyped(wristband===null?'':String(wristband));
   }
-  /** Save on a leg being changed: the team's legs with this one changed, against the version its chip was tapped at. */
-  async function saveChange(keep=false) {
+  /**
+   * Save on a leg being changed: the team's legs with this one changed, against the version its chip was tapped at. At
+   * a final it asks "Why the change?" once the number and its warning are settled, and saves with the reason.
+   */
+  async function saveChange(keep=false,reason?:ChangeReason) {
     if(!change || !typed || saves.busy) return;
     const value=Number(typed),wristbands=change.entry.legs.map(leg=>leg.wristband);setSaid('');
     if(wristbands[change.leg]===value) {cancel();return;}
@@ -61,9 +68,10 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
     const found=problem(change.teamId,wristbands,change.leg);
     if(found && !keep) {setHeld(found);return;}
     setHeld(null);
+    if(read.race.kind==='final' && !reason) {setAsking({keep});return;}
     // Every other number is the one already set, so each warning it has stays kept.
     const others=wristbands.filter((wristband,index):wristband is number=>wristband!==null && index!==change.leg);
-    const sent=await saves.send(`relays/${read.group.event.id}/teams/${change.teamId}`,{version:change.version,legs:wristbands,keptWarnings:keep?[...others,value]:others,raceId:read.race.id});
+    const sent=await saves.send(`relays/${read.group.event.id}/teams/${change.teamId}`,{version:change.version,legs:wristbands,keptWarnings:keep?[...others,value]:others,raceId:read.race.id,reason});
     if(typeof sent==='object') {cancel();setSaid(`Team ${change.entry.team.number}: ${ordinal(change.leg+1)} leg changed to ${value}`);}
   }
   /** Show latest after a change refused as changed: the box takes the leg as it now stands, at the team's new version. */
@@ -92,7 +100,9 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
     <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
     <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held || saves.busy} onClick={()=>void saveChange()}>Save</KeepFocus>
   </div>;
-  return {saves,typed,setTyped,held,setHeld,fix,said,setSaid,change,problem,saveChange,chip,changedCallout,changeField,changeFooter};
+  /** "Why the change?" over the screen; Cancel leaves the box as it was, nothing saved. */
+  const reasonSheet=asking && <ReasonSheet wrongNumber onClose={()=>setAsking(null)} onSave={reason=>{setAsking(null);void saveChange(asking.keep,reason);}}/>;
+  return {saves,typed,setTyped,held,setHeld,fix,said,setSaid,change,problem,saveChange,chip,changedCallout,changeField,changeFooter,reasonSheet};
 }
 /**
  * A relay heat's Start line, like individual check-in: one number box asks "Team 5 · 2nd leg: wristband number?", Next
@@ -251,6 +261,7 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
           content={box.chip(item.team.id,item.team.number,!locked && item.mark!=='absent')}/>
       </section>)}
       {!locked && !change && <CallUp read={read} flow={flow}/>}
+      {box.reasonSheet}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(item=>`Team ${item.team.number}`))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>

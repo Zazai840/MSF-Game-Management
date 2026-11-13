@@ -69,7 +69,7 @@ test('a final\'s team is changed at its check-in once the heats are complete, an
   await relays.save(sam,'R22',[1,2],[3400,3500]);
   const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'}),two=team(final,2),url=`/api/relays/${final.group.event.id}/teams/${two.id}`;
   await ok(sam,`/api/races/${final.race.id}/teams/${two.id}/absent`,{mark:'here'});
-  const saved=await ok(sam,url,{version:two.version,legs:[2122,2121,2199,2124],keptWarnings:[],raceId:final.race.id});
+  const saved=await ok(sam,url,{version:two.version,legs:[2122,2121,2199,2124],keptWarnings:[],raceId:final.race.id,reason:{reason:'Hurt',text:null}});
   const legsOf=(read:RaceFlowRead)=>teamsOf(read.race).find(entry=>entry.team.id===two.id)!.legs.map(leg=>[leg.wristband,leg.here]);
   // A final has no per-child Here: a team marked Here is here whole, a child swapped in too.
   expect(legsOf(saved)).toEqual([[2122,true],[2121,true],[2199,true],[2124,true]]);
