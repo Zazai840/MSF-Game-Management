@@ -143,12 +143,8 @@ test('the start line and the lead call up the next fastest at the final\'s check
  await press(mark(lead.page,n(14),'Absent'));
  await expect(mark(lead.page,n(14),'Absent')).toHaveAttribute('aria-pressed','true');
  await expect(callUp(lead.page)).toHaveCount(0);
- // 11 was never marked at the start line. The finish line adds them: they count as Here, as the finalist they are.
- await press(priya.page.getByRole('button',{name:'+ Runner not on the list',exact:true}));
- await priya.page.getByLabel('Wristband number',{exact:true}).fill(String(n(11)));
- await press(priya.page.getByRole('button',{name:'Add runner',exact:true}));
- await expect(runnerButtons(priya.page)).toHaveCount(3);
- await expect(here(sam.page,n(11))).toHaveAttribute('aria-pressed','true',live);
+ // The finish line of a final has no "+ Runner not on the list": a runner is added at the start line.
+ await expect(priya.page.getByRole('button',{name:'+ Runner not on the list',exact:true})).toHaveCount(0);
  await expect(attendance(sam.page)).toHaveCount(8);
 });
 test('the start line replaces a finalist by a tap on their wristband: the number, its warning, then Why the change?; the old runner stays Absent and the new one is Added and Here',async({openPhone,request},info)=>{

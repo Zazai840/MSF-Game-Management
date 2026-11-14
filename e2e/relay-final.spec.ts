@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { isTeamEntry } from '../src/shared/races.js';
-import {eventTab,expectToast,ownName,expect,flowPost,live,lookProblems,openLeadsBarTab,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,pullToRefresh,type Page,resultsCard} from './fixtures.js';
+import {eventTab,expectToast,ownName,expect,flowPost,lookProblems,openLeadsBarTab,ownCode,ownRelay,ownWristbands,press,runHeat,test,writeTeam,pullToRefresh,type Page,resultsCard} from './fixtures.js';
 /** A finalist team's card on the final's start line, by its name ("Team 1"). */
 const card=(page:Page,team:number)=>page.getByRole('region',{name:`Team ${team}`,exact:true});
 /** The final a lead makes, from the heats run so far; answers its id. */
@@ -39,8 +39,9 @@ test('the start line calls up the next-ranked team at a relay final\'s check-in,
   await expect(card(sam.page,7).getByRole('heading',{level:3})).toHaveText('Called up · Team 7');
   await expect(card(sam.page,7).getByRole('button',{name:'Team 7: Here',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(callUp).toHaveCount(0);
-  // The lead's Final tab names the same call-up.
+  // The lead's Final tab names the same call-up, and has no button that adds a team.
   await openFinalResults(lead.page,code);
+  await expect(lead.page.getByRole('button',{name:'Add a team to the final',exact:true})).toHaveCount(0);
   await expect((await lineUp(lead.page)).last()).toHaveText(`Called up from heat rank 7 · Team 7 · ${legs(7).join(' · ')}`);
   expect(await lookProblems(sam.page)).toEqual([]);
   await sam.page.screenshot({path:info.outputPath('relay-final-call-up.png'),fullPage:true});
@@ -58,35 +59,4 @@ test('the start line calls up the next-ranked team at a relay final\'s check-in,
   for(const [index,number] of [[0,3],[1,2],[2,7]] as const) await expect(board.getByRole('button').nth(index)).toHaveAccessibleName(`Team ${number} · ${legs(number).join(' · ')} · Final`);
   expect(await lookProblems(lead.page)).toEqual([]);
   await lead.page.screenshot({path:info.outputPath('relay-final-leaderboard.png'),fullPage:true});
-});
-
-test('a lead adds a team to a relay Final by picking it from the relay\'s teams, and it shows Added on the final\'s start line',async({openPhone,request},info)=>{
-  const name=ownName('Relay final add'),code=await ownCode();
-  await ownRelay(code,name,'Girl Scouts');
-  const n=await ownWristbands('Girl Scouts',12),legs=(number:number)=>[1,2,3,4].map(leg=>n((number-1)*4+leg));
-  const sam=await openPhone(ownName('Sam Patel final add')),lead=await openPhone(ownName('Jo Evans final add'),{lead:true});
-  // Two teams run the heat, and Team 3 is typed after it: a lead adds it to the Final.
-  for(let number=1;number<=2;number++) await writeTeam(request,sam.token,code,legs(number),{keptWarnings:legs(number)});
-  await runHeat(request,sam.token,code,2);
-  await writeTeam(request,sam.token,code,legs(3),{keptWarnings:legs(3)});
-  const finalId=await makeFinal(request,lead.token,code);
-  await sam.page.goto(`/races/${finalId}`);
-  await expect(card(sam.page,2)).toBeVisible();
-  await openFinalResults(lead.page,code);
-  await lead.page.getByRole('button',{name:'Add a team to the final',exact:true}).click();
-  // A sheet of the relay's teams not in the Final yet; a tap adds the team at once.
-  const sheet=lead.page.getByRole('dialog',{name:'Add a team to the final',exact:true});
-  const picks=sheet.getByRole('button',{name:/^Team/});
-  await expect(picks).toHaveText([`Team 3${legs(3).join(' · ')}`]);
-  expect(await lookProblems(lead.page)).toEqual([]);
-  await lead.page.screenshot({path:info.outputPath('relay-final-add-team.png'),fullPage:true});
-  await picks.first().click();
-  await expectToast(lead.page,'Team 3 added');
-  await expect(sheet).toHaveCount(0);
-  await expect((await lineUp(lead.page)).last()).toHaveText(`Added · Team 3 · ${legs(3).join(' · ')}`);
-  // Every team is in now: the sheet says so.
-  await lead.page.getByRole('button',{name:'Add a team to the final',exact:true}).click();
-  await expect(sheet.getByText('Every team is in the final.',{exact:true})).toBeVisible();
-  expect(await lookProblems(lead.page)).toEqual([]);
-  await expect(card(sam.page,3).getByRole('heading',{level:3})).toHaveText('Added · Team 3',live);
 });

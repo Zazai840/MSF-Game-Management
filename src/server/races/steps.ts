@@ -174,17 +174,15 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   // Teams are never made at the finish: a new team is typed into the heat at the start line first.
   if(target.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
   if(!target.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
-  // A relay Final's teams are its seeds, call-ups and a lead's additions.
-  if(target.race.kind==='final' && addedTeams.length) throw new Refusal(409,'Ask a lead to add a team to the Final');
+  // A final's runners and teams change at its start line, never at the finish.
+  if(target.race.kind==='final' && (added.length || addedTeams.length)) throw new Refusal(409,'Add a runner or a team to the final at the start line');
   const previous=target.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
   const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);
   const teams=addedTeams.length?(await readTeamLists(client,phone.dayId)).get(target.event.id)!.teams:[];
   const staying=previous.filter(runner=>!didNotRun.includes(runner.id)),atFinish=addedTeams.map(teamId=>addedAtFinish(teams,teamId));
-  // A finalist the finish line adds, not marked or marked Absent, joins as their own line-up entry: a finalist with a place counts as Here.
-  const finalists=race.final?runnersOf(finalLineup(race.final)):[];
   // A team keeps the warnings kept on it when it was typed in. A final's runners all ran in its heats, so "already ran in this event" does not apply.
-  const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>finalists.find(entry=>entry.wristband===wristband)??{id:randomUUID(),wristband,addedAtFinish:true})],kept,raceId,runnersOf(previous),target.race.kind==='final');
+  const runners=target.event.relay?[...staying,...atFinish]:await annotateRunners(client,phone.dayId,target.event,[...runnersOf(staying),...added.map(wristband=>({id:randomUUID(),wristband,addedAtFinish:true}))],kept,raceId,runnersOf(previous),target.race.kind==='final');
   if(!sameRunnerSnapshot(runners,previous)) await publishPart(client,phone,race,'runners',runners);
   const finish=onlyRunners(finishOf([...placesBoard({order,empty}),...atFinish.map(entry=>entry.id)],didNotFinish),runners);
   const before=placesBoard(target.race.parts.finish.value||{order:[]}),board=placesBoard(finish);

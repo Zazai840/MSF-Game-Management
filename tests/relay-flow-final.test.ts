@@ -110,7 +110,7 @@ test('Here / Absent per seeded team lands from two phones at once with no versio
   expect(bad.statusCode).toBe(400);
 });
 
-test('Here / Absent is only for a final\'s seeded teams, call-ups and a lead\'s additions',async()=>{
+test('Here / Absent is only for a final\'s seeded teams, call-ups and start line additions',async()=>{
   const {sam,lead}=await start();
   const final=(await makeFinal(lead)).json() as RaceFlowRead,team4=final.teams!.find(team=>team.number===4)!;
   const outside=await call(sam,`/api/races/${final.race.id}/teams/${team4.id}/absent`,{mark:'here'});
@@ -121,7 +121,7 @@ test('Here / Absent is only for a final\'s seeded teams, call-ups and a lead\'s 
   expect(onHeat.statusCode).toBe(409);
 });
 
-test('a call-up for an absent team joins the final Here at once, from anyone; a lead\'s added team joins not marked and takes Here / Absent like any finalist',async()=>{
+test('a call-up for an absent team joins the final Here at once, from anyone',async()=>{
   const {sam,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;
   expect(read.callUp).toBeUndefined();
@@ -137,13 +137,6 @@ test('a call-up for an absent team joins the final Here at once, from anyone; a 
   expect(called).toMatchObject({team:{number:4},seed:6,absent:false});
   expect(marks(read).at(-1)).toEqual([4,'here']);
   expect(teamsOf(read.race).at(-1)!.legs.every(leg=>leg.here)).toBe(true);
-  // A lead adds Team 8, which ran in no heat.
-  expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:read.teams!.find(team=>team.number===8)!.id})).statusCode).toBe(200);
-  read=await ok(sam,`/api/races/${read.race.id}`);
-  expect(read.race.final!.entries.at(-1)).toMatchObject({team:{number:8},seed:null,calledUp:false});
-  expect(marks(read).at(-1)).toEqual([8,'unmarked']);
-  await mark(sam,read,8,'absent');
-  expect(marks(await ok(sam,`/api/races/${read.race.id}`)).at(-1)).toEqual([8,'absent']);
 });
 
 test('a finalist\'s child changed by its leg chip: one leg, against the team\'s version, its kept copy changed whether Here or not, the marks unchanged',async()=>{
@@ -298,7 +291,7 @@ test('the final saves itself once Runners and Finishing order are done, with no 
   read=await ok(sam,`/api/races/${read.race.id}/steps/runners/done`,{});
   const id=read.race.id,entries=teamsOf(read.race);
   expect(entries.map(entry=>entry.team.number)).toEqual([2,5,1,6,3]);
-  // A final's teams are its seeds, call-ups and a lead's additions: no team is added at the finish.
+  // A final's teams are its seeds, call-ups and start line additions: no team is added at the finish.
   const added=await call(priya,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added:[],addedTeams:[read.teams!.find(team=>team.number===4)!.id]});
   expect(added.statusCode).toBe(409);
   read=await ok(priya,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:entries.map(entry=>entry.id).reverse(),didNotFinish:[],didNotRun:[],added:[]});

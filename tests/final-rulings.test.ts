@@ -87,8 +87,8 @@ test('an event with no heats run has no final to make',async()=>{
  expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('The final opens when every heat has times');expect(await finalRead(volunteer)).toBeUndefined();
 });
 test('typed final additions and corrected numbers keep actual eligibility warnings without a heat-to-final repeat warning',async()=>{
- const {lead,volunteer,setup}=await start([[1023]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
- await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,2005],{added:[2005],keptWarnings:[2005]});await setup.submit(volunteer,'R3');
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
+ await markAbsent(volunteer,[]);await setup.attend(volunteer,'R3',undefined,[1088]);await setup.addRunner(volunteer,'R3',2005,[2005]);await setup.order(volunteer,'R3',[1023,2005]);await setup.submit(volunteer,'R3');
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect(detail.results.needsYou.filter((item:any)=>item.kind==='warning')).toHaveLength(1);expect(detail.results.needsYou.some((item:any)=>item.kind==='ran-twice')).toBe(false);expect(detail.results.checkSheet.worthALook).toMatchObject([{kind:'warning',raceId:id}]);expect(detail.results.checkSheet.mustSettleFirst).toEqual([]);expect(detail.results.finalResults.leaderboard[1].flags).toContainEqual(expect.objectContaining({kind:'warning',warningKind:'wrong-section'}));
  const entry=detail.results.finalResults.leaderboard[0];const corrected=await call(lead,`/api/lead/races/${id}/runners/${entry.entryId}/correct-number`,{expectedWristband:1023,wristband:2010,keepWarnings:true,reason:{reason:'Wrong number',text:null}});expect(corrected.statusCode).toBe(200);expect(corrected.json().results.checkSheet.worthALook).toHaveLength(2);expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
 });

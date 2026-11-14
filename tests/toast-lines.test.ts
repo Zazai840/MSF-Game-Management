@@ -32,7 +32,6 @@ test('an event save says what happened, without the event',()=>{
 });
 test('the final names who joined it',()=>{
   expect(toastLine({kind:'called-up',who:'2045'})).toBe('2045 called up');
-  expect(toastLine({kind:'team-added',team:3})).toBe('Team 3 added');
 });
 test('Day setup saves name what changed',()=>{
   expect(toastLine({kind:'this-day',field:'Year',value:'2027'})).toBe('Year saved · 2027');
