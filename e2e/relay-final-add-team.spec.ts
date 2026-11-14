@@ -44,12 +44,12 @@ test('"+ Team" at a relay final: one child\'s number finds the team, shown befor
   const why=page.getByRole('dialog',{name:'Why the change?',exact:true});
   await expect(why.locator('.rz-choice')).toHaveText(['Did not want to run','Hurt','Not found','Other']);
   expect(await lookProblems(page)).toEqual([]);
-  await why.getByRole('button',{name:'Cancel',exact:true}).click();
+  await press(why.getByRole('button',{name:'Cancel',exact:true}));
   await expect(why).toHaveCount(0);
   await expect(found).toHaveText(`Team 8${legs(8).join(' · ')}Add`);
   await press(found.getByRole('button',{name:'Add Team 8',exact:true}));
-  await why.getByRole('button',{name:'Not found',exact:true}).click();
-  await why.getByRole('button',{name:'Save',exact:true}).click();
+  await press(why.getByRole('button',{name:'Not found',exact:true}));
+  await press(why.getByRole('button',{name:'Save',exact:true}));
 
   // Back at check-in: Team 8 is Added and Here; six are Here, so no place is free.
   await expect(page.locator('p.rz-note[role=status]')).toHaveText('Team 8 added');
@@ -66,7 +66,7 @@ test('"+ Team" at a relay final: one child\'s number finds the team, shown befor
 
   // The lead's Final tab lists the added team with its note before the final is saved, and no "+ Team"; the Notes tab has the note too.
   await lead.page.goto(`/results/${code}/final`);
-  await lead.page.getByText('Line-up, fastest first',{exact:true}).click();
+  await press(lead.page.getByText('Line-up, fastest first',{exact:true}));
   const added=lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').filter({hasText:'Added · Team 8'});
   await expect(added).toContainText(`Added · Team 8 · ${legs(8).join(' · ')} · Absent · no final place`,live);
   await expect(added.getByRole('list',{name:`Notes on Team 8 · ${legs(8).join(' · ')}`,exact:true})).toContainText('added Team 8 to the Final - Not found');
@@ -129,12 +129,12 @@ test('"+ Team" at a relay final with a number in no team: the new-team view with
   await press(next('Save Team 8'));
   const why=page.getByRole('dialog',{name:'Why the change?',exact:true});
   await expect(why.locator('.rz-choice')).toHaveText(['Did not want to run','Hurt','Not found','Other']);
-  await why.getByRole('button',{name:'Cancel',exact:true}).click();
+  await press(why.getByRole('button',{name:'Cancel',exact:true}));
   await expect(why).toHaveCount(0);
   await expect(box(page)).toHaveValue(String(n(33)));
   await press(next('Save Team 8'));
-  await why.getByRole('button',{name:'Not found',exact:true}).click();
-  await why.getByRole('button',{name:'Save',exact:true}).click();
+  await press(why.getByRole('button',{name:'Not found',exact:true}));
+  await press(why.getByRole('button',{name:'Save',exact:true}));
 
   // Back at check-in: Team 8 is Added and Here with the four children typed.
   await expect(page.locator('p.rz-note[role=status]')).toHaveText('Team 8 added');

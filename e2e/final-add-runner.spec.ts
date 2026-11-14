@@ -51,7 +51,7 @@ test('"+ Runner" at an individual final\'s start line: shown while a place is fr
  // The lead's Final tab shows the added runner with its note before the final is saved, and no new button; the Notes tab has the note too.
  await lead.page.goto(`/results/${code}`);
  await eventTab(lead.page,'Final');
- await lead.page.getByText('Line-up, fastest first',{exact:true}).click();
+ await press(lead.page.getByText('Line-up, fastest first',{exact:true}));
  const added=lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').filter({hasText:'Added · 7050'});
  await expect(added).toContainText('Added · 7050 · Absent · no final place',live);
  await expect(added.getByRole('list',{name:'Notes on 7050',exact:true})).toContainText('added 7050 to the Final - Not found');
