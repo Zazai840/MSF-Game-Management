@@ -175,7 +175,7 @@ export async function writeOrder(client:pg.PoolClient,phone:Phone,target:WriteTa
   if(target.event.relay && added.length) throw new Refusal(409,'Choose the team from the list');
   if(!target.event.relay && addedTeams.length) throw new Refusal(409,'Only a relay has teams');
   // A final's runners and teams change at its start line, never at the finish.
-  if(target.race.kind==='final' && (added.length || addedTeams.length)) throw new Refusal(409,'Add a runner or a team to the final at the start line');
+  if(target.race.kind==='final' && (added.length || addedTeams.length)) throw new Refusal(409,target.event.relay?'Add a team to the Final at the start line':'Add a runner to the Final at the start line');
   const previous=target.race.parts.runners.value||[],race=await readRace(client,phone.dayId,raceId);
   const already=added.find(number=>runnersOf(previous).some(runner=>runner.wristband===number));
   if(already!==undefined) throw new Refusal(400,`${already} is already in this race`);

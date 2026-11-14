@@ -91,7 +91,7 @@ test('the day export has the podium from heat times and no Finals rows for an ev
   expect(sheets[0].data.slice(1)).toEqual([['R4',null,null,null,null,null,null,null,null,2001,null,null,2011,null,null,2002]]);
   expect(sheets[1].data.filter(row=>row[0]==='R4')).toEqual([]);
 });
-test('a relay decided without a final takes no new heat and refuses call-ups and added teams',async()=>{
+test('a relay decided without a final takes no new heat and refuses call-ups',async()=>{
   const {lead,volunteer}=await start();
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));

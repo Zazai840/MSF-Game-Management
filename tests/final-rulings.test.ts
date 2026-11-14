@@ -92,6 +92,21 @@ test('typed final additions and corrected numbers keep actual eligibility warnin
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect(detail.results.needsYou.filter((item:any)=>item.kind==='warning')).toHaveLength(1);expect(detail.results.needsYou.some((item:any)=>item.kind==='ran-twice')).toBe(false);expect(detail.results.checkSheet.worthALook).toMatchObject([{kind:'warning',raceId:id}]);expect(detail.results.checkSheet.mustSettleFirst).toEqual([]);expect(detail.results.finalResults.leaderboard[1].flags).toContainEqual(expect.objectContaining({kind:'warning',warningKind:'wrong-section'}));
  const entry=detail.results.finalResults.leaderboard[0];const corrected=await call(lead,`/api/lead/races/${id}/runners/${entry.entryId}/correct-number`,{expectedWristband:1023,wristband:2010,keepWarnings:true,reason:{reason:'Wrong number',text:null}});expect(corrected.statusCode).toBe(200);expect(corrected.json().results.checkSheet.worthALook).toHaveLength(2);expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
 });
+test('a runner a lead adds to a saved final reads Added at the finish and takes Mark addition checked',async()=>{
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
+ await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
+ const leadRace=async()=>(await call(lead,`/api/lead/races/${id}`)).json().race;
+ const row=async()=>(await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.leaderboard.find((r:any)=>r.wristband===1012);
+ const race=await leadRace();
+ expect((await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}],finish:{order:[1023,1088,1012],didNotFinish:[]},comment:'Ran in lane 3'})).statusCode).toBe(200);
+ const added=await row();expect(added.flags).toContainEqual({kind:'added-at-finish',message:'Added at the finish'});
+ expect((await call(lead,`/api/lead/races/${id}/runners/${added.entryId}/mark-added-checked`,{})).statusCode).toBe(200);
+ expect((await row()).flags).toContainEqual(expect.objectContaining({kind:'added-at-finish',checked:true}));
+ const again=await leadRace();
+ expect((await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:again.parts.runners.version,finishVersion:again.parts.finish.version,runners:again.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),comment:'Checked again'})).statusCode).toBe(200);
+ expect((await leadRace()).parts.runners.value.find((r:any)=>r.wristband===1012).addedAtFinish).toBe(true);
+ expect((await row()).flags).toContainEqual(expect.objectContaining({kind:'added-at-finish',checked:true}));
+});
 test('authoritative final runner publications keep absence aligned through lead removal and Didn\'t run',async()=>{
  const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
  // The order holder says 1088 didn't run: the final's line-up shows them absent, until marked Here again.

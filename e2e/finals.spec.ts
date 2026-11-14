@@ -110,7 +110,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Reopen heats',exact:true})).toBeVisible();
  await back(page,`${name} · Boy Cubs`);await expect(final).toContainText(String(n(15)));
 });
-test('the start line and the lead call up the next fastest at the final\'s check-in: Here at once, offered only while a seed is free and a ranked runner is left; a finalist the finish line adds counts as Here',async({openPhone,request},info)=>{
+test('the start line and the lead call up the next fastest at the final\'s check-in: Here at once, offered only while a seed is free and a ranked runner is left; a final\'s finish line has no + Runner not on the list',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Call up here'),n=await ownWristbands('Boy Cubs',8);
  await ownEvent(request,code,name,'Boy Cubs');
  // 11 to 16 are the six fastest; 17 is 7th and 18 is 8th.

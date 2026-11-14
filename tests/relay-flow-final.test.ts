@@ -139,6 +139,12 @@ test('a call-up for an absent team joins the final Here at once, from anyone',as
   expect(teamsOf(read.race).at(-1)!.legs.every(leg=>leg.here)).toBe(true);
 });
 
+test('a lead adds no team from the Final tab: the add-team route is gone',async()=>{
+  const {lead}=await start();
+  const final=(await makeFinal(lead)).json() as RaceFlowRead;
+  expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:final.teams!.find(team=>team.number===8)!.id})).statusCode).toBe(404);
+});
+
 test('a finalist\'s child changed by its leg chip: one leg, against the team\'s version, its kept copy changed whether Here or not, the marks unchanged',async()=>{
   const {sam,priya,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;
@@ -294,6 +300,7 @@ test('the final saves itself once Runners and Finishing order are done, with no 
   // A final's teams are its seeds, call-ups and start line additions: no team is added at the finish.
   const added=await call(priya,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added:[],addedTeams:[read.teams!.find(team=>team.number===4)!.id]});
   expect(added.statusCode).toBe(409);
+  expect(added.json().message).toBe('Add a team to the Final at the start line');
   read=await ok(priya,`/api/races/${id}/order`,{raceId:id,version:read.race.parts.finish.version,order:entries.map(entry=>entry.id).reverse(),didNotFinish:[],didNotRun:[],added:[]});
   expect(read.race.state).toBe('in progress');
   read=await ok(priya,`/api/races/${id}/steps/positions/done`,{});

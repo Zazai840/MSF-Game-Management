@@ -21,9 +21,9 @@ const who=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?teamLine(entr
 export function Final({event,final,onSaved,onRunner}:{event:DayEvent;final:FinalResults;onSaved:(next:EventResultsRead)=>void;onRunner:(row:LeaderboardRow)=>void}) {
   const [busy,setBusy]=useState(false),[error,setError]=useState<unknown>(null);
   const toast=useToast();
-  async function callUp(body:object,who:string) {
+  async function callUp(body:object,name:string) {
     setBusy(true);setError(null);
-    try {onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(event.code)}/call-up`,body));toast({message:toastLine({kind:'called-up',who})});}
+    try {onSaved(await api<EventResultsRead>(`lead/events/${encodeURIComponent(event.code)}/call-up`,body));toast({message:toastLine({kind:'called-up',who:name})});}
     catch(error) {setError(error);}
     finally {setBusy(false);}
   }

@@ -61,7 +61,7 @@ test('the finish line adds no runner to a final',async()=>{
   const {sam,read}=await final();
   const seen=await read();
   const sent=await call(sam,`/api/races/${seen.race.id}/order`,{raceId:seen.race.id,version:seen.race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added:[2050],keptWarnings:[]});
-  expect(sent.statusCode).toBe(409);expect(sent.json().message).toBe('Add a runner or a team to the final at the start line');
+  expect(sent.statusCode).toBe(409);expect(sent.json().message).toBe('Add a runner to the Final at the start line');
 });
 
 test('a place counts finalists not marked yet: one Absent and the rest unmarked frees one place, which one add fills',async()=>{
