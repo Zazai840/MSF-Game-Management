@@ -39,7 +39,7 @@ Before writing code, read the existing codebase's models, routes and realtime/re
 - **Finishing order:** wristband → place. Done when the finish line taps "Save the order".
 - **Times:** place → time. Done when the timer finishes the last place or taps "No more finishers".
 - **Finishing order and Times are independent.** Times are keyed by place, the finishing order by wristband, and the two are joined by place for results and the lead view. Both can be worked on at the same time by different people. Neither waits for the other.
-- **Runners is not a hard prerequisite either.** The finish line can add a runner who wasn't checked in ("+ Runner not on the list"). Finishing order just has no tiles to show until at least one runner exists.
+- **Runners is not a hard prerequisite either.** The finish line can add a runner who wasn't checked in on a heat ("+ Runner not on the list"); a final's runners are added at its start line. Finishing order just has no tiles to show until at least one runner exists.
 - **Per race, per step, keep:** status (not started / in progress / done), count done, count expected, last editor, last updated time.
 
 **Finals**
@@ -241,7 +241,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 **Finish line**
 - Team tiles (RunnerButton, team tile), two to a row: its 4th leg's wristband "2054" (with no 4th leg, its last leg that has a wristband; "–" with no wristband at all), with no team label: the team number is the lane, and after the line nobody knows the lane. `aria-label="2054 came 1st"` ("no wristband came 1st" for "–").
 - The PlacesBoard names a placed team by its 4th leg's wristband, "2054". Prompt meta "Heat 2 · 3 teams · 3 to place", as on races, question "Which team came *1st?*". With no team in it yet: "No team is in this heat yet", on a final "No team is marked Here yet".
-- Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and a lead's additions.
+- Footer: "No other team crossed the line" and, on a heat, "+ Team not on the list": a sheet of the teams still to run, each with Add ("Add the team whose 4th leg crossed the line. It takes the next place."), never a typed wristband; "Every team is in a heat already." when none is left. A final has no "+ Team not on the list": its teams are its seeds, call-ups and teams added with "+ Team" at the start line.
 - **Check the order** rows read the 4th leg's wristband, "2064". A team left over has that number on one line and **Did not finish** / **Didn't run** side by side below; "Say what happened to 2 teams first." until each is answered. Didn't run takes the team off the race, back to still to run.
 **Timer**
 - As on races, one time per team, to the 4th leg crossing. The prompt meta reads "Heat 2 · time each team's 4th leg" (no finished count). A final has no Times.
@@ -258,7 +258,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 
 A heat usually has 6 runners (6 lanes, and the 60m final takes the fastest 6). Warn, don't block.
 
-- **Scope:** only Races-type events (60m, 200m, 400m), heats and finals. Hurdles and Relays don't show it, though hurdles share the Races tab.
+- **Scope:** only Races-type events (60m, 200m, 400m), heats only. Hurdles and Relays don't show it, though hurdles share the Races tab.
 - **Setting:** `usualRunnersPerRace`, default **6**, configurable per event in Day setup if that already supports per-event settings. Otherwise use a constant.
 - **Trigger:**
   - On the start line, when the runner count reaches the usual number (the 6th wristband is added).
@@ -270,7 +270,7 @@ A heat usually has 6 runners (6 lanes, and the 60m final takes the fastest 6). W
 - **After the warning:** the prompt meta keeps saying it in words ("Heat 5 · 7 runners · more than usual").
   - The lead view shows a StatusTag "More than usual" on the Runners tab.
   - It is **not** a lead issue and doesn't appear in Action required.
-- **Finals:** the final is created with exactly 6 (the fastest 6). Adding a 7th to a final shows the same callout with the copy "Finals usually have 6 runners. Add another only if a lead has agreed."
+- **Finals:** the final is created with the fastest 6. Its finish line has no "+ Runner not on the list", so no size callout shows on a final.
 
 ## New components
 
