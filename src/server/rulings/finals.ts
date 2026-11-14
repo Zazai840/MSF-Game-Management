@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Phone } from '../../shared/domain.js';
 import type { DayEvent } from '../../shared/day.js';
 import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
-import { finalTakesChanges,openCallUp,teamInFinal,type FinalEntry } from '../../shared/finals.js';
+import { finalTakesChanges,openCallUp,placeFree,teamInFinal,type FinalEntry } from '../../shared/finals.js';
 import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { readTeamLists } from '../relays/teams.js';
@@ -75,6 +75,7 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       // The Start line's call-up has no comment box: free text reaches the audit note from a lead only.
       if(comment) requireLevel(current,'Lead');
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults,next=openCallUp(final);
+      if(final && finalTakesChanges(final) && !placeFree(final)) throw new Refusal(409,'No place is free in the Final');
       if(!final || !next) throw new Refusal(409,'There is no open place to call up a runner');
       const vacancy=final.vacancy!,race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
       if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
