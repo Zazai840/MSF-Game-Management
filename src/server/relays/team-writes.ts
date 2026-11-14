@@ -14,6 +14,7 @@ import { isTeamEntry } from '../../shared/races.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { writeChangeNote } from '../rulings/records.js';
 import { requireChangeReason } from '../rulings/validation.js';
+import { placeFree } from '../../shared/finals.js';
 import { checkedLegs,joiningTeam,requestedDone,requestedTeam,teamsWriteRead,type TeamsWriteRead } from './teams.js';
 /**
  * A Save on the version the phone last saw, or refused as changed ("Aisha Noor changed this a moment ago", or by this
@@ -46,15 +47,23 @@ export function teamRoutes(app:FastifyInstance,pool:pg.Pool) {
   }
   // A team typed into a heat (`joinRaceId`): the only way a team is made. It takes the next number the relay has never
   // used (the day lock serialises two at once, so they never clash) and joins the heat in the same write, as Add does.
+  // At a final it is "+ Team" with a number in no team: added Here while a place is free, its reason kept as an audit note.
   action('POST','/api/relays/:eventId/teams','Volunteer',(request,_reply,phone)=>{
     const {wristbands,kept}=requestedDone({...(request.body as object),teamId:undefined}),joinRaceId=requestedRace((request.body as {joinRaceId?:unknown}).joinRaceId);
     return write(phone,params(request).eventId,joinRaceId,async(client,relay)=>{
       const legs=checkedLegs(relay,null,wristbands,kept,joinRaceId),id=randomUUID();
       await client.query('INSERT INTO relay_teams(id,event_id,number,legs,changed_by,changed_by_profile) SELECT $1,$2,COALESCE(MAX(number),0)+1,$3,$4,$5 FROM relay_teams WHERE event_id=$2',[id,relay.id,JSON.stringify(legs),phone.name,phone.profileId]);
+      let note=null as (()=>Promise<unknown>)|null;
       await changeTeamEntry(client,phone,joinRaceId,id,({race,team,entries})=>{
-        if(race.kind==='final') throw new Refusal(409,'A new team can\'t join the final');
-        return [...entries,joiningTeam(team)];
+        const added=joiningTeam(team);
+        if(race.kind==='final') {
+          if(!placeFree(race.final!)) throw new Refusal(409,'There is no free place in the Final');
+          const reason=requireChangeReason((request.body as {reason?:unknown}).reason,false);
+          note=()=>writeChangeNote(client,phone,race.event.id,'add-team',`added Team ${team.number} to the ${raceName(race)}`,reason,[{raceId:joinRaceId,entryId:added.id}]);
+        }
+        return [...entries,added];
       });
+      await note?.();
     });
   });
   // Save: a team's four boxes against the version the phone saw, in race `raceId`, whose entry for the team takes them
