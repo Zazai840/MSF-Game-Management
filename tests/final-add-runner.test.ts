@@ -41,7 +41,8 @@ test('"+ Runner" adds any wristband to a final with a free place, Here and Added
   expect((await add(sam,seen,2050,{reason:'Wrong number',text:null})).json().message).toBe('Choose why the change');
   expect((await add(sam,seen,2050,{reason:'Other',text:''})).json().message).toBe('Write why for Other');
   // A number already in the final is refused.
-  expect((await add(sam,seen,2003,notFound)).json().message).toBe('2003 is already in this race');
+  const twice=await add(sam,seen,2003,notFound);
+  expect([twice.statusCode,twice.json().message]).toEqual([409,'2003 is already in this race']);
   seen=await ok(await add(sam,seen,2050,notFound));
   expect(here(seen)).toEqual([2001,2003,2004,2005,2006,2050]);
   expect(seen.race.final!.entries.at(-1)).toMatchObject({wristband:2050,seed:null,calledUp:false,absent:false});
@@ -55,6 +56,13 @@ test('"+ Runner" adds any wristband to a final with a free place, Here and Added
   seen=await ok(await add(sam,seen,2007,{reason:'Other',text:'Zone lead  sent them'}));
   expect(here(seen)).toEqual([2001,2003,2004,2005,2006,2007]);
   expect((await ok<EventResultsRead>(await call(owner,'/api/lead/events/R4/results'))).auditNotes.slice(0,2).map(note=>note.message)).toEqual(['Sam added 2007 to the Final - Other - Zone lead sent them',line]);
+});
+
+test('a reason\'s text over 1000 characters is refused',async()=>{
+  const {sam,read}=await final();
+  const seen=await ok(await attend(sam,await read(),[],[2002]));
+  const refused=await add(sam,seen,2050,{reason:'Other',text:'x'.repeat(1001)});
+  expect([refused.statusCode,refused.json().message]).toEqual([400,'Keep the comment within 1000 characters']);
 });
 
 test('the finish line adds no runner to a final',async()=>{

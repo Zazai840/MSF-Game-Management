@@ -122,7 +122,7 @@ export async function replaceRunner(client:pg.PoolClient,phone:Phone,target:Writ
   const old=lineup.find(entry=>entry.finalEntryId===finalEntryId);
   if(!old) throw new Refusal(400,'Choose a runner from this final');
   if(finalMark(old,previous)==='absent') throw new Refusal(409,`${old.wristband} is Absent`);
-  if(lineup.some(entry=>entry.wristband===wristband)) throw new Refusal(400,alreadyInRaceLine(wristband));
+  if(lineup.some(entry=>entry.wristband===wristband)) throw new Refusal(409,alreadyInRaceLine(wristband));
   const reason=requireFinalChange(race.final!,sent,false),added=addedToFinal(old);
   const [joining]=await annotateRunners(client,phone.dayId,target.event,[{id:added?finalEntryId:randomUUID(),wristband}],kept,raceId,[],true);
   const runners=[...previous.filter(runner=>runner.id!==finalEntryId),joining];
