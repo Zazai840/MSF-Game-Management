@@ -53,7 +53,7 @@ A race of an event that is not its final, formed at the start line from whoever 
 _Avoid_: Qualifier, preliminary
 
 **Final**:
-The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats, and its start line can add runners to a free place (an Added runner) or replace one (a Replaced runner). Only a lead makes it, after confirming that every heat has run; making it completes the heats, so no more heats can be added (a final made too early is undone by reopening the heats in Results).
+The single deciding race of an event that has heats, unless a zone lead calls results without a final. It starts with the 6 qualifiers from the heats. Until it starts, its start line can fill a free place with a call-up, an Added runner or an Added team, and can give a finalist's place to another child (a Replaced runner); each change but a call-up asks for a Reason. Once it is saved, only a lead changes who ran, with Correct runner list or Correct teams and a comment; a child added that way reads "Added at the finish". Only a lead makes it, after confirming that every heat has run; making it completes the heats, so no more heats can be added (a final made too early is undone by reopening the heats in Results).
 _Avoid_: Final heat, medal race
 
 **Finals line-up**:
@@ -65,24 +65,28 @@ A zone lead's call, on an event with heats, to award its medals to the 3 fastest
 _Avoid_: Skip final, cancel final, no final, heat-time medals
 
 **Absent finalist**:
-A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and the Start line or a lead can call up a replacement. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final; a finalist the finish line adds counts as Here. A relay team is Absent as a whole.
+A child (or relay team) in a final's line-up who is not at the start line when the final is checked in. They keep their heat result but get no final place, and the Start line or a lead can fill the place with a call-up, an Added runner or an Added team. A final's check-in starts with every finalist unmarked; each is marked Here or Absent, and That's everyone asks before recording the unmarked absent. Only those Here run the final; an Added runner or Added team is Here at once, and one marked Absent (a wrong add) frees its place again, its audit note kept. A relay team is Absent as a whole.
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
-Bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist, while a place is free (an added runner or team can take it). Anyone signed in can do it: the Start line or a lead at the final's check-in ("Call up next fastest: 2011 (7th)"), or a lead on the Final tab. The entry called up is Here at once. Only the next-ranked entry can be called up; without a call-up the final runs short.
+Bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist, while a place is free: a finalist is Absent and fewer than 6 entries are not Absent. "Call up next fastest" shows only then. Anyone signed in can do it: the Start line or a lead at the final's check-in ("Call up next fastest: 2011 (7th)"), or a lead on the Final tab. The entry called up is Here at once. It needs no Reason. Only the next-ranked entry can be called up; without a call-up, an Added runner or an Added team, the final runs short.
 _Avoid_: Reserve, substitute, wildcard
 
 **Added runner**:
-A child put into a final's line-up at its start line with "+ Runner", in a free place: a finalist is Absent and fewer than 6 entries are not Absent (an entry not yet marked takes a place). Any wristband can be added, with a Reason. The Finals sheet of the export shows the child as "Added", and the audit notes say who added them and why. A tap on an Added runner corrects the number in place: one Added row, a note, and the wrong number is not on the Finals sheet.
+A child put into a final at its start line with "+ Runner" while a place is free: a finalist is Absent and fewer than 6 entries are not Absent (an entry not yet marked takes a place). Any wristband number can be added, with a Reason, until the final starts. The child is Here at once, last in the list with no seed, and the Finals sheet of the Day export shows "Added". A tap on an Added runner corrects the number in place: still one Added row, with an audit note such as "corrected 2050 to 2052 (Final) - Wrong number". A child a lead adds to a saved final with Correct runner list is not an Added runner: it reads "Added at the finish".
+_Avoid_: Extra runner, late entry, guest runner
 
 **Added team**:
-A relay team put into a final's line-up at its start line with "+ Team", in a free place (the same rule as an Added runner), with a Reason. The Finals sheet shows its children as "Added".
+A relay team put into a final at its start line with "+ Team" while a place is free (the same rule as an Added runner), with a Reason, until the final starts. The volunteer types one child's wristband number: the relay's team that holds it joins whole, and a number in no team opens the new team view, whose team then joins. The team is Here at once, and the Finals sheet shows its four children as "Added". A team a lead adds to a saved final with Correct teams is not an Added team.
+_Avoid_: Extra team, late team
 
 **Replaced runner**:
-A qualified finalist whose place at a final's start line is taken by another child, by a tap on the finalist. The old runner stays in the export as "Absent; Qualifier" and the new one is Added; a Reason is needed and no free place is. A relay team's leg is replaced the same way, by a tap on the leg chip.
+A qualified finalist, Here or not marked, whose place at an individual final's start line goes to another child: a tap on the finalist, the new wristband number, then a Reason. No free place is needed. The finalist stays in the list as Absent ("Absent; Qualifier" on the Finals sheet) and the new child is an Added runner. On a relay final a tap on one leg replaces that child only, also with a Reason: the team stays a Qualifier, and the Finals sheet shows the new wristband number with the heat's in "Original heat wristband".
+_Avoid_: Swapped runner, substituted runner
 
 **Reason**:
-Why a final's line-up changed, tapped at the start line from a short list (Other needs a few words; Wrong number is only for correcting a number). It goes into the audit notes and the export "Note" column. A call-up has no Reason: the next-ranked entry comes in without one.
+Why a final's runners or teams were changed by hand, chosen with one tap under "Why the change?": Did not want to run, Hurt, Not found, Wrong number or Other, with words under "More (optional)" that Other needs. It is asked for each Added runner, Added team and Replaced runner (a relay leg too) at the start line, and for a lead's Correct number on a final; Wrong number is offered only on a replace and on Correct number, not on an add. The Reason ends the change's audit note ("replaced 2006 with 2051 (Final) - Hurt"), so it shows in the runner's Notes, the event's Notes tab, the Day export's Note column and its Audit notes sheet. A call-up and every change on a heat have none. It is not a disqualification's reason.
+_Avoid_: Justification, excuse
 
 **Check-in**:
 Recording, at the start line and before the whistle, which children or relay teams are running in a race. On a relay heat, anyone on the start line puts in the teams that run; every child of a team in the heat is checked in, with no Here per child.
@@ -157,7 +161,7 @@ A time the time box does not take, because it cannot be a time for the race: sec
 _Avoid_: Rejected time, impossible time
 
 **Audit note**:
-A record kept against an event of something the zone lead did to its results, such as settling a tie or a disqualification: what, who, when, and any comment.
+A record kept against an event of a change to its results or to a final's runners, such as a lead settling a tie or a disqualification, or a call-up, add or replace at a final's start line: what, who, when, and any comment (on an add or replace, its Reason).
 _Avoid_: Log entry, comment, history
 
 **Warning**:

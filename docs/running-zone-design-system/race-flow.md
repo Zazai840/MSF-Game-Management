@@ -258,7 +258,7 @@ Relays run in the race flow like Races and Hurdles: a step per role, each step m
 
 A heat usually has 6 runners (6 lanes, and the 60m final takes the fastest 6). Warn, don't block.
 
-- **Scope:** only Races-type events (60m, 200m, 400m), heats only. Hurdles and Relays don't show it, though hurdles share the Races tab.
+- **Scope:** heats of Races-type events (60m, 200m, 400m) only. Hurdles, Relays and finals don't show it, though hurdles share the Races tab.
 - **Setting:** `usualRunnersPerRace`, default **6**, configurable per event in Day setup if that already supports per-event settings. Otherwise use a constant.
 - **Trigger:**
   - On the start line, when the runner count reaches the usual number (the 6th wristband is added).
@@ -270,7 +270,7 @@ A heat usually has 6 runners (6 lanes, and the 60m final takes the fastest 6). W
 - **After the warning:** the prompt meta keeps saying it in words ("Heat 5 · 7 runners · more than usual").
   - The lead view shows a StatusTag "More than usual" on the Runners tab.
   - It is **not** a lead issue and doesn't appear in Action required.
-- **Finals:** the final is created with the fastest 6. Its finish line has no "+ Runner not on the list", so no size callout shows on a final.
+- **Finals:** no size callout. A final is created with the fastest 6, and "+ Runner" and "+ Team" show only while a place is free, so its start line never goes above 6; its finish line has no "+ Runner not on the list".
 
 ## New components
 
@@ -349,7 +349,7 @@ Ship each milestone behind the existing app; each one is usable on its own.
 - **Each role on a phone (390 × 844)** can do their step on a 6-runner and a 12-runner heat without scrolling past the footer, and every target is at least 44px.
 - **Two volunteers at once:** a finish-line phone and a timer phone work on the same heat at the same time. Both saves land, and the lead's Times tab shows wristband + time joined by place.
 - **Accessibility:** the WCAG checks in [accessibility.md](accessibility.md) pass on every new component. In particular, every HeatChip and StepStrip state is readable in words without colour.
-- **Soft warning:** shows once at the 6th runner on a Races-type event, never on Hurdles, and never blocks. It reappears for a 7th runner added at the finish line only if it hasn't been shown to that person on that race.
+- **Soft warning:** shows once at the 6th runner on a Races-type heat, never on Hurdles, and never blocks. It reappears for a 7th runner added at the finish line only if it hasn't been shown to that person on that race.
 - **Undo:** each step's save can be undone from the toast. It restores exactly the person's own change and leaves no orphaned data. If someone else edited the same step in between, the toast offers "Open race" instead, and nothing is undone.
 
 ## Decisions already made
