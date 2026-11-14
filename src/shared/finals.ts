@@ -35,8 +35,10 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
   const race=state.races.find(race=>race.kind==='final'&&!race.deleted);
   if(!race?.final) return null;
   const used=new Set(race.final.entries.map(entry=>`${entry.heatRaceId}:${entry.heatEntryId}`));
-  const active=race.final.entries.filter(entry=>!entry.absent);
-  const vacancy=race.runners.length>=6?null:race.final.entries.find(entry=>entry.absent && !active.some(other=>other.seed===entry.seed))??null;
+  // A seed is held by a seeded or called-up finalist not Absent, or by a runner not Absent who replaced one with that seed.
+  const replaced=(race.final.additionalEntries||[]).filter(entry=>!entry.absent).map(entry=>race.final!.entries.find(other=>other.finalEntryId===entry.replacesEntryId));
+  const held=new Set([...race.final.entries.filter(entry=>!entry.absent),...replaced].map(entry=>entry?.seed));
+  const vacancy=race.runners.length>=6?null:race.final.entries.find(entry=>entry.absent && !held.has(entry.seed))??null;
   const nextCallUp=heats.find(row=>row.position!==null && !used.has(`${row.raceId}:${row.entryId}`) && !race.runners.some(runner=>resultHolder(resultEntry(race,runner))===resultHolder(row)))??null;
   const started=race.final.hasRun || !!(race.finish?.order.length || race.finish?.didNotFinish.length) || [...race.final.entries,...race.final.additionalEntries||[]].some(entry=>entry.absent || entry.wasHere)
     || race.runners.some(runner=>isTeamEntry(runner) && runner.legs.some(leg=>leg.here));
