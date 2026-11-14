@@ -1,4 +1,4 @@
-import {eventTab,expect,flowPost,live,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,recordRace,test,type Page} from './fixtures.js';
+import {eventTab,expect,flowPost,live,lookProblems,ownCode,ownEvent,ownName,ownWristbands,press,pullToRefresh,recordRace,test,type Page} from './fixtures.js';
 const attendance=(page:Page)=>page.getByRole('list',{name:'Who is here'}).getByRole('listitem');
 const mark=(page:Page,wristband:number,which:'Here'|'Absent')=>page.getByRole('button',{name:`${wristband}: ${which}`,exact:true});
 const plusRunner=(page:Page)=>page.getByRole('button',{name:'+ Runner',exact:true});
@@ -56,4 +56,31 @@ test('"+ Runner" at an individual final\'s start line: shown while a place is fr
  await expect(lead.page.locator('main').getByRole('button',{name:/\+ Runner|Add a runner/})).toHaveCount(0);
  await eventTab(lead.page,'Notes');
  await expect(lead.page.getByRole('list',{name:'Audit notes'})).toContainText('added 7050 to the Final - Not found');
+});
+
+test('"Call up next fastest" hides once "+ Runner" fills the free place, the other finalists not marked: at the start line and on the lead\'s Final tab',async({openPhone,request},info)=>{
+ const code=await ownCode(),name=ownName('Call up hides'),n=await ownWristbands('Boy Cubs',8);
+ await ownEvent(request,code,name,'Boy Cubs');
+ // 11 to 16 are the six fastest; 17 is 7th.
+ for(const [runners,times] of [[[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]],[[n(17)],[1500]]]) await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,runners,times);
+ const sam=await openPhone(ownName('Sam call up hides')),lead=await openPhone(ownName('Lena call up hides'),{lead:true}),page=sam.page;
+ const callUp=(page:Page)=>page.getByRole('button',{name:/^Call up next fastest/});
+ const finalId=(await flowPost(request,lead.token,'/api/races',{eventCode:code,kind:'final'})).race.id;
+ await page.goto(`/races/${finalId}`);
+ // One Absent, the rest not marked: a place is free.
+ await press(mark(page,n(12),'Absent'));
+ await expect(callUp(page)).toHaveText(`Call up next fastest: ${n(17)} (7th)`);
+ await lead.page.goto(`/results/${code}`);await eventTab(lead.page,'Final');
+ await expect(callUp(lead.page)).toBeVisible();
+ // "+ Runner" fills it: neither the call-up nor "+ Runner" shows, here or on the lead's Final tab.
+ await press(plusRunner(page));
+ await page.getByLabel('Wristband number',{exact:true}).fill(String(n(18)));
+ await press(page.getByRole('button',{name:'Add runner',exact:true}));
+ const why=page.getByRole('dialog',{name:'Why the change?',exact:true});
+ await press(why.getByRole('button',{name:'Not found',exact:true}));await press(why.getByRole('button',{name:'Save',exact:true}));
+ await expect(mark(page,n(18),'Here')).toHaveAttribute('aria-pressed','true');
+ await expect(callUp(page)).toHaveCount(0);await expect(plusRunner(page)).toHaveCount(0);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-call-up-hidden.png'),fullPage:true});
+ await pullToRefresh(lead.page);await expect(callUp(lead.page)).toHaveCount(0);
+ expect(await lookProblems(lead.page)).toEqual([]);
 });

@@ -69,7 +69,7 @@ A child (or relay team) in a final's line-up who is not at the start line when t
 _Avoid_: Didn't run, no-show, scratched
 
 **Call-up**:
-Bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist. Anyone signed in can do it: the Start line or a lead at the final's check-in ("Call up next fastest: 2011 (7th)"), or a lead on the Final tab. The entry called up is Here at once. Only the next-ranked entry can be called up; without a call-up the final runs short.
+Bringing the next-ranked heat runner or relay team (7th, then 8th) into a final in place of an absent finalist, while a place is free (an added runner or team can take it). Anyone signed in can do it: the Start line or a lead at the final's check-in ("Call up next fastest: 2011 (7th)"), or a lead on the Final tab. The entry called up is Here at once. Only the next-ranked entry can be called up; without a call-up the final runs short.
 _Avoid_: Reserve, substitute, wildcard
 
 **Check-in**:
