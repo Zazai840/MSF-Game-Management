@@ -57,6 +57,13 @@ test('"+ Runner" adds any wristband to a final with a free place, Here and Added
   expect((await ok<EventResultsRead>(await call(owner,'/api/lead/events/R4/results'))).auditNotes.slice(0,2).map(note=>note.message)).toEqual(['Sam added 2007 to the Final - Other - Zone lead sent them',line]);
 });
 
+test('the finish line adds no runner to a final',async()=>{
+  const {sam,read}=await final();
+  const seen=await read();
+  const sent=await call(sam,`/api/races/${seen.race.id}/order`,{raceId:seen.race.id,version:seen.race.parts.finish.version,order:[],didNotFinish:[],didNotRun:[],added:[2050],keptWarnings:[]});
+  expect(sent.statusCode).toBe(409);expect(sent.json().message).toBe('Add a runner to the Final at the start line');
+});
+
 test('a place counts finalists not marked yet: one Absent and the rest unmarked frees one place, which one add fills',async()=>{
   const {sam,read}=await final();
   let seen=await ok(await attend(sam,await read(),[2001],[2002]));

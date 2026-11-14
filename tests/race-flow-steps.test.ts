@@ -348,17 +348,6 @@ test('a heat has no replace: its start line changes a number with no reason',asy
   expect((await call(sam,`/api/races/${read.race.id}/replace`,{raceId:read.race.id,version:checked.race.parts.runners.version,finalEntryId:idOf(checked,2001),wristband:2002,keptWarnings:[],reason:{reason:'Hurt',text:null}})).json().message).toBe('Only a final has a replace');
   expect(wristbands(await ok(await checkIn(sam,checked,[{id:idOf(checked,2001),wristband:2002}])))).toEqual([2002]);
 });
-test('a finalist the finish line adds counts as Here: their own line-up entry joins the final, not a second runner',async()=>{
-  const {sam,priya,read}=await final();
-  // 2003 was never marked at the start line, and 2002 was marked Absent by mistake.
-  const checked=await ok(await attend(sam,await read(),[2001,2004,2005,2006],[2002]));
-  const seeded=(wristband:number)=>checked.race.final!.entries.find(entry=>entry.wristband===wristband)!.finalEntryId;
-  const added=await ok(await order(priya,checked,{added:[2003,2002]}));
-  expect(added.race.final!.entries).toHaveLength(6);
-  expect(marks(added)).toEqual([[2001,'here'],[2002,'here'],[2003,'here'],[2004,'here'],[2005,'here'],[2006,'here']]);
-  expect([idOf(added,2003),idOf(added,2002)]).toEqual([seeded(2003),seeded(2002)]);
-  expect(added.race.parts.runners.value!.filter(isRunner).some(runner=>runner.addedAtFinish)).toBe(false);
-});
 test('a database an older build left, with its "Is everyone here?" confirm column, boots and still seeds the final',async()=>{
   const old=await openDatabase(process.env.TEST_DATABASE_URL!,true);
   // Made strict (no default) so a boot that keeps the column fails the final's insert, not just leaves clutter.

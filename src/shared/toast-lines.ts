@@ -11,7 +11,6 @@ export type ToastSave=
   |{kind:'deleted';race:ToastRace;forGood:boolean}
   |{kind:'disqualified';who:string;reason:string}
   |{kind:'counts-again'|'warning-checked'|'addition-checked'|'number-saved'|'result-counts'|'called-up';who:string}
-  |{kind:'team-added';team:number}
   |{kind:'reopened';stage:Stage}
   |{kind:'this-day';field:'Year'|'Region'|'Day';value:string}
   |{kind:'lead-code';code:string}
@@ -36,7 +35,6 @@ export function toastLine(save:ToastSave):string {
     case 'number-saved': return `Number saved · ${save.who}`;
     case 'result-counts': return `Result counts · ${save.who}`;
     case 'called-up': return `${save.who} called up`;
-    case 'team-added': return `Team ${save.team} added`;
     case 'tie-saved': return 'Tie saved';
     // "+ Final" on Races completes heats, so every stage completed here confirms the medals.
     case 'stage-complete': return 'Medals confirmed';
