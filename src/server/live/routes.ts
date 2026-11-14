@@ -27,8 +27,11 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     const before=changesSoFar();
     let sent=await read();
     reply.hijack();
+    // A phone that gave up during that read has closed already, so the close listener below would never run: nothing to stream.
+    if(reply.raw.destroyed) return;
     // Railway's edge does not compress an event stream, so a phone that accepts gzip gets it gzipped here. Each write is
     // flushed at once (nothing waits in the compressor), and level 3 costs a tenth of level 6's CPU for a few KB more per frame.
+    // shortcut: `gzip;q=0` would count as accepted; no browser sends it.
     const raw=reply.raw,gzip=/\bgzip\b/.test(reply.request.headers['accept-encoding'] ?? '')?createGzip({level:3,flush:constants.Z_SYNC_FLUSH}):null;
     const out=gzip ?? raw;
     const ended=()=>out.writableEnded || out.destroyed || raw.destroyed;

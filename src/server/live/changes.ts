@@ -11,3 +11,5 @@ export function onDayChange(dayId:string,listener:()=>void) {
   changes.on(dayId,listener);
   return ()=>{changes.off(dayId,listener);};
 }
+/** How many streams listen to the day's changes: none once every stream has closed. */
+export const dayListeners=(dayId:string)=>changes.listenerCount(dayId);

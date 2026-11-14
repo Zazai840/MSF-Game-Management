@@ -22,6 +22,9 @@ test.each([['gzipped','gzip'],['plain',undefined]])('the races list stream, %s: 
   await live.until(text=>frames(text).length===1);
   const [first]=frames<Frame>(live.text());
   expect(first).not.toHaveProperty('from');
+  // A changes frame carries only revision and groups: a new top-level field of the races read would change only on a
+  // reconnect. Carry it in changesFrame (src/shared/live.ts) before adding it here.
+  expect(Object.keys(await list()).sort()).toEqual(['groups','revision']);
   expect(first).toMatchObject(await list());
 
   expect((await post(sam,'/api/races',{eventCode:'R4',kind:'heat',number:1})).statusCode).toBe(200);

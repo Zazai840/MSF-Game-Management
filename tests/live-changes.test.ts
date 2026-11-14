@@ -56,9 +56,9 @@ test('a changes frame with nothing held, or naming a group the phone does not ho
 function random(seed:number) {
   return ()=>{seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^(seed>>>15),1|seed);t=(t+Math.imul(t^(t>>>7),61|t))^t;return ((t^(t>>>14))>>>0)/4294967296;};
 }
-test('over random days with lost, repeated and reordered frames and write answers, a phone never holds a wrong list',()=>{
+test('over random days with lost, repeated and reordered frames, write answers and reconnects of both kinds, a phone never holds a wrong list',()=>{
   // How often each path ran over all the days, so a change to the model cannot quietly stop testing one.
-  let applied=0,reconnects=0;
+  let applied=0,reconnects=0,keptReconnects=0;
   for(let seed=1;seed<=400;seed++) {
     const next=random(seed),pick=<T>(items:T[])=>items[Math.floor(next()*items.length)];
     // The server: its list now and at every revision; values 0-2 so a group often goes back to how it was.
@@ -68,6 +68,7 @@ test('over random days with lost, repeated and reordered frames and write answer
     // The stream: what it was sent last, and its frames on their way (any may be lost, repeated or overtaken).
     const flight:object[]=[server];
     let sent=server,held:List|null=null;
+    // After a frame it cannot apply the phone lets go of its list; a new stream's first frame is the whole list now.
     const connect=()=>{reconnects++;held=null;sent=server;flight.push(server);};
     for(let step=0;step<120;step++) {
       const roll=next();
@@ -84,7 +85,7 @@ test('over random days with lost, repeated and reordered frames and write answer
         // The stream reads: changes made since its last read go out in one frame, as several changes during a read do.
         const frame=changesFrame(sent,server);
         if(frame) {sent=server;flight.push(frame);}
-      } else if(roll<0.85 && flight.length) {
+      } else if(roll<0.8 && flight.length) {
         const index=Math.floor(next()*flight.length),frame=flight[index];
         // Lost, repeated (kept to arrive again) or delivered, in any order.
         const fate=next();
@@ -98,6 +99,10 @@ test('over random days with lost, repeated and reordered frames and write answer
           held=afterFrame(held,flight.pop() as List) as List;
           expect(held).toEqual(server);
         } else {if(after!==held && 'from' in frame) applied++;held=after;}
+      } else if(roll>=0.8 && roll<0.85) {
+        // A planned end, a lost link, a hidden page or a signal change: a new stream, while the phone keeps its list and the
+        // old stream's frames may still arrive. Its whole list then goes through newest-wins like any other.
+        keptReconnects++;sent=server;flight.push(server);
       } else if(held) {
         // A write's answer: the whole list at some revision, maybe already overtaken.
         held=afterFrame(held,at.get(Math.max(1,server.revision-Math.floor(next()*3)))!) as List;
@@ -107,4 +112,5 @@ test('over random days with lost, repeated and reordered frames and write answer
   }
   expect(applied).toBeGreaterThan(800);
   expect(reconnects).toBeGreaterThan(500);
+  expect(keptReconnects).toBeGreaterThan(1500);
 });
