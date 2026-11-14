@@ -388,7 +388,7 @@ test('a saved race\'s To check problems are at the top of its race page, each ro
   await press(row(2001));await expect(page.getByRole('dialog',{name:'Runner 2001',exact:true})).toBeVisible();
 });
 
-test('a child who ran twice has Fix on the race page, which opens the screen to choose the counted result; a tie has Decide the tie, which opens the tie; neither has It\'s right',async({openPhone,request},info)=>{
+test('a child who ran twice is nothing to check on the race page, the faster result counting; a tie has Decide the tie, which opens the tie, and no It\'s right',async({openPhone,request},info)=>{
   test.setTimeout(60000);
   const twice=await ownCode(),tied=await ownCode(),token=process.env.E2E_OWNER_TOKEN!;
   // 2001 has a result in two races of one event.
@@ -401,17 +401,13 @@ test('a child who ran twice has Fix on the race page, which opens the screen to 
   created.push((await recordRace(request,token,tied,[2043],[1000])).id);
   const {page}=await openPhone(ownName('Fix targets lead'),{lead:true});
   await page.goto(`/results/${twice}/races/${second.id}`);
-  const ranTwice=page.getByRole('alert').filter({hasText:'A runner ran twice'});
-  await expect(ranTwice).toContainText('2001 has a result in more than one race of this event. Choose which result counts.');
-  await expect(ranTwice.getByRole('button')).toHaveText(['Fix']);
+  // 2001's faster run (12.00, in the first race) counts: this race's slower run is not counted, with nothing to check.
   const runner=page.getByRole('button',{name:'Runner 2001',exact:true});
-  await expect(runner).toContainText('Ran twice in this event');expect(await background(runner)).toBe(amber);
+  await expect(runner).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(runner).toContainText('Not counted: another run counts');await expect(runner).toContainText('2001 already ran in this event');
+  await expect(runner).not.toContainText('Checked');expect(await background(runner)).not.toBe(amber);
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('race-page-ran-twice.png'),fullPage:true});
-  await press(ranTwice.getByRole('button',{name:'Fix',exact:true}));
-  await expect(page).toHaveURL(new RegExp(`/results/${twice}/races/${second.id}/runners/[^/]+/choose-result$`));
-  await press(page.getByRole('button',{name:/^Heat 2 · /}));
-  await press(page.getByRole('button',{name:'Save counted result',exact:true}));await expectToast(page,'Result counts · 2001');
-  await expect(page).toHaveURL(new RegExp(`/results/${twice}/races/${second.id}$`));await expect(ranTwice).toHaveCount(0);
 
   await page.goto(`/results/${tied}/races/${first.id}`);
   const tie=page.getByRole('alert').filter({hasText:'Runners tied on time'});

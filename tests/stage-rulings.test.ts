@@ -61,14 +61,20 @@ test('permissions, missing comments and newly blocking recordings are rechecked 
   expect((await call(lead,path,{stage:'invalid'})).statusCode).toBe(400);
   expect((await call(lead,'/api/lead/events/R16/reopen-stage',{stage:'event',comment:' '})).statusCode).toBe(400);
 });
-test.each(['tie','ran-twice'] as const)('the server refuses completion while a %s remains',async kind=>{
+test('the server refuses completion while a tie remains',async()=>{
   const {lead,volunteer,setup}=await start();
-  const number=kind==='tie'?2003:2001;
-  await setup.record(volunteer,'R16',[number],[kind==='tie'?3000:3200],{keptWarnings:[number]});
+  await setup.record(volunteer,'R16',[2003],[3000],{keptWarnings:[2003]});
   const preview=(await call(lead,'/api/lead/events/R16/results')).json();
-  expect(preview.results.checkSheet.mustSettleFirst.some((item:any)=>item.kind===kind)).toBe(true);
+  expect(preview.results.checkSheet.mustSettleFirst.some((item:any)=>item.kind==='tie')).toBe(true);
   expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R16/results')).json().auditNotes).toEqual([]);
+});
+test('a child who ran in two races does not hold completion: the faster run counts with nothing to settle',async()=>{
+  const {lead,volunteer,setup}=await start();
+  await setup.record(volunteer,'R16',[2001],[3200],{keptWarnings:[2001]});
+  const preview=(await call(lead,'/api/lead/events/R16/results')).json();
+  expect(preview.results.checkSheet.mustSettleFirst).toEqual([]);
+  expect((await call(lead,'/api/lead/events/R16/complete-stage',{stage:'event'})).statusCode).toBe(200);
 });
 test('an open kept warning does not prevent completion, and leads can correct a locked race through rulings',async()=>{
   const {lead,volunteer,race}=await start();

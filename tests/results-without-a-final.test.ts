@@ -35,15 +35,13 @@ test('a tie for 3rd settled No run-off needed for qualifying comes back, and set
   expect(settled.noFinalCheckSheet?.mustSettleFirst).toEqual([]);
   expect(settled.noFinalCheckSheet?.creates.map(place=>place.wristband)).toEqual([2001,2011,2012]);
 });
-test('a heat in progress, a heat not ranked yet and a ran-twice row in the top 6 block it; open warnings are worth a look',()=>{
+test('a heat in progress and a heat not ranked yet block it, a child who ran in two heats does not; open warnings are worth a look',()=>{
   const open=heat(3,[]);open.saved=false;open.runners=[{id:'h3-1',wristband:2021}];open.finish=null;open.times=null;
   expect(eventResults({event,races:[heat(1,[900]),open]}).noFinalCheckSheet?.mustSettleFirst.map(item=>item.message)).toEqual(['Heat 3 is in progress (1 checked in) - finish its steps or delete it']);
   const untimed=heat(2,[1000]);untimed.times=null;
   expect(eventResults({event,races:[heat(1,[900]),untimed]}).noFinalCheckSheet?.mustSettleFirst).toMatchObject([{kind:'incomplete',raceId:'heat2'}]);
   const again=(time:number)=>{const race=heat(2,[time]);race.runners=[{id:'h2-1',wristband:2001}];return race;};
-  expect(eventResults({event,races:[heat(1,[900]),again(1000)]}).noFinalCheckSheet?.mustSettleFirst).toMatchObject([{kind:'ran-twice',raceId:'heat1'},{kind:'ran-twice',raceId:'heat2'}]);
-  // Seventh is still in the heats' band of 8, but outside the medals' band of 6.
-  expect(eventResults({event,races:[heat(1,[900,910,920,930,940,950]),again(1300)]}).noFinalCheckSheet?.mustSettleFirst).toMatchObject([{kind:'ran-twice',raceId:'heat1'}]);
+  expect(eventResults({event,races:[heat(1,[900]),again(1000)]}).noFinalCheckSheet?.mustSettleFirst).toEqual([]);
   const warned=heat(1,[900]);warned.runners=[{id:'h1-1',wristband:2001,warnings:[{kind:'wrong-section',message:'Wrong section',kept:true}]}];
   expect(eventResults({event,races:[warned]}).noFinalCheckSheet).toMatchObject({mustSettleFirst:[],worthALook:[{kind:'warning',raceId:'heat1',entryId:'h1-1'}]});
 });

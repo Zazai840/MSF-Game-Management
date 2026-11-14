@@ -26,14 +26,13 @@ import { finalTeam,markAbsentFinalists } from './final-field.js';
 import { publishPart } from './versions.js';
 /**
  * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
- * it: "Heat 1 has a time to check first". Which result counts for a child who ran twice is chosen in Results: no step.
+ * it: "Heat 1 has a time to check first".
  */
 async function finalReason(db:Database,dayId:string,code:string,own:readonly StoredRace[]):Promise<FinalReason|null> {
   const {results}=await readEventResults(db,dayId,code),item=results.heatsCheckSheet?.mustSettleFirst[0];
   if(!item) return null;
   const tied=results.ties.find(tie=>tie.id===item.tieId)?.entries??[],raceId=item.raceId??tied[0]!.raceId;
   const race=own.find(race=>race.id===raceId),name=race?raceName(race):'A heat';
-  if(item.kind==='ran-twice') return {raceId,...finalHold('ran-twice',resultName(results.leaderboard.find(row=>row.raceId===raceId && row.entryId===item.entryId)!))};
   if(item.kind==='tie') return {raceId,...tieHold(own.filter(race=>tied.some(entry=>entry.raceId===race.id)))};
   return {raceId,...finalHold(results.notRankedYet.find(pending=>pending.race.id===raceId)?.reasons[0],name)};
 }

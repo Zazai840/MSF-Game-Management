@@ -32,7 +32,7 @@ export function RaceProblems({items,rows,race,onOpen,onAccepted}:{items:readonly
   const fixOf=(item:DayLeadItem)=>{
     const {label,opens}=problemFix(item,race && {kind:race.kind,relay:race.event.relay}),code=item.event.code,raceId=item.raceId!;
     return {label,open:()=>onOpen(opens==='tie'?{kind:'tie',code,tieId:item.tieId!}:opens==='race-page'?{kind:'race-page',code,raceId}
-      :opens==='choose-result'?{kind:'runner',code,raceId,entryId:item.entryId!,screen:opens}:{kind:'correction',code,raceId,action:opens})};
+      :{kind:'correction',code,raceId,action:opens})};
   };
   const callout=(item:DayLeadItem)=>{const words=toCheckWording(item),{label,open}=fixOf(item);
     return <Callout key={item.id} message={<><span><strong>{words.title}.</strong> {words.explanation}</span>{itemTeams(item,rows).map(team=><span key={team} className="rz-callout__team">{team}</span>)}</>}

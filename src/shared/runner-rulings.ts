@@ -3,7 +3,7 @@ import type { RunnerRuling } from './rulings.js';
 import type { EventState,ResultFlag,ResultsRace,ResultWarning } from './results-rules.js';
 import { listed } from './to-check.js';
 import { clock } from './clock.js';
-/** Already-ran is settled by correcting, excluding or disqualifying, never Mark checked. */
+/** Already-ran settles itself: only one result counts (the fastest, unless a lead chose another). */
 export function isOpenEligibilityWarning(flag:ResultFlag):boolean {
   return flag.kind==='warning' && flag.warningKind!=='already-ran' && !flag.checked;
 }
@@ -21,22 +21,24 @@ const checker=(flag:ResultFlag)=>flag.checkedBy?`Checked by ${flag.checkedBy.nam
 export const warningFlags=(flags:readonly ResultFlag[])=>flags.filter(flag=>flag.kind!=='tie-settled');
 /** A flag as a lead reads it beside a name and in the Day export's Warning column: "Checked by Sam Patel: <message>", "Checked: <message>" with no name recorded, or the message alone. */
 export function flagText(flag:ResultFlag):string {
+  // Already-ran settles itself (only one result counts), so no lead checked it.
+  if(flag.warningKind==='already-ran') return flag.message;
   const by=checker(flag);
   return by?`${by}: ${flag.message}`:flag.message;
 }
 /**
  * How a flag was settled, as its line in a result's Notes says it: "Checked by Sam Patel · 10:42 - <note>", "Checked",
  * "Settled by disqualification" or "Not checked yet". An already-ran warning is never Mark checked: it reads
- * "Not settled yet: choose which result counts" until "Settled: only one result counts".
+ * "Settled: only one result counts".
  */
 export function signOffText(flag:ResultFlag):string {
   if(flag.settledByDisqualification) return 'Settled by disqualification';
-  if(flag.warningKind==='already-ran') return flag.checked?'Settled: only one result counts':'Not settled yet: choose which result counts';
+  if(flag.warningKind==='already-ran') return 'Settled: only one result counts';
   const by=checker(flag),{checkedBy}=flag;
   return !by?'Not checked yet':checkedBy?`${by} · ${clock(checkedBy.at)}${checkedBy.note?` - ${checkedBy.note}`:''}`:by;
 }
-export function runnerWarningFlags(runner:Runner,ruling:RunnerRuling|undefined,repeated:boolean):ResultFlag[] {
-  return (runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message,warningKind:warning.kind,...(warning.kind==='already-ran'?{checked:!repeated}:settled(warning,ruling))}));
+export function runnerWarningFlags(runner:Runner,ruling:RunnerRuling|undefined):ResultFlag[] {
+  return (runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message,warningKind:warning.kind,...(warning.kind==='already-ran'?{checked:true}:settled(warning,ruling))}));
 }
 /**
  * A relay team's warnings in one race: its children's kept wristband warnings, each child also on another relay's

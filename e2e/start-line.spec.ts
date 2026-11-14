@@ -210,7 +210,7 @@ test('after That\'s everyone a change keeps Runners done and its place, and taki
   await expect.poll(order).toEqual([2062,2003]);
   await deleteCurrentRace(request,code);
 });
-test('a volunteer fixes a number that is no wristband and keeps wrong-section and already-ran warnings, which reach the lead once the heat is saved',async({openPhone,request},info)=>{
+test('a volunteer fixes a number that is no wristband and keeps wrong-section and already-ran warnings; the wrong section reaches the lead once the heat is saved, already-ran needs nothing',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Warning sprint');
   await ownEvent(request,code,name);
   const token=process.env.E2E_OWNER_TOKEN!;
@@ -245,7 +245,8 @@ test('a volunteer fixes a number that is no wristband and keeps wrong-section an
   const issues=async()=>(await (await request.get('/api/lead/results',{headers:lead})).json()).needsYou.filter((item:{event:{code:string}})=>item.event.code===code).map((item:{wristband?:number})=>item.wristband);
   expect(await issues()).not.toContain(3045);
   await writeOrder(request,token,code,[2009,3045,2008]);await writeTimes(request,token,code,[1200,1300,1400]);await submitRace(request,token,code);
-  expect(await issues()).toEqual(expect.arrayContaining([3045,2008]));
+  // 2008's faster run counts on its own: only the wrong section is for the lead.
+  expect(await issues()).toEqual([3045]);
   await deleteCurrentRace(request,code);
 });
 test('the 6th runner brings the usual heat size note once; That\'s everyone saves Runners, back on Races with Undo',async({openPhone,request},info)=>{

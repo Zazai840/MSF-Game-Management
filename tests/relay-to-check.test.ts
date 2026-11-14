@@ -81,23 +81,21 @@ test('a team added at the finish is a To check item cleared by Mark addition che
   expect(await toCheck()).toEqual([]);
 });
 
-test('a time out of order, teams tied on time and a team ran twice are today\'s items worded with "team", and "already ran" never applies to a relay',()=>{
+test('a time out of order and teams tied on time are today\'s items worded with "team"; a team in two heats is none, and "already ran" never applies to a relay',()=>{
   const at='2026-10-23T10:00:00Z',event={id:'r22',code:'R22',name:'4x50m Relay',section:'Girl Cubs' as const,format:'heats' as const,enabled:true,type:'relays' as const,relay:true};
   const team=(id:string,number:number):TeamEntry=>({id,team:{id:`team-${number}`,number},legs:[1,2,3,4].map(leg=>({wristband:2000+number*100+leg,warnings:[],here:true}))});
   const heat=(id:string,number:number,entries:TeamEntry[],places:number[]):ResultsRace=>({id,kind:'heat',number,checkedInAt:at,deleted:false,saved:true,runners:entries,finish:{order:entries.map(entry=>entry.id),didNotFinish:[]},times:{places,outOfOrder:places.some((time,index)=>index>0 && time<places[index-1])}});
   // Team 1 ran in both heats (a restored heat); Team 2 and Team 3 tie on 35.00; Heat 3's times are out of order.
   const races=[heat('h1',1,[team('a',1),team('b',2)],[3400,3500]),heat('h2',2,[team('c',1),team('d',3)],[3450,3500]),heat('h3',3,[team('e',4),team('f',5)],[3700,3600])];
   const items=eventResults({event,races}).needsYou.map(item=>({kind:item.kind,...toCheckWording({...item,event})}));
-  expect(items.map(item=>item.kind).sort()).toEqual(['ran-twice','ran-twice','tie','times-out-of-order']);
-  expect(items.find(item=>item.kind==='ran-twice')).toMatchObject({title:'A team ran twice',explanation:'Team 1 has a result in more than one race of this event. Choose which result counts.'});
+  expect(items.map(item=>item.kind).sort()).toEqual(['tie','times-out-of-order']);
   expect(items.find(item=>item.kind==='tie')).toMatchObject({title:'Teams tied on time',explanation:'Team 2 and Team 3 both have 35.00. Decide whether a run-off is needed.'});
   expect(items.find(item=>item.kind==='times-out-of-order')).toMatchObject({title:'A time looks wrong',explanation:'2nd place (36.00) is faster than 1st (37.00). The timer kept it as typed.'});
   // A race page and its event list each team an item is about with its four children: both tied teams, or the one team a race entry names.
   const {needsYou,actionableRunners:rows}=eventResults({event,races});
   expect(itemTeams(needsYou.find(item=>item.kind==='tie')!,rows)).toEqual(['Team 2 · 2201 · 2202 · 2203 · 2204','Team 3 · 2301 · 2302 · 2303 · 2304']);
-  const twice=needsYou.find(item=>item.kind==='ran-twice' && item.raceId==='h2')!;
-  expect(itemTeams(twice,rows)).toEqual(['Team 1 · 2101 · 2102 · 2103 · 2104']);
-  expect(itemTeams(twice,[])).toEqual([]);
+  // Team 1's faster run (Heat 1) counts; its Heat 2 run is not counted.
+  expect(rows.filter(row=>row.team?.number===1).map(row=>[row.raceId,row.status])).toEqual([['h1','Finished'],['h2','Not counted']]);
 });
 
 test('a child in two relays\' teams is a To check item on the team that ran, kept or not, cleared by fixing the team or Mark checked',async()=>{

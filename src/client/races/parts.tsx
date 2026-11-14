@@ -116,7 +116,7 @@ export function HeatChips({races,role,current,onRace,onAdd,onFinal,finalReason,f
 }
 /**
  * Why a lead's final would be refused, beside "+ Final" and under New race's greyed Final. Tapping it opens what it is
- * about: that race on its step, or Results on the event when no step fixes it (a runner who ran twice).
+ * about: that race on its step, or Results on the event when no step fixes it.
  */
 export function FinalReasonButton({group,onRace,onResults}:{group:Pick<RaceGroup,'event'|'finalReason'>;onRace:(id:string,step:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
   const reason=group.finalReason!;

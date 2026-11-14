@@ -39,16 +39,27 @@ test('every incomplete recording stays out of the leaderboard, while deleted rac
     ['heat1',['checked in']],['heat2',['awaiting finishing order']],['heat3',['awaiting times']],['heat4',['times out of order']],['heat5',["finishers and times don't agree"]]
   ]);
 });
-test('kept warnings retain their own words, added runners are flagged and a number ranks in both active races with ran-twice flags',()=>{
+test('kept warnings retain their own words and added runners are flagged; a number in two active races counts its faster time, the other run not counted, with nothing for the lead to check',()=>{
   const first=race('heat1',[3045,2001],[1200,1300]);
   first.runners=[{...first.runners[0],warnings:[{kind:'wrong-section',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',kept:true}]},{...first.runners[1],addedAtFinish:true}];
   const second=race('heat2',[3045],[1250]);
   const deleted=race('heat3',[2001],[1100]);deleted.deleted=true;
   const results=eventResults({event,races:[first,second,deleted]});
-  expect(results.leaderboard.filter(row=>row.wristband===3045)).toHaveLength(2);
-  expect(results.leaderboard[0].flags).toEqual([{kind:'warning',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',warningKind:'wrong-section',checked:false},{kind:'ran-twice',message:'Ran twice in this event'}]);
-  expect(results.leaderboard[1].flags).toEqual([{kind:'ran-twice',message:'Ran twice in this event'}]);
-  expect(results.leaderboard[2].flags).toEqual([{kind:'added-at-finish',message:'Added at the finish'}]);
+  expect(results.leaderboard.map(row=>[row.wristband,row.raceId,row.status,row.position])).toEqual([[3045,'heat1','Finished',1],[2001,'heat1','Finished',2],[3045,'heat2','Not counted',null]]);
+  expect(results.leaderboard[0].flags).toEqual([{kind:'warning',message:'3045 belongs to Boy Scouts - this race is Girl Cubs',warningKind:'wrong-section',checked:false}]);
+  expect(results.leaderboard[1].flags).toEqual([{kind:'added-at-finish',message:'Added at the finish'}]);
+  expect(results.leaderboard[2]).toMatchObject({notCounted:true,time:1250,flags:[]});
+  expect(results.needsYou.map(item=>item.kind).sort()).toEqual(['added-at-finish','warning']);
+});
+test('a child in two heats: the faster time counts wherever it ran, a finish beats Did not finish, the earlier heat counts when neither finished, and a lead\'s choice wins',()=>{
+  const counted=(races:ResultsRace[],rulings=[] as Parameters<typeof eventResults>[0]['rulings'])=>eventResults({event,races,rulings}).leaderboard.filter(row=>row.wristband===2001).map(row=>[row.raceId,row.status]);
+  const later=(id:string,numbers:number[],times:Array<number|null>)=>({...race(id,numbers,times),checkedInAt:'2026-10-12T11:00:00Z'});
+  expect(counted([race('heat1',[2001],[1300]),later('heat2',[2001],[1200])])).toEqual([['heat2','Finished'],['heat1','Not counted']]);
+  expect(counted([race('heat1',[2001],[null]),later('heat2',[2001],[1400])])).toEqual([['heat2','Finished'],['heat1','Not counted']]);
+  expect(counted([later('heat2',[2001],[null]),race('heat1',[2001],[null])])).toEqual([['heat1','Did not finish'],['heat2','Not counted']]);
+  expect(counted([race('heat1',[2001],[1200]),later('heat2',[2001],[1200])])).toEqual([['heat1','Finished'],['heat2','Not counted']]);
+  // A lead who counted the slower run keeps it: the faster run stays not counted.
+  expect(counted([race('heat1',[2001],[1300]),later('heat2',[2001],[1200])],[{raceId:'heat2',entryId:'heat2-2001',disqualification:null,notCounted:true}])).toEqual([['heat1','Finished'],['heat2','Not counted']]);
 });
 
 test('disqualification moves runners over the qualifying line and lifting restores their places with a note tag',()=>{

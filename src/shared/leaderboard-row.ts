@@ -8,9 +8,8 @@ export const resultEntry=(race:Pick<ResultsRace,'id'>,entry:RaceEntry):ResultEnt
   ?{raceId:race.id,entryId:entry.id,wristband:null,team:{id:entry.team.id,number:entry.team.number,wristbands:entry.legs.map(leg=>leg.wristband)}}
   :{raceId:race.id,entryId:entry.id,wristband:entry.wristband};
 /** Shared identity and ruling facts; each ranking keeps its own places and status. */
-export function leaderboardRowFacts(state:EventState,race:ResultsRace,runner:RaceEntry,ruling:RunnerRuling|undefined,repeated=false):Omit<LeaderboardRow,'place'|'time'|'status'> {
-  const flags=isTeamEntry(runner)?teamWarningFlags(state,race,runner,ruling):runnerWarningFlags(runner,ruling,repeated);
-  if(repeated) flags.push({kind:'ran-twice',message:'Ran twice in this event'});
+export function leaderboardRowFacts(state:EventState,race:ResultsRace,runner:RaceEntry,ruling:RunnerRuling|undefined):Omit<LeaderboardRow,'place'|'time'|'status'> {
+  const flags=isTeamEntry(runner)?teamWarningFlags(state,race,runner,ruling):runnerWarningFlags(runner,ruling);
   if(runner.addedAtFinish) flags.push({kind:'added-at-finish',message:'Added at the finish',...(ruling?.addedAtFinishChecked?{checked:true,...(ruling.addedAtFinishCheckedBy?{checkedBy:ruling.addedAtFinishCheckedBy}:{})}:{})});
   const notes=resultAuditNotes(state,race.id,runner.id);
   return {...resultEntry(race,runner),race:{id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt},position:null,disqualification:ruling?.disqualification??null,notCounted:ruling?.notCounted??false,notes,hasNote:hasNotes({flags,notes}),highlighted:false,qualification:null,medalPlace:null,flags};

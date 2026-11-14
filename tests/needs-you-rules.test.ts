@@ -11,7 +11,7 @@ test('an unfinished race exposes its open eligibility warning and actionable run
   expect(disqualified.needsYou).toEqual([]);expect(disqualified.actionableRunners[0].flags[0].checked).toBe(true);
   expect(eventResults({event,races:[pending],rulings:[{raceId:'pending',entryId:'runner',disqualification:null}]}).needsYou).toHaveLength(1);
 });
-test('all five kinds use persisted newest-first facts, including pending duplicates and independently checked additions',()=>{
+test('all four kinds use persisted newest-first facts, a pending duplicate is no item, and additions are checked independently',()=>{
   const complete=(id:string,wristband:number,at:string):ResultsRace=>({id,number:2,kind:'race',deleted:false,saved:true,checkedInAt:at,leadTimes:{times:at},runners:[{id:`${id}-runner`,wristband}],finish:{order:[`${id}-runner`],didNotFinish:[]},times:{places:[1200],outOfOrder:false}});
   const warning={...pending,leadTimes:{runners:'2026-10-12T10:01:00Z'}};
   const added:ResultsRace={...pending,id:'added',checkedInAt:'2026-10-12T10:02:00Z',runners:[{id:'added-runner',wristband:2002,addedAtFinish:true}]};
@@ -20,7 +20,7 @@ test('all five kinds use persisted newest-first facts, including pending duplica
   const times:ResultsRace={...pending,id:'times',checkedInAt:'2026-10-12T10:04:00Z',runners:[],times:{places:[1300,1200],outOfOrder:true}};
   const races=[warning,added,duplicate,duplicate2,times,complete('tie1',2004,'2026-10-12T10:06:00Z'),complete('tie2',2005,'2026-10-12T10:07:00Z')];
   const result=eventResults({event,races});
-  expect(result.needsYou.map(item=>item.kind)).toEqual(['tie','times-out-of-order','ran-twice','ran-twice','added-at-finish','warning']);
+  expect(result.needsYou.map(item=>item.kind)).toEqual(['tie','times-out-of-order','added-at-finish','warning']);
   expect(result.needsYou[0]).toMatchObject({tieId:result.ties[0].id,at:'2026-10-12T10:07:00Z'});
   expect(result.needsYou.find(item=>item.kind==='added-at-finish')).toMatchObject({raceId:'added',entryId:'added-runner'});
   const checked=eventResults({event,races:[added,times],rulings:[{raceId:'added',entryId:'added-runner',disqualification:null,addedAtFinishChecked:true}]});
@@ -36,19 +36,19 @@ test('acknowledging an unrelated added runner does not move an older tie or warn
   expect(result.needsYou.map(item=>item.kind)).toEqual(['warning','tie','warning']);
   expect(result.needsYou.map(item=>[item.raceId,item.at])).toEqual([['new-warning','2026-10-12T10:02:00Z'],[undefined,'2026-10-12T10:00:00Z'],['older','2026-10-12T10:00:00Z']]);
 });
-test('final progression never becomes a ran-twice item even while two preliminary copies are still open',()=>{
+test('a child in two heats is nothing to check: the earlier heat counts while neither is recorded, and the final\'s run is never not counted',()=>{
   const first={...pending,id:'first',runners:[{id:'first-runner',wristband:2001}]};
   const second={...first,id:'second',runners:[{id:'second-runner',wristband:2001}]};
   const final={...first,id:'final',kind:'final' as const,runners:[{id:'final-runner',wristband:2001}]};
   const result=eventResults({event:{...event,format:'heats'},races:[first,second,final]});
-  expect(result.needsYou.filter(item=>item.kind==='ran-twice').map(item=>item.raceId)).toEqual(['first','second']);
-  expect(result.actionableRunners.find(row=>row.raceId==='final')?.flags).toEqual([]);
+  expect(result.needsYou).toEqual([]);
+  expect(result.actionableRunners.map(row=>[row.raceId,row.status,row.flags])).toEqual([['first','Pending',[]],['second','Not counted',[]],['final','Pending',[]]]);
 });
 test('excluded unfinished duplicate choices remain explicitly unrecorded rather than looking like Did not finish',()=>{
   const result=eventResults({event,races:[pending],rulings:[{raceId:'pending',entryId:'runner',disqualification:null,notCounted:true}]});
   expect(result.actionableRunners[0]).toMatchObject({status:'Not counted',recordingPending:true});
 });
-test('a race still in progress puts nothing on To check, and its runners do not make a saved one ran twice',()=>{
+test('a race still in progress puts nothing on To check, and its runners do not make a saved one not counted',()=>{
   const saved={...pending,id:'saved',runners:[{id:'saved-runner',wristband:2001}]};
   const running:ResultsRace={...pending,id:'running',saved:false,runners:[{id:'running-runner',wristband:2001},...pending.runners]};
   expect(eventResults({event,races:[saved,running]}).needsYou).toEqual([]);
