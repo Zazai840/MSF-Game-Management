@@ -174,6 +174,7 @@ export function finalHold(kind:'ran-twice'|NotRankedReason|undefined,name:string
 export interface RaceGroup { event:DayEvent; races:RaceSummary[]; nextHeat:number; finalAvailable:boolean; finalReason:FinalReason|null; heatsOpen:boolean; medalsDecided:boolean;
   medalsWaiting:{stage:'final'|'event';since:string}|null }
 /** The races list, versioned by the day revision: every switched-on event, in programme order. */
+// No `from` field here or in RaceFlowRead: it marks a live changes frame (src/shared/live.ts, afterFrame).
 export interface RacesRead { revision:number; groups:RaceGroup[] }
 /**
  * One race in the flow, with its group (for the heat chips) and its steps. A relay's race also carries its relay's teams

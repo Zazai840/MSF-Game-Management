@@ -4,7 +4,7 @@ import type { DayLeadItem,ResultsRead,ResultsTarget } from '../../shared/lead-re
 import { cardProblems,finalMade,groupStatus,leadCardLine,leadSections,medalsToConfirm,raceSections,volunteerFinalLine,type RaceGroup,type RacesRead,type Role,type Step } from '../../shared/race-flow.js';
 import { api,homeTabOf,StaleRequest,type HomeTab } from '../api.js';
 import { failureLine } from '../../shared/request-failure.js';
-import { useLive } from '../live.js';
+import { racesLive,useLive } from '../live.js';
 import { Callout,CodeTag,FinalReasonButton,FinalSheet,HeatChips,Icon,Opening } from './parts.js';
 import { SlidingTabs } from './SlidingTabs.js';
 import { UpdatedAt } from './UpdatedAt.js';
@@ -37,7 +37,7 @@ function useLeadItems(on:boolean) {
 export function RacesHome({tab,onTab,role,gone,onRace,onResults}:{tab:HomeTab;onTab:(tab:HomeTab)=>void;role:Role;gone:string;
   onRace:(id:string,step?:Step)=>void;onResults:(target:ResultsTarget)=>void}) {
   // Races seen before opens at once with what it showed last; the stream then brings it up to date.
-  const {snapshot,arrived,error,refresh}=useLive<RacesRead>('live/races',{remember:true});
+  const {snapshot,arrived,error,refresh}=useLive<RacesRead>(racesLive,{remember:true});
   const [creating,setCreating]=useState<NewRaceChoice|null>(null);
   // The event code whose final a lead is asked to confirm; the sheet reads its group live.
   const [confirming,setConfirming]=useState<string|null>(null);

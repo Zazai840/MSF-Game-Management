@@ -3,7 +3,7 @@ import { linkLine,linkNext,linkStart,type Link,type LinkEvent } from '../src/cli
 const run=(link:Link,...events:LinkEvent[])=>events.reduce((at,event)=>linkNext(at.link,event),{link,reconnect:null as number|null,drop:false});
 const lost:LinkEvent={type:'lost',held:true};
 test('a live link starts connecting, or paused while the page is hidden',()=>{
-  expect(linkStart(false)).toEqual({state:'connecting',failures:0,note:null});
+  expect(linkStart(false)).toEqual({state:'connecting',failures:0,note:null,gapped:false});
   expect(linkStart(true).state).toBe('paused');
 });
 test('a lost link retries after 1 s, doubling up to 30 s, and a newer snapshot starts the count again',()=>{
@@ -12,7 +12,7 @@ test('a lost link retries after 1 s, doubling up to 30 s, and a newer snapshot s
   for(let i=0;i<7;i++) {const next=linkNext(link,lost);link=next.link;waits.push(next.reconnect);expect(link.state).toBe('retrying');}
   expect(waits).toEqual([1000,2000,4000,8000,16000,30000,30000]);
   link=run(link,{type:'retry'},{type:'opened'},{type:'fresh'}).link;
-  expect(link).toEqual({state:'live',failures:0,note:null});
+  expect(link).toEqual({state:'live',failures:0,note:null,gapped:false});
   expect(linkNext(link,lost).reconnect).toBe(1000);
 });
 test('a lost link says so, in words that depend on whether a snapshot is held, until it opens again; silence retries without a word',()=>{
@@ -27,7 +27,7 @@ test('a lost link says so, in words that depend on whether a snapshot is held, u
 });
 test('a planned end connects again at once and counts as no failure',()=>{
   const ended=run(linkStart(false),{type:'opened'},{type:'ended'});
-  expect(ended).toEqual({link:{state:'connecting',failures:0,note:null},reconnect:0,drop:false});
+  expect(ended).toEqual({link:{state:'connecting',failures:0,note:null,gapped:false},reconnect:0,drop:false});
 });
 test('a refusal stops the link with its reason; one with no line (the phone is already sent to sign in) keeps the note it had',()=>{
   const refused=linkNext(linkStart(false),{type:'refused',line:'A lead deleted Heat 2'});
@@ -48,4 +48,24 @@ test('a hidden page drops the stream and waits; shown again it connects at once,
 });
 test('the signal going or coming back drops the stream and starts again at once',()=>{
   expect(run(linkStart(false),{type:'opened'},{type:'restart'})).toMatchObject({link:{state:'connecting'},reconnect:0,drop:true});
+});
+test('a frame that cannot be applied reconnects at once; another before a changes frame applies backs off as a failure, and the whole list between does not reset it',()=>{
+  const gap:LinkEvent={type:'gap'};
+  const first=run(linkStart(false),{type:'opened'},{type:'fresh'},gap);
+  expect(first).toMatchObject({link:{state:'connecting',failures:0},reconnect:0,drop:true});
+  // Each reconnect brings the whole list, then the server sends another frame the phone cannot apply: a server fault, so wait longer each time.
+  let link=first.link;const waits=[];
+  for(let i=0;i<3;i++) {const next=run(link,{type:'opened'},{type:'fresh'},gap);expect(next).toMatchObject({link:{state:'retrying'},drop:true});waits.push(next.reconnect);link=run(next.link,{type:'retry'}).link;}
+  expect(waits).toEqual([1000,2000,4000]);
+  expect(linkLine(link)).toBe('');
+  // A changes frame applied ends it: the next frame that cannot be applied reconnects at once again.
+  expect(run(link,{type:'opened'},{type:'applied'},gap)).toMatchObject({link:{state:'connecting',failures:0},reconnect:0,drop:true});
+});
+test('a frame that could not be applied lengthens no later wait: once the link is lost, silent, ended, hidden or restarted, the whole list counts as newer again',()=>{
+  const gapped=run(linkStart(false),{type:'opened'},{type:'fresh'},{type:'gap'},{type:'opened'},{type:'fresh'}).link;
+  expect(run(gapped,lost,{type:'retry'},{type:'opened'},{type:'fresh'},lost).reconnect).toBe(1000);
+  expect(run(gapped,{type:'silent'},{type:'retry'},{type:'opened'},{type:'fresh'},lost).reconnect).toBe(1000);
+  // After the others, a frame that cannot be applied is a first one again: it reconnects at once.
+  for(const events of [[{type:'ended'}],[{type:'restart'}],[{type:'hidden'},{type:'shown'}]] as LinkEvent[][])
+    expect(run(gapped,...events,{type:'opened'},{type:'fresh'},{type:'gap'}),events[0].type).toMatchObject({reconnect:0,drop:true});
 });
