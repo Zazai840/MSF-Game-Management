@@ -17,7 +17,7 @@ How to run and write this repo's tests so they agree with CI. Commands and scrip
 ## End-to-end tests
 
 - **Each run picks a free port and builds into its own folder**, so parallel worktrees run Playwright at once.
-- **Run the specs your change touches, on all three projects**: `npx playwright test e2e/<spec>.ts` runs iPhone, Android and desktop together. A string you changed may be asserted elsewhere: `grep -rl "<old words>" e2e` and run those specs too. CI runs the full suite on the PR, one job per project.
+- **Run the specs your change touches, on all three projects**: `npx playwright test e2e/<spec>.ts` runs iPhone, Android and desktop together. A string you changed may be asserted elsewhere: `grep -rl "<old words>" e2e` and run those specs too. CI runs the full suite on the PR, three jobs per project (`--shard`).
 - **Every spec shares one test day**, so each test owns what it creates:
   - names from `ownName('Words')` (adds the project and the `--repeat-each` pass). A join or sign-in that reuses another test's name fails at once, naming both tests.
   - event codes from `ownCode()`, events from `ownEvent`, relays from `ownRelay`, children from `ownWristbands`.
