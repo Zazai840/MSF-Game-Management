@@ -13,7 +13,8 @@ import { ordinal } from '../../shared/ordinal.js';
 import { raceName } from '../../shared/race-flow.js';
 import { resultNotes } from '../../shared/result-notes.js';
 import { placeText,resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
-import { disqualificationReasons,disqualifiedText } from '../../shared/rulings.js';
+import { disqualificationReasons,disqualifiedText,type ChangeReason } from '../../shared/rulings.js';
+import { ReasonSheet } from '../races/ReasonSheet.js';
 import { openRaceLabel } from '../../shared/races.js';
 import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { legRefusal,legWarnings } from '../../shared/teams.js';
@@ -140,12 +141,13 @@ function Lift({row,save,busy}:ScreenProps) {
 /**
  * Correct number: on a relay team, the lead first picks the child. The docked Save checks the number as check-in does
  * (a team's as the start line checks a leg's box): a refusal waits for Fix number, a warning for Fix number or Keep.
+ * On a final it then asks "Why the change?", as the start line's replace does; Cancel there saves nothing.
  */
 function CorrectNumber({event,row,save,busy}:ScreenProps) {
   const team=row.team,input=useRef<HTMLInputElement>(null);
   const [leg,setLeg]=useState<number|null>(team?null:0),[number,setNumber]=useState('');
   const [held,setHeld]=useState<{refusal:string|null;warnings:string[]}|null>(null);
-  const [checking,setChecking]=useState(false),[refused,setRefused]=useState<unknown>(null);
+  const [checking,setChecking]=useState(false),[refused,setRefused]=useState<unknown>(null),[asking,setAsking]=useState<{keep:boolean}|null>(null);
   const original=team?(leg===null?null:team.wristbands[leg]):row.wristband;
   async function warnings() {
     if(!team) return (await api<{warnings:Array<{kind:string;message:string}>}>('wristband-check',{eventCode:event.code,wristband:Number(number),raceId:row.raceId})).warnings
@@ -155,8 +157,10 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
     if(refusal) throw refusal;
     return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},read.relays||[],team.id,row.raceId).map(warning=>warning.message);
   }
-  async function send(keep:boolean) {
-    setHeld(null);setRefused(await save(runnerPath(row,'correct-number'),{expectedWristband:original,wristband:Number(number),keepWarnings:keep,...(team?{leg}:{})},{kind:'number-saved',who:number}));
+  async function send(keep:boolean,reason?:ChangeReason) {
+    setHeld(null);
+    if(row.race.kind==='final' && !reason) {setAsking({keep});return;}
+    setRefused(await save(runnerPath(row,'correct-number'),{expectedWristband:original,wristband:Number(number),keepWarnings:keep,reason,...(team?{leg}:{})},{kind:'number-saved',who:number}));
   }
   async function go() {
     setChecking(true);setRefused(null);input.current?.blur();
@@ -176,6 +180,7 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
         onKeyDown={key=>{if(key.key==='Enter' && !key.nativeEvent.isComposing) {key.preventDefault();if(!reason && !checking && !busy) void go();}}}/></div>}
     {held && <Callout message={held.refusal??held.warnings.join(' ')} actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix number</button>
       {!held.refusal && <button type="button" className="rz-btn" onClick={()=>void send(true)}>Keep</button>}</>}/>}
+    {asking && <ReasonSheet wrongNumber onClose={()=>setAsking(null)} onSave={reason=>{setAsking(null);void send(asking.keep,reason);}}/>}
   </Frame>;
 }
 function ChooseResult({row,rows,save,busy}:ScreenProps) {

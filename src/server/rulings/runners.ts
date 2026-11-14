@@ -12,8 +12,9 @@ import { correctTeam } from '../relays/teams.js';
 import { readEventResults } from '../results/read.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
 import { resultHolder,resultName } from '../../shared/results-rules.js';
-import { readRulings,reopenEntryChecks,rulingChange,writeAuditNote } from './records.js';
-import { rulingDetails } from './validation.js';
+import { readRulings,reopenEntryChecks,rulingChange,writeAuditNote,writeChangeNote } from './records.js';
+import { requireChangeReason,rulingDetails } from './validation.js';
+import { raceName } from '../../shared/race-flow.js';
 import type { Phone } from '../../shared/domain.js';
 import type { AuditNote,CheckedBy } from '../../shared/rulings.js';
 /** The lead's name and the check's time are snapshots, kept on the check itself so they never depend on an audit note's wording; `noteId` ties the check to its audit note. */
@@ -64,6 +65,10 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const {raceId,entryId}=request.params as {raceId:string;entryId:string};
       const race=await readRace(client,current.dayId,raceId);
       requireRace(race,'rule');
+      // On a final, Correct number asks "Why the change?" as the start line's replace does, and its note ends with the reason.
+      const reason=race.kind==='final'?requireChangeReason(value.reason,true):null;
+      const note=(what:string)=>reason?writeChangeNote(client,current,race.event.id,'correct-number',`${what} (${raceName(race)})`,reason,[{raceId,entryId}])
+        :writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} ${what} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
       const entry=race.parts.runners.value?.find(runner=>runner.id===entryId);
       if(entry && isTeamEntry(entry)) {
         // A child of a team: the leg given, checked and written as a team write is.
@@ -77,7 +82,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         const runners=race.parts.runners.value!.map(other=>other.id===entryId?corrected:other);
         await correctPart(client,current,race,'runners',runners,runners);
         await reopenEntryChecks(client,raceId,entryId);
-        await writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} corrected ${was} to ${wristband} in Team ${entry.team.number} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
+        await note(`corrected ${was} to ${wristband} in Team ${entry.team.number}`);
         return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
       }
       const runner=entry;
@@ -91,7 +96,7 @@ export function runnerRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       const runners=race.parts.runners.value!.map(entry=>entry.id===entryId?{...entry,wristband,warnings}:entry);
       await correctPart(client,current,race,'runners',runners,runners);
       await reopenEntryChecks(client,raceId,entryId);
-      await writeAuditNote(client,current,race.event.id,{action:'correct-number',comment,message:`${current.name} corrected ${runner.wristband} to ${wristband} (${raceLabel(race)})${comment?`: ${comment}`:''}`,touches:[{raceId,entryId}]});
+      await note(`corrected ${runner.wristband} to ${wristband}`);
       return {status:'saved',...await readEventResults(client,current.dayId,race.event.code)};
     });
   });
