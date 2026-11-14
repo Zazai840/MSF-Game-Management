@@ -71,6 +71,16 @@ test('a place counts finalists not marked yet: one Absent and the rest unmarked 
   expect((await add(sam,seen,2051,notFound)).json().message).toBe('No place is free in the Final');
 });
 
+test('"Call up next fastest" hides and is refused once no place is free: one Absent, one added, the rest not marked',async()=>{
+  const {owner,sam,read}=await final();
+  let seen=await ok(await attend(sam,await read(),[],[2002]));
+  const callUp=seen.callUp!;
+  expect(callUp).toMatchObject({who:'2007',position:7});
+  seen=await ok(await add(sam,seen,2050,notFound));
+  expect(seen.callUp).toBeUndefined();
+  for(const token of [sam,owner]) expect((await call(token,'/api/lead/events/R4/call-up',{expectedHeatEntryId:callUp.entryId})).json().message).toBe('No place is free in the Final');
+});
+
 test('the added runner gets a full result with place and medal, and the note shows in their Notes and the Day export; once saved, no add',async()=>{
   const {owner,sam,read}=await final();
   let seen=await ok(await attend(sam,await read(),[2001,2003,2004,2005,2006],[2002]));

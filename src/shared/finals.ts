@@ -44,8 +44,8 @@ export function finalResults(state:EventState,heats:readonly LeaderboardRow[]):F
 /** A finalist's place in the line-up at the final's check-in: "1st fastest", "Called up" or "Added". */
 /** A final still taking call-ups and added teams: its heats are complete and it has not run. */
 export const finalTakesChanges=(final:Pick<FinalField,'heatsComplete'|'hasRun'>)=>final.heatsComplete && !final.hasRun;
-/** The next-ranked heat entry a final can call up now, or null: it takes changes, an Absent finalist's seed is free, and a ranked entry is left. */
-export const openCallUp=(final:FinalResults|null)=>final && finalTakesChanges(final) && final.vacancy?final.nextCallUp:null;
+/** The next-ranked heat entry a final can call up now, or null: a place is free (`placeFree`), an Absent finalist's seed is free, and a ranked entry is left. */
+export const openCallUp=(final:FinalResults|null)=>final && placeFree(final) && final.vacancy?final.nextCallUp:null;
 /**
  * A place is free for "+ Runner" or "+ Team" at a final taking changes: a finalist is Absent and fewer than 6 are not
  * Absent (Here, or not marked yet, since each of those may still run). The start line's button and the server's check read this.

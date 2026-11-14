@@ -114,7 +114,8 @@ export function replaceInput(body:unknown) {
 /**
  * A final's runner replaced at the start line, in one write: the finalist tapped (Here or not marked) is Absent, and
  * the new wristband joins as an added runner, Here. No free place is needed. The reason is kept as an audit note on
- * both, the old one also on their heat entry, as a call-up's is.
+ * both, the old one also on their heat entry, as a call-up's is. An added runner tapped is a typing error corrected:
+ * their entry takes the new number in place, Here, and the note is on that entry.
  */
 export async function replaceRunner(client:pg.PoolClient,phone:Phone,target:WriteTarget,{raceId,finalEntryId,wristband,kept,reason}:ReplaceInput) {
   if(raceId===null || target.race.kind!=='final' || target.event.relay) throw new Refusal(409,'Only a final has a replace');
@@ -124,9 +125,10 @@ export async function replaceRunner(client:pg.PoolClient,phone:Phone,target:Writ
   const seeded=final.entries.find(entry=>entry.finalEntryId===finalEntryId),added=final.additionalEntries?.find(entry=>entry.runner.id===finalEntryId);
   if(finalMark({finalEntryId,absent:(seeded??added)!.absent},previous)==='absent') throw new Refusal(409,`${old.wristband} is Absent`);
   if(runnersOf(finalLineup(final)).some(runner=>runner.wristband===wristband)) throw new Refusal(400,`${wristband} is already in this race`);
-  const [joining]=await annotateRunners(client,phone.dayId,target.event,[{id:randomUUID(),wristband}],kept,raceId,[],true);
+  const [joining]=await annotateRunners(client,phone.dayId,target.event,[{id:added?finalEntryId:randomUUID(),wristband}],kept,raceId,[],true);
   const runners=[...previous.filter(runner=>runner.id!==finalEntryId),joining];
   await publishPart(client,phone,race,'runners',runners);
+  if(added) return writeChangeNote(client,phone,target.event.id,'correct-runner',`corrected ${old.wristband} to ${wristband} (${raceName(race)})`,reason,[{raceId,entryId:finalEntryId}]);
   await markAbsentFinalists(client,raceId,(id,stored)=>id===finalEntryId || stored);
   await dropFromOrder(client,target.race,runners);
   const touches=[{raceId,entryId:finalEntryId},{raceId,entryId:joining.id},...(seeded?[{raceId:seeded.heatRaceId,entryId:seeded.heatEntryId}]:[])];

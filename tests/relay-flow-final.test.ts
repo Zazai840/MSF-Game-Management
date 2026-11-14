@@ -257,6 +257,18 @@ test('"+ Team" at a relay final: a team of the relay joins Here with a reason wh
   expect((await call(sam,`/api/races/${heat.id}/teams/${team(8).id}/add`,{reason:notFound})).statusCode).toBe(409);
 });
 
+test('"Call up next fastest" at a relay final hides and is refused once "+ Team" takes the free place, the other teams not marked',async()=>{
+  const {sam,lead}=await start();
+  let read=(await makeFinal(lead)).json() as RaceFlowRead;
+  const raceId=read.race.id,team=(number:number)=>read.teams!.find(item=>item.number===number)!;
+  await mark(sam,read,7,'absent');
+  read=await ok(sam,`/api/races/${raceId}`);
+  const callUp=read.callUp!;
+  expect(callUp).toMatchObject({who:'Team 4',position:7});
+  read=await ok(sam,`/api/races/${raceId}/teams/${team(8).id}/add`,{reason:{reason:'Not found',text:null}});
+  expect(read.callUp).toBeUndefined();
+  expect((await call(sam,'/api/lead/events/R22/call-up',{expectedHeatEntryId:callUp.entryId})).json().message).toBe('No place is free in the Final');
+});
 test('on a saved relay final a lead\'s Correct number needs a reason and Correct teams adding a team needs a comment',async()=>{
   const {sam,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;

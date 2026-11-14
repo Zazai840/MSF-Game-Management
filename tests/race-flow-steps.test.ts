@@ -293,7 +293,7 @@ test('the final\'s race read offers the next call-up while a seed is free; any s
   expect(called.callUp).toBeUndefined();
   expect((await call(sam,'/api/lead/events/R4/call-up',{expectedHeatEntryId:away.callUp!.entryId})).statusCode).toBe(409);
 });
-test('a runner replaced at a final\'s start line: one write with a reason, the old runner Absent and the new one Added and Here, kept as an audit note',async()=>{
+test('a runner replaced at a final\'s start line: one write with a reason, the old runner Absent and the new one Added and Here, kept as an audit note; an added runner\'s number is corrected in place',async()=>{
   const {owner,sam,priya,read}=await final();
   // All 6 Here but 2006, not marked: a replace needs no free place.
   let seen=await ok(await attend(sam,await read(),[2001,2002,2003,2004,2005]));
@@ -313,11 +313,13 @@ test('a runner replaced at a final\'s start line: one write with a reason, the o
   // An Absent row has nothing to replace; the old runner's number is still in this race.
   expect((await replace(sam,2003,2052,{reason:'Hurt',text:null})).statusCode).toBe(409);
   expect((await replace(sam,2004,2003,{reason:'Hurt',text:null})).json().message).toBe('2003 is already in this race');
-  // An added runner's typing error, corrected the same way.
+  // An added runner's typing error, corrected the same way, changes that entry's number in place: no Absent row is left.
+  const added=entryOf(2050);
   seen=await ok(await replace(sam,2050,2052,{reason:'Wrong number',text:null}));
-  expect(rows(seen).slice(6)).toEqual([[2050,'Added','absent'],[2051,'Added','here'],[2052,'Added','here']]);
+  expect(rows(seen).slice(6)).toEqual([[2052,'Added','here'],[2051,'Added','here']]);
+  expect(entryOf(2052)).toBe(added);
   expect(wristbands(seen)).toEqual([2001,2002,2004,2005,2051,2052]);
-  const lines=['Sam replaced 2003 with 2050 (Final) - Hurt','Priya replaced 2006 with 2051 (Final) - Other - Went home','Sam replaced 2050 with 2052 (Final) - Wrong number'];
+  const lines=['Sam replaced 2003 with 2050 (Final) - Hurt','Priya replaced 2006 with 2051 (Final) - Other - Went home','Sam corrected 2050 to 2052 (Final) - Wrong number'];
   expect((await call(owner,'/api/lead/events/R4/results')).json().auditNotes.map((note:{message:string})=>note.message).slice(0,3).reverse()).toEqual(lines);
   // Once the race is saved, the start line replaces no more.
   await ok(await order(priya,seen,{order:[2001,2002,2004,2005,2051,2052].map(wristband=>idOf(seen,wristband))}));
@@ -329,11 +331,13 @@ test('a runner replaced at a final\'s start line: one write with a reason, the o
   const notes=(rows:Array<{wristband:number;notes:Array<{message:string}>}>,wristband:number)=>rows.find(row=>row.wristband===wristband)!.notes.map(note=>note.message);
   expect(notes(results.leaderboard,2003)).toContain(lines[0]);
   expect(notes(results.finalResults.leaderboard,2051)).toEqual([lines[1]]);
-  expect(notes(results.finalResults.leaderboard,2052)).toEqual([lines[2]]);
+  // 2052's entry joined as 2050, in 2003's place, so its Notes keep both changes.
+  expect(notes(results.finalResults.leaderboard,2052)).toEqual([lines[0],lines[2]]);
   // The Day export: the Finals sheet, the Note column and the Audit notes sheet.
   const sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);
   const finals=sheets.find(sheet=>sheet.sheet==='Finals')!.data,[wristband,role]=['Wristband number','Attendance / role'].map(name=>finals[0].indexOf(name));
-  expect(Object.fromEntries(finals.filter(row=>row[0]==='R4').map(row=>[row[wristband],row[role]]))).toMatchObject({2003:'Absent; Qualifier',2006:'Absent; Qualifier',2050:'Absent; Added',2051:'Added',2052:'Added'});
+  expect(Object.fromEntries(finals.filter(row=>row[0]==='R4').map(row=>[row[wristband],row[role]]))).toMatchObject({2003:'Absent; Qualifier',2006:'Absent; Qualifier',2051:'Added',2052:'Added'});
+  expect(finals.some(row=>row[0]==='R4' && row[wristband]===2050)).toBe(false);
   const all=sheets.find(sheet=>sheet.sheet==='All results')!.data,[race,number,note]=['Race','Wristband number','Note'].map(name=>all[0].indexOf(name));
   expect(String(all.find(row=>row[0]==='R4' && row[race]==='Final 1' && row[number]===2052)![note])).toContain(lines[2]);
   expect(sheets.find(sheet=>sheet.sheet==='Audit notes')!.data.flat().filter(cell=>typeof cell==='string' && lines.some(line=>cell.includes(line)))).toHaveLength(3);

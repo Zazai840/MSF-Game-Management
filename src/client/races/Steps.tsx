@@ -153,7 +153,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
   </>;
 }
 /**
- * A final's check-in, while an Absent finalist's seed is free and a ranked heat entry is left: "Call up next fastest:
+ * A final's check-in, while a place is free (`placeFree`), an Absent finalist's seed is free and a ranked heat entry is left: "Call up next fastest:
  * 2011 (7th)", for the Start line and the lead. It is the lead's call-up ruling from the Final tab, saved at once, and
  * the entry called up is Here with no second tap.
  */
@@ -177,7 +177,7 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
  * place is free, "+ Runner" takes any wristband (its warnings as Fix number / Keep), then "Why the change?", and the
  * runner joins Here, as Added in the last row. Tapping the wristband of a row Here or not marked replaces that runner:
  * the new number, its warning (Fix number / Keep), then "Why the change?"; the old runner stays Absent and the new one
- * joins as Added, Here.
+ * joins as Added, Here. On an Added row the same steps correct its number in place.
  */
 function Attendance({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,final=race.final!;
@@ -212,7 +212,7 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
   async function replace(reason:ChangeReason) {
     const {wristband,kept}=why!,old=changing!;setWhy(null);
     const sent=await flow.write('replace',{raceId:race.id,version:race.parts.runners.version,finalEntryId:old.finalEntryId,wristband,keptWarnings:kept?[wristband]:[],reason});
-    if(typeof sent==='object') {cancel();setSaid(`${old.wristband} replaced by ${wristband}`);}
+    if(typeof sent==='object') {cancel();setSaid(old.seed===null?`${old.wristband} corrected to ${wristband}`:`${old.wristband} replaced by ${wristband}`);}
   }
   async function recordAbsent() {
     setAsking(false);
@@ -240,11 +240,11 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
   </>;
   return <>
     <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">{changing?`Replace ${changing.wristband}`:'Who is here?'}</h2></div>
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">{changing?`${changing.seed===null?'Correct':'Replace'} ${changing.wristband}`:'Who is here?'}</h2></div>
       {flow.error && <Callout message={flow.error}/>}
       {said && !changing && <p className="rz-note" role="status">{said}</p>}
       {changing && !locked && <DigitsField id="replace" label={`New number for ${changing.wristband}`} value={box.current} held={box.held} onRelease={box.fix} busy={box.checking || flow.busy} warn={box.held}
-        onChange={box.type} onEnter={save} selectKey={changing.finalEntryId} hint={`Type the new runner's number and tap Save. ${changing.wristband} stays as Absent.`}/>}
+        onChange={box.type} onEnter={save} selectKey={changing.finalEntryId} hint={changing.seed===null?'Type the right number and tap Save.':`Type the new runner's number and tap Save. ${changing.wristband} stays as Absent.`}/>}
       {changing && box.error && <Callout message={box.error}/>}
       {changing && box.held && <Callout message={box.refused||box.pending.map(warning=>plainWristbandWarning(warning,Number(box.current),read.group.event.section)).join(' ')}
         actions={<>{!box.refused && <button type="button" className="rz-btn" onClick={()=>void box.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={box.fix}>Fix number</button></>}/>}
