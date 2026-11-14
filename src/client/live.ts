@@ -8,10 +8,12 @@ import { linkLine,linkNext,linkStart,type LinkEvent } from './live-link.js';
 /** Silence this long means the link is dead. Spread over 30-45 s so phones that lost signal together don't all reconnect at once. */
 const silence=()=>30_000+Math.random()*15_000;
 
+/** The races list stream. It asks for changes frames: a page still on an older build does not, so it gets whole lists. */
+export const racesLive='live/races?changes=1';
 /**
  * Reads a live stream (`live/...`, read with fetch so the bearer token goes with it) and holds its newest snapshot,
  * ignoring any older than the one held; a changes frame (the races list's) is applied to it by `afterFrame`, and one it
- * cannot apply drops the stream and reconnects at once. A planned end reconnects at once; a failure or silence reconnects with backoff.
+ * cannot apply drops the stream and reconnects, at once the first time (live-link.ts, `gap`). A planned end reconnects at once; a failure or silence reconnects with backoff.
  * The stream closes while the page is hidden and reopens when it is visible, and starts again when the signal goes or comes back;
  * every connect sends the whole snapshot first.
  * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule; `refresh` starts
@@ -66,8 +68,8 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
             if(!onThisBuild(frame.build)) return;
             const next=afterFrame(held.current,frame);
             // The list shown stays while the reconnect brings the whole list, which is then taken whatever its revision.
-            if(next==='reconnect') {held.current=null;if(controller===mine) send({type:'restart'});return;}
-            if(next!==held.current) {held.current=next;if(controller===mine) send({type:'fresh'});setSnapshot(next);}
+            if(next==='reconnect') {held.current=null;if(controller===mine) send({type:'gap'});return;}
+            if(next!==held.current) {held.current=next;if(controller===mine) send({type:'from' in frame?'applied':'fresh'});setSnapshot(next);}
           }
         }
       } catch(failure) {

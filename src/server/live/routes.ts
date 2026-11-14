@@ -15,8 +15,8 @@ const whole=<T extends {revision:number}>(sent:T,next:T)=>next.revision>sent.rev
 /**
  * Live streams (Server-Sent Events). Each frame is a snapshot versioned by the day revision, sent whole first on
  * every connect and again after each change of the day that raises the revision; the races list sends only its changed
- * event groups after the first (`changesFrame`). A heartbeat comment keeps idle streams open through Railway, and each
- * stream ends at its limit so the phone reconnects to a fresh one.
+ * event groups after the first (`changesFrame`) to a phone that asks (`?changes=1`). A heartbeat comment keeps idle
+ * streams open through Railway, and each stream ends at its limit so the phone reconnects to a fresh one.
  */
 export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSettings) {
   const action=actions(app,pool),open=new Set<()=>Promise<unknown>>();
@@ -76,10 +76,11 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
   }
   const sharedRacesRead=sharedReads<RacesRead>(racesRead);
   const signedIn=async(phone:Phone)=>{if(!(await pool.query('SELECT 1 FROM sign_ins WHERE id=$1 AND NOT signed_out',[phone.id])).rowCount) throw signedOut();};
-  action('GET','/api/live/races','Volunteer',(_request,reply,phone)=>stream(reply,phone.dayId,async()=>{
+  // Only a phone that asks gets changes frames: a page still on an older build would take one for the whole list.
+  action('GET','/api/live/races','Volunteer',(request,reply,phone)=>stream(reply,phone.dayId,async()=>{
     await signedIn(phone);
     return sharedRacesRead(phone.dayId);
-  },changesFrame));
+  },(request.query as {changes?:string}).changes==='1'?changesFrame:whole));
   action('GET','/api/live/races/:raceId','Volunteer',(request,reply,phone)=>{
     const raceId=(request.params as {raceId:string}).raceId;
     // A sign-out wakes the streams, so a signed-out phone's stream ends and its reconnect is told why.

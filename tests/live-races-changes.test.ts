@@ -48,3 +48,18 @@ test.each([['gzipped','gzip'],['plain',undefined]])('the races list stream, %s: 
   expect(off.groups.some(group=>group.event.code==='R4')).toBe(false);
   expect(off).toMatchObject(await list());
 });
+test.each([['gzipped','gzip'],['plain',undefined]])('a phone on an older build, %s, does not ask for changes frames and gets the whole list on every change',async(_name,encoding)=>{
+  app=await createApp({databaseUrl:process.env.TEST_DATABASE_URL!,ownerPassword:'whole-owner',resetTestDay:true});
+  await app.listen({port:0,host:'127.0.0.1'});
+  const sam=(await (await signInOwner(app,'whole-owner','Aisha')).volunteer('Sam')).token;
+  const list=async()=>(await app.inject({url:'/api/races',headers:{authorization:`Bearer ${sam}`}})).json() as RacesRead;
+  const live=await openRaces(app,sam,encoding,false);
+  await live.until(text=>frames(text).length===1);
+  for(const number of [1,2,3]) {
+    expect((await app.inject({method:'POST',url:'/api/races',headers:{authorization:`Bearer ${sam}`},payload:{eventCode:'R4',kind:'heat',number}})).statusCode).toBe(200);
+    await live.until(text=>frames(text).length===number+1);
+    const frame=frames<Frame>(live.text())[number];
+    expect(frame).not.toHaveProperty('from');
+    expect(frame).toMatchObject(await list());
+  }
+});

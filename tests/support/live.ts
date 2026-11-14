@@ -5,10 +5,13 @@ import type { FastifyInstance } from 'fastify';
 import { frameData,splitFrames } from '../../src/shared/live.js';
 /** Each frame's JSON in the stream's text so far. */
 export const frames=<T>(text:string)=>splitFrames(text).frames.map(frameData).filter(data=>data!==null).map(data=>JSON.parse(data) as T);
-/** The races list stream as that phone, read as raw HTTP so the test sees the wire: the text it decodes to so far, and a wait for more. */
-export async function openRaces(app:FastifyInstance,token:string,acceptEncoding?:string) {
+/**
+ * The races list stream as that phone, read as raw HTTP so the test sees the wire: the text it decodes to so far, and a
+ * wait for more. It asks for changes frames as this build's phone does, unless `changes` is false (a page on an older build).
+ */
+export async function openRaces(app:FastifyInstance,token:string,acceptEncoding?:string,changes=true) {
   const {port}=app.server.address() as AddressInfo;
-  const response=await new Promise<IncomingMessage>((resolve,reject)=>get({host:'127.0.0.1',port,path:'/api/live/races',headers:{authorization:`Bearer ${token}`,...(acceptEncoding?{'accept-encoding':acceptEncoding}:{})}},resolve).on('error',reject));
+  const response=await new Promise<IncomingMessage>((resolve,reject)=>get({host:'127.0.0.1',port,path:`/api/live/races${changes?'?changes=1':''}`,headers:{authorization:`Bearer ${token}`,...(acceptEncoding?{'accept-encoding':acceptEncoding}:{})}},resolve).on('error',reject));
   const body=response.headers['content-encoding']==='gzip'?response.pipe(createGunzip()):response;
   let text='';
   body.setEncoding('utf8').on('data',(chunk:string)=>{text+=chunk;});

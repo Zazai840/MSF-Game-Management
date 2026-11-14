@@ -1,7 +1,7 @@
 import { createContext,useContext,useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import type { RacesRead,Step } from '../../shared/race-flow.js';
 import { ApiFailure,api } from '../api.js';
-import { useLive } from '../live.js';
+import { racesLive,useLive } from '../live.js';
 import { failureLine } from '../../shared/request-failure.js';
 import { changedSinceLine } from '../../shared/toast-lines.js';
 import { Icon } from './parts.js';
@@ -75,7 +75,7 @@ function ToastBox({held=false,restartOn,onClose,children}:{held?:boolean;restart
  * it offers Open race instead. It watches the races list (one shared read for every phone) to see that change.
  */
 function StepToast({saved,onOpen,onClose}:{saved:SavedStep;onOpen:(raceId:string,step:Step)=>void;onClose:()=>void}) {
-  const {snapshot}=useLive<RacesRead>('live/races');
+  const {snapshot}=useLive<RacesRead>(racesLive);
   const [refusedFor,setRefusedFor]=useState<{by:string|null}|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const status=snapshot?.groups.flatMap(group=>group.races).find(race=>race.id===saved.raceId)?.steps[saved.step];
   // Someone changed the step after this save: its version moved on, or the server refused the Undo for it. `by` is null when nobody is named.

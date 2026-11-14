@@ -337,6 +337,8 @@ export async function openRace(page:Page,name:string,section='Girl Cubs',chip='H
 export async function openRelays(page:Page) {
   await page.getByRole('navigation',{name:'Event type'}).getByRole('button',{name:/^Relays/}).click();
 }
+/** The races list's live stream (it asks for changes frames with a query), for page.route and request checks. */
+export const racesListStream=(url:URL|string)=>new URL(url).pathname==='/api/live/races';
 /** Hides the page as an app switch does (the race screen's stream closes), or shows it again (it reconnects). */
 export async function setHidden(page:Page,hidden:boolean) {
   await page.evaluate(hidden=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>hidden?'hidden':'visible'});document.dispatchEvent(new Event('visibilitychange'));},hidden);
