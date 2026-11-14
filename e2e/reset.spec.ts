@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,back,expect,expectToast,join,labelDay,leadsBar,lookProblems,openLeadsBarTab,press,test,pullToRefresh,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,back,expect,expectToast,join,labelDay,leadsBar,lookProblems,openLeadsBarTab,press,test,pullToRefresh,racesListStream,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 async function asOwner(page:Page) {
   await page.addInitScript(token=>localStorage.setItem('msf:token',token),process.env.E2E_OWNER_TOKEN!);
@@ -125,7 +125,7 @@ test('an actual old removed-phone 401 cannot sign out a newly signed-in phone',a
   await page.goto('/');await join(page,ownName('Delayed'),{job:'Start line'});await races(page);
   const oldToken=await page.evaluate(()=>localStorage.getItem('msf:token'));const phone=await (await page.request.get('/api/me',{headers:{authorization:`Bearer ${oldToken}`}})).json();
   // The live streams would tell the old phone it was removed at once; this is about the poll's 401 arriving late, so they are cut.
-  for(const stream of ['**/api/live/races']) await page.route(stream,route=>route.request().headers().authorization===`Bearer ${oldToken}`?route.abort():route.continue());
+  await page.route(racesListStream,route=>route.request().headers().authorization===`Bearer ${oldToken}`?route.abort():route.continue());
   await page.request.post(`/api/day/phones/${phone.id}/remove`,{headers:headers(),data:{}});
   let release!:()=>void,seen!:()=>void,delivered!:()=>void;
   const held=new Promise<void>(resolve=>{release=resolve;}),captured=new Promise<void>(resolve=>{seen=resolve;}),done=new Promise<void>(resolve=>{delivered=resolve;});let first=true;

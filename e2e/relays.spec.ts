@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,expect,flowPost,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,press,runHeat,test,typedAhead,writeTeam,type Page} from './fixtures.js';
+import {ownName,expect,flowPost,live,lookProblems,openRelays,ownCode,ownRelay,ownWristbands,press,runHeat,test,typedAhead,writeTeam,racesListStream,type Page} from './fixtures.js';
 /** A relay's card on the Relays tab, by its event name and section. */
 const card=(page:Page,name:string,section='Girl Cubs')=>page.getByRole('article',{name:`${name} · ${section}`,exact:true});
 /** The open sheet, by its title. */
@@ -74,7 +74,7 @@ test('New relay on a day with no relays switched on says so, and where a zone le
   // The day as it reads with every relay switched off: the races list without its relays.
   const day=await(await request.get('/api/races',{headers:{authorization:`Bearer ${token}`}})).json();
   const frame=`data: ${JSON.stringify({...day,revision:day.revision+1000000,groups:day.groups.filter((group:{event:{relay:boolean}})=>!group.event.relay)})}\n\n`;
-  await page.route('**/api/live/races',route=>route.fulfill({status:200,contentType:'text/event-stream',body:frame}));
+  await page.route(racesListStream,route=>route.fulfill({status:200,contentType:'text/event-stream',body:frame}));
   await page.reload();
   await openRelays(page);
   await press(page.getByRole('button',{name:'New relay',exact:true}));

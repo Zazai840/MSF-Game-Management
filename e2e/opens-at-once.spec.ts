@@ -1,4 +1,4 @@
-import {expect,join,lookProblems,ownCode,ownEvent,ownName,test,writeCheckIn} from './fixtures.js';
+import {expect,join,lookProblems,ownCode,ownEvent,ownName,test,writeCheckIn,racesListStream} from './fixtures.js';
 
 test('a lead screen seen before opens at once with what it showed last, and a first open shows the spinner over Opening',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('At once');
@@ -32,7 +32,7 @@ test('a lead screen seen before opens at once with what it showed last, and a fi
   await expect(opening).toHaveCount(0);
   await expect(page.locator('.rz-refresh')).toHaveText(updated!);
   // Races too, with its stream held.
-  await page.route('**/api/live/races',()=>{});
+  await page.route(racesListStream,()=>{});
   await tab('Races').click();
   await expect(raceCard).toBeVisible();
   release();
@@ -48,7 +48,7 @@ test('what a phone showed last goes with Log out: the next person sees Opening, 
   await page.getByRole('button',{name:`${person}: Log out`,exact:true}).click();
   await page.getByRole('menuitem',{name:'Log out',exact:true}).click();
   await expect(page.getByLabel('Full name',{exact:true})).toBeVisible();
-  await page.route('**/api/live/races',()=>{});
+  await page.route(racesListStream,()=>{});
   await join(page,ownName('At once second'),{job:'Timer'});
   await expect(page.getByRole('status').filter({hasText:'Opening…'})).toBeVisible();
   await expect(card).toHaveCount(0);

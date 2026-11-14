@@ -1,4 +1,4 @@
-import {ownName,ownCode,backToRaces,deleteCurrentRace,expect,live,lookProblems,openRace,ownEvent,setHidden,signInThroughApi,test,writeCheckIn,type APIRequestContext,type Page} from './fixtures.js';
+import {ownName,ownCode,backToRaces,deleteCurrentRace,expect,live,lookProblems,openRace,ownEvent,setHidden,signInThroughApi,test,writeCheckIn,racesListStream,type APIRequestContext,type Page} from './fixtures.js';
 import type { RacesRead } from '../src/shared/race-flow.js';
 /** The finish line's runner buttons: the runners checked in, live from the start line. */
 const runners=(page:Page)=>page.getByRole('list',{name:'Runners not yet placed'}).getByRole('button');
@@ -15,7 +15,6 @@ async function newHeat(request:APIRequestContext,token:string,code:string,number
 }
 /** On Races, the chips of the event's card: "H1", "H2", then the empty "Add heat" one. */
 const chips=(page:Page,name:string)=>page.getByRole('article',{name:`${name} · Girl Cubs`,exact:true}).getByRole('button',{name:/^(Heat \d|Add heat)/});
-const listStream=(url:string)=>url.endsWith('/api/live/races');
 
 test('signal drop: once back online, phone B shows what phone A checked in while B had no signal',async({openPhone,request},info)=>{
   const code=await ownCode(),name=ownName('Signal drop');
@@ -40,7 +39,7 @@ test('signal drop: once back online, phone B shows what phone A checked in while
   // Races says so too.
   await backToRaces(b.page);
   await expect(b.page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
-  const listFailure=b.page.waitForEvent('requestfailed',request=>request.url().endsWith('/api/live/races'));
+  const listFailure=b.page.waitForEvent('requestfailed',request=>racesListStream(request.url()));
   await b.context.setOffline(true);await listFailure;
   await expect(b.page.getByRole('status').filter({hasText:'Connection lost - trying again'})).toBeVisible();
   await b.page.screenshot({path:info.outputPath('races-connection-lost.png'),fullPage:true});
@@ -143,7 +142,7 @@ test('races list: back in front after changes made while it was in the backgroun
   const a=await signInThroughApi(request,ownName('Ann list switch')),b=await openPhone(ownName('Ben list switch'));
   await newHeat(request,a,code);
   await expect(chips(b.page,name)).toHaveText(['H1',''],live);
-  const closed=b.page.waitForEvent('requestfailed',request=>listStream(request.url()));
+  const closed=b.page.waitForEvent('requestfailed',request=>racesListStream(request.url()));
   await setHidden(b.page,true);
   await closed;
   await newHeat(request,a,code,2);await newHeat(request,a,code,3);
@@ -160,7 +159,7 @@ test('races list: once its cut connection is back, phone B shows the whole list 
   const a=await signInThroughApi(request,ownName('Ann list cut')),b=await openPhone(ownName('Ben list cut'));
   await newHeat(request,a,code);
   await expect(chips(b.page,name)).toHaveText(['H1',''],live);
-  const cut=b.page.waitForEvent('requestfailed',request=>listStream(request.url()));
+  const cut=b.page.waitForEvent('requestfailed',request=>racesListStream(request.url()));
   await b.context.setOffline(true);
   await cut;
   await newHeat(request,a,code,2);await newHeat(request,a,code,3);
@@ -181,11 +180,13 @@ test('races list: a changes frame the phone cannot apply is never shown; the pho
   const day=await (await request.get('/api/races',{headers:{authorization:`Bearer ${b.token}`}})).json() as RacesRead,ahead=day.revision+1_000_000;
   const renamed=(to:string)=>day.groups.map(group=>group.event.code===code?{...group,event:{...group.event,name:to}}:group);
   const frames=[{...day,revision:ahead,groups:renamed(`${name} ahead`)},{revision:ahead+2,from:ahead+1,groups:renamed(`${name} wrong`).filter(group=>group.event.code===code)}];
-  await b.page.route('**/api/live/races',route=>route.fulfill({status:200,contentType:'text/event-stream',body:frames.map(frame=>`data: ${JSON.stringify(frame)}\n\n`).join('')}),{times:1});
-  let streams=0;
-  b.page.on('request',request=>{if(listStream(request.url())) streams++;});
+  await b.page.route(racesListStream,route=>route.fulfill({status:200,contentType:'text/event-stream',body:frames.map(frame=>`data: ${JSON.stringify(frame)}\n\n`).join('')}),{times:1});
+  // Each stream asks for changes frames (a page on an older build does not, and gets whole lists).
+  const streams:string[]=[];
+  b.page.on('request',request=>{if(racesListStream(request.url())) streams.push(new URL(request.url()).search);});
   await b.page.reload();
-  await expect.poll(()=>streams).toBeGreaterThanOrEqual(2);
+  await expect.poll(()=>streams.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(streams)).toEqual(new Set(['?changes=1']));
   // The reconnect's whole list is taken although it is far behind the list it held.
   await expect(chips(b.page,name)).toHaveText(['H1',''],live);
   for(const wrong of ['ahead','wrong']) await expect(b.page.getByRole('article',{name:`${name} ${wrong} · Girl Cubs`,exact:true})).toHaveCount(0,live);

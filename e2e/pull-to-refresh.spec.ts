@@ -1,11 +1,11 @@
-import {expect,fingerDown,flowPost,flowRace,jobBand,lookProblems,openLeadsBarTab,openRace,ownCode,ownEvent,ownName,ownRelay,ownWristbands,press,pullToRefresh,recordRace,resultsCard,startDrag,switchJob,test,writeCheckIn,writeTeam,type Locator,type Page} from './fixtures.js';
+import {expect,fingerDown,flowPost,flowRace,jobBand,lookProblems,openLeadsBarTab,openRace,ownCode,ownEvent,ownName,ownRelay,ownWristbands,press,pullToRefresh,recordRace,resultsCard,startDrag,switchJob,test,writeCheckIn,writeTeam,racesListStream,type Locator,type Page} from './fixtures.js';
 
 test('pulling down from the top of a screen with the Updated at line refreshes it: the pull says when to let go, and a short pull or an open sheet does nothing',async({openPhone},info)=>{
   test.skip(!info.project.use.hasTouch,'a pull is a touch gesture');
   const {page}=await openPhone(ownName('Pull refresh'));
   await expect(page.locator('.rz-refresh')).toHaveText(/Updated at \d/);
   let reads=0;
-  await page.route('**/api/live/races',route=>{if(route.request().method()==='GET') reads++;return route.continue();});
+  await page.route(racesListStream,route=>{if(route.request().method()==='GET') reads++;return route.continue();});
   const hint=page.locator('.rz-pull');
   // A short pull: the hint comes down with the finger and goes back, and nothing is read.
   let lift=await fingerDown(page,60);
