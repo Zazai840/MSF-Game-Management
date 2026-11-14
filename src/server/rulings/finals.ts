@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Phone } from '../../shared/domain.js';
 import type { DayEvent } from '../../shared/day.js';
 import { resultName,type LeaderboardRow } from '../../shared/results-rules.js';
-import { finalTakesChanges,openCallUp,teamInFinal,type FinalEntry } from '../../shared/finals.js';
+import { finalTakesChanges,openCallUp,placeFree,type FinalEntry } from '../../shared/finals.js';
 import { entryName,isTeamEntry,type RaceEntry } from '../../shared/races.js';
 import type { RelayTeam } from '../../shared/teams.js';
 import { readTeamLists } from '../relays/teams.js';
@@ -75,6 +75,7 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       // The Start line's call-up has no comment box: free text reaches the audit note from a lead only.
       if(comment) requireLevel(current,'Lead');
       const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults,next=openCallUp(final);
+      if(final && finalTakesChanges(final) && !placeFree(final)) throw new Refusal(409,'No place is free in the Final');
       if(!final || !next) throw new Refusal(409,'There is no open place to call up a runner');
       const vacancy=final.vacancy!,race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
       if(next.entryId!==value.expectedHeatEntryId) throw new Refusal(409,'The next-ranked runner has changed - check the suggestion again');
@@ -90,25 +91,5 @@ export function finalRoutes(app:FastifyInstance,pool:pg.Pool) {
       // Heat ranking and audit notes stay within Lead reads: a volunteer's phone reads the race again.
       return {status:'saved',...(current.level==='Lead'?await readEventResults(client,current.dayId,detail.event.code):{})};
     },'Volunteer');
-  });
-  // Adding a team to a relay's Final: picked from its team list, it joins the line-up with its four children as they
-  // stand now, not marked yet, and check-in shows it as Added.
-  action('POST','/api/lead/events/:code/add-team','Lead',async(request,_reply,phone)=>{
-    const {value,comment}=rulingDetails(request.body,false);
-    if(typeof value.teamId!=='string') throw new Refusal(400,'Choose a team');
-    return rulingChange(pool,phone,async(client,current)=>{
-      const detail=await readEventResults(client,current.dayId,(request.params as {code:string}).code),final=detail.results.finalResults;
-      if(!detail.event.relay) throw new Refusal(400,'Only a relay has teams');
-      const team=detail.teams!.find(item=>item.id===value.teamId);
-      if(!team) throw new Refusal(404,'Team not found');
-      if(!final || !finalTakesChanges(final)) throw new Refusal(409,'There is no final to add a team to');
-      const race=await readRace(client,current.dayId,final.raceId);requireStageOpen(race);
-      if(teamInFinal({...final,runners:race.parts.runners.value||[]},team.id)) throw new Refusal(409,`Team ${team.number} is already in the Final`);
-      // Not marked yet, like every finalist: it runs once marked Here.
-      const entry=teamEntry(team,randomUUID());
-      await client.query("UPDATE race_finals SET additional_entries=COALESCE(additional_entries,'[]'::jsonb)||$1::jsonb WHERE race_id=$2",[JSON.stringify([{runner:entry,absent:false}]),race.id]);
-      await writeAuditNote(client,current,detail.event.id,{action:'add-team',comment,message:`${current.name} added Team ${team.number} to the Final${comment?` - ${comment}`:''}`,touches:[{raceId:race.id,entryId:entry.id}]});
-      return {status:'saved',...await readEventResults(client,current.dayId,detail.event.code)};
-    });
   });
 }

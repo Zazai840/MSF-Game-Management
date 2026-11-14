@@ -1,4 +1,4 @@
-import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadsBarTab,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,pullToRefresh,type Page,flowPost,resultsCard} from './fixtures.js';
+import {back,confirmTheMedals,medalPlaces,expectToast,eventTab,ownCode,ownName,ownWristbands,flowRace,backToRaces,chipTexts,makeFinal,lookProblems,recordRace,openLeadsBarTab,becomeLead,expect,join,test,live,openRace,ownEvent,deleteCurrentRace,press,pullToRefresh,type Page,flowPost,resultsCard,saveFinal} from './fixtures.js';
 async function signInAs(page:Page,name:string,lead=false) {
  await page.goto('/');await join(page,name,{job:'Start line'});
  if(lead) {await becomeLead(page);}
@@ -110,7 +110,7 @@ test('a final in the race flow: Absent takes a runner off the finish line live, 
  await expect(page.getByRole('banner').getByRole('heading',{level:1,name:'Reopen heats',exact:true})).toBeVisible();
  await back(page,`${name} · Boy Cubs`);await expect(final).toContainText(String(n(15)));
 });
-test('the start line and the lead call up the next fastest at the final\'s check-in: Here at once, offered only while a seed is free and a ranked runner is left; a finalist the finish line adds counts as Here',async({openPhone,request},info)=>{
+test('the start line and the lead call up the next fastest at the final\'s check-in: Here at once, offered only while a seed is free and a ranked runner is left; a final\'s finish line has no + Runner not on the list',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Call up here'),n=await ownWristbands('Boy Cubs',8);
  await ownEvent(request,code,name,'Boy Cubs');
  // 11 to 16 are the six fastest; 17 is 7th and 18 is 8th.
@@ -143,13 +143,64 @@ test('the start line and the lead call up the next fastest at the final\'s check
  await press(mark(lead.page,n(14),'Absent'));
  await expect(mark(lead.page,n(14),'Absent')).toHaveAttribute('aria-pressed','true');
  await expect(callUp(lead.page)).toHaveCount(0);
- // 11 was never marked at the start line. The finish line adds them: they count as Here, as the finalist they are.
- await press(priya.page.getByRole('button',{name:'+ Runner not on the list',exact:true}));
- await priya.page.getByLabel('Wristband number',{exact:true}).fill(String(n(11)));
- await press(priya.page.getByRole('button',{name:'Add runner',exact:true}));
- await expect(runnerButtons(priya.page)).toHaveCount(3);
- await expect(here(sam.page,n(11))).toHaveAttribute('aria-pressed','true',live);
+ // The finish line of a final has no "+ Runner not on the list": a runner is added at the start line.
+ await expect(priya.page.getByRole('button',{name:'+ Runner not on the list',exact:true})).toHaveCount(0);
  await expect(attendance(sam.page)).toHaveCount(8);
+});
+test('the start line replaces a finalist by a tap on their wristband: the number, its warning, then Why the change?; the old runner stays Absent and the new one is Added and Here; an added runner\'s number is corrected in place',async({openPhone,request},info)=>{
+ const code=await ownCode(),name=ownName('Replace here'),n=await ownWristbands('Boy Cubs',9);
+ await ownEvent(request,code,name,'Boy Cubs');
+ await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(11),n(12),n(13),n(14),n(15),n(16)],[900,1000,1100,1200,1300,1400]);
+ const sam=await openPhone(ownName('Sam replace')),lead=await openPhone(ownName('Lena replace'),{lead:true});
+ const finalId=(await flowPost(request,lead.token,'/api/races',{eventCode:code,kind:'final'})).race.id;
+ const page=sam.page,why=page.getByRole('dialog',{name:'Why the change?',exact:true}),box=page.getByLabel(/^New number for/);
+ const pencil=(wristband:number)=>page.getByRole('button',{name:`${wristband}, Replace`,exact:true});
+ const save=()=>press(page.getByRole('contentinfo').getByRole('button',{name:'Save',exact:true}));
+ await page.goto(`/races/${finalId}`);
+ // All 6 Here but the last, not marked: no free place is needed.
+ for(const number of [n(11),n(12),n(13),n(14),n(15)]) await press(here(page,number));
+ await expect(here(page,n(15))).toHaveAttribute('aria-pressed','true');
+ await press(pencil(n(13)));
+ await expect(page.getByRole('heading',{level:2,name:`Replace ${n(13)}`})).toBeVisible();
+ await expect(box).toHaveValue(String(n(13)));
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-replace-box.png'),fullPage:true});
+ await box.fill(String(n(17)));await save();
+ await expect(why.locator('.rz-choice')).toHaveText(['Did not want to run','Hurt','Not found','Wrong number','Other']);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-replace-reason.png'),fullPage:true});
+ // Cancel saves nothing: the box keeps the number typed.
+ await press(why.getByRole('button',{name:'Cancel',exact:true}));
+ await expect(why).toHaveCount(0);await expect(box).toHaveValue(String(n(17)));
+ await save();await press(why.getByRole('button',{name:'Hurt',exact:true}));await press(why.getByRole('button',{name:'Save',exact:true}));
+ await expect(page.locator('p.rz-note[role=status]')).toHaveText(`Replaced ${n(13)} with ${n(17)}`);
+ await expect(mark(page,n(13),'Absent')).toHaveAttribute('aria-pressed','true');
+ await expect(pencil(n(13))).toHaveCount(0);
+ await expect(attendance(page).last()).toHaveText(new RegExp(`^Added\\s*${n(17)}`));
+ await expect(here(page,n(17))).toHaveAttribute('aria-pressed','true');
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-replaced.png'),fullPage:true});
+ // A number already in this race is refused; Fix number, then Cancel.
+ await press(pencil(n(11)));await box.fill(String(n(13)));await save();
+ await expect(page.getByRole('alert')).toContainText(`${n(13)} is already in this race`);
+ await press(page.getByRole('button',{name:'Fix number',exact:true}));await press(page.getByRole('button',{name:'Cancel',exact:true}));
+ // A runner not marked, with a warning: Keep comes first, then the reason.
+ await press(pencil(n(16)));await box.fill('6000');await save();
+ await press(page.getByRole('alert').getByRole('button',{name:'Keep',exact:true}));
+ await press(why.getByRole('button',{name:'Not found',exact:true}));await press(why.getByRole('button',{name:'Save',exact:true}));
+ await expect(mark(page,n(16),'Absent')).toHaveAttribute('aria-pressed','true');
+ // An added runner's typing error, corrected the same way with Wrong number: the number changes in place.
+ await press(pencil(n(17)));await expect(box).toBeInViewport();
+ await expect(page.getByRole('heading',{level:2,name:`Correct ${n(17)}`})).toBeVisible();
+ await expect(page.getByText('Type the right number and tap Save.',{exact:true})).toBeVisible();
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-correct-box.png'),fullPage:true});
+ await box.fill(String(n(18)));await save();
+ await press(why.getByRole('button',{name:'Wrong number',exact:true}));await press(why.getByRole('button',{name:'Save',exact:true}));
+ await expect(page.locator('p.rz-note[role=status]')).toHaveText(`Corrected ${n(17)} to ${n(18)}`);
+ await expect(attendance(page)).toHaveText([seed('1st',n(11)),seed('2nd',n(12)),seed('3rd',n(13)),seed('4th',n(14)),seed('5th',n(15)),seed('6th',n(16)),new RegExp(`^Added\\s*${n(18)}`),/^Added\s*6000/]);
+ expect(await marks(page)).toEqual(['Here','Here','Absent','Here','Here','Absent','Here','Here']);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-corrected.png'),fullPage:true});
+ // The lead reads each reason on the event's Notes tab.
+ await lead.page.goto(`/results/${code}/notes`);
+ const notes=lead.page.getByRole('list',{name:'Audit notes'});
+ for(const line of [`replaced ${n(13)} with ${n(17)} (Final) - Hurt`,`replaced ${n(16)} with 6000 (Final) - Not found`,`corrected ${n(17)} to ${n(18)} (Final) - Wrong number`]) await expect(notes).toContainText(line);
 });
 test('only a lead\'s + Final makes the final from the fastest, after a confirm; Reopen heats removes the unrun final and + Final makes it again from the corrected heats',async({page,openPhone},info)=>{
  const code=await ownCode(),name=ownName('Short sprint'),n=await ownWristbands('Boy Cubs',3);
@@ -224,9 +275,12 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  const {race}=await flowRace(page.request,process.env.E2E_OWNER_TOKEN!,code);
  expect((await page.request.post(`/api/races/${race.id}/absent`,{headers,data:{raceId:race.id,version:race.parts.runners.version,here:race.final!.entries.map(entry=>entry.finalEntryId),absent:[]}})).ok()).toBe(true);
  const corrected=race.final!.entries.find(entry=>entry.wristband===n(41))!;
- expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true}})).ok()).toBe(true);
+ expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true,reason:{reason:'Wrong number',text:null}}})).ok()).toBe(true);
  await eventTab(page,'Final');await pullToRefresh(page);
- await expect((await lineUp(page)).filter({hasText:String(n(43))})).toHaveText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
+ // Until the final's order is saved, the row shows the correction's audit note under it.
+ const row=(await lineUp(page)).filter({hasText:String(n(43))});
+ await expect(row).toContainText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
+ await expect(row.getByRole('group',{name:`Notes on ${n(43)}`,exact:true})).toContainText(`corrected ${n(41)} to ${n(43)} (Final) - Wrong number`);
 });
 test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Plus before final'),n=await ownWristbands('Boy Cubs',2);
@@ -377,4 +431,36 @@ test('a Here tap that lands just as the tap before it starts to save waits its t
  await here(sam,n(1)).click();await here(sam,n(2)).click();release();
  await expect(sam.locator('.rz-prompt__meta')).toHaveText('Final · 3 of 6 here · 3 not marked');
  expect(refused).toEqual([]);
+});
+test('a lead\'s Correct number on a final runner asks Why the change? and the reason shows in the runner\'s Notes and on the Notes tab',async({openPhone,request},info)=>{
+ const code=await ownCode(),name=ownName('Number why'),n=await ownWristbands('Girl Cubs',3),lead=ownName('Number why lead');
+ await ownEvent(request,code,name);
+ await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[n(1),n(2)],[1100,1200]);
+ await saveFinal(request,code,[n(2),n(1)]);
+ const {page}=await openPhone(lead,{lead:true});
+ await openLeadsBarTab(page,'Results');await press(resultsCard(page,code));await eventTab(page,'Final');
+ const runner=(wristband:number)=>page.getByRole('list',{name:'Final leaderboard'}).getByRole('button',{name:new RegExp(`^Runner ${wristband} · `)});
+ await press(runner(n(1)));
+ await press(page.getByRole('dialog',{name:`Runner ${n(1)}`,exact:true}).getByRole('button',{name:'Correct number',exact:true}));
+ const input=page.getByLabel('New wristband number',{exact:true});
+ await input.fill(String(n(3)));await input.press('Enter');
+ // The number is settled first, then "Why the change?", with Wrong number in the list.
+ const why=page.getByRole('dialog',{name:'Why the change?',exact:true}),save=why.getByRole('button',{name:'Save',exact:true});
+ await expect(why.locator('.rz-choice')).toHaveText(['Did not want to run','Hurt','Not found','Wrong number','Other']);
+ await expect(save).toBeDisabled();
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-correct-number-reason.png'),fullPage:true});
+ // Cancel saves nothing: the screen keeps the number typed.
+ await press(why.getByRole('button',{name:'Cancel',exact:true}));
+ await expect(why).toHaveCount(0);await expect(input).toHaveValue(String(n(3)));
+ await press(page.getByRole('contentinfo').getByRole('button',{name:'Save number',exact:true}));
+ await press(why.getByRole('button',{name:'Wrong number',exact:true}));await press(save);
+ await expectToast(page,`Number saved · ${n(3)}`);
+ // The runner's Notes and the event's Notes tab end with the reason.
+ const line=`${lead} corrected ${n(1)} to ${n(3)} (Final) - Wrong number`;
+ await press(runner(n(3)));
+ const sheet=page.getByRole('dialog',{name:`Runner ${n(3)}`,exact:true});
+ await expect(sheet.getByRole('list',{name:'Notes',exact:true})).toContainText(line);
+ expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-correct-number-notes.png'),fullPage:true});
+ await press(sheet.getByRole('button',{name:'Close',exact:true}));
+ await eventTab(page,'Notes');await expect(page.getByRole('list',{name:'Audit notes'})).toContainText(line);
 });

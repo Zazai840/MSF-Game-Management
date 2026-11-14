@@ -1,5 +1,6 @@
 import { afterEach,expect,test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import readExcelFile from 'read-excel-file/node';
 import { createApp } from '../src/server/app.js';
 import { signInOwner } from './support/sign-in.js';
 import { raceSetup } from './support/races.js';
@@ -73,7 +74,7 @@ test('Reopen heats removes the unrun final, not into Deleted races; + Final make
  expect(remade.json().race).toMatchObject({kind:'final',number:1});expect(id).not.toBe(oldId);
  const result=(await call(lead,'/api/lead/events/R3/results')).json().results;expect(result.finalResults.raceId).toBe(id);expect(result.finalResults.entries.map((e:any)=>e.heatWristband)).toEqual([1088,1023]);expect(result.finalResults.entries.every((e:any)=>!e.absent)).toBe(true);
  await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
- const race=await finalRead(volunteer);await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}]});
+ const race=await finalRead(volunteer);await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}],comment:'Ran in lane 3'});
  // A saved final is read as a lead reads it after correcting its runners.
  const leadRead=async()=>(await call(lead,`/api/lead/races/${id}`)).json().race;
  const before=await leadRead();expect(before.parts.finish.value).toBeNull();expect(before.final.hasRun).toBe(true);
@@ -86,10 +87,25 @@ test('an event with no heats run has no final to make',async()=>{
  expect(refused.statusCode).toBe(409);expect(refused.json().message).toBe('The final opens when every heat has times');expect(await finalRead(volunteer)).toBeUndefined();
 });
 test('typed final additions and corrected numbers keep actual eligibility warnings without a heat-to-final repeat warning',async()=>{
- const {lead,volunteer,setup}=await start([[1023]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
- await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,2005],{added:[2005],keptWarnings:[2005]});await setup.submit(volunteer,'R3');
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
+ await markAbsent(volunteer,[]);await setup.attend(volunteer,'R3',undefined,[1088]);await setup.addRunner(volunteer,'R3',2005,[2005]);await setup.order(volunteer,'R3',[1023,2005]);await setup.submit(volunteer,'R3');
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect(detail.results.needsYou.filter((item:any)=>item.kind==='warning')).toHaveLength(1);expect(detail.results.needsYou.some((item:any)=>item.kind==='ran-twice')).toBe(false);expect(detail.results.checkSheet.worthALook).toMatchObject([{kind:'warning',raceId:id}]);expect(detail.results.checkSheet.mustSettleFirst).toEqual([]);expect(detail.results.finalResults.leaderboard[1].flags).toContainEqual(expect.objectContaining({kind:'warning',warningKind:'wrong-section'}));
- const entry=detail.results.finalResults.leaderboard[0];const corrected=await call(lead,`/api/lead/races/${id}/runners/${entry.entryId}/correct-number`,{expectedWristband:1023,wristband:2010,keepWarnings:true});expect(corrected.statusCode).toBe(200);expect(corrected.json().results.checkSheet.worthALook).toHaveLength(2);expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
+ const entry=detail.results.finalResults.leaderboard[0];const corrected=await call(lead,`/api/lead/races/${id}/runners/${entry.entryId}/correct-number`,{expectedWristband:1023,wristband:2010,keepWarnings:true,reason:{reason:'Wrong number',text:null}});expect(corrected.statusCode).toBe(200);expect(corrected.json().results.checkSheet.worthALook).toHaveLength(2);expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
+});
+test('a runner a lead adds to a saved final reads Added at the finish and takes Mark addition checked',async()=>{
+ const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
+ await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,1088]);await setup.submit(volunteer,'R3');
+ const leadRace=async()=>(await call(lead,`/api/lead/races/${id}`)).json().race;
+ const row=async()=>(await call(lead,'/api/lead/events/R3/results')).json().results.finalResults.leaderboard.find((r:any)=>r.wristband===1012);
+ const race=await leadRace();
+ expect((await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...race.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),{wristband:1012}],finish:{order:[1023,1088,1012],didNotFinish:[]},comment:'Ran in lane 3'})).statusCode).toBe(200);
+ const added=await row();expect(added.flags).toContainEqual({kind:'added-at-finish',message:'Added at the finish'});
+ expect((await call(lead,`/api/lead/races/${id}/runners/${added.entryId}/mark-added-checked`,{})).statusCode).toBe(200);
+ expect((await row()).flags).toContainEqual(expect.objectContaining({kind:'added-at-finish',checked:true}));
+ const again=await leadRace();
+ expect((await call(lead,`/api/lead/races/${id}/runners`,{baseVersion:again.parts.runners.version,finishVersion:again.parts.finish.version,runners:again.parts.runners.value.map((r:any)=>({entryId:r.id,wristband:r.wristband})),comment:'Checked again'})).statusCode).toBe(200);
+ expect((await leadRace()).parts.runners.value.find((r:any)=>r.wristband===1012).addedAtFinish).toBe(true);
+ expect((await row()).flags).toContainEqual(expect.objectContaining({kind:'added-at-finish',checked:true}));
 });
 test('authoritative final runner publications keep absence aligned through lead removal and Didn\'t run',async()=>{
  const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
@@ -105,13 +121,63 @@ test('authoritative final runner publications keep absence aligned through lead 
 test('a stale Here / Absent list is not saved, and a lead\'s corrected number stays through Absent and back to Here',async()=>{
  const {lead,volunteer,setup}=await start([[1023,1088]]);const id=(await setup.makeFinal(lead,'R3')).race.id;
  await markAbsent(volunteer,[]);const before={race:await finalRead(volunteer)};
- await call(lead,`/api/lead/races/${id}/runners/${before.race.parts.runners.value[0].id}/correct-number`,{expectedWristband:1023,wristband:1050});
+ await call(lead,`/api/lead/races/${id}/runners/${before.race.parts.runners.value[0].id}/correct-number`,{expectedWristband:1023,wristband:1050,reason:{reason:'Wrong number',text:null}});
  const stale=await call(volunteer,`/api/races/${id}/absent`,{raceId:id,version:before.race.parts.runners.version,here:[],absent:[]});
  expect(stale.statusCode).toBe(409);expect(stale.json().message).toBe('Aisha changed this a moment ago');
  expect((await markAbsent(volunteer,[1050])).json().race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1088]);
  const here=(await markAbsent(volunteer,[])).json();
  expect(here.race.parts.runners.value.map((runner:any)=>runner.wristband)).toEqual([1050,1088]);
  expect(here.race.final.entries.map((entry:any)=>[entry.wristband,entry.absent])).toEqual([[1050,false],[1088,false]]);
+});
+test('a lead\'s Correct number on a final runner needs a reason, kept as an audit note in the runner\'s Notes, the Notes tab and the export; on a heat it needs none',async()=>{
+ const {volunteer,lead,heats,setup}=await start([[1023,1088]]);
+ const entryOf=async(raceId:string,wristband:number)=>(await call(lead,`/api/lead/races/${raceId}`)).json().race.parts.runners.value.find((runner:any)=>runner.wristband===wristband).id;
+ // A heat's Correct number asks no reason.
+ const heat=await call(lead,`/api/lead/races/${heats[0].id}/runners/${await entryOf(heats[0].id,1088)}/correct-number`,{expectedWristband:1088,wristband:1089});
+ expect(heat.statusCode).toBe(200);expect(heat.json().auditNotes[0].message).toBe('Aisha corrected 1088 to 1089 (Heat 1)');
+ const id=(await setup.makeFinal(lead,'R3')).race.id;
+ await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,1089]);await setup.submit(volunteer,'R3');
+ const correct=async(body:object)=>call(lead,`/api/lead/races/${id}/runners/${await entryOf(id,1023)}/correct-number`,{expectedWristband:1023,wristband:1050,...body});
+ expect((await correct({})).json()).toEqual({message:'Choose why the change'});
+ expect((await correct({reason:{reason:'Other',text:' '}})).json()).toEqual({message:'Write why for Other'});
+ const saved=await correct({reason:{reason:'Wrong number',text:'Read off the wrong child'}});expect(saved.statusCode).toBe(200);
+ const line='Aisha corrected 1023 to 1050 (Final) - Wrong number - Read off the wrong child';
+ // The event's Notes tab and the runner's Notes.
+ expect(saved.json().auditNotes[0].message).toBe(line);
+ expect(saved.json().results.finalResults.leaderboard.find((row:any)=>row.wristband===1050).notes.map((note:any)=>note.message)).toEqual([line]);
+ // The Day export: the Note column on the runner's Final row, and the Audit notes sheet.
+ const sheets=await readExcelFile((await call(lead,'/api/day/export',{})).rawPayload);
+ const all=sheets.find(sheet=>sheet.sheet==='All results')!.data,[race,wristband,note]=['Race','Wristband number','Note'].map(name=>all[0].indexOf(name));
+ const rows=all.filter(row=>row[race]==='Final 1' && row[wristband]===1050);
+ expect(rows).toHaveLength(1);expect(String(rows[0][note])).toContain(line);
+ expect(sheets.find(sheet=>sheet.sheet==='Audit notes')!.data.flat().filter(cell=>cell===line)).toHaveLength(1);
+});
+test('a lead\'s Correct runner list adding a runner to a saved final, or changing a number, needs a comment; removing or reordering does not; on a saved heat it stays optional',async()=>{
+ const {volunteer,lead,heats,setup}=await start([[1023,1088],[1066]]);
+ const leadRace=async(raceId:string)=>(await call(lead,`/api/lead/races/${raceId}`)).json().race;
+ const correct=async(raceId:string,added:number,body:object={})=>{
+  const race=await leadRace(raceId),kept=race.parts.runners.value;
+  const numberOf=(id:string)=>kept.find((runner:any)=>runner.id===id).wristband;
+  return call(lead,`/api/lead/races/${raceId}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:[...kept.map((runner:any)=>({entryId:runner.id,wristband:runner.wristband})),{wristband:added}],
+   finish:{order:race.parts.finish.value.order.map(numberOf),didNotFinish:[added]},...body});
+ };
+ expect((await correct(heats[1].id,1012)).statusCode).toBe(200);
+ const id=(await setup.makeFinal(lead,'R3')).race.id;
+ await markAbsent(volunteer,[]);await setup.order(volunteer,'R3',[1023,1066,1088]);await setup.submit(volunteer,'R3');
+ for(const comment of [undefined,'  ']) expect((await correct(id,1110,comment===undefined?{}:{comment})).json()).toEqual({message:'Enter a comment explaining this ruling'});
+ const saved=await correct(id,1110,{comment:'Ran in lane 6, missed at the start'});expect(saved.statusCode).toBe(200);
+ expect(saved.json().auditNotes[0].message).toBe('Aisha corrected the runners for Final 1: 1023, 1066, 1088, 1110 - Ran in lane 6, missed at the start');
+ // The list as it stands, each runner sent with a number (the same, or changed) in the order given.
+ const list=async(numbers:Array<[number,number]>,body:object={})=>{
+  const race=await leadRace(id),kept=race.parts.runners.value;
+  return call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:numbers.map(([was,wristband])=>({entryId:kept.find((runner:any)=>runner.wristband===was).id,wristband})),...body});
+ };
+ // A changed number on an entry kept: a comment is needed, as for an addition.
+ expect((await list([[1023,1024],[1066,1066],[1088,1088],[1110,1110]])).json()).toEqual({message:'Enter a comment explaining this ruling'});
+ expect((await list([[1023,1024],[1066,1066],[1088,1088],[1110,1110]],{comment:'Read off the wrong child'})).statusCode).toBe(200);
+ // Reordering or removing only: no comment.
+ expect((await list([[1066,1066],[1024,1024],[1088,1088],[1110,1110]])).statusCode).toBe(200);
+ expect((await list([[1066,1066],[1024,1024],[1088,1088]])).statusCode).toBe(200);
 });
 test('"+ Final" is the only way to make a final: the lead API no longer completes heats',async()=>{
  const {lead,volunteer}=await start([[1023,1088]]);

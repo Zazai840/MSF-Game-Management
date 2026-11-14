@@ -63,7 +63,15 @@ test('a lead adds a 7th runner to a saved final and the final is recorded end to
   await page.screenshot({path:info.outputPath('lead-add-seventh.png'),fullPage:true});
   await press(docked.getByRole('button',{name:'Review runner list',exact:true}));await expect(page.getByRole('heading',{level:2,name:'7 runners. Is that right?',exact:true})).toBeVisible();
   await press(page.getByRole('button',{name:'New runners did not finish',exact:true}));
-  await page.getByLabel('Comment (optional)',{exact:true}).fill('Tie for 6th');await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved');
+  // A runner added to a final needs the lead's comment.
+  await expect(docked.getByText('Write a comment first.',{exact:true})).toBeVisible();
+  await page.getByLabel('Comment',{exact:true}).fill('Tie for 6th');await press(docked.getByRole('button',{name:'Save runner list',exact:true}));await expectToast(page,'Runner list saved');
+  // A number changed on a final needs the lead's comment too; the lead goes back without saving it.
+  await raceAction(page,'Correct runner list');
+  await press(page.getByRole('button',{name:'Runner 7 · 1806',exact:true}));await page.getByLabel('Wristband for runner 7',{exact:true}).fill('1808');await press(docked.getByRole('button',{name:'Done',exact:true}));
+  await press(docked.getByRole('button',{name:'Review runner list',exact:true}));await expect(page.getByRole('heading',{level:2,name:'7 runners. Is that right?',exact:true})).toBeVisible();
+  await expect(docked.getByText('Write a comment first.',{exact:true})).toBeVisible();await expect(page.getByLabel('Comment',{exact:true})).toBeVisible();
+  await back(page,'Final');
   await raceAction(page,'Correct finishing order');
   await press(page.getByRole('button',{name:'Give a place to 1806',exact:true}));
   const rows=page.getByRole('list',{name:'Finishing order',exact:true}).getByRole('listitem');

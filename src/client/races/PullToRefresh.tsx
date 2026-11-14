@@ -28,6 +28,15 @@ function usePullToRefresh(onRefresh:()=>void) {
       const busy=phase==='refreshing' || event.touches.length!==1 || scrollY>0 || document.querySelector('.rz-scrim') || document.documentElement.dataset.keyboard==='open';
       if(busy || (event.target as Element).closest('[aria-roledescription="drag handle"], input, textarea')) return;
       startY=event.touches[0].clientY;
+      listen(event.target);
+    };
+    // A touch's events go to the element it started on, even after a live read takes that element off the page; there
+    // they never reach the window, so the pull listens on that element too. A second call for the same event changes nothing.
+    let touched:EventTarget|null=null;
+    const listen=(target:EventTarget|null)=>{
+      touched?.removeEventListener('touchmove',move as EventListener);touched?.removeEventListener('touchend',end);touched?.removeEventListener('touchcancel',end);
+      touched=target;
+      touched?.addEventListener('touchmove',move as EventListener,{passive:false});touched?.addEventListener('touchend',end);touched?.addEventListener('touchcancel',end);
     };
     const move=(event:TouchEvent)=>{
       if(startY===null) return;
@@ -40,14 +49,14 @@ function usePullToRefresh(onRefresh:()=>void) {
     };
     const end=()=>{
       if(startY===null) return;
-      startY=null;follow(null);
+      startY=null;listen(null);follow(null);
       if(phase!=='ready') {set('idle');return;}
       set('refreshing');refresh.current();
       timer=window.setTimeout(()=>set('idle'),shownFor);
     };
     addEventListener('touchstart',start,{passive:true});addEventListener('touchmove',move,{passive:false});addEventListener('touchend',end);addEventListener('touchcancel',end);
     return ()=>{
-      clearTimeout(timer);
+      clearTimeout(timer);listen(null);
       removeEventListener('touchstart',start);removeEventListener('touchmove',move);removeEventListener('touchend',end);removeEventListener('touchcancel',end);
     };
   },[]);

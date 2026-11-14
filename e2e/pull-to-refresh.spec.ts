@@ -243,3 +243,21 @@ test('pull down to refresh on a lead screen with no Updated at line: Rename and 
   await pulled(`/api/lead/events/${code}/results`);
   await expect(reason).toHaveAttribute('aria-pressed','true');
 });
+
+test('a pull let go after a live read has replaced what the finger is on still ends: the hint does not stay on "Let go to refresh"',async({openPhone,request},info)=>{
+  test.skip(!info.project.use.hasTouch,'a pull is a touch gesture');
+  const code=await ownCode(),name=ownName('Pull replaced'),w=await ownWristbands('Girl Cubs',2);
+  await ownEvent(request,code,name);
+  const {page}=await openPhone(ownName('Pull replaced lead'),{lead:true}),hint=page.locator('.rz-pull');
+  await page.goto(`/results/${code}`);
+  const empty=page.getByText('Runners appear here once a heat is saved.',{exact:true});
+  await expect(empty).toBeVisible();
+  // The finger goes down on the empty line; a heat saved meanwhile replaces it with the leaderboard on the next read.
+  const lift=await fingerDown(page,320,await middle(empty));
+  await expect(hint).toHaveText('Let go to refresh');
+  await recordRace(request,process.env.E2E_OWNER_TOKEN!,code,[w(1),w(2)],[1100,1200]);
+  await expect(empty).toHaveCount(0,{timeout:10000});
+  await lift();
+  await expect(hint).not.toHaveText('Let go to refresh');
+  await expect(hint).toBeHidden();
+});

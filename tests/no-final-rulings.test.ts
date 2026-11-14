@@ -91,7 +91,7 @@ test('the day export has the podium from heat times and no Finals rows for an ev
   expect(sheets[0].data.slice(1)).toEqual([['R4',null,null,null,null,null,null,null,null,2001,null,null,2011,null,null,2002]]);
   expect(sheets[1].data.filter(row=>row[0]==='R4')).toEqual([]);
 });
-test('a relay decided without a final takes no new heat and refuses call-ups and added teams',async()=>{
+test('a relay decided without a final takes no new heat and refuses call-ups',async()=>{
   const {lead,volunteer}=await start();
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
@@ -99,8 +99,6 @@ test('a relay decided without a final takes no new heat and refuses call-ups and
   await relays.save(volunteer,'R22',[2,1,3],[3400,3500,3700]);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   expect((await call(volunteer,'/api/races',{eventCode:'R22',kind:'heat',number:2})).json()).toEqual({message:'Girl Cubs heats are finished. Ask a lead to add another heat.'});
-  const team=(await call(lead,'/api/lead/events/R22/results')).json().teams[0];
-  expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team.id})).statusCode).toBe(409);
   expect((await call(lead,'/api/lead/events/R22/call-up',{expectedHeatEntryId:'any'})).statusCode).toBe(409);
 });
 test('Reopen results needs a comment, clears the medals and opens the heats again, from where + Final builds a final',async()=>{
@@ -218,21 +216,18 @@ test('deleting a started final offers it again; the deleted final stays restorab
   await setup.makeFinal(lead,'R4');
   expect((await setup.screen(volunteer,'R4')).race).toMatchObject({kind:'final',number:1});
 });
-test('a relay final with a team added and no child marked here is discarded; once a team is marked Here it has started',async()=>{
+test('a relay final with no child marked here is discarded; once a team is marked Here it has started',async()=>{
   const {lead,volunteer}=await start();
   const relays=relayFlowSetup(app);
   for(const number of [1,2,3,4]) await relays.team(volunteer,'R22',[1,2,3,4].map(leg=>2000+number*100+leg));
   for(const number of [1,2,3]) await relays.tick(volunteer,'R22',number);
   await relays.save(volunteer,'R22',[2,1,3],[3400,3500,3700]);
   await raceSetup(app).makeFinal(lead,'R22');
-  const team4=(await call(lead,'/api/lead/events/R22/results')).json().teams.find((team:{number:number})=>team.number===4).id;
-  expect((await call(lead,'/api/lead/events/R22/add-team',{teamId:team4})).statusCode).toBe(200);
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(200);
   await call(lead,'/api/lead/events/R22/reopen-stage',{stage:'no-final',comment:'Final fits after all'});
   await raceSetup(app).makeFinal(lead,'R22');const rebuilt=await call(lead,'/api/lead/events/R22/results');
-  // Rebuilt from the heats alone: the added team is gone, and nobody runs it until marked Here.
+  // Rebuilt from the heats alone, and nobody runs it until marked Here.
   expect(rebuilt.json().results.finalResults.entries.map((entry:{runner:{team:{number:number}}})=>entry.runner.team.number)).toEqual([2,1,3]);
-  expect(rebuilt.json().results.finalResults.additionalEntries).toEqual([]);
   const final=(await relays.race(volunteer,'R22'))!;
   await relays.post(volunteer,`/api/races/${final.race.id}/teams/${final.race.final!.entries.find(entry=>entry.team?.number===2)!.team!.id}/absent`,{mark:'here'});
   expect((await call(lead,'/api/lead/events/R22/complete-stage',{stage:'no-final',comment:'Out of time'})).statusCode).toBe(409);

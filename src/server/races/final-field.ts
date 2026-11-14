@@ -1,7 +1,7 @@
 import type pg from 'pg';
 import { isRunner,isTeamEntry,type RaceEntry,type RaceRead } from '../../shared/races.js';
 import type { TeamLeg } from '../../shared/teams.js';
-import type { FinalEntry,FinalAddition } from '../../shared/finals.js';
+import type { FinalEntry,FinalAddition,FinalField } from '../../shared/finals.js';
 /**
  * Attendance follows the published runner list: those in it are Here, and one leaving it (Didn't run, a lead taking
  * them off, a relay team's Absent) is Absent. One never in it keeps its mark, so a finalist not yet checked in stays
@@ -33,6 +33,12 @@ export async function markAbsentFinalists(client:pg.PoolClient,raceId:string,abs
   const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>({...entry,absent:absent(entry.runner.id,entry.absent)}));
   await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),raceId]);
 }
+/** A runner who replaced finalist `replacesEntryId` at the start line: their added entry names that finalist, as a call-up does. */
+export async function markReplacement(client:pg.PoolClient,raceId:string,entryId:string,replacesEntryId:string) {
+  const row=(await client.query('SELECT additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];
+  const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>entry.runner.id===entryId?{...entry,replacesEntryId}:entry);
+  await client.query('UPDATE race_finals SET additional_entries=$1 WHERE race_id=$2',[JSON.stringify(additional),raceId]);
+}
 /** A relay final's team changed at check-in while not in the race: its kept copy takes the new legs. False when the team is not a finalist. */
 export async function keepFinalistLegs(client:pg.PoolClient,raceId:string,teamId:string,legs:readonly TeamLeg[]) {
   const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];
@@ -45,4 +51,15 @@ export async function keepFinalistLegs(client:pg.PoolClient,raceId:string,teamId
   const entries=(row.entries as FinalEntry[]).map(changed),additional=((row.additional_entries||[]) as FinalAddition[]).map(changed);
   if(found) await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),raceId]);
   return found;
+}
+/**
+ * A relay team's entry in a final's line-up, seeded, called up or added: its id, its Absent mark, its kept copy, and for
+ * a seeded or called-up team the heat entry it ran in.
+ */
+export function finalTeam(final:FinalField,teamId:string) {
+  const ofTeam=(runner:RaceEntry|undefined)=>!!runner && isTeamEntry(runner) && runner.team.id===teamId;
+  const seeded=final.entries.find(item=>ofTeam(item.runner));
+  if(seeded) return {id:seeded.finalEntryId,absent:seeded.absent,runner:seeded.runner,heat:{raceId:seeded.heatRaceId,entryId:seeded.heatEntryId}};
+  const added=(final.additionalEntries||[]).find(item=>ofTeam(item.runner));
+  return added && {id:added.runner.id,absent:added.absent,runner:added.runner};
 }

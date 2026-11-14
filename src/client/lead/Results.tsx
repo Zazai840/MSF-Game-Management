@@ -148,7 +148,7 @@ function FinalTab({detail,onRunner,onStage,onSaved,onRace}:TabProps) {
   if(!final) return <>{row}<p className="rz-empty">The final's order appears here once its finishing order is saved.</p></>;
   return <>
     {row}
-    <Final event={detail.event} teams={detail.teams} final={final} onSaved={onSaved} onRunner={onRunner}/>
+    <Final event={detail.event} final={final} notes={detail.auditNotes} onSaved={onSaved} onRunner={onRunner}/>
     <Medals input={results.inputRunning} sheet={medalSheet(results)} onStage={onStage}/>
   </>;
 }

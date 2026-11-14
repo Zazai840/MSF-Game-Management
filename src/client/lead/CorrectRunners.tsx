@@ -61,6 +61,8 @@ function CorrectRunnerList({read,save,busy}:BodyProps) {
   const [checking,setChecking]=useState(false),[problem,setProblem]=useState(''),[failed,setFailed]=useState<unknown>(null),[refused,setRefused]=useState<unknown>(null);
   const changed=rows.length!==original.length || rows.some((row,at)=>row.entryId!==original[at].id || row.number!==String(original[at].wristband));
   const additions=rows.some(row=>!row.entryId),finish=race.parts.finish.value;
+  /** On a final, a runner added or a number changed needs the lead's comment, as the server asks; a removal or a reorder does not. */
+  const commentRequired=race.kind==='final' && rows.some(row=>String(original.find(runner=>runner.id===row.entryId)?.wristband)!==row.number);
   function edit(index:number|null) {setProblem('');setFailed(null);setEditing(index);}
   async function review() {
     const blank=rows.findIndex(row=>row.number==='');
@@ -95,7 +97,7 @@ function CorrectRunnerList({read,save,busy}:BodyProps) {
   const numbers=rows.map(row=>row.number).join(' · ')||'No runners';
   return <Frame meta={raceMeta(race)} question={reviewing?<><em>{entryCount(rows.length,false)}.</em> Is that right?</>:<>Correct the <em>runner list</em></>}
     help={reviewing?numbers:'Tap a runner to change their number: they keep their place and time. Remove or add a runner only when the runners themselves changed.'}
-    reason={stage==='warnings'?'Fix the runners or keep the warnings.':!changed?'Change, add or remove a runner first.':null} busy={busy || checking}
+    reason={stage==='warnings'?'Fix the runners or keep the warnings.':!changed?'Change, add or remove a runner first.':reviewing && commentRequired && !comment.trim()?'Write a comment first.':null} busy={busy || checking}
     label={reviewing?'Save runner list':checking?'Checking…':'Review runner list'} refused={refused} onGo={()=>void (reviewing?send():review())}
     footer={editing===null?undefined:<KeepFocus className="rz-btn rz-btn--primary rz-btn--block" onClick={()=>edit(null)}>Done</KeepFocus>}>
     {stage==='list' && <>
@@ -123,7 +125,7 @@ function CorrectRunnerList({read,save,busy}:BodyProps) {
           <button type="button" className="rz-choice" aria-pressed={!newDidNotFinish} onClick={()=>setNewDidNotFinish(false)}>Record the finish order again</button>
           <button type="button" className="rz-choice" aria-pressed={newDidNotFinish} onClick={()=>setNewDidNotFinish(true)}>New runners did not finish</button>
         </div></fieldset>}
-      <Comment value={comment} onChange={setComment}/>
+      <Comment value={comment} onChange={setComment} required={commentRequired}/>
       <button type="button" className="rz-btn rz-btn--small rz-runner-edit__add" onClick={()=>setStage('list')}>Change runner list</button>
     </>}
   </Frame>;
@@ -153,6 +155,8 @@ function CorrectTeams({read,save,busy}:BodyProps) {
   const available=[...teams.filter(team=>stillToRun(team) && left(team.id)).map(team=>({key:team.id,team:{number:team.number,legs:team.legs},choice:{teamId:team.id} as TeamChoice})),
     ...entries.filter(entry=>left(entry.id)).map(entry=>({key:entry.id,team:{number:entry.team.number,legs:entry.legs},choice:{entryId:entry.id} as TeamChoice}))].sort((one,other)=>one.team.number-other.team.number);
   const changed=JSON.stringify(draft)!==JSON.stringify(entries.map(entry=>({entryId:entry.id})));
+  /** On a final, a team added or a leg changed needs the lead's comment, as the server asks; a team taken off does not. */
+  const commentRequired=race.kind==='final' && draft.some(choice=>'teamId' in choice || choice.legs?.some((wristband,leg)=>wristband!==entries.find(entry=>entry.id===choice.entryId)!.legs[leg].wristband));
   const card=changing && cards.find(item=>choiceKey(item.choice)===changing.key);
   function cancel() {setChanging(null);setTyped('');setHeld(null);}
   function start(key:string,leg:number,wristband:number|null) {setHeld(null);setChanging({key,leg});setTyped(wristband===null?'':String(wristband));}
@@ -175,7 +179,7 @@ function CorrectTeams({read,save,busy}:BodyProps) {
   }
   return <Frame meta={raceMeta(race)} question={card?<>Change <em>Team {card.team.number}'s</em> {ordinal(changing!.leg+1)} leg</>:<>Correct the <em>teams</em></>}
     help="Tap a leg to change its child: the team keeps its place and time. On the team's latest race, the team changes too."
-    reason={changed?null:'Change a team first.'} busy={busy} label="Save teams" refused={refused} onGo={()=>void send()}
+    reason={!changed?'Change a team first.':commentRequired && !comment.trim()?'Write a comment first.':null} busy={busy} label="Save teams" refused={refused} onGo={()=>void send()}
     footer={card && <div className="rz-footer__pair"><button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
       <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held} onClick={()=>done()}>Done</KeepFocus></div>}>
     {card && <DigitsField id="leg" label="New number" value={typed} held={!!held} warn={!!held} onRelease={()=>setHeld(null)} selectKey={`${changing!.key}:${changing!.leg}`}
@@ -198,6 +202,6 @@ function CorrectTeams({read,save,busy}:BodyProps) {
     {!cards.length && <p className="rz-empty">No teams</p>}
     {available.length>0 && <><h3 className="rz-section">Still to run</h3>
       <ul className="rz-teamrows" aria-label="Still to run">{available.map(item=><TeamRow key={item.key} team={item.team} onAdd={()=>{cancel();setDraft(previous=>[...previous,item.choice]);}}/>)}</ul></>}
-    <Comment value={comment} onChange={setComment}/>
+    <Comment value={comment} onChange={setComment} required={commentRequired}/>
   </Frame>;
 }

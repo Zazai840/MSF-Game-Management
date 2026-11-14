@@ -48,7 +48,7 @@ test('Races letting go of its live stream while the phone reads why it was logge
   // A slow phone, made certain: the server ends the live stream just as Log out ends the session, the stream's
   // reconnect (no token now) is answered 401 at once, and its reason is not read before Races lets go of it.
   await page.addInitScript(()=>{
-    const original=window.fetch,later=window.setTimeout,flags=window as {heldReason?:boolean;letGo?:boolean};
+    const original=window.fetch,later=window.setTimeout,flags=window as {heldReason?:boolean;letGo?:boolean;streamOpen?:boolean};
     // The reconnect waits on a 0 ms timer, and React can let go of Races (its effect cleanup) in a task before that
     // timer: then no reconnect is made. From Log out until the reconnect, a 0 ms timer runs at once instead.
     window.addEventListener('msf:session',()=>{
@@ -67,6 +67,7 @@ test('Races letting go of its live stream while the phone reads why it was logge
       }
       const response=await original(input,init);
       if(!live || !response.ok || !response.body) return response;
+      flags.streamOpen=true;
       const reader=response.body.getReader();
       const body=new ReadableStream({start(stream) {
         window.addEventListener('msf:session',()=>{try {stream.close();} catch {/* already closed */}void reader.cancel();});
@@ -76,6 +77,8 @@ test('Races letting go of its live stream while the phone reads why it was logge
     };
   });
   await page.goto('/');await join(page,name,{job:'Start line'});await races(page);
+  // Races' stream must be open (a slow server answers it late) or Log out has no stream to end.
+  await page.waitForFunction(()=>(window as {streamOpen?:boolean}).streamOpen);
   await page.getByRole('button',{name:`${name}: Log out`,exact:true}).click();await pick(page,'Log out');
   // Races has let go of the held 401, so a reason it never read would have cleared the phone by now.
   await joinScreen(page);await page.waitForFunction(()=>(window as {letGo?:boolean}).letGo);
