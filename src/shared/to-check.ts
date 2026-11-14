@@ -41,8 +41,6 @@ function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
       const plain=wristband!==undefined && item.warningKinds?.length?item.warningKinds.map(kind=>plainWristbandWarning({kind:kind as WristbandWarning['kind']},wristband,item.event.section)).join(' '):null;
       return {title:'A wristband number needs checking',explanation:plain?`${plain} Correct it or mark it checked.`:item.message};
     }
-    case 'two-relays':
-      return {title:'A child is in two relays',explanation:item.message};
     case 'ran-short':
       return {title:'A team ran short',explanation:item.message};
     case 'added-at-finish':
@@ -88,13 +86,12 @@ function countedNoun(item:DayLeadItem,count:number) {
   switch(item.kind) {
     case 'times-out-of-order': return counted(count,'time');
     case 'warning': return counted(count,'wristband');
-    case 'two-relays': return counted(count,'child','children');
     case 'ran-short': return counted(count,'team');
     case 'added-at-finish': case 'ran-twice': return counted(count,entryNoun(item.team!==undefined));
     case 'tie': return counted(count,'tie');
   }
 }
-const kindWords:Record<DayLeadItem['kind'],string>={'times-out-of-order':'to check',warning:'to check','two-relays':'in two relays','ran-short':'ran short','added-at-finish':'added at the finish','ran-twice':'ran twice',tie:'to decide'};
+const kindWords:Record<DayLeadItem['kind'],string>={'times-out-of-order':'to check',warning:'to check','ran-short':'ran short','added-at-finish':'added at the finish','ran-twice':'ran twice',tie:'to decide'};
 /** A card's open items grouped by race and kind, in the items' order. An event's ties have no race: they are one group. */
 function issueGroups(items:readonly DayLeadItem[]) {
   const groups=new Map<string,DayLeadItem[]>();

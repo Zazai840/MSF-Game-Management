@@ -2,7 +2,7 @@ import { resultHolder,resultName,type EventState,type LeaderboardRow,type Result
 import { isOpenEligibilityWarning } from './runner-rulings.js';
 import { formatTime } from './time-entry.js';
 import { notCountedReasons } from './race-counts.js';
-const teamItems:Partial<Record<WarningKind,'two-relays'|'ran-short'>>={'other-relay':'two-relays','ran-short':'ran-short'};
+const teamItems:Partial<Record<WarningKind,'ran-short'>>={'ran-short':'ran-short'};
 const latest=(dates:readonly string[])=>dates.reduce((a,b)=>a>b?a:b,'');
 /** The first place whose time is faster than an earlier place's, and that earlier place. */
 function firstWrongTime(places:readonly(number|null)[]):LeadItem['wrongTime'] {
@@ -29,7 +29,7 @@ export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],t
     const race=active.find(race=>race.id===row.raceId);if(!race) continue;
     const open=row.flags.filter(isOpenEligibilityWarning),warnings=open.filter(flag=>!teamItems[flag.warningKind!]);
     const warned=changed(race,'runners',row.entryId,['correct-number','correct-runners','lift-disqualification'],race.leadTimes?.[`warning:${row.entryId}`]);
-    // A relay team's own questions are items of their own: a child in two relays, a team that ran short.
+    // A relay team's own question is an item of its own: a team that ran short.
     for(const [warningKind,kind] of Object.entries(teamItems)) {
       const flags=open.filter(flag=>flag.warningKind===warningKind);
       if(flags.length) items.push({id:`${kind}:${row.raceId}:${row.entryId}`,kind,raceId:row.raceId,entryId:row.entryId,at:warned,message:flags.map(flag=>flag.message).join(' '),...teamOf(row)});

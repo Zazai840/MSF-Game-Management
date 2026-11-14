@@ -100,29 +100,15 @@ test('a time out of order, teams tied on time and a team ran twice are today\'s 
   expect(itemTeams(twice,[])).toEqual([]);
 });
 
-test('a child in two relays\' teams is a To check item on the team that ran, kept or not, cleared by fixing the team or Mark checked',async()=>{
-  const {sam,lead,relays,heat,toCheck}=await start();
+test('a child in two relays\' teams goes straight in at the start line and is nothing for the lead to check',async()=>{
+  const {sam,relays,heat,toCheck}=await start();
   await relays.team(sam,'R22',[2101,2102,2103,2104]);
   await relays.team(sam,'R22',[2201,2202,2203,2134]);
   await relays.team(sam,'R28',[4101,4102,4103,4104]);
-  // Typed into a Girl Scouts team as well, the Girl Cub's "also in Team 2 of 4x50m Relay Girl Cubs" warning is kept.
+  // Typed into a Girl Scouts team as well, the Girl Cub carries only their wrong-section warning: nothing says two relays.
   await relays.team(sam,'R28',[4201,2134,4203,4204]);
+  expect((await relays.teams(sam,'R28')).find(team=>team.number===2)!.legs[1].warnings.map(warning=>warning.kind)).toEqual(['wrong-section']);
   await heat('R22',[1,2]);
-  const twoRelays={kind:'two-relays',title:'A child is in two relays',explanation:'2134 is in Girl Cubs Team 2 and Girl Scouts Team 2.'};
-  expect((await toCheck()).map(({kind,title,explanation})=>({kind,title,explanation}))).toEqual([twoRelays]);
-  // The Girl Scouts team has not run, so its relay has nothing to check yet.
+  expect(await toCheck()).toEqual([]);
   expect(await toCheck('R28')).toEqual([]);
-  // Fixing the Girl Scouts team at its heat's start line clears it; typing the child back brings it back.
-  const scouts=await relays.tick(sam,'R28',2),team=scouts.teams!.find(team=>team.number===2)!;
-  async function change(legs:number[]) {
-    const version=(await relays.teams(sam,'R28')).find(other=>other.id===team.id)!.version;
-    await relays.post(sam,`/api/relays/${scouts.group.event.id}/teams/${team.id}`,{version,legs,keptWarnings:legs,raceId:scouts.race.id});
-  }
-  await change([4201,4202,4203,4204]);
-  expect(await toCheck()).toEqual([]);
-  await change([4201,2134,4203,4204]);
-  const [item]=await toCheck();
-  expect(item).toMatchObject(twoRelays);
-  expect((await call(lead,`/api/lead/races/${item.raceId}/runners/${item.entryId}/mark-warning-checked`,{})).statusCode).toBe(200);
-  expect(await toCheck()).toEqual([]);
 });

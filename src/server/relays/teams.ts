@@ -29,17 +29,12 @@ export async function readTeamLists(db:Database,dayId:string):Promise<Map<string
     races:held.filter(race=>race.team_id===team.id).map(({id,kind,number,state})=>({id,kind,number,state}))});
   return lists;
 }
-/** The day's switched-on relays with their teams: a child on two of them is in two relays. */
-export const switchedOn=(lists:Map<string,TeamListRead>)=>[...lists.values()].filter(list=>list.enabled);
-/**
- * A relay race's read and lead race page carry its relay's teams and the number the next one typed in takes, and every
- * switched-on relay's teams, which a team's warnings and Correct teams look through.
- */
+/** A relay race's read and lead race page carry its relay's teams and the number the next one typed in takes. */
 export async function relayLists(db:Database,dayId:string,eventId:string) {
   const lists=await readTeamLists(db,dayId),list=lists.get(eventId)!;
-  return {teams:list.teams,nextTeam:list.nextTeam,relays:switchedOn(lists).map(({code,name,section,teams})=>({code,name,section,teams}))};
+  return {teams:list.teams,nextTeam:list.nextTeam};
 }
-/** One relay (by event code or id) as a teams write sees it: its teams and the day's switched-on relays, which its warnings look through. */
+/** One relay (by event code or id) as a teams write sees it: its teams. */
 export async function teamsWriteRead(db:Database,dayId:string,relay:{code:string}|{id:string}) {
   const [column,value]='id' in relay?['e.id::text',relay.id]:['e.code',relay.code];
   const event=(await db.query(`SELECT e.id,(e.type='relays') AS relay FROM events e WHERE e.day_id=$1 AND ${column}=$2`,[dayId,value])).rows[0];
@@ -47,7 +42,7 @@ export async function teamsWriteRead(db:Database,dayId:string,relay:{code:string
   if(!event.relay) throw new Refusal(400,'Only a relay has teams');
   const lists=await readTeamLists(db,dayId),list=lists.get(event.id)!;
   if(!list.enabled) throw new Refusal(409,'This event is switched off');
-  return {...list,relays:switchedOn(lists)};
+  return list;
 }
 export type TeamsWriteRead=Awaited<ReturnType<typeof teamsWriteRead>>;
 export function requestedTeam(relay:TeamsWriteRead,teamId:string) {
@@ -85,11 +80,11 @@ export function requestedDone(body:unknown):TeamDone {
  * A team's four boxes as every team write checks them, in race `raceId`: no wristband twice
  * in the team or in another team of that race, and each warning kept. Answers the legs to store.
  */
-export function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId:string|null,wristbands:Array<number|null>,kept:unknown[],raceId:string):TeamLeg[] {
+export function checkedLegs(relay:TeamList,teamId:string|null,wristbands:Array<number|null>,kept:unknown[],raceId:string):TeamLeg[] {
   const refusal=wristbands.map((_,index)=>legRefusal(relay.teams,teamId,wristbands,index,raceId)).find(Boolean);
   if(refusal) throw new Refusal(409,refusal);
   // A warning is stored only once kept: each one needs Fix number or Keep.
-  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,relay.relays,teamId,raceId).map(warning=>({...warning,kept:true}))}));
+  const legs=wristbands.map(wristband=>({wristband,warnings:wristband===null?[]:legWarnings(wristband,relay,teamId,raceId).map(warning=>({...warning,kept:true}))}));
   const unkept=legs.find(leg=>leg.warnings.length && !kept.includes(leg.wristband));
   if(unkept) throw new Refusal(409,`${unkept.wristband} needs Fix number or Keep`);
   return legs;
@@ -102,7 +97,7 @@ export function checkedLegs(relay:TeamList & {relays:readonly TeamList[]},teamId
  * and a child put in place of one no longer in it takes theirs.
  */
 export async function correctTeam(client:pg.PoolClient,lead:Phone,race:{id:string;event:{id:string}},entry:TeamEntry,wristbands:Array<number|null>,kept:unknown[]):Promise<TeamEntry> {
-  const lists=await readTeamLists(client,lead.dayId),relay={...lists.get(race.event.id)!,relays:switchedOn(lists)};
+  const relay=(await readTeamLists(client,lead.dayId)).get(race.event.id)!;
   const legs=checkedLegs(relay,entry.team.id,wristbands,kept,race.id),team=relay.teams.find(item=>item.id===entry.team.id);
   if(team?.races.at(-1)?.id===race.id) await client.query('UPDATE relay_teams SET legs=$2,version=version+1,changed_by=$3,changed_by_profile=$4 WHERE id=$1',[team.id,JSON.stringify(legs),lead.name,lead.profileId]);
   const stays=(wristband:number|null)=>legs.some(leg=>leg.wristband===wristband);

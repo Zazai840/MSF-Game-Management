@@ -1,7 +1,6 @@
 import type { Runner,TeamEntry } from './races.js';
 import type { RunnerRuling } from './rulings.js';
-import type { EventState,ResultFlag,ResultsRace,ResultWarning } from './results-rules.js';
-import { listed } from './to-check.js';
+import type { ResultFlag,ResultsRace,ResultWarning } from './results-rules.js';
 import { clock } from './clock.js';
 /** Already-ran is settled by correcting, excluding or disqualifying, never Mark checked. */
 export function isOpenEligibilityWarning(flag:ResultFlag):boolean {
@@ -38,20 +37,12 @@ export function signOffText(flag:ResultFlag):string {
 export function runnerWarningFlags(runner:Runner,ruling:RunnerRuling|undefined,repeated:boolean):ResultFlag[] {
   return (runner.warnings||[]).map(warning=>({kind:'warning',message:warning.message,warningKind:warning.kind,...(warning.kind==='already-ran'?{checked:!repeated}:settled(warning,ruling))}));
 }
-/**
- * A relay team's warnings in one race: its children's kept wristband warnings, each child also on another relay's
- * team list ("2134 is in Girl Cubs Team 3 and Girl Scouts Team 2.") and whether it ran short in a saved race. A child
- * in two relays is worked out from the team lists, kept or not, so a kept "also in another relay's team" is left out.
- */
-export function teamWarningFlags(state:Pick<EventState,'event'|'relays'>,race:Pick<ResultsRace,'saved'>,entry:TeamEntry,ruling:RunnerRuling|undefined):ResultFlag[] {
+/** A relay team's warnings in one race: its children's kept wristband warnings and whether it ran short in a saved race. */
+export function teamWarningFlags(race:Pick<ResultsRace,'saved'>,entry:TeamEntry,ruling:RunnerRuling|undefined):ResultFlag[] {
   const flag=(warning:ResultWarning):ResultFlag=>({kind:'warning',message:warning.message,warningKind:warning.kind,...settled(warning,ruling)});
-  const kept=entry.legs.flatMap(leg=>leg.warnings.filter(warning=>warning.kind!=='other-relay').map(flag));
-  const twoRelays=entry.legs.flatMap(({wristband})=>{
-    const others=(state.relays||[]).filter(relay=>relay.code!==state.event.code).flatMap(relay=>relay.teams.filter(team=>team.legs.some(leg=>leg.wristband===wristband)).map(team=>`${relay.section} Team ${team.number}`));
-    return wristband!==null && others.length?[flag({kind:'other-relay',message:`${wristband} is in ${listed([`${state.event.section} Team ${entry.team.number}`,...others])}.`})]:[];
-  });
+  const kept=entry.legs.flatMap(leg=>leg.warnings.map(flag));
   // Settled by Mark checked or by any disqualification. A team added at the finish has its children with a wristband marked here.
   const here=entry.legs.filter(leg=>leg.here).length,ranShort={kind:'ran-short' as const,message:`Team ${entry.team.number} ran with ${here} of 4 children marked here.`};
   const short=race.saved && here<4?[flag(ranShort)].map(item=>item.checked || !ruling?.disqualification?item:{...item,...byDisqualification}):[];
-  return [...kept,...twoRelays,...short];
+  return [...kept,...short];
 }

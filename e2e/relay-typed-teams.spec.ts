@@ -1,5 +1,5 @@
 import type { RaceFlowRead } from '../src/shared/race-flow.js';
-import {ownName,enterTime,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,press,test,type Page} from './fixtures.js';
+import {ownName,enterTime,expect,flowPost,live,lookProblems,ownCode,ownRelay,ownWristbands,press,test,writeTeam,type Page} from './fixtures.js';
 const meta=(page:Page)=>page.locator('.rz-prompt__meta');
 const prompt=(page:Page)=>page.getByRole('heading',{level:2});
 const box=(page:Page)=>page.locator('main .rz-field__input');
@@ -153,4 +153,24 @@ test('a typed leg is checked as at individual check-in: a child in another team 
   await expect(chips(page,3)).toHaveText([`1st${w(1)}`,'2nd–','3rd–','4th–']);
   const saved:RaceFlowRead=await (await request.get(`/api/races/${two.race.id}`,{headers:{authorization:`Bearer ${sam.token}`}})).json();
   expect(saved.teams!.find(team=>team.number===3)!.legs[0].warnings).toEqual([{kind:'other-heat',message:`${w(1)} already ran in Heat 1, in Team 1.`,kept:true}]);
+});
+
+test('a child already in a team of another relay goes straight into their own relay\'s team at the start line, with no Fix number or Keep',async({openPhone,request},info)=>{
+  const beavers=await ownCode(),cubs=await ownCode(),name=ownName('Relay two relays');
+  await ownRelay(beavers,name,'Boy Beavers');await ownRelay(cubs,name,'Boy Cubs');
+  const b=await ownWristbands('Boy Beavers',3),c=await ownWristbands('Boy Cubs',4),sam=await openPhone(ownName('Sam Patel two relays'));
+  // A Boy Cub filled the Beavers team's 4th leg, kept as another Section's number.
+  await writeTeam(request,sam.token,beavers,[b(1),b(2),b(3),c(1)],{keptWarnings:[c(1)]});
+  const heat=await flowPost(request,sam.token,'/api/races',{eventCode:cubs,kind:'heat',number:1}),page=sam.page;
+  await page.goto(`/races/${heat.race.id}`);
+  await leg(page,c(1));
+  await expect(prompt(page)).toHaveText('Team 1 · 2nd leg: wristband number?');
+  await expect(page.locator('main .rz-callout')).toHaveCount(0);
+  for(const number of [2,3]) await leg(page,c(number));
+  await leg(page,c(4),'Save Team 1');
+  await expect(chips(page,1)).toHaveText([`1st${c(1)}`,`2nd${c(2)}`,`3rd${c(3)}`,`4th${c(4)}`]);
+  expect(await lookProblems(page)).toEqual([]);
+  await page.screenshot({path:info.outputPath('two-relays-no-prompt.png'),fullPage:true});
+  const saved:RaceFlowRead=await (await request.get(`/api/races/${heat.race.id}`,{headers:{authorization:`Bearer ${sam.token}`}})).json();
+  expect(saved.teams!.find(team=>team.number===1)!.legs.map(leg=>leg.warnings)).toEqual([[],[],[],[]]);
 });

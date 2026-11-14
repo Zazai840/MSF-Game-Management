@@ -127,9 +127,9 @@ test('five phones share the test build: three work one race live until it saves 
   const relayRace=(await relayGroup(starter))!.races.find(race=>race.kind==='heat' && race.number===relayHeatNumber)!.id;
   try {
     for(const page of [mistyped,finisher,timer]) await openRace(page,relayName,relaySection,`H${relayHeatNumber}`);
-    // Girl Cubs wristbands in no relay's team yet, so no leg needs Keep on a day earlier runs and testers have used.
+    // Girl Cubs wristbands in no team of this relay yet, so no leg needs Keep on a day earlier runs and testers have used.
     const read=(await (await starter.request.get(`/api/races/${relayRace}`,{headers:{authorization:`Bearer ${await token(starter)}`}})).json()) as RaceFlowRead;
-    const inTeams=new Set((read.relays||[]).flatMap(item=>item.teams).flatMap(team=>team.legs.map(leg=>leg.wristband)));
+    const inTeams=new Set((read.teams||[]).flatMap(team=>team.legs.map(leg=>leg.wristband)));
     const legs:number[]=[];
     while(legs.length<8) {
       const number=2000+Math.floor(Math.random()*1000);
