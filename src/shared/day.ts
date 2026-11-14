@@ -17,7 +17,13 @@ export const dayNumbers = [1,2,3,4,5] as const;
 /** The years This day offers: 2026 to the year after `now`'s. */
 export const thisDayYears=(now:Date)=>Array.from({length:now.getUTCFullYear()-2024},(_,index)=>2026+index);
 export interface ThisDay { year: number; region: Region|null; dayNumber: number|null }
-export interface DayRead extends ThisDay { olympicsPassword: string; leadCode: string; revision: number; exportedAt:string|null; exportedRevision:number|null; events: DayEvent[] }
+/** How an event decides its medals, as Day setup names it. */
+export const formats={heats:'Heats then final',timed:'Timed'} as const;
+/** Why a lead can no longer switch an event's format: its final is made, or its medals are decided (null: it can switch). */
+export type FormatLock='final'|'medals'|null;
+/** An event as Day setup reads it: its format lock and the numbers of its live races other than the final. */
+export interface SetupEvent extends DayEvent { formatLock:FormatLock; races:number[] }
+export interface DayRead extends ThisDay { olympicsPassword: string; leadCode: string; revision: number; exportedAt:string|null; exportedRevision:number|null; events: SetupEvent[] }
 /** This day is chosen once it has a region and a day: Day setup's row asks for them until then. */
 export const thisDayChosen=(day:Pick<ThisDay,'region'|'dayNumber'>)=>day.region!==null && day.dayNumber!==null;
 type Exported=Pick<DayRead,'exportedAt'|'exportedRevision'|'revision'>;

@@ -1,3 +1,4 @@
+import { formats } from './day.js';
 import type { Level } from './domain.js';
 import { raceName,stepLabels,type Step } from './race-flow.js';
 import type { Stage } from './stages.js';
@@ -18,7 +19,8 @@ export type ToastSave=
   |{kind:'role';name:string;role:Level}
   |{kind:'removed';name:string}
   |{kind:'switched';code:string;on:boolean}
-  |{kind:'renamed'|'event-added';code:string};
+  |{kind:'renamed'|'event-added';code:string}
+  |{kind:'format';title:string;format:keyof typeof formats};
 // A correction names a step's part as the step itself is named; the runner list and the teams have their own words.
 const parts={times:stepLabels.times,order:stepLabels.positions,runners:'Runner list',teams:'Teams'};
 const reopened:Record<Stage,string>={final:'Final',heats:'Heats',event:'Event','no-final':'Results'};
@@ -48,6 +50,7 @@ export function toastLine(save:ToastSave):string {
     case 'renamed': return `Name saved · ${save.code}`;
     case 'switched': return `${save.code} switched ${save.on?'on':'off'}`;
     case 'event-added': return `Event added · ${save.code}`;
+    case 'format': return `${save.title} is now ${formats[save.format]}`;
     case 'downloaded': return 'Downloaded';
   }
 }

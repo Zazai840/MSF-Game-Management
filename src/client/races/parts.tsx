@@ -25,7 +25,9 @@ const paths={
   eye:<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>,
   'chevron-left':<path d="M15 6l-6 6 6 6"/>,
   'chevron-right':<path d="M9 6l6 6-6 6"/>,
-  'chevron-down':<path d="M6 9l6 6 6-6"/>
+  'chevron-down':<path d="M6 9l6 6 6-6"/>,
+  swap:<><path d="M4 8h15l-3.5-3.5"/><path d="M20 16H5l3.5 3.5"/></>,
+  lock:<><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></>
 };
 export type IconName=keyof typeof paths;
 export const Icon=({name,className=''}:{name:IconName;className?:string})=><svg className={`rz-icon ${className}`} viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;

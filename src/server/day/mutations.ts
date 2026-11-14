@@ -22,10 +22,14 @@ export function eventDetails(value:unknown) {
   const name = eventName(body.name);
   const section = sections.find(section=>section===body.section);
   if (!section) throw new Refusal(400,'Choose one of the six sections');
-  if (body.format!=='heats' && body.format!=='timed') throw new Refusal(400,'Choose heats then final or timed');
+  const format=eventFormat(body.format);
   // A relay needs its team lists, so only a new day's seeded relays are relays.
   if (body.type!=='races' && body.type!=='hurdles') throw new Refusal(400,'Choose Races or Hurdles');
-  return {code,name,section,format:body.format,type:body.type};
+  return {code,name,section,format,type:body.type};
+}
+export function eventFormat(value:unknown) {
+  if (value!=='heats' && value!=='timed') throw new Refusal(400,'Choose heats then final or timed');
+  return value;
 }
 /** One This day field from a lead's choice: its column and a value from its list (Year 2026 to next year, Region, Day 1-5). */
 export function thisDayChange(value:unknown) {

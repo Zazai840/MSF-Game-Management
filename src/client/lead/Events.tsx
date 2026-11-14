@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { eventTitle,eventTypeNames,sections,type DayEvent,type DayRead } from '../../shared/day.js';
+import { useId,useState } from 'react';
+import { eventTitle,eventTypeNames,formats,sections,type DayEvent,type DayRead,type SetupEvent } from '../../shared/day.js';
+import { andList } from '../../shared/race-flow.js';
 import { toastLine,type ToastSave } from '../../shared/toast-lines.js';
 import { api } from '../api.js';
 import { useToast } from '../races/Toast.js';
@@ -10,7 +11,6 @@ import { UpdatedAt } from '../races/UpdatedAt.js';
 import type { View } from '../shell/addresses.js';
 
 type EventsView=Extract<View,{kind:'events'|'rename-event'|'new-event'}>;
-const formats={heats:'Heats then final',timed:'Timed'} as const;
 /** One save from an Events screen: the server call, then `saved` (a sheet closes here, so the toast shows in its final place), the toast and a fresh day read; a refusal comes back to show. */
 function useSave(onSaved:()=>Promise<void>) {
   const toast=useToast();
@@ -27,7 +27,8 @@ function useSave(onSaved:()=>Promise<void>) {
 /**
  * Events (from Day setup) and the two screens it opens: Rename and Add an event. Events is a row per event; a tap opens
  * the event's sheet with Rename and Switch off / on. Switch saves at once and closes the sheet; a refused save shows in
- * the sheet. There is no event list to confirm.
+ * the sheet. Under each event's name its format chip switches it in two taps: the chip, then the confirm sheet's button.
+ * There is no event list to confirm.
  */
 export function Events({view,day,updated,error,onRefresh,onOpen,onBack,onSaved}:{view:EventsView;day:DayRead|null;updated:string;error:unknown;
   onRefresh:()=>Promise<void>;onOpen:(view:View)=>void;onBack:()=>void;onSaved:()=>Promise<void>}) {
@@ -39,20 +40,28 @@ export function Events({view,day,updated,error,onRefresh,onOpen,onBack,onSaved}:
 function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|null;updated:string;error:unknown;onRefresh:()=>Promise<void>;onOpen:(view:View)=>void;onSaved:()=>Promise<void>}) {
   const {busy,save}=useSave(onSaved);
   const [openId,setOpenId]=useState<DayEvent['id']|null>(null);
+  const [formatId,setFormatId]=useState<DayEvent['id']|null>(null);
   const [refused,setRefused]=useState<unknown>(null);
-  const open=day?.events.find(event=>event.id===openId);
+  const open=day?.events.find(event=>event.id===openId),switching=day?.events.find(event=>event.id===formatId);
   async function toggle(event:DayEvent) {
     setRefused(null);
     const failure=await save(`day/events/${encodeURIComponent(event.code)}/enabled`,{enabled:!event.enabled},{kind:'switched',code:event.code,on:!event.enabled},()=>setOpenId(null));
     if(failure) setRefused(failure);
   }
+  async function switchFormat(event:SetupEvent,format:DayEvent['format']) {
+    setRefused(null);
+    const failure=await save(`day/events/${encodeURIComponent(event.code)}/format`,{format},{kind:'format',title:eventTitle(event),format},()=>setFormatId(null));
+    if(failure) setRefused(failure);
+  }
   return <LeadHeader title="Events" up="Day setup" body={<><main className="rz-main">
     {error!==null && <ErrorCallout error={error} action="read"/>}
-    {day && <ul className="rz-list" aria-label="Events">{day.events.map(event=><li key={event.id}>
-      <button type="button" className="rz-listrow" onClick={()=>{setRefused(null);setOpenId(event.id);}}>
+    {day && <ul className="rz-list" aria-label="Events">{day.events.map(event=><li key={event.id} className="rz-eventrow">
+      <button type="button" className="rz-listrow rz-eventrow__row" onClick={()=>{setRefused(null);setOpenId(event.id);}}>
         <span className="rz-listrow__main"><span className="rz-listrow__label">{eventTitle(event)}</span>
-          <span className="rz-listrow__meta">{event.code} · {eventTypeNames[event.type]} · {formats[event.format]}{!event.enabled && ' · Switched off'}</span></span>
+          <span className="rz-listrow__meta">{event.code} · {eventTypeNames[event.type]}{!event.enabled && ' · Switched off'}</span></span>
         <Icon name="chevron-right" className="rz-icon--bold"/></button>
+      <button type="button" className="rz-chip rz-eventrow__format" aria-label={`${formats[event.format]} · ${eventTitle(event)}`} onClick={()=>{setRefused(null);setFormatId(event.id);}}>
+        {event.formatLock && <Icon name="lock"/>}{formats[event.format]}{!event.formatLock && <Icon name="swap"/>}</button>
     </li>)}</ul>}
     <button type="button" className="rz-btn rz-btn--block" onClick={()=>onOpen({kind:'new-event'})}><Icon name="plus"/>Add an event</button>
   </main><footer className="rz-footer"><UpdatedAt time={updated} onRefresh={()=>void onRefresh()}/></footer>
@@ -63,7 +72,43 @@ function EventList({day,updated,error,onRefresh,onOpen,onSaved}:{day:DayRead|nul
       <button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void toggle(open)}>{open.enabled?'Switch off':'Switch on'}</button>
     </div>
   </Sheet>}
+  {switching && <FormatSheet event={switching} busy={busy} refused={refused} onSwitch={format=>void switchFormat(switching,format)}
+    onResults={()=>onOpen({kind:'event',code:switching.code})} onClose={()=>setFormatId(null)}/>}
   </>}/>;
+}
+
+/** What each format's picture shows, the medals last. */
+const formatSteps={heats:['Heats','Final','Final\'s top 3'],timed:['Heats','3 fastest times']} as const;
+function FormatPath({label,format}:{label:string;format:DayEvent['format']}) {
+  const id=useId(),steps=formatSteps[format];
+  return <div className="rz-format"><p className="rz-format__label" id={id}>{label}</p>
+    <ol className="rz-format__path" aria-labelledby={id}>{steps.map((step,index)=><li key={step} className="rz-format__step">
+      {index>0 && <Icon name="chevron-right" className="rz-format__arrow"/>}
+      <span className={index===steps.length-1?'rz-format__stop rz-format__stop--medals':'rz-format__stop'}>{index===steps.length-1 && <Icon name="trophy"/>}{step}</span>
+    </li>)}</ol></div>;
+}
+/** What the event's races run so far keep: their times, counted the new way. */
+const keepLine=(races:readonly number[])=>!races.length?'No races yet.':races.length===1?`Heat ${races[0]} keeps its times.`:`${andList(races.map(number=>`Heat ${number}`))} keep their times.`;
+/**
+ * The format chip's sheet: before -> after and the one switch button, or, once the final is made or the medals are
+ * decided, why it is locked and the way to Results.
+ */
+function FormatSheet({event,busy,refused,onSwitch,onResults,onClose}:{event:SetupEvent;busy:boolean;refused:unknown;onSwitch:(format:DayEvent['format'])=>void;onResults:()=>void;onClose:()=>void}) {
+  if(event.formatLock) return <Sheet title={event.formatLock==='final'?'The final is made':'Medals are decided'} onClose={onClose}>
+    <p className="rz-sheet__text">{event.formatLock==='final'?'Reopen the heats in Results to change it.':'Reopen them in Results to change it.'}</p>
+    <div className="rz-sheet__actions"><button type="button" className="rz-btn rz-btn--primary rz-btn--block" onClick={onResults}>Open Results</button></div>
+  </Sheet>;
+  const other=event.format==='heats'?'timed':'heats';
+  return <Sheet title={eventTitle(event)} onClose={onClose}>
+    <FormatPath label="Now" format={event.format}/>
+    <FormatPath label="After" format={other}/>
+    <p className="rz-sheet__text">{keepLine(event.races)}</p>
+    {refused!==null && <ErrorCallout error={refused} action="save"/>}
+    <div className="rz-sheet__actions">
+      <button type="button" className="rz-btn rz-btn--primary rz-btn--block" disabled={busy} onClick={()=>onSwitch(other)}>Switch to {formats[other]}</button>
+      <button type="button" className="rz-btn rz-btn--small rz-btn--block" onClick={onClose}>Cancel</button>
+    </div>
+  </Sheet>;
 }
 
 /** Rename: the event's new name, saved by the docked button; Races, Results and the Day export show it. */

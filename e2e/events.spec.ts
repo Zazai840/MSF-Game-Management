@@ -1,4 +1,4 @@
-import {ownName,ownCode,ownEvent,openLeadsBarTab,becomeLead,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
+import {ownName,ownCode,ownEvent,ownWristbands,recordRace,openLeadsBarTab,becomeLead,expect,expectToast,join,lookProblems,press,test,back,type Page} from './fixtures.js';
 const headers=()=>({authorization:`Bearer ${process.env.E2E_OWNER_TOKEN}`});
 /** An event's row on Events, found by the code that starts its second line. */
 const row=(page:Page,code:string)=>page.getByRole('list',{name:'Events'}).getByRole('button',{name:new RegExp(` ${code} · `)});
@@ -21,10 +21,10 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await expect(heading(page,'Events')).toBeVisible();
   await expect(page.getByText(/confirm/i)).toHaveCount(0);
 
-  // A row per event: its title as on Races ("60m · Girl Cubs"), then its code, Races or Hurdles and its format.
+  // A row per event: its title as on Races ("60m · Girl Cubs"), then its code and Races or Hurdles; its format is the chip under it.
   const event=row(page,code),sheet=page.getByRole('dialog',{name:`${name} · Girl Cubs`,exact:true});
   await expect(event.getByText(`${name} · Girl Cubs`,{exact:true})).toBeVisible();
-  await expect(event.getByText(`${code} · Hurdles · Timed`,{exact:true})).toBeVisible();
+  await expect(event.getByText(`${code} · Hurdles`,{exact:true})).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(0);
   await expect(page.getByText(/Updated at \d\d:\d\d:\d\d/)).toBeVisible();
   // Add an event stays at the end of the list.
@@ -66,7 +66,7 @@ test('a lead opens Events from Day setup, renames an event on its own screen and
   await press(event);await press(renamedSheet.getByRole('button',{name:'Switch off',exact:true}));
   await expectToast(page,`${code} switched off`);
   await expect(renamedSheet).toHaveCount(0);
-  await expect(event.getByText(`${code} · Hurdles · Timed · Switched off`,{exact:true})).toBeVisible();
+  await expect(event.getByText(`${code} · Hurdles · Switched off`,{exact:true})).toBeVisible();
   expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('switched-off.png')});
   await press(event);
   await expect(renamedSheet.getByRole('button',{name:'Switch off',exact:true})).toHaveCount(0);
@@ -110,7 +110,8 @@ test('a lead adds an event on its own screen: the docked Add event says what is 
   await expect(page).toHaveURL(/\/day\/events$/);
   const event=row(page,code);
   await expect(event.getByText(`${name} · Boy Scouts`,{exact:true})).toBeVisible();
-  await expect(event.getByText(`${code} · Races · Heats then final`,{exact:true})).toBeVisible();
+  await expect(event.getByText(`${code} · Races`,{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:`Heats then final · ${name} · Boy Scouts`,exact:true})).toBeVisible();
 
   // A code already in the programme is refused on the Add an event screen, which keeps what was typed.
   await press(page.getByRole('button',{name:'Add an event',exact:true}));
@@ -124,6 +125,46 @@ test('a lead adds an event on its own screen: the docked Add event says what is 
   await expect(heading(page,'Add an event')).toBeVisible();
   await expect(page.getByLabel('Event code',{exact:true})).toHaveValue(code);
   expect(await lookProblems(page)).toEqual([]);
+});
+
+test('a lead switches an event between Heats then final and Timed in two taps: its chip, then the confirm sheet; once the final is made the chip is locked',async({page},info)=>{
+  const code=await ownCode(),locked=await ownCode(),name=ownName('Format sprint'),lockedName=ownName('Format final');
+  const title=`${name} · Girl Cubs`,child=await ownWristbands('Girl Cubs',4),token=process.env.E2E_OWNER_TOKEN!;
+  await ownEvent(page.request,code,name);await ownEvent(page.request,locked,lockedName);
+  await recordRace(page.request,token,code,[child(1),child(2)],[950,1000]);
+  await recordRace(page.request,token,locked,[child(3),child(4)],[960,990]);
+  expect((await page.request.post('/api/races',{headers:headers(),data:{eventCode:locked,kind:'final'}})).ok()).toBe(true);
+  await page.addInitScript(value=>localStorage.setItem('msf:token',value),token);
+  await page.goto('/day/events');
+
+  // Tap 1: the format chip under the event's name. The row itself keeps opening Rename and Switch off.
+  const chip=(format:string)=>page.getByRole('button',{name:`${format} · ${title}`,exact:true}),sheet=page.getByRole('dialog',{name:title,exact:true});
+  await expect(row(page,code).getByText(`${code} · Races`,{exact:true})).toBeVisible();
+  await press(chip('Heats then final'));
+  await expect(sheet.getByText('Heat 1 keeps its times.',{exact:true})).toBeVisible();
+  await expect(sheet.getByRole('list',{name:'Now'}).getByRole('listitem')).toHaveText(['Heats','Final','Final\'s top 3']);
+  await expect(sheet.getByRole('list',{name:'After'}).getByRole('listitem')).toHaveText(['Heats','3 fastest times']);
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('format-confirm.png')});
+  // Tap 2: the switch, with its toast; the chip then names the new format.
+  await press(sheet.getByRole('button',{name:'Switch to Timed',exact:true}));
+  await expectToast(page,`${title} is now Timed`);
+  await expect(sheet).toHaveCount(0);
+  await expect(chip('Timed')).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('format-switched.png')});
+  // Back again, or Cancel to leave it.
+  await press(chip('Timed'));
+  await press(sheet.getByRole('button',{name:'Cancel',exact:true}));
+  await expect(sheet).toHaveCount(0);await expect(chip('Timed')).toBeVisible();
+  await press(chip('Timed'));await press(sheet.getByRole('button',{name:'Switch to Heats then final',exact:true}));
+  await expectToast(page,`${title} is now Heats then final`);
+
+  // With its final made, the chip shows a lock and its sheet sends the lead to Results.
+  const lockedSheet=page.getByRole('dialog',{name:'The final is made',exact:true});
+  await press(page.getByRole('button',{name:`Heats then final · ${lockedName} · Girl Cubs`,exact:true}));
+  await expect(lockedSheet.getByText('Reopen the heats in Results to change it.',{exact:true})).toBeVisible();
+  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('format-locked.png')});
+  await press(lockedSheet.getByRole('button',{name:'Open Results',exact:true}));
+  await expect(page).toHaveURL(new RegExp(`/results/${locked}`));
 });
 
 test('a refused Switch off says Not saved in the event\'s sheet, which stays open',async({page},info)=>{
