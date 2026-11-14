@@ -9,7 +9,7 @@ export interface Link { state:'connecting'|'live'|'retrying'|'paused'|'refused';
  * What happens to a link. `opened`: the stream answered. `fresh`: it brought a newer snapshot. `ended`: the server
  * closed it as planned. `lost`: it failed (`held`: the screen holds a snapshot). `silent`: nothing came for too long.
  * `refused`: the server said no, in `line` (null when the phone is already sent to sign in). `retry`: the wait is over.
- * `hidden` / `shown`: the page. `restart`: the signal went or came back.
+ * `hidden` / `shown`: the page. `restart`: the signal went or came back, or a frame could not be applied.
  */
 export type LinkEvent={type:'opened'|'fresh'|'ended'|'silent'|'retry'|'hidden'|'shown'|'restart'}|{type:'lost';held:boolean}|{type:'refused';line:string|null};
 export const linkStart=(hidden:boolean):Link=>({state:hidden?'paused':'connecting',failures:0,note:null});

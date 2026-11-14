@@ -4,21 +4,25 @@ import { pipeline } from 'node:stream';
 import { constants,createGzip } from 'node:zlib';
 import { actions,Refusal,signedOut } from '../access/permissions.js';
 import type { Phone } from '../../shared/domain.js';
+import { changesFrame } from '../../shared/live.js';
 import type { RacesRead } from '../../shared/race-flow.js';
 import { raceFlowRead,racesRead } from '../races/race-flow.js';
 import { resultsSnapshot } from '../results/read.js';
 import { changesSoFar,onDayChange } from './changes.js';
 export interface StreamSettings { heartbeatMs:number; limitMs:number; buildId?:string }
+// A snapshot that differs at the same revision is sent too: a reported role is no change of the day (ADR 0007).
+const whole=<T extends {revision:number}>(sent:T,next:T)=>next.revision>sent.revision || (next.revision===sent.revision && JSON.stringify(next)!==JSON.stringify(sent))?next:null;
 /**
- * Live streams (Server-Sent Events). Each frame is a whole snapshot versioned by the day revision, sent first on
- * every connect and again after each change of the day that raises the revision. A heartbeat comment keeps idle
- * streams open through Railway, and each stream ends at its limit so the phone reconnects to a fresh one.
+ * Live streams (Server-Sent Events). Each frame is a snapshot versioned by the day revision, sent whole first on
+ * every connect and again after each change of the day that raises the revision; the races list sends only its changed
+ * event groups after the first (`changesFrame`). A heartbeat comment keeps idle streams open through Railway, and each
+ * stream ends at its limit so the phone reconnects to a fresh one.
  */
 export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSettings) {
   const action=actions(app,pool),open=new Set<()=>Promise<unknown>>();
   // An open stream would hold app.close() until its planned end. A gzipped one ends a moment after end(), so wait for it.
   app.addHook('preClose',async()=>{await Promise.all([...open].map(close=>close()));});
-  async function stream<T extends {revision:number}>(reply:FastifyReply,dayId:string,read:()=>Promise<T>) {
+  async function stream<T extends {revision:number}>(reply:FastifyReply,dayId:string,read:()=>Promise<T>,frame:(sent:T,next:T)=>object|null=whole) {
     // A refusal on the first read (a new day, an unknown event) answers as an ordinary error, before the stream starts.
     const before=changesSoFar();
     let sent=await read();
@@ -34,16 +38,15 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
     // A dropped phone destroys the gzip stream too.
     if(gzip) pipeline(gzip,raw,()=>{});
     // Every snapshot carries the build id, so a phone on another build reloads.
-    const send=(snapshot:T)=>write(`data: ${JSON.stringify({...snapshot,build:settings.buildId})}\n\n`);
+    const send=(snapshot:object)=>write(`data: ${JSON.stringify({...snapshot,build:settings.buildId})}\n\n`);
     send(sent);
     // shortcut: every race's stream reads its own snapshot per change (the races list's share one); share those too if Postgres load shows it.
-    // A snapshot that differs at the same revision is sent too: a reported role is no change of the day (ADR 0007).
     let reading=false,again=false;
     async function changed() {
       if(reading) {again=true;return;}
       reading=true;
       try {
-        do {again=false;const next=await read();if(next.revision>sent.revision || (next.revision===sent.revision && JSON.stringify(next)!==JSON.stringify(sent))) {sent=next;send(next);}} while(again && !ended());
+        do {again=false;const next=await read(),changes=frame(sent,next);if(changes) {sent=next;send(changes);}} while(again && !ended());
       } catch(error) {
         // The phone reconnects and is told why (a new day, a removed event).
         if(!(error instanceof Refusal)) app.log.error(error);
@@ -76,7 +79,7 @@ export function liveRoutes(app:FastifyInstance,pool:pg.Pool,settings:StreamSetti
   action('GET','/api/live/races','Volunteer',(_request,reply,phone)=>stream(reply,phone.dayId,async()=>{
     await signedIn(phone);
     return sharedRacesRead(phone.dayId);
-  }));
+  },changesFrame));
   action('GET','/api/live/races/:raceId','Volunteer',(request,reply,phone)=>{
     const raceId=(request.params as {raceId:string}).raceId;
     // A sign-out wakes the streams, so a signed-out phone's stream ends and its reconnect is told why.
