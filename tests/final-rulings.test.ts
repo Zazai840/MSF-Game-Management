@@ -152,7 +152,7 @@ test('a lead\'s Correct number on a final runner needs a reason, kept as an audi
  expect(rows).toHaveLength(1);expect(String(rows[0][note])).toContain(line);
  expect(sheets.find(sheet=>sheet.sheet==='Audit notes')!.data.flat().filter(cell=>cell===line)).toHaveLength(1);
 });
-test('a lead\'s Correct runner list adding a runner to a saved final needs a comment; on a saved heat it stays optional',async()=>{
+test('a lead\'s Correct runner list adding a runner to a saved final, or changing a number, needs a comment; removing or reordering does not; on a saved heat it stays optional',async()=>{
  const {volunteer,lead,heats,setup}=await start([[1023,1088],[1066]]);
  const leadRace=async(raceId:string)=>(await call(lead,`/api/lead/races/${raceId}`)).json().race;
  const correct=async(raceId:string,added:number,body:object={})=>{
@@ -167,6 +167,17 @@ test('a lead\'s Correct runner list adding a runner to a saved final needs a com
  for(const comment of [undefined,'  ']) expect((await correct(id,1110,comment===undefined?{}:{comment})).json()).toEqual({message:'Enter a comment explaining this ruling'});
  const saved=await correct(id,1110,{comment:'Ran in lane 6, missed at the start'});expect(saved.statusCode).toBe(200);
  expect(saved.json().auditNotes[0].message).toBe('Aisha corrected the runners for Final 1: 1023, 1066, 1088, 1110 - Ran in lane 6, missed at the start');
+ // The list as it stands, each runner sent with a number (the same, or changed) in the order given.
+ const list=async(numbers:Array<[number,number]>,body:object={})=>{
+  const race=await leadRace(id),kept=race.parts.runners.value;
+  return call(lead,`/api/lead/races/${id}/runners`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,runners:numbers.map(([was,wristband])=>({entryId:kept.find((runner:any)=>runner.wristband===was).id,wristband})),...body});
+ };
+ // A changed number on an entry kept: a comment is needed, as for an addition.
+ expect((await list([[1023,1024],[1066,1066],[1088,1088],[1110,1110]])).json()).toEqual({message:'Enter a comment explaining this ruling'});
+ expect((await list([[1023,1024],[1066,1066],[1088,1088],[1110,1110]],{comment:'Read off the wrong child'})).statusCode).toBe(200);
+ // Reordering or removing only: no comment.
+ expect((await list([[1066,1066],[1024,1024],[1088,1088],[1110,1110]])).statusCode).toBe(200);
+ expect((await list([[1066,1066],[1024,1024],[1088,1088]])).statusCode).toBe(200);
 });
 test('"+ Final" is the only way to make a final: the lead API no longer completes heats',async()=>{
  const {lead,volunteer}=await start([[1023,1088]]);

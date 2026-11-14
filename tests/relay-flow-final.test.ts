@@ -269,7 +269,7 @@ test('"Call up next fastest" at a relay final hides and is refused once "+ Team"
   expect(read.callUp).toBeUndefined();
   expect((await call(sam,'/api/lead/events/R22/call-up',{expectedHeatEntryId:callUp.entryId})).json().message).toBe('No place is free in the Final');
 });
-test('on a saved relay final a lead\'s Correct number needs a reason and Correct teams adding a team needs a comment',async()=>{
+test('on a saved relay final a lead\'s Correct number needs a reason and Correct teams adding a team or changing a leg needs a comment',async()=>{
   const {sam,lead}=await start();
   let read=(await makeFinal(lead)).json() as RaceFlowRead;
   const raceId=read.race.id;
@@ -287,6 +287,14 @@ test('on a saved relay final a lead\'s Correct number needs a reason and Correct
   const teams=(body:object)=>call(lead,`/api/lead/races/${raceId}/teams`,{baseVersion:race.parts.runners.version,finishVersion:race.parts.finish.version,teams:[...teamsOf(race).map(entry=>({entryId:entry.id})),{teamId:team8}],...body});
   expect((await teams({})).json()).toEqual({message:'Enter a comment explaining this ruling'});
   expect((await teams({comment:'Ran in lane 7'})).json().auditNotes[0].message).toBe('Jo Evans corrected the teams for Final 1: Team 2, Team 5, Team 1, Team 6, Team 3, Team 7, Team 8 - Ran in lane 7');
+  // A leg changed on a team already in: a comment too. A team taken off: none.
+  const now=(await ok<{race:RaceRead}>(lead,`/api/lead/races/${raceId}`)).race,entries=teamsOf(now);
+  const legChanged=(body:object)=>call(lead,`/api/lead/races/${raceId}/teams`,{baseVersion:now.parts.runners.version,finishVersion:now.parts.finish.version,keptWarnings:[2197],
+    teams:entries.map(entry=>entry.team.number===5?{entryId:entry.id,legs:[2501,2502,2503,2197]}:{entryId:entry.id}),...body});
+  expect((await legChanged({})).json()).toEqual({message:'Enter a comment explaining this ruling'});
+  expect((await legChanged({comment:'Read off the wrong child'})).statusCode).toBe(200);
+  const after=(await ok<{race:RaceRead}>(lead,`/api/lead/races/${raceId}`)).race;
+  expect((await call(lead,`/api/lead/races/${raceId}/teams`,{baseVersion:after.parts.runners.version,finishVersion:after.parts.finish.version,teams:teamsOf(after).filter(entry=>entry.team.number!==8).map(entry=>({entryId:entry.id}))})).statusCode).toBe(200);
 });
 
 test('the finish line places only teams marked Here: an unmarked or Absent team is not in the race, so an order naming one keeps only those Here',async()=>{

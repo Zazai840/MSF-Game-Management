@@ -163,7 +163,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         return {...(old||{id,...(race.parts.finish.value?{addedAtFinish:true}:{})}),wristband:entry.wristband,warnings};
       });
       const additions=runners.filter(runner=>!previous.some(old=>old.id===runner.id));
-      if(race.kind==='final' && additions.length && !comment) throw new Refusal(400,'Enter a comment explaining this ruling');
+      // On a final, a runner added or a number changed needs the lead's comment; a removal or a reorder does not.
+      if(race.kind==='final' && changed.length && !comment) throw new Refusal(400,'Enter a comment explaining this ruling');
       let finish:FinishingOrder|null=race.parts.finish.value;
       if(value.finish!==undefined) {
         const supplied=value.finish as {order?:unknown;didNotFinish?:unknown}|null;
@@ -215,7 +216,8 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
         } else runners.push(old!);
       }
       const ids=new Set(runners.map(entry=>entry.id)),finish=race.parts.finish.value,added=runners.filter(entry=>!previous.includes(entry) && !changed.includes(entry.id));
-      if(race.kind==='final' && added.length && !comment) throw new Refusal(400,'Enter a comment explaining this ruling');
+      // On a final, a team added or a leg changed needs the lead's comment; a team taken off does not.
+      if(race.kind==='final' && (added.length || changed.length) && !comment) throw new Refusal(400,'Enter a comment explaining this ruling');
       await correctPart(client,current,race,'runners',runners,runners);
       if(finish) {
         const next={order:[...finish.order.filter(id=>ids.has(id)),...added.map(entry=>entry.id)],didNotFinish:finish.didNotFinish.filter(id=>ids.has(id))};
