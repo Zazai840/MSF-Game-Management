@@ -41,7 +41,7 @@ test('"+ Runner" adds any wristband to a final with a free place, Here and Added
   expect((await add(sam,seen,2050,{reason:'Wrong number',text:null})).json().message).toBe('Choose why the change');
   expect((await add(sam,seen,2050,{reason:'Other',text:''})).json().message).toBe('Write why for Other');
   // A number already in the final is refused.
-  expect((await add(sam,seen,2003,notFound)).json().message).toBe('2003 is already in the Final');
+  expect((await add(sam,seen,2003,notFound)).json().message).toBe('2003 is already in this race');
   seen=await ok(await add(sam,seen,2050,notFound));
   expect(here(seen)).toEqual([2001,2003,2004,2005,2006,2050]);
   expect(seen.race.final!.entries.at(-1)).toMatchObject({wristband:2050,seed:null,calledUp:false,absent:false});

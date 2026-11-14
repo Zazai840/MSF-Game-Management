@@ -73,7 +73,7 @@ test('a new team typed at a final ("+ Team" with a number in no team) joins Here
   const notFound={reason:'Not found',text:null},newTeam=[2121,2122,2123,2124];
   const atFinal=(reason?:unknown,legs:Array<number|null>=newTeam,kept:number[]=[])=>call(sam,`/api/relays/${final.group.event.id}/teams`,{legs,keptWarnings:kept,joinRaceId:final.race.id,...(reason===undefined?{}:{reason})});
   // No finalist Absent: no place is free.
-  expect((await atFinal(notFound)).json()).toEqual({message:'There is no free place in the Final'});
+  expect((await atFinal(notFound)).json()).toEqual({message:'No place is free in the Final'});
   await call(sam,`/api/races/${final.race.id}/teams/${final.race.final!.entries[1].team!.id}/absent`,{mark:'absent'});
   // A place is free: refused without a reason, with Wrong number (a replace's reason), or with Other and no text.
   expect((await atFinal()).json()).toEqual({message:'Choose why the change'});

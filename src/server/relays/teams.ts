@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { Phone } from '../../shared/domain.js';
 import { raceName } from '../../shared/race-flow.js';
-import { legRefusal,legWarnings,stillToRun,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
+import { legRefusal,legWarnings,stillToRun,teamHere,unsavedRace,type RelayTeam,type TeamLeg,type TeamList } from '../../shared/teams.js';
 import { Refusal } from '../access/permissions.js';
 import type { Database } from '../races/records.js';
 import type { TeamEntry } from '../../shared/races.js';
@@ -65,7 +65,7 @@ export function joiningTeam(team:RelayTeam,{addedAtFinish=false}={}):TeamEntry {
   const holding=unsavedRace(team);
   if(holding) throw new Refusal(409,`Team ${team.number} is already in ${raceName(holding)}`);
   if(!stillToRun(team)) throw new Refusal(409,`Team ${team.number} has already run`);
-  return {id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null})),...(addedAtFinish?{addedAtFinish:true}:{})};
+  return {...teamHere({id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs}),...(addedAtFinish?{addedAtFinish:true}:{})};
 }
 /** Four wristband boxes in leg order, each a wristband number or null for an empty box. */
 export const fourBoxes=(legs:unknown):legs is Array<number|null>=>Array.isArray(legs) && legs.length===4 && legs.every(leg=>leg===null || (Number.isSafeInteger(leg) && leg>=0));
