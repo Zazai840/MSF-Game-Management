@@ -170,7 +170,7 @@ test('races list: once its cut connection is back, phone B shows the whole list 
   await deleteCurrentRace(request,code);
 });
 
-test('races list: a changes frame the phone cannot apply is never shown; the phone reconnects and shows the whole list',async({openPhone,request})=>{
+test('races list: a changes frame the phone cannot apply is not kept; the phone reconnects and shows the whole list',async({openPhone,request})=>{
   const code=await ownCode(),name=ownName('List gap');
   await ownEvent(request,code,name);
   const b=await openPhone(ownName('Ben list gap'));

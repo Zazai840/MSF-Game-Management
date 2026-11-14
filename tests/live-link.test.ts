@@ -61,3 +61,11 @@ test('a frame that cannot be applied reconnects at once; another before a change
   // A changes frame applied ends it: the next frame that cannot be applied reconnects at once again.
   expect(run(link,{type:'opened'},{type:'applied'},gap)).toMatchObject({link:{state:'connecting',failures:0},reconnect:0,drop:true});
 });
+test('a frame that could not be applied lengthens no later wait: once the link is lost, silent, ended, hidden or restarted, the whole list counts as newer again',()=>{
+  const gapped=run(linkStart(false),{type:'opened'},{type:'fresh'},{type:'gap'},{type:'opened'},{type:'fresh'}).link;
+  expect(run(gapped,lost,{type:'retry'},{type:'opened'},{type:'fresh'},lost).reconnect).toBe(1000);
+  expect(run(gapped,{type:'silent'},{type:'retry'},{type:'opened'},{type:'fresh'},lost).reconnect).toBe(1000);
+  // After the others, a frame that cannot be applied is a first one again: it reconnects at once.
+  for(const events of [[{type:'ended'}],[{type:'restart'}],[{type:'hidden'},{type:'shown'}]] as LinkEvent[][])
+    expect(run(gapped,...events,{type:'opened'},{type:'fresh'},{type:'gap'}),events[0].type).toMatchObject({reconnect:0,drop:true});
+});
