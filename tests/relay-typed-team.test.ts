@@ -64,14 +64,28 @@ test('two phones typing teams into one heat at once both land, each with its own
   expect(latest.teams!.map(team=>team.number)).toEqual([1,2]);
 });
 
-test('a final refuses a new team, and writes nothing',async()=>{
+test('a new team typed at a final ("+ Team" with a number in no team) joins Here as Added with a reason while a place is free, kept as an audit note; refused otherwise, writing nothing',async()=>{
   const {sam,lead,relays}=await start();
   const heat=await relays.worked(sam,'R22');
   for(const legs of [[2101,2102,2103,2104],[2111,2112,2113,2114]]) expect((await typed(sam,heat,legs)).statusCode).toBe(200);
   await relays.save(sam,'R22',[1,2],[3400,3500]);
-  const final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'});
-  expect((await typed(sam,final,[2121,2122,2123,2124])).json()).toEqual({message:'A new team can\'t join the final'});
+  let final=await ok(lead,'/api/races',{eventCode:'R22',kind:'final'});
+  const notFound={reason:'Not found',text:null},newTeam=[2121,2122,2123,2124];
+  const atFinal=(reason?:unknown,legs:Array<number|null>=newTeam,kept:number[]=[])=>call(sam,`/api/relays/${final.group.event.id}/teams`,{legs,keptWarnings:kept,joinRaceId:final.race.id,...(reason===undefined?{}:{reason})});
+  // No finalist Absent: no place is free.
+  expect((await atFinal(notFound)).json()).toEqual({message:'No place is free in the Final'});
+  await call(sam,`/api/races/${final.race.id}/teams/${final.race.final!.entries[1].team!.id}/absent`,{mark:'absent'});
+  // A place is free: refused without a reason, with Wrong number (a replace's reason), or with Other and no text.
+  expect((await atFinal()).json()).toEqual({message:'Choose why the change'});
+  for(const reason of [{reason:'Wrong number',text:null},{reason:'Other',text:''}]) expect((await atFinal(reason)).statusCode).toBe(400);
+  // The usual leg checks: an unknown number needs Keep.
+  expect((await atFinal(notFound,[2121,6100,null,null])).json()).toEqual({message:'6100 needs Fix number or Keep'});
   expect((await relays.teams(sam,'R22')).map(team=>team.number)).toEqual([1,2]);
+  // With a reason the new team takes the relay's next number and joins Here at once, as Added.
+  final=await ok(sam,`/api/relays/${final.group.event.id}/teams`,{legs:newTeam,keptWarnings:[],joinRaceId:final.race.id,reason:notFound});
+  expect(final.race.final!.entries.at(-1)).toMatchObject({team:{number:3},seed:null,calledUp:false,absent:false});
+  expect(teamsIn(final.race).at(-1)).toEqual([3,newTeam.map(wristband=>[wristband,true])]);
+  expect((await app.inject({url:'/api/lead/events/R22/results',headers:{authorization:`Bearer ${lead}`}})).json().auditNotes[0].message).toBe('Sam Patel added Team 3 to the Final - Not found');
 });
 
 test('a typed leg already in this team or in another team of this heat is refused, on the typed-team save and on a leg change',async()=>{

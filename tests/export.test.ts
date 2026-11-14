@@ -91,8 +91,8 @@ test('final export preserves absent seeds, sourced callups, corrected numbers, t
  await setup.attend(volunteer,'R3',undefined,[1066]);
  const detail=(await call(lead,'/api/lead/events/R3/results')).json();expect((await call(lead,'/api/lead/events/R3/call-up',{expectedHeatEntryId:detail.results.finalResults.nextCallUp.entryId})).statusCode).toBe(200);
  await setup.attend(volunteer,'R3',undefined,[1066]);final=await current();const correctedId=final.parts.runners.value.find((r:any)=>r.wristband===1023).id;
- await call(lead,`/api/lead/races/${id}/runners/${correctedId}/correct-number`,{expectedWristband:1023,wristband:1050});final=await current();
- final=await setup.order(volunteer,'R3',[1135,1050,1005,1012,1110],{didNotFinish:[1001],didNotRun:[1088],added:[1001]});await setup.submit(volunteer,'R3');
+ await call(lead,`/api/lead/races/${id}/runners/${correctedId}/correct-number`,{expectedWristband:1023,wristband:1050,reason:{reason:'Wrong number',text:null}});final=await current();
+ await setup.attend(volunteer,'R3',undefined,[1066,1088]);await setup.addRunner(volunteer,'R3',1001);final=await setup.order(volunteer,'R3',[1135,1050,1005,1012,1110],{didNotFinish:[1001]});await setup.submit(volunteer,'R3');
  await call(lead,`/api/lead/races/${id}/runners/${final.parts.runners.value.find((r:any)=>r.wristband===1135).id}/disqualify`,{reason:'Two false starts'});
  expect((await call(lead,'/api/lead/events/R3/complete-stage',{stage:'final'})).statusCode).toBe(200);
  let sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);expect(sheets[0].data[1]).toEqual(['R3',null,null,null,null,null,null,null,null,1050,null,null,1005,null,null,1012]);
@@ -152,7 +152,7 @@ async function relayFinal(){
  await relays.attend(volunteer,'R19',[7]);
  // Team 2's 3rd leg is swapped at check-in, through the team list's edit with the final's race.
  const seen=(await relays.race(volunteer,'R19'))!,team2=seen.teams!.find(item=>item.number===2)!;
- await relays.post(volunteer,`/api/relays/${seen.group.event.id}/teams/${team2.id}`,{raceId:seen.race.id,version:team2.version,legs:[3001,3002,3099,3004],keptWarnings:[3001,3002,3099,3004]});
+ await relays.post(volunteer,`/api/relays/${seen.group.event.id}/teams/${team2.id}`,{raceId:seen.race.id,version:team2.version,legs:[3001,3002,3099,3004],keptWarnings:[3001,3002,3099,3004],reason:{reason:'Hurt',text:null}});
  await relays.save(volunteer,'R19',[1,2,3,5,6,4]);
  const completed=await call(lead,'/api/lead/events/R19/complete-stage',{stage:'final'});expect(completed.statusCode,completed.body).toBe(200);
  return readExcelFile((await call(people.owner,'/api/day/export',{})).rawPayload);

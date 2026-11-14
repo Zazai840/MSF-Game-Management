@@ -4,6 +4,8 @@ import { plainWristbandWarning,wristbandWarnings } from './wristband-checks.js';
 export interface TeamWarning { kind:'unknown-number'|'wrong-section'|'other-heat'|'other-relay'; message:string; kept:boolean }
 /** One leg of a relay team: its child's wristband (null while the box is empty) and that child's kept warnings. */
 export interface TeamLeg { wristband:number|null; warnings:TeamWarning[] }
+/** A team in a race marked Here whole: each of its children here, an empty leg not. */
+export const teamHere=<Team extends {legs:readonly TeamLeg[]}>(team:Team)=>({...team,legs:team.legs.map(leg=>({...leg,here:leg.wristband!==null}))});
 /** A race holding a relay team: one of its relay's races that is not deleted. */
 export interface TeamRace { id:string; kind:'heat'|'final'|'race'; number:number; state:'in progress'|'saved' }
 /**

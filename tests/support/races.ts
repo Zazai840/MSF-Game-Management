@@ -49,6 +49,11 @@ export function raceSetup(app:FastifyInstance) {
     const present=here?ids(here):entries.filter(entry=>!absent.includes(entry.wristband!)).map(entry=>entry.finalEntryId);
     return (await post<RaceFlowRead>(token,`/api/races/${raceId}/absent`,{raceId,version:read.race.parts.runners.version,here:present,absent:ids(absent)})).race;
   }
+  /** "+ Runner" at an individual final's start line, with the reason "Not found"; `keptWarnings` are numbers whose warning is kept. */
+  async function addRunner(token:string,code:string,wristband:number,keptWarnings:number[]=[]) {
+    const read=await worked(token,code),raceId=read.race.id;
+    return (await post<RaceFlowRead>(token,`/api/races/${raceId}/add-runner`,{raceId,version:read.race.parts.runners.version,wristband,keptWarnings,reason:{reason:'Not found',text:null}})).race;
+  }
   /** Writes the finishing order: every runner in `order`, `didNotFinish` or `didNotRun`; `added` are runners not on the list. */
   async function order(token:string,code:string,placed:number[],{didNotFinish=[],didNotRun=[],added=[],keptWarnings=[]}:{didNotFinish?:number[];didNotRun?:number[];added?:number[];keptWarnings?:number[]}={}) {
     const read=await worked(token,code),raceId=read.race.id,url=`/api/races/${raceId}/order`;
@@ -88,5 +93,5 @@ export function raceSetup(app:FastifyInstance) {
   }
   /** A lead's "+ Final" (the one way to make a final, races and relays alike): answers the new final. */
   const makeFinal=(token:string,code:string)=>post<RaceFlowRead>(token,'/api/races',{eventCode:code,kind:'final'});
-  return {screen,checkIn,attend,order,times,submit,record,makeFinal};
+  return {screen,checkIn,attend,addRunner,order,times,submit,record,makeFinal};
 }

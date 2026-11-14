@@ -4,9 +4,12 @@ import type { DayEvent } from '../../shared/day.js';
 import type { Phone } from '../../shared/domain.js';
 import { changedLine,doneBlocker,finalHold,finalMade,heatsFinishedLine,raceName,roleSteps,stepParts,steps,stepsOf,tieHold,type FinalReason,type RaceFlowRead,type RaceGroup,type RacesRead,type Step } from '../../shared/race-flow.js';
 import { isTeamEntry,type RaceEntry,type RacePartName,type TeamEntry } from '../../shared/races.js';
-import type { RelayTeam } from '../../shared/teams.js';
+import { teamHere,type RelayTeam } from '../../shared/teams.js';
 import { resultName } from '../../shared/results-rules.js';
-import { openCallUp } from '../../shared/finals.js';
+import { openCallUp,teamInFinal,teamInFinalLine } from '../../shared/finals.js';
+import { randomUUID } from 'node:crypto';
+import { writeChangeNote } from '../rulings/records.js';
+import { requireFinalChange } from '../rulings/validation.js';
 import { stageDone,stageForRace } from '../../shared/stage-lock.js';
 import { actions,Refusal } from '../access/permissions.js';
 import { readEvents } from '../day/events.js';
@@ -16,10 +19,10 @@ import { seedFinal } from '../rulings/finals.js';
 import type { CompletedStage } from '../../shared/stage-lock.js';
 import { joiningTeam,readTeamLists,relayLists } from '../relays/teams.js';
 import { createRace,nextNumber } from './create.js';
-import { absentInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
+import { absentInput,addRunner,addRunnerInput,checkIn,checkInInput,dropFromOrder,markAbsent,orderInput,replaceInput,replaceRunner,saveIfDone,timesInput,writeOrder,writeTimes,type WriteTarget } from './steps.js';
 import { eventScope,jobRace,listRaces,raceChange,readRace,readStepMeta,raceSummary,requireRace,type Database,type StoredRace } from './records.js';
 import { raceRefusal } from '../../shared/race-status.js';
-import { markAbsentFinalists } from './final-field.js';
+import { finalTeam,markAbsentFinalists } from './final-field.js';
 import { publishPart } from './versions.js';
 /**
  * The first thing the heats check sheet (the one making the final runs) must settle before the final, as a lead reads
@@ -114,11 +117,11 @@ function requestedStep(request:FastifyRequest,race:Pick<StoredRace,'kind'>):Step
   if(!stepsOf(race).includes(step)) throw new Refusal(409,'A final has no times');
   return step;
 }
-type TeamChange=(tapped:{race:StoredRace;team:RelayTeam;entries:RaceEntry[];entry:TeamEntry|undefined},unchanged:()=>void)=>RaceEntry[]|void;
+type TeamChange=(tapped:{race:StoredRace;team:RelayTeam;entries:RaceEntry[];entry:TeamEntry|undefined},unchanged:()=>void)=>RaceEntry[]|void|Promise<RaceEntry[]|void>;
 /**
  * A change to one team's entry in a relay race, as the race stands under the day lock: a Start line tap, or a team
  * saved at check-in. The team is read from its team list as it now is. Raises the Runners version, so a
- * version-checked write elsewhere still sees the change.
+ * version-checked write elsewhere still sees the change. `change` may write more in the same transaction (an audit note).
  */
 export async function changeTeamEntry(client:pg.PoolClient,phone:Phone,raceId:string,teamId:string,change:TeamChange,unchanged:()=>void=()=>{}) {
   const race=await requireOpen(client,phone,raceId);
@@ -126,10 +129,19 @@ export async function changeTeamEntry(client:pg.PoolClient,phone:Phone,raceId:st
   const team=(await readTeamLists(client,phone.dayId)).get(race.event.id)!.teams.find(item=>item.id===teamId);
   if(!team) throw new Refusal(404,'Team not found');
   const entries=race.parts.runners.value||[];
-  const runners=change({race,team,entries,entry:entries.find((entry):entry is TeamEntry=>isTeamEntry(entry) && entry.team.id===team.id)},unchanged);
+  const runners=await change({race,team,entries,entry:entries.find((entry):entry is TeamEntry=>isTeamEntry(entry) && entry.team.id===team.id)},unchanged);
   if(!runners) return;
   await publishPart(client,phone,race,'runners',runners);
   await dropFromOrder(client,race,runners);
+}
+/**
+ * "+ Team" at a final, a team of the relay or one just typed there: its entry, Here with each of its children, once a
+ * place is free and the reason given (`requireFinalChange`), the reason kept as an audit note on the entry.
+ */
+export async function addTeamToFinal(client:pg.PoolClient,phone:Phone,race:StoredRace,team:RelayTeam,sent:unknown):Promise<TeamEntry> {
+  const reason=requireFinalChange(race.final!,sent,true),added=teamHere({id:randomUUID(),team:{id:team.id,number:team.number},legs:team.legs});
+  await writeChangeNote(client,phone,race.event.id,'add-team',`added Team ${team.number} to the ${raceName(race)}`,reason,[{raceId:race.id,entryId:added.id}]);
+  return added;
 }
 /**
  * The race flow's routes, all Volunteer (making a final needs a lead). Each write runs under the day lock, raises the
@@ -197,6 +209,15 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
     const input=absentInput(request.body),id=raceId(request);
     return write(phone,id,async client=>{await markAbsent(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
   });
+  action('POST','/api/races/:raceId/add-runner','Volunteer',(request,_reply,phone)=>{
+    const input=addRunnerInput(request.body),id=raceId(request);
+    return write(phone,id,async client=>{await addRunner(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
+  });
+  // A final's runner replaced at the start line by tapping their wristband: anyone on the start line, until the race is saved.
+  action('POST','/api/races/:raceId/replace','Volunteer',(request,_reply,phone)=>{
+    const input=replaceInput(request.body),id=raceId(request);
+    return write(phone,id,async client=>{await replaceRunner(client,phone,await requireCurrent(client,phone,id,'runners',input),input)});
+  });
   action('POST','/api/races/:raceId/order','Volunteer',(request,_reply,phone)=>{
     const input=orderInput(request.body),id=raceId(request);
     return write(phone,id,async client=>{await writeOrder(client,phone,await requireCurrent(client,phone,id,'finish',input),input)});
@@ -236,9 +257,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       let finalist:{id:string;absent:boolean;runner?:RaceEntry}|undefined,moved=false;
       await changeTeamEntry(client,phone,id,teamId,({race,team,entries,entry})=>{
         if(race.kind!=='final') throw new Refusal(409,'Only a final has Here / Absent');
-        const final=race.final!;
-        finalist=[...final.entries.map(item=>({id:item.finalEntryId,absent:item.absent,runner:item.runner})),...(final.additionalEntries||[]).map(item=>({id:item.runner.id,absent:item.absent,runner:item.runner}))]
-          .find(item=>item.runner!==undefined && isTeamEntry(item.runner) && item.runner.team.id===team.id);
+        finalist=finalTeam(race.final!,team.id);
         const kept=entry??finalist?.runner as TeamEntry|undefined;
         if(!kept) throw new Refusal(409,`Team ${team.number} is not in the final`);
         if(mark!=='here') {
@@ -246,7 +265,7 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
           moved=true;
           return entries.filter(other=>other!==entry);
         }
-        const marked={...kept,legs:kept.legs.map(leg=>({...leg,here:leg.wristband!==null}))};
+        const marked=teamHere(kept);
         if(entry && JSON.stringify(marked)===JSON.stringify(entry)) return;
         moved=true;
         return entry?entries.map(other=>other===entry?marked:other):[...entries,marked];
@@ -255,6 +274,16 @@ export function raceFlowRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(finalist && (moved || finalist.absent!==(mark==='absent'))) {const marked=finalist.id;await markAbsentFinalists(client,id,(other,stored)=>other===marked?mark==='absent':stored);}
       else if(!moved) unchanged();
     });
+  });
+  // "+ Team" at a relay final's start line: a team of the relay joins the final as an added team, Here at once with
+  // each of its children, while a place is free, its reason kept as an audit note on the team.
+  action('POST','/api/races/:raceId/teams/:teamId/add','Volunteer',(request,_reply,phone)=>{
+    const {raceId:id,teamId}=request.params as {raceId:string;teamId:string};
+    return write(phone,id,client=>changeTeamEntry(client,phone,id,teamId,async({race,team,entries})=>{
+      if(race.kind!=='final') throw new Refusal(409,'Only a final takes an added team');
+      if(teamInFinal(jobRace(race).final!.entries,team.id)) throw new Refusal(409,teamInFinalLine(team.number));
+      return [...entries,await addTeamToFinal(client,phone,race,team,(request.body as {reason?:unknown}|null)?.reason)];
+    }));
   });
   // Done: That's everyone, Save the order, No more finishers. Once every step is done and nothing blocks it, the race is saved.
   action('POST','/api/races/:raceId/steps/:step/done','Volunteer',(request,_reply,phone)=>{
