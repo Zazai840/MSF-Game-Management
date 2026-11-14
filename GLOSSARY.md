@@ -165,7 +165,7 @@ A record kept against an event of a change to its results or to a final's runner
 _Avoid_: Log entry, comment, history
 
 **Warning**:
-A note attached to a child in a race when their wristband number looks wrong for it: a number no section uses, a number from another section, a child who already ran in this event, or a child who is also in another relay's team. It never stops the child running; the zone lead checks it, corrects the number or disqualifies.
+A note attached to a child in a race when their wristband number looks wrong for it: a number no section uses, a number from another section, or a child who already ran in this event (on a relay, in another team of it). A child may run in other events and other relays' teams with no warning. It never stops the child running; the zone lead checks it, corrects the number or disqualifies.
 _Avoid_: Error, alert, validation failure
 
 **Notes**:

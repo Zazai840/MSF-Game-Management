@@ -120,24 +120,18 @@ test('removed and demoted lead phones cannot refresh export metadata',async()=>{
 });
 /** Boy Beavers relay R19's teams in leg order: Team 1 opens with a Girl Cub, Team 2 has no Beaver at all, the rest are Beavers. */
 const relayTeams=[[2001,101,102,103],[3001,3002,3003,3004],[301,302,303,304],[401,402,403,404],[501,502,503,504],[601,602,603,604],[701,702,703,704]];
-test('day export recomputes two-relay warnings from the current switched-on team lists',async()=>{
+test('a child also in another relay\'s team has no warning in the lead\'s results or the day export',async()=>{
  const {owner,volunteer,lead}=await start(),relays=relayFlowSetup(app);
  await relays.team(volunteer,'R22',[2101,2102,2103,2104]);
  await relays.tick(volunteer,'R22',1);
  await relays.save(volunteer,'R22',[1],[3400]);
- // The second team list changes after the heat; its warning was never stored on the race's copy.
- await relays.team(volunteer,'R28',[4101,2101,4103,4104]);
+ await relays.team(volunteer,'R28',[4101,4102,4103,4104]);
+ await relays.team(volunteer,'R28',[4201,2101,4203,4204]);
  const detail=(await call(lead,'/api/lead/events/R22/results')).json() as EventResultsRead;
- const warning=detail.results.allResults[0].warning;
- expect(warning).toContain('2101');
- async function exportedWarning() {
-  const response=await call(owner,'/api/day/export',{});expect(response.statusCode,response.body).toBe(200);
-  const sheets=await readExcelFile(response.rawPayload);
-  return sheets[2].data.find(row=>row[0]==='R22'&&row[4]===2101)![11];
- }
- expect(await exportedWarning()).toBe(warning);
- expect((await call(owner,'/api/day/events/R28/enabled',{enabled:false})).statusCode).toBe(200);
- expect(await exportedWarning()).toBeNull();
+ expect(detail.results.allResults[0].warning).toBeFalsy();
+ const response=await call(owner,'/api/day/export',{});expect(response.statusCode,response.body).toBe(200);
+ const sheets=await readExcelFile(response.rawPayload);
+ expect(sheets[2].data.find(row=>row[0]==='R22'&&row[4]===2101)![11]).toBeNull();
 });
 
 async function relayFinal(){

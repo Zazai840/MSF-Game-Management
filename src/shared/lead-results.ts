@@ -1,6 +1,6 @@
 import type { DayEvent } from './day.js';
 import type { EventState } from './event-state.js';
-import type { RelayTeam,TeamList } from './teams.js';
+import type { RelayTeam } from './teams.js';
 import type { FinalField } from './finals.js';
 import type { RaceRead,RacePartName } from './races.js';
 import type { RaceSummary } from './race-flow.js';
@@ -28,4 +28,4 @@ export interface SavedVersion { part:RacePartName; version:number; author:string
  * One race for a lead; a relay race also carries its team list and every switched-on relay's, for Correct teams' checks.
  * `deletion` is who deleted a deleted race (or called its re-run) and their comment, from its audit note; null when live.
  */
-export interface LeadRaceRead { race:Omit<RaceRead,'final'> & {final?:FinalField}; history:SavedVersion[]; deletion:{by:string;comment:string|null}|null; teams?:RelayTeam[]; relays?:TeamList[] }
+export interface LeadRaceRead { race:Omit<RaceRead,'final'> & {final?:FinalField}; history:SavedVersion[]; deletion:{by:string;comment:string|null}|null; teams?:RelayTeam[] }

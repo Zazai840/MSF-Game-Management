@@ -257,3 +257,39 @@ test('a day an older build numbered from its counter keeps every race; numbers a
     } finally {await db.end();}
   } finally {await app.close();}
 });
+test('starting up drops the older build\'s "child in two relays" warnings from teams, races and finals, keeping every other warning, and runs twice cleanly',async()=>{
+  await admin(`CREATE DATABASE "${name}"`);
+  let app=await createApp({databaseUrl,ownerPassword:'upgrade-owner',resetTestDay:true});
+  const people=await signInOwner(app,'upgrade-owner','Aisha'),sam=await people.volunteer('Sam Patel');
+  const relays=relayFlowSetup(app);
+  await relays.team(sam.token,'R22',[1045,2102,2103,2134]);
+  await relays.tick(sam.token,'R22',1);
+  const heat=(await relays.save(sam.token,'R22',[1],[3500])).race;
+  await app.close();
+  // The older build kept "also in Team 1 of 4x100m Relay Girl Scouts" on the 4th child, on the team, the heat and a final.
+  const old=new pg.Client({connectionString:databaseUrl});await old.connect();
+  const twoRelays={kind:'other-relay',message:'2134 is also in Team 1 of 4x100m Relay Girl Scouts.',kept:true};
+  const withWarning=`jsonb_set(legs,'{3,warnings}',(legs->3->'warnings')||$1::jsonb)`;
+  try {
+    await old.query(`UPDATE relay_teams SET legs=${withWarning}`,[JSON.stringify([twoRelays])]);
+    await old.query(`UPDATE race_parts p SET value=(SELECT jsonb_agg(jsonb_set(e,'{legs,3,warnings}',(e->'legs'->3->'warnings')||$1::jsonb)) FROM jsonb_array_elements(p.value) e) WHERE p.race_id=$2 AND p.part='runners'`,[JSON.stringify([twoRelays]),heat.id]);
+    const entry=(await old.query(`SELECT value->0 AS entry FROM race_parts WHERE race_id=$1 AND part='runners'`,[heat.id])).rows[0].entry;
+    await old.query('INSERT INTO race_finals(race_id,entries,additional_entries) VALUES($1,$2,$3)',[heat.id,JSON.stringify([{finalEntryId:'f1',runner:entry}]),JSON.stringify([{runner:entry,absent:false}])]);
+  } finally {await old.end();}
+  const legWarnings=async()=>{
+    const db=new pg.Client({connectionString:databaseUrl});await db.connect();
+    try {
+      return [
+        (await db.query('SELECT legs FROM relay_teams')).rows[0].legs,
+        (await db.query(`SELECT value->0->'legs' AS legs FROM race_parts WHERE race_id=$1 AND part='runners'`,[heat.id])).rows[0].legs,
+        (await db.query(`SELECT entries->0->'runner'->'legs' AS legs FROM race_finals WHERE race_id=$1`,[heat.id])).rows[0].legs,
+        (await db.query(`SELECT additional_entries->0->'runner'->'legs' AS legs FROM race_finals WHERE race_id=$1`,[heat.id])).rows[0].legs,
+      ].map((legs:Array<{warnings:Array<{kind:string}>}>)=>legs.map(leg=>leg.warnings.map(warning=>warning.kind)));
+    } finally {await db.end();}
+  };
+  for(let start=0;start<2;start++) {
+    app=await createApp({databaseUrl,ownerPassword:'upgrade-owner'});
+    await app.close();
+    expect(await legWarnings()).toEqual(Array(4).fill([['wrong-section'],[],[],[]]));
+  }
+});

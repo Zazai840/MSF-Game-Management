@@ -166,7 +166,7 @@ function CorrectTeams({read,save,busy}:BodyProps) {
     const value=Number(typed),legs=[...card.legs];
     if(legs[changing.leg]===value) {cancel();return;}
     legs[changing.leg]=value;
-    const {refusal,warnings}=legCheck(relay,read.relays||[],card.team.id,legs,changing.leg,race.id);
+    const {refusal,warnings}=legCheck(relay,card.team.id,legs,changing.leg,race.id);
     if(refusal) {setHeld({refused:refusal});return;}
     if(warnings.length && !keep) {setHeld({warning:warnings.map(warning=>warning.message).join(' ')});return;}
     if(keep) setKept(previous=>[...previous,value]);

@@ -38,7 +38,7 @@ export const HeldCallout=({held,onKeep,onFix}:{held:Held;onKeep:()=>void;onFix:(
  * `legsOf` finds a team as this start line shows it.
  */
 function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:string)=>{team:{number:number};legs:readonly TeamLeg[]}|undefined) {
-  const teams=read.teams||[],relay=teamListOf({...read.group,teams}),relays=read.relays||[];
+  const teams=read.teams||[],relay=teamListOf({...read.group,teams});
   const saves=useWrites<RaceFlowRead>(flow.offer);
   const [typed,setTyped]=useState(''),[held,setHeld]=useState<Held|null>(null),[said,setSaid]=useState(''),[fresh,setFresh]=useState(0);
   /** The leg being changed by its chip, and the team's version when the chip was tapped. */
@@ -47,7 +47,7 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
   const why=useReason<{keep:boolean}>(true,({keep},reason)=>saveChange(keep,reason));
   const entry=changing && legsOf(changing.teamId),change=changing && entry?{...changing,entry}:null;
   function problem(teamId:string|null,wristbands:Array<number|null>,index:number):Held|null {
-    const {refusal,warnings}=legCheck(relay,relays,teamId,wristbands,index,read.race.id);
+    const {refusal,warnings}=legCheck(relay,teamId,wristbands,index,read.race.id);
     return refusal?{refused:refusal}:warnings.length?{warning:warnings.map(warning=>warning.message).join(' ')}:null;
   }
   const fix=()=>setHeld(null);

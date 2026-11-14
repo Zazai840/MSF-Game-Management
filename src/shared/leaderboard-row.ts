@@ -9,7 +9,7 @@ export const resultEntry=(race:Pick<ResultsRace,'id'>,entry:RaceEntry):ResultEnt
   :{raceId:race.id,entryId:entry.id,wristband:entry.wristband};
 /** Shared identity and ruling facts; each ranking keeps its own places and status. */
 export function leaderboardRowFacts(state:EventState,race:ResultsRace,runner:RaceEntry,ruling:RunnerRuling|undefined,repeated=false):Omit<LeaderboardRow,'place'|'time'|'status'> {
-  const flags=isTeamEntry(runner)?teamWarningFlags(state,race,runner,ruling):runnerWarningFlags(runner,ruling,repeated);
+  const flags=isTeamEntry(runner)?teamWarningFlags(race,runner,ruling):runnerWarningFlags(runner,ruling,repeated);
   if(repeated) flags.push({kind:'ran-twice',message:'Ran twice in this event'});
   if(runner.addedAtFinish) flags.push({kind:'added-at-finish',message:'Added at the finish',...(ruling?.addedAtFinishChecked?{checked:true,...(ruling.addedAtFinishCheckedBy?{checkedBy:ruling.addedAtFinishCheckedBy}:{})}:{})});
   const notes=resultAuditNotes(state,race.id,runner.id);

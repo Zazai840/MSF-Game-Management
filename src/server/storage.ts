@@ -193,6 +193,21 @@ export async function openDatabase(databaseUrl: string, resetTestDay = false) {
     FROM races r WHERE r.id=p.race_id AND p.part='runners' AND r.kind<>'final' AND r.state<>'saved' AND jsonb_typeof(p.value)='array'
       AND EXISTS (SELECT 1 FROM jsonb_array_elements(p.value) entry, jsonb_array_elements(CASE WHEN jsonb_typeof(entry->'legs')='array' THEN entry->'legs' ELSE '[]' END) leg
         WHERE jsonb_typeof(leg->'wristband')='number' AND leg->'here'<>'true'::jsonb);
+    -- A child may run for teams of two relays with nothing to check. Older builds kept "also in Team 1 of ..." on the
+    -- leg: it goes from the teams, the races and the finals that copied it. Changes nothing once done.
+    CREATE OR REPLACE FUNCTION pg_temp.legs_without_two_relays(legs jsonb) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
+      SELECT COALESCE(jsonb_agg(CASE WHEN jsonb_typeof(leg->'warnings')='array' THEN jsonb_set(leg,'{warnings}',
+          COALESCE((SELECT jsonb_agg(w ORDER BY j) FROM jsonb_array_elements(leg->'warnings') WITH ORDINALITY AS x(w,j) WHERE w->>'kind'<>'other-relay'),'[]'))
+        ELSE leg END ORDER BY i),'[]') FROM jsonb_array_elements(legs) WITH ORDINALITY AS l(leg,i)
+    $$;
+    CREATE OR REPLACE FUNCTION pg_temp.entries_without_two_relays(entries jsonb,legs text[]) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
+      SELECT COALESCE(jsonb_agg(CASE WHEN jsonb_typeof(entry#>legs)='array' THEN jsonb_set(entry,legs,pg_temp.legs_without_two_relays(entry#>legs)) ELSE entry END ORDER BY n),'[]')
+        FROM jsonb_array_elements(entries) WITH ORDINALITY AS e(entry,n)
+    $$;
+    UPDATE relay_teams SET legs=pg_temp.legs_without_two_relays(legs) WHERE legs::text LIKE '%"other-relay"%';
+    UPDATE race_parts SET value=pg_temp.entries_without_two_relays(value,'{legs}') WHERE part='runners' AND value::text LIKE '%"other-relay"%';
+    UPDATE race_finals SET entries=pg_temp.entries_without_two_relays(entries,'{runner,legs}'),additional_entries=pg_temp.entries_without_two_relays(additional_entries,'{runner,legs}')
+      WHERE entries::text LIKE '%"other-relay"%' OR additional_entries::text LIKE '%"other-relay"%';
     CREATE TABLE IF NOT EXISTS tie_settlements (
       event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       tie_id text NOT NULL, settlement jsonb NOT NULL,

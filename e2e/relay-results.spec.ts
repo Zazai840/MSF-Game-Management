@@ -1,7 +1,7 @@
 import type {APIRequestContext,TestInfo} from '@playwright/test';
 import {confirmTheMedals,eventTab,raceAction,ownName,ownWristbands,ownCode,back,dragTo,expect,expectToast,lookProblems,makeFinal,press,markFinalHere,openLeadsBarTab,openRelays,ownRelay,signInThroughApi,submitRace,test,tickTeam,writeTeam,writeTeamOrder,writeTimes,resultsCard,pullToRefresh} from './fixtures.js';
 
-test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a child in two relays and a team that ran short clear with Mark checked, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
+test('a relay\'s results name its teams\' issues: a kept wrong-Section number and a team that ran short clear with Mark checked, a child in two relays is nothing to check, a team added at the finish with Mark addition checked',async({openPhone,request},info)=>{
   const cubs=await ownCode(),scouts=await ownCode();
   const name=ownName('Relay warnings');
   await ownRelay(cubs,name,'Girl Cubs');await ownRelay(scouts,name,'Girl Scouts');
@@ -24,7 +24,9 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   const board=page.getByRole('list',{name:'Provisional leaderboard',exact:true});
   const teamRow=(team:number)=>board.getByRole('button',{name:new RegExp(`^Team ${team} · .* · Heat 1$`)});
   // Each team with an open issue says Check on its row; the sheet and the race page name it.
-  for(const team of [1,2,3,4]) await expect(teamRow(team)).toContainText('Check');
+  for(const team of [1,3,4]) await expect(teamRow(team)).toContainText('Check');
+  // Team 2's child also runs for a Girl Scouts team: nothing to check.
+  await expect(teamRow(2)).not.toContainText('Check');
   expect(await lookProblems(page)).toEqual([]);
   await page.screenshot({path:info.outputPath('relay-warnings.png'),fullPage:true});
   /** Opens the team's runner sheet from its row and presses the check, which saves at once. */
@@ -37,7 +39,6 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
     await sheet.getByRole('button',{name:button,exact:true}).click();await expectToast(page,`${toast} · Team ${team}`);await expect(sheet).toHaveCount(0);
   }
   await settle(1,'Mark checked','Warning checked');
-  await settle(2,'Mark checked','Warning checked');
   await settle(3,'Mark checked','Warning checked');
   await settle(4,'Mark addition checked','Addition checked');
   // Checked, no row says Check any more.
@@ -48,7 +49,8 @@ test('a relay\'s results name its teams\' issues: a kept wrong-Section number, a
   // The race page's Current record shows the same checked warnings beside each team, grey and worded as on the leaderboard.
   await eventTab(page,'Heats');await press(page.getByRole('listitem').getByRole('button',{name:'Open Heat 1',exact:true}));
   const record=page.getByRole('list',{name:'Current record',exact:true});
-  for(const line of [`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}${shared} is in Girl Cubs Team 2 and Girl Scouts Team 1.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]) await expect(record.getByText(line,{exact:true})).toBeVisible();
+  for(const line of [`${checked}${borrowed} is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.`,`${checked}Team 3 ran with 3 of 4 children marked here.`]) await expect(record.getByText(line,{exact:true})).toBeVisible();
+  await expect(record.getByText(`${shared} is in`)).toHaveCount(0);
   // Checked, so no row is amber.
   for(const row of await record.getByRole('button').all()) expect(await row.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toBe('rgb(255, 241, 199)');
   expect(await lookProblems(page)).toEqual([]);

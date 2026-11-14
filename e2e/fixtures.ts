@@ -202,7 +202,7 @@ const claimed=(code:string)=>expect(code,'Claim the event code with ownCode()').
 const sectionStart={'Boy Beavers':1,'Girl Beavers':1,'Boy Cubs':1000,'Girl Cubs':2000,'Boy Scouts':3000,'Girl Scouts':4000} as const;
 /**
  * This test's own children for relay teams: a block of `count` wristbands of the section that no other test's teams
- * use (a child in two relays is a warning every phone shows). Answers a namer: each new key (n(1), n(2101), any
+ * use (a child in another team of the relay is a warning every phone shows). Answers a namer: each new key (n(1), n(2101), any
  * number the spec likes) takes the block's next wristband, and the same key always answers the same one.
  */
 export async function ownWristbands(section:keyof typeof sectionStart,count:number) {

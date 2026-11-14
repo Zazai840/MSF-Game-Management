@@ -156,7 +156,7 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
     const read=await api<LeadRaceRead>(`lead/races/${row.raceId}`),legs=team.wristbands.map((wristband,at)=>at===leg?Number(number):wristband);
     const refusal=legRefusal(read.teams||[],team.id,legs,leg!,row.raceId);
     if(refusal) throw refusal;
-    return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},read.relays||[],team.id,row.raceId).map(warning=>warning.message);
+    return legWarnings(Number(number),{...read.race.event,teams:read.teams||[]},team.id,row.raceId).map(warning=>warning.message);
   }
   async function send(keep:boolean,reason?:ChangeReason) {
     setHeld(null);

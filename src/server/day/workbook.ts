@@ -6,7 +6,6 @@ import { readAuditNotes,readRulings } from '../rulings/records.js';
 import { readCompletedStages } from '../rulings/stages.js';
 import { readTieSettlements } from '../rulings/ties.js';
 import { eventState } from '../results/read.js';
-import { readTeamLists,switchedOn } from '../relays/teams.js';
 import { eventResults,type ResultEntry,type ResultTeam,type Section } from '../../shared/results-rules.js';
 import { resultEntry } from '../../shared/leaderboard-row.js';
 import { wristbandWarnings } from '../../shared/wristband-checks.js';
@@ -41,12 +40,11 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string,details:[num
  const ids=(await client.query('SELECT id FROM races WHERE day_id=$1 ORDER BY checked_in_at,id',[dayId])).rows;
  for(const row of ids) races.push(await readRace(client,dayId,row.id));
  const rulings=await readRulings(client,dayId),notes=await readAuditNotes(client,dayId),stages=await readCompletedStages(client,dayId),ties=await readTieSettlements(client,dayId);
- const relays=switchedOn(await readTeamLists(client,dayId));
  const input:SheetData=[['Event code',null,null,null,null,null,null,null,null,'1st',null,null,'2nd',null,null,'3rd']];
  const finals:SheetData=[['Event code','Event','Section','Final','Seed','Wristband number','Team','Leg','Final position','Attendance / role','Source heat','Heat rank','Original heat wristband','Replaces']];
  const all:SheetData=[['Event code','Event','Section','Race','Wristband number','Team','Leg','Time','Place in race','Event position','Status','Warning','Note']];
  for(const event of events){
-  const state=eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),ties.filter(tie=>tie.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage),new Map(),relays);
+  const state=eventState(event,races,rulings,notes.filter(note=>note.eventId===event.id),ties.filter(tie=>tie.eventId===event.id),stages.filter(stage=>stage.eventId===event.id).map(stage=>stage.stage));
   const results=eventResults(state);
   if(results.inputRunning) input.push(inputRunningRow(results.inputRunning,event.section));
   for(const row of results.allResults) for(const child of perChild(row)) all.push([event.code,event.name,event.section,raceLabel(row.race),...child,row.time===null?null:{value:row.time/100,format:'0.00'},row.place,row.position,row.statuses.join('; '),row.warning||null,row.note||null]);

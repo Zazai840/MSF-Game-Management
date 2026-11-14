@@ -4,7 +4,7 @@ import { ordinal } from './ordinal.js';
 import { entryName,type FinishingOrder,type RaceEntry,type RacePartName,type RaceRead,type RaceState } from './races.js';
 import type { NotRankedReason } from './results-rules.js';
 import type { EventState } from './event-state.js';
-import { capitalised,entryCount,entryNoun,entryWord,type RelayTeam,type TeamList } from './teams.js';
+import { capitalised,entryCount,entryNoun,entryWord,type RelayTeam } from './teams.js';
 import { issueLine,problemButtons } from './to-check.js';
 import { wrongTimes } from './wrong-times.js';
 /**
@@ -182,7 +182,7 @@ export interface RacesRead { revision:number; groups:RaceGroup[] }
  * `nextTeam`, the number the next team typed in takes. A final with an Absent finalist's seed free carries `callUp`, the
  * next-ranked heat entry anyone can call up: its heat entry, its name ("2011", "Team 7") and its heat rank.
  */
-export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; relays?:TeamList[]; nextTeam?:number;
+export interface RaceFlowRead { revision:number; group:RaceGroup; race:RaceRead; steps:Partial<Record<Step,StepStatus>>; teams?:RelayTeam[]; nextTeam?:number;
   callUp?:{entryId:string;who:string;position:number};
   /** Leads only: the names of the people whose reported role is each step's today. */
   inRole?:Partial<Record<Step,string[]>> }

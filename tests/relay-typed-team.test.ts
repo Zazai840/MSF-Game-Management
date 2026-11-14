@@ -102,7 +102,7 @@ test('a typed leg already in this team or in another team of this heat is refuse
   expect((await relays.teams(sam,'R22')).map(team=>team.legs.map(leg=>leg.wristband))).toEqual([[2101,2102,2103,2104],[2111,2112,null,null]]);
 });
 
-test('a typed leg that is unknown, another Section\'s, ran in another heat of this relay or is in a team of another relay needs Fix number or Keep; kept, it is saved with the leg and shows in To check',async()=>{
+test('a typed leg that is unknown, another Section\'s or ran in another heat of this relay needs Fix number or Keep; kept, it is saved with the leg and shows in To check. A child in a team of another relay goes straight in',async()=>{
   const {sam,lead,relays}=await start();
   const scouts=await relays.worked(sam,'R28');
   await ok(sam,`/api/relays/${scouts.group.event.id}/teams`,{legs:[4001,2150,null,null],keptWarnings:[2150],joinRaceId:scouts.race.id});
@@ -111,13 +111,13 @@ test('a typed leg that is unknown, another Section\'s, ran in another heat of th
   await relays.save(sam,'R22',[1],[3400]);
   const heat=await relays.worked(sam,'R22');
   expect(heat.race.number).toBe(2);
-  for(const wristband of [6100,1045,2101,2150]) expect((await typed(sam,heat,[2111,wristband,null,null])).json()).toEqual({message:`${wristband} needs Fix number or Keep`});
-  const saved=await ok(sam,`/api/relays/${heat.group.event.id}/teams`,{legs:[6100,1045,2101,2150],keptWarnings:[6100,1045,2101,2150],joinRaceId:heat.race.id});
+  for(const wristband of [6100,1045,2101]) expect((await typed(sam,heat,[2111,wristband,null,null])).json()).toEqual({message:`${wristband} needs Fix number or Keep`});
+  const saved=await ok(sam,`/api/relays/${heat.group.event.id}/teams`,{legs:[6100,1045,2101,2150],keptWarnings:[6100,1045,2101],joinRaceId:heat.race.id});
   expect((saved.race.parts.runners.value||[]).filter(isTeamEntry)[0].legs.map(({wristband,warnings})=>({wristband,warnings}))).toEqual([
     {wristband:6100,warnings:[{kind:'unknown-number',message:'6100 is not a wristband number. Wristbands are 1 to 4999.',kept:true}]},
     {wristband:1045,warnings:[{kind:'wrong-section',message:'1045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999.',kept:true}]},
     {wristband:2101,warnings:[{kind:'other-heat',message:'2101 already ran in Heat 1, in Team 1.',kept:true}]},
-    {wristband:2150,warnings:[{kind:'other-relay',message:'2150 is also in Team 1 of 4x100m Relay Girl Scouts.',kept:true}]}
+    {wristband:2150,warnings:[]}
   ]);
   // A leg change is checked the same way: a child from Heat 1 needs Keep, and is kept with the leg.
   const team2=saved.teams!.find(team=>team.number===2)!,url=`/api/relays/${heat.group.event.id}/teams/${team2.id}`,others=[6100,1045,2101];
