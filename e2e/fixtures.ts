@@ -357,11 +357,21 @@ export async function enterWristband(page:Page,number:number|string,label='Wrist
   await page.getByLabel(label,{exact:true}).fill(String(number));
   await nextBeside(page,label).click();
 }
-/** Goes to Home the way a person would: back along the back arrow. Wait for the screen to settle first. */
-export async function goHome(page:Page) {await back(page,'Races');}
-/** From a race: its back link to Races. */
+/**
+ * Runs `go`, which brings Races back on screen, and waits for Races to show the list its stream sent. Until then Races
+ * shows the list it remembered, whose chips can name a race since replaced or deleted: the stream's whole list comes
+ * with its response, and Updated at then shows a time no earlier than this navigation.
+ */
+async function toRaces(page:Page,go:()=>Promise<unknown>) {
+  const since=await page.evaluate(()=>new Date().toTimeString().slice(0,8)),streamed=page.waitForResponse(response=>racesListStream(response.url()));
+  await go();await streamed;
+  await expect.poll(async()=>{const at=(await page.locator('.rz-refresh span').textContent())!;return /^\d/.test(at) && at>=since;}).toBe(true);
+}
+/** Goes to Home the way a person would: back along the back arrow, and waits for the list from the stream. Wait for the screen to settle first. */
+export async function goHome(page:Page) {await toRaces(page,()=>back(page,'Races'));}
+/** From a race: its back link to Races, and waits for the list from the stream. */
 export async function backToRaces(page:Page) {
-  await page.getByRole('button',{name:'Back to Races',exact:true}).click();
+  await toRaces(page,()=>page.getByRole('button',{name:'Back to Races',exact:true}).click());
   await expect(page.getByRole('navigation',{name:'Event type'})).toBeVisible();
 }
 /** A lead makes an event's final the one way there is: "+ Final" on its Races card, then Make the final, and back to Races. */
