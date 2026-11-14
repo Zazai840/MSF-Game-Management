@@ -1,6 +1,9 @@
 import { afterEach,expect,test } from 'vitest';
+import { get } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../src/server/app.js';
+import { dayListeners } from '../src/server/live/changes.js';
 import type { RacesRead } from '../src/shared/race-flow.js';
 import { frames,openRaces as open } from './support/live.js';
 import { signInOwner } from './support/sign-in.js';
@@ -39,4 +42,18 @@ test('a phone that does not accept gzip gets the live stream as plain text',asyn
   await newHeat();
   await live.until(text=>snapshots(text).length===2);
   expect(r4Races(snapshots(live.text())[1])).toHaveLength(1);
+});
+test.each([['gzipped','gzip'],['plain',undefined]])('phones that drop the live stream while the server still reads it, %s, leave nothing behind: no day listener, and the server closes',async(_name,encoding)=>{
+  const {sam}=await start();
+  const {port}=app.server.address() as AddressInfo,headers={authorization:`Bearer ${sam}`,...(encoding?{'accept-encoding':encoding}:{})};
+  const {dayId}=(await app.inject({url:'/api/me',headers})).json() as {dayId:string};
+  // 20 phones each ask and give up 1-5 ms later, mostly while the server is still in its first read.
+  await Promise.all(Array.from({length:20},(_,i)=>new Promise<void>(resolve=>{
+    const request=get({host:'127.0.0.1',port,path:'/api/live/races?changes=1',headers}).on('error',()=>resolve()).on('close',()=>resolve());
+    setTimeout(()=>request.destroy(),1+i%5);
+  })));
+  await new Promise(resolve=>setTimeout(resolve,1000));
+  expect(dayListeners(dayId)).toBe(0);
+  const closing=app.close().then(()=>'closed');
+  expect(await Promise.race([closing,new Promise(resolve=>setTimeout(()=>resolve('still closing after 4 s'),4000))])).toBe('closed');
 });

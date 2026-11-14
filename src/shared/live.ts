@@ -10,6 +10,7 @@ export const newerSnapshot=<T extends {revision:number}>(held:T|null,next:T)=>!h
 /** A list of event groups, as the races list is: each group is one event's, keyed by its id. */
 interface Grouped { revision:number; groups:{event:{id:string}}[] }
 /** A changes frame: the new revision, `from` (the revision this phone was sent last on this stream) and each whole group that differs. */
+// `from` alone tells a changes frame from a whole snapshot on every stream (afterFrame): no snapshot may have a `from` field.
 export interface Changes<G> { revision:number; from:number; groups:G[] }
 // Each list's groups as JSON, made once for every phone it is sent to (the races list is one shared read).
 const texts=new WeakMap<Grouped,string[]>();
