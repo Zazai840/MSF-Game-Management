@@ -15,10 +15,12 @@ export async function openRaces(app:FastifyInstance,token:string,acceptEncoding?
   const body=response.headers['content-encoding']==='gzip'?response.pipe(createGunzip()):response;
   let text='';
   body.setEncoding('utf8').on('data',(chunk:string)=>{text+=chunk;});
-  const ended=new Promise(resolve=>body.on('end',resolve));
-  // Prompt means nothing waits in a compressor: each frame decodes as soon as it is sent.
+  let open=true;
+  const ended=new Promise(resolve=>body.on('end',()=>{open=false;resolve(null);}));
+  // A frame needs a write and a whole-list read on a loaded machine: wait up to 15 s, inside the suite's 20 s test timeout, and say what came.
   const until=async(seen:(text:string)=>boolean)=>{
-    for(const start=Date.now();!seen(text);await new Promise(resolve=>setTimeout(resolve,10))) if(Date.now()-start>2000) throw new Error(`Waited 2 s for the stream, got: ${text}`);
+    for(const start=Date.now();!seen(text);await new Promise(resolve=>setTimeout(resolve,10))) if(Date.now()-start>15_000) throw new Error(`Waited 15 s for the stream, got: ${text}`);
   };
-  return {headers:response.headers,text:()=>text,until,ended};
+  // Open while frames arrive means nothing waited in a compressor until the stream ended.
+  return {headers:response.headers,text:()=>text,until,ended,open:()=>open};
 }

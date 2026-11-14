@@ -13,9 +13,9 @@ export const racesLive='live/races?changes=1';
 /**
  * Reads a live stream (`live/...`, read with fetch so the bearer token goes with it) and holds its newest snapshot,
  * ignoring any older than the one held; a changes frame (the races list's) is applied to it by `afterFrame`, and one it
- * cannot apply drops the stream and reconnects, at once the first time (live-link.ts, `gap`). A planned end reconnects at once; a failure or silence reconnects with backoff.
- * The stream closes while the page is hidden and reopens when it is visible, and starts again when the signal goes or comes back;
- * every connect sends the whole snapshot first.
+ * cannot apply drops the stream and reconnects, at once the first time (live-link.ts, `gap`). A planned end reconnects
+ * at once; a failure or silence reconnects with backoff. The stream closes while the page is hidden and reopens when it
+ * is visible, and starts again when the signal goes or comes back; every connect sends the whole snapshot first.
  * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule; `refresh` starts
  * the stream again now (a pull down), which never clears the snapshot held.
  * With `remember`, it starts from what this path showed last (api.ts, lastSeen) while the stream connects; `arrived`

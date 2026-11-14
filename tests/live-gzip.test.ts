@@ -21,6 +21,7 @@ test('a phone that accepts gzip gets the live stream gzipped, each snapshot and 
   const live=await openRaces(sam,'gzip, deflate, br');
   expect(live.headers).toMatchObject({'content-type':'text/event-stream','cache-control':'no-cache, no-transform','x-accel-buffering':'no','content-encoding':'gzip',vary:'accept-encoding'});
   await live.until(text=>snapshots(text).length===1);
+  expect(live.open()).toBe(true);
   expect(live.text()).toMatch(/^data: \{.*\}\n\n/);
   await newHeat();
   await live.until(text=>snapshots(text).length===2);
