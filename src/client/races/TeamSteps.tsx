@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { finalMark,placeFree,seedLabel,type FinalMark } from '../../shared/finals.js';
+import { finalMark,placeFree,seedLabel,teamInFinal,teamInFinalLine,type FinalMark } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,changedLine,doneButtons,placedAsk,raceName,type RaceFlowRead } from '../../shared/race-flow.js';
 import { isTeamEntry } from '../../shared/races.js';
@@ -8,7 +8,8 @@ import { childCount,legCheck,legsText,runsShortLine,stillToRun,teamCount,teamLis
 import { SortableList } from '../flow/SortableList.js';
 import type { ChangeReason } from '../../shared/rulings.js';
 import { Callout,DockedFooter,Icon,Sheet } from './parts.js';
-import { ReasonSheet } from './ReasonSheet.js';
+import { useReason } from './ReasonSheet.js';
+import { toastLine } from '../../shared/toast-lines.js';
 import { CallUp,DigitsField,KeepFocus,useTapQueue,type StepProps } from './Steps.js';
 import { useWrites } from './writes.js';
 
@@ -42,8 +43,8 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
   const [typed,setTyped]=useState(''),[held,setHeld]=useState<Held|null>(null),[said,setSaid]=useState(''),[fresh,setFresh]=useState(0);
   /** The leg being changed by its chip, and the team's version when the chip was tapped. */
   const [changing,setChanging]=useState<{teamId:string;leg:number;version:number}|null>(null);
-  /** At a final, the change waiting on "Why the change?", with whether its warning was kept. */
-  const [asking,setAsking]=useState<{keep:boolean}|null>(null);
+  /** At a final, the change waits on "Why the change?" with whether its warning was kept; Cancel there leaves the box as it was, nothing saved. */
+  const why=useReason<{keep:boolean}>(true,({keep},reason)=>saveChange(keep,reason));
   const entry=changing && legsOf(changing.teamId),change=changing && entry?{...changing,entry}:null;
   function problem(teamId:string|null,wristbands:Array<number|null>,index:number):Held|null {
     const {refusal,warnings}=legCheck(relay,relays,teamId,wristbands,index,read.race.id);
@@ -68,7 +69,7 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
     const found=problem(change.teamId,wristbands,change.leg);
     if(found && !keep) {setHeld(found);return;}
     setHeld(null);
-    if(read.race.kind==='final' && !reason) {setAsking({keep});return;}
+    if(read.race.kind==='final' && !reason) {why.ask({keep});return;}
     // Every other number is the one already set, so each warning it has stays kept.
     const others=wristbands.filter((wristband,index):wristband is number=>wristband!==null && index!==change.leg);
     const sent=await saves.send(`relays/${read.group.event.id}/teams/${change.teamId}`,{version:change.version,legs:wristbands,keptWarnings:keep?[...others,value]:others,raceId:read.race.id,reason});
@@ -100,9 +101,7 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
     <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
     <KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held || saves.busy} onClick={()=>void saveChange()}>Save</KeepFocus>
   </div>;
-  /** "Why the change?" over the screen; Cancel leaves the box as it was, nothing saved. */
-  const reasonSheet=asking && <ReasonSheet wrongNumber onClose={()=>setAsking(null)} onSave={reason=>{setAsking(null);void saveChange(asking.keep,reason);}}/>;
-  return {saves,typed,setTyped,held,setHeld,fix,said,setSaid,change,problem,saveChange,chip,changedCallout,changeField,changeFooter,reasonSheet};
+  return {saves,typed,setTyped,held,setHeld,fix,said,setSaid,change,problem,saveChange,chip,changedCallout,changeField,changeFooter,reasonSheet:why.sheet};
 }
 /**
  * A new team typed leg by leg in the number box, at a heat's start line and at a final's "+ Team": Next checks each leg
@@ -113,10 +112,10 @@ function useLegBox(read:RaceFlowRead,flow:StepProps['flow'],legsOf:(teamId:strin
 function useNewTeam(read:RaceFlowRead,box:ReturnType<typeof useLegBox>,onSaved:(number:number,legs:number[])=>void) {
   const {saves,typed,setTyped,held,setHeld,fix,setSaid,problem}=box,number=read.nextTeam??1;
   const [legs,setLegs]=useState<number[]>([]),[kept,setKept]=useState<number[]>([]),[fixing,setFixing]=useState<number|null>(null);
-  const [asking,setAsking]=useState<{legs:number[];kept:number[]}|null>(null),at=fixing??legs.length;
+  const why=useReason<{legs:number[];kept:number[]}>(false,(pending,reason)=>save(pending.legs,pending.kept,reason)),at=fixing??legs.length;
   /** The team typed so far saved into the race: the number it got comes back with the race. */
   async function save(typedLegs:number[],keptWarnings:number[],reason?:ChangeReason) {
-    if(read.race.kind==='final' && !reason) {setAsking({legs:typedLegs,kept:keptWarnings});return;}
+    if(read.race.kind==='final' && !reason) {why.ask({legs:typedLegs,kept:keptWarnings});return;}
     const wristbands=[0,1,2,3].map(index=>typedLegs[index]??null);
     const sent=await saves.send(`relays/${read.group.event.id}/teams`,{legs:wristbands,keptWarnings,joinRaceId:read.race.id,reason});
     if(typeof sent!=='object') return;
@@ -155,8 +154,7 @@ function useNewTeam(read:RaceFlowRead,box:ReturnType<typeof useLegBox>,onSaved:(
     onChange={digits=>{setTyped(digits);setSaid('');}} onEnter={()=>void next()} selectKey={fixing===null?undefined:`typed-${fixing}`} hint={hint}/>;
   const short=legs.length>0 && !typed && fixing===null && <KeepFocus className="rz-btn rz-btn--small rz-legrow__short" disabled={saves.busy} onClick={()=>void save(legs,kept)}>Save Team {number} with {legs.length}</KeepFocus>;
   const nextButton=<KeepFocus className="rz-btn rz-btn--primary" disabled={!typed || !!held || saves.busy} onClick={()=>void next()}>{legs.length===3 && fixing===null?`Save Team ${number}`:'Next'}</KeepFocus>;
-  const reasonSheet=asking && <ReasonSheet wrongNumber={false} onClose={()=>setAsking(null)} onSave={reason=>{setAsking(null);void save(asking.legs,asking.kept,reason);}}/>;
-  return {legs,next,question,row,field,short,nextButton,reasonSheet};
+  return {legs,next,question,row,field,short,nextButton,reasonSheet:why.sheet};
 }
 /**
  * A relay heat's Start line, like individual check-in: one number box asks "Team 5 · 2nd leg: wristband number?", Next
@@ -307,19 +305,19 @@ export function TeamAttendance({read,flow,onDone,locked}:StepProps) {
  */
 function AddTeam({read,flow,onClose}:Pick<StepProps,'read'|'flow'> & {onClose:(said?:string)=>void}) {
   const {race}=read,box=useLegBox(read,flow,()=>undefined),{saves,typed,setTyped,held,setHeld}=box;
-  const [found,setFound]=useState<RelayTeam|null>(null),[asking,setAsking]=useState(false),[making,setMaking]=useState(false);
-  const typing=useNewTeam(read,box,number=>onClose(`Team ${number} added`));
+  const [found,setFound]=useState<RelayTeam|null>(null),[making,setMaking]=useState(false);
+  const typing=useNewTeam(read,box,number=>onClose(toastLine({kind:'team-added',team:number})));
+  const why=useReason<RelayTeam>(false,(team,reason)=>add(team,reason));
   function find() {
     if(!typed) return;
     const value=Number(typed),team=(read.teams||[]).find(item=>item.legs.some(leg=>leg.wristband===value));
     if(!team) {setMaking(true);void typing.next();return;}
-    if(race.final!.entries.some(entry=>entry.team?.id===team.id)) {setHeld({refused:`Team ${team.number} is already in the Final`});return;}
+    if(teamInFinal(race.final!.entries,team.id)) {setHeld({refused:teamInFinalLine(team.number)});return;}
     setFound(team);
   }
-  async function add(reason:ChangeReason) {
-    setAsking(false);
-    const sent=await saves.send(`races/${race.id}/teams/${found!.id}/add`,{reason});
-    if(typeof sent==='object') onClose(`Team ${found!.number} added`);
+  async function add(team:RelayTeam,reason:ChangeReason) {
+    const sent=await saves.send(`races/${race.id}/teams/${team.id}/add`,{reason});
+    if(typeof sent==='object') onClose(toastLine({kind:'team-added',team:team.number}));
   }
   const cancel=<button type="button" className="rz-btn" onClick={()=>onClose()}>Cancel</button>;
   if(making) return <>
@@ -341,8 +339,8 @@ function AddTeam({read,flow,onClose}:Pick<StepProps,'read'|'flow'> & {onClose:(s
       <DigitsField id="add-team" label="Wristband number" value={typed} held={!!held} onRelease={()=>setHeld(null)} busy={saves.busy} warn={!!held}
         onChange={digits=>{setTyped(digits);setFound(null);}} onEnter={find}/>
       {held && <HeldCallout held={held} onKeep={()=>{}} onFix={()=>setHeld(null)}/>}
-      {found && <ul className="rz-teamrows" aria-label="Team to add"><TeamRow team={found} onAdd={()=>setAsking(true)}/></ul>}
-      {asking && <ReasonSheet wrongNumber={false} onClose={()=>setAsking(false)} onSave={reason=>void add(reason)}/>}
+      {found && <ul className="rz-teamrows" aria-label="Team to add"><TeamRow team={found} onAdd={()=>why.ask(found)}/></ul>}
+      {why.sheet}
     </main>
     <DockedFooter><div className="rz-footer__pair">
       {cancel}

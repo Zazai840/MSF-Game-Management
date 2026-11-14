@@ -440,6 +440,7 @@ button.rz-lead-row { width: 100%; border: 0; font-family: var(--font-body); colo
 .rz-notes { display: flex; flex-direction: column; gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
 .rz-notes li { display: flex; gap: var(--space-10); padding: var(--space-10) var(--space-14); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-card); color: var(--navy); font-size: 15px; line-height: 1.4; font-weight: 600; }
 .rz-notes time { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rz-disclosure__body .rz-notes { margin-top: var(--space-6); }
 
 /* ---------- Wider screens: more room, same order ---------- */
 @media (min-width: 700px) {

@@ -1,6 +1,6 @@
 import { useEffect,useLayoutEffect,useRef,useState,type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { callUpLabel,finalMark,placeFree,seedLabel } from '../../shared/finals.js';
+import { addedToFinal,callUpLabel,finalMark,placeFree,runnerChangeLine,seedLabel } from '../../shared/finals.js';
 import { ordinal } from '../../shared/ordinal.js';
 import { andList,doneButtons,emptyRaceLine,finishedWords,finishOf,onlyRunners,placedAsk,placesBoard,raceName,surplusTimes,timerQuestion,usualRunnersPerRace,usualSizeApplies,type RaceFlowRead,type Step } from '../../shared/race-flow.js';
 import { entryName,isTeamEntry,runnersOf,runnersText,type RaceEntry } from '../../shared/races.js';
@@ -16,8 +16,9 @@ import { wrongTimesByPlace } from '../flow/WrongTime.js';
 import { useTimeRefusal } from '../flow/useTimeRefusal.js';
 import { useWristbandEntry } from './wristband-entry.js';
 import { Callout,DockedFooter,Icon } from './parts.js';
-import { ReasonSheet } from './ReasonSheet.js';
-import type { ChangeReason } from '../../shared/rulings.js';
+import { useReason } from './ReasonSheet.js';
+import { capitalised } from '../../shared/teams.js';
+import type { DayEvent } from '../../shared/day.js';
 import { useToast } from './Toast.js';
 import { TeamAttendance,TeamPicker,TeamStartLine,type Mark } from './TeamSteps.js';
 import { useStepWrites,type useFlowWrite } from './writes.js';
@@ -82,6 +83,31 @@ type Entry={id?:string;wristband:number};
  * placed them). A half-typed next number waits meanwhile. "That's everyone" marks Runners done. On a Races-tab event
  * the 6th runner brings the usual-heat-size note, once. On a final it is the Here / Absent list of the seeded runners.
  */
+/** A typed wristband number held under its box: refused (Fix number only), or its warnings with Keep and Fix number. */
+function WristbandHeld({entry,section}:{entry:ReturnType<typeof useWristbandEntry>;section:DayEvent['section']}) {
+  return entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),section)).join(' ')}
+    actions={<>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button></>}/>;
+}
+/**
+ * One runner's wristband number to add, on its own screen: a heat's finish line ("Runner not on the list") or a final's
+ * "+ Runner". The box, its warning (Fix number / Keep), then Cancel and Add runner; `children` draws over it (a reason sheet).
+ */
+function AddNumberScreen({meta,question,entry,section,busy,error,onCancel,children}:{meta:string;question:string;entry:ReturnType<typeof useWristbandEntry>;section:DayEvent['section'];busy:boolean;error?:string;onCancel:()=>void;children?:ReactNode}) {
+  return <>
+    <main className="rz-main">
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{meta}</p><h2 className="rz-prompt__q">{question}</h2></div>
+      {error && <Callout message={error}/>}
+      {entry.error && <Callout message={entry.error}/>}
+      <DigitsField id="added" label="Wristband number" value={entry.current} held={entry.held} onRelease={entry.fix} busy={entry.checking || busy} warn={entry.held} onChange={entry.type} onEnter={()=>void entry.next()}/>
+      <WristbandHeld entry={entry} section={section}/>
+      {children}
+    </main>
+    <DockedFooter><div className="rz-footer__pair">
+      <button type="button" className="rz-btn" onClick={onCancel}>Cancel</button>
+      <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking || busy} onClick={()=>void entry.next()}>{entry.checking?'Checking…':'Add runner'}</KeepFocus>
+    </div></DockedFooter>
+  </>;
+}
 export function StartLine({read,flow,onDone,locked}:StepProps) {
   const {race,group}=read,event=group.event,runners=runnersOf(race.parts.runners.value);
   const writes=useStepWrites<{runners:Entry[];keptWarnings:number[]}>(flow.write,'check-in','runners',race.id,race.parts.runners.version);
@@ -138,8 +164,7 @@ export function StartLine({read,flow,onDone,locked}:StepProps) {
       {/* Remove sits under the box, small and away from the thumb: Save is the footer's wide button. */}
       {target && !locked && !asking && <button type="button" className="rz-btn rz-btn--pill rz-btn--remove rz-remove" onClick={remove}>Remove {target.wristband}</button>}
       {on.error && <Callout message={on.error}/>}
-      {on.held && <Callout message={on.refused||on.pending.map(warning=>plainWristbandWarning(warning,Number(on.current),event.section)).join(' ')}
-        actions={<>{!on.refused && <button type="button" className="rz-btn" onClick={()=>void on.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={on.fix}>Fix number</button></>}/>}
+      <WristbandHeld entry={on} section={event.section}/>
       {target && asking && <Callout message={placedAsk(target.wristband,place,'Remove')}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Keep</button><button type="button" className="rz-btn rz-btn--primary" onClick={remove}>Remove</button></>}/>}
     </main>
@@ -179,16 +204,21 @@ export function CallUp({read,flow}:Pick<StepProps,'read'|'flow'>) {
  * the new number, its warning (Fix number / Keep), then "Why the change?"; the old runner stays Absent and the new one
  * joins as Added, Here. On an Added row the same steps correct its number in place.
  */
+/** A wristband number typed and checked, waiting on "Why the change?", with whether its warning was kept. */
+type PendingNumber={wristband:number;kept:boolean};
 function Attendance({read,flow,onDone,locked}:StepProps) {
-  const {race,group}=read,final=race.final!;
-  const [adding,setAdding]=useState(false),[reasonFor,setReasonFor]=useState<{wristband:number;kept:boolean}|null>(null);
-  // The number and its warning settled, "Why the change?" opens; Cancel there leaves the typed number in the box.
-  const added=useWristbandEntry(group.event,race.id,final.entries.flatMap(entry=>entry.wristband===null?[]:[entry.wristband]),async(wristband,kept)=>{added.fix();setReasonFor({wristband,kept});return false;});
-  const closeAdd=()=>{added.fix();added.type('');setAdding(false);};
+  const {race,group}=read,final=race.final!,section=group.event.section;
+  const [adding,setAdding]=useState(false);
+  // "+ Runner": the number and its warning settled, "Why the change?" opens; Cancel there leaves the typed number in the box.
+  const addWhy=useReason<PendingNumber>(false,async({wristband,kept},reason)=>{
+    if(typeof await flow.write('add-runner',{raceId:race.id,version:read.race.parts.runners.version,wristband,keptWarnings:kept?[wristband]:[],reason})==='object') closeAdd();
+  });
+  const addBox=useWristbandEntry(group.event,race.id,final.entries.flatMap(entry=>entry.wristband===null?[]:[entry.wristband]),async(wristband,kept)=>{addBox.fix();addWhy.ask({wristband,kept});return false;});
+  const closeAdd=()=>{addBox.fix();addBox.type('');setAdding(false);};
   const marksIn=(from:RaceFlowRead):Mark[]=>from.race.final!.entries.map(entry=>finalMark(entry,from.race.parts.runners.value||[]));
   const [asking,setAsking]=useState(false),ask=useRef<HTMLDivElement>(null);
-  // The finalist being replaced (by entry id), the new number waiting on "Why the change?" with whether its warning was kept, and the line once saved.
-  const [changingId,setChangingId]=useState<string|null>(null),[why,setWhy]=useState<{wristband:number;kept:boolean}|null>(null),[said,setSaid]=useState('');
+  // The finalist being replaced (by entry id), and the line once saved.
+  const [changingId,setChangingId]=useState<string|null>(null),[said,setSaid]=useState('');
   const changing=final.entries.find(entry=>entry.finalEntryId===changingId)||null;
   // The question appears under the list, so it is brought into view clear of the footer.
   useEffect(()=>{if(asking) ask.current?.scrollIntoView({block:'center'});},[asking]);
@@ -203,51 +233,32 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
   const unmarked=final.entries.filter((_,index)=>marks[index]===null);
   const tapQueue=useTapQueue(read,({index,mark}:{index:number;mark:Mark},from)=>send(from,old=>old.map((was,at)=>at===index?(was===mark?null:mark):was)));
   const tap=(index:number,mark:Mark)=>{setAsking(false);tapQueue({index,mark});};
+  // A replace: the new number and its warning settled, "Why the change?" (Wrong number too) opens; Cancel there leaves the box as it was.
+  const replaceWhy=useReason<PendingNumber>(true,async({wristband,kept},reason)=>{
+    const old=changing!,sent=await flow.write('replace',{raceId:race.id,version:race.parts.runners.version,finalEntryId:old.finalEntryId,wristband,keptWarnings:kept?[wristband]:[],reason});
+    if(typeof sent==='object') {cancel();setSaid(capitalised(runnerChangeLine(addedToFinal(old),old.wristband,wristband)));}
+  });
   // Every number in the line-up, Absent ones too, is already in this race.
-  const box=useWristbandEntry(read.group.event,race.id,final.entries.filter(entry=>entry!==changing).flatMap(entry=>entry.wristband??[]),async(wristband,kept)=>{box.fix();setWhy({wristband,kept});return false;});
-  const cancel=()=>{box.fix();box.type('');setChangingId(null);};
-  const start=(entry:typeof final.entries[number])=>{box.fix();box.type(String(entry.wristband));setAsking(false);setSaid('');setChangingId(entry.finalEntryId);};
+  const replaceBox=useWristbandEntry(group.event,race.id,final.entries.filter(entry=>entry!==changing).flatMap(entry=>entry.wristband??[]),async(wristband,kept)=>{replaceBox.fix();replaceWhy.ask({wristband,kept});return false;});
+  const cancel=()=>{replaceBox.fix();replaceBox.type('');setChangingId(null);};
+  const start=(entry:typeof final.entries[number])=>{replaceBox.fix();replaceBox.type(String(entry.wristband));setAsking(false);setSaid('');setChangingId(entry.finalEntryId);};
   // An unchanged number just closes the box.
-  const save=()=>{if(Number(box.current)===changing!.wristband) cancel();else void box.next();};
-  async function replace(reason:ChangeReason) {
-    const {wristband,kept}=why!,old=changing!;setWhy(null);
-    const sent=await flow.write('replace',{raceId:race.id,version:race.parts.runners.version,finalEntryId:old.finalEntryId,wristband,keptWarnings:kept?[wristband]:[],reason});
-    if(typeof sent==='object') {cancel();setSaid(old.seed===null?`${old.wristband} corrected to ${wristband}`:`${old.wristband} replaced by ${wristband}`);}
-  }
+  const save=()=>{if(Number(replaceBox.current)===changing!.wristband) cancel();else void replaceBox.next();};
   async function recordAbsent() {
     setAsking(false);
     if(typeof await send(read,old=>old.map(mark=>mark??'absent'))==='object') onDone('runners');
   }
-  const reasonSheet=reasonFor && <ReasonSheet wrongNumber={false} onClose={()=>setReasonFor(null)} onSave={async reason=>{
-    setReasonFor(null);
-    const {wristband,kept}=reasonFor;
-    if(typeof await flow.write('add-runner',{raceId:race.id,version:read.race.parts.runners.version,wristband,keptWarnings:kept?[wristband]:[],reason})==='object') closeAdd();
-  }}/>;
-  if(adding && !locked) return <>
-    <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here</p><h2 className="rz-prompt__q">Runner to add: wristband number?</h2></div>
-      {flow.error && <Callout message={flow.error}/>}
-      {added.error && <Callout message={added.error}/>}
-      <DigitsField id="added" label="Wristband number" value={added.current} held={added.held} onRelease={added.fix} busy={added.checking || flow.busy} warn={added.held} onChange={added.type} onEnter={()=>void added.next()}/>
-      {added.held && <Callout message={added.refused||added.pending.map(warning=>plainWristbandWarning(warning,Number(added.current),group.event.section)).join(' ')}
-        actions={<>{!added.refused && <button type="button" className="rz-btn" onClick={()=>void added.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={added.fix}>Fix number</button></>}/>}
-      {reasonSheet}
-    </main>
-    <DockedFooter><div className="rz-footer__pair">
-      <button type="button" className="rz-btn" onClick={closeAdd}>Cancel</button>
-      <KeepFocus className="rz-btn rz-btn--primary" disabled={!added.current || added.held || added.checking || flow.busy} onClick={()=>void added.next()}>{added.checking?'Checking…':'Add runner'}</KeepFocus>
-    </div></DockedFooter>
-  </>;
+  if(adding && !locked) return <AddNumberScreen meta={`Final · ${here} of ${final.entries.length} here`} question="Runner to add: wristband number?" entry={addBox} section={section}
+    busy={flow.busy} error={flow.error} onCancel={closeAdd}>{addWhy.sheet}</AddNumberScreen>;
   return <>
     <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">{changing?`${changing.seed===null?'Correct':'Replace'} ${changing.wristband}`:'Who is here?'}</h2></div>
+      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">Final · {here} of {final.entries.length} here{unmarked.length?` · ${unmarked.length} not marked`:''}</p><h2 className="rz-prompt__q">{changing?`${addedToFinal(changing)?'Correct':'Replace'} ${changing.wristband}`:'Who is here?'}</h2></div>
       {flow.error && <Callout message={flow.error}/>}
       {said && !changing && <p className="rz-note" role="status">{said}</p>}
-      {changing && !locked && <DigitsField id="replace" label={`New number for ${changing.wristband}`} value={box.current} held={box.held} onRelease={box.fix} busy={box.checking || flow.busy} warn={box.held}
-        onChange={box.type} onEnter={save} selectKey={changing.finalEntryId} hint={changing.seed===null?'Type the right number and tap Save.':`Type the new runner's number and tap Save. ${changing.wristband} stays as Absent.`}/>}
-      {changing && box.error && <Callout message={box.error}/>}
-      {changing && box.held && <Callout message={box.refused||box.pending.map(warning=>plainWristbandWarning(warning,Number(box.current),read.group.event.section)).join(' ')}
-        actions={<>{!box.refused && <button type="button" className="rz-btn" onClick={()=>void box.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={box.fix}>Fix number</button></>}/>}
+      {changing && !locked && <DigitsField id="replace" label={`New number for ${changing.wristband}`} value={replaceBox.current} held={replaceBox.held} onRelease={replaceBox.fix} busy={replaceBox.checking || flow.busy} warn={replaceBox.held}
+        onChange={replaceBox.type} onEnter={save} selectKey={changing.finalEntryId} hint={addedToFinal(changing)?'Type the right number and tap Save.':`Type the new runner's number and tap Save. ${changing.wristband} stays as Absent.`}/>}
+      {changing && replaceBox.error && <Callout message={replaceBox.error}/>}
+      {changing && <WristbandHeld entry={replaceBox} section={section}/>}
       <ul className="rz-attendance" aria-label="Who is here">{final.entries.map((entry,index)=><li key={entry.finalEntryId} className={marks[index]==='absent'?'is-absent':undefined}>
         <span className="rz-attendance__who"><span className="rz-attendance__seed">{seedLabel(entry)}</span>
           {locked || marks[index]==='absent'?<span className="label">{entry.wristband}</span>
@@ -258,13 +269,13 @@ function Attendance({read,flow,onDone,locked}:StepProps) {
       </li>)}</ul>
       {!locked && !changing && <CallUp read={read} flow={flow}/>}
       {!locked && !changing && placeFree(final) && <button type="button" className="rz-btn rz-btn--block" disabled={flow.busy} onClick={()=>{flow.setError('');setAdding(true);}}>+ Runner</button>}
-      {why && <ReasonSheet wrongNumber onClose={()=>setWhy(null)} onSave={reason=>void replace(reason)}/>}
+      {replaceWhy.sheet}
       {asking && unmarked.length>0 && <div ref={ask}><Callout message={`${andList(unmarked.map(entry=>String(entry.wristband)))} ${unmarked.length===1?'is':'are'} not marked. Record them absent?`}
         actions={<><button type="button" className="rz-btn" onClick={()=>setAsking(false)}>Go back</button><button type="button" className="rz-btn rz-btn--primary" disabled={flow.busy} onClick={()=>void recordAbsent()}>Record them absent</button></>}/></div>}
     </main>
     {!locked && <DockedFooter>{changing?<div className="rz-footer__trio rz-footer__trio--two">
       <button type="button" className="rz-btn" onClick={cancel}>Cancel</button>
-      <KeepFocus className="rz-btn rz-btn--primary" disabled={!box.current || box.held || box.checking || flow.busy} onClick={save}>{box.checking?'Checking…':'Save'}</KeepFocus>
+      <KeepFocus className="rz-btn rz-btn--primary" disabled={!replaceBox.current || replaceBox.held || replaceBox.checking || flow.busy} onClick={save}>{replaceBox.checking?'Checking…':'Save'}</KeepFocus>
     </div>:<button type="button" className="rz-btn rz-btn--display rz-btn--block" disabled={!here || flow.busy} onClick={()=>unmarked.length?setAsking(true):onDone('runners')}>{doneButtons.runners}</button>}</DockedFooter>}
   </>;
 }
@@ -329,19 +340,8 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   const slots=Math.max(runners.length,board.length);
   const sizeNote=size.showing && <Callout status message={`That's more than ${usualRunnersPerRace} runners, the usual number for a heat. Carry on if this heat really has more.`}
     actions={<button type="button" className="rz-btn" onClick={size.dismiss}>Carry on</button>}/>;
-  if(mode==='add') return <>
-    <main className="rz-main">
-      <div className="rz-prompt rz-prompt--compact"><p className="rz-prompt__meta">{raceName(race)} · {runnersText(runners.length)}</p><h2 className="rz-prompt__q">Runner not on the list: wristband number?</h2></div>
-      {entry.error && <Callout message={entry.error}/>}
-      <DigitsField id="added" label="Wristband number" value={entry.current} held={entry.held} onRelease={entry.fix} busy={entry.checking || writes.sending} warn={entry.held} onChange={entry.type} onEnter={()=>void entry.next()}/>
-      {entry.held && <Callout message={entry.refused||entry.pending.map(warning=>plainWristbandWarning(warning,Number(entry.current),event.section)).join(' ')}
-        actions={<>{!entry.refused && <button type="button" className="rz-btn" onClick={()=>void entry.keep()}>Keep</button>}<button type="button" className="rz-btn rz-btn--primary" onClick={entry.fix}>Fix number</button></>}/>}
-    </main>
-    <DockedFooter><div className="rz-footer__pair">
-      <button type="button" className="rz-btn" onClick={()=>{entry.fix();entry.type('');setMode('place');}}>Cancel</button>
-      <KeepFocus className="rz-btn rz-btn--primary" disabled={!entry.current || entry.held || entry.checking} onClick={()=>void entry.next()}>Add runner</KeepFocus>
-    </div></DockedFooter>
-  </>;
+  if(mode==='add') return <AddNumberScreen meta={`${raceName(race)} · ${runnersText(runners.length)}`} question="Runner not on the list: wristband number?" entry={entry} section={event.section}
+    busy={writes.sending} onCancel={()=>{entry.fix();entry.type('');setMode('place');}}/>;
   if(mode==='check') {
     const left=runners.filter(runner=>!order.includes(runner.id));
     // A runner already saved as Did not finish keeps that answer; anyone else left is asked, with nothing chosen for them.

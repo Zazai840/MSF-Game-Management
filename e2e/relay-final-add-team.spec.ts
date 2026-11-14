@@ -64,10 +64,13 @@ test('"+ Team" at a relay final: one child\'s number finds the team, shown befor
   await press(card(page,8).getByRole('button',{name:'Team 8: Absent',exact:true}));
   await expect(plus).toBeVisible();
 
-  // The lead's Final tab lists the added team, with no "+ Team"; the Notes tab has the note.
+  // The lead's Final tab lists the added team with its note before the final is saved, and no "+ Team"; the Notes tab has the note too.
   await lead.page.goto(`/results/${code}/final`);
   await lead.page.getByText('Line-up, fastest first',{exact:true}).click();
-  await expect(lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').last()).toHaveText(`Added · Team 8 · ${legs(8).join(' · ')} · Absent · no final place`,live);
+  const added=lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').filter({hasText:'Added · Team 8'});
+  await expect(added).toContainText(`Added · Team 8 · ${legs(8).join(' · ')} · Absent · no final place`,live);
+  await expect(added.getByRole('list',{name:`Notes on Team 8 · ${legs(8).join(' · ')}`,exact:true})).toContainText('added Team 8 to the Final - Not found');
+  expect(await lookProblems(lead.page)).toEqual([]);
   await expect(lead.page.getByRole('button',{name:'+ Team',exact:true})).toHaveCount(0);
   await lead.page.goto(`/results/${code}/notes`);
   await expect(lead.page.getByRole('list',{name:'Audit notes'})).toContainText(`added Team 8 to the Final - Not found`);

@@ -3,7 +3,7 @@ const attendance=(page:Page)=>page.getByRole('list',{name:'Who is here'}).getByR
 const mark=(page:Page,wristband:number,which:'Here'|'Absent')=>page.getByRole('button',{name:`${wristband}: ${which}`,exact:true});
 const plusRunner=(page:Page)=>page.getByRole('button',{name:'+ Runner',exact:true});
 
-test('"+ Runner" at an individual final\'s start line: shown while a place is free, any wristband with its warning, a reason, then Here as Added; the lead reads it on the Final and Notes tabs',async({openPhone,request},info)=>{
+test('"+ Runner" at an individual final\'s start line: shown while a place is free, any wristband with its warning, a reason, then Here as Added; the lead reads it and its note on the Final and Notes tabs',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Plus runner'),n=await ownWristbands('Boy Cubs',8);
  await ownEvent(request,code,name,'Boy Cubs');
  // 11 to 16 are the six fastest; 17 is 7th.
@@ -48,11 +48,14 @@ test('"+ Runner" at an individual final\'s start line: shown while a place is fr
  // A wrong add: marked Absent, the place is free again.
  await press(mark(page,7050,'Absent'));
  await expect(plusRunner(page)).toBeVisible();
- // The lead's Final tab shows the added runner, with no new button; the Notes tab has the note.
+ // The lead's Final tab shows the added runner with its note before the final is saved, and no new button; the Notes tab has the note too.
  await lead.page.goto(`/results/${code}`);
  await eventTab(lead.page,'Final');
  await lead.page.getByText('Line-up, fastest first',{exact:true}).click();
- await expect(lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').last()).toHaveText('Added · 7050 · Absent · no final place',live);
+ const added=lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').filter({hasText:'Added · 7050'});
+ await expect(added).toContainText('Added · 7050 · Absent · no final place',live);
+ await expect(added.getByRole('list',{name:'Notes on 7050',exact:true})).toContainText('added 7050 to the Final - Not found');
+ expect(await lookProblems(lead.page)).toEqual([]);await lead.page.screenshot({path:info.outputPath('final-tab-added-note.png'),fullPage:true});
  await expect(lead.page.locator('main').getByRole('button',{name:/\+ Runner|Add a runner/})).toHaveCount(0);
  await eventTab(lead.page,'Notes');
  await expect(lead.page.getByRole('list',{name:'Audit notes'})).toContainText('added 7050 to the Final - Not found');
@@ -82,5 +85,7 @@ test('"Call up next fastest" hides once "+ Runner" fills the free place, the oth
  await expect(callUp(page)).toHaveCount(0);await expect(plusRunner(page)).toHaveCount(0);
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-call-up-hidden.png'),fullPage:true});
  await pullToRefresh(lead.page);await expect(callUp(lead.page)).toHaveCount(0);
+ // The place is filled, so the tab says nothing about a call-up: no "nothing left to call up", no "can run short".
+ await expect(lead.page.getByText(/No further ranked heat|The final can run short/)).toHaveCount(0);
  expect(await lookProblems(lead.page)).toEqual([]);
 });
