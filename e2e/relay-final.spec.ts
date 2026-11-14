@@ -42,7 +42,10 @@ test('the start line calls up the next-ranked team at a relay final\'s check-in,
   // The lead's Final tab names the same call-up, and has no button that adds a team.
   await openFinalResults(lead.page,code);
   await expect(lead.page.getByRole('button',{name:'Add a team to the final',exact:true})).toHaveCount(0);
-  await expect((await lineUp(lead.page)).last()).toHaveText(`Called up from heat rank 7 · Team 7 · ${legs(7).join(' · ')}`);
+  // Until the final's order is saved, the row shows the call-up's audit note under it.
+  const calledUp=(await lineUp(lead.page)).last();
+  await expect(calledUp).toContainText(`Called up from heat rank 7 · Team 7 · ${legs(7).join(' · ')}`);
+  await expect(calledUp.getByRole('group',{name:`Notes on Team 7 · ${legs(7).join(' · ')}`,exact:true})).toContainText('called up Team 7 (heat rank 7) for absent Team 5');
   expect(await lookProblems(sam.page)).toEqual([]);
   await sam.page.screenshot({path:info.outputPath('relay-final-call-up.png'),fullPage:true});
   // Everyone else is here; the finish line places them, and the final saves itself.

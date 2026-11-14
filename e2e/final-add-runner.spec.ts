@@ -54,7 +54,7 @@ test('"+ Runner" at an individual final\'s start line: shown while a place is fr
  await press(lead.page.getByText('Line-up, fastest first',{exact:true}));
  const added=lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').filter({hasText:'Added · 7050'});
  await expect(added).toContainText('Added · 7050 · Absent · no final place',live);
- await expect(added.getByRole('list',{name:'Notes on 7050',exact:true})).toContainText('added 7050 to the Final - Not found');
+ await expect(added.getByRole('group',{name:'Notes on 7050',exact:true})).toContainText('added 7050 to the Final - Not found');
  expect(await lookProblems(lead.page)).toEqual([]);await lead.page.screenshot({path:info.outputPath('final-tab-added-note.png'),fullPage:true});
  await expect(lead.page.locator('main').getByRole('button',{name:/\+ Runner|Add a runner/})).toHaveCount(0);
  await eventTab(lead.page,'Notes');

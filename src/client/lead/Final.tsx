@@ -39,7 +39,8 @@ export function Final({event,final,notes,onSaved,onRunner}:{event:DayEvent;final
   const lineupRow=(entryId:string,name:string,words:string[])=>{
     const own=final.leaderboard.length?[]:resultAuditNotes({auditNotes:[...notes]},final.raceId,entryId);
     return <div role="listitem" key={entryId}>{words.filter(Boolean).join(' · ')}
-      {own.length>0 && <ol className="rz-notes" aria-label={`Notes on ${name}`}>{own.map(note=><li key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></li>)}</ol>}</div>;
+      {/* A group, not a list: the line-up's rows stay its only list items. */}
+      {own.length>0 && <div className="rz-notes" role="group" aria-label={`Notes on ${name}`}>{own.map(note=><p key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></p>)}</div>}</div>;
   };
   return <>
     {error!==null && <ErrorCallout error={error} action="save"/>}

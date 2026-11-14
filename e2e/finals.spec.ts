@@ -277,7 +277,10 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  const corrected=race.final!.entries.find(entry=>entry.wristband===n(41))!;
  expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true,reason:{reason:'Wrong number',text:null}}})).ok()).toBe(true);
  await eventTab(page,'Final');await pullToRefresh(page);
- await expect((await lineUp(page)).filter({hasText:String(n(43))})).toHaveText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
+ // Until the final's order is saved, the row shows the correction's audit note under it.
+ const row=(await lineUp(page)).filter({hasText:String(n(43))});
+ await expect(row).toContainText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
+ await expect(row.getByRole('group',{name:`Notes on ${n(43)}`,exact:true})).toContainText(`corrected ${n(41)} to ${n(43)} (Final) - Wrong number`);
 });
 test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Plus before final'),n=await ownWristbands('Boy Cubs',2);

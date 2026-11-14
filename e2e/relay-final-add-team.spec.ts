@@ -69,7 +69,7 @@ test('"+ Team" at a relay final: one child\'s number finds the team, shown befor
   await press(lead.page.getByText('Line-up, fastest first',{exact:true}));
   const added=lead.page.getByRole('list',{name:'Line-up, fastest first'}).getByRole('listitem').filter({hasText:'Added · Team 8'});
   await expect(added).toContainText(`Added · Team 8 · ${legs(8).join(' · ')} · Absent · no final place`,live);
-  await expect(added.getByRole('list',{name:`Notes on Team 8 · ${legs(8).join(' · ')}`,exact:true})).toContainText('added Team 8 to the Final - Not found');
+  await expect(added.getByRole('group',{name:`Notes on Team 8 · ${legs(8).join(' · ')}`,exact:true})).toContainText('added Team 8 to the Final - Not found');
   expect(await lookProblems(lead.page)).toEqual([]);
   await expect(lead.page.getByRole('button',{name:'+ Team',exact:true})).toHaveCount(0);
   await lead.page.goto(`/results/${code}/notes`);
