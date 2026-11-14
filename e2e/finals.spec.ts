@@ -171,7 +171,7 @@ test('the start line replaces a finalist by a tap on their wristband: the number
  await press(why.getByRole('button',{name:'Cancel',exact:true}));
  await expect(why).toHaveCount(0);await expect(box).toHaveValue(String(n(17)));
  await save();await press(why.getByRole('button',{name:'Hurt',exact:true}));await press(why.getByRole('button',{name:'Save',exact:true}));
- await expect(page.locator('p.rz-note[role=status]')).toHaveText(`${n(13)} replaced by ${n(17)}`);
+ await expect(page.locator('p.rz-note[role=status]')).toHaveText(`Replaced ${n(13)} with ${n(17)}`);
  await expect(mark(page,n(13),'Absent')).toHaveAttribute('aria-pressed','true');
  await expect(pencil(n(13))).toHaveCount(0);
  await expect(attendance(page).last()).toHaveText(new RegExp(`^Added\\s*${n(17)}`));
@@ -193,7 +193,7 @@ test('the start line replaces a finalist by a tap on their wristband: the number
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-correct-box.png'),fullPage:true});
  await box.fill(String(n(18)));await save();
  await press(why.getByRole('button',{name:'Wrong number',exact:true}));await press(why.getByRole('button',{name:'Save',exact:true}));
- await expect(page.locator('p.rz-note[role=status]')).toHaveText(`${n(17)} corrected to ${n(18)}`);
+ await expect(page.locator('p.rz-note[role=status]')).toHaveText(`Corrected ${n(17)} to ${n(18)}`);
  await expect(attendance(page)).toHaveText([seed('1st',n(11)),seed('2nd',n(12)),seed('3rd',n(13)),seed('4th',n(14)),seed('5th',n(15)),seed('6th',n(16)),new RegExp(`^Added\\s*${n(18)}`),/^Added\s*6000/]);
  expect(await marks(page)).toEqual(['Here','Here','Absent','Here','Here','Absent','Here','Here']);
  expect(await lookProblems(page)).toEqual([]);await page.screenshot({path:info.outputPath('final-corrected.png'),fullPage:true});
@@ -277,7 +277,10 @@ test('only a lead\'s + Final makes the final from the fastest, after a confirm; 
  const corrected=race.final!.entries.find(entry=>entry.wristband===n(41))!;
  expect((await page.request.post(`/api/lead/races/${race.id}/runners/${corrected.finalEntryId}/correct-number`,{headers,data:{expectedWristband:n(41),wristband:n(43),keepWarnings:true,reason:{reason:'Wrong number',text:null}}})).ok()).toBe(true);
  await eventTab(page,'Final');await pullToRefresh(page);
- await expect((await lineUp(page)).filter({hasText:String(n(43))})).toHaveText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
+ // Until the final's order is saved, the row shows the correction's audit note under it.
+ const row=(await lineUp(page)).filter({hasText:String(n(43))});
+ await expect(row).toContainText(`2nd fastest · ${n(43)} · ran the heats as ${n(41)}`);
+ await expect(row.getByRole('group',{name:`Notes on ${n(43)}`,exact:true})).toContainText(`corrected ${n(41)} to ${n(43)} (Final) - Wrong number`);
 });
 test('with a final back while heats can still be added, "+" sits right after the last heat and before F',async({openPhone,request},info)=>{
  const code=await ownCode(),name=ownName('Plus before final'),n=await ownWristbands('Boy Cubs',2);

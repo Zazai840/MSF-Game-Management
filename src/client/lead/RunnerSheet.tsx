@@ -14,7 +14,7 @@ import { raceName } from '../../shared/race-flow.js';
 import { resultNotes } from '../../shared/result-notes.js';
 import { placeText,resultHolder,resultName,type LeaderboardRow,type ResultFlag } from '../../shared/results-rules.js';
 import { disqualificationReasons,disqualifiedText,type ChangeReason } from '../../shared/rulings.js';
-import { ReasonSheet } from '../races/ReasonSheet.js';
+import { useReason } from '../races/ReasonSheet.js';
 import { openRaceLabel } from '../../shared/races.js';
 import { isOpenEligibilityWarning } from '../../shared/runner-rulings.js';
 import { legRefusal,legWarnings } from '../../shared/teams.js';
@@ -147,7 +147,8 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
   const team=row.team,input=useRef<HTMLInputElement>(null);
   const [leg,setLeg]=useState<number|null>(team?null:0),[number,setNumber]=useState('');
   const [held,setHeld]=useState<{refusal:string|null;warnings:string[]}|null>(null);
-  const [checking,setChecking]=useState(false),[refused,setRefused]=useState<unknown>(null),[asking,setAsking]=useState<{keep:boolean}|null>(null);
+  const [checking,setChecking]=useState(false),[refused,setRefused]=useState<unknown>(null);
+  const why=useReason<{keep:boolean}>(true,({keep},reason)=>send(keep,reason));
   const original=team?(leg===null?null:team.wristbands[leg]):row.wristband;
   async function warnings() {
     if(!team) return (await api<{warnings:Array<{kind:string;message:string}>}>('wristband-check',{eventCode:event.code,wristband:Number(number),raceId:row.raceId})).warnings
@@ -159,7 +160,7 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
   }
   async function send(keep:boolean,reason?:ChangeReason) {
     setHeld(null);
-    if(row.race.kind==='final' && !reason) {setAsking({keep});return;}
+    if(row.race.kind==='final' && !reason) {why.ask({keep});return;}
     setRefused(await save(runnerPath(row,'correct-number'),{expectedWristband:original,wristband:Number(number),keepWarnings:keep,reason,...(team?{leg}:{})},{kind:'number-saved',who:number}));
   }
   async function go() {
@@ -180,7 +181,7 @@ function CorrectNumber({event,row,save,busy}:ScreenProps) {
         onKeyDown={key=>{if(key.key==='Enter' && !key.nativeEvent.isComposing) {key.preventDefault();if(!reason && !checking && !busy) void go();}}}/></div>}
     {held && <Callout message={held.refusal??held.warnings.join(' ')} actions={<><button type="button" className="rz-btn rz-btn--primary" onClick={fix}>Fix number</button>
       {!held.refusal && <button type="button" className="rz-btn" onClick={()=>void send(true)}>Keep</button>}</>}/>}
-    {asking && <ReasonSheet wrongNumber onClose={()=>setAsking(null)} onSave={reason=>{setAsking(null);void send(asking.keep,reason);}}/>}
+    {why.sheet}
   </Frame>;
 }
 function ChooseResult({row,rows,save,busy}:ScreenProps) {

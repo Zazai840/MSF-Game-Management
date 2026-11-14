@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { DayEvent } from '../../shared/day.js';
-import { runnerListRefusal } from '../../shared/runner-list.js';
+import { alreadyInRaceLine,runnerListRefusal } from '../../shared/runner-list.js';
 import { wristbandWarnings,type WristbandWarning } from '../../shared/wristband-checks.js';
 import { api } from '../api.js';
 import { failureLine } from '../../shared/request-failure.js';
@@ -22,7 +22,7 @@ export function useWristbandEntry(event:DayEvent,raceId:string|null,taken:readon
   async function next() {
     if(!current) return;
     const number=Number(current);setError('');
-    if(taken.includes(number)) {setRefused(`${number} is already in this race. Check the wristband.`);return;}
+    if(taken.includes(number)) {setRefused(`${alreadyInRaceLine(number)}. Check the wristband.`);return;}
     const refusal=runnerListRefusal([number]);
     if(refusal) {setError(refusal);return;}
     // The input stays read-only from the check until the number is saved, so nothing typed meanwhile is lost.

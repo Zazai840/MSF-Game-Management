@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { callUpLabel,finalTakesChanges,openCallUp,type FinalResults } from '../../shared/finals.js';
+import { callUpLabel,openCallUp,placeFree,type FinalResults } from '../../shared/finals.js';
 import { needsCheck,resultLabel,resultName,teamLine,teamWristbands,type LeaderboardRow,type ResultEntry } from '../../shared/results-rules.js';
 import type { EventResultsRead } from '../../shared/lead-results.js';
 import { api } from '../api.js';
@@ -10,15 +10,19 @@ import { entryNoun } from '../../shared/teams.js';
 import { toastLine } from '../../shared/toast-lines.js';
 import { useToast } from '../races/Toast.js';
 import { ErrorCallout,Star } from '../races/parts.js';
+import { resultAuditNotes } from '../../shared/result-notes.js';
+import { clock } from '../../shared/clock.js';
+import type { AuditNote } from '../../shared/rulings.js';
 import type { DayEvent } from '../../shared/day.js';
 /** Whose result it is, in a line: "2003", or "Team 3 · 2301 · 2302 · 2303 · 2304". */
 const who=(entry:Pick<ResultEntry,'wristband'|'team'>)=>entry.team?teamLine(entry.team):String(entry.wristband??'-');
 /**
  * A heats event's Final tab, above the Day export line and Confirm the medals: the final's order with gold stars on the
- * medal places, "Line-up, fastest first" and Call up while a seed is free, which saves at once with a toast. A row opens
- * the runner sheet (`onRunner`). A final's runners and teams are added and replaced at its start line.
+ * medal places, "Line-up, fastest first" and Call up while a place and a seed are free, which saves at once with a
+ * toast. A row opens the runner sheet (`onRunner`). A final's runners and teams are added and replaced at its start
+ * line; until its order is saved, each line-up row shows its audit notes (`notes`) as the Notes tab does.
  */
-export function Final({event,final,onSaved,onRunner}:{event:DayEvent;final:FinalResults;onSaved:(next:EventResultsRead)=>void;onRunner:(row:LeaderboardRow)=>void}) {
+export function Final({event,final,notes,onSaved,onRunner}:{event:DayEvent;final:FinalResults;notes:readonly AuditNote[];onSaved:(next:EventResultsRead)=>void;onRunner:(row:LeaderboardRow)=>void}) {
   const [busy,setBusy]=useState(false),[error,setError]=useState<unknown>(null);
   const toast=useToast();
   async function callUp(body:object,name:string) {
@@ -27,10 +31,17 @@ export function Final({event,final,onSaved,onRunner}:{event:DayEvent;final:Final
     catch(error) {setError(error);}
     finally {setBusy(false);}
   }
-  const open=finalTakesChanges(final),next=openCallUp(final);
+  const next=openCallUp(final);
   // A line-up entry as it is in the final now, else as it was when last there (an Absent one).
   const finalist=(id:string,copy?:RaceEntry)=>{const runner=final.runners.find(runner=>runner.id===id)??copy;return runner && resultEntry({id:final.raceId},runner);};
   const absent=(entry:{absent:boolean})=>entry.absent?'Absent · no final place':'';
+  /** A line-up row: its words, then (until the final's order is saved, when its result carries them) its audit notes. */
+  const lineupRow=(entryId:string,name:string,words:string[])=>{
+    const own=final.leaderboard.length?[]:resultAuditNotes({auditNotes:[...notes]},final.raceId,entryId);
+    return <div role="listitem" key={entryId}>{words.filter(Boolean).join(' · ')}
+      {/* A group, not a list: the line-up's rows stay its only list items. */}
+      {own.length>0 && <div className="rz-notes" role="group" aria-label={`Notes on ${name}`}>{own.map(note=><p key={note.id}><time dateTime={note.at}>{clock(note.at)}</time><span>{note.message}</span></p>)}</div>}</div>;
+  };
   return <>
     {error!==null && <ErrorCallout error={error} action="save"/>}
     {final.leaderboard.length?<ol className="rz-lead-rows" aria-label="Final leaderboard">{final.leaderboard.map(row=><li key={row.entryId}>
@@ -44,13 +55,14 @@ export function Final({event,final,onSaved,onRunner}:{event:DayEvent;final:Final
     <details className="rz-disclosure"><summary>Line-up, fastest first</summary>
       <div className="rz-disclosure__body" role="list" aria-label="Line-up, fastest first">
         {final.entries.map(entry=>{
-          const current=finalist(entry.finalEntryId,entry.runner);
+          const current=finalist(entry.finalEntryId,entry.runner),name=who(current??{wristband:entry.heatWristband});
           const ranAs=current && !current.team && current.wristband!==entry.heatWristband?`ran the heats as ${entry.heatWristband}`:'';
-          return <span role="listitem" key={entry.finalEntryId}>{[entry.kind==='call-up'?`Called up from heat rank ${entry.heatRank}`:`${ordinal(entry.seed)} fastest`,who(current??{wristband:entry.heatWristband}),ranAs,absent(entry)].filter(Boolean).join(' · ')}</span>;
+          return lineupRow(entry.finalEntryId,name,[entry.kind==='call-up'?`Called up from heat rank ${entry.heatRank}`:`${ordinal(entry.seed)} fastest`,name,ranAs,absent(entry)]);
         })}
-        {final.additionalEntries?.map(entry=><span role="listitem" key={entry.runner.id}>{['Added',who(finalist(entry.runner.id,entry.runner)!),absent(entry)].filter(Boolean).join(' · ')}</span>)}
+        {final.additionalEntries?.map(entry=>{const name=who(finalist(entry.runner.id,entry.runner)!);return lineupRow(entry.runner.id,name,['Added',name,absent(entry)]);})}
       </div></details>
-    {open && final.vacancy && <>{next
+    {/* Only while a place is free: once an added runner or team fills it, there is nothing to say about a call-up. */}
+    {placeFree(final) && final.vacancy && <>{next
       ?<button type="button" className="rz-btn rz-btn--block" disabled={busy} onClick={()=>void callUp({expectedHeatEntryId:next.entryId},resultName(next))}>{busy?'Saving…':callUpLabel(resultName(next),next.position!)}</button>
       :<p className="rz-empty">No further ranked heat {entryNoun(event.relay)} to call up.</p>}
       <p className="rz-empty">The final can run short.</p></>}

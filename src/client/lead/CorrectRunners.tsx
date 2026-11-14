@@ -61,8 +61,8 @@ function CorrectRunnerList({read,save,busy}:BodyProps) {
   const [checking,setChecking]=useState(false),[problem,setProblem]=useState(''),[failed,setFailed]=useState<unknown>(null),[refused,setRefused]=useState<unknown>(null);
   const changed=rows.length!==original.length || rows.some((row,at)=>row.entryId!==original[at].id || row.number!==String(original[at].wristband));
   const additions=rows.some(row=>!row.entryId),finish=race.parts.finish.value;
-  /** A runner added to a final needs the lead's comment. */
-  const commentRequired=race.kind==='final' && additions;
+  /** On a final, a runner added or a number changed needs the lead's comment, as the server asks; a removal or a reorder does not. */
+  const commentRequired=race.kind==='final' && rows.some(row=>String(original.find(runner=>runner.id===row.entryId)?.wristband)!==row.number);
   function edit(index:number|null) {setProblem('');setFailed(null);setEditing(index);}
   async function review() {
     const blank=rows.findIndex(row=>row.number==='');
@@ -155,8 +155,8 @@ function CorrectTeams({read,save,busy}:BodyProps) {
   const available=[...teams.filter(team=>stillToRun(team) && left(team.id)).map(team=>({key:team.id,team:{number:team.number,legs:team.legs},choice:{teamId:team.id} as TeamChoice})),
     ...entries.filter(entry=>left(entry.id)).map(entry=>({key:entry.id,team:{number:entry.team.number,legs:entry.legs},choice:{entryId:entry.id} as TeamChoice}))].sort((one,other)=>one.team.number-other.team.number);
   const changed=JSON.stringify(draft)!==JSON.stringify(entries.map(entry=>({entryId:entry.id})));
-  /** A team added to a final needs the lead's comment. */
-  const commentRequired=race.kind==='final' && draft.some(choice=>'teamId' in choice);
+  /** On a final, a team added or a leg changed needs the lead's comment, as the server asks; a team taken off does not. */
+  const commentRequired=race.kind==='final' && draft.some(choice=>'teamId' in choice || choice.legs?.some((wristband,leg)=>wristband!==entries.find(entry=>entry.id===choice.entryId)!.legs[leg].wristband));
   const card=changing && cards.find(item=>choiceKey(item.choice)===changing.key);
   function cancel() {setChanging(null);setTyped('');setHeld(null);}
   function start(key:string,leg:number,wristband:number|null) {setHeld(null);setChanging({key,leg});setTyped(wristband===null?'':String(wristband));}

@@ -48,7 +48,7 @@ test('the export of a final day shows each add, replace and call-up in Finals, N
     ['Year','Region','Day','Downloaded at','Downloaded by'],
   ]);
   // Finals, whole rows from Seed on: a replaced finalist is "Absent; Qualifier", the new runner and the added team "Added",
-  // the call-up "Call-up", and a replaced leg keeps its team a Qualifier with the heat's wristband in "Original heat wristband".
+  // the call-up "Call-up", the runner who replaces a finalist names them in "Replaces" as a call-up does, and a replaced leg keeps its team a Qualifier with the heat's wristband in "Original heat wristband".
   const finals=(code:string,teams:string[]=[])=>sheets[1].data.filter(values=>values[0]===code&&(!teams.length||teams.includes(values[6] as string))).map(values=>values.slice(4));
   expect(finals('R4')).toEqual([
     [1,2001,null,null,null,'Qualifier','Heat 1',1,2001,null],
@@ -59,7 +59,7 @@ test('the export of a final day shows each add, replace and call-up in Finals, N
     [6,2006,null,null,null,'Absent; Qualifier','Heat 1',6,2006,null],
     [2,2007,null,null,null,'Call-up','Heat 2',7,2007,'2002 (seed 2)'],
     [null,2050,null,null,null,'Added',null,null,null,null],
-    [null,2051,null,null,null,'Added',null,null,null,null],
+    [null,2051,null,null,null,'Added',null,null,null,'2006 (seed 6)'],
   ]);
   expect(finals('R22',['Team 2','Team 7','Team 8'])).toEqual([
     [1,2201,'Team 2',1,null,'Qualifier','Heat 1',1,2201,null],

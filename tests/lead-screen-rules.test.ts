@@ -3,7 +3,6 @@ import { eventResults,medalSheet,needsCheck,placeText,qualifyingLineAt,reopenHea
 import { finalTakesChanges,teamInFinal } from '../src/shared/finals.js';
 import { disqualifiedText } from '../src/shared/rulings.js';
 import { openRaceLabel } from '../src/shared/races.js';
-import type { RaceEntry } from '../src/shared/races.js';
 
 const event={code:'R3',name:'60m',section:'Boy Cubs' as const,format:'heats' as const};
 const heat=(id:string,number:number,wristbands:number[]):ResultsRace=>{
@@ -82,8 +81,8 @@ test('a final takes call-ups and added teams until it runs; a team in its line-u
   expect(finalTakesChanges({heatsComplete:true,hasRun:false})).toBe(true);
   expect(finalTakesChanges({heatsComplete:true,hasRun:true})).toBe(false);
   expect(finalTakesChanges({heatsComplete:false,hasRun:false})).toBe(false);
-  const team=(id:string):RaceEntry=>({id:`e-${id}`,team:{id,number:1},legs:[]});
-  const lineup={runners:[team('t1')],entries:[{runner:team('t2')},{}],additionalEntries:[{runner:team('t3')}]};
+  // The line-up as the start line reads it: seeded, called up and added rows, Absent or not, and a child's row with no team.
+  const lineup=[{team:{id:'t1'}},{team:{id:'t2'},absent:true},{team:{id:'t3'}},{}];
   for(const id of ['t1','t2','t3']) expect(teamInFinal(lineup,id)).toBe(true);
   expect(teamInFinal(lineup,'t4')).toBe(false);
 });
