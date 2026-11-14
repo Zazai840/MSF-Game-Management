@@ -14,7 +14,7 @@ import { Refusal } from '../access/permissions.js';
 import { joiningTeam,readTeamLists } from '../relays/teams.js';
 import { readRace } from './records.js';
 import { publishPart,sameRunnerSnapshot } from './versions.js';
-import { markAbsentFinalists } from './final-field.js';
+import { markAbsentFinalists,markReplacement } from './final-field.js';
 import { annotateRunners,keptWarningNumbers } from './warnings.js';
 import { writeChangeNote } from '../rulings/records.js';
 import { requireChangeReason } from '../rulings/validation.js';
@@ -130,6 +130,7 @@ export async function replaceRunner(client:pg.PoolClient,phone:Phone,target:Writ
   await publishPart(client,phone,race,'runners',runners);
   if(added) return writeChangeNote(client,phone,target.event.id,'correct-runner',`corrected ${old.wristband} to ${wristband} (${raceName(race)})`,reason,[{raceId,entryId:finalEntryId}]);
   await markAbsentFinalists(client,raceId,(id,stored)=>id===finalEntryId || stored);
+  await markReplacement(client,raceId,joining.id,finalEntryId);
   await dropFromOrder(client,target.race,runners);
   const touches=[{raceId,entryId:finalEntryId},{raceId,entryId:joining.id},...(seeded?[{raceId:seeded.heatRaceId,entryId:seeded.heatEntryId}]:[])];
   await writeChangeNote(client,phone,target.event.id,'replace-runner',`replaced ${old.wristband} with ${wristband} (${raceName(race)})`,reason,touches);

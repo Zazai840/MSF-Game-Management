@@ -33,6 +33,12 @@ export async function markAbsentFinalists(client:pg.PoolClient,raceId:string,abs
   const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>({...entry,absent:absent(entry.runner.id,entry.absent)}));
   await client.query('UPDATE race_finals SET entries=$1,additional_entries=$2 WHERE race_id=$3',[JSON.stringify(entries),JSON.stringify(additional),raceId]);
 }
+/** A runner who replaced finalist `replacesEntryId` at the start line: their added entry names that finalist, as a call-up does. */
+export async function markReplacement(client:pg.PoolClient,raceId:string,entryId:string,replacesEntryId:string) {
+  const row=(await client.query('SELECT additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];
+  const additional=((row.additional_entries||[]) as FinalAddition[]).map(entry=>entry.runner.id===entryId?{...entry,replacesEntryId}:entry);
+  await client.query('UPDATE race_finals SET additional_entries=$1 WHERE race_id=$2',[JSON.stringify(additional),raceId]);
+}
 /** A relay final's team changed at check-in while not in the race: its kept copy takes the new legs. False when the team is not a finalist. */
 export async function keepFinalistLegs(client:pg.PoolClient,raceId:string,teamId:string,legs:readonly TeamLeg[]) {
   const row=(await client.query('SELECT entries,additional_entries FROM race_finals WHERE race_id=$1',[raceId])).rows[0];

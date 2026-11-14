@@ -128,7 +128,7 @@ export function raceRulingRoutes(app:FastifyInstance,pool:pg.Pool) {
       if(race.final) {
         const ids=new Map(race.final.entries.map(entry=>[entry.finalEntryId,runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.finalEntryId)]?.id||randomUUID()]));
         const entries=race.final.entries.map(entry=>({...entry,finalEntryId:ids.get(entry.finalEntryId)!,...(entry.runner?{runner:{...entry.runner,id:ids.get(entry.finalEntryId)!}}:{}),...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
-        const additionalEntries=(race.final.additionalEntries||[]).map(entry=>({...entry,runner:{...entry.runner,id:runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.runner.id)]?.id||randomUUID()}}));
+        const additionalEntries=(race.final.additionalEntries||[]).map(entry=>({...entry,runner:{...entry.runner,id:runners[(race.parts.runners.value||[]).findIndex(runner=>runner.id===entry.runner.id)]?.id||randomUUID()},...(entry.replacesEntryId?{replacesEntryId:ids.get(entry.replacesEntryId)!}:{})}));
         await client.query('INSERT INTO race_finals(race_id,entries,additional_entries,generation) VALUES($1,$2,$3,$4)',[id,JSON.stringify(entries),JSON.stringify(additionalEntries),randomUUID()]);
         // A re-run final is to be run again: medals it decided are open again.
         await client.query("UPDATE events SET phase='final' WHERE id=$1 AND phase='medals'",[race.event.id]);

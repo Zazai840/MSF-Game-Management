@@ -81,7 +81,7 @@ A relay team put into a final at its start line with "+ Team" while a place is f
 _Avoid_: Extra team, late team
 
 **Replaced runner**:
-A qualified finalist, Here or not marked, whose place at an individual final's start line goes to another child: a tap on the finalist, the new wristband number, then a Reason. No free place is needed. The finalist stays in the list as Absent ("Absent; Qualifier" on the Finals sheet) and the new child is an Added runner. On a relay final a tap on one leg replaces that child only, also with a Reason: the team stays a Qualifier, and the Finals sheet shows the new wristband number with the heat's in "Original heat wristband".
+A qualified finalist, Here or not marked, whose place at an individual final's start line goes to another child: a tap on the finalist, the new wristband number, then a Reason. No free place is needed. The finalist stays in the list as Absent ("Absent; Qualifier" on the Finals sheet) and the new child is an Added runner, whose "Replaces" cell names the finalist as a call-up's does ("2006 (seed 6)"). On a relay final a tap on one leg replaces that child only, also with a Reason: the team stays a Qualifier, and the Finals sheet shows the new wristband number with the heat's in "Original heat wristband".
 _Avoid_: Swapped runner, substituted runner
 
 **Reason**:

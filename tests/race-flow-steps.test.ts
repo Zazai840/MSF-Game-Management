@@ -335,8 +335,10 @@ test('a runner replaced at a final\'s start line: one write with a reason, the o
   expect(notes(results.finalResults.leaderboard,2052)).toEqual([lines[0],lines[2]]);
   // The Day export: the Finals sheet, the Note column and the Audit notes sheet.
   const sheets=await readExcelFile((await call(owner,'/api/day/export',{})).rawPayload);
-  const finals=sheets.find(sheet=>sheet.sheet==='Finals')!.data,[wristband,role]=['Wristband number','Attendance / role'].map(name=>finals[0].indexOf(name));
+  const finals=sheets.find(sheet=>sheet.sheet==='Finals')!.data,[wristband,role,replaces]=['Wristband number','Attendance / role','Replaces'].map(name=>finals[0].indexOf(name));
   expect(Object.fromEntries(finals.filter(row=>row[0]==='R4').map(row=>[row[wristband],row[role]]))).toMatchObject({2003:'Absent; Qualifier',2006:'Absent; Qualifier',2051:'Added',2052:'Added'});
+  // Each new runner names the finalist they replace, as a call-up does; 2052 keeps the cell of 2050, whose number it corrects.
+  expect(Object.fromEntries(finals.filter(row=>row[0]==='R4' && row[role]==='Added').map(row=>[row[wristband],row[replaces]]))).toEqual({2051:'2006 (seed 6)',2052:'2003 (seed 3)'});
   expect(finals.some(row=>row[0]==='R4' && row[wristband]===2050)).toBe(false);
   const all=sheets.find(sheet=>sheet.sheet==='All results')!.data,[race,number,note]=['Race','Wristband number','Note'].map(name=>all[0].indexOf(name));
   expect(String(all.find(row=>row[0]==='R4' && row[race]==='Final 1' && row[number]===2052)![note])).toContain(lines[2]);

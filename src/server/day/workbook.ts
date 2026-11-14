@@ -54,12 +54,13 @@ export async function dayWorkbook(client:pg.PoolClient,dayId:string,details:[num
    const race=races.find(race=>race.id===field.race.id)!;
    const place=(id:string)=>field.leaderboard.find(row=>row.entryId===id)?.position??null;
    const label=(absent:boolean,kind:string)=>`${race.deleted?'Deleted race; ':''}${absent?'Absent; ':''}${kind}`;
+   // "2002 (seed 2)": the finalist a call-up or a start line replace took the place of.
+   const replaces=(id:string|undefined)=>{const replaced=field.entries.find(other=>other.finalEntryId===id);return replaced?`${replaced.heatWristband??(replaced.runner?entryName(replaced.runner):'')} (seed ${replaced.seed})`:null;};
    for(const entry of field.entries){
     const source=races.find(race=>race.id===entry.heatRaceId),heat=source&&named(source,entry.heatEntryId);
-    const replaced=field.entries.find(other=>other.finalEntryId===entry.replacesEntryId);
-    perChild(named(race,entry.finalEntryId,entry.runner)??{wristband:entry.heatWristband}).forEach((child,leg)=>finals.push([event.code,event.name,event.section,raceLabel(race),entry.seed,...child,entry.absent?null:place(entry.finalEntryId),label(entry.absent,entry.kind==='call-up'?'Call-up':'Qualifier'),source?raceLabel(source):'Heat no longer stored',entry.heatRank,heat?.team?heat.team.wristbands[leg]:entry.heatWristband,replaced?`${replaced.heatWristband??(replaced.runner?entryName(replaced.runner):'')} (seed ${replaced.seed})`:null]));
+    perChild(named(race,entry.finalEntryId,entry.runner)??{wristband:entry.heatWristband}).forEach((child,leg)=>finals.push([event.code,event.name,event.section,raceLabel(race),entry.seed,...child,entry.absent?null:place(entry.finalEntryId),label(entry.absent,entry.kind==='call-up'?'Call-up':'Qualifier'),source?raceLabel(source):'Heat no longer stored',entry.heatRank,heat?.team?heat.team.wristbands[leg]:entry.heatWristband,replaces(entry.replacesEntryId)]));
    }
-   for(const addition of field.additionalEntries||[]) for(const child of perChild(resultEntry(race,addition.runner))) finals.push([event.code,event.name,event.section,raceLabel(race),null,...child,addition.absent?null:place(addition.runner.id),label(addition.absent,'Added'),null,null,null,null]);
+   for(const addition of field.additionalEntries||[]) for(const child of perChild(resultEntry(race,addition.runner))) finals.push([event.code,event.name,event.section,raceLabel(race),null,...child,addition.absent?null:place(addition.runner.id),label(addition.absent,'Added'),null,null,null,replaces(addition.replacesEntryId)]);
   }
  }
  const audit:SheetData=[['Event code','Time','Who','Action','Comment'],...notes.slice().reverse().map(note=>[events.find(event=>event.id===note.eventId)?.code??null,note.at,note.actor,note.message,note.comment])];
