@@ -1,5 +1,5 @@
 import { useEffect,useRef,useState } from 'react';
-import { frameData,newerSnapshot,splitFrames } from '../shared/live.js';
+import { afterFrame,frameData,newerSnapshot,splitFrames } from '../shared/live.js';
 import { api,ApiFailure,apiResponse,keepSeen,lastSeen,StaleRequest } from './api.js';
 import { clockWithSeconds } from '../shared/clock.js';
 import { failureLine } from '../shared/request-failure.js';
@@ -10,7 +10,8 @@ const silence=()=>30_000+Math.random()*15_000;
 
 /**
  * Reads a live stream (`live/...`, read with fetch so the bearer token goes with it) and holds its newest snapshot,
- * ignoring any older than the one held. A planned end reconnects at once; a failure or silence reconnects with backoff.
+ * ignoring any older than the one held; a changes frame (the races list's) is applied to it by `afterFrame`, and one it
+ * cannot apply drops the stream and reconnects at once. A planned end reconnects at once; a failure or silence reconnects with backoff.
  * The stream closes while the page is hidden and reopens when it is visible, and starts again when the signal goes or comes back;
  * every connect sends the whole snapshot first.
  * `offer` hands it a snapshot from elsewhere (a write's answer), kept by the same newest-wins rule; `refresh` starts
@@ -61,9 +62,12 @@ export function useLive<T extends {revision:number}>(path:string,{remember=false
           const split=splitFrames(rest+value);rest=split.rest;
           for(const data of split.frames.map(frameData)) {
             if(data===null) continue;
-            const next=JSON.parse(data) as T&{build?:string};
-            if(!onThisBuild(next.build)) return;
-            if(newerSnapshot(held.current,next)) {held.current=next;if(controller===mine) send({type:'fresh'});setSnapshot(next);}
+            const frame=JSON.parse(data) as T&{build?:string};
+            if(!onThisBuild(frame.build)) return;
+            const next=afterFrame(held.current,frame);
+            // The list shown stays while the reconnect brings the whole list, which is then taken whatever its revision.
+            if(next==='reconnect') {held.current=null;if(controller===mine) send({type:'restart'});return;}
+            if(next!==held.current) {held.current=next;if(controller===mine) send({type:'fresh'});setSnapshot(next);}
           }
         }
       } catch(failure) {
