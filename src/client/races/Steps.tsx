@@ -298,14 +298,14 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
   // Everyone already placed (coming back to the step, or a lead opening the tab): straight to Check the order, never a flash of the next place.
   const [mode,setMode]=useState<'place'|'check'|'add'>(()=>runners.length && !unplaced.length && order.length && !gaps.length?'check':'place');
   const [leftAs,setLeftAs]=useState<Record<string,Unplaced>>({}),[asked,setAsked]=useState(false),[picking,setPicking]=useState(false);
-  const size=useSizeWarning(`${race.id}:finish`),applies=usualSizeApplies(event) || race.kind==='final';
+  const size=useSizeWarning(`${race.id}:finish`),applies=usualSizeApplies(event);
   // The next place asked for is the lowest empty one.
   const current=gaps.length?gaps[0]:board.length;
   const send=(next:{order:string[];didNotFinish?:string[];didNotRun?:string[];empty?:number[]},added:number[]=[],kept:number[]=[],addedTeams:string[]=[])=>
     writes.send({order:next.order,didNotFinish:next.didNotFinish??didNotFinish,didNotRun:next.didNotRun??[],added,keptWarnings:kept,addedTeams,empty:next.empty??[]});
   const sendBoard=(next:ReadonlyArray<string|null>)=>send(finishOf(next,didNotFinish));
-  // A relay final's teams are its seeds, call-ups and a lead's additions, so it has no "+ Team not on the list".
-  const canAdd=!relay || race.kind!=='final';
+  // A final's runners and teams are added at its start line, so its finish line has no "not on the list" button.
+  const canAdd=race.kind!=='final';
   const openAdd=()=>{if(relay) setPicking(true);else setMode('add');};
   const picker=picking && <TeamPicker read={read} onClose={()=>setPicking(false)} onAdd={teamId=>{setPicking(false);void send(finish,[],[],[teamId]);}}/>;
   // The last runner placed: on to Check the order at once (its save goes on behind), before the screen paints, so the
@@ -327,7 +327,7 @@ export function FinishLine({read,flow,onDone,locked}:StepProps) {
     setMode('check');
   }
   const slots=Math.max(runners.length,board.length);
-  const sizeNote=size.showing && <Callout status message={race.kind==='final'?`Finals usually have ${usualRunnersPerRace} runners. Add another only if a lead has agreed.`:`That's more than ${usualRunnersPerRace} runners, the usual number for a heat. Carry on if this heat really has more.`}
+  const sizeNote=size.showing && <Callout status message={`That's more than ${usualRunnersPerRace} runners, the usual number for a heat. Carry on if this heat really has more.`}
     actions={<button type="button" className="rz-btn" onClick={size.dismiss}>Carry on</button>}/>;
   if(mode==='add') return <>
     <main className="rz-main">
