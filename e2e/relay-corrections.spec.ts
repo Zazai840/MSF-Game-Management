@@ -95,7 +95,7 @@ test('a lead\'s Correct teams on a saved relay heat fixes a child\'s number, tak
   await expect(page.getByRole('list',{name:'Audit notes'}).getByRole('listitem').filter({hasText:'corrected the teams'})).toHaveText([/corrected the teams for Heat 1: Team 2, Team 3$/]);
 });
 
-test('Delete then Restore on a relay heat: its teams are still to run, then a team in two heats ran twice until the lead chooses which result counts',async({openPhone,request},info)=>{
+test('Delete then Restore on a relay heat: its teams are still to run, then a team in two heats counts its faster run with nothing to check, and the lead can choose the other',async({openPhone,request},info)=>{
   const name=ownName('Relay ran twice'),code=await ownCode();
   await ownRelay(code,name,'Boy Scouts');
   const n=await ownWristbands('Boy Scouts',12),legs=(team:number)=>[1,2,3,4].map(leg=>n((team-1)*4+leg));
@@ -116,8 +116,9 @@ test('Delete then Restore on a relay heat: its teams are still to run, then a te
   await expectToast(page,'Heat 2 restored');await expect(page).toHaveURL(racePage);
   await back(page,`${name} · Boy Scouts`);await eventTab(page,'Heats');
   const row=(heat:number)=>page.getByRole('button',{name:`Team 1 · ${legs(1).join(' · ')} · Heat ${heat}`,exact:true});
-  // Both rows rank; Team 1's sheet offers the choice because it ran twice.
-  await expect(row(1)).toContainText('Heat 1');
+  // The faster run (Heat 1, 14.50) counts at once; Heat 2 stays as not counted, and the sheet still offers the choice.
+  await expect(row(2)).toContainText('Not counted');await expect(row(1)).not.toContainText('Not counted');
+  await expect(row(1)).not.toContainText('Check');await expect(row(2)).not.toContainText('Check');
   await row(2).click();
   await page.getByRole('button',{name:'Choose which result counts',exact:true}).click();
   await expect(page.getByRole('heading',{level:2,name:'Which result counts for Team 1?',exact:true})).toBeVisible();

@@ -207,11 +207,11 @@ test("the races read gives a lead's final the reason it would be refused, the sa
   // Once the lead accepts the time, nothing holds the final back.
   await ok(lena,`/api/lead/races/${first.race.id}/times`,{baseVersion:first.race.parts.times.version,places:[1300,1200],acceptOutOfOrder:true});
   expect(await group('R4')).toMatchObject({finalAvailable:true,finalReason:null});
-  // Wristband 1 ran in both heats of Boy Beavers: which result counts is chosen in Results, so the reason has no step.
-  const twice=await heat(ahmed,'R1',1,[1,2],[1000,1100],steps);
+  // Wristband 1 ran in both heats of Boy Beavers: the faster run counts, and nothing holds the final back.
+  await heat(ahmed,'R1',1,[1,2],[1000,1100],steps);
   await heat(ahmed,'R1',2,[1,3],[1050,1200],steps);
-  expect((await group('R1')).finalReason).toEqual({raceId:twice.race.id,step:null,line:'1 ran twice: choose which result counts first'});
-  expect((await call(lena,'/api/races',{eventCode:'R1',kind:'final'})).json()).toMatchObject({message:'1 ran twice: choose which result counts first',step:null});
+  expect(await group('R1')).toMatchObject({finalAvailable:true,finalReason:null});
+  expect((await call(lena,'/api/races',{eventCode:'R1',kind:'final'})).statusCode).toBe(200);
 });
 /** An open live stream as that phone (the app is listening): each call waits for its next snapshot. */
 async function openStream(token:string,path:string) {

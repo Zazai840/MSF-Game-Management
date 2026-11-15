@@ -48,10 +48,6 @@ function wording(item:DayLeadItem):Omit<ToCheckWording,'race'> {
     case 'added-at-finish':
       if(item.team!==undefined) return {title:'A team was added at the finish',explanation:`Team ${item.team} crossed the line but was not checked in at the start. Check it ran in this race.`};
       return {title:'A runner was added at the finish',explanation:item.wristband!==undefined?`${item.wristband} crossed the line but was not checked in at the start. Check they ran in this race.`:item.message};
-    case 'ran-twice': {
-      const name=item.team!==undefined?`Team ${item.team}`:item.wristband;
-      return {title:`A ${entryNoun(item.team!==undefined)} ran twice`,explanation:name!==undefined?`${name} has a result in more than one race of this event. Choose which result counts.`:item.message};
-    }
     case 'tie':
       return {title:`${capitalised(entryNoun(item.event.relay))}s tied on time`,explanation:item.tie?`${listed(item.tie.names)} ${item.tie.names.length===2?'both':'all'} have ${formatTime(item.tie.time)}. Decide whether a run-off is needed.`:item.message};
   }
@@ -90,11 +86,11 @@ function countedNoun(item:DayLeadItem,count:number) {
     case 'warning': return counted(count,'wristband');
     case 'two-relays': return counted(count,'child','children');
     case 'ran-short': return counted(count,'team');
-    case 'added-at-finish': case 'ran-twice': return counted(count,entryNoun(item.team!==undefined));
+    case 'added-at-finish': return counted(count,entryNoun(item.team!==undefined));
     case 'tie': return counted(count,'tie');
   }
 }
-const kindWords:Record<DayLeadItem['kind'],string>={'times-out-of-order':'to check',warning:'to check','two-relays':'in two relays','ran-short':'ran short','added-at-finish':'added at the finish','ran-twice':'ran twice',tie:'to decide'};
+const kindWords:Record<DayLeadItem['kind'],string>={'times-out-of-order':'to check',warning:'to check','two-relays':'in two relays','ran-short':'ran short','added-at-finish':'added at the finish',tie:'to decide'};
 /** A card's open items grouped by race and kind, in the items' order. An event's ties have no race: they are one group. */
 function issueGroups(items:readonly DayLeadItem[]) {
   const groups=new Map<string,DayLeadItem[]>();
@@ -106,8 +102,8 @@ export function issueLine(items:readonly DayLeadItem[]) {
   const lines=issueGroups(items).map(group=>`${group[0].race?raceName(group[0].race):'Event'}: ${countedNoun(group[0],group.length)} ${kindWords[group[0].kind]}`);
   return lines.slice(0,2).join(' · ')+(lines.length>2?` · ${lines.length-2} more`:'');
 }
-/** The kinds "It's right" accepts. A child who ran twice and a tie are settled on their own screens. */
-export const acceptable=({kind}:Pick<DayLeadItem,'kind'>)=>kind!=='ran-twice' && kind!=='tie';
+/** The kinds "It's right" accepts. A tie is settled on its own screen. */
+export const acceptable=({kind}:Pick<DayLeadItem,'kind'>)=>kind!=='tie';
 /** The correction that fixes a place: a final's places are in its finishing order, any other race's in its times. */
 export const placesCorrection=(final:boolean)=>final?'correct-finishing-order':'correct-times';
 const decideTheTie='Decide the tie';
@@ -120,7 +116,6 @@ const checkRace=(race:DayLeadItem['race'])=>`Check ${race?raceName(race):'event'
 export function problemFix(item:Pick<DayLeadItem,'kind'|'race'>,on?:{kind:RaceRead['kind'];relay:boolean}) {
   if(item.kind==='tie') return {label:decideTheTie,opens:'tie'} as const;
   if(!on) return {label:checkRace(item.race),opens:'race-page'} as const;
-  if(item.kind==='ran-twice') return {label:'Fix',opens:'choose-result'} as const;
   if(item.kind==='times-out-of-order') return {label:'Fix time',opens:placesCorrection(on.kind==='final')} as const;
   return {label:'Fix',opens:on.relay?'correct-teams':'correct-runner-list'} as const;
 }

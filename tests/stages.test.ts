@@ -26,11 +26,13 @@ test('incomplete recordings block once per race, while warning-only races can co
   expect(result.checkSheet?.worthALook).toMatchObject([{kind:'warning',raceId:'a',entryId:'entry-a'}]);
   expect(eventResults({event,races:[r],rulings:[{raceId:'a',entryId:'entry-a',disqualification:null,warningChecks:[{kind:'wrong-section',message:'Wrong section'}]}]}).checkSheet?.worthALook).toEqual([]);
 });
-test('ran-twice blocks inside the tinted band only, excluding a future final from Event complete',()=>{
+test('a child in two races never blocks Event complete: the faster run counts and the other is not counted; a future final is left out',()=>{
   const entries=Array.from({length:8},(_,i)=>race(String(i),i+1,900+i*100));(entries[7].runners[0] as Runner).wristband=2007;
   expect(eventResults({event,races:entries}).checkSheet?.mustSettleFirst).toEqual([]);
   entries[7].times={places:[800],outOfOrder:false};
-  expect(eventResults({event,races:entries}).checkSheet?.mustSettleFirst).toMatchObject([{kind:'ran-twice',raceId:'7'}]);
+  const twice=eventResults({event,races:entries});
+  expect(twice.checkSheet?.mustSettleFirst).toEqual([]);
+  expect(twice.leaderboard.filter(row=>row.wristband===2007).map(row=>[row.raceId,row.status,row.position])).toEqual([['7','Finished',1],['6','Not counted',null]]);
   const final={...race('final',1,800),kind:'final' as const,finish:null,times:null};
   expect(eventResults({event,races:[race('a',1,1000),final]}).checkSheet?.mustSettleFirst).toEqual([]);
 });

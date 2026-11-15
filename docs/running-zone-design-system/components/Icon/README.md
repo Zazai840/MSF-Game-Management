@@ -31,6 +31,8 @@ Icons sit beside a word and are `aria-hidden`. If an icon must stand alone (drag
 | `drag` | ReorderList handle (dots: stroke-width 3.4) | `<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3.4"/>` |
 | `chevron-left` | Back link | `<path d="M15 6l-6 6 6 6"/>` |
 | `chevron-right` | Rows and cards that navigate | `<path d="M9 6l6 6-6 6"/>` |
+| `swap` | An event's format chip on Events: tap to switch | `<path d="M4 8h15l-3.5-3.5"/><path d="M20 16H5l3.5 3.5"/>` |
+| `lock` | A format chip that can no longer switch (final made or medals decided) | `<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>` |
 
 **Don't**
 - Use filled, duotone or emoji icons.

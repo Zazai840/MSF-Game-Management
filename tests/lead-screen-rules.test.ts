@@ -16,10 +16,9 @@ const final=(heatId:string,wristbands:number[],run:boolean):ResultsRace=>{
 };
 const flag=(kind:LeaderboardRow['flags'][number]['kind'],checked?:boolean)=>({kind,message:'',checked});
 
-test('the Check tag shows for an open warning, an addition or a runner who ran twice, never for a tie (it has its own TIE tag)',()=>{
+test('the Check tag shows for an open warning or an addition, never for a tie (it has its own TIE tag)',()=>{
   expect(needsCheck({flags:[flag('warning')]})).toBe(true);
   expect(needsCheck({flags:[flag('added-at-finish')]})).toBe(true);
-  expect(needsCheck({flags:[flag('ran-twice')]})).toBe(true);
   expect(needsCheck({flags:[flag('warning',true)]})).toBe(false);
   expect(needsCheck({flags:[flag('tie'),flag('tie-settled')]})).toBe(false);
   expect(needsCheck({flags:[]})).toBe(false);

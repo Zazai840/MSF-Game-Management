@@ -5,7 +5,7 @@ import { teamCount } from './teams.js';
 import { raceName } from './race-flow.js';
 import { resultName,type EventState,type LeaderboardRow,type NotRankedRace,type ResultTie,type LeadItem,type ResultTeam } from './results-rules.js';
 export type Stage='event'|'heats'|'final'|'no-final';
-export interface StageItem { id:string; kind:'tie'|'ran-twice'|'incomplete'|'warning'; message:string; raceId?:string; entryId?:string; tieId?:string }
+export interface StageItem { id:string; kind:'tie'|'incomplete'|'warning'; message:string; raceId?:string; entryId?:string; tieId?:string }
 /**
  * A place a stage creates: the child by wristband, or on a relay the team with its four children; the race it was won in
  * ("Heat 2", "Final"), its time (none in a final), and whether an open tie still holds it (Confirm the medals' TIE tag).
@@ -31,7 +31,6 @@ export function timedCheckSheet(state:EventState,rows:readonly LeaderboardRow[],
     const entries=state.races.find(race=>race.id===item.race.id)?.runners||[];
     if(entries.length) mustSettleFirst.push({id:`race:${item.race.id}`,kind:'incomplete',raceId:item.race.id,message:`${raceLabel(item.race)} is in progress (${entries.some(isTeamEntry)?teamCount(entries.length):entries.length} checked in) - finish its steps or delete it`});
   } else mustSettleFirst.push({id:`race:${item.race.id}`,kind:'incomplete',raceId:item.race.id,message:`${raceLabel(item.race)}: ${item.reasons.join(' · ')}`});
-  for(const row of rows) if(row.highlighted && row.flags.some(flag=>flag.kind==='ran-twice')) mustSettleFirst.push({id:`ran-twice:${row.raceId}:${row.entryId}`,kind:'ran-twice',raceId:row.raceId,entryId:row.entryId,message:`${resultName(row)}: Ran twice in this event`});
   const worthALook:StageItem[]=needsYou.filter(item=>item.kind==='warning' && active.some(race=>race.id===item.raceId)).map(item=>({id:item.id,kind:'warning',raceId:item.raceId,entryId:item.entryId,message:item.message}));
   const eligible=rows.filter(row=>row.position!==null);
   const creates=[1,2,3].map(position=>stagePlace(position,eligible[position-1],ties));

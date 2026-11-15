@@ -18,7 +18,7 @@ async function start() {
   const path=(race:any,number:number)=>`/api/lead/races/${race.id}/runners/${race.parts.runners.value.find((runner:any)=>runner.wristband===number).id}`;
   return {owner:owner.token as string,lead,volunteer,first,second,path,read:async()=>(await call(lead,'/api/lead/events/R4/results')).json()};
 }
-test('a lead marks an eligibility warning checked without changing the ranking; ran-twice cannot be marked checked',async()=>{
+test('a lead marks an eligibility warning checked without changing the ranking; an already-ran warning cannot be marked checked',async()=>{
   const {lead,first,second,path,read}=await start();
   const saved=await call(lead,path(first,3045)+'/mark-warning-checked',{});expect(saved.statusCode).toBe(200);
   const data=saved.json();expect(data.results.leaderboard[1]).toMatchObject({wristband:3045,position:2,flags:[{kind:'warning',checked:true,warningKind:'wrong-section'}],hasNote:false});
@@ -36,7 +36,6 @@ test('correcting a number retains the stable entry, finishing place and time, re
   expect(race.parts.runners.value[1]).toMatchObject({id:row.entryId,wristband:2003});expect(race.parts.runners.version).toBe(first.parts.runners.version+1);
   expect(race.parts.finish.value.order).toEqual(first.parts.runners.value.map((runner:any)=>runner.id));expect(race.parts.times.value.places).toEqual([1100,1200]);
   const duplicateFixed=await call(lead,path(second,2001)+'/correct-number',{expectedWristband:2001,wristband:2004});expect(duplicateFixed.statusCode).toBe(200);
-  expect(duplicateFixed.json().results.leaderboard.flatMap((row:any)=>row.flags).some((flag:any)=>flag.kind==='ran-twice')).toBe(false);
   const wrongSection=await call(lead,path(first,3045)+'/correct-number',{expectedWristband:2003,wristband:4045,keepWarnings:true});expect(wrongSection.statusCode).toBe(200);
   expect(wrongSection.json().results.leaderboard.find((entry:any)=>entry.entryId===row.entryId)).toMatchObject({place:2,time:1200,flags:[{warningKind:'wrong-section',checked:false,message:'4045 belongs to Girl Scouts - this race is Girl Cubs'}]});
   const before=(await read()).auditNotes.length;
@@ -44,13 +43,12 @@ test('correcting a number retains the stable entry, finishing place and time, re
   expect((await call(lead,path(first,3045)+'/correct-number',{expectedWristband:4045,wristband:2001})).statusCode).toBe(400);
   expect((await read()).auditNotes).toHaveLength(before);
 });
-test('choosing a result counts that stable entry, excludes the other, clears duplicate flags and can be changed or corrected later',async()=>{
+test('choosing a result counts that stable entry, excludes the other and can be changed or corrected later',async()=>{
   const {lead,first,second,path,read}=await start();
   const saved=await call(lead,path(second,2001)+'/count-result',{});expect(saved.statusCode).toBe(200);
   const data=saved.json();
   expect(data.results.leaderboard.map((row:any)=>[row.wristband,row.status,row.position])).toEqual([[3045,'Finished',1],[2001,'Finished',2],[2001,'Not counted',null]]);
   expect(data.results.qualifiers.map((row:any)=>row.entryId)).toEqual([first.parts.runners.value[1].id,second.parts.runners.value[0].id]);
-  expect(data.results.leaderboard.flatMap((row:any)=>row.flags).some((flag:any)=>flag.kind==='ran-twice')).toBe(false);
   expect(data.auditNotes[0]).toMatchObject({action:'count-result',actor:'Aisha',touches:[{raceId:first.id,entryId:first.parts.runners.value[0].id},{raceId:second.id,entryId:second.parts.runners.value[0].id}]});
   const changed=(await call(lead,path(first,2001)+'/count-result',{})).json();
   expect(changed.results.leaderboard[0]).toMatchObject({entryId:first.parts.runners.value[0].id,position:1});
@@ -60,7 +58,7 @@ test('choosing a result counts that stable entry, excludes the other, clears dup
   expect((await call(lead,path(first,2001)+'/count-result',{})).statusCode).toBe(409);
   expect((await read()).auditNotes.map((note:any)=>note.action)).toEqual(['correct-number','count-result','count-result']);
 });
-test('runner rulings refuse volunteers and malformed corrections without audit changes; disqualification also settles duplicate flags',async()=>{
+test('runner rulings refuse volunteers and malformed corrections without audit changes; a disqualified run is never counted',async()=>{
   const {owner,lead,volunteer,first,second,path,read}=await start();
   const target=path(first,3045);
   for(const command of ['mark-warning-checked','correct-number','count-result']) expect((await call(volunteer,`${target}/${command}`,{})).statusCode).toBe(403);
@@ -68,7 +66,6 @@ test('runner rulings refuse volunteers and malformed corrections without audit c
   for(const body of [null,[],{}, {wristband:'2005',expectedWristband:3045},{wristband:2005},{wristband:-1,expectedWristband:3045},{wristband:2005,expectedWristband:3045,keepWarnings:'yes'}]) expect((await call(lead,target+'/correct-number',body)).statusCode).toBe(400);
   expect((await read()).auditNotes).toEqual([]);expect((await call(owner,'/api/day')).json().revision).toBe(revision);
   const saved=await call(lead,path(second,2001)+'/disqualify',{reason:'Two false starts'});expect(saved.statusCode).toBe(200);
-  expect(saved.json().results.leaderboard.flatMap((row:any)=>row.flags).some((flag:any)=>flag.kind==='ran-twice')).toBe(false);
   expect((await call(lead,path(second,2001)+'/count-result',{})).statusCode).toBe(409);
   expect((await call(lead,`/api/races/${second.id}`)).statusCode).toBe(200);
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
@@ -122,10 +119,10 @@ test('a child\'s Notes are each warning with who settled it, then the audit note
     {text:expect.stringContaining('Stopwatch misread'),detail:expect.stringMatching(/^\d{2}:\d{2}$/),open:false}
   ]);
 });
-test('an already-ran warning reads in Notes as not settled until one result counts, then as settled that way, never as checked by a lead',async()=>{
+test('an already-ran warning reads in Notes as settled, only one result counting, before and after a lead chooses, never as checked by a lead',async()=>{
   const {lead,second,path,read}=await start();
   const line=async()=>resultNotes((await read()).results.leaderboard.find((row:any)=>row.entryId===second.parts.runners.value[0].id))[0];
-  expect(await line()).toMatchObject({text:'2001 already ran in this event',detail:'Not settled yet: choose which result counts',open:true});
+  expect(await line()).toMatchObject({text:'2001 already ran in this event',detail:'Settled: only one result counts',open:false});
   await call(lead,path(second,2001)+'/count-result',{});
   expect(await line()).toMatchObject({text:'2001 already ran in this event',detail:'Settled: only one result counts',open:false});
 });

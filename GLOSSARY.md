@@ -31,7 +31,7 @@ The scoring team's identifier for an event (R1, R2, ...). It shows only in the Z
 _Avoid_: Event ID, event number
 
 **Event format**:
-How an event decides its medals: either heats then a final (60m and relays), unless a zone lead calls results without a final; or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m).
+How an event decides its medals: either heats then a final (60m and relays), unless a zone lead calls results without a final; or timed, where the fastest times across all its races win (60m hurdles, 200m, 400m). Those are the defaults: a lead can switch any event, relays too, from its chip on Events until its final is made or its medals are decided, and the races already run keep their times.
 _Avoid_: Race type
 
 **Event type**:

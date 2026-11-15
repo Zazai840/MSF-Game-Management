@@ -26,7 +26,7 @@ export type WarningKind=WristbandWarning['kind']|TeamWarning['kind']|'ran-short'
 /** A warning on a result as a lead checks it: its kind and its message. */
 export interface ResultWarning { kind:WarningKind; message:string }
 /** `checked` is whether it is settled; `checkedBy` names the lead's check, `settledByDisqualification` a disqualification that settled it instead. */
-export interface ResultFlag { kind:'warning'|'ran-twice'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean; checkedBy?:CheckedBy; settledByDisqualification?:true }
+export interface ResultFlag { kind:'warning'|'added-at-finish'|'tie'|'tie-settled'; message:string; warningKind?:WarningKind; checked?:boolean; checkedBy?:CheckedBy; settledByDisqualification?:true }
 
 /** A relay team a result belongs to: its number and the four children who ran in that race, in leg order. */
 export interface ResultTeam { id:string; number:number; wristbands:Array<number|null> }
@@ -62,7 +62,7 @@ export interface ResultTie { id:string; time:number; place:number; entries:Resul
  * To check list explain the item in plain English (see src/shared/to-check.ts).
  */
 export interface LeadItem {
-  id:string; kind:'warning'|'two-relays'|'ran-short'|'ran-twice'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
+  id:string; kind:'warning'|'two-relays'|'ran-short'|'added-at-finish'|'times-out-of-order'|'tie'; raceId?:string; entryId?:string; tieId?:string; at:string; message:string;
   wristband?:number; warningKinds?:WarningKind[];
   /** On a relay: the team's number, and its children's warnings as the lead reads them. */
   team?:number; warnings?:string[];
@@ -114,12 +114,18 @@ export function eventResults(state:EventState):EventResults {
   const recordingReasons=new Map<string,NotRankedReason[]>();
   const finished:LeaderboardRow[]=[],didNotFinish:LeaderboardRow[]=[],disqualified:LeaderboardRow[]=[],notCounted:LeaderboardRow[]=[],notRankedYet:NotRankedRace[]=[],races:EventRace[]=[];
   const reference=(race:ResultsRace):RaceReference=>({id:race.id,kind:race.kind,number:race.number,checkedInAt:race.checkedInAt});
-  // Ran twice counts saved races only, as To check does.
-  const appearances=new Map<string,Set<string>>();
+  // A child (or relay team) with results in more than one saved race counts one of them, with nothing to ask: the fastest
+  // finish, else the earliest race. A run a lead disqualified or did not count (Choose which result counts) is out first.
+  const counted=new Map<string,{raceId:string;time:number|null;checkedInAt:string}>();
+  const faster=(run:{raceId:string;time:number|null;checkedInAt:string},best:typeof run)=>run.time!==best.time
+    ?run.time!==null && (best.time===null || run.time<best.time)
+    :run.checkedInAt.localeCompare(best.checkedInAt)<0 || (run.checkedInAt===best.checkedInAt && run.raceId<best.raceId);
   for(const race of active.filter(race=>race.saved)) for(const runner of race.runners) {
     const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
     if(ruling?.disqualification || ruling?.notCounted) continue;
-    const holder=resultHolder(resultEntry(race,runner)),races=appearances.get(holder)||new Set<string>();races.add(race.id);appearances.set(holder,races);
+    const index=race.finish?.order.indexOf(runner.id)??-1,run={raceId:race.id,time:index>=0?race.times?.places[index]??null:null,checkedInAt:race.checkedInAt};
+    const holder=resultHolder(resultEntry(race,runner)),best=counted.get(holder);
+    if(!best || faster(run,best)) counted.set(holder,run);
   }
   for(const race of state.races) {
     const reasons=notCountedReasons(race);
@@ -129,8 +135,8 @@ export function eventResults(state:EventState):EventResults {
     for(const runner of race.runners) {
       const index=race.finish?.order.indexOf(runner.id)??-1,isFinisher=index>=0;
       const ruling=state.rulings?.find(ruling=>ruling.raceId===race.id && ruling.entryId===runner.id);
-      const repeated=!race.deleted && race.saved && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && (appearances.get(resultHolder(resultEntry(race,runner)))?.size||0)>1;
-      const row:LeaderboardRow={...leaderboardRowFacts(state,race,runner,ruling,repeated),place:isFinisher?index+1:null,time:isFinisher?race.times?.places[index]??null:null,status:reasons.length?'Pending':isFinisher?'Finished':'Did not finish',...(reasons.length?{recordingPending:true as const}:{})};
+      const outrun=!race.deleted && race.saved && race.kind!=='final' && !ruling?.disqualification && !ruling?.notCounted && counted.get(resultHolder(resultEntry(race,runner)))?.raceId!==race.id;
+      const row:LeaderboardRow={...leaderboardRowFacts(state,race,runner,ruling),...(outrun?{notCounted:true}:{}),place:isFinisher?index+1:null,time:isFinisher?race.times?.places[index]??null:null,status:reasons.length?'Pending':isFinisher?'Finished':'Did not finish',...(reasons.length?{recordingPending:true as const}:{})};
       publishedRows.push(row);
       if(race.deleted) continue;
       actionableRunners.push(row);

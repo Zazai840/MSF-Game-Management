@@ -43,7 +43,7 @@ test('Re-run on a relay heat opens a new heat with the same teams and children, 
   expect((await teamList()).map(team=>team.heats)).toEqual([[1],[1],[1]]);
 });
 
-test('Delete race makes its teams still to run, Restore counts them as run again, and a team in two heats ran twice until a lead chooses which result counts',async()=>{
+test('Delete race makes its teams still to run, Restore counts them as run again, and a team in two heats counts its faster run, which a lead can change',async()=>{
   const {sam,lead,relays,teams,heat,teamList}=await start();
   await teams(3);
   const first=await heat([1,2]);
@@ -61,14 +61,14 @@ test('Delete race makes its teams still to run, Restore counts them as run again
   const restored=await call(lead,`/api/lead/races/${first}/restore`,{});
   expect(restored.statusCode).toBe(200);
   expect((await teamList()).map(team=>team.heats)).toEqual([[2,1],[2],[1]]);
-  const twice=(restored.json() as EventResultsRead).results.leaderboard.filter(row=>row.flags.some(flag=>flag.kind==='ran-twice'));
-  expect(twice.map(row=>[row.team?.number,row.race.number])).toEqual([[1,1],[1,2]]);
-  // Choose which result counts: Team 1's new Heat 1 result counts, its Heat 2 result stays visible as not counted.
-  const counted=twice.find(row=>row.race.number===1)!;
+  const teamOne=(read:EventResultsRead)=>read.results.leaderboard.filter(row=>row.team?.number===1).map(row=>[row.race.number,row.notCounted,row.flags.map(flag=>flag.kind)]);
+  // Both of Team 1's runs are 34.00: the earlier one (the restored Heat 2) counts with nothing to check, Heat 1 stays visible as not counted.
+  expect(teamOne(restored.json())).toEqual([[2,false,[]],[1,true,[]]]);
+  // Choose which result counts: Team 1's new Heat 1 result counts instead.
+  const counted=(restored.json() as EventResultsRead).results.leaderboard.find(row=>row.team?.number===1 && row.race.number===1)!;
   const response=await call(lead,`/api/lead/races/${third}/runners/${counted.entryId}/count-result`,{});
   expect(response.statusCode).toBe(200);
-  const rows=(response.json() as EventResultsRead).results.leaderboard.filter(row=>row.team?.number===1);
-  expect(rows.map(row=>[row.race.number,row.notCounted,row.flags.map(flag=>flag.kind)])).toEqual([[1,false,[]],[2,true,[]]]);
+  expect(teamOne(response.json())).toEqual([[1,false,[]],[2,true,[]]]);
   expect((response.json() as EventResultsRead).auditNotes[0].message).toBe('Jo Evans counted Team 1 from Heat 1; Heat 2 not counted');
 });
 

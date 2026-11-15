@@ -85,6 +85,7 @@ function Record({race,rowFor,onRunner}:{race:LeadRaceRead['race'];rowFor:(entryI
         {team && <span className="rz-team-legs rz-lead-row__legs">{'team' in who && who.team?teamWristbands(who.team):legsText(team.legs)}</span>}
         {!result && team?.addedAtFinish && <span className="rz-lead-row__note">At finish</span>}
         {wrongTime && <span className="rz-lead-row__note">{wrongTime.reason}</span>}
+        {result?.notCounted && <span className="rz-lead-row__note">Not counted: another run counts</span>}
         {notes.map((note,index)=><span key={index} className="rz-lead-row__note">{note.text}</span>)}
       </>;
       const className=`rz-lead-row${warn?' rz-lead-row--warn':''}`;

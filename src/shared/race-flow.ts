@@ -152,11 +152,10 @@ export function raceNeedsFor(race:Parameters<typeof raceNeed>[0],role:Role,ask=f
 /** Why making the final would be refused: the race it is about, the step to fix it on (none: Results on the event), and the line. */
 export interface FinalReason { raceId:string; step:Step|null; line:string }
 /**
- * What holds the final up, from the heats check sheet's first item: a runner who ran twice (`name` is theirs)
- * or why the heat is not ranked yet (`name` is the heat's). "Heat 1 has a time to check first".
+ * What holds the final up, from the heats check sheet's first item: why the heat (`name`) is not ranked yet.
+ * "Heat 1 has a time to check first".
  */
-export function finalHold(kind:'ran-twice'|NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
-  if(kind==='ran-twice') return {step:null,line:`${name} ran twice: choose which result counts first`};
+export function finalHold(kind:NotRankedReason|undefined,name:string):Omit<FinalReason,'raceId'> {
   if(kind==='times out of order' || kind==="finishers and times don't agree") return {step:'times',line:`${name} has a time to check first`};
   if(kind==='awaiting times') return {step:'times',line:`${name} needs its times first`};
   if(kind==='awaiting finishing order' || kind==='checked in') return {step:'positions',line:`${name} needs its finishing order first`};

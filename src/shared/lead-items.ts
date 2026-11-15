@@ -1,4 +1,4 @@
-import { resultHolder,resultName,type EventState,type LeaderboardRow,type ResultTie,type LeadItem,type ResultsRace,type WarningKind } from './results-rules.js';
+import { resultName,type EventState,type LeaderboardRow,type ResultTie,type LeadItem,type ResultsRace,type WarningKind } from './results-rules.js';
 import { isOpenEligibilityWarning } from './runner-rulings.js';
 import { formatTime } from './time-entry.js';
 import { notCountedReasons } from './race-counts.js';
@@ -37,10 +37,6 @@ export function eventLeadItems(state:EventState,rows:readonly LeaderboardRow[],t
     if(warnings.length) items.push({id:`warning:${row.raceId}:${row.entryId}`,kind:'warning',raceId:row.raceId,entryId:row.entryId,at:warned,message:`${resultName(row)}: ${warnings.map(flag=>flag.message).join('; ')}`,wristband:row.wristband??undefined,warningKinds:warnings.flatMap(flag=>flag.warningKind?[flag.warningKind]:[]),
       ...(row.team?{...teamOf(row),warnings:warnings.map(flag=>flag.message)}:{})});
     if(row.flags.some(flag=>flag.kind==='added-at-finish' && !flag.checked)) items.push({id:`added:${row.raceId}:${row.entryId}`,kind:'added-at-finish',raceId:row.raceId,entryId:row.entryId,at:changed(race,'finish',row.entryId,[],race.leadTimes?.[`added:${row.entryId}`]),message:`${resultName(row)}: Added at the finish`,wristband:row.wristband??undefined,...teamOf(row)});
-    if(row.flags.some(flag=>flag.kind==='ran-twice')) {
-      const copies=rows.filter(other=>resultHolder(other)===resultHolder(row) && other.flags.some(flag=>flag.kind==='ran-twice') && active.some(race=>race.id===other.raceId));
-      items.push({id:`ran-twice:${row.raceId}:${row.entryId}`,kind:'ran-twice',raceId:row.raceId,entryId:row.entryId,at:latest(copies.map(other=>changed(active.find(race=>race.id===other.raceId)!,'runners',other.entryId,['correct-number','correct-runners','correct-finish-order','count-result','disqualify','lift-disqualification']))),message:`${resultName(row)}: Ran twice in this event`,wristband:row.wristband??undefined,...teamOf(row)});
-    }
   }
   for(const tie of ties) items.push({id:`tie:${tie.id}`,kind:'tie',tieId:tie.id,at:latest([...tie.entries.flatMap(entry=>{const race=active.find(race=>race.id===entry.raceId)!;return [changed(race,'finish'),changed(race,'times')];}),...(state.auditNotes||[]).filter(note=>['disqualify','lift-disqualification','correct-number','count-result','correct-times','accept-times','correct-runners','correct-finish-order','restore-race','delete-race','delete-race-permanently','re-run'].includes(note.action)).map(note=>note.at)]),message:`Tie at ${formatTime(tie.time)}: ${tie.entries.map(resultName).join(', ')}`,tie:{time:tie.time,names:tie.entries.map(resultName),raceIds:[...new Set(tie.entries.map(entry=>entry.raceId))],...(tie.entries.some(entry=>entry.team)?{teams:tie.entries.flatMap(entry=>entry.team?[entry.team]:[])}:{})}});
   return items.sort((a,b)=>b.at.localeCompare(a.at)||a.id.localeCompare(b.id));

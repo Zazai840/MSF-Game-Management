@@ -56,25 +56,25 @@ test('added-at-finish acknowledgment is narrow, audited, revisioned and Lead-onl
   expect((await call(owner,'/api/day')).json().revision).toBe(revision+1);
   expect((await call(lead,command,{})).statusCode).toBe(409);
 });
-test('all five item kinds are persisted newest first and each existing settlement path clears its live item',async()=>{
+test('all four item kinds are persisted newest first, each settlement path clears its live item, and a child in two races is never one',async()=>{
   const {lead,saved,withAdded,queue,path}=await start();
   const warning=await saved([3045],[1300]);
   await withAdded([2001],[2002],[1400,1450]);
   const duplicate=await saved([2003],[1500]),duplicate2=await saved([2003],[1550]);
   const times=await saved([2004,2005],[1700,1600],[1]);
   for(const number of [2010,2011]) await saved([number],[2000]);
-  const items=(await queue()).needsYou;expect(items.map((item:any)=>item.kind)).toEqual(['tie','times-out-of-order','ran-twice','ran-twice','added-at-finish','warning']);
+  const items=(await queue()).needsYou;expect(items.map((item:any)=>item.kind)).toEqual(['tie','times-out-of-order','added-at-finish','warning']);
   expect((await queue()).needsYou.map((item:any)=>[item.id,item.at])).toEqual(items.map((item:any)=>[item.id,item.at]));
-  expect(new Date(items[1].at).valueOf()).toBeGreaterThan(new Date(items[5].at).valueOf());
+  expect(new Date(items[1].at).valueOf()).toBeGreaterThan(new Date(items[3].at).valueOf());
   await call(lead,`/api/lead/events/R4/settle-tie`,{tieId:items[0].tieId,outcome:'no-run-off'});
   await call(lead,`/api/lead/races/${times.id}/times`,{baseVersion:1,places:[1700,1600],acceptOutOfOrder:true});
   await call(lead,path(duplicate2)+'/count-result',{});
   const after=(await queue()).needsYou;expect(after.map((item:any)=>item.kind).sort()).toEqual(['added-at-finish','warning']);
-  await call(lead,`/api/lead/races/${warning.id}/delete`,{permanent:false});expect((await queue()).needsYou.map((item:any)=>item.kind)).toEqual(['added-at-finish']);
+  // With 1st place deleted, the 20.00 tie moves to 6th and 7th: it now decides the last qualifying place, so it is back to decide.
+  await call(lead,`/api/lead/races/${warning.id}/delete`,{permanent:false});expect((await queue()).needsYou.map((item:any)=>item.kind)).toEqual(['tie','added-at-finish']);
   await call(lead,`/api/lead/races/${warning.id}/restore`,{});expect((await queue()).needsYou[0]).toMatchObject({kind:'warning',raceId:warning.id});
   await call(lead,path(duplicate)+'/correct-number',{expectedWristband:2003,wristband:2007});
-  await call(lead,path(duplicate2)+'/correct-number',{expectedWristband:2003,wristband:2007});expect((await queue()).needsYou.filter((item:any)=>item.kind==='ran-twice')).toHaveLength(2);
-  await call(lead,path(duplicate2)+'/disqualify',{reason:'Obstruction'});expect((await queue()).needsYou.filter((item:any)=>item.kind==='ran-twice')).toEqual([]);
+  await call(lead,path(duplicate2)+'/correct-number',{expectedWristband:2003,wristband:2007});expect((await queue()).needsYou.map((item:any)=>item.kind).sort()).toEqual(['added-at-finish','warning']);
   await call(lead,`/api/lead/races/${times.id}/times`,{baseVersion:2,places:[1800,1600]});expect((await queue()).needsYou.some((item:any)=>item.kind==='times-out-of-order')).toBe(true);
   await call(lead,`/api/lead/races/${times.id}/times`,{baseVersion:3,places:[1600,1800]});expect((await queue()).needsYou.some((item:any)=>item.kind==='times-out-of-order')).toBe(false);
 });
@@ -101,6 +101,5 @@ test('the lead queue carries the facts To check needs to explain each item in pl
   expect(explained('times-out-of-order')).toEqual(['2nd place (13.05) is faster than 1st (16.00). The timer kept it as typed.']);
   expect(explained('warning')).toEqual(['3045 is not a Girl Cubs number. Girl Cubs wristbands are 2000 to 2999. Correct it or mark it checked.']);
   expect(explained('added-at-finish')).toEqual(['2002 crossed the line but was not checked in at the start. Check they ran in this race.']);
-  expect(explained('ran-twice')).toEqual(Array(2).fill('2001 has a result in more than one race of this event. Choose which result counts.'));
   expect(explained('tie')).toEqual(['2010 and 2011 both have 20.00. Decide whether a run-off is needed.']);
 });

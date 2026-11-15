@@ -15,9 +15,8 @@ describe('To check wording',()=>{
     expect(toCheckWording(item({kind:'warning',message:'3045: 3045 belongs to Boy Scouts - this race is Boy Cubs',wristband:3045,warningKinds:['wrong-section']}))).toMatchObject({title:'A wristband number needs checking',explanation:'3045 is not a Boy Cubs number. Boy Cubs wristbands are 1000 to 1999. Correct it or mark it checked.'});
     expect(toCheckWording(item({kind:'warning',message:'0: unknown',wristband:0,warningKinds:['unknown-number']})).explanation).toBe('0 is not a wristband number. Wristbands are 1 to 4999. Correct it or mark it checked.');
   });
-  it('explains a runner added at the finish and a runner who ran twice',()=>{
+  it('explains a runner added at the finish',()=>{
     expect(toCheckWording(item({kind:'added-at-finish',message:'2002: Added at the finish',wristband:2002}))).toMatchObject({title:'A runner was added at the finish',explanation:'2002 crossed the line but was not checked in at the start. Check they ran in this race.'});
-    expect(toCheckWording(item({kind:'ran-twice',message:'2001: Ran twice in this event',wristband:2001}))).toMatchObject({title:'A runner ran twice',explanation:'2001 has a result in more than one race of this event. Choose which result counts.'});
   });
   it('explains a tie, which belongs to the event rather than one race',()=>{
     expect(toCheckWording(item({kind:'tie',message:'Tie at 20.00: 2004, 2005',race:undefined,raceId:undefined,tieId:'t',tie:{time:2000,names:['2004','2005'],raceIds:['r1','r2']}}))).toEqual({
@@ -52,7 +51,7 @@ describe('To check wording',()=>{
     expect(issueLine([item({kind:'added-at-finish',message:'a',race:heat(3),raceId:'r3',wristband:2001}),item({kind:'added-at-finish',message:'b',race:heat(3),raceId:'r3',wristband:2002})]))
       .toBe('Heat 3: 2 runners added at the finish');
     expect(issueLine([...wristbands,item({kind:'warning',message:'odd',race:heat(1),raceId:'r1'}),item({kind:'times-out-of-order',message:'t',race:heat(2),raceId:'r2'}),
-      item({kind:'ran-twice',message:'t',race:heat(2),raceId:'r2',wristband:2001}),item({kind:'tie',message:'t',race:undefined,raceId:undefined})]))
+      item({kind:'added-at-finish',message:'t',race:heat(2),raceId:'r2',wristband:2001}),item({kind:'tie',message:'t',race:undefined,raceId:undefined})]))
       .toBe('Heat 2: 9 wristbands to check · Heat 1: 1 wristband to check · 3 more');
   });
 });
@@ -62,22 +61,22 @@ describe("A lead's card problem buttons",()=>{
   const on=(number:number,fields:Partial<DayLeadItem>&Pick<DayLeadItem,'kind'>)=>item({message:'m',race:heat(number),raceId:`r${number}`,entryId:'e',...fields});
   const tie=(id:string,from:DayLeadItem['event']=event)=>item({kind:'tie',message:'t',event:from,race:undefined,raceId:undefined,tieId:id,tie:{time:2000,names:['2004','2005'],raceIds:['r1','r2']}});
   it('names the race and the count of each kind on an individual event, and opens that race\'s page',()=>{
-    const kinds=['times-out-of-order','warning','added-at-finish','ran-twice'] as const;
+    const kinds=['times-out-of-order','warning','added-at-finish'] as const;
     expect(problemButtons(kinds.map((kind,index)=>on(index+1,{kind,wristband:2001})))).toEqual([
       {label:'Check Heat 1 · 1 time',target:{event,raceId:'r1'}},{label:'Check Heat 2 · 1 wristband',target:{event,raceId:'r2'}},
-      {label:'Check Heat 3 · 1 runner',target:{event,raceId:'r3'}},{label:'Check Heat 4 · 1 runner',target:{event,raceId:'r4'}}]);
+      {label:'Check Heat 3 · 1 runner',target:{event,raceId:'r3'}}]);
   });
   it('counts teams and children on a relay',()=>{
-    const kinds=['two-relays','ran-short','added-at-finish','ran-twice','warning','times-out-of-order'] as const;
+    const kinds=['two-relays','ran-short','added-at-finish','warning','times-out-of-order'] as const;
     expect(problemButtons(kinds.map((kind,index)=>on(index+1,{kind,event:relay,team:5}))).map(button=>button.label)).toEqual([
-      'Check Heat 1 · 1 child','Check Heat 2 · 1 team','Check Heat 3 · 1 team','Check Heat 4 · 1 team','Check Heat 5 · 1 wristband','Check Heat 6 · 1 time']);
+      'Check Heat 1 · 1 child','Check Heat 2 · 1 team','Check Heat 3 · 1 team','Check Heat 4 · 1 wristband','Check Heat 5 · 1 time']);
     expect(problemButtons([on(1,{kind:'two-relays',event:relay,team:5}),on(1,{kind:'two-relays',event:relay,team:6})])).toEqual([{label:'Check Heat 1 · 2 children',target:{event:relay,raceId:'r1'}}]);
   });
   it('is one button per race, in the order of the items: a race with more than one kind counts its problems',()=>{
     const final={id:'f',kind:'final' as const,number:1,checkedInAt:'2026-10-14T11:00:00Z'};
     expect(problemButtons([on(2,{kind:'warning'}),on(1,{kind:'warning'}),on(2,{kind:'warning'}),on(2,{kind:'times-out-of-order'}),on(9,{kind:'times-out-of-order',race:final,raceId:'f'})]).map(button=>button.label))
       .toEqual(['Check Heat 2 · 3 problems','Check Heat 1 · 1 wristband','Check Final · 1 time']);
-    expect(problemButtons([on(1,{kind:'added-at-finish',wristband:2001}),on(1,{kind:'ran-twice',wristband:2002})])).toEqual([{label:'Check Heat 1 · 2 problems',target:{event,raceId:'r1'}}]);
+    expect(problemButtons([on(1,{kind:'added-at-finish',wristband:2001}),on(1,{kind:'warning',wristband:2002})])).toEqual([{label:'Check Heat 1 · 2 problems',target:{event,raceId:'r1'}}]);
   });
   it('says Decide the tie: one tie opens the tie, more than one the event in Results',()=>{
     expect(problemButtons([tie('t1')])).toEqual([{label:'Decide the tie',target:{event,tieId:'t1'}}]);
@@ -91,7 +90,6 @@ describe("A problem's button",()=>{
   const tie=item({kind:'tie',message:'t',race:undefined,raceId:undefined,tieId:'t1'});
   it('on the race page opens the correction that fits the problem',()=>{
     expect(problemFix(tie,{kind:'heat',relay:false})).toEqual({label:'Decide the tie',opens:'tie'});
-    expect(problemFix(item({kind:'ran-twice',message:'m'}),{kind:'heat',relay:false})).toEqual({label:'Fix',opens:'choose-result'});
     expect(problemFix(item({kind:'times-out-of-order',message:'m'}),{kind:'heat',relay:false})).toEqual({label:'Fix time',opens:'correct-times'});
     expect(problemFix(item({kind:'times-out-of-order',message:'m'}),{kind:'final',relay:false})).toEqual({label:'Fix time',opens:'correct-finishing-order'});
     for(const kind of ['warning','added-at-finish'] as const) expect(problemFix(item({kind,message:'m'}),{kind:'heat',relay:false})).toEqual({label:'Fix',opens:'correct-runner-list'});
@@ -105,8 +103,8 @@ describe("A problem's button",()=>{
   it("a place is fixed in a final's finishing order, else in its race's times",()=>{
     expect([placesCorrection(true),placesCorrection(false)]).toEqual(['correct-finishing-order','correct-times']);
   });
-  it("It's right accepts every kind but a second run and a tie",()=>{
-    const kinds=['warning','two-relays','ran-short','added-at-finish','times-out-of-order','ran-twice','tie'] as const;
+  it("It's right accepts every kind but a tie",()=>{
+    const kinds=['warning','two-relays','ran-short','added-at-finish','times-out-of-order','tie'] as const;
     expect(kinds.filter(kind=>acceptable({kind}))).toEqual(['warning','two-relays','ran-short','added-at-finish','times-out-of-order']);
   });
 });
